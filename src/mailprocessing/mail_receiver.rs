@@ -450,7 +450,8 @@ where
 
         io.write_to_stream(SMTPReplyCode::Code220.as_str())?;
 
-        self.rule_engine.add_data("connect", self.client_address);
+        self.rule_engine
+            .add_data("connect", self.client_address.ip());
 
         match self.rule_engine.run_when("connect") {
             Status::Deny => {

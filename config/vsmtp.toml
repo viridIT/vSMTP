@@ -1,6 +1,6 @@
 [paths]
 logs_file = "./config/log4rs.toml"
-rules_dir = "./config/test-rhai"
+rules_dir = "./config/rules"
 spool_dir = "./tmp/spool"
 quarantine_dir = "./tmp/quarantine"
 
