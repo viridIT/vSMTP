@@ -57,7 +57,7 @@ impl OperationQueue {
 }
 
 #[derive(Debug)]
-enum Var {
+pub(super) enum Var {
     Ip4(Ipv4Addr),
     Ip6(Ipv6Addr),
     Address(String),
@@ -460,7 +460,7 @@ fn internal_is_rcpt(rcpt: &[String], object: &Var) -> bool {
 }
 
 /// contains the scope of the connexion and a reference to the RhaiEngine.
-pub struct RuleEngine<'a> {
+pub(crate) struct RuleEngine<'a> {
     inner: Scope<'a>,
 }
 
@@ -584,37 +584,18 @@ impl<'a> RuleEngine<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct RhaiEngine {
-    context: Engine,
-    ast: AST,
+pub(super) struct RhaiEngine {
+    pub(super) context: Engine,
+    pub(super) ast: AST,
 
     // ? use SmartString<LazyCompact> ? What about long object names ?
-    objects: Arc<RwLock<BTreeMap<String, Var>>>,
+    pub(super) objects: Arc<RwLock<BTreeMap<String, Var>>>,
 }
 
 impl RhaiEngine {
-    fn new() -> Result<Self, Box<dyn Error>> {
-        let path = config::get::<String>("paths.rules_dir").unwrap();
-        let src_path = Path::new(&path);
+    pub(crate) fn from_bytes(src: &[u8]) -> Result<Self, Box<dyn Error>> {
         let mut engine = Engine::new();
-
         let objects = Arc::new(RwLock::new(BTreeMap::new()));
-
-        fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
-            let mut buffer = vec![];
-
-            if path.is_file() {
-                buffer.push(format!("{}\n", fs::read_to_string(path)?));
-            } else if path.is_dir() {
-                for entry in fs::read_dir(path)? {
-                    let dir = entry?;
-                    buffer.extend(load_sources(&dir.path())?);
-                }
-            }
-
-            Ok(buffer)
-        }
-
         let shared_obj = objects.clone();
 
         // register our vsl global module
@@ -844,18 +825,18 @@ impl RhaiEngine {
             },
         );
 
-        let mut src = Vec::with_capacity(100);
+        let mut script = Vec::with_capacity(100);
 
-        src.extend(include_bytes!("./currying.rhai"));
-        src.extend(load_sources(src_path)?.concat().as_bytes());
-        src.extend(include_bytes!("./rule_executor.rhai"));
+        script.extend(include_bytes!("./currying.rhai"));
+        script.extend(src);
+        script.extend(include_bytes!("./rule_executor.rhai"));
 
-        let src = std::str::from_utf8(&src)?;
+        let script = std::str::from_utf8(&script)?;
 
         log::debug!(target: "rule_engine", "compiling rhai script ...");
-        log::trace!(target: "rule_engine", "sources:\n{}", src);
+        log::trace!(target: "rule_engine", "sources:\n{}", script);
 
-        let ast = engine.compile(src)?;
+        let ast = engine.compile(script)?;
 
         log::debug!(target: "rule_engine", "done.");
 
@@ -864,6 +845,28 @@ impl RhaiEngine {
             ast,
             objects,
         })
+    }
+
+    fn new() -> Result<Self, Box<dyn Error>> {
+        let path = config::get::<String>("paths.rules_dir").unwrap();
+        let src_path = Path::new(&path);
+
+        fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+            let mut buffer = vec![];
+
+            if path.is_file() {
+                buffer.push(format!("{}\n", fs::read_to_string(path)?));
+            } else if path.is_dir() {
+                for entry in fs::read_dir(path)? {
+                    let dir = entry?;
+                    buffer.extend(load_sources(&dir.path())?);
+                }
+            }
+
+            Ok(buffer)
+        }
+
+        RhaiEngine::from_bytes(load_sources(src_path)?.concat().as_bytes())
     }
 }
 
@@ -880,7 +883,7 @@ lazy_static! {
         }
     };
 
-    static ref DEFAULT_SCOPE: Scope<'static> = {
+    pub(crate) static ref DEFAULT_SCOPE: Scope<'static> = {
         let mut scope = Scope::new();
         scope
         // stage variables.

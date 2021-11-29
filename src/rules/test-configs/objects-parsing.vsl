@@ -14,10 +14,11 @@ obj ip4 "localhost" #{
 };
 
 // fully qualified domain name objects.
-// NOTE: objects can be declared in an inline maner.
+// NOTE: objects can be declared in an inline manner.
+//       redefined objects are overwritten.
 obj fqdn "inline_fqdn" "viridit.com";
 obj fqdn "inline_fqdn" "xxx.com";
-// obj fqdn "invalid_fqdn" "foobar";
+// obj fqdn "invalid_fqdn" "foobar..com";
 
 // variables, represent simple strings.
 obj val "user_dev" "gitdev";
@@ -31,7 +32,7 @@ obj addr "green" "green@bar.com";
 
 // files object, format: `file:(content-type)`
 // content-type can be: ip4, ip6, fqdn, val, addr or regex.
-obj file:addr "whitelist" "./config/rules/whitelist.txt";
+obj file:addr "whitelist" "./src/rules/test-configs/whitelist.txt";
 
 // regex objects.
 obj regex "viridit_staff" "^[a-z0-9.]+@viridit.com$";
@@ -42,10 +43,10 @@ obj regex "localhost_emails" "^[a-z0-9.]+@localhost$";
 // You can store and mix any type of object inside a group.
 // when passed down into a check action, the whole group will
 // be tested. The test stops when one of the groups content
-// matchs.
+// matches.
 obj grp "authorized_users" [
   whitelist,
-  obj addr "authorized_ip" "1.1.1.1",
+  obj ip4 "authorized_ip" "1.1.1.1",
 ];
 
 // groups can be nested into other groups.

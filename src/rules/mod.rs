@@ -15,3 +15,4 @@
  *
 **/
 pub mod rule_engine;
+mod test;
