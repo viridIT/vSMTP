@@ -1,0 +1,26 @@
+[paths]
+logs_file = "./config/log4rs.toml"
+rules_dir = "./config/test-rhai"
+spool_dir = "./tmp/spool"
+quarantine_dir = "./tmp/quarantine"
+
+[server]
+## inet address for the server to listen to
+addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
+
+[tls]
+## [none/may/encrypt] => disable/allow/force encryption
+security_level = "may"
+capath = "./config/certs"
+## Use the server's prefered cipherlist instead of the client one
+preempt_cipherlist = true
+## Maxmimun delay for the tls handshake (milliseconds)
+handshake_timeout_ms = 100
+
+sni_maps = [
+    { domain = "testserver.com", cert = "{capath}/fullchain.{domain}.pem", chain = "{capath}/rsa.{domain}.pem" },
+]
+
+## [smpt.timeout_client]
+## helo = 100
+## data = 100
