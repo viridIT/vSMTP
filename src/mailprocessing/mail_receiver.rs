@@ -1,6 +1,19 @@
-use std::net::Ipv4Addr;
-use std::str::FromStr;
-
+/**
+ * vSMTP mail transfer agent
+ * Copyright (C) 2021 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+**/
 use super::reader::{MyConnectionIO, ReadError};
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
@@ -26,8 +39,7 @@ pub struct MailReceiver<'a, R>
 where
     R: DataEndResolver,
 {
-    ip: String,
-    port: u16,
+    client_address: std::net::SocketAddr,
     state: State,
     mail: MailContext,
     rule_engine: RuleEngine<'a>,
@@ -43,13 +55,12 @@ where
     R: DataEndResolver,
 {
     pub fn new(
-        addr: &std::net::SocketAddr,
+        client_address: std::net::SocketAddr,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         tls_security_level: TlsSecurityLevel,
     ) -> Self {
         Self {
-            ip: addr.ip().to_string(),
-            port: addr.port(),
+            client_address,
             state: State::Connect,
             rule_engine: RuleEngine::new(),
             force_accept: false,
@@ -99,7 +110,7 @@ where
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
-                    self.port, self.mail.envelop,
+                    self.client_address.port(), self.mail.envelop,
                 );
 
                 self.rule_engine.add_data("helo", helo);
@@ -121,7 +132,7 @@ where
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
-                    self.port, self.mail.envelop,
+                    self.client_address.port(), self.mail.envelop,
                 );
                 self.rule_engine.add_data("helo", helo);
 
@@ -160,7 +171,7 @@ where
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
-                    self.port, self.mail.envelop,
+                    self.client_address.port(), self.mail.envelop,
                 );
                 self.rule_engine.add_data("mail", mail_from);
 
@@ -182,7 +193,7 @@ where
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
-                    self.port, self.mail.envelop,
+                    self.client_address.port(), self.mail.envelop,
                 );
 
                 (Some(State::RcptTo), Some(SMTPReplyCode::Code250))
@@ -270,7 +281,7 @@ where
 
     /// handle a clear text received with plain_stream or tls_stream
     async fn handle_plain_text(&mut self, client_message: String) -> Option<String> {
-        log::trace!(target: "mail_receiver", "[p:{}] buffer=\"{}\"", self.port, client_message);
+        log::trace!(target: "mail_receiver", "[p:{}] buffer=\"{}\"", self.client_address.port(), client_message);
 
         let command_or_code = if self.state == State::Data {
             Event::parse_data
@@ -281,7 +292,7 @@ where
         log::trace!(
             target: "mail_receiver",
             "[p:{}] parsed=\"{:?}\"",
-            self.port, command_or_code
+            self.client_address.port(), command_or_code
         );
 
         let (new_state, reply) = match command_or_code {
@@ -293,7 +304,7 @@ where
             log::warn!(
                 target: "mail_receiver",
                 "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
-                self.port, self.state, new_state
+                self.client_address.port(), self.state, new_state
             );
             self.state = new_state;
         }
@@ -302,7 +313,7 @@ where
             log::warn!(
                 target: "mail_receiver",
                 "[p:{}] send=\"{:?}\"",
-                self.port, rp
+                self.client_address.port(), rp
             );
 
             Some(rp.as_str().to_string())
@@ -325,12 +336,12 @@ where
             },
             Err(ReadError::Blocking) => Ok(()),
             Err(ReadError::Eof) => {
-                log::warn!(target: "mail_receiver", "[p:{}] (secured:{}) eof", self.port, self.is_secured);
+                log::warn!(target: "mail_receiver", "[p:{}] (secured:{}) eof", self.client_address.port(), self.is_secured);
                 self.state = State::Stop;
                 Ok(())
             }
             Err(ReadError::Other(e)) => {
-                log::error!(target: "mail_receiver", "[p:{}] (secured:{}) error {}", self.port, self.is_secured, e);
+                log::error!(target: "mail_receiver", "[p:{}] (secured:{}) error {}", self.client_address.port(), self.is_secured, e);
                 self.state = State::Stop;
                 Err(e)
             }
@@ -398,13 +409,13 @@ where
         log::info!(
             target: "mail_receiver",
             "[p:{}] is_handshaking={}",
-            self.port, io.inner.conn.is_handshaking()
+            self.client_address.port(), io.inner.conn.is_handshaking()
         );
 
         log::debug!(
             target: "mail_receiver",
             "[p:{}] protocol_version={:#?}\nalpn_protocol={:#?}\nnegotiated_cipher_suite={:#?}\npeer_certificates={:#?}\nsni_hostname={:#?}",
-            self.port,
+            self.client_address.port(),
             io.inner.conn.protocol_version(),
             io.inner.conn.alpn_protocol(),
             io.inner.conn.negotiated_cipher_suite(),
@@ -415,7 +426,7 @@ where
         log::warn!(
             target: "mail_receiver",
             "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
-            self.port, self.state, State::Connect
+            self.client_address.port(), self.state, State::Connect
         );
 
         self.reset();
@@ -439,21 +450,7 @@ where
 
         io.write_to_stream(SMTPReplyCode::Code220.as_str())?;
 
-        self.rule_engine.add_data(
-            "connect",
-            match Ipv4Addr::from_str(&self.ip) {
-                Ok(addr) => {
-                    log::debug!("connect is '{}'", addr);
-                    addr
-                }
-                Err(error) => {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("couldn't parse the ip & port: {}", error),
-                    ));
-                }
-            },
-        );
+        self.rule_engine.add_data("connect", self.client_address);
 
         match self.rule_engine.run_when("connect") {
             Status::Deny => {
@@ -461,7 +458,7 @@ where
                     std::io::ErrorKind::Other,
                     format!(
                         "connection at '{}' has been denied when connecting.",
-                        self.ip
+                        self.client_address
                     ),
                 ))
             }
