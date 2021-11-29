@@ -1,6 +1,12 @@
 {
     "cSpell.words": [
         "ehlo",
-        "helo"
+        "Expn",
+        "Faccept",
+        "helo",
+        "rhai",
+        "Rset",
+        "rustls",
+        "Vrfy"
     ]
 }
