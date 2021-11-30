@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use super::reader::{MyConnectionIO, ReadError};
+use super::io_service::{IoService, ReadError};
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
 use crate::resolver::DataEndResolver;
@@ -24,7 +24,7 @@ use crate::smtp::code::SMTPReplyCode;
 use crate::smtp::event::Event;
 
 /// Abstracted memory of the last client message
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub enum State {
     Connect,
     Helo,
@@ -33,6 +33,34 @@ pub enum State {
     RcptTo,
     Data,
     Stop,
+}
+
+impl std::str::FromStr for State {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "connect" => Ok(State::Connect),
+            "helo" => Ok(State::Helo),
+            "mail" => Ok(State::MailFrom),
+            "rcpt" => Ok(State::RcptTo),
+            "data" => Ok(State::Data),
+            _ => Err("not a valid value"),
+        }
+    }
+}
+
+lazy_static::lazy_static! {
+    static ref NEXT_LINE_TIMEOUT: std::collections::HashMap<State, std::time::Duration> = {
+         crate::config::get::<std::collections::HashMap<String,u64>>("smtp.timeout_client")
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|(k, v)|
+            <State as std::str::FromStr>::from_str(&k).ok().and_then(|s|
+                Some((s, std::time::Duration::from_millis(v)))
+            ))
+            .collect::<std::collections::HashMap<State,std::time::Duration>>()
+    };
 }
 
 pub struct MailReceiver<'a, R>
@@ -47,6 +75,7 @@ where
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     tls_security_level: TlsSecurityLevel,
     is_secured: bool,
+    next_line_timeout: std::time::Duration,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -71,6 +100,9 @@ where
             tls_config,
             tls_security_level,
             is_secured: false,
+            next_line_timeout: *NEXT_LINE_TIMEOUT
+                .get(&State::Connect)
+                .unwrap_or(&std::time::Duration::from_millis(10_000)),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -150,11 +182,11 @@ where
                 }
             }
 
-            (State::Helo, Event::STARTTLS) if self.tls_config.is_some() => {
+            (State::Helo, Event::StartTls) if self.tls_config.is_some() => {
                 (Some(State::NegotiationTLS), Some(SMTPReplyCode::Code220))
             }
 
-            (State::Helo, Event::STARTTLS) if self.tls_config.is_none() => {
+            (State::Helo, Event::StartTls) if self.tls_config.is_none() => {
                 (None, Some(SMTPReplyCode::Code454))
             }
 
@@ -307,6 +339,10 @@ where
                 self.client_address.port(), self.state, new_state
             );
             self.state = new_state;
+            let new_duration = *NEXT_LINE_TIMEOUT
+                .get(&self.state)
+                .unwrap_or(&std::time::Duration::from_millis(10_000));
+            self.next_line_timeout = new_duration;
         }
 
         if let Some(rp) = reply {
@@ -322,35 +358,45 @@ where
         }
     }
 
-    async fn read_and_handle<ReadWrite>(
-        &mut self,
-        stream: &mut MyConnectionIO<'_, ReadWrite>,
-    ) -> Result<(), std::io::Error>
+    async fn read_and_handle<S>(&mut self, io: &mut IoService<'_, S>) -> Result<(), std::io::Error>
     where
-        ReadWrite: std::io::Write + std::io::Read,
+        S: std::io::Write + std::io::Read,
     {
-        match stream.get_next_line() {
-            Ok(client_message) => match self.handle_plain_text(client_message).await {
-                Some(response) => stream.write_to_stream(&response),
+        match tokio::time::timeout(self.next_line_timeout, io.get_next_line_async()).await {
+            Ok(Ok(client_message)) => match self.handle_plain_text(client_message).await {
+                Some(response) => std::io::Write::write_all(io, &response.as_bytes()),
                 None => Ok(()),
             },
-            Err(ReadError::Blocking) => Ok(()),
-            Err(ReadError::Eof) => {
-                log::warn!(target: "mail_receiver", "[p:{}] (secured:{}) eof", self.client_address.port(), self.is_secured);
+            Ok(Err(ReadError::Blocking)) => Ok(()),
+            Ok(Err(ReadError::Eof)) => {
+                log::warn!(
+                    target: "mail_receiver", "[p:{}] (secured:{}) eof",
+                    self.client_address.port(), self.is_secured
+                );
                 self.state = State::Stop;
                 Ok(())
             }
-            Err(ReadError::Other(e)) => {
-                log::error!(target: "mail_receiver", "[p:{}] (secured:{}) error {}", self.client_address.port(), self.is_secured, e);
+            Ok(Err(ReadError::Other(e))) => {
+                log::error!(
+                    target: "mail_receiver", "[p:{}] (secured:{}) error {}",
+                    self.client_address.port(), self.is_secured, e
+                );
                 self.state = State::Stop;
                 Err(e)
+            }
+            Err(e) => {
+                std::io::Write::write_all(io, &SMTPReplyCode::Code451timeout.as_str().as_bytes())?;
+                Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
             }
         }
     }
 
-    fn complete_tls_handshake<ReadWrite: std::io::Write + std::io::Read>(
-        io: &mut MyConnectionIO<rustls::Stream<rustls::ServerConnection, ReadWrite>>,
-    ) -> Result<(), std::io::Error> {
+    fn complete_tls_handshake<S>(
+        io: &mut IoService<rustls::Stream<rustls::ServerConnection, S>>,
+    ) -> Result<(), std::io::Error>
+    where
+        S: std::io::Read + std::io::Write,
+    {
         let begin_handshake = std::time::Instant::now();
         let duration = std::time::Duration::from_millis(
             crate::config::get::<u64>("tls.handshake_timeout_ms").unwrap_or(10),
@@ -375,20 +421,17 @@ where
         Ok(())
     }
 
-    async fn receive_secured<ReadWrite>(
-        &mut self,
-        plain_stream: &'_ mut ReadWrite,
-    ) -> Result<(), std::io::Error>
+    async fn receive_secured<S>(&mut self, mut plain_stream: S) -> Result<S, std::io::Error>
     where
-        ReadWrite: std::io::Read + std::io::Write,
+        S: std::io::Read + std::io::Write,
     {
         let mut tls_connection =
             rustls::ServerConnection::new(self.tls_config.as_ref().unwrap().clone()).unwrap();
 
-        let mut tls_stream: rustls::Stream<rustls::ServerConnection, ReadWrite> =
-            rustls::Stream::new(&mut tls_connection, plain_stream);
+        let mut tls_stream: rustls::Stream<rustls::ServerConnection, S> =
+            rustls::Stream::new(&mut tls_connection, &mut plain_stream);
 
-        let mut io = MyConnectionIO::new(&mut tls_stream);
+        let mut io = IoService::new(&mut tls_stream);
 
         Self::complete_tls_handshake(&mut io)?;
 
@@ -432,23 +475,33 @@ where
         self.reset();
         self.state = State::Connect;
         self.is_secured = true;
+        self.next_line_timeout = *NEXT_LINE_TIMEOUT
+            .get(&self.state)
+            .unwrap_or(&std::time::Duration::from_millis(10_000));
 
         while self.state != State::Stop {
             self.read_and_handle(&mut io).await?;
         }
-        Ok(())
+
+        Ok(plain_stream)
     }
 
-    pub async fn receive_plain<ReadWrite>(
-        &mut self,
-        mut plain_stream: &'_ mut ReadWrite,
-    ) -> Result<(), std::io::Error>
+    pub async fn receive_plain<S>(&mut self, mut plain_stream: S) -> Result<S, std::io::Error>
     where
-        ReadWrite: std::io::Write + std::io::Read,
+        S: std::io::Write + std::io::Read,
     {
-        let mut io = MyConnectionIO::new(&mut plain_stream);
+        let mut io = IoService::new(&mut plain_stream);
 
-        io.write_to_stream(SMTPReplyCode::Code220.as_str())?;
+        match std::io::Write::write_all(&mut io, SMTPReplyCode::Code220.as_str().as_bytes()) {
+            Ok(_) => {}
+            Err(e) => {
+                log::error!(
+                    target: "mail_receiver",
+                    "Error on sending response (receiving); error = {:?}", e
+                );
+                return Err(e);
+            }
+        }
 
         self.rule_engine
             .add_data("connect", self.client_address.ip());
@@ -474,6 +527,6 @@ where
 
             self.read_and_handle(&mut io).await?;
         }
-        Ok(())
+        Ok(plain_stream)
     }
 }

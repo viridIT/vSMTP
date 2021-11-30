@@ -57,7 +57,7 @@ pub enum Event {
     // Message size declaration // https://datatracker.ietf.org/doc/html/rfc1870
     // SIZE,
     //  Transport Layer Security // https://datatracker.ietf.org/doc/html/rfc3207
-    STARTTLS,
+    StartTls,
     // Allow UTF-8 encoding in mailbox names and header fields
     // https://datatracker.ietf.org/doc/html/rfc6531
     // SMTPUTF8,
@@ -254,8 +254,8 @@ impl Event {
     /// ```
     /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
-    /// assert_eq!(Event::parse_cmd("StarTtLs"), Ok(Event::STARTTLS));
-    /// assert_eq!(Event::parse_cmd("STARTTLS"), Ok(Event::STARTTLS));
+    /// assert_eq!(Event::parse_cmd("StarTtLs"), Ok(Event::StartTls));
+    /// assert_eq!(Event::parse_cmd("STARTTLS"), Ok(Event::StartTls));
     /// assert_eq!(Event::parse_cmd("STARTTLS dummy"), Err(SMTPReplyCode::Code501));
     /// ```
     pub fn parse_cmd(input: &str) -> Result<Event, SMTPReplyCode> {
@@ -300,7 +300,7 @@ impl Event {
             ("RSET", []) => Ok(Event::RsetCmd),
             ("NOOP", [..]) => Ok(Event::NoopCmd),
 
-            ("STARTTLS", []) => Ok(Event::STARTTLS),
+            ("STARTTLS", []) => Ok(Event::StartTls),
 
             ("PRIV", _) => Err(SMTPReplyCode::Code500),
 

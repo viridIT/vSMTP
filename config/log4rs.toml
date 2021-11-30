@@ -15,11 +15,11 @@ path = "/tmp/vmta.log"
 pattern = "{d} - {m}{n}"
 
 [root]
-level = "info"
+level = "warn"
 appenders = ["default", "requests"]
 
 [loggers.rule_engine]
-level = "trace"
+level = "error"
 
 [loggers.mail_parser]
 level = "warn"

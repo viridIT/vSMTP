@@ -30,10 +30,10 @@ mod tests {
             TlsSecurityLevel::May,
         );
         let mut write = Vec::new();
-        let mut mock = Mock::new(smtp_input.to_vec(), &mut write);
+        let mock = Mock::new(smtp_input.to_vec(), &mut write);
 
-        match receiver.receive_plain(&mut mock).await {
-            Ok(_) => {
+        match receiver.receive_plain(mock).await {
+            Ok(mut mock) => {
                 let _ = mock.flush();
                 assert_eq!(
                     std::str::from_utf8(&write),
@@ -58,7 +58,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 Service ready\r\n",
+                "220 <domain> Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
@@ -77,7 +77,7 @@ mod tests {
         make_test(
             ["foo\r\n"].concat().as_bytes(),
             [
-                "220 Service ready\r\n",
+                "220 <domain> Service ready\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
             ]
             .concat()
@@ -90,9 +90,12 @@ mod tests {
     async fn test_receiver_3() {
         make_test(
             ["MAIL FROM:<jhon@doe>\r\n"].concat().as_bytes(),
-            ["220 Service ready\r\n", "503 Bad sequence of commands\r\n"]
-                .concat()
-                .as_bytes(),
+            [
+                "220 <domain> Service ready\r\n",
+                "503 Bad sequence of commands\r\n",
+            ]
+            .concat()
+            .as_bytes(),
         )
         .await;
     }
@@ -101,9 +104,12 @@ mod tests {
     async fn test_receiver_4() {
         make_test(
             ["RCPT TO:<jhon@doe>\r\n"].concat().as_bytes(),
-            ["220 Service ready\r\n", "503 Bad sequence of commands\r\n"]
-                .concat()
-                .as_bytes(),
+            [
+                "220 <domain> Service ready\r\n",
+                "503 Bad sequence of commands\r\n",
+            ]
+            .concat()
+            .as_bytes(),
         )
         .await;
     }
@@ -115,7 +121,7 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 Service ready\r\n",
+                "220 <domain> Service ready\r\n",
                 "250 Ok\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
@@ -130,7 +136,7 @@ mod tests {
         make_test(
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
-                "220 Service ready\r\n",
+                "220 <domain> Service ready\r\n",
                 "250 Ok\r\n",
                 "221 Service closing transmission channel\r\n",
             ]

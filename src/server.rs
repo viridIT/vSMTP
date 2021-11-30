@@ -104,7 +104,7 @@ where
     fn get_signing_key_from_file(
         chain_path: &str,
     ) -> Result<std::sync::Arc<dyn rustls::sign::SigningKey>, std::io::Error> {
-        // NOTE:
+        // NOTE: ?
         // The chain files MUST start with the private key,
         // with the certificate chain next, starting with the leaf
         // (server) certificate, and then the issuer certificates.
@@ -195,27 +195,23 @@ where
 
     fn handle_client(
         &self,
-        mut stream: std::net::TcpStream,
+        stream: std::net::TcpStream,
         client_addr: std::net::SocketAddr,
     ) -> Result<(), std::io::Error> {
         log::warn!("Connection from: {}", client_addr);
         let tls_config = self.tls_config.as_ref().map(std::sync::Arc::clone);
         let tls_security_level = self.tls_security_level.clone();
 
-        stream.set_nonblocking(true).unwrap();
-
-        // TODO: configurable timeout
-        // stream.set_read_timeout(Some(std::time::Duration::from_millis(1000)))?;
-        // stream.set_write_timeout(Some(std::time::Duration::from_millis(1000)))?;
+        stream.set_nonblocking(true)?;
 
         tokio::spawn(async move {
             log::warn!("Handling client: {}", client_addr);
 
             match MailReceiver::<R>::new(client_addr, tls_config, tls_security_level)
-                .receive_plain(&mut stream)
+                .receive_plain(stream)
                 .await
             {
-                Ok(_) => log::info!("Connection {} closed cleanly", client_addr),
+                Ok(_) => log::warn!("Connection {} closed cleanly", client_addr),
                 Err(e) => {
                     log::error!("Connection {} closed with an error {}", client_addr, e)
                 }
