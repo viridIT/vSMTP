@@ -510,7 +510,8 @@ where
             }
         }
 
-        self.rule_engine.add_data("connect", self.client_address);
+        self.rule_engine
+            .add_data("connect", self.client_address.ip());
 
         match self.rule_engine.run_when("connect") {
             Status::Deny => {

@@ -18,12 +18,15 @@ use crate::config;
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
 
+use ipnet::{Ipv4Net, Ipv6Net};
+use iprange::IpRange;
 use lazy_static::lazy_static;
 use lettre::{Message, SmtpTransport, Transport};
 use regex::Regex;
 use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Module, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
 
+use std::net::IpAddr;
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -60,6 +63,8 @@ impl OperationQueue {
 enum Var {
     Ip4(Ipv4Addr),
     Ip6(Ipv6Addr),
+    Rg4(IpRange<Ipv4Net>),
+    Rg6(IpRange<Ipv6Net>),
     Address(String),
     Fqdn(String),
     Regex(Regex),
@@ -91,6 +96,16 @@ impl Var {
             "ip6" => Ok(Var::Ip6(Ipv6Addr::from_str(&Var::value::<String>(
                 map, "value",
             )?)?)),
+            "rg4" => Ok(Var::Rg4(
+                [Var::value::<String>(map, "value")?.parse::<Ipv4Net>()?]
+                    .into_iter()
+                    .collect(),
+            )),
+            "rg6" => Ok(Var::Rg6(
+                [Var::value::<String>(map, "value")?.parse::<Ipv6Net>()?]
+                    .into_iter()
+                    .collect(),
+            )),
             "fqdn" => {
                 let value = Var::value::<String>(map, "value")?;
                 match addr::parse_domain_name(&value) {
@@ -174,6 +189,8 @@ pub enum Status {
 #[allow(dead_code)]
 #[export_module]
 mod vsl {
+    use std::net::IpAddr;
+
     use crate::model::{envelop::Envelop, mail::MailContext};
 
     #[rhai_fn(name = "op_quarantine")]
@@ -354,14 +371,13 @@ mod vsl {
         !(*in1 == in2)
     }
 
-    // FIXME: 'connect' could be curried with an ipv4 and v6 versions to prevent the conversion.
-    pub fn __is_connect(connect: &mut Ipv4Addr, object: &str) -> bool {
+    pub fn __is_connect(connect: &mut IpAddr, object: &str) -> bool {
         match RHAI_ENGINE.objects.read().unwrap().get(object) {
             Some(object) => internal_is_connect(connect, object),
             None => match Ipv4Addr::from_str(object) {
                 Ok(ip) => ip == *connect,
                 Err(_) => match Ipv6Addr::from_str(object) {
-                    Ok(ip) => ip == connect.to_ipv6_mapped(),
+                    Ok(ip) => ip == *connect,
                     Err(_) => {
                         log::error!(
                             target: "rule_engine",
@@ -402,17 +418,23 @@ mod vsl {
     }
 }
 
-fn internal_is_connect(connect: &Ipv4Addr, object: &Var) -> bool {
+fn internal_is_connect(connect: &IpAddr, object: &Var) -> bool {
     match object {
         Var::Ip4(ip) => *ip == *connect,
-        Var::Ip6(ip) => *ip == connect.to_ipv6_mapped(),
+        Var::Ip6(ip) => *ip == *connect,
+        Var::Rg4(range) => match connect {
+            IpAddr::V4(ip4) => range.contains(ip4),
+            _ => false,
+        },
+        Var::Rg6(range) => match connect {
+            IpAddr::V6(ip6) => range.contains(ip6),
+            _ => false,
+        },
         // NOTE: is there a way to get a &str instead of a String here ?
         Var::Regex(re) => re.is_match(connect.to_string().as_str()),
-        Var::File(content) => content.iter().any(|ip| match ip {
-            Var::Ip4(ip) => *ip == *connect,
-            Var::Ip6(ip) => *ip == connect.to_ipv6_mapped(),
-            _ => false,
-        }),
+        Var::File(content) => content
+            .iter()
+            .any(|object| internal_is_connect(connect, object)),
         Var::Group(group) => group
             .iter()
             .any(|object| internal_is_connect(connect, object)),
@@ -424,10 +446,7 @@ fn internal_is_helo(helo: &str, object: &Var) -> bool {
     match object {
         Var::Fqdn(fqdn) => *fqdn == helo,
         Var::Regex(re) => re.is_match(helo),
-        Var::File(content) => content.iter().any(|fqdn| match fqdn {
-            Var::Fqdn(fqdn) => *fqdn == helo,
-            _ => false,
-        }),
+        Var::File(content) => content.iter().any(|object| internal_is_helo(helo, object)),
         Var::Group(group) => group.iter().any(|object| internal_is_helo(helo, object)),
         _ => false,
     }
@@ -437,10 +456,7 @@ fn internal_is_mail(mail: &str, object: &Var) -> bool {
     match object {
         Var::Address(addr) => *addr == mail,
         Var::Regex(re) => re.is_match(mail),
-        Var::File(content) => content.iter().any(|addr| match addr {
-            Var::Address(addr) => *addr == mail,
-            _ => false,
-        }),
+        Var::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
         Var::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
         _ => false,
     }
@@ -450,10 +466,7 @@ fn internal_is_rcpt(rcpt: &[String], object: &Var) -> bool {
     match object {
         Var::Address(addr) => rcpt.iter().any(|email| *addr == *email),
         Var::Regex(re) => rcpt.iter().any(|email| re.is_match(email)),
-        Var::File(content) => content.iter().any(|addr| match addr {
-            Var::Address(addr) => rcpt.iter().any(|email| *addr == *email),
-            _ => false,
-        }),
+        Var::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
         Var::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
         _ => false,
     }
@@ -721,7 +734,7 @@ impl RhaiEngine {
                 1 => Ok(Some("$ident$".into())),
                 // the type of the object ...
                 2 => match symbols[1].as_str() {
-                    "ip4" | "ip6" | "fqdn" | "addr" | "val" | "regex" | "grp" => Ok(Some("$string$".into())),
+                    "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "val" | "regex" | "grp" => Ok(Some("$string$".into())),
                     "file" => Ok(Some("$symbol$".into())),
                     entry => Err(ParseError(
                         Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
@@ -739,7 +752,7 @@ impl RhaiEngine {
                 // file content type or info block / value of object, we are done parsing.
                 4 => match symbols[3].as_str() {
                     // NOTE: could it be possible to add a "file" content type ?
-                    "ip4" | "ip6" | "fqdn" | "addr" | "val" | "regex" => Ok(Some("$string$".into())),
+                    "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "val" | "regex" => Ok(Some("$string$".into())),
                     _ =>  Ok(None),
                 }
                 // object name for a file.
