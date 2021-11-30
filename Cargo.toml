@@ -28,4 +28,4 @@ lazy_static = "1.4"
 rustls = { version = "0.20.0", features = ["tls12", "logging"] }
 rustls-pemfile = "0.2.1"
 
-tokio = { version = "1.12.0", features = ["full"] }
+tokio = { version = "1.14.0", features = ["full"] }

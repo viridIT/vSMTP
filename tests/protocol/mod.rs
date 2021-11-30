@@ -30,10 +30,10 @@ mod tests {
             TlsSecurityLevel::May,
         );
         let mut write = Vec::new();
-        let mut mock = Mock::new(smtp_input.to_vec(), &mut write);
+        let mock = Mock::new(smtp_input.to_vec(), &mut write);
 
-        match receiver.receive_plain(&mut mock).await {
-            Ok(_) => {
+        match receiver.receive_plain(mock).await {
+            Ok(mut mock) => {
                 let _ = mock.flush();
                 assert_eq!(
                     std::str::from_utf8(&write),

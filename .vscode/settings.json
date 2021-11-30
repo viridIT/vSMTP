@@ -4,9 +4,11 @@
         "Expn",
         "Faccept",
         "helo",
+        "nonblocking",
         "rhai",
         "Rset",
         "rustls",
+        "STARTTLS",
         "Vrfy"
     ]
 }

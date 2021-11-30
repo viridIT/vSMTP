@@ -21,6 +21,7 @@ sni_maps = [
     { domain = "testserver.com", cert = "{capath}/fullchain.{domain}.pem", chain = "{capath}/rsa.{domain}.pem" },
 ]
 
-## [smpt.timeout_client]
-## helo = 100
-## data = 100
+[smtp.timeout_client]
+## Keys are [connect/helo/mail/rcpt/data], values in milleseconds (10s if missing)
+helo = 5000
+data = 500
