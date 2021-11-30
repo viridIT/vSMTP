@@ -22,6 +22,7 @@ sni_maps = [
 ]
 
 [smtp.timeout_client]
+## Delay maximum for the client to the his information
 ## Keys are [connect/helo/mail/rcpt/data], values in milleseconds (10s if missing)
 helo = 5000
 data = 500

@@ -202,12 +202,7 @@ where
         let tls_config = self.tls_config.as_ref().map(std::sync::Arc::clone);
         let tls_security_level = self.tls_security_level.clone();
 
-        // ERROR if non blocking == true
         stream.set_nonblocking(true)?;
-        // TODO: configurable timeout
-
-        // stream.set_read_timeout(Some(std::time::Duration::from_millis(1)))?;
-        // stream.set_write_timeout(Some(std::time::Duration::from_millis(1)))?;
 
         tokio::spawn(async move {
             log::warn!("Handling client: {}", client_addr);
@@ -216,7 +211,7 @@ where
                 .receive_plain(stream)
                 .await
             {
-                Ok(_) => log::info!("Connection {} closed cleanly", client_addr),
+                Ok(_) => log::warn!("Connection {} closed cleanly", client_addr),
                 Err(e) => {
                     log::error!("Connection {} closed with an error {}", client_addr, e)
                 }

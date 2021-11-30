@@ -342,7 +342,6 @@ where
             let new_duration = *NEXT_LINE_TIMEOUT
                 .get(&self.state)
                 .unwrap_or(&std::time::Duration::from_millis(10_000));
-            println!("new timeout duration {:?}", new_duration);
             self.next_line_timeout = new_duration;
         }
 
@@ -365,16 +364,7 @@ where
     {
         match tokio::time::timeout(self.next_line_timeout, io.get_next_line_async()).await {
             Ok(Ok(client_message)) => match self.handle_plain_text(client_message).await {
-                Some(response) => match std::io::Write::write_all(io, &response.as_bytes()) {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        log::error!(
-                            target: "mail_receiver",
-                            "Error on sending response (receiving); error = {:?}", e
-                        );
-                        Err(e)
-                    }
-                },
+                Some(response) => std::io::Write::write_all(io, &response.as_bytes()),
                 None => Ok(()),
             },
             Ok(Err(ReadError::Blocking)) => Ok(()),
@@ -394,7 +384,10 @@ where
                 self.state = State::Stop;
                 Err(e)
             }
-            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e)),
+            Err(e) => {
+                std::io::Write::write_all(io, &SMTPReplyCode::Code451timeout.as_str().as_bytes())?;
+                Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
+            }
         }
     }
 
