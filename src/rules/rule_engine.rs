@@ -371,7 +371,6 @@ mod vsl {
         !(*in1 == in2)
     }
 
-    // FIXME: 'connect' could be curried with an ipv4 and v6 versions to prevent the conversion.
     pub fn __is_connect(connect: &mut IpAddr, object: &str) -> bool {
         match RHAI_ENGINE.objects.read().unwrap().get(object) {
             Some(object) => internal_is_connect(connect, object),
