@@ -1,0 +1,14 @@
+obj rg4 "range4" "127.0.0.1/24";
+obj rg6 "range6" "2400:17c0::/32";
+
+rule connect "range test" #{
+  condition: || vsl.IS_CONNECT("range6"),
+  on_success: || {
+    vsl.LOG("success");
+    vsl.CONTINUE()
+  },
+  on_failure: || {
+    vsl.LOG("failure");
+    vsl.CONTINUE()
+  },
+};
