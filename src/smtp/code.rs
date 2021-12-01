@@ -116,12 +116,18 @@ pub enum SMTPReplyCode {
 }
 
 lazy_static::lazy_static! {
-    // WARN: all the extension must have 250-ext_name except the last one
+    static ref DOMAIN: String = {
+        crate::config::get::<String>("domain")
+                .expect("'domain' is a mandatory field in the config")
+    };
+    static ref CODE_220: String = {
+        ["220 ", &DOMAIN, " Service ready\r\n"].concat()
+    };
     static ref CODE_250_PLAIN_ESMTP: String = {
-        ["250-Ok\r\n", "250 STARTTLS\r\n"].concat()
+        ["250-", &DOMAIN, "\r\n", "250 STARTTLS\r\n"].concat()
     };
     static ref CODE_250_SECURED_ESMTP: String = {
-        ["250 Ok\r\n"].concat()
+        ["250 ", &DOMAIN, "\r\n"].concat()
     };
 }
 
@@ -131,7 +137,7 @@ impl SMTPReplyCode {
     pub fn as_str(&self) -> &'static str {
         match self {
             SMTPReplyCode::Code214 => "214 see https://datatracker.ietf.org/doc/html/rfc5321\r\n",
-            SMTPReplyCode::Code220 => "220 <domain> Service ready\r\n",
+            SMTPReplyCode::Code220 => &CODE_220,
             SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
             SMTPReplyCode::Code250 => "250 Ok\r\n",
             SMTPReplyCode::Code250PlainEsmtp => &CODE_250_PLAIN_ESMTP,
@@ -139,7 +145,7 @@ impl SMTPReplyCode {
             //
             SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             //
-            SMTPReplyCode::Code451timeout => "451 <domain> Timeout - closing connection.\r\n",
+            SMTPReplyCode::Code451timeout => "451 Timeout - closing connection.\r\n",
             SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n",
             SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason\r\n",
             //

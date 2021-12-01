@@ -62,7 +62,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 <domain> Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
@@ -83,7 +83,7 @@ mod tests {
         make_test(
             ["foo\r\n"].concat().as_bytes(),
             [
-                "220 <domain> Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
             ]
             .concat()
@@ -99,7 +99,7 @@ mod tests {
         make_test(
             ["MAIL FROM:<jhon@doe>\r\n"].concat().as_bytes(),
             [
-                "220 <domain> Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
             .concat()
@@ -115,7 +115,7 @@ mod tests {
         make_test(
             ["RCPT TO:<jhon@doe>\r\n"].concat().as_bytes(),
             [
-                "220 <domain> Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
             .concat()
@@ -133,7 +133,7 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 <domain> Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
@@ -150,7 +150,7 @@ mod tests {
         make_test(
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
-                "220 <domain> Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "221 Service closing transmission channel\r\n",
             ]
@@ -169,8 +169,8 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 <domain> Service ready\r\n",
-                "250-Ok\r\n",
+                "220 testserver.com Service ready\r\n",
+                "250-testserver.com\r\n",
                 "250 STARTTLS\r\n",
                 "454 TLS not available due to temporary reason\r\n",
                 "221 Service closing transmission channel\r\n",
@@ -190,8 +190,8 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 <domain> Service ready\r\n",
-                "250-Ok\r\n",
+                "220 testserver.com Service ready\r\n",
+                "250-testserver.com\r\n",
                 "250 STARTTLS\r\n",
                 "530 Must issue a STARTTLS command first\r\n",
                 "221 Service closing transmission channel\r\n",
