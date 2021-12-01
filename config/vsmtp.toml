@@ -1,5 +1,17 @@
+version = "0.1.0"
+
+[log]
+## Filepath of logger
+file = "./tmp/vsmtp.log"
+
+[log.level]
+## Log level of the different part of the program
+## Keys are [default/rule_engine/mail_receiver], values in [trace/debug/info/warn/error/off]
+default = "warn"
+rule_engine = "warn"
+mail_receiver = "error"
+
 [paths]
-logs_file = "./config/log4rs.toml"
 rules_dir = "./config/rules"
 spool_dir = "./tmp/spool"
 quarantine_dir = "./tmp/quarantine"

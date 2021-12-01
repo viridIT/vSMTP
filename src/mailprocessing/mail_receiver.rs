@@ -56,9 +56,7 @@ lazy_static::lazy_static! {
             .unwrap_or_default()
             .into_iter()
             .filter_map(|(k, v)|
-            <State as std::str::FromStr>::from_str(&k).ok().and_then(|s|
-                Some((s, std::time::Duration::from_millis(v)))
-            ))
+            <State as std::str::FromStr>::from_str(&k).ok().map(|s| (s, std::time::Duration::from_millis(v))))
             .collect::<std::collections::HashMap<State,std::time::Duration>>()
     };
 }
@@ -88,6 +86,17 @@ where
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         tls_security_level: TlsSecurityLevel,
     ) -> Self {
+        if tls_security_level != TlsSecurityLevel::None && tls_config.is_none() {
+            log::error!(
+                target: "mail_receiver",
+                "TLS encryption is enabled, but no TLS config provided. If a tls connection is ensured, the server will reply with \"{}\"", SMTPReplyCode::Code454.as_str(),
+            );
+        } else if tls_security_level == TlsSecurityLevel::None && tls_config.is_some() {
+            log::error!(
+                target: "mail_receiver",
+                "TLS encryption is disabled, but a TLS config is provided. TLS config will be ignored",
+            );
+        }
         Self {
             client_address,
             state: State::Connect,
@@ -367,7 +376,7 @@ where
     {
         match tokio::time::timeout(self.next_line_timeout, io.get_next_line_async()).await {
             Ok(Ok(client_message)) => match self.handle_plain_text(client_message).await {
-                Some(response) => std::io::Write::write_all(io, &response.as_bytes()),
+                Some(response) => std::io::Write::write_all(io, response.as_bytes()),
                 None => Ok(()),
             },
             Ok(Err(ReadError::Blocking)) => Ok(()),
@@ -388,7 +397,7 @@ where
                 Err(e)
             }
             Err(e) => {
-                std::io::Write::write_all(io, &SMTPReplyCode::Code451timeout.as_str().as_bytes())?;
+                std::io::Write::write_all(io, SMTPReplyCode::Code451timeout.as_str().as_bytes())?;
                 Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
             }
         }
@@ -460,7 +469,7 @@ where
 
         log::debug!(
             target: "mail_receiver",
-            "[p:{}] protocol_version={:#?}\nalpn_protocol={:#?}\nnegotiated_cipher_suite={:#?}\npeer_certificates={:#?}\nsni_hostname={:#?}",
+            "[p:{}] protocol_version={:#?}\n alpn_protocol={:#?}\n negotiated_cipher_suite={:#?}\n peer_certificates={:#?}\n sni_hostname={:#?}",
             self.client_address.port(),
             io.inner.conn.protocol_version(),
             io.inner.conn.alpn_protocol(),
