@@ -230,6 +230,17 @@ where
 
             (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
                 self.rule_engine.add_data("rcpt", rcpt_to.clone());
+                self.rule_engine.add_data(
+                    "msg_id",
+                    format!(
+                        "{}_{}",
+                        std::process::id(),
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis()
+                    ),
+                );
 
                 // FIXME: the whole rcpt vector is cloned each command,
                 //        since it can be changed by the rhai context.

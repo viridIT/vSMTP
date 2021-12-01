@@ -24,7 +24,7 @@ rule rcpt "rcpt_test" #{
     vsl.CONTINUE()
   },
   on_failure: || {
-    vsl.LOG_ERR(`[${date} ${time}] error: ${rcpt} is not a staff from viridit.`);
+    vsl.LOG_ERR(`[${date} ${time}](${msg_id}) error: ${rcpt} is not a staff from viridit.`);
     vsl.LOG(`rcpts:`);
     for r in rcpts {
       vsl.LOG(`  - ${r}`);

@@ -499,6 +499,7 @@ impl<'a> RuleEngine<'a> {
             .push("__init", true)
             .push("date", "")
             .push("time", "")
+            .push("msg_id", "")
             .push("addr", config::get::<Vec<String>>("server.addr").unwrap())
             .push("logs_file", config::get::<String>("log.file").unwrap())
             .push(
@@ -942,6 +943,7 @@ lazy_static! {
         // useful data.
         .push("date", "")
         .push("time", "")
+        .push("msg_id", "")
 
         // configuration variables.
         .push("addr", Vec::<String>::new())
