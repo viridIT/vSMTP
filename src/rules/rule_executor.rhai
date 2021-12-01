@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+
 let status = __CONTINUE();
 
 for r in __rules {

@@ -1,7 +1,7 @@
 obj rg4 "range4" "127.0.0.1/24";
 obj rg6 "range6" "2400:17c0::/32";
 
-rule connect "range test" #{
+rule connect "range_test" #{
   condition: || vsl.IS_CONNECT("range6"),
   on_success: || {
     vsl.LOG("success");
@@ -9,6 +9,35 @@ rule connect "range test" #{
   },
   on_failure: || {
     vsl.LOG("failure");
+    vsl.CONTINUE()
+  },
+};
+
+obj regex "viridit-staff" "^[a-z0-9.]+@viridit.com$";
+
+// rcpt special case, if ACCEPT is called, its skips all the rules,
+// but re-start them with the next rcpt.
+rule rcpt "rcpt_test" #{
+  condition: || vsl.IS_RCPT("viridit-staff"),
+  on_success: || {
+    vsl.LOG(`${rcpt} is a valid viridit staff`);
+    vsl.CONTINUE()
+  },
+  on_failure: || {
+    vsl.LOG_ERR(`error: ${rcpt} is not a staff from viridit.`);
+    vsl.LOG(`rcpts:`);
+    for r in rcpts {
+      vsl.LOG(`  - ${r}`);
+    }
+
+    vsl.ADD_RCPT("bot@viridit.com");
+    vsl.REMOVE_RCPT(rcpt);
+
+    vsl.LOG(`updated rcpts:`);
+    for r in rcpts {
+      vsl.LOG(`  - ${r}`);
+    }
+
     vsl.CONTINUE()
   },
 };
