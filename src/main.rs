@@ -64,6 +64,12 @@ fn get_log_config() -> Result<log4rs::Config, log4rs::config::runtime::ConfigErr
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = clap::App::new("vSMTP")
+        .version("1.0")
+        .author("ViridIT https://www.viridit.com")
+        .about("vSMTP : the next-gen MTA")
+        .get_matches();
+
     log4rs::init_config(get_log_config()?)?;
 
     ResolverWriteDisk::init_spool_folder(&config::get::<String>("paths.spool_dir").unwrap())?;
