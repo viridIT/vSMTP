@@ -19,12 +19,52 @@ use v_smtp::resolver::ResolverWriteDisk;
 use v_smtp::rules::rule_engine;
 use v_smtp::server::ServerVSMTP;
 
+fn get_log_config() -> Result<log4rs::Config, log4rs::config::runtime::ConfigErrors> {
+    use log4rs::*;
+
+    let stdout = append::console::ConsoleAppender::builder()
+        .encoder(Box::new(encode::pattern::PatternEncoder::new(
+            "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
+        )))
+        .build();
+
+    let requests = append::file::FileAppender::builder()
+        .encoder(Box::new(encode::pattern::PatternEncoder::new(
+            "{d} - {m}{n}",
+        )))
+        .build(crate::config::get::<String>("log.file").unwrap_or_else(|_| "vsmtp.log".to_string()))
+        .unwrap();
+
+    fn get_log_level(name: &str) -> Result<log::LevelFilter, ::config::ConfigError> {
+        crate::config::get::<String>(name).map(|s| {
+            <log::LevelFilter as std::str::FromStr>::from_str(&s).expect("not a valid log level")
+        })
+    }
+
+    let default_level = get_log_level("log.level.default").unwrap_or(log::LevelFilter::Warn);
+
+    Config::builder()
+        .appender(config::Appender::builder().build("stdout", Box::new(stdout)))
+        .appender(config::Appender::builder().build("requests", Box::new(requests)))
+        .logger(config::Logger::builder().build(
+            "rule_engine",
+            get_log_level("log.level.rule_engine").unwrap_or(default_level),
+        ))
+        .logger(config::Logger::builder().build(
+            "mail_receiver",
+            get_log_level("log.level.mail_receiver").unwrap_or(default_level),
+        ))
+        .build(
+            config::Root::builder()
+                .appender("stdout")
+                .appender("requests")
+                .build(default_level),
+        )
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    log4rs::init_file(
-        config::get::<String>("paths.logs_file").unwrap(),
-        Default::default(),
-    )?;
+    log4rs::init_config(get_log_config()?)?;
 
     ResolverWriteDisk::init_spool_folder(&config::get::<String>("paths.spool_dir").unwrap())?;
 

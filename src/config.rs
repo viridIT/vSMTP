@@ -17,7 +17,6 @@
 use config::FileFormat;
 
 pub const DEFAULT_MTA_SERVER_ADDR: &str = "0.0.0.0:25";
-pub const DEFAULT_LOGS_FILE: &str = "./config/default.log.toml";
 pub const DEFAULT_RULES_DIR: &str = "./config/rules";
 pub const DEFAULT_SPOOL_PATH: &str = "/var/vsmtp/spool";
 pub const DEFAULT_QUARANTINE_DIR: &str = "/var/vsmtp/quarantine";
@@ -31,8 +30,6 @@ lazy_static::lazy_static! {
         let mut conf = config::Config::default();
 
         conf.set_default("server.addr", DEFAULT_MTA_SERVER_ADDR)
-            .unwrap()
-            .set_default("paths.logs_file", DEFAULT_LOGS_FILE)
             .unwrap()
             .set_default("paths.rules_dir", DEFAULT_RULES_DIR)
             .unwrap()
