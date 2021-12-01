@@ -497,6 +497,8 @@ impl<'a> RuleEngine<'a> {
             .push("__step", "")
             .push("__rules", Array::new())
             .push("__init", true)
+            .push("date", "")
+            .push("time", "")
             .push("addr", config::get::<Vec<String>>("server.addr").unwrap())
             .push("logs_file", config::get::<String>("log.file").unwrap())
             .push(
@@ -540,7 +542,18 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn run_when(&mut self, step: &str) -> Status {
         log::debug!(target: "rule_engine", "------ executing rules registered on '{}'.", step);
 
+        // updatign the internal __step variable, so that the rhai context
+        // knows what rules to execute
+        // TODO: replace "__step" by "__stage".
         self.inner.set_value("__step", step.to_string());
+
+        // injecting date and time variables.
+        let now = chrono::Local::now();
+        self.inner
+            .set_value("date", now.date().format("%Y/%m/%d").to_string());
+        self.inner
+            .set_value("time", now.time().format("%H:%M:%S").to_string());
+
         let result = RHAI_ENGINE
             .context
             .eval_ast_with_scope::<Status>(&mut self.inner, &RHAI_ENGINE.ast);
@@ -925,6 +938,10 @@ lazy_static! {
         .push("__step", "")
         .push("__rules", Array::new())
         .push("__init", false)
+
+        // useful data.
+        .push("date", "")
+        .push("time", "")
 
         // configuration variables.
         .push("addr", Vec::<String>::new())

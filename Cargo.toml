@@ -21,6 +21,7 @@ addr = { version = "0.15.0" }
 regex = "1.5.4"
 iprange = "0.6.6"
 ipnet = "2.3.1"
+chrono = "0.4"
 
 rhai = { version = "1.1.0", features = ["unchecked", "sync"] }
 
