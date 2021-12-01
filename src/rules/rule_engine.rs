@@ -272,7 +272,7 @@ mod vsl {
     #[rhai_fn(name = "__WRITE", return_raw)]
     pub fn write_mail(data: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
         if data.is_empty() {
-            return Err("the WRITE action can only be called in the 'preq' stage or after.".into());
+            return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
         }
 
         let path = std::path::PathBuf::from_str(path).unwrap();
@@ -300,8 +300,13 @@ mod vsl {
         mail: &str,
         rcpt: Vec<String>,
         data: &str,
+        msg_id: &str,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
+        if mail.is_empty() {
+            return Err("the DUMP action can only be called after or in the 'mail' stage.".into());
+        }
+
         if let Err(error) = std::fs::create_dir_all(path) {
             return Err(format!("could not write email to '{:?}': {}", path, error).into());
         }
@@ -309,14 +314,8 @@ mod vsl {
         let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
             // Error is of infallible type, we can unwrap.
             let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(format!(
-                "{}_{}.json",
-                std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()
-            ));
+            path.push(msg_id);
+            path.set_extension("json");
             path
         }) {
             Ok(file) => file,
@@ -330,6 +329,7 @@ mod vsl {
                 helo: helo.to_string(),
                 mail_from: mail.to_string(),
                 recipients: rcpt,
+                msg_id: msg_id.to_string(),
             },
             body: data.into(),
         };
@@ -494,7 +494,7 @@ impl<'a> RuleEngine<'a> {
             .push("rcpts", Vec::<String>::new())
             .push("data", "")
             .push("__OPERATION_QUEUE", OperationQueue::default())
-            .push("__step", "")
+            .push("__stage", "")
             .push("__rules", Array::new())
             .push("__init", true)
             .push("date", "")
@@ -540,13 +540,12 @@ impl<'a> RuleEngine<'a> {
         self.inner.get_value(name)
     }
 
-    pub(crate) fn run_when(&mut self, step: &str) -> Status {
-        log::debug!(target: "rule_engine", "------ executing rules registered on '{}'.", step);
+    pub(crate) fn run_when(&mut self, stage: &str) -> Status {
+        log::debug!(target: "rule_engine", "[{}] evaluating rules.", stage);
 
-        // updatign the internal __step variable, so that the rhai context
+        // updating the internal __stage variable, so that the rhai context
         // knows what rules to execute
-        // TODO: replace "__step" by "__stage".
-        self.inner.set_value("__step", step.to_string());
+        self.inner.set_value("__stage", stage.to_string());
 
         // injecting date and time variables.
         let now = chrono::Local::now();
@@ -565,13 +564,21 @@ impl<'a> RuleEngine<'a> {
         // can be injected back into fresh new rules.
         self.inner.set_value("__rules", Array::new());
 
-        log::debug!(target: "rule_engine", "------ evaluation of rules registered on '{}' finished.", step);
-        log::trace!(target: "rule_engine", "       result: {:?}.", result);
+        log::debug!(target: "rule_engine", "[{}] done.", stage);
 
-        // NOTE: is Result<Status, Error> needed here ?
         match result {
-            Ok(status) => status,
-            Err(_) => Status::Continue,
+            Ok(status) => {
+                log::trace!(target: "rule_engine", "[{}] result: {:?}.", stage, status);
+                status
+            }
+            Err(error) => {
+                log::error!(
+                    target: "rule_engine",
+                    "the rule engine skipped a rule in the '{}' stage because it could not evaluate it: \n\t{}",
+                    stage, error
+                );
+                Status::Continue
+            }
         }
     }
 
@@ -622,6 +629,7 @@ impl<'a> RuleEngine<'a> {
             helo: self.inner.get_value::<String>("helo")?,
             mail_from: self.inner.get_value::<String>("mail")?,
             recipients: self.inner.get_value::<Vec<String>>("rcpts")?,
+            msg_id: self.inner.get_value::<String>("msg_id")?,
         })
     }
 }
@@ -734,8 +742,8 @@ impl RhaiEngine {
                 let map = &input[2];
 
                 // we parse the rule only if needs to be executed now.
-                if let Some(step) = context.scope().get_value::<String>("__step") {
-                    if step != when {
+                if let Some(stage) = context.scope().get_value::<String>("__stage") {
+                    if stage != when {
                         return Ok(Dynamic::UNIT);
                     }
                 }
@@ -936,7 +944,7 @@ lazy_static! {
 
         // rule engine's internals.
         .push("__OPERATION_QUEUE", OperationQueue::default())
-        .push("__step", "")
+        .push("__stage", "")
         .push("__rules", Array::new())
         .push("__init", false)
 

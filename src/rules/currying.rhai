@@ -107,7 +107,7 @@ let vsl = #{
 
     // write the current evenlop and mail content to a file in json format.
     DUMP: |path| {
-        __DUMP(helo, mail, rcpts, data, path);
+        __DUMP(helo, mail, rcpts, data, msg_id, path);
     },
 
     // write a mail to the quarantine folder.

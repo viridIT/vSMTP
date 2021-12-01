@@ -20,6 +20,7 @@ pub struct Envelop {
     pub helo: String,
     pub mail_from: String,
     pub recipients: Vec<String>,
+    pub msg_id: String,
 }
 
 // TODO: need error handling in case of erroneous formatting.

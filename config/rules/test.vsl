@@ -13,6 +13,11 @@ rule connect "range_test" #{
   },
 };
 
+rule helo "dump failure" #{
+  condition: || true,
+  on_success: || vsl.DUMP("./tmp/"),
+};
+
 obj regex "viridit-staff" "^[a-z0-9.]+@viridit.com$";
 
 // rcpt special case, if ACCEPT is called, its skips all the rules,
@@ -21,6 +26,7 @@ rule rcpt "rcpt_test" #{
   condition: || vsl.IS_RCPT("viridit-staff"),
   on_success: || {
     vsl.LOG(`[${date} ${time}] ${rcpt} is a valid viridit staff`);
+    vsl.DUMP("./tmp/");
     vsl.CONTINUE()
   },
   on_failure: || {
