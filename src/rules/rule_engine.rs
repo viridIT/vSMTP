@@ -135,14 +135,20 @@ impl Var {
                         Ok(line) => match content_type.as_str() {
                             "ip4" => content.push(Var::Ip4(Ipv4Addr::from_str(&line)?)),
                             "ip6" => content.push(Var::Ip6(Ipv6Addr::from_str(&line)?)),
-                            "fqdn" => {
-                                // TODO: parse fqdn.
-                                content.push(Var::Fqdn(line))
-                            }
-                            "addr" => {
-                                // TODO: parse fqdn.
-                                content.push(Var::Address(line))
-                            }
+                            "fqdn" => match addr::parse_domain_name(&line) {
+                                Ok(domain) => content.push(Var::Fqdn(domain.to_string())),
+                                Err(_) => {
+                                    return Err(format!("'{}' is not a valid fqdn.", value).into());
+                                }
+                            },
+                            "addr" => match addr::parse_email_address(&line) {
+                                Ok(domain) => content.push(Var::Address(domain.to_string())),
+                                Err(_) => {
+                                    return Err(
+                                        format!("'{}' is not a valid address.", value).into()
+                                    );
+                                }
+                            },
                             "val" => content.push(Var::Val(line)),
                             "regex" => content.push(Var::Regex(Regex::from_str(&line)?)),
                             _ => {}
