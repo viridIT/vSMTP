@@ -22,12 +22,16 @@ mod tests {
         }
     }
 
-    async fn make_test(smtp_input: &[u8], expected_output: &[u8]) {
+    async fn make_test(
+        smtp_input: &[u8],
+        expected_output: &[u8],
+        level: TlsSecurityLevel,
+        tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    ) {
         let mut receiver = MailReceiver::<DataEndResolverTest>::new(
             "0.0.0.0:0".parse().unwrap(),
-            // std::time::Duration::from_millis(1_000),
-            None,
-            TlsSecurityLevel::May,
+            tls_config,
+            level,
         );
         let mut write = Vec::new();
         let mock = Mock::new(smtp_input.to_vec(), &mut write);
@@ -68,6 +72,8 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -82,6 +88,8 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -96,6 +104,8 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -110,6 +120,8 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -127,6 +139,8 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -142,6 +156,50 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_receiver_7() {
+        make_test(
+            ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
+                .concat()
+                .as_bytes(),
+            [
+                "220 <domain> Service ready\r\n",
+                "250-Ok\r\n",
+                "250 STARTTLS\r\n",
+                "454 TLS not available due to temporary reason\r\n",
+                "221 Service closing transmission channel\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::Encrypt,
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_receiver_8() {
+        make_test(
+            ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
+                .concat()
+                .as_bytes(),
+            [
+                "220 <domain> Service ready\r\n",
+                "250-Ok\r\n",
+                "250 STARTTLS\r\n",
+                "530 Must issue a STARTTLS command first\r\n",
+                "221 Service closing transmission channel\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::Encrypt,
+            None,
         )
         .await;
     }

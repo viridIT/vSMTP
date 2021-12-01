@@ -88,6 +88,17 @@ where
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         tls_security_level: TlsSecurityLevel,
     ) -> Self {
+        if tls_security_level != TlsSecurityLevel::None && tls_config.is_none() {
+            log::error!(
+                target: "mail_receiver",
+                "TLS encryption is enabled, but no TLS config provided. If a tls connection is ensured, the server will reply with \"{}\"", SMTPReplyCode::Code454.as_str(),
+            );
+        } else if tls_security_level == TlsSecurityLevel::None && tls_config.is_some() {
+            log::error!(
+                target: "mail_receiver",
+                "TLS encryption is disabled, but a TLS config is provided. TLS config will be ignored",
+            );
+        }
         Self {
             client_address,
             state: State::Connect,
