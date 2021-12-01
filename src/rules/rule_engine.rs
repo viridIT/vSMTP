@@ -498,10 +498,7 @@ impl<'a> RuleEngine<'a> {
             .push("__rules", Array::new())
             .push("__init", true)
             .push("addr", config::get::<Vec<String>>("server.addr").unwrap())
-            .push(
-                "logs_file",
-                config::get::<String>("paths.logs_file").unwrap(),
-            )
+            .push("logs_file", config::get::<String>("log.file").unwrap())
             .push(
                 "rules_dir",
                 config::get::<String>("paths.rules_dir").unwrap(),

@@ -8,12 +8,15 @@ publish = false
 
 [dependencies]
 log = "0.4.14"
-log4rs = { version = "1.0", features = ["toml_format"] }
+log4rs = { version = "1.0" }
 
 serde = { version = "1.0.130", features = ["derive"] }
 serde_derive = "1.0.130"
 serde_json = "1.0.72"
+
 config = { version = "0.11.0", features = ["toml"] }
+clap = "2.34.0"
+
 addr = { version = "0.15.0" }
 regex = "1.5.4"
 iprange = "0.6.6"

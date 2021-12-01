@@ -1,14 +1,35 @@
 {
     "cSpell.words": [
+        "alpn",
+        "appender",
         "ehlo",
         "Expn",
         "Faccept",
         "helo",
         "nonblocking",
+        "rcpts",
         "rhai",
         "Rset",
         "rustls",
         "STARTTLS",
-        "Vrfy"
-    ]
+        "Vrfy",
+        "VSMTP"
+    ],
+    "todohighlight.isCaseSensitive": false,
+    "todohighlight.keywords": [
+        {
+            "text": "NOTE:",
+            "color": "#000000",
+            "backgroundColor": "cyan",
+            "overviewRulerColor": "grey"
+        },
+        {
+            "text": "https://datatracker.ietf.org/doc/html/rfc",
+            "color": "#000000",
+            "backgroundColor": "olive",
+            "overviewRulerColor": "grey",
+            "cursor": "pointer",
+        }
+    ],
+    "rust-analyzer.checkOnSave.command": "clippy"
 }
