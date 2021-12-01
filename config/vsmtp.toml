@@ -1,4 +1,9 @@
 version = "0.1.0"
+domain = "testserver.com"
+
+[server]
+## inet address for the server to listen to
+addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
 
 [log]
 ## Filepath of logger
@@ -8,17 +13,15 @@ file = "./tmp/vsmtp.log"
 ## Log level of the different part of the program
 ## Keys are [default/rule_engine/mail_receiver], values in [trace/debug/info/warn/error/off]
 default = "warn"
-rule_engine = "warn"
+rule_engine = "trace"
 mail_receiver = "error"
 
 [paths]
 rules_dir = "./config/rules"
+## TODO: replace for smtp.spool_path
 spool_dir = "./tmp/spool"
+## TODO: replace for smtp.quarantine_path
 quarantine_dir = "./tmp/quarantine"
-
-[server]
-## inet address for the server to listen to
-addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
 
 [tls]
 ## [none/may/encrypt] => disable/allow/force encryption
@@ -36,5 +39,5 @@ sni_maps = [
 [smtp.timeout_client]
 ## Delay maximum for the client to the his information
 ## Keys are [connect/helo/mail/rcpt/data], values in milleseconds (10s if missing)
-helo = 5000
-data = 500
+helo = 10
+data = 2000

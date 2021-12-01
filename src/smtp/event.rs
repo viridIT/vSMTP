@@ -38,7 +38,7 @@ pub enum Event {
     // ESMTP
 
     // 8 bit data transmission // https://datatracker.ietf.org/doc/html/rfc6152
-    // O8BITMIME,
+    // EIGHT_BITMIME,
     // Authenticated TURN for On-Demand Mail Relay // https://datatracker.ietf.org/doc/html/rfc2645
     // ATRN,
     // Authenticated SMTP // https://datatracker.ietf.org/doc/html/rfc4954
@@ -63,7 +63,7 @@ pub enum Event {
     // SMTPUTF8,
     // UTF8SMTP,
     // https://datatracker.ietf.org/doc/html/rfc2034
-    // ENHANCEDSTATUSCODES,
+    // EnhancedStatusCodes,
 }
 
 impl Event {

@@ -3,6 +3,7 @@
         "alpn",
         "appender",
         "ehlo",
+        "ENHANCEDSTATUSCODES",
         "Expn",
         "Faccept",
         "helo",
