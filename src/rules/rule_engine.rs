@@ -135,14 +135,20 @@ impl Var {
                         Ok(line) => match content_type.as_str() {
                             "ip4" => content.push(Var::Ip4(Ipv4Addr::from_str(&line)?)),
                             "ip6" => content.push(Var::Ip6(Ipv6Addr::from_str(&line)?)),
-                            "fqdn" => {
-                                // TODO: parse fqdn.
-                                content.push(Var::Fqdn(line))
-                            }
-                            "addr" => {
-                                // TODO: parse fqdn.
-                                content.push(Var::Address(line))
-                            }
+                            "fqdn" => match addr::parse_domain_name(&line) {
+                                Ok(domain) => content.push(Var::Fqdn(domain.to_string())),
+                                Err(_) => {
+                                    return Err(format!("'{}' is not a valid fqdn.", value).into());
+                                }
+                            },
+                            "addr" => match addr::parse_email_address(&line) {
+                                Ok(domain) => content.push(Var::Address(domain.to_string())),
+                                Err(_) => {
+                                    return Err(
+                                        format!("'{}' is not a valid address.", value).into()
+                                    );
+                                }
+                            },
                             "val" => content.push(Var::Val(line)),
                             "regex" => content.push(Var::Regex(Regex::from_str(&line)?)),
                             _ => {}
@@ -405,10 +411,10 @@ mod vsl {
         }
     }
 
-    pub fn __is_rcpt(rcpt: &mut Vec<String>, object: &str) -> bool {
+    pub fn __is_rcpt(rcpt: &str, object: &str) -> bool {
         match RHAI_ENGINE.objects.read().unwrap().get(object) {
             Some(object) => internal_is_rcpt(rcpt, object),
-            _ => rcpt.iter().any(|email| object == *email),
+            _ => rcpt == object,
         }
     }
 
@@ -462,10 +468,10 @@ fn internal_is_mail(mail: &str, object: &Var) -> bool {
     }
 }
 
-fn internal_is_rcpt(rcpt: &[String], object: &Var) -> bool {
+fn internal_is_rcpt(rcpt: &str, object: &Var) -> bool {
     match object {
-        Var::Address(addr) => rcpt.iter().any(|email| *addr == *email),
-        Var::Regex(re) => rcpt.iter().any(|email| re.is_match(email)),
+        Var::Address(addr) => rcpt == addr.as_str(),
+        Var::Regex(re) => re.is_match(rcpt),
         Var::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
         Var::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
         _ => false,
@@ -481,10 +487,11 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn new() -> Self {
         let mut inner = Scope::new();
         inner
-            .push("connect", Ipv4Addr::from_str("0.0.0.0"))
+            .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
             .push("helo", "")
             .push("mail", "")
-            .push("rcpt", Vec::<String>::new())
+            .push("rcpt", "")
+            .push("rcpts", Vec::<String>::new())
             .push("data", "")
             .push("__OPERATION_QUEUE", OperationQueue::default())
             .push("__step", "")
@@ -523,7 +530,14 @@ impl<'a> RuleEngine<'a> {
         // maybe create a getter, engine.scope().push(n, v) ?
         T: Clone + Send + Sync + 'static,
     {
-        self.inner.push(name, data);
+        self.inner.set_or_push(name, data);
+    }
+
+    pub(crate) fn get_data<T>(&mut self, name: &'a str) -> Option<T>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        self.inner.get_value(name)
     }
 
     pub(crate) fn run_when(&mut self, step: &str) -> Status {
@@ -534,11 +548,16 @@ impl<'a> RuleEngine<'a> {
             .context
             .eval_ast_with_scope::<Status>(&mut self.inner, &RHAI_ENGINE.ast);
 
+        // FIXME: clarify this comment.
+        // rules are cleared after evaluation, this way,
+        // scoped variables that are changed by rhai's context
+        // can be injected back into fresh new rules.
+        self.inner.set_value("__rules", Array::new());
+
         log::debug!(target: "rule_engine", "------ evaluation of rules registered on '{}' finished.", step);
         log::trace!(target: "rule_engine", "       result: {:?}.", result);
 
-        // NOTE: does the evaluation risk to crash, even thought the code has been already evaluated once ?
-        //        check if a Result<Status, Error> is needed here.
+        // NOTE: is Result<Status, Error> needed here ?
         match result {
             Ok(status) => status,
             Err(_) => Status::Continue,
@@ -591,7 +610,7 @@ impl<'a> RuleEngine<'a> {
         Some(Envelop {
             helo: self.inner.get_value::<String>("helo")?,
             mail_from: self.inner.get_value::<String>("mail")?,
-            recipients: self.inner.get_value::<Vec<String>>("rcpt")?,
+            recipients: self.inner.get_value::<Vec<String>>("rcpts")?,
         })
     }
 }
@@ -698,13 +717,13 @@ impl RhaiEngine {
                 )),
             },
             true,
-            |context, input| {
+            move |context, input| {
                 let when = input[0].get_variable_name().unwrap().to_string();
                 let name = input[1].get_literal_value::<ImmutableString>().unwrap();
                 let map = &input[2];
 
                 // we parse the rule only if needs to be executed now.
-                if let Some(step) = context.scope_mut().get_value::<String>("__step") {
+                if let Some(step) = context.scope().get_value::<String>("__step") {
                     if step != when {
                         return Ok(Dynamic::UNIT);
                     }
@@ -722,7 +741,7 @@ impl RhaiEngine {
                     .push_dynamic("__rules", Dynamic::from(rules));
                 }
 
-                // rule is pushed in __rules global so no need to introduce it to the scope.
+                // the rule body is pushed in __rules global so no need to introduce it to the scope.
                 Ok(Dynamic::UNIT)
             },
         )
@@ -897,10 +916,11 @@ lazy_static! {
         let mut scope = Scope::new();
         scope
         // stage variables.
-        .push("connect", Ipv4Addr::from_str("0.0.0.0"))
+        .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
         .push("helo", "")
         .push("mail", "")
-        .push("rcpt", Vec::<String>::new())
+        .push("rcpt", "")
+        .push("rcpts", Vec::<String>::new())
         .push("data", "")
 
         // rule engine's internals.

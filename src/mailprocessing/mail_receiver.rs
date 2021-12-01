@@ -220,36 +220,38 @@ where
             }
 
             (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
-                // TODO: handle case when rcpt is already defined.
-                self.mail.envelop.add_rcpt(&rcpt_to);
+                self.rule_engine.add_data("rcpt", rcpt_to.clone());
+
+                // FIXME: the whole rcpt vector is cloned each command,
+                //        since it can be changed by the rhai context.
+                match self.rule_engine.get_data::<Vec<String>>("rcpts") {
+                    Some(mut rcpts) => {
+                        rcpts.push(rcpt_to);
+                        self.mail.envelop.recipients = rcpts.clone();
+                        self.rule_engine.add_data("rcpts", rcpts.clone());
+                    }
+                    None => unreachable!("rcpts is injected by the default scope"),
+                };
+
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
                     self.client_address.port(), self.mail.envelop,
                 );
 
-                (Some(State::RcptTo), Some(SMTPReplyCode::Code250))
-            }
-
-            (State::RcptTo, Event::DataCmd) => {
-                // NOTE: is it wise to execute the rcpt rule on a DataCmd event ?
-                //       it is done this way because the `RCPT TO` command can
-                //       be called multiple times.
-
-                self.rule_engine
-                    .add_data("rcpt", self.mail.envelop.recipients.clone());
-
                 if self.force_accept {
-                    (Some(State::Data), Some(SMTPReplyCode::Code354))
+                    (Some(State::RcptTo), Some(SMTPReplyCode::Code250))
                 } else {
                     let status = self.rule_engine.run_when("rcpt");
                     self.process_rules_status(
                         status,
-                        Some(State::Data),
-                        Some(SMTPReplyCode::Code354),
+                        Some(State::RcptTo),
+                        Some(SMTPReplyCode::Code250),
                     )
                 }
             }
+
+            (State::RcptTo, Event::DataCmd) => (Some(State::Data), Some(SMTPReplyCode::Code354)),
 
             (State::Data, Event::DataLine(line)) => {
                 self.mail.body.extend(line.as_bytes().iter());
@@ -283,6 +285,7 @@ where
                 }
 
                 log::info!(
+                    target: "mail_receiver",
                     "final envelop after executing all rules:\n {:#?}",
                     self.rule_engine.get_scoped_envelop()
                 );
