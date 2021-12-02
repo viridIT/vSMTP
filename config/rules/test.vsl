@@ -13,37 +13,20 @@ rule connect "range_test" #{
   },
 };
 
-rule helo "dump failure" #{
-  condition: || true,
-  on_success: || vsl.DUMP("./tmp/"),
-};
-
 obj regex "viridit-staff" "^[a-z0-9.]+@viridit.com$";
 
 // rcpt special case, if ACCEPT is called, its skips all the rules,
 // but re-start them with the next rcpt.
 rule rcpt "rcpt_test" #{
   condition: || vsl.IS_RCPT("viridit-staff"),
-  on_success: || {
-    vsl.LOG(`[${date} ${time}] ${rcpt} is a valid viridit staff`);
-    vsl.DUMP("./tmp/");
-    vsl.CONTINUE()
-  },
+  on_success: || vsl.LOG(`[${date} ${time}] ${rcpt} is a viridit employee, trusted.`),
   on_failure: || {
-    vsl.LOG_ERR(`[${date} ${time}](${msg_id}) error: ${rcpt} is not a staff from viridit.`);
-    vsl.LOG(`rcpts:`);
-    for r in rcpts {
-      vsl.LOG(`  - ${r}`);
-    }
+    vsl.LOG(`[${date} ${time}] unknown user ${rcpt} detected. blocked.`);
+    vsl.BLOCK(`./tmp/blocked/`)
+  }
+};
 
-    vsl.ADD_RCPT("bot@viridit.com");
-    vsl.REMOVE_RCPT(rcpt);
-
-    vsl.LOG(`updated rcpts:`);
-    for r in rcpts {
-      vsl.LOG(`  - ${r}`);
-    }
-
-    vsl.CONTINUE()
-  },
+rule preq "dummy rule" #{
+  condition: || true,
+  on_success: || { vsl.LOG(`[${date} ${time}] reached preq stage.`); vsl.CONTINUE() }
 };

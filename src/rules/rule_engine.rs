@@ -42,8 +42,8 @@ use std::{
 pub enum Operation {
     /// header, value
     MutateHeader(String, String),
-    /// reason
-    Quarantine(String),
+    /// blocked email path
+    Block(String),
 }
 
 /// used to yield expensive operations
@@ -183,12 +183,24 @@ impl Var {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
-    Faccept,
+    /// accepts the current stage value, skips all rules in the stage.
     Accept,
+
+    /// continue to the next rule / stage.
     Continue,
+
+    /// immediatly stops the transaction and send an error code.
     Deny,
+
+    /// ignore all future rules for the current transaction.
+    Faccept,
+
+    /// wait for the email before stopping the transaction and sending an error code,
+    /// skips all future rules to fill the envelop and mail data as fast as possible.
+    /// also stores the email data in an user defined quarantine directory.
+    Block,
 }
 
 // exported methods are used in rhai context, so we allow dead code.
@@ -199,13 +211,11 @@ mod vsl {
 
     use crate::model::{envelop::Envelop, mail::MailContext};
 
-    #[rhai_fn(name = "op_quarantine")]
-    pub fn quarantine(queue: &mut OperationQueue, reason: &str) {
-        queue.push(Operation::Quarantine(reason.to_string()))
+    pub fn op_block(queue: &mut OperationQueue, path: &str) {
+        queue.push(Operation::Block(path.to_string()))
     }
 
-    #[rhai_fn(name = "op_mutate_header")]
-    pub fn mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
+    pub fn op_mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
         queue.push(Operation::MutateHeader(
             header.to_string(),
             value.to_string(),
@@ -230,6 +240,11 @@ mod vsl {
     #[rhai_fn(name = "__DENY")]
     pub fn deny() -> Status {
         Status::Deny
+    }
+
+    #[rhai_fn(name = "__BLOCK")]
+    pub fn block() -> Status {
+        Status::Block
     }
 
     /// logs a message to stdout, stderr or a file.
@@ -478,15 +493,15 @@ fn internal_is_rcpt(rcpt: &str, object: &Var) -> bool {
     }
 }
 
-/// contains the scope of the connexion and a reference to the RhaiEngine.
 pub struct RuleEngine<'a> {
-    inner: Scope<'a>,
+    scope: Scope<'a>,
+    skip: Option<Status>,
 }
 
 impl<'a> RuleEngine<'a> {
     pub(crate) fn new() -> Self {
-        let mut inner = Scope::new();
-        inner
+        let mut scope = Scope::new();
+        scope
             .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
             .push("helo", "")
             .push("mail", "")
@@ -521,7 +536,7 @@ impl<'a> RuleEngine<'a> {
                 config::get::<String>("clamav_address").unwrap(),
             );
 
-        Self { inner }
+        Self { scope, skip: None }
     }
 
     pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T)
@@ -530,45 +545,55 @@ impl<'a> RuleEngine<'a> {
         // maybe create a getter, engine.scope().push(n, v) ?
         T: Clone + Send + Sync + 'static,
     {
-        self.inner.set_or_push(name, data);
+        self.scope.set_or_push(name, data);
     }
 
     pub(crate) fn get_data<T>(&mut self, name: &'a str) -> Option<T>
     where
         T: Clone + Send + Sync + 'static,
     {
-        self.inner.get_value(name)
+        self.scope.get_value(name)
     }
 
     pub(crate) fn run_when(&mut self, stage: &str) -> Status {
+        if let Some(status) = self.skip {
+            return status;
+        }
+
         log::debug!(target: "rule_engine", "[{}] evaluating rules.", stage);
 
         // updating the internal __stage variable, so that the rhai context
         // knows what rules to execute
-        self.inner.set_value("__stage", stage.to_string());
+        self.scope.set_value("__stage", stage.to_string());
 
         // injecting date and time variables.
         let now = chrono::Local::now();
-        self.inner
+        self.scope
             .set_value("date", now.date().format("%Y/%m/%d").to_string());
-        self.inner
+        self.scope
             .set_value("time", now.time().format("%H:%M:%S").to_string());
 
         let result = RHAI_ENGINE
             .context
-            .eval_ast_with_scope::<Status>(&mut self.inner, &RHAI_ENGINE.ast);
+            .eval_ast_with_scope::<Status>(&mut self.scope, &RHAI_ENGINE.ast);
 
         // FIXME: clarify this comment.
         // rules are cleared after evaluation, this way,
         // scoped variables that are changed by rhai's context
         // can be injected back into fresh new rules.
-        self.inner.set_value("__rules", Array::new());
+        self.scope.set_value("__rules", Array::new());
 
         log::debug!(target: "rule_engine", "[{}] done.", stage);
 
         match result {
             Ok(status) => {
                 log::trace!(target: "rule_engine", "[{}] result: {:?}.", stage, status);
+
+                if let Status::Block | Status::Faccept = status {
+                    log::trace!(target: "rule_engine", "[{}] the rule engine will skip all rules because of the previous result.", stage);
+                    self.skip = Some(status);
+                }
+
                 status
             }
             Err(error) => {
@@ -587,7 +612,7 @@ impl<'a> RuleEngine<'a> {
         ctx: &MailContext,
     ) -> Result<(), Box<dyn Error>> {
         for op in self
-            .inner
+            .scope
             .get_value::<OperationQueue>("__OPERATION_QUEUE")
             .unwrap()
             .inner
@@ -595,25 +620,17 @@ impl<'a> RuleEngine<'a> {
         {
             log::info!(target: "rule_engine", "executing heavy operation: {:?}", op);
             match op {
-                // TODO: remove or use the quarantine's reason message.
-                Operation::Quarantine(_) => {
-                    let folder = config::get::<String>("paths.quarantine_dir")
-                        .unwrap_or_else(|_| config::DEFAULT_QUARANTINE_DIR.to_string());
-                    std::fs::create_dir_all(&folder)?;
+                Operation::Block(path) => {
+                    let mut path = std::path::PathBuf::from_str(path)?;
+                    std::fs::create_dir_all(&path)?;
 
-                    let mut file =
-                        std::fs::OpenOptions::new()
-                            .write(true)
-                            .create(true)
-                            .open(format!(
-                                "{}/{}_{}.json",
-                                folder,
-                                std::process::id(),
-                                std::time::SystemTime::now()
-                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_millis()
-                            ))?;
+                    path.push(&ctx.envelop.msg_id);
+                    path.set_extension("json");
+
+                    let mut file = std::fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .open(path)?;
 
                     std::io::Write::write_all(&mut file, serde_json::to_string(&ctx)?.as_bytes())?;
                 }
@@ -626,10 +643,10 @@ impl<'a> RuleEngine<'a> {
 
     pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
         Some(Envelop {
-            helo: self.inner.get_value::<String>("helo")?,
-            mail_from: self.inner.get_value::<String>("mail")?,
-            recipients: self.inner.get_value::<Vec<String>>("rcpts")?,
-            msg_id: self.inner.get_value::<String>("msg_id")?,
+            helo: self.scope.get_value::<String>("helo")?,
+            mail_from: self.scope.get_value::<String>("mail")?,
+            recipients: self.scope.get_value::<Vec<String>>("rcpts")?,
+            msg_id: self.scope.get_value::<String>("msg_id")?,
         })
     }
 }
