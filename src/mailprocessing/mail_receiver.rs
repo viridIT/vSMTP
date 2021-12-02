@@ -207,7 +207,13 @@ where
 
             // SMTP pipeline
             (State::Helo, Event::MailCmd(mail_from)) => {
-                // TODO: handle case when sender is already defined.
+                // NOTE: from the MAIL FROM command, the state machine
+                //       generates a new message id for each command until
+                //       dataend is reached. this could be slow.
+                self.mail.generate_message_id();
+                self.rule_engine
+                    .add_data("msg_id", self.mail.envelop.msg_id.clone());
+
                 self.mail.envelop.set_sender(&mail_from);
                 log::trace!(
                     target: "mail_receiver",
@@ -229,6 +235,9 @@ where
             }
 
             (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
+                self.mail.generate_message_id();
+                self.rule_engine
+                    .add_data("msg_id", self.mail.envelop.msg_id.clone());
                 self.rule_engine.add_data("rcpt", rcpt_to.clone());
 
                 // FIXME: the whole rcpt vector is cloned each command,
@@ -269,6 +278,10 @@ where
             }
 
             (State::Data, Event::DataEnd) => {
+                self.mail.generate_message_id();
+                self.rule_engine
+                    .add_data("msg_id", self.mail.envelop.msg_id.clone());
+
                 let (state, code) = R::on_data_end(&self.mail).await;
                 // NOTE: clear envelop and raw_data
 

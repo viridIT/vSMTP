@@ -18,7 +18,7 @@
 let status = __CONTINUE();
 
 for r in __rules {
-    if r.when == __step {
+    if r.when == __stage {
         let status = switch r.condition() {
             true => r.on_success(),
             false => r.on_failure(),

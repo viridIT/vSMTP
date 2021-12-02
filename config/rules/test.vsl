@@ -4,13 +4,18 @@ obj rg6 "range6" "2400:17c0::/32";
 rule connect "range_test" #{
   condition: || vsl.IS_CONNECT("range6"),
   on_success: || {
-    vsl.LOG("success");
+    vsl.LOG("[${date} ${time}] success");
     vsl.CONTINUE()
   },
   on_failure: || {
     vsl.LOG("failure");
     vsl.CONTINUE()
   },
+};
+
+rule helo "dump failure" #{
+  condition: || true,
+  on_success: || vsl.DUMP("./tmp/"),
 };
 
 obj regex "viridit-staff" "^[a-z0-9.]+@viridit.com$";
@@ -20,11 +25,12 @@ obj regex "viridit-staff" "^[a-z0-9.]+@viridit.com$";
 rule rcpt "rcpt_test" #{
   condition: || vsl.IS_RCPT("viridit-staff"),
   on_success: || {
-    vsl.LOG(`${rcpt} is a valid viridit staff`);
+    vsl.LOG(`[${date} ${time}] ${rcpt} is a valid viridit staff`);
+    vsl.DUMP("./tmp/");
     vsl.CONTINUE()
   },
   on_failure: || {
-    vsl.LOG_ERR(`error: ${rcpt} is not a staff from viridit.`);
+    vsl.LOG_ERR(`[${date} ${time}](${msg_id}) error: ${rcpt} is not a staff from viridit.`);
     vsl.LOG(`rcpts:`);
     for r in rcpts {
       vsl.LOG(`  - ${r}`);
