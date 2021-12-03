@@ -27,12 +27,12 @@ About filtering :
 
 Available in January 2022, version RC2 main objectives are:
 
-- Deploy the delivery process (local/remote, delivery queues, etc.)
-- Allow standard/enhanced edition switching
+- The delivery process (local/remote, delivery queues, etc.)
+- Permit standard/enhanced edition switching
 - Post-queue filtering
 - Syslog
 
-About filtering :
+About filtering:
 
 - MIME compliancy (RFC 2045+) checks
 - Actions on MIME headers related to RFC 5322
@@ -41,37 +41,21 @@ About filtering :
 
 ## Release Candidate 3
 
-This release will focus on :
+This release will focus on:
 
-- Performances
 - The vSMTP policy server
+- Performances
 
-About vSMTP policy server:  
+About vSMTP policy server:
 
-vSMTP Policy Server (vPS) is a module dedicated to integrating of third-party software.  
-Thanks to its logic engine it can handle complex filtering and security rules over several network
+The vSMTP Policy Server (vPS) is a module dedicated to integrating of third-party software. Thanks to its logic engine it can manage complex filtering and security rules. In version RC3, vPS will accept delegation trough :
 
-il offre à l'utilisateur la possibilité de...
-
-It interacts through a logical engine which main functionalities are:
-- the possibility of handling complex chains of software
+- The SMTP protocol
 - A libmilter-like emulator
-- A Postfix-like policy server through SMTP protocol
-- A Protobuf/GRPC 
-- HTTP
 - Local Unix scripts
 
+It can be called at any stage of a SMTP transaction via the rule engine.
 
-It can be called at any stage of a SMTP transaction.  
+## Production release
 
-## Version 1.0
-
-Available on : Q2/2022
-
-- 3rd party library for remote delivery
-
-- ClamAV basic integration
-
-### Configuration
-- Network configuration parameters  
-- Security and DDoS parameters
+Depending on Release Candidate versions fixes and user feedbacks, the production version is expected for Q2/2022.
