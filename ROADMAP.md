@@ -1,6 +1,6 @@
 # vSMTP standard edition roadmap
 
->Release candidate versions should not be use for production purpose.  
+>Release candidate versions should not be used for production purpose.  
 
 For the enhanced edition roadmap, please feel free to contact us at <https://www.viridit.com/contact/>.
 
