@@ -2,8 +2,8 @@
 
 >Release candidate versions should not be used for production purpose.  
 
-More details about installation, scripting language and supported features can be found in the project wiki pages. https://github.com/viridIT/vSMTP/wiki
-Register to your community, ask questions and get in-depth answers at https://www.viridit.com/community-forum/
+More details about installation, scripting language and supported features can be found in the project wiki pages. https://github.com/viridIT/vSMTP/wiki  
+Join vSMTP community, ask questions and get in-depth answers at https://www.viridit.com/community-forum/  
 
 For the enhanced edition roadmap, please feel free to contact us at <https://www.viridit.com/contact/>.
 
