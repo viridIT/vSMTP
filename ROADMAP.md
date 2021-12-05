@@ -27,6 +27,8 @@ About filtering :
 - User defined quarantine queues and logs
 - JSON and RAW exports
 
+>This version only manages incoming mails. For outoing mail you must use your current SMTP server.
+
 ## Release Candidate 2
 
 Available in January 2022, version RC2 main objectives are:
