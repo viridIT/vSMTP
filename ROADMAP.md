@@ -31,7 +31,7 @@ About filtering :
 
 ## Release Candidate 2
 
-Available in January 2022, version RC2 main objectives are:
+Available early January 2022, version RC2 main objectives are:
 
 - The delivery process (local/remote, delivery queues, etc.)
 - Permit standard/enhanced edition switching
