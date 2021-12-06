@@ -20,6 +20,19 @@ pub struct MailContext {
     pub body: Vec<u8>,
 }
 
+impl MailContext {
+    pub(crate) fn generate_message_id(&mut self) {
+        self.envelop.msg_id = format!(
+            "{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        );
+    }
+}
+
 impl serde::Serialize for MailContext {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

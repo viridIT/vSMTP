@@ -22,18 +22,22 @@ mod tests {
         }
     }
 
-    async fn make_test(smtp_input: &[u8], expected_output: &[u8]) {
+    async fn make_test(
+        smtp_input: &[u8],
+        expected_output: &[u8],
+        level: TlsSecurityLevel,
+        tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    ) {
         let mut receiver = MailReceiver::<DataEndResolverTest>::new(
             "0.0.0.0:0".parse().unwrap(),
-            // std::time::Duration::from_millis(1_000),
-            None,
-            TlsSecurityLevel::May,
+            tls_config,
+            level,
         );
         let mut write = Vec::new();
-        let mut mock = Mock::new(smtp_input.to_vec(), &mut write);
+        let mock = Mock::new(smtp_input.to_vec(), &mut write);
 
-        match receiver.receive_plain(&mut mock).await {
-            Ok(_) => {
+        match receiver.receive_plain(mock).await {
+            Ok(mut mock) => {
                 let _ = mock.flush();
                 assert_eq!(
                     std::str::from_utf8(&write),
@@ -58,7 +62,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
@@ -68,6 +72,8 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -77,11 +83,13 @@ mod tests {
         make_test(
             ["foo\r\n"].concat().as_bytes(),
             [
-                "220 Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -90,9 +98,14 @@ mod tests {
     async fn test_receiver_3() {
         make_test(
             ["MAIL FROM:<jhon@doe>\r\n"].concat().as_bytes(),
-            ["220 Service ready\r\n", "503 Bad sequence of commands\r\n"]
-                .concat()
-                .as_bytes(),
+            [
+                "220 testserver.com Service ready\r\n",
+                "503 Bad sequence of commands\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -101,9 +114,14 @@ mod tests {
     async fn test_receiver_4() {
         make_test(
             ["RCPT TO:<jhon@doe>\r\n"].concat().as_bytes(),
-            ["220 Service ready\r\n", "503 Bad sequence of commands\r\n"]
-                .concat()
-                .as_bytes(),
+            [
+                "220 testserver.com Service ready\r\n",
+                "503 Bad sequence of commands\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -115,12 +133,14 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
         )
         .await;
     }
@@ -130,12 +150,56 @@ mod tests {
         make_test(
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
-                "220 Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "221 Service closing transmission channel\r\n",
             ]
             .concat()
             .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_receiver_7() {
+        make_test(
+            ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
+                .concat()
+                .as_bytes(),
+            [
+                "220 testserver.com Service ready\r\n",
+                "250-testserver.com\r\n",
+                "250 STARTTLS\r\n",
+                "454 TLS not available due to temporary reason\r\n",
+                "221 Service closing transmission channel\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::Encrypt,
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_receiver_8() {
+        make_test(
+            ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
+                .concat()
+                .as_bytes(),
+            [
+                "220 testserver.com Service ready\r\n",
+                "250-testserver.com\r\n",
+                "250 STARTTLS\r\n",
+                "530 Must issue a STARTTLS command first\r\n",
+                "221 Service closing transmission channel\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::Encrypt,
+            None,
         )
         .await;
     }

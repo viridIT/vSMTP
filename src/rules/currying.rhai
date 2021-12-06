@@ -32,7 +32,8 @@ let vsl = #{
         __is_mail(mail, object)
     },
 
-    // checks if the object matches one of the recipients given by all RCPT TO commands.
+    // checks if the object matches one of the recipients
+    // given by the current RCPT TO command.
     IS_RCPT: |object| {
         __is_rcpt(rcpt, object)
     },
@@ -76,9 +77,9 @@ let vsl = #{
 
     // change one of the recipient specified by the RCPT TO command.
     REWRITE_RCPT: |to_rewrite, value| {
-        for (recipient, index) in rcpt {
+        for (recipient, index) in rcpts {
             if recipient == to_rewrite {
-                rcpt.custom_replace(index, value);
+                rcpts.custom_replace(index, value);
                 break;
             }
         }
@@ -86,14 +87,14 @@ let vsl = #{
 
     // add a recipient to the list.
     ADD_RCPT: |to_add| {
-        rcpt.push(to_add);
+        rcpts.push(to_add);
     },
 
     // remove a recipient from the list.
     REMOVE_RCPT: |to_remove| {
-        for (recipient, index) in rcpt {
+        for (recipient, index) in rcpts {
             if recipient == to_remove {
-                rcpt.custom_remove(index);
+                rcpts.custom_remove(index);
                 break;
             }
         }
@@ -106,14 +107,15 @@ let vsl = #{
 
     // write the current evenlop and mail content to a file in json format.
     DUMP: |path| {
-        __DUMP(helo, mail, rcpt, data, path);
+        __DUMP(helo, mail, rcpts, data, msg_id, path);
     },
 
-    // write a mail to the quarantine folder.
-    // the QUARANTINE action is defered in the operation queue and is executed
+    // write a mail to the an user defiened quarantine folder.
+    // the BLOCK action is defered in the operation queue and is executed
     // after the preq stage.
-    QUARANTINE: |reason| {
-        __OPERATION_QUEUE.op_quarantine(reason);
+    BLOCK: |path| {
+        __OPERATION_QUEUE.op_block(path);
+        __BLOCK()
     },
 
     // send a mail.

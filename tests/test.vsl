@@ -1,0 +1,32 @@
+obj rg4 "range4" "127.0.0.1/24";
+obj rg6 "range6" "2400:17c0::/32";
+
+rule connect "range_test" #{
+  condition: || vsl.IS_CONNECT("range6"),
+  on_success: || {
+    vsl.LOG("[${date} ${time}] success");
+    vsl.CONTINUE()
+  },
+  on_failure: || {
+    vsl.LOG("failure");
+    vsl.CONTINUE()
+  },
+};
+
+obj regex "viridit-staff" "^[a-z0-9.]+@viridit.com$";
+
+// rcpt special case, if ACCEPT is called, its skips all the rules,
+// but re-start them with the next rcpt.
+rule rcpt "rcpt_test" #{
+  condition: || vsl.IS_RCPT("viridit-staff"),
+  on_success: || vsl.LOG(`[${date} ${time}] ${rcpt} is a viridit employee, trusted.`),
+  on_failure: || {
+    vsl.LOG(`[${date} ${time}] unknown user ${rcpt} detected. blocked.`);
+    vsl.BLOCK(`./tmp/blocked/`)
+  }
+};
+
+rule preq "dummy rule" #{
+  condition: || true,
+  on_success: || { vsl.LOG(`[${date} ${time}] reached preq stage.`); vsl.CONTINUE() }
+};

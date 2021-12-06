@@ -2,23 +2,19 @@
 obj ip4 "MDA_IP" "192.168.0.1";
 obj fqdn "Local_DN" "foobar.com";
 
-obj rg4 "10_NET" "10.0.0.0/8";
+obj rg4 "NET_10" "10.0.0.0/8";
 
 // Private networks
 obj grp "Private_NET" [
-    10_NET,
+    NET_10,
     obj rg4 "192_NET" "192.168.0.0/16",
     obj rg4 "172_NET" "172.16.0.0/12",
-    
-]
+];
 
-obj val "SEC_LOG" "/var/log/mail/sec_log";
-// ou let SEC_LOG = "/var/log/mail/sec_log";
-// VAL = scope RUST, alors que let = scope rhai uniquement
+obj val "SEC_LOG" "/var/log/mail/sec_log"; 
 
 // Connection blacklist
 obj file:addr "Con_BlckLst" "/var/tmp/vmta/con_blacklist";
-///////////////////////////////// il faudrait ajouter les DB Berkeley au moins
 
 // User syntax is always first.last@fqdn
 obj regex "User_Syntax" "^[a-z]+[.][a-z0-9]+";
@@ -29,7 +25,7 @@ rule connect "From_MDA" #{
     condition: || vsl.IS_CONNECT("MDA_IP"),
     on_success: vsl.FACCEPT,
     on_failure: vsl.DENY,
-} 
+}; 
 
 // Other internal -> MTA : Deny
 // Endusers can't directly connect to the MTA
@@ -39,32 +35,34 @@ rule connect "From_Private" #{
     on_success: || { 
         vsl.LOG(`${date}:${time} : Connection attempt from internal IP : ${source_ip}`, SEC_LOG); 
         vsl.DENY()
-    }
+    },
     on_failure: vsl.CONTINUE,
-} 
+}; 
 
-rule connect "Con_Blacklist"
-    condition: || vsl.IS_CONNECT("Con_BlckLst");
+rule connect "Con_Blacklist" #{
+    condition: || vsl.IS_CONNECT("Con_BlckLst"),
     on_success: vsl.DENY,
     // Shortcut - we allow everything else
     on_failure: vsl.CONTINUE,
-}
+};
 
-/// A ajouter dans la doc - "la dernière d'un stage = ACCEPT"...
-
-//////////////////////////////// Il est impératif d'avoir l'action nslookup pour le mail.
-
-
-let LOG_SENTENCE = "${date}:${time} : Relay attempt from : ${source_ip}";
+let LOG_SENTENCE = `${date}:${time} : Relay attempt from : ${source_ip}`;
 
 rule mail "Mail_Antirelay" #{
     condition: || vsl.IS_MAIL("Local_DN") && !vsl.IS_CONNECT("MDA_IP"),
     on_success: { 
         vsl.LOG(LOG_SENTENCE, SEC_LOG); 
-        vsl.DENY(),
-    }
+        vsl.DENY()
+    },
     on_failure: vsl.CONTINUE,
-}
+};
+
+// Statistic on mail from
+rule mail "mail_stat" #{
+    condition: || true,
+    on_success: || { vsl.DUMP(`/var/spool/mta/${msg_id})`) ; vsl.CONTINUE() },
+};
+
 
 // Anti-relaying
 // 
@@ -72,36 +70,22 @@ rule rcpt "Rcpt_Antirelay" #{
     condition: || !vsl.IS_RCPT("Local_DN") && !vsl.IS_CONNECT("MDA_IP"),
     on_success: { 
         vsl.LOG(`${date}:${time} : Relay attempt from : ${source_ip}`, SEC_LOG); 
-        vsl.DENY(),
-    }
+        vsl.DENY()
+    },
     on_failure: vsl.CONTINUE,
-}
+};
 
 
 rule rcpt "Rcpt_user_syntax" #{
-    condition: || vsl.IS_RCPT("User_Syntax"),
-    on_success: vsl.ACCEPT,
-    on_failure: vsl.CONTINUE,
-}
-///////////////////////////////// Il faut un plugin ldap.
-
-
-rule mail "mail_stat" #{
-    condition: true,
-    on_success: vsl.DUMP("/var/spool/mta/${msg_id})"),
-    on_failure: vsl.DUMP("/var/spool/mta/${msg_id})"),
-    /// On peut enlever on_failure ???
-}
-/// ou une forme de....... exec data "mail_stat" #{ vsl.DUMP("/var/spool/mta/${msg_id})") }
-
-///// Pour DUMP je me demande si il faut pas dumper la structure en fct du stage.
-///// Il est interessant de se limiter à ce que l'on souhaite obtenir comme info.
-///// contrairement à bcc ou quarantine où il faut avoir tout le mail.
-
-/// write permet de faire des trucs champ/champ.... à voir
-
-
-/////////////// Ces deux règles me semblent délirantes... doit y avoir moyen de faire plus simple.
+    condition: || vsl.IS_RCPT("User_Syntax") || vsl.IS_RCPT("contact@viridit.com"),
+    on_success: vsl.CONTINUE,
+    on_failure: {
+        vsl.LOG(`${date}:${time} : Unknown user ${rcpt}`, SEC_LOG);
+        vsl.REMOVE_RCPT(rcpt);
+        vsl.SMTP_CODE(${SMTP_CODE_USER_UNKNOWN});
+        vsl.CONTINUE,
+    },
+};
 
 
 /////////////////////////// Rule pour le delivery ?

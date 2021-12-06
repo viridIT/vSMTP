@@ -18,12 +18,15 @@ use crate::config;
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
 
+use ipnet::{Ipv4Net, Ipv6Net};
+use iprange::IpRange;
 use lazy_static::lazy_static;
 use lettre::{Message, SmtpTransport, Transport};
 use regex::Regex;
 use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Module, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
 
+use std::net::IpAddr;
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -39,8 +42,8 @@ use std::{
 pub enum Operation {
     /// header, value
     MutateHeader(String, String),
-    /// reason
-    Quarantine(String),
+    /// blocked email path
+    Block(String),
 }
 
 /// used to yield expensive operations
@@ -60,6 +63,8 @@ impl OperationQueue {
 pub(super) enum Var {
     Ip4(Ipv4Addr),
     Ip6(Ipv6Addr),
+    Rg4(IpRange<Ipv4Net>),
+    Rg6(IpRange<Ipv6Net>),
     Address(String),
     Fqdn(String),
     Regex(Regex),
@@ -91,6 +96,16 @@ impl Var {
             "ip6" => Ok(Var::Ip6(Ipv6Addr::from_str(&Var::value::<String>(
                 map, "value",
             )?)?)),
+            "rg4" => Ok(Var::Rg4(
+                [Var::value::<String>(map, "value")?.parse::<Ipv4Net>()?]
+                    .into_iter()
+                    .collect(),
+            )),
+            "rg6" => Ok(Var::Rg6(
+                [Var::value::<String>(map, "value")?.parse::<Ipv6Net>()?]
+                    .into_iter()
+                    .collect(),
+            )),
             "fqdn" => {
                 let value = Var::value::<String>(map, "value")?;
                 match addr::parse_domain_name(&value) {
@@ -120,14 +135,20 @@ impl Var {
                         Ok(line) => match content_type.as_str() {
                             "ip4" => content.push(Var::Ip4(Ipv4Addr::from_str(&line)?)),
                             "ip6" => content.push(Var::Ip6(Ipv6Addr::from_str(&line)?)),
-                            "fqdn" => {
-                                // TODO: parse fqdn.
-                                content.push(Var::Fqdn(line))
-                            }
-                            "addr" => {
-                                // TODO: parse fqdn.
-                                content.push(Var::Address(line))
-                            }
+                            "fqdn" => match addr::parse_domain_name(&line) {
+                                Ok(domain) => content.push(Var::Fqdn(domain.to_string())),
+                                Err(_) => {
+                                    return Err(format!("'{}' is not a valid fqdn.", value).into());
+                                }
+                            },
+                            "addr" => match addr::parse_email_address(&line) {
+                                Ok(domain) => content.push(Var::Address(domain.to_string())),
+                                Err(_) => {
+                                    return Err(
+                                        format!("'{}' is not a valid address.", value).into()
+                                    );
+                                }
+                            },
                             "val" => content.push(Var::Val(line)),
                             "regex" => content.push(Var::Regex(Regex::from_str(&line)?)),
                             _ => {}
@@ -162,27 +183,39 @@ impl Var {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
-    Faccept,
+    /// accepts the current stage value, skips all rules in the stage.
     Accept,
+
+    /// continue to the next rule / stage.
     Continue,
+
+    /// immediatly stops the transaction and send an error code.
     Deny,
+
+    /// ignore all future rules for the current transaction.
+    Faccept,
+
+    /// wait for the email before stopping the transaction and sending an error code,
+    /// skips all future rules to fill the envelop and mail data as fast as possible.
+    /// also stores the email data in an user defined quarantine directory.
+    Block,
 }
 
 // exported methods are used in rhai context, so we allow dead code.
 #[allow(dead_code)]
 #[export_module]
 mod vsl {
+    use std::net::IpAddr;
+
     use crate::model::{envelop::Envelop, mail::MailContext};
 
-    #[rhai_fn(name = "op_quarantine")]
-    pub fn quarantine(queue: &mut OperationQueue, reason: &str) {
-        queue.push(Operation::Quarantine(reason.to_string()))
+    pub fn op_block(queue: &mut OperationQueue, path: &str) {
+        queue.push(Operation::Block(path.to_string()))
     }
 
-    #[rhai_fn(name = "op_mutate_header")]
-    pub fn mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
+    pub fn op_mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
         queue.push(Operation::MutateHeader(
             header.to_string(),
             value.to_string(),
@@ -207,6 +240,11 @@ mod vsl {
     #[rhai_fn(name = "__DENY")]
     pub fn deny() -> Status {
         Status::Deny
+    }
+
+    #[rhai_fn(name = "__BLOCK")]
+    pub fn block() -> Status {
+        Status::Block
     }
 
     /// logs a message to stdout, stderr or a file.
@@ -249,7 +287,7 @@ mod vsl {
     #[rhai_fn(name = "__WRITE", return_raw)]
     pub fn write_mail(data: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
         if data.is_empty() {
-            return Err("the WRITE action can only be called in the 'preq' stage or after.".into());
+            return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
         }
 
         let path = std::path::PathBuf::from_str(path).unwrap();
@@ -277,8 +315,13 @@ mod vsl {
         mail: &str,
         rcpt: Vec<String>,
         data: &str,
+        msg_id: &str,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
+        if mail.is_empty() {
+            return Err("the DUMP action can only be called after or in the 'mail' stage.".into());
+        }
+
         if let Err(error) = std::fs::create_dir_all(path) {
             return Err(format!("could not write email to '{:?}': {}", path, error).into());
         }
@@ -286,14 +329,8 @@ mod vsl {
         let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
             // Error is of infallible type, we can unwrap.
             let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(format!(
-                "{}_{}.json",
-                std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()
-            ));
+            path.push(msg_id);
+            path.set_extension("json");
             path
         }) {
             Ok(file) => file,
@@ -307,6 +344,7 @@ mod vsl {
                 helo: helo.to_string(),
                 mail_from: mail.to_string(),
                 recipients: rcpt,
+                msg_id: msg_id.to_string(),
             },
             body: data.into(),
         };
@@ -354,14 +392,13 @@ mod vsl {
         !(*in1 == in2)
     }
 
-    // FIXME: 'connect' could be curried with an ipv4 and v6 versions to prevent the conversion.
-    pub fn __is_connect(connect: &mut Ipv4Addr, object: &str) -> bool {
+    pub fn __is_connect(connect: &mut IpAddr, object: &str) -> bool {
         match RHAI_ENGINE.objects.read().unwrap().get(object) {
             Some(object) => internal_is_connect(connect, object),
             None => match Ipv4Addr::from_str(object) {
                 Ok(ip) => ip == *connect,
                 Err(_) => match Ipv6Addr::from_str(object) {
-                    Ok(ip) => ip == connect.to_ipv6_mapped(),
+                    Ok(ip) => ip == *connect,
                     Err(_) => {
                         log::error!(
                             target: "rule_engine",
@@ -389,10 +426,10 @@ mod vsl {
         }
     }
 
-    pub fn __is_rcpt(rcpt: &mut Vec<String>, object: &str) -> bool {
+    pub fn __is_rcpt(rcpt: &str, object: &str) -> bool {
         match RHAI_ENGINE.objects.read().unwrap().get(object) {
             Some(object) => internal_is_rcpt(rcpt, object),
-            _ => rcpt.iter().any(|email| object == *email),
+            _ => rcpt == object,
         }
     }
 
@@ -402,17 +439,23 @@ mod vsl {
     }
 }
 
-fn internal_is_connect(connect: &Ipv4Addr, object: &Var) -> bool {
+fn internal_is_connect(connect: &IpAddr, object: &Var) -> bool {
     match object {
         Var::Ip4(ip) => *ip == *connect,
-        Var::Ip6(ip) => *ip == connect.to_ipv6_mapped(),
+        Var::Ip6(ip) => *ip == *connect,
+        Var::Rg4(range) => match connect {
+            IpAddr::V4(ip4) => range.contains(ip4),
+            _ => false,
+        },
+        Var::Rg6(range) => match connect {
+            IpAddr::V6(ip6) => range.contains(ip6),
+            _ => false,
+        },
         // NOTE: is there a way to get a &str instead of a String here ?
         Var::Regex(re) => re.is_match(connect.to_string().as_str()),
-        Var::File(content) => content.iter().any(|ip| match ip {
-            Var::Ip4(ip) => *ip == *connect,
-            Var::Ip6(ip) => *ip == connect.to_ipv6_mapped(),
-            _ => false,
-        }),
+        Var::File(content) => content
+            .iter()
+            .any(|object| internal_is_connect(connect, object)),
         Var::Group(group) => group
             .iter()
             .any(|object| internal_is_connect(connect, object)),
@@ -424,10 +467,7 @@ fn internal_is_helo(helo: &str, object: &Var) -> bool {
     match object {
         Var::Fqdn(fqdn) => *fqdn == helo,
         Var::Regex(re) => re.is_match(helo),
-        Var::File(content) => content.iter().any(|fqdn| match fqdn {
-            Var::Fqdn(fqdn) => *fqdn == helo,
-            _ => false,
-        }),
+        Var::File(content) => content.iter().any(|object| internal_is_helo(helo, object)),
         Var::Group(group) => group.iter().any(|object| internal_is_helo(helo, object)),
         _ => false,
     }
@@ -437,51 +477,46 @@ fn internal_is_mail(mail: &str, object: &Var) -> bool {
     match object {
         Var::Address(addr) => *addr == mail,
         Var::Regex(re) => re.is_match(mail),
-        Var::File(content) => content.iter().any(|addr| match addr {
-            Var::Address(addr) => *addr == mail,
-            _ => false,
-        }),
+        Var::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
         Var::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
         _ => false,
     }
 }
 
-fn internal_is_rcpt(rcpt: &[String], object: &Var) -> bool {
+fn internal_is_rcpt(rcpt: &str, object: &Var) -> bool {
     match object {
-        Var::Address(addr) => rcpt.iter().any(|email| *addr == *email),
-        Var::Regex(re) => rcpt.iter().any(|email| re.is_match(email)),
-        Var::File(content) => content.iter().any(|addr| match addr {
-            Var::Address(addr) => rcpt.iter().any(|email| *addr == *email),
-            _ => false,
-        }),
+        Var::Address(addr) => rcpt == addr.as_str(),
+        Var::Regex(re) => re.is_match(rcpt),
+        Var::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
         Var::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
         _ => false,
     }
 }
 
-/// contains the scope of the connexion and a reference to the RhaiEngine.
-pub(crate) struct RuleEngine<'a> {
-    inner: Scope<'a>,
+pub struct RuleEngine<'a> {
+    scope: Scope<'a>,
+    skip: Option<Status>,
 }
 
 impl<'a> RuleEngine<'a> {
     pub(crate) fn new() -> Self {
-        let mut inner = Scope::new();
-        inner
-            .push("connect", Ipv4Addr::from_str("0.0.0.0"))
+        let mut scope = Scope::new();
+        scope
+            .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
             .push("helo", "")
             .push("mail", "")
-            .push("rcpt", Vec::<String>::new())
+            .push("rcpt", "")
+            .push("rcpts", Vec::<String>::new())
             .push("data", "")
             .push("__OPERATION_QUEUE", OperationQueue::default())
-            .push("__step", "")
+            .push("__stage", "")
             .push("__rules", Array::new())
             .push("__init", true)
+            .push("date", "")
+            .push("time", "")
+            .push("msg_id", "")
             .push("addr", config::get::<Vec<String>>("server.addr").unwrap())
-            .push(
-                "logs_file",
-                config::get::<String>("paths.logs_file").unwrap(),
-            )
+            .push("logs_file", config::get::<String>("log.file").unwrap())
             .push(
                 "rules_dir",
                 config::get::<String>("paths.rules_dir").unwrap(),
@@ -501,7 +536,7 @@ impl<'a> RuleEngine<'a> {
                 config::get::<String>("clamav_address").unwrap(),
             );
 
-        Self { inner }
+        Self { scope, skip: None }
     }
 
     pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T)
@@ -510,25 +545,65 @@ impl<'a> RuleEngine<'a> {
         // maybe create a getter, engine.scope().push(n, v) ?
         T: Clone + Send + Sync + 'static,
     {
-        self.inner.push(name, data);
+        self.scope.set_or_push(name, data);
     }
 
-    pub(crate) fn run_when(&mut self, step: &str) -> Status {
-        log::debug!(target: "rule_engine", "------ executing rules registered on '{}'.", step);
+    pub(crate) fn get_data<T>(&mut self, name: &'a str) -> Option<T>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        self.scope.get_value(name)
+    }
 
-        self.inner.set_value("__step", step.to_string());
+    pub(crate) fn run_when(&mut self, stage: &str) -> Status {
+        if let Some(status) = self.skip {
+            return status;
+        }
+
+        log::debug!(target: "rule_engine", "[{}] evaluating rules.", stage);
+
+        // updating the internal __stage variable, so that the rhai context
+        // knows what rules to execute
+        self.scope.set_value("__stage", stage.to_string());
+
+        // injecting date and time variables.
+        let now = chrono::Local::now();
+        self.scope
+            .set_value("date", now.date().format("%Y/%m/%d").to_string());
+        self.scope
+            .set_value("time", now.time().format("%H:%M:%S").to_string());
+
         let result = RHAI_ENGINE
             .context
-            .eval_ast_with_scope::<Status>(&mut self.inner, &RHAI_ENGINE.ast);
+            .eval_ast_with_scope::<Status>(&mut self.scope, &RHAI_ENGINE.ast);
 
-        log::debug!(target: "rule_engine", "------ evaluation of rules registered on '{}' finished.", step);
-        log::trace!(target: "rule_engine", "       result: {:?}.", result);
+        // FIXME: clarify this comment.
+        // rules are cleared after evaluation, this way,
+        // scoped variables that are changed by rhai's context
+        // can be injected back into fresh new rules.
+        self.scope.set_value("__rules", Array::new());
 
-        // NOTE: does the evaluation risk to crash, even thought the code has been already evaluated once ?
-        //        check if a Result<Status, Error> is needed here.
+        log::debug!(target: "rule_engine", "[{}] done.", stage);
+
         match result {
-            Ok(status) => status,
-            Err(_) => Status::Continue,
+            Ok(status) => {
+                log::trace!(target: "rule_engine", "[{}] result: {:?}.", stage, status);
+
+                if let Status::Block | Status::Faccept = status {
+                    log::trace!(target: "rule_engine", "[{}] the rule engine will skip all rules because of the previous result.", stage);
+                    self.skip = Some(status);
+                }
+
+                status
+            }
+            Err(error) => {
+                log::error!(
+                    target: "rule_engine",
+                    "the rule engine skipped a rule in the '{}' stage because it could not evaluate it: \n\t{}",
+                    stage, error
+                );
+                Status::Continue
+            }
         }
     }
 
@@ -537,7 +612,7 @@ impl<'a> RuleEngine<'a> {
         ctx: &MailContext,
     ) -> Result<(), Box<dyn Error>> {
         for op in self
-            .inner
+            .scope
             .get_value::<OperationQueue>("__OPERATION_QUEUE")
             .unwrap()
             .inner
@@ -545,25 +620,17 @@ impl<'a> RuleEngine<'a> {
         {
             log::info!(target: "rule_engine", "executing heavy operation: {:?}", op);
             match op {
-                // TODO: remove or use the quarantine's reason message.
-                Operation::Quarantine(_) => {
-                    let folder = config::get::<String>("paths.quarantine_dir")
-                        .unwrap_or_else(|_| config::DEFAULT_QUARANTINE_DIR.to_string());
-                    std::fs::create_dir_all(&folder)?;
+                Operation::Block(path) => {
+                    let mut path = std::path::PathBuf::from_str(path)?;
+                    std::fs::create_dir_all(&path)?;
 
-                    let mut file =
-                        std::fs::OpenOptions::new()
-                            .write(true)
-                            .create(true)
-                            .open(format!(
-                                "{}/{}_{}.json",
-                                folder,
-                                std::process::id(),
-                                std::time::SystemTime::now()
-                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_millis()
-                            ))?;
+                    path.push(&ctx.envelop.msg_id);
+                    path.set_extension("json");
+
+                    let mut file = std::fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .open(path)?;
 
                     std::io::Write::write_all(&mut file, serde_json::to_string(&ctx)?.as_bytes())?;
                 }
@@ -576,9 +643,10 @@ impl<'a> RuleEngine<'a> {
 
     pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
         Some(Envelop {
-            helo: self.inner.get_value::<String>("helo")?,
-            mail_from: self.inner.get_value::<String>("mail")?,
-            recipients: self.inner.get_value::<Vec<String>>("rcpt")?,
+            helo: self.scope.get_value::<String>("helo")?,
+            mail_from: self.scope.get_value::<String>("mail")?,
+            recipients: self.scope.get_value::<Vec<String>>("rcpts")?,
+            msg_id: self.scope.get_value::<String>("msg_id")?,
         })
     }
 }
@@ -666,14 +734,14 @@ impl RhaiEngine {
                 )),
             },
             true,
-            |context, input| {
+            move |context, input| {
                 let when = input[0].get_variable_name().unwrap().to_string();
                 let name = input[1].get_literal_value::<ImmutableString>().unwrap();
                 let map = &input[2];
 
                 // we parse the rule only if needs to be executed now.
-                if let Some(step) = context.scope_mut().get_value::<String>("__step") {
-                    if step != when {
+                if let Some(stage) = context.scope().get_value::<String>("__stage") {
+                    if stage != when {
                         return Ok(Dynamic::UNIT);
                     }
                 }
@@ -690,7 +758,7 @@ impl RhaiEngine {
                     .push_dynamic("__rules", Dynamic::from(rules));
                 }
 
-                // rule is pushed in __rules global so no need to introduce it to the scope.
+                // the rule body is pushed in __rules global so no need to introduce it to the scope.
                 Ok(Dynamic::UNIT)
             },
         )
@@ -702,7 +770,7 @@ impl RhaiEngine {
                 1 => Ok(Some("$ident$".into())),
                 // the type of the object ...
                 2 => match symbols[1].as_str() {
-                    "ip4" | "ip6" | "fqdn" | "addr" | "val" | "regex" | "grp" => Ok(Some("$string$".into())),
+                    "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "val" | "regex" | "grp" => Ok(Some("$string$".into())),
                     "file" => Ok(Some("$symbol$".into())),
                     entry => Err(ParseError(
                         Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
@@ -720,7 +788,7 @@ impl RhaiEngine {
                 // file content type or info block / value of object, we are done parsing.
                 4 => match symbols[3].as_str() {
                     // NOTE: could it be possible to add a "file" content type ?
-                    "ip4" | "ip6" | "fqdn" | "addr" | "val" | "regex" => Ok(Some("$string$".into())),
+                    "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "val" | "regex" => Ok(Some("$string$".into())),
                     _ =>  Ok(None),
                 }
                 // object name for a file.
@@ -887,17 +955,23 @@ lazy_static! {
         let mut scope = Scope::new();
         scope
         // stage variables.
-        .push("connect", Ipv4Addr::from_str("0.0.0.0"))
+        .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
         .push("helo", "")
         .push("mail", "")
-        .push("rcpt", Vec::<String>::new())
+        .push("rcpt", "")
+        .push("rcpts", Vec::<String>::new())
         .push("data", "")
 
         // rule engine's internals.
         .push("__OPERATION_QUEUE", OperationQueue::default())
-        .push("__step", "")
+        .push("__stage", "")
         .push("__rules", Array::new())
         .push("__init", false)
+
+        // useful data.
+        .push("date", "")
+        .push("time", "")
+        .push("msg_id", "")
 
         // configuration variables.
         .push("addr", Vec::<String>::new())
