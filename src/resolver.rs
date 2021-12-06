@@ -95,7 +95,16 @@ impl ResolverWriteDisk {
         let mut to_process = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open(format!("{}/{}.json", folder, mail.envelop.msg_id))?;
+            .open(format!(
+                "{}/{}_{:?}.json",
+                folder,
+                mail.timestamp
+                    .unwrap()
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+                std::thread::current().id()
+            ))?;
 
         std::io::Write::write_all(&mut to_process, serde_json::to_string(&mail)?.as_bytes())
     }

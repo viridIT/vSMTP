@@ -70,7 +70,6 @@ where
 
     /// mail informations sent by the client.
     mail: MailContext,
-    msg_id: String,
 
     /// rule engine executing the server's rhai configuration.
     rule_engine: RuleEngine<'a>,
@@ -115,15 +114,8 @@ where
                 },
                 envelop: Envelop::default(),
                 body: String::with_capacity(20_000),
+                timestamp: None,
             },
-            msg_id: format!(
-                "{}_{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
-                std::process::id(),
-            ),
             tls_config,
             tls_security_level,
             is_secured: false,
@@ -207,6 +199,7 @@ where
             // SMTP pipeline
             (State::Helo, Event::MailCmd(mail_from)) => {
                 self.mail.envelop.mail_from = mail_from;
+                self.mail.timestamp = Some(std::time::SystemTime::now());
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
@@ -269,10 +262,19 @@ where
                 };
 
                 // executing all registered extensive operations.
-                if let Err(error) = self
-                    .rule_engine
-                    .execute_operation_queue(&self.mail, &self.msg_id)
-                {
+                if let Err(error) = self.rule_engine.execute_operation_queue(
+                    &self.mail,
+                    &format!(
+                        "{}_{:?}",
+                        self.mail
+                            .timestamp
+                            .unwrap()
+                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis(),
+                        std::thread::current().id()
+                    ),
+                ) {
                     log::error!(target: "rule_engine", "failed to empty the operation queue: '{}'", error);
                 }
 
@@ -498,7 +500,7 @@ where
 
         self.rule_engine
             .add_data("connect", self.mail.connection.peer_addr.ip());
-        self.rule_engine.add_data("msg_id", self.msg_id.clone());
+        // self.rule_engine.add_data("msg_id", self.msg_id.clone());
 
         if let Status::Deny = self.rule_engine.run_when("connect") {
             return Err(std::io::Error::new(

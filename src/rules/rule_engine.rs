@@ -353,6 +353,7 @@ mod vsl {
                 peer_addr: todo!(),
                 timestamp: todo!(),
             },
+            timestamp: None,
         };
 
         std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())

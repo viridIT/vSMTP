@@ -18,6 +18,7 @@
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct ConnectionData {
     pub peer_addr: std::net::SocketAddr,
+    // instant when connection being treated
     pub timestamp: std::time::SystemTime,
 }
 
@@ -26,4 +27,6 @@ pub struct MailContext {
     pub connection: ConnectionData,
     pub envelop: super::envelop::Envelop,
     pub body: String,
+    // instant when the last "MAIL FROM" has been received
+    pub timestamp: Option<std::time::SystemTime>,
 }
