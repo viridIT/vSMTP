@@ -18,8 +18,8 @@
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Envelop {
     pub helo: String,
-    pub mail_from: String,
-    pub recipients: Vec<String>,
+    pub mail: String,
+    pub rcpt: Vec<String>,
     pub msg_id: String,
 }
 
@@ -30,16 +30,16 @@ fn remove_inbox_characters(inbox: &str) -> String {
 
 impl Envelop {
     pub fn set_sender(&mut self, sender: &str) {
-        self.mail_from = remove_inbox_characters(sender);
+        self.mail = remove_inbox_characters(sender);
     }
 
     pub fn add_rcpt(&mut self, recipient: &str) {
-        self.recipients.push(remove_inbox_characters(recipient));
+        self.rcpt.push(remove_inbox_characters(recipient));
     }
 
     // TODO: need error handling (i.e. @blablah.com should return an error.)
     pub fn get_rcpt_usernames(&self) -> Vec<&str> {
-        self.recipients
+        self.rcpt
             .iter()
             .map(|recipient| {
                 // TODO: find a way to remove everything after the '@' delimiter.

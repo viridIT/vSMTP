@@ -342,8 +342,8 @@ mod vsl {
         let ctx = MailContext {
             envelop: Envelop {
                 helo: helo.to_string(),
-                mail_from: mail.to_string(),
-                recipients: rcpt,
+                mail: mail.to_string(),
+                rcpt,
                 msg_id: msg_id.to_string(),
             },
             body: data.into(),
@@ -644,8 +644,8 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
         Some(Envelop {
             helo: self.scope.get_value::<String>("helo")?,
-            mail_from: self.scope.get_value::<String>("mail")?,
-            recipients: self.scope.get_value::<Vec<String>>("rcpts")?,
+            mail: self.scope.get_value::<String>("mail")?,
+            rcpt: self.scope.get_value::<Vec<String>>("rcpts")?,
             msg_id: self.scope.get_value::<String>("msg_id")?,
         })
     }

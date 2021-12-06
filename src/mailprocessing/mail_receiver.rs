@@ -107,6 +107,7 @@ where
                 "TLS encryption is disabled, but a TLS config is provided. TLS config will be ignored",
             );
         }
+
         Self {
             client_address,
             state: State::Connect,
@@ -141,8 +142,8 @@ where
             (_, Event::RsetCmd) => {
                 self.mail.body = Vec::with_capacity(20_000);
                 // NOTE: clear envelop but keep helo
-                self.mail.envelop.recipients = vec![];
-                self.mail.envelop.mail_from = String::new();
+                self.mail.envelop.rcpt = vec![];
+                self.mail.envelop.mail = String::new();
 
                 (Some(State::Helo), Some(SMTPReplyCode::Code250))
             }
@@ -238,7 +239,7 @@ where
                 match self.rule_engine.get_data::<Vec<String>>("rcpts") {
                     Some(mut rcpts) => {
                         rcpts.push(rcpt_to);
-                        self.mail.envelop.recipients = rcpts.clone();
+                        self.mail.envelop.rcpt = rcpts.clone();
                         self.rule_engine.add_data("rcpts", rcpts.clone());
                     }
                     None => unreachable!("rcpts is injected by the default scope"),
