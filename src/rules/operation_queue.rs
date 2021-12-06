@@ -23,7 +23,7 @@ pub struct OperationQueue(Vec<Operation>);
 /// an Operation can be pushed on top of the queue.
 /// each operation triggers a specific action after
 /// the preq stage.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Operation {
     /// change the content of a header (header, value)
     MutateHeader(String, String),
@@ -67,5 +67,46 @@ impl Iterator for QueueConsumeIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.dequeue()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Operation, OperationQueue};
+
+    #[test]
+    fn test_operation_queue() {
+        let mut queue = OperationQueue::default();
+
+        assert_eq!(queue.0.len(), 0);
+
+        queue.enqueue(Operation::Block("/var/vsmtp/blocked/".to_string()));
+        queue.enqueue(Operation::Block("/var/vsmtp/tmp/".to_string()));
+        queue.enqueue(Operation::MutateHeader(
+            "Subject".to_string(),
+            "[QUARANTINED MAIL]".to_string(),
+        ));
+
+        assert_eq!(queue.0.len(), 3);
+
+        let mut iterator = queue.into_iter();
+
+        assert_eq!(
+            iterator.next(),
+            Some(Operation::Block("/var/vsmtp/blocked/".to_string()))
+        );
+        assert_eq!(
+            iterator.next(),
+            Some(Operation::Block("/var/vsmtp/tmp/".to_string()))
+        );
+        assert_eq!(
+            iterator.next(),
+            Some(Operation::MutateHeader(
+                "Subject".to_string(),
+                "[QUARANTINED MAIL]".to_string(),
+            ))
+        );
+
+        assert_eq!(iterator.next(), None);
     }
 }
