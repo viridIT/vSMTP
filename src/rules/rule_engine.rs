@@ -21,8 +21,7 @@ use crate::rules::obj::Object;
 use crate::rules::operation_queue::{Operation, OperationQueue};
 
 use lazy_static::lazy_static;
-use lettre::{Message, SmtpTransport, Transport};
-use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Module, Scope, AST};
+use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
 
 use std::net::IpAddr;
@@ -30,8 +29,7 @@ use std::{
     collections::BTreeMap,
     error::Error,
     fs,
-    io::Write,
-    net::{Ipv4Addr, Ipv6Addr},
+    net::Ipv4Addr,
     path::Path,
     str::FromStr,
     sync::{Arc, RwLock},
@@ -55,296 +53,6 @@ pub enum Status {
     /// skips all future rules to fill the envelop and mail data as fast as possible.
     /// also stores the email data in an user defined quarantine directory.
     Block,
-}
-
-// exported methods are used in rhai context, so we allow dead code.
-#[allow(dead_code)]
-#[export_module]
-mod vsl {
-    use std::net::IpAddr;
-
-    use crate::model::{envelop::Envelop, mail::MailContext};
-
-    pub fn op_block(queue: &mut OperationQueue, path: &str) {
-        queue.enqueue(Operation::Block(path.to_string()))
-    }
-
-    pub fn op_mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
-        queue.enqueue(Operation::MutateHeader(
-            header.to_string(),
-            value.to_string(),
-        ))
-    }
-
-    #[rhai_fn(name = "__FACCEPT")]
-    pub fn faccept() -> Status {
-        Status::Faccept
-    }
-
-    #[rhai_fn(name = "__ACCEPT")]
-    pub fn accept() -> Status {
-        Status::Accept
-    }
-
-    #[rhai_fn(name = "__CONTINUE")]
-    pub fn ct() -> Status {
-        Status::Continue
-    }
-
-    #[rhai_fn(name = "__DENY")]
-    pub fn deny() -> Status {
-        Status::Deny
-    }
-
-    #[rhai_fn(name = "__BLOCK")]
-    pub fn block() -> Status {
-        Status::Block
-    }
-
-    /// logs a message to stdout, stderr or a file.
-    #[rhai_fn(name = "__LOG", return_raw)]
-    pub fn log(message: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
-        match path {
-            "stdout" => {
-                println!("{}", message);
-                Ok(())
-            }
-            "stderr" => {
-                eprintln!("{}", message);
-                Ok(())
-            }
-            _ => {
-                let path = std::path::PathBuf::from_str(path).unwrap();
-                let file = if !path.exists() {
-                    std::fs::File::create(&path)
-                } else {
-                    std::fs::OpenOptions::new().append(true).open(&path)
-                };
-
-                match file {
-                    Ok(mut file) => file
-                        .write_all(message.as_bytes())
-                        .map_err(|_| format!("could not log to '{:?}'.", path).into()),
-                    Err(error) => Err(format!(
-                        "'{:?}' is not a valid path to log to: {:#?}",
-                        path, error
-                    )
-                    .into()),
-                }
-            }
-        }
-    }
-
-    /// write the email to a specified file.
-    /// NOTE: this function needs to be curried to access data,
-    ///       could it be added to the operation queue ?
-    #[rhai_fn(name = "__WRITE", return_raw)]
-    pub fn write_mail(data: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
-        if data.is_empty() {
-            return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
-        }
-
-        let path = std::path::PathBuf::from_str(path).unwrap();
-        let file = if !path.exists() {
-            std::fs::File::create(&path)
-        } else {
-            std::fs::OpenOptions::new().append(true).open(&path)
-        };
-
-        match file {
-            Ok(mut file) => file
-                .write_all(data.as_bytes())
-                .map_err(|_| format!("could not write email to '{:?}'.", path).into()),
-            Err(error) => Err(format!(
-                "'{:?}' is not a valid path to write the email to: {:#?}",
-                path, error
-            )
-            .into()),
-        }
-    }
-
-    #[rhai_fn(name = "__DUMP", return_raw)]
-    pub fn dump(
-        helo: &str,
-        mail: &str,
-        rcpt: Vec<String>,
-        data: &str,
-        msg_id: &str,
-        path: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
-        if mail.is_empty() {
-            return Err("the DUMP action can only be called after or in the 'mail' stage.".into());
-        }
-
-        if let Err(error) = std::fs::create_dir_all(path) {
-            return Err(format!("could not write email to '{:?}': {}", path, error).into());
-        }
-
-        let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
-            // Error is of infallible type, we can unwrap.
-            let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(msg_id);
-            path.set_extension("json");
-            path
-        }) {
-            Ok(file) => file,
-            Err(error) => {
-                return Err(format!("could not write email to '{:?}': {}", path, error).into())
-            }
-        };
-
-        let ctx = MailContext {
-            envelop: Envelop {
-                helo: helo.to_string(),
-                mail: mail.to_string(),
-                rcpt,
-                msg_id: msg_id.to_string(),
-            },
-            body: data.into(),
-        };
-
-        std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
-            .map_err(|error| format!("could not write email to '{:?}': {}", path, error).into())
-    }
-
-    // NOTE: instead of filling the email using arguments, should we create a 'mail' object
-    //       defined beforehand in the user's object files ?
-    #[rhai_fn(name = "__MAIL", return_raw)]
-    pub fn send_mail(
-        from: &str,
-        to: &str,
-        subject: &str,
-        body: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
-        let email = Message::builder()
-            .from(from.parse().unwrap())
-            .to(to.parse().unwrap())
-            .subject(subject)
-            .body(String::from(body))
-            .unwrap();
-
-        // Send the email
-        match SmtpTransport::unencrypted_localhost().send(&email) {
-            Ok(_) => Ok(()),
-            Err(error) => Err(EvalAltResult::ErrorInFunctionCall(
-                "MAIL".to_string(),
-                "__MAIL".to_string(),
-                format!("Couldn't send the email: {}", error).into(),
-                Position::NONE,
-            )
-            .into()),
-        }
-    }
-
-    #[rhai_fn(name = "==")]
-    pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
-        *in1 == in2
-    }
-
-    #[rhai_fn(name = "!=")]
-    pub fn neq_status_operator(in1: &mut Status, in2: Status) -> bool {
-        !(*in1 == in2)
-    }
-
-    pub fn __is_connect(connect: &mut IpAddr, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
-            Some(object) => internal_is_connect(connect, object),
-            None => match Ipv4Addr::from_str(object) {
-                Ok(ip) => ip == *connect,
-                Err(_) => match Ipv6Addr::from_str(object) {
-                    Ok(ip) => ip == *connect,
-                    Err(_) => {
-                        log::error!(
-                            target: "rule_engine",
-                            "tried to convert '{}' to ipv4 because it is not a object, but convertion failed.",
-                            object
-                        );
-                        false
-                    }
-                },
-            },
-        }
-    }
-
-    pub fn __is_helo(helo: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
-            Some(object) => internal_is_helo(helo, object),
-            _ => object == helo,
-        }
-    }
-
-    pub fn __is_mail(mail: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
-            Some(object) => internal_is_mail(mail, object),
-            _ => object == mail,
-        }
-    }
-
-    pub fn __is_rcpt(rcpt: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
-            Some(object) => internal_is_rcpt(rcpt, object),
-            _ => rcpt == object,
-        }
-    }
-
-    // TODO: what does the user can do here ?
-    pub fn __is_data(_data: &mut Vec<u8>, _object: &str) -> bool {
-        false
-    }
-}
-
-fn internal_is_connect(connect: &IpAddr, object: &Object) -> bool {
-    match object {
-        Object::Ip4(ip) => *ip == *connect,
-        Object::Ip6(ip) => *ip == *connect,
-        Object::Rg4(range) => match connect {
-            IpAddr::V4(ip4) => range.contains(ip4),
-            _ => false,
-        },
-        Object::Rg6(range) => match connect {
-            IpAddr::V6(ip6) => range.contains(ip6),
-            _ => false,
-        },
-        // NOTE: is there a way to get a &str instead of a String here ?
-        Object::Regex(re) => re.is_match(connect.to_string().as_str()),
-        Object::File(content) => content
-            .iter()
-            .any(|object| internal_is_connect(connect, object)),
-        Object::Group(group) => group
-            .iter()
-            .any(|object| internal_is_connect(connect, object)),
-        _ => false,
-    }
-}
-
-fn internal_is_helo(helo: &str, object: &Object) -> bool {
-    match object {
-        Object::Fqdn(fqdn) => *fqdn == helo,
-        Object::Regex(re) => re.is_match(helo),
-        Object::File(content) => content.iter().any(|object| internal_is_helo(helo, object)),
-        Object::Group(group) => group.iter().any(|object| internal_is_helo(helo, object)),
-        _ => false,
-    }
-}
-
-fn internal_is_mail(mail: &str, object: &Object) -> bool {
-    match object {
-        Object::Address(addr) => *addr == mail,
-        Object::Regex(re) => re.is_match(mail),
-        Object::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
-        Object::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
-        _ => false,
-    }
-}
-
-fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
-    match object {
-        Object::Address(addr) => rcpt == addr.as_str(),
-        Object::Regex(re) => re.is_match(rcpt),
-        Object::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
-        Object::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
-        _ => false,
-    }
 }
 
 pub struct RuleEngine<'a> {
@@ -520,7 +228,7 @@ impl RhaiEngine {
         let shared_obj = objects.clone();
 
         // register our vsl global module
-        let api_mod = exported_module!(vsl);
+        let api_mod = exported_module!(crate::rules::actions::vsl);
         engine
         .register_global_module(api_mod.into())
 
@@ -792,9 +500,9 @@ impl RhaiEngine {
 }
 
 lazy_static! {
-    // ! FIXME: this could be slow, locks seems to appen in the engine.
+    // ! FIXME: this could be slow, locks seems to happen in the engine.
     // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
-    static ref RHAI_ENGINE: RhaiEngine = {
+    pub(super) static ref RHAI_ENGINE: RhaiEngine = {
         match RhaiEngine::new() {
             Ok(engine) => engine,
             Err(error) => {
@@ -844,7 +552,7 @@ pub fn init() {
     RHAI_ENGINE
         .context
         .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &RHAI_ENGINE.ast)
-        .expect("couldn't initialise the rule engine");
+        .expect("couldn't initialize the rule engine");
 
     log::debug!(target: "rule_engine", "{} objects found.", RHAI_ENGINE.objects.read().unwrap().len());
     log::trace!(target: "rule_engine", "{:#?}", RHAI_ENGINE.objects.read().unwrap());

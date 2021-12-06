@@ -38,11 +38,6 @@ let vsl = #{
         __is_rcpt(rcpt, object)
     },
 
-    // is useless for the time being.
-    IS_DATA: |object| {
-        __is_data(data, object)
-    },
-
     // returns a state that will influence vsmtp's state machine, if returned by
     // a on_success or on_failure rule callback.
     ACCEPT:   || __ACCEPT(),
