@@ -41,3 +41,15 @@ sni_maps = [
 ## Keys are [connect/helo/mail/rcpt/data], values in milleseconds (10s if missing)
 helo = 10
 data = 2000
+
+
+## vSMTP keep the count of the client's error
+[smtp.error]
+## if error > soft_count then vSMTP will delay the connection for $smtp.error.delay
+## soft_count = -1 to disable this feature (default: -1)
+soft_count = 5
+## if error > hard_count then vSMTP will close the connection
+## hard_count = -1 to disable this feature (default: -1)
+hard_count = 10
+## in milliseconds
+delay = 5000
