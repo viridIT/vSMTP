@@ -43,7 +43,7 @@ pub enum Status {
     /// continue to the next rule / stage.
     Continue,
 
-    /// immediatly stops the transaction and send an error code.
+    /// immediately stops the transaction and send an error code.
     Deny,
 
     /// ignore all future rules for the current transaction.
@@ -61,6 +61,7 @@ pub struct RuleEngine<'a> {
 }
 
 impl<'a> RuleEngine<'a> {
+    /// creates a new rule engine with an empty scope.
     pub(crate) fn new() -> Self {
         let mut scope = Scope::new();
         scope
@@ -101,6 +102,7 @@ impl<'a> RuleEngine<'a> {
         Self { scope, skip: None }
     }
 
+    /// add data to the scope of the engine.
     pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T)
     where
         // TODO: find a way to remove the static.
@@ -110,6 +112,7 @@ impl<'a> RuleEngine<'a> {
         self.scope.set_or_push(name, data);
     }
 
+    /// fetch data from the scope, cloning the variable in the process.
     pub(crate) fn get_data<T>(&mut self, name: &'a str) -> Option<T>
     where
         T: Clone + Send + Sync + 'static,
@@ -117,6 +120,7 @@ impl<'a> RuleEngine<'a> {
         self.scope.get_value(name)
     }
 
+    /// run the engine for a specific stage. (connect, helo, mail, etc ...)
     pub(crate) fn run_when(&mut self, stage: &str) -> Status {
         if let Some(status) = self.skip {
             return status;
@@ -169,6 +173,7 @@ impl<'a> RuleEngine<'a> {
         }
     }
 
+    /// empty the operation queue and executing all operations stored.
     pub(crate) fn execute_operation_queue(
         &mut self,
         ctx: &MailContext,
@@ -202,6 +207,7 @@ impl<'a> RuleEngine<'a> {
         Ok(())
     }
 
+    /// fetch the whole envelop (possibly) mutated by the user's rules.
     pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
         Some(Envelop {
             helo: self.scope.get_value::<String>("helo")?,
@@ -212,31 +218,44 @@ impl<'a> RuleEngine<'a> {
     }
 }
 
+/// a sharable rhai engine.
+/// contains an ast representing the user's parsed .vsl script files,
+/// and objects parsed from rhai's context to rust's, this way,
+/// they can be used directly into rust functions, and the engine
+/// doesn't need to evaluate them each call.
 #[derive(Debug)]
 pub(super) struct RhaiEngine {
+    /// rhai's engine structure.
     pub(super) context: Engine,
+    /// the ast, built from the user's .vsl files.
     pub(super) ast: AST,
 
     // ? use SmartString<LazyCompact> ? What about long object names ?
+    /// objects parsed from rhai's context.
+    /// they are accessible from rust function registered into the engine.
+    ///
+    /// ! you should not use a writer to modify the variables.
+    /// ! objects are immutable.
     pub(super) objects: Arc<RwLock<BTreeMap<String, Object>>>,
 }
 
 impl RhaiEngine {
+    /// create an engine from a script encoded in raw bytes.
     pub(crate) fn from_bytes(src: &[u8]) -> Result<Self, Box<dyn Error>> {
         let mut engine = Engine::new();
         let objects = Arc::new(RwLock::new(BTreeMap::new()));
         let shared_obj = objects.clone();
 
-        // register our vsl global module
+        // register the vsl global module.
         let api_mod = exported_module!(crate::rules::actions::vsl);
         engine
         .register_global_module(api_mod.into())
 
-        // the operation queue is used to defere heavy computation.
+        // the operation queue is used to defer heavy computation.
         .register_type::<OperationQueue>()
 
         // adding a string vector as a custom type.
-        // it is used to easly manipulate the rcpt container.
+        // it is used to easlly manipulate the rcpt container.
         .register_iterator::<Vec<String>>()
         .register_fn("push", <Vec<String>>::push)
 
@@ -323,6 +342,7 @@ impl RhaiEngine {
                 Ok(Dynamic::UNIT)
             },
         )
+
         // `obj $type$ $name$ #{}` container syntax.
         .register_custom_syntax_raw(
             "obj",
@@ -376,9 +396,9 @@ impl RhaiEngine {
                 let var_type = input[0].get_variable_name().unwrap().to_string();
                 let var_name: String;
 
-                // checking if object declaration is using a map, an inline string or an array.
-                // we create a map either way.
                 // FIXME: refactor this expression.
+                // file type as a special syntax (file:type),
+                // so we need a different method to parse it.
                 let object = match var_type.as_str() {
                     "file" => {
 
@@ -386,6 +406,7 @@ impl RhaiEngine {
                         var_name = input[3].get_literal_value::<ImmutableString>().unwrap().to_string();
                         let object = context.eval_expression_tree(&input[4])?;
 
+                        // the object syntax can use a map or an inline string.
                         if object.is::<Map>() {
                             let mut object: Map = object.cast();
                             object.insert("type".into(), Dynamic::from(var_type.clone()));
@@ -407,6 +428,7 @@ impl RhaiEngine {
                         }
                     },
 
+                    // generic type, we can parse it easlly.
                     _ => {
                         var_name = input[1].get_literal_value::<ImmutableString>().unwrap().to_string();
                         let object = context.eval_expression_tree(&input[2])?;
@@ -439,7 +461,7 @@ impl RhaiEngine {
                     Err(error) => panic!("object '{}' could not be parsed as a '{}' object: {}", var_name, var_type, error),
                 };
 
-                // FIXME: there is now way to tell if the parent scope of the object.
+                // FIXME: there is no way to tell if the parent scope of the object
                 //        is a group or the global scope, so we have to inject the variable
                 //        two times, one in the case of the global scope, one
                 //        in the case of the parent being a group.
@@ -456,6 +478,9 @@ impl RhaiEngine {
 
         let mut script = Vec::with_capacity(100);
 
+        // loading scripts that will curry function that needs special
+        // variables from stages (helo, rcpt etc ...) and that will
+        // execute the rule engine stage logic.
         script.extend(include_bytes!("./currying.rhai"));
         script.extend(src);
         script.extend(include_bytes!("./rule_executor.rhai"));
@@ -476,10 +501,14 @@ impl RhaiEngine {
         })
     }
 
+    /// creates a new instance of the rule engine, reading all files in
+    /// paths.rules_dir configuration variable.
     fn new() -> Result<Self, Box<dyn Error>> {
         let path = config::get::<String>("paths.rules_dir").unwrap();
         let src_path = Path::new(&path);
 
+        // load all sources from file.
+        // this function is declared here since it isn't needed anywhere else.
         fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
             let mut buffer = vec![];
 
@@ -502,16 +531,20 @@ impl RhaiEngine {
 lazy_static! {
     // ! FIXME: this could be slow, locks seems to happen in the engine.
     // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
+    /// the rhai engine static that gets initialized once.
+    /// it is used internally to evaluate user's scripts with a scope
+    /// different for each connection.
     pub(super) static ref RHAI_ENGINE: RhaiEngine = {
         match RhaiEngine::new() {
             Ok(engine) => engine,
             Err(error) => {
-                log::error!("could not initialise the rule engine: {}", error);
+                log::error!("could not initialize the rule engine: {}", error);
                 panic!();
             }
         }
     };
 
+    /// an scope that initialize all needed variables.
     pub(crate) static ref DEFAULT_SCOPE: Scope<'static> = {
         let mut scope = Scope::new();
         scope
@@ -548,6 +581,11 @@ lazy_static! {
     };
 }
 
+/// initialize the rule engine.
+/// this function checks your given scripts and parses all necessary items.
+///
+/// not calling this method when initializing your server could lead to
+/// uncached configuration error and a slow process for the first connection.
 pub fn init() {
     RHAI_ENGINE
         .context
