@@ -110,11 +110,12 @@ let vsl = #{
         __DUMP(helo, mail, rcpts, data, msg_id, path);
     },
 
-    // write a mail to the quarantine folder.
-    // the QUARANTINE action is defered in the operation queue and is executed
+    // write a mail to the an user defiened quarantine folder.
+    // the BLOCK action is defered in the operation queue and is executed
     // after the preq stage.
-    QUARANTINE: |reason| {
-        __OPERATION_QUEUE.op_quarantine(reason);
+    BLOCK: |path| {
+        __OPERATION_QUEUE.op_block(path);
+        __BLOCK()
     },
 
     // send a mail.

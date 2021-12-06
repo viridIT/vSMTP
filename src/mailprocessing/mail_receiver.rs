@@ -65,14 +65,24 @@ pub struct MailReceiver<'a, R>
 where
     R: DataEndResolver,
 {
+    /// connection information of the current client.
     client_address: std::net::SocketAddr,
+
+    /// state mutated by the client's commands and the rule engine.
     state: State,
+
+    /// mail informations sent by the client.
     mail: MailContext,
+
+    /// rule engine executing the server's rhai configuration.
     rule_engine: RuleEngine<'a>,
-    force_accept: bool,
+
+    /// tsl metadata.
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     tls_security_level: TlsSecurityLevel,
     is_secured: bool,
+
+    /// timeout configuration.
     next_line_timeout: std::time::Duration,
     _phantom: std::marker::PhantomData<R>,
 }
@@ -101,7 +111,6 @@ where
             client_address,
             state: State::Connect,
             rule_engine: RuleEngine::new(),
-            force_accept: false,
             mail: MailContext {
                 envelop: Envelop::default(),
                 body: Vec::with_capacity(20_000),
@@ -156,16 +165,8 @@ where
 
                 self.rule_engine.add_data("helo", helo);
 
-                if self.force_accept {
-                    (Some(State::Helo), Some(SMTPReplyCode::Code250))
-                } else {
-                    let status = self.rule_engine.run_when("helo");
-                    self.process_rules_status(
-                        status,
-                        Some(State::Helo),
-                        Some(SMTPReplyCode::Code250),
-                    )
-                }
+                let status = self.rule_engine.run_when("helo");
+                self.process_rules_status(status, Some(State::Helo), Some(SMTPReplyCode::Code250))
             }
 
             (_, Event::EhloCmd(helo)) => {
@@ -183,12 +184,8 @@ where
                     SMTPReplyCode::Code250PlainEsmtp
                 };
 
-                if self.force_accept {
-                    (Some(State::Helo), Some(reply_code))
-                } else {
-                    let status = self.rule_engine.run_when("helo");
-                    self.process_rules_status(status, Some(State::Helo), Some(reply_code))
-                }
+                let status = self.rule_engine.run_when("helo");
+                self.process_rules_status(status, Some(State::Helo), Some(reply_code))
             }
 
             (State::Helo, Event::StartTls) if self.tls_config.is_some() => {
@@ -222,16 +219,12 @@ where
                 );
                 self.rule_engine.add_data("mail", mail_from);
 
-                if self.force_accept {
-                    (Some(State::MailFrom), Some(SMTPReplyCode::Code250))
-                } else {
-                    let status = self.rule_engine.run_when("mail");
-                    self.process_rules_status(
-                        status,
-                        Some(State::MailFrom),
-                        Some(SMTPReplyCode::Code250),
-                    )
-                }
+                let status = self.rule_engine.run_when("mail");
+                self.process_rules_status(
+                    status,
+                    Some(State::MailFrom),
+                    Some(SMTPReplyCode::Code250),
+                )
             }
 
             (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
@@ -257,16 +250,8 @@ where
                     self.client_address.port(), self.mail.envelop,
                 );
 
-                if self.force_accept {
-                    (Some(State::RcptTo), Some(SMTPReplyCode::Code250))
-                } else {
-                    let status = self.rule_engine.run_when("rcpt");
-                    self.process_rules_status(
-                        status,
-                        Some(State::RcptTo),
-                        Some(SMTPReplyCode::Code250),
-                    )
-                }
+                let status = self.rule_engine.run_when("rcpt");
+                self.process_rules_status(status, Some(State::RcptTo), Some(SMTPReplyCode::Code250))
             }
 
             (State::RcptTo, Event::DataCmd) => (Some(State::Data), Some(SMTPReplyCode::Code354)),
@@ -294,11 +279,11 @@ where
                         }
                     });
 
-                let result = if self.force_accept {
-                    (Some(state), Some(code))
-                } else {
-                    let status = self.rule_engine.run_when("preq");
-                    self.process_rules_status(status, Some(state), Some(code))
+                let status = self.rule_engine.run_when("preq");
+
+                let result = match status {
+                    Status::Block => (Some(State::Stop), Some(SMTPReplyCode::Code554)),
+                    _ => self.process_rules_status(status, Some(state), Some(code)),
                 };
 
                 // executing all registered extensive operations.
@@ -327,12 +312,8 @@ where
         desired_code: Option<SMTPReplyCode>,
     ) -> (Option<State>, Option<SMTPReplyCode>) {
         match status {
-            Status::Accept | Status::Continue => (desired_state, desired_code),
-            Status::Faccept => {
-                self.force_accept = true;
-                (desired_state, desired_code)
-            }
             Status::Deny => (Some(State::Stop), Some(SMTPReplyCode::Code554)),
+            _ => (desired_state, desired_code),
         }
     }
 
@@ -531,18 +512,14 @@ where
         self.rule_engine
             .add_data("connect", self.client_address.ip());
 
-        match self.rule_engine.run_when("connect") {
-            Status::Deny => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!(
-                        "connection at '{}' has been denied when connecting.",
-                        self.client_address
-                    ),
-                ))
-            }
-            Status::Faccept => self.force_accept = true,
-            _ => {}
+        if let Status::Deny = self.rule_engine.run_when("connect") {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "connection at '{}' has been denied when connecting.",
+                    self.client_address
+                ),
+            ));
         };
 
         while self.state != State::Stop {
