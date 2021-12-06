@@ -273,8 +273,10 @@ pub(super) mod vsl {
     }
 }
 
+// NOTE: the following functions use pub(super) because they need to be exposed for tests.
+// FIXME: find a way to hide the following function to the parent scope.
 /// checks recursively if the current connect value is matching the object's value.
-fn internal_is_connect(connect: &IpAddr, object: &Object) -> bool {
+pub(super) fn internal_is_connect(connect: &IpAddr, object: &Object) -> bool {
     match object {
         Object::Ip4(ip) => *ip == *connect,
         Object::Ip6(ip) => *ip == *connect,
@@ -299,7 +301,7 @@ fn internal_is_connect(connect: &IpAddr, object: &Object) -> bool {
 }
 
 /// checks recursively if the current helo value is matching the object's value.
-fn internal_is_helo(helo: &str, object: &Object) -> bool {
+pub(super) fn internal_is_helo(helo: &str, object: &Object) -> bool {
     match object {
         Object::Fqdn(fqdn) => *fqdn == helo,
         Object::Regex(re) => re.is_match(helo),
@@ -310,7 +312,7 @@ fn internal_is_helo(helo: &str, object: &Object) -> bool {
 }
 
 /// checks recursively if the current mail value is matching the object's value.
-fn internal_is_mail(mail: &str, object: &Object) -> bool {
+pub(super) fn internal_is_mail(mail: &str, object: &Object) -> bool {
     match object {
         Object::Address(addr) => *addr == mail,
         Object::Regex(re) => re.is_match(mail),
@@ -321,7 +323,7 @@ fn internal_is_mail(mail: &str, object: &Object) -> bool {
 }
 
 /// checks recursively if the current rcpt value is matching the object's value.
-fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
+pub(super) fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
     match object {
         Object::Address(addr) => rcpt == addr.as_str(),
         Object::Regex(re) => re.is_match(rcpt),
