@@ -18,6 +18,7 @@ use crate::config;
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
 use crate::rules::obj::Object;
+use crate::rules::operation_queue::{Operation, OperationQueue};
 
 use lazy_static::lazy_static;
 use lettre::{Message, SmtpTransport, Transport};
@@ -35,27 +36,6 @@ use std::{
     str::FromStr,
     sync::{Arc, RwLock},
 };
-
-#[derive(Debug, Clone)]
-pub enum Operation {
-    /// header, value
-    MutateHeader(String, String),
-    /// blocked email path
-    Block(String),
-}
-
-/// used to yield expensive operations
-/// and executing them using rust's context instead of rhai's.
-#[derive(Default, Debug, Clone)]
-pub struct OperationQueue {
-    inner: Vec<Operation>,
-}
-
-impl OperationQueue {
-    pub fn push(&mut self, op: Operation) {
-        self.inner.push(op);
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -86,11 +66,11 @@ mod vsl {
     use crate::model::{envelop::Envelop, mail::MailContext};
 
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
-        queue.push(Operation::Block(path.to_string()))
+        queue.enqueue(Operation::Block(path.to_string()))
     }
 
     pub fn op_mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
-        queue.push(Operation::MutateHeader(
+        queue.enqueue(Operation::MutateHeader(
             header.to_string(),
             value.to_string(),
         ))
@@ -489,13 +469,12 @@ impl<'a> RuleEngine<'a> {
             .scope
             .get_value::<OperationQueue>("__OPERATION_QUEUE")
             .unwrap()
-            .inner
-            .iter()
+            .into_iter()
         {
             log::info!(target: "rule_engine", "executing heavy operation: {:?}", op);
             match op {
                 Operation::Block(path) => {
-                    let mut path = std::path::PathBuf::from_str(path)?;
+                    let mut path = std::path::PathBuf::from_str(&path)?;
                     std::fs::create_dir_all(&path)?;
 
                     path.push(&ctx.envelop.msg_id);
