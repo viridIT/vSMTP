@@ -16,7 +16,7 @@
 **/
 use super::io_service::{IoService, ReadError};
 use crate::model::envelop::Envelop;
-use crate::model::mail::MailContext;
+use crate::model::mail::{ConnectionData, MailContext};
 use crate::resolver::DataEndResolver;
 use crate::rules::rule_engine::{RuleEngine, Status};
 use crate::server::TlsSecurityLevel;
@@ -65,9 +65,6 @@ pub struct MailReceiver<'a, R>
 where
     R: DataEndResolver,
 {
-    /// connection information of the current client.
-    client_address: std::net::SocketAddr,
-
     /// state mutated by the client's commands and the rule engine.
     state: State,
 
@@ -92,7 +89,7 @@ where
     R: DataEndResolver,
 {
     pub fn new(
-        client_address: std::net::SocketAddr,
+        peer_addr: std::net::SocketAddr,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         tls_security_level: TlsSecurityLevel,
     ) -> Self {
@@ -108,12 +105,15 @@ where
             );
         }
         Self {
-            client_address,
             state: State::Connect,
             rule_engine: RuleEngine::new(),
             mail: MailContext {
+                connection: ConnectionData {
+                    peer_addr,
+                    timestamp: std::time::SystemTime::now(),
+                },
                 envelop: Envelop::default(),
-                body: Vec::with_capacity(20_000),
+                body: String::with_capacity(20_000),
             },
             tls_config,
             tls_security_level,
@@ -125,13 +125,6 @@ where
         }
     }
 
-    fn reset(&mut self) {
-        self.mail = MailContext {
-            envelop: Envelop::default(),
-            body: Vec::with_capacity(20_000),
-        };
-    }
-
     async fn process_event(&mut self, event: Event) -> (Option<State>, Option<SMTPReplyCode>) {
         match (&self.state, event) {
             (_, Event::NoopCmd) => (None, Some(SMTPReplyCode::Code250)),
@@ -139,7 +132,7 @@ where
             (_, Event::HelpCmd(_)) => (None, Some(SMTPReplyCode::Code214)),
 
             (_, Event::RsetCmd) => {
-                self.mail.body = Vec::with_capacity(20_000);
+                self.mail.body = String::with_capacity(20_000);
                 // NOTE: clear envelop but keep helo
                 self.mail.envelop.recipients = vec![];
                 self.mail.envelop.mail_from = String::new();
@@ -160,7 +153,7 @@ where
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
-                    self.client_address.port(), self.mail.envelop,
+                    self.mail.connection.peer_addr.port(), self.mail.envelop,
                 );
 
                 self.rule_engine.add_data("helo", helo);
@@ -174,7 +167,7 @@ where
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
-                    self.client_address.port(), self.mail.envelop,
+                    self.mail.connection.peer_addr.port(), self.mail.envelop,
                 );
                 self.rule_engine.add_data("helo", helo);
 
@@ -206,18 +199,19 @@ where
             (State::Helo, Event::MailCmd(mail_from)) => {
                 // NOTE: from the MAIL FROM command, the state machine
                 //       generates a new message id for each command until
-                //       dataend is reached. this could be slow.
+                //       data end is reached. this could be slow.
                 self.mail.generate_message_id();
                 self.rule_engine
                     .add_data("msg_id", self.mail.envelop.msg_id.clone());
 
-                self.mail.envelop.set_sender(&mail_from);
+                self.mail.envelop.mail_from = mail_from;
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
-                    self.client_address.port(), self.mail.envelop,
+                    self.mail.connection.peer_addr.port(), self.mail.envelop,
                 );
-                self.rule_engine.add_data("mail", mail_from);
+                self.rule_engine
+                    .add_data("mail", self.mail.envelop.mail_from.clone());
 
                 let status = self.rule_engine.run_when("mail");
                 self.process_rules_status(
@@ -247,7 +241,7 @@ where
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
-                    self.client_address.port(), self.mail.envelop,
+                    self.mail.connection.peer_addr.port(), self.mail.envelop,
                 );
 
                 let status = self.rule_engine.run_when("rcpt");
@@ -257,8 +251,8 @@ where
             (State::RcptTo, Event::DataCmd) => (Some(State::Data), Some(SMTPReplyCode::Code354)),
 
             (State::Data, Event::DataLine(line)) => {
-                self.mail.body.extend(line.as_bytes().iter());
-                self.mail.body.push(b'\n');
+                self.mail.body.push_str(&line);
+                self.mail.body.push('\n');
                 (None, None)
             }
 
@@ -270,14 +264,7 @@ where
                 let (state, code) = R::on_data_end(&self.mail).await;
                 // NOTE: clear envelop and raw_data
 
-                self.rule_engine
-                    .add_data("data", match std::str::from_utf8(&self.mail.body) {
-                        Ok(data) => data.to_string(),
-                        Err(error) => {
-                            log::error!(target: "rule_engine", "Couldn't send mail data into rhai context: {}", error);
-                            "".to_string()
-                        }
-                    });
+                self.rule_engine.add_data("data", self.mail.body.clone());
 
                 let status = self.rule_engine.run_when("preq");
 
@@ -319,7 +306,7 @@ where
 
     /// handle a clear text received with plain_stream or tls_stream
     async fn handle_plain_text(&mut self, client_message: String) -> Option<String> {
-        log::trace!(target: "mail_receiver", "[p:{}] buffer=\"{}\"", self.client_address.port(), client_message);
+        log::trace!(target: "mail_receiver", "[p:{}] buffer=\"{}\"", self.mail.connection.peer_addr.port(), client_message);
 
         let command_or_code = if self.state == State::Data {
             Event::parse_data
@@ -330,7 +317,7 @@ where
         log::trace!(
             target: "mail_receiver",
             "[p:{}] parsed=\"{:?}\"",
-            self.client_address.port(), command_or_code
+            self.mail.connection.peer_addr.port(), command_or_code
         );
 
         let (new_state, reply) = match command_or_code {
@@ -342,7 +329,7 @@ where
             log::warn!(
                 target: "mail_receiver",
                 "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
-                self.client_address.port(), self.state, new_state
+                self.mail.connection.peer_addr.port(), self.state, new_state
             );
             self.state = new_state;
             let new_duration = *NEXT_LINE_TIMEOUT
@@ -355,7 +342,7 @@ where
             log::warn!(
                 target: "mail_receiver",
                 "[p:{}] send=\"{:?}\"",
-                self.client_address.port(), rp
+                self.mail.connection.peer_addr.port(), rp
             );
 
             Some(rp.as_str().to_string())
@@ -377,7 +364,7 @@ where
             Ok(Err(ReadError::Eof)) => {
                 log::warn!(
                     target: "mail_receiver", "[p:{}] (secured:{}) eof",
-                    self.client_address.port(), self.is_secured
+                    self.mail.connection.peer_addr.port(), self.is_secured
                 );
                 self.state = State::Stop;
                 Ok(())
@@ -385,7 +372,7 @@ where
             Ok(Err(ReadError::Other(e))) => {
                 log::error!(
                     target: "mail_receiver", "[p:{}] (secured:{}) error {}",
-                    self.client_address.port(), self.is_secured, e
+                    self.mail.connection.peer_addr.port(), self.is_secured, e
                 );
                 self.state = State::Stop;
                 Err(e)
@@ -458,13 +445,13 @@ where
         log::info!(
             target: "mail_receiver",
             "[p:{}] is_handshaking={}",
-            self.client_address.port(), io.inner.conn.is_handshaking()
+            self.mail.connection.peer_addr.port(), io.inner.conn.is_handshaking()
         );
 
         log::debug!(
             target: "mail_receiver",
             "[p:{}] protocol_version={:#?}\n alpn_protocol={:#?}\n negotiated_cipher_suite={:#?}\n peer_certificates={:#?}\n sni_hostname={:#?}",
-            self.client_address.port(),
+            self.mail.connection.peer_addr.port(),
             io.inner.conn.protocol_version(),
             io.inner.conn.alpn_protocol(),
             io.inner.conn.negotiated_cipher_suite(),
@@ -475,10 +462,12 @@ where
         log::warn!(
             target: "mail_receiver",
             "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
-            self.client_address.port(), self.state, State::Connect
+            self.mail.connection.peer_addr.port(), self.state, State::Connect
         );
 
-        self.reset();
+        self.mail.envelop = Envelop::default();
+        self.mail.body = String::with_capacity(20_000);
+
         self.state = State::Connect;
         self.is_secured = true;
         self.next_line_timeout = *NEXT_LINE_TIMEOUT
@@ -510,14 +499,14 @@ where
         }
 
         self.rule_engine
-            .add_data("connect", self.client_address.ip());
+            .add_data("connect", self.mail.connection.peer_addr.ip());
 
         if let Status::Deny = self.rule_engine.run_when("connect") {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!(
                     "connection at '{}' has been denied when connecting.",
-                    self.client_address
+                    self.mail.connection.peer_addr
                 ),
             ));
         };

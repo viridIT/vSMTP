@@ -20,23 +20,11 @@ pub struct Envelop {
     pub helo: String,
     pub mail_from: String,
     pub recipients: Vec<String>,
+    // TODO: remove from envelop, format!("{connection_timestamp}_{pid/thread}_{mail_id}_{rcpt_id}")
     pub msg_id: String,
 }
 
-// TODO: need error handling in case of erroneous formatting.
-fn remove_inbox_characters(inbox: &str) -> String {
-    inbox.trim().replace(&['<', '>'][..], "")
-}
-
 impl Envelop {
-    pub fn set_sender(&mut self, sender: &str) {
-        self.mail_from = remove_inbox_characters(sender);
-    }
-
-    pub fn add_rcpt(&mut self, recipient: &str) {
-        self.recipients.push(remove_inbox_characters(recipient));
-    }
-
     // TODO: need error handling (i.e. @blablah.com should return an error.)
     pub fn get_rcpt_usernames(&self) -> Vec<&str> {
         self.recipients

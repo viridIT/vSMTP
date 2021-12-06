@@ -110,13 +110,11 @@ impl DataEndResolver for ResolverWriteDisk {
 
         log::trace!(target: "mail_receiver", "mail: {:#?}", mail.envelop);
 
-        let content = std::str::from_utf8(&mail.body).unwrap();
-
         for rcpt in mail.envelop.get_rcpt_usernames() {
             log::debug!(target: "mail_receiver", "writing email to {}'s inbox.", rcpt);
 
             // TODO: parse each recipient name.
-            if let Err(e) = Self::write_email_to_rcpt_inbox(rcpt, content) {
+            if let Err(e) = Self::write_email_to_rcpt_inbox(rcpt, &mail.body) {
                 log::error!(target: "mail_receiver","Couldn't write email to inbox: {:?}", e);
             };
         }

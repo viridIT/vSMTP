@@ -2,6 +2,7 @@
     "cSpell.words": [
         "alpn",
         "appender",
+        "clamav",
         "ehlo",
         "ENHANCEDSTATUSCODES",
         "Expn",
@@ -9,6 +10,7 @@
         "helo",
         "maildir",
         "nonblocking",
+        "preq",
         "rcpts",
         "rhai",
         "roadmap",

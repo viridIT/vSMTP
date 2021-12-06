@@ -153,7 +153,7 @@ impl Var {
                             "regex" => content.push(Var::Regex(Regex::from_str(&line)?)),
                             _ => {}
                         },
-                        Err(error) => log::error!("coudln't read line in '{}': {}", value, error),
+                        Err(error) => log::error!("couldn't read line in '{}': {}", value, error),
                     };
                 }
 
@@ -191,7 +191,7 @@ pub enum Status {
     /// continue to the next rule / stage.
     Continue,
 
-    /// immediatly stops the transaction and send an error code.
+    /// immediately stops the transaction and send an error code.
     Deny,
 
     /// ignore all future rules for the current transaction.
@@ -209,7 +209,10 @@ pub enum Status {
 mod vsl {
     use std::net::IpAddr;
 
-    use crate::model::{envelop::Envelop, mail::MailContext};
+    use crate::model::{
+        envelop::Envelop,
+        mail::{ConnectionData, MailContext},
+    };
 
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
         queue.push(Operation::Block(path.to_string()))
@@ -347,6 +350,10 @@ mod vsl {
                 msg_id: msg_id.to_string(),
             },
             body: data.into(),
+            connection: ConnectionData {
+                peer_addr: todo!(),
+                timestamp: todo!(),
+            },
         };
 
         std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
@@ -402,7 +409,7 @@ mod vsl {
                     Err(_) => {
                         log::error!(
                             target: "rule_engine",
-                            "tried to convert '{}' to ipv4 because it is not a object, but convertion failed.",
+                            "tried to convert '{}' to ipv4 because it is not a object, but conversion failed.",
                             object
                         );
                         false
@@ -690,11 +697,11 @@ impl RhaiEngine {
         engine
         .register_global_module(api_mod.into())
 
-        // the operation queue is used to defere heavy computation.
+        // the operation queue is used to defer heavy computation.
         .register_type::<OperationQueue>()
 
         // adding a string vector as a custom type.
-        // it is used to easly manipulate the rcpt container.
+        // it is used to easily manipulate the rcpt container.
         .register_iterator::<Vec<String>>()
         .register_fn("push", <Vec<String>>::push)
 
@@ -817,7 +824,7 @@ impl RhaiEngine {
                 _ => Err(ParseError(
                     Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
                         format!(
-                            "Improper oject declaration: keyword '{}' unknown.",
+                            "Improper object declaration: keyword '{}' unknown.",
                             look_ahead
                         ),
                     ))),
@@ -942,7 +949,7 @@ lazy_static! {
         match RhaiEngine::new() {
             Ok(engine) => engine,
             Err(error) => {
-                log::error!("could not initialise the rule engine: {}", error);
+                log::error!("could not initialize the rule engine: {}", error);
                 panic!();
             }
         }
@@ -988,7 +995,7 @@ pub fn init() {
     RHAI_ENGINE
         .context
         .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &RHAI_ENGINE.ast)
-        .expect("couldn't initialise the rule engine");
+        .expect("couldn't initialize the rule engine");
 
     log::debug!(target: "rule_engine", "{} objects found.", RHAI_ENGINE.objects.read().unwrap().len());
     log::trace!(target: "rule_engine", "{:#?}", RHAI_ENGINE.objects.read().unwrap());
