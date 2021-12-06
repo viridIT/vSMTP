@@ -69,7 +69,8 @@ pub enum SMTPReplyCode {
     Code450,
     /// requested action aborted: local error in processing
     Code451,
-    Code451timeout,
+    Code451Timeout,
+    Code451TooManyError,
     /// requested action not taken: insufficient system storage
     Code452,
     // TLS not available due to temporary reason
@@ -136,7 +137,7 @@ impl SMTPReplyCode {
     // https://datatracker.ietf.org/doc/html/rfc5321#section-4.2
     pub fn as_str(&self) -> &'static str {
         match self {
-            SMTPReplyCode::Code214 => "214 see https://datatracker.ietf.org/doc/html/rfc5321\r\n",
+            SMTPReplyCode::Code214 => "214 joining us https://viridit.com/support\r\n",
             SMTPReplyCode::Code220 => &CODE_220,
             SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
             SMTPReplyCode::Code250 => "250 Ok\r\n",
@@ -145,8 +146,9 @@ impl SMTPReplyCode {
             //
             SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             //
-            SMTPReplyCode::Code451timeout => "451 Timeout - closing connection.\r\n",
             SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n",
+            SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n",
+            SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client\r\n",
             SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason\r\n",
             //
             SMTPReplyCode::Code500 => "500 Syntax error, command unrecognized\r\n",
@@ -157,6 +159,31 @@ impl SMTPReplyCode {
             SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
             SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
 
+            _ => unimplemented!(),
+        }
+    }
+
+    pub(crate) fn is_error(&self) -> bool {
+        match self {
+            SMTPReplyCode::Code214
+            | SMTPReplyCode::Code220
+            | SMTPReplyCode::Code221
+            | SMTPReplyCode::Code250
+            | SMTPReplyCode::Code250PlainEsmtp
+            | SMTPReplyCode::Code250SecuredEsmtp
+            | SMTPReplyCode::Code354 => false,
+            //
+            SMTPReplyCode::Code451Timeout
+            | SMTPReplyCode::Code451
+            | SMTPReplyCode::Code454
+            | SMTPReplyCode::Code500
+            | SMTPReplyCode::Code501
+            | SMTPReplyCode::Code502
+            | SMTPReplyCode::Code503
+            | SMTPReplyCode::Code530
+            | SMTPReplyCode::Code554
+            | SMTPReplyCode::Code554tls => true,
+            //
             _ => unimplemented!(),
         }
     }

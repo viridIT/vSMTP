@@ -82,6 +82,8 @@ where
     /// timeout configuration.
     next_line_timeout: std::time::Duration,
     _phantom: std::marker::PhantomData<R>,
+
+    error_count: u64,
 }
 
 impl<R> MailReceiver<'_, R>
@@ -123,6 +125,7 @@ where
                 .get(&State::Connect)
                 .unwrap_or(&std::time::Duration::from_millis(10_000)),
             _phantom: std::marker::PhantomData,
+            error_count: 0,
         }
     }
 
@@ -305,8 +308,13 @@ where
     }
 
     /// handle a clear text received with plain_stream or tls_stream
-    async fn handle_plain_text(&mut self, client_message: String) -> Option<String> {
-        log::trace!(target: "mail_receiver", "[p:{}] buffer=\"{}\"", self.mail.connection.peer_addr.port(), client_message);
+    async fn handle_plain_text(&mut self, client_message: String) -> Option<SMTPReplyCode> {
+        log::trace!(
+            target: "mail_receiver",
+            "[p:{}] buffer=\"{}\"",
+            self.mail.connection.peer_addr.port(),
+            client_message
+        );
 
         let command_or_code = if self.state == State::Data {
             Event::parse_data
@@ -338,17 +346,7 @@ where
             self.next_line_timeout = new_duration;
         }
 
-        if let Some(rp) = reply {
-            log::warn!(
-                target: "mail_receiver",
-                "[p:{}] send=\"{:?}\"",
-                self.mail.connection.peer_addr.port(), rp
-            );
-
-            Some(rp.as_str().to_string())
-        } else {
-            None
-        }
+        reply
     }
 
     async fn read_and_handle<S>(&mut self, io: &mut IoService<'_, S>) -> Result<(), std::io::Error>
@@ -356,10 +354,47 @@ where
         S: std::io::Write + std::io::Read,
     {
         match tokio::time::timeout(self.next_line_timeout, io.get_next_line_async()).await {
-            Ok(Ok(client_message)) => match self.handle_plain_text(client_message).await {
-                Some(response) => std::io::Write::write_all(io, response.as_bytes()),
-                None => Ok(()),
-            },
+            Ok(Ok(client_message)) => {
+                if let Some(response) = self.handle_plain_text(client_message).await {
+                    log::warn!(
+                        target: "mail_receiver",
+                        "[p:{}] send=\"{:?}\"",
+                        self.mail.connection.peer_addr.port(), response
+                    );
+
+                    if response.is_error() {
+                        self.error_count += 1;
+
+                        let hard_error =
+                            crate::config::get::<i64>("smtp.error.hard_count").unwrap_or(-1);
+                        let soft_error =
+                            crate::config::get::<i64>("smtp.error.soft_count").unwrap_or(-1);
+
+                        if hard_error != -1 && self.error_count >= hard_error as u64 {
+                            let mut response_begin = response.as_str().to_string();
+                            response_begin.replace_range(3..4, "-");
+                            response_begin.push_str(SMTPReplyCode::Code451TooManyError.as_str());
+                            std::io::Write::write_all(io, response_begin.as_bytes())?;
+
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::ConnectionAborted,
+                                "too many errors",
+                            ));
+                        }
+
+                        std::io::Write::write_all(io, response.as_str().as_bytes())?;
+
+                        if soft_error != -1 && self.error_count >= soft_error as u64 {
+                            std::thread::sleep(std::time::Duration::from_millis(
+                                crate::config::get::<u64>("smtp.error.delay").unwrap_or(100),
+                            ));
+                        }
+                    } else {
+                        std::io::Write::write_all(io, response.as_str().as_bytes())?;
+                    }
+                }
+                Ok(())
+            }
             Ok(Err(ReadError::Blocking)) => Ok(()),
             Ok(Err(ReadError::Eof)) => {
                 log::warn!(
@@ -378,7 +413,7 @@ where
                 Err(e)
             }
             Err(e) => {
-                std::io::Write::write_all(io, SMTPReplyCode::Code451timeout.as_str().as_bytes())?;
+                std::io::Write::write_all(io, SMTPReplyCode::Code451Timeout.as_str().as_bytes())?;
                 Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
             }
         }
@@ -392,7 +427,7 @@ where
     {
         let begin_handshake = std::time::Instant::now();
         let duration = std::time::Duration::from_millis(
-            crate::config::get::<u64>("tls.handshake_timeout_ms").unwrap_or(10),
+            crate::config::get::<u64>("tls.handshake_timeout_ms").unwrap_or(1000),
         );
 
         loop {
