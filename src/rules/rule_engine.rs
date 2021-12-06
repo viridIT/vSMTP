@@ -347,7 +347,6 @@ mod vsl {
                 helo: helo.to_string(),
                 mail_from: mail.to_string(),
                 recipients: rcpt,
-                msg_id: msg_id.to_string(),
             },
             body: data.into(),
             connection: ConnectionData {
@@ -617,6 +616,7 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn execute_operation_queue(
         &mut self,
         ctx: &MailContext,
+        msg_id: &str,
     ) -> Result<(), Box<dyn Error>> {
         for op in self
             .scope
@@ -631,7 +631,7 @@ impl<'a> RuleEngine<'a> {
                     let mut path = std::path::PathBuf::from_str(path)?;
                     std::fs::create_dir_all(&path)?;
 
-                    path.push(&ctx.envelop.msg_id);
+                    path.push(msg_id);
                     path.set_extension("json");
 
                     let mut file = std::fs::OpenOptions::new()
@@ -653,7 +653,6 @@ impl<'a> RuleEngine<'a> {
             helo: self.scope.get_value::<String>("helo")?,
             mail_from: self.scope.get_value::<String>("mail")?,
             recipients: self.scope.get_value::<Vec<String>>("rcpts")?,
-            msg_id: self.scope.get_value::<String>("msg_id")?,
         })
     }
 }

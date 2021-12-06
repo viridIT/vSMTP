@@ -20,8 +20,6 @@ pub struct Envelop {
     pub helo: String,
     pub mail_from: String,
     pub recipients: Vec<String>,
-    // TODO: remove from envelop, format!("{connection_timestamp}_{pid/thread}_{mail_id}_{rcpt_id}")
-    pub msg_id: String,
 }
 
 impl Envelop {

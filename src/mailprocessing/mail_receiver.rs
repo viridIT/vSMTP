@@ -70,6 +70,7 @@ where
 
     /// mail informations sent by the client.
     mail: MailContext,
+    msg_id: String,
 
     /// rule engine executing the server's rhai configuration.
     rule_engine: RuleEngine<'a>,
@@ -115,6 +116,14 @@ where
                 envelop: Envelop::default(),
                 body: String::with_capacity(20_000),
             },
+            msg_id: format!(
+                "{}_{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+                std::process::id(),
+            ),
             tls_config,
             tls_security_level,
             is_secured: false,
@@ -197,13 +206,6 @@ where
 
             // SMTP pipeline
             (State::Helo, Event::MailCmd(mail_from)) => {
-                // NOTE: from the MAIL FROM command, the state machine
-                //       generates a new message id for each command until
-                //       data end is reached. this could be slow.
-                self.mail.generate_message_id();
-                self.rule_engine
-                    .add_data("msg_id", self.mail.envelop.msg_id.clone());
-
                 self.mail.envelop.mail_from = mail_from;
                 log::trace!(
                     target: "mail_receiver",
@@ -222,9 +224,6 @@ where
             }
 
             (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
-                self.mail.generate_message_id();
-                self.rule_engine
-                    .add_data("msg_id", self.mail.envelop.msg_id.clone());
                 self.rule_engine.add_data("rcpt", rcpt_to.clone());
 
                 // FIXME: the whole rcpt vector is cloned each command,
@@ -257,10 +256,6 @@ where
             }
 
             (State::Data, Event::DataEnd) => {
-                self.mail.generate_message_id();
-                self.rule_engine
-                    .add_data("msg_id", self.mail.envelop.msg_id.clone());
-
                 let (state, code) = R::on_data_end(&self.mail).await;
                 // NOTE: clear envelop and raw_data
 
@@ -274,7 +269,10 @@ where
                 };
 
                 // executing all registered extensive operations.
-                if let Err(error) = self.rule_engine.execute_operation_queue(&self.mail) {
+                if let Err(error) = self
+                    .rule_engine
+                    .execute_operation_queue(&self.mail, &self.msg_id)
+                {
                     log::error!(target: "rule_engine", "failed to empty the operation queue: '{}'", error);
                 }
 
@@ -500,6 +498,7 @@ where
 
         self.rule_engine
             .add_data("connect", self.mail.connection.peer_addr.ip());
+        self.rule_engine.add_data("msg_id", self.msg_id.clone());
 
         if let Status::Deny = self.rule_engine.run_when("connect") {
             return Err(std::io::Error::new(
