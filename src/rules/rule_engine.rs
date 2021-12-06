@@ -17,12 +17,10 @@
 use crate::config;
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
+use crate::rules::obj::Object;
 
-use ipnet::{Ipv4Net, Ipv6Net};
-use iprange::IpRange;
 use lazy_static::lazy_static;
 use lettre::{Message, SmtpTransport, Transport};
-use regex::Regex;
 use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Module, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
 
@@ -31,7 +29,7 @@ use std::{
     collections::BTreeMap,
     error::Error,
     fs,
-    io::{BufRead, BufReader, Write},
+    io::Write,
     net::{Ipv4Addr, Ipv6Addr},
     path::Path,
     str::FromStr,
@@ -56,130 +54,6 @@ pub struct OperationQueue {
 impl OperationQueue {
     pub fn push(&mut self, op: Operation) {
         self.inner.push(op);
-    }
-}
-
-#[derive(Debug)]
-pub(super) enum Var {
-    Ip4(Ipv4Addr),
-    Ip6(Ipv6Addr),
-    Rg4(IpRange<Ipv4Net>),
-    Rg6(IpRange<Ipv6Net>),
-    Address(String),
-    Fqdn(String),
-    Regex(Regex),
-    File(Vec<Var>),
-
-    /// contains a set of objects.
-    Group(Vec<Var>),
-
-    /// a string object (default).
-    Val(String),
-}
-
-impl Var {
-    // NOTE: what does the 'static lifetime implies here ?
-    fn value<T: 'static + Clone>(map: &Map, key: &str) -> Result<T, Box<dyn Error>> {
-        match map.get(key) {
-            Some(value) => Ok(value.clone_cast::<T>()),
-            None => return Err(format!("{} not found.", key).into()),
-        }
-    }
-
-    fn from(map: &Map) -> Result<Self, Box<dyn Error>> {
-        let t = Var::value::<String>(map, "type")?;
-
-        match t.as_str() {
-            "ip4" => Ok(Var::Ip4(Ipv4Addr::from_str(&Var::value::<String>(
-                map, "value",
-            )?)?)),
-            "ip6" => Ok(Var::Ip6(Ipv6Addr::from_str(&Var::value::<String>(
-                map, "value",
-            )?)?)),
-            "rg4" => Ok(Var::Rg4(
-                [Var::value::<String>(map, "value")?.parse::<Ipv4Net>()?]
-                    .into_iter()
-                    .collect(),
-            )),
-            "rg6" => Ok(Var::Rg6(
-                [Var::value::<String>(map, "value")?.parse::<Ipv6Net>()?]
-                    .into_iter()
-                    .collect(),
-            )),
-            "fqdn" => {
-                let value = Var::value::<String>(map, "value")?;
-                match addr::parse_domain_name(&value) {
-                    Ok(domain) => Ok(Var::Fqdn(domain.to_string())),
-                    Err(_) => Err(format!("'{}' is not a valid fqdn.", value).into()),
-                }
-            }
-            "addr" => {
-                let value = Var::value::<String>(map, "value")?;
-                match addr::parse_email_address(&value) {
-                    Ok(domain) => Ok(Var::Address(domain.to_string())),
-                    Err(_) => Err(format!("'{}' is not a valid address.", value).into()),
-                }
-            }
-            "val" => Ok(Var::Val(Var::value::<String>(map, "value")?)),
-            "regex" => Ok(Var::Regex(Regex::from_str(&Var::value::<String>(
-                map, "value",
-            )?)?)),
-            "file" => {
-                let value = Var::value::<String>(map, "value")?;
-                let content_type = Var::value::<String>(map, "content_type")?;
-                let reader = BufReader::new(fs::File::open(&value)?);
-                let mut content = Vec::with_capacity(20);
-
-                for line in reader.lines() {
-                    match line {
-                        Ok(line) => match content_type.as_str() {
-                            "ip4" => content.push(Var::Ip4(Ipv4Addr::from_str(&line)?)),
-                            "ip6" => content.push(Var::Ip6(Ipv6Addr::from_str(&line)?)),
-                            "fqdn" => match addr::parse_domain_name(&line) {
-                                Ok(domain) => content.push(Var::Fqdn(domain.to_string())),
-                                Err(_) => {
-                                    return Err(format!("'{}' is not a valid fqdn.", value).into());
-                                }
-                            },
-                            "addr" => match addr::parse_email_address(&line) {
-                                Ok(domain) => content.push(Var::Address(domain.to_string())),
-                                Err(_) => {
-                                    return Err(
-                                        format!("'{}' is not a valid address.", value).into()
-                                    );
-                                }
-                            },
-                            "val" => content.push(Var::Val(line)),
-                            "regex" => content.push(Var::Regex(Regex::from_str(&line)?)),
-                            _ => {}
-                        },
-                        Err(error) => log::error!("coudln't read line in '{}': {}", value, error),
-                    };
-                }
-
-                Ok(Var::File(content))
-            }
-
-            "grp" => {
-                let mut group = vec![];
-                let elements = Var::value::<Array>(map, "value")?;
-
-                for element in elements.iter() {
-                    match element.is::<Map>() {
-                        true => group.push(Var::from(&element.clone_cast::<Map>())?),
-                        false => {
-                            return Err(
-                                "'{}' is not an inline object or an already defined one.".into()
-                            )
-                        }
-                    }
-                }
-
-                Ok(Var::Group(group))
-            }
-
-            _ => Err(format!("'{}' is not a known object type.", t).into()),
-        }
     }
 }
 
@@ -439,56 +313,56 @@ mod vsl {
     }
 }
 
-fn internal_is_connect(connect: &IpAddr, object: &Var) -> bool {
+fn internal_is_connect(connect: &IpAddr, object: &Object) -> bool {
     match object {
-        Var::Ip4(ip) => *ip == *connect,
-        Var::Ip6(ip) => *ip == *connect,
-        Var::Rg4(range) => match connect {
+        Object::Ip4(ip) => *ip == *connect,
+        Object::Ip6(ip) => *ip == *connect,
+        Object::Rg4(range) => match connect {
             IpAddr::V4(ip4) => range.contains(ip4),
             _ => false,
         },
-        Var::Rg6(range) => match connect {
+        Object::Rg6(range) => match connect {
             IpAddr::V6(ip6) => range.contains(ip6),
             _ => false,
         },
         // NOTE: is there a way to get a &str instead of a String here ?
-        Var::Regex(re) => re.is_match(connect.to_string().as_str()),
-        Var::File(content) => content
+        Object::Regex(re) => re.is_match(connect.to_string().as_str()),
+        Object::File(content) => content
             .iter()
             .any(|object| internal_is_connect(connect, object)),
-        Var::Group(group) => group
+        Object::Group(group) => group
             .iter()
             .any(|object| internal_is_connect(connect, object)),
         _ => false,
     }
 }
 
-fn internal_is_helo(helo: &str, object: &Var) -> bool {
+fn internal_is_helo(helo: &str, object: &Object) -> bool {
     match object {
-        Var::Fqdn(fqdn) => *fqdn == helo,
-        Var::Regex(re) => re.is_match(helo),
-        Var::File(content) => content.iter().any(|object| internal_is_helo(helo, object)),
-        Var::Group(group) => group.iter().any(|object| internal_is_helo(helo, object)),
+        Object::Fqdn(fqdn) => *fqdn == helo,
+        Object::Regex(re) => re.is_match(helo),
+        Object::File(content) => content.iter().any(|object| internal_is_helo(helo, object)),
+        Object::Group(group) => group.iter().any(|object| internal_is_helo(helo, object)),
         _ => false,
     }
 }
 
-fn internal_is_mail(mail: &str, object: &Var) -> bool {
+fn internal_is_mail(mail: &str, object: &Object) -> bool {
     match object {
-        Var::Address(addr) => *addr == mail,
-        Var::Regex(re) => re.is_match(mail),
-        Var::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
-        Var::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
+        Object::Address(addr) => *addr == mail,
+        Object::Regex(re) => re.is_match(mail),
+        Object::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
+        Object::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
         _ => false,
     }
 }
 
-fn internal_is_rcpt(rcpt: &str, object: &Var) -> bool {
+fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
     match object {
-        Var::Address(addr) => rcpt == addr.as_str(),
-        Var::Regex(re) => re.is_match(rcpt),
-        Var::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
-        Var::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
+        Object::Address(addr) => rcpt == addr.as_str(),
+        Object::Regex(re) => re.is_match(rcpt),
+        Object::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
+        Object::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
         _ => false,
     }
 }
@@ -657,7 +531,7 @@ pub(super) struct RhaiEngine {
     pub(super) ast: AST,
 
     // ? use SmartString<LazyCompact> ? What about long object names ?
-    pub(super) objects: Arc<RwLock<BTreeMap<String, Var>>>,
+    pub(super) objects: Arc<RwLock<BTreeMap<String, Object>>>,
 }
 
 impl RhaiEngine {
@@ -871,7 +745,7 @@ impl RhaiEngine {
                 };
 
                 // injecting the object in rust's scope.
-                match Var::from(&object) {
+                match Object::from(&object) {
                     Ok(rust_var) => shared_obj.write()
                         .unwrap()
                         .insert(var_name.to_string(), rust_var),
