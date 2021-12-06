@@ -32,7 +32,7 @@ obj addr "green" "green@bar.com";
 
 // files object, format: `file:(content-type)`
 // content-type can be: ip4, ip6, fqdn, val, addr or regex.
-obj file:addr "whitelist" "./src/rules/test-configs/whitelist.txt";
+obj file:addr "whitelist" "./src/rules/tests/configs/whitelist.txt";
 
 // regex objects.
 obj regex "viridit_staff" "^[a-z0-9.]+@viridit.com$";
