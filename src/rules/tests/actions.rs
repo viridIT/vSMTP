@@ -10,6 +10,36 @@ macro_rules! generate_rule_check_test {
             );
         )*
     };
+    ($init:expr, helo, $($against:expr, $should_be:ident),*) => {
+        let obj = $init();
+        $(
+            println!("object {:?} {} helo {:?}", obj, if $should_be == true { "should be" } else {"should not be"}, $against);
+            assert_eq!(
+                internal_is_helo(&$against, &obj),
+                $should_be
+            );
+        )*
+    };
+    ($init:expr, mail, $($against:expr, $should_be:ident),*) => {
+        let obj = $init();
+        $(
+            println!("object {:?} {} mail {:?}", obj, if $should_be == true { "should be" } else {"should not be"}, $against);
+            assert_eq!(
+                internal_is_mail(&$against, &obj),
+                $should_be
+            );
+        )*
+    };
+    ($init:expr, rcpt, $($against:expr, $should_be:ident),*) => {
+        let obj = $init();
+        $(
+            println!("object {:?} {} rcpt {:?}", obj, if $should_be == true { "should be" } else {"should not be"}, $against);
+            assert_eq!(
+                internal_is_rcpt(&$against, &obj),
+                $should_be
+            );
+        )*
+    };
 }
 
 // TODO: generate those tests using a macro.
@@ -148,6 +178,127 @@ mod test {
                 IpAddr::V4(Ipv4Addr::LOCALHOST),
                 false,
                 IpAddr::V4(Ipv4Addr::new(192, 168, 1, 91)),
+                false
+            );
+        }
+    }
+
+    #[test]
+    fn test_helo() {
+        // fqdn.
+        {
+            generate_rule_check_test!(
+                || Object::Fqdn("foo.com".to_string()),
+                helo,
+                "foo.com",
+                true,
+                "bar.com",
+                false
+            );
+        }
+
+        // regex.
+        {
+            generate_rule_check_test!(
+                || Object::Regex("^[a-z0-9.]+.com$".parse().unwrap()),
+                helo,
+                "foo.com",
+                true,
+                "bar.com",
+                true,
+                "foo.bar",
+                false
+            );
+        }
+
+        // files & group.
+        {
+            generate_rule_check_test!(
+                || {
+                    let mut file = Map::new();
+                    file.insert("type".into(), "file".into());
+                    file.insert("content_type".into(), "fqdn".into());
+                    file.insert("value".into(), "src/rules/tests/configs/domains.txt".into());
+
+                    Object::from(&file).unwrap()
+                },
+                helo,
+                "foo.bar",
+                true,
+                "viridit.com",
+                true,
+                "satan.fr",
+                false
+            );
+
+            generate_rule_check_test!(
+                || {
+                    let mut file = Map::new();
+                    file.insert("type".into(), "file".into());
+                    file.insert("content_type".into(), "ip4".into());
+                    file.insert("value".into(), "src/rules/tests/configs/hosts.txt".into());
+
+                    Object::from(&file).unwrap()
+                },
+                helo,
+                // nothing matches because content isn't of fqdn type.
+                "foo.bar",
+                false,
+                "viridit.com",
+                false,
+                "satan.fr",
+                false
+            );
+
+            generate_rule_check_test!(
+                || {
+                    Object::Group(vec![
+                        Object::Address("jones@foo.com".to_string()),
+                        Object::Fqdn("foo.com".to_string()),
+                        Object::Ip4("0.0.0.0".parse().unwrap()),
+                    ])
+                },
+                helo,
+                "foo.bar",
+                false,
+                "viridit.com",
+                false,
+                "foo.com",
+                true
+            );
+        }
+
+        // invalid.
+        {
+            generate_rule_check_test!(
+                || Object::Var("".to_string()),
+                helo,
+                "foo.bar",
+                false,
+                "viridit.com",
+                false,
+                "foo.com",
+                false
+            );
+
+            generate_rule_check_test!(
+                || Object::Ip4(Ipv4Addr::UNSPECIFIED),
+                helo,
+                "foo.bar",
+                false,
+                "viridit.com",
+                false,
+                "foo.com",
+                false
+            );
+            generate_rule_check_test!(
+                || Object::Ip6(Ipv6Addr::UNSPECIFIED),
+                helo,
+                "foo.bar",
+                false,
+                "viridit.com",
+                false,
+                "foo.com",
                 false
             );
         }
