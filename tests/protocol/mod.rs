@@ -18,7 +18,8 @@ mod tests {
     #[async_trait::async_trait]
     impl DataEndResolver for DataEndResolverTest {
         async fn on_data_end(_: &MailContext) -> (State, SMTPReplyCode) {
-            (State::Helo, SMTPReplyCode::Code250)
+            // after a successful exchange, the server is ready for a new RCPT
+            (State::MailFrom, SMTPReplyCode::Code250)
         }
     }
 
@@ -51,7 +52,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_1() {
-        let _ = make_test(
+        assert!(make_test(
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<jhon@doe>\r\n",
@@ -76,12 +77,13 @@ mod tests {
             TlsSecurityLevel::None,
             None,
         )
-        .await;
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
     async fn test_receiver_2() {
-        let _ = make_test(
+        assert!(make_test(
             ["foo\r\n"].concat().as_bytes(),
             [
                 "220 testserver.com Service ready\r\n",
@@ -92,12 +94,13 @@ mod tests {
             TlsSecurityLevel::None,
             None,
         )
-        .await;
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
     async fn test_receiver_3() {
-        let _ = make_test(
+        assert!(make_test(
             ["MAIL FROM:<jhon@doe>\r\n"].concat().as_bytes(),
             [
                 "220 testserver.com Service ready\r\n",
@@ -108,12 +111,13 @@ mod tests {
             TlsSecurityLevel::None,
             None,
         )
-        .await;
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
     async fn test_receiver_4() {
-        let _ = make_test(
+        assert!(make_test(
             ["RCPT TO:<jhon@doe>\r\n"].concat().as_bytes(),
             [
                 "220 testserver.com Service ready\r\n",
@@ -124,12 +128,13 @@ mod tests {
             TlsSecurityLevel::None,
             None,
         )
-        .await;
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
     async fn test_receiver_5() {
-        let _ = make_test(
+        assert!(make_test(
             ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n"]
                 .concat()
                 .as_bytes(),
@@ -143,12 +148,13 @@ mod tests {
             TlsSecurityLevel::None,
             None,
         )
-        .await;
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
     async fn test_receiver_6() {
-        let _ = make_test(
+        assert!(make_test(
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
                 "220 testserver.com Service ready\r\n",
@@ -160,12 +166,13 @@ mod tests {
             TlsSecurityLevel::None,
             None,
         )
-        .await;
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
     async fn test_receiver_7() {
-        let _ = make_test(
+        assert!(make_test(
             ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
                 .concat()
                 .as_bytes(),
@@ -181,12 +188,13 @@ mod tests {
             TlsSecurityLevel::Encrypt,
             None,
         )
-        .await;
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
     async fn test_receiver_8() {
-        let _ = make_test(
+        assert!(make_test(
             ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
                 .concat()
                 .as_bytes(),
@@ -202,7 +210,8 @@ mod tests {
             TlsSecurityLevel::Encrypt,
             None,
         )
-        .await;
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
@@ -246,5 +255,55 @@ mod tests {
 
         // (hard_error - soft_error) * error_delay
         assert!(before_test.elapsed().as_millis() >= 5 * 100);
+    }
+
+    #[tokio::test]
+    async fn test_receiver_10() {
+        assert!(make_test(
+            ["HELP\r\n"].concat().as_bytes(),
+            [
+                "220 testserver.com Service ready\r\n",
+                "214 joining us https://viridit.com/support\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::Encrypt,
+            None,
+        )
+        .await
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_receiver_11() {
+        assert!(make_test(
+            [
+                "HELO postmaster\r\n",
+                "MAIL FROM: <lala@foo>\r\n",
+                "RCPT TO: <lala@foo>\r\n",
+                "DATA\r\n",
+                ".\r\n",
+                "DATA\r\n",
+                "RCPT TO:<b@b>\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            [
+                "220 testserver.com Service ready\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+                "250 Ok\r\n",
+                "503 Bad sequence of commands\r\n",
+                "250 Ok\r\n"
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
+        )
+        .await
+        .is_ok());
     }
 }

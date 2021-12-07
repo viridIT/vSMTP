@@ -18,25 +18,11 @@
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Envelop {
     pub helo: String,
-    pub mail: String,
+    pub mail_from: String,
     pub rcpt: Vec<String>,
-    pub msg_id: String,
-}
-
-// TODO: need error handling in case of erroneous formatting.
-fn remove_inbox_characters(inbox: &str) -> String {
-    inbox.trim().replace(&['<', '>'][..], "")
 }
 
 impl Envelop {
-    pub fn set_sender(&mut self, sender: &str) {
-        self.mail = remove_inbox_characters(sender);
-    }
-
-    pub fn add_rcpt(&mut self, recipient: &str) {
-        self.rcpt.push(remove_inbox_characters(recipient));
-    }
-
     // TODO: need error handling (i.e. @blablah.com should return an error.)
     pub fn get_rcpt_usernames(&self) -> Vec<&str> {
         self.rcpt

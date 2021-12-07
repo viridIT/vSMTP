@@ -66,6 +66,7 @@ impl<'a> RuleEngine<'a> {
         let mut scope = Scope::new();
         scope
             .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+            .push("port", 0)
             .push("helo", "")
             .push("mail", "")
             .push("rcpt", "")
@@ -77,7 +78,8 @@ impl<'a> RuleEngine<'a> {
             .push("__init", true)
             .push("date", "")
             .push("time", "")
-            .push("msg_id", "")
+            .push("connection_timestamp", std::time::SystemTime::now())
+            .push("mail_timestamp", None::<std::time::SystemTime>)
             .push("addr", config::get::<Vec<String>>("server.addr").unwrap())
             .push("logs_file", config::get::<String>("log.file").unwrap())
             .push(
@@ -190,7 +192,7 @@ impl<'a> RuleEngine<'a> {
                     let mut path = std::path::PathBuf::from_str(&path)?;
                     std::fs::create_dir_all(&path)?;
 
-                    path.push(&ctx.envelop.msg_id);
+                    path.push(crate::mailprocessing::utils::generate_msg_id());
                     path.set_extension("json");
 
                     let mut file = std::fs::OpenOptions::new()
@@ -211,9 +213,8 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
         Some(Envelop {
             helo: self.scope.get_value::<String>("helo")?,
-            mail: self.scope.get_value::<String>("mail")?,
+            mail_from: self.scope.get_value::<String>("mail")?,
             rcpt: self.scope.get_value::<Vec<String>>("rcpts")?,
-            msg_id: self.scope.get_value::<String>("msg_id")?,
         })
     }
 }
@@ -251,11 +252,12 @@ impl RhaiEngine {
         engine
         .register_global_module(api_mod.into())
 
-        // the operation queue is used to defer heavy computation.
+        // the operation queue is used to defer actions.
         .register_type::<OperationQueue>()
+        .register_type::<std::time::SystemTime>()
 
         // adding a string vector as a custom type.
-        // it is used to easlly manipulate the rcpt container.
+        // it is used to easily manipulate the rcpt container.
         .register_iterator::<Vec<String>>()
         .register_fn("push", <Vec<String>>::push)
 
@@ -379,7 +381,7 @@ impl RhaiEngine {
                 _ => Err(ParseError(
                     Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
                         format!(
-                            "Improper oject declaration: keyword '{}' unknown.",
+                            "Improper object declaration: keyword '{}' unknown.",
                             look_ahead
                         ),
                     ))),
@@ -550,6 +552,7 @@ lazy_static! {
         scope
         // stage variables.
         .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+        .push("port", 0)
         .push("helo", "")
         .push("mail", "")
         .push("rcpt", "")
@@ -565,7 +568,8 @@ lazy_static! {
         // useful data.
         .push("date", "")
         .push("time", "")
-        .push("msg_id", "")
+        .push("connection_timestamp", std::time::SystemTime::now())
+        .push("mail_timestamp", None::<std::time::SystemTime>)
 
         // configuration variables.
         .push("addr", Vec::<String>::new())

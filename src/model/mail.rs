@@ -15,51 +15,18 @@
  *
 **/
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct ConnectionData {
+    pub peer_addr: std::net::SocketAddr,
+    // instant when connection being treated
+    pub timestamp: std::time::SystemTime,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
+    pub connection: ConnectionData,
     pub envelop: super::envelop::Envelop,
-    pub body: Vec<u8>,
-}
-
-impl MailContext {
-    pub(crate) fn generate_message_id(&mut self) {
-        self.envelop.msg_id = format!(
-            "{}_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis(),
-            std::process::id(),
-        );
-    }
-}
-
-impl serde::Serialize for MailContext {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct(
-            "MailContext",
-            self.envelop.helo.len()
-                + self.envelop.mail.len()
-                + self.envelop.rcpt.iter().fold(0, |s, i| s + i.len())
-                + self.body.len(),
-        )?;
-        serde::ser::SerializeStruct::serialize_field(&mut state, "envelop", &self.envelop)?;
-        serde::ser::SerializeStruct::serialize_field(
-            &mut state,
-            "body",
-            std::str::from_utf8(&self.body).unwrap(),
-        )?;
-        serde::ser::SerializeStruct::end(state)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for MailContext {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        todo!()
-    }
+    pub body: String,
+    // instant when the last "MAIL FROM" has been received
+    pub timestamp: Option<std::time::SystemTime>,
 }

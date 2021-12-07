@@ -1,3 +1,5 @@
+use std::{path::PathBuf, str::FromStr};
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -85,17 +87,30 @@ impl ResolverWriteDisk {
     }
 
     fn write_mail_to_process(mail: &crate::model::mail::MailContext) -> std::io::Result<()> {
-        let folder = format!(
-            "{}/to_process",
-            crate::config::get::<String>("paths.spool_dir")
+        let mut path = PathBuf::from_str(
+            &crate::config::get::<String>("paths.spool_dir")
                 .unwrap_or_else(|_| crate::config::DEFAULT_SPOOL_PATH.to_string()),
-        );
-        std::fs::create_dir_all(&folder)?;
+        )
+        .unwrap();
+
+        path.set_file_name("to_process");
+        std::fs::create_dir_all(&path)?;
+
+        path.set_file_name(format!(
+            "{}_{:?}",
+            mail.timestamp
+                .unwrap()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis(),
+            std::thread::current().id()
+        ));
+        path.set_extension("json");
 
         let mut to_process = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open(format!("{}/{}.json", folder, mail.envelop.msg_id))?;
+            .open(path)?;
 
         std::io::Write::write_all(&mut to_process, serde_json::to_string(&mail)?.as_bytes())
     }
@@ -110,13 +125,11 @@ impl DataEndResolver for ResolverWriteDisk {
 
         log::trace!(target: "mail_receiver", "mail: {:#?}", mail.envelop);
 
-        let content = std::str::from_utf8(&mail.body).unwrap();
-
         for rcpt in mail.envelop.get_rcpt_usernames() {
             log::debug!(target: "mail_receiver", "writing email to {}'s inbox.", rcpt);
 
             // TODO: parse each recipient name.
-            if let Err(e) = Self::write_email_to_rcpt_inbox(rcpt, content) {
+            if let Err(e) = Self::write_email_to_rcpt_inbox(rcpt, &mail.body) {
                 log::error!(target: "mail_receiver","Couldn't write email to inbox: {:?}", e);
             };
         }

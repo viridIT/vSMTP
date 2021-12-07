@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::model::{envelop::Envelop, mail::MailContext};
+use crate::model::{
+    envelop::Envelop,
+    mail::{ConnectionData, MailContext},
+};
 use crate::rules::{
     obj::Object,
     operation_queue::{Operation, OperationQueue},
@@ -35,6 +38,8 @@ use rhai::plugin::*;
 #[allow(dead_code)]
 #[export_module]
 pub(super) mod vsl {
+    use std::net::SocketAddr;
+
     use super::*;
 
     /// enqueue a block operation on the queue.
@@ -145,12 +150,16 @@ pub(super) mod vsl {
     /// for example, dumping during the rcpt stage will leave the data
     /// field empty.
     #[rhai_fn(name = "__DUMP", return_raw)]
+    #[allow(clippy::too_many_arguments)]
     pub fn dump(
+        connect: IpAddr,
+        port: u16,
         helo: &str,
         mail: &str,
         rcpt: Vec<String>,
         data: &str,
-        msg_id: &str,
+        connection_timestamp: std::time::SystemTime,
+        mail_timestamp: Option<std::time::SystemTime>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
         if let Err(error) = std::fs::create_dir_all(path) {
@@ -160,7 +169,7 @@ pub(super) mod vsl {
         let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
             // Error is of type Infallible, we can unwrap.
             let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(msg_id);
+            path.push(crate::mailprocessing::utils::generate_msg_id());
             path.set_extension("json");
             path
         }) {
@@ -173,11 +182,16 @@ pub(super) mod vsl {
         let ctx = MailContext {
             envelop: Envelop {
                 helo: helo.to_string(),
-                mail: mail.to_string(),
+                mail_from: mail.to_string(),
                 rcpt,
-                msg_id: msg_id.to_string(),
             },
             body: data.into(),
+            connection: ConnectionData {
+                peer_addr: SocketAddr::new(connect, port),
+                timestamp: connection_timestamp,
+            },
+
+            timestamp: mail_timestamp,
         };
 
         std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
@@ -204,7 +218,7 @@ pub(super) mod vsl {
             .unwrap();
 
         // TODO: replace unencrypted_localhost by a valid host.
-        // NOTE: unencrypted_localhost is used for test purposes.
+        // NOTE: unscripted_localhost is used for test purposes.
         match SmtpTransport::unencrypted_localhost().send(&email) {
             Ok(_) => Ok(()),
             Err(error) => Err(EvalAltResult::ErrorInFunctionCall(
