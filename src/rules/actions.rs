@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::model::{envelop::Envelop, mail::MailContext};
+use crate::model::{
+    envelop::Envelop,
+    mail::{ConnectionData, MailContext},
+};
 use crate::rules::{
     obj::Object,
     operation_queue::{Operation, OperationQueue},
@@ -24,6 +27,7 @@ use crate::rules::{
 use std::{
     io::Write,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    process::Command,
     str::FromStr,
 };
 
@@ -34,6 +38,8 @@ use rhai::plugin::*;
 #[allow(dead_code)]
 #[export_module]
 pub(super) mod vsl {
+    use std::net::SocketAddr;
+
     use super::*;
 
     /// enqueue a block operation on the queue.
@@ -144,12 +150,16 @@ pub(super) mod vsl {
     /// for example, dumping during the rcpt stage will leave the data
     /// field empty.
     #[rhai_fn(name = "__DUMP", return_raw)]
+    #[allow(clippy::too_many_arguments)]
     pub fn dump(
+        connect: IpAddr,
+        port: u16,
         helo: &str,
         mail: &str,
         rcpt: Vec<String>,
         data: &str,
-        msg_id: &str,
+        connection_timestamp: std::time::SystemTime,
+        mail_timestamp: Option<std::time::SystemTime>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
         if let Err(error) = std::fs::create_dir_all(path) {
@@ -159,7 +169,7 @@ pub(super) mod vsl {
         let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
             // Error is of type Infallible, we can unwrap.
             let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(msg_id);
+            path.push(crate::mailprocessing::utils::generate_msg_id());
             path.set_extension("json");
             path
         }) {
@@ -176,8 +186,12 @@ pub(super) mod vsl {
                 rcpt,
             },
             body: data.into(),
-            connection: todo!(),
-            timestamp: todo!(),
+            connection: ConnectionData {
+                peer_addr: SocketAddr::new(connect, port),
+                timestamp: connection_timestamp,
+            },
+
+            timestamp: mail_timestamp,
         };
 
         std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
@@ -204,7 +218,7 @@ pub(super) mod vsl {
             .unwrap();
 
         // TODO: replace unencrypted_localhost by a valid host.
-        // NOTE: unencrypted_localhost is used for test purposes.
+        // NOTE: unscripted_localhost is used for test purposes.
         match SmtpTransport::unencrypted_localhost().send(&email) {
             Ok(_) => Ok(()),
             Err(error) => Err(EvalAltResult::ErrorInFunctionCall(
@@ -272,6 +286,14 @@ pub(super) mod vsl {
             _ => rcpt == object,
         }
     }
+
+    /// checks if the given user exists on the system.
+    pub fn __user_exists(object: &str) -> bool {
+        match RHAI_ENGINE.objects.read().unwrap().get(object) {
+            Some(object) => internal_user_exists(object),
+            _ => internal_user_exists(&Object::Var(object.to_string())),
+        }
+    }
 }
 
 // NOTE: the following functions use pub(super) because they need to be exposed for tests.
@@ -331,5 +353,25 @@ pub(super) fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
         Object::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
         Object::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
         _ => false,
+    }
+}
+
+/// checks recursively if the/all user(s) exists on the system.
+pub(super) fn internal_user_exists(user: &Object) -> bool {
+    match user {
+        Object::Var(user) => user_exists(user),
+        Object::File(content) | Object::Group(content) => content.iter().all(internal_user_exists),
+        _ => false,
+    }
+}
+
+/// execute the id shell command, checking if the given user exists.
+fn user_exists(user: &str) -> bool {
+    match Command::new("sh")
+        .args(["-c", &format!("id -u {}", user)])
+        .status()
+    {
+        Ok(status) => status.success(),
+        Err(_) => false,
     }
 }

@@ -64,6 +64,7 @@ impl<'a> RuleEngine<'a> {
         let mut scope = Scope::new();
         scope
             .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+            .push("port", 0)
             .push("helo", "")
             .push("mail", "")
             .push("rcpt", "")
@@ -245,8 +246,9 @@ impl RhaiEngine {
         engine
         .register_global_module(api_mod.into())
 
-        // the operation queue is used to defer heavy computation.
+        // the operation queue is used to defer actions.
         .register_type::<OperationQueue>()
+        .register_type::<std::time::SystemTime>()
 
         // adding a string vector as a custom type.
         // it is used to easily manipulate the rcpt container.
@@ -545,6 +547,7 @@ lazy_static::lazy_static! {
         scope
         // stage variables.
         .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+        .push("port", 0)
         .push("helo", "")
         .push("mail", "")
         .push("rcpt", "")
@@ -560,7 +563,8 @@ lazy_static::lazy_static! {
         // useful data.
         .push("date", "")
         .push("time", "")
-        .push("msg_id", "")
+        .push("connection_timestamp", std::time::SystemTime::now())
+        .push("mail_timestamp", None::<std::time::SystemTime>)
 
         // configuration variables.
         .push("addr", Vec::<String>::new())

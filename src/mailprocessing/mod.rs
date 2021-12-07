@@ -16,3 +16,16 @@
 **/
 pub mod io_service;
 pub mod mail_receiver;
+
+pub mod utils {
+    pub fn generate_msg_id() -> String {
+        format!(
+            "{}_{:?}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis(),
+            std::thread::current().id()
+        )
+    }
+}

@@ -14,14 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::smtp::code::SMTPReplyCode;
+use crate::{
+    mailprocessing::mail_receiver::State, model::mail::MailContext, server_config::ServerConfig,
+    smtp::code::SMTPReplyCode,
+};
 
 #[async_trait::async_trait]
 pub trait DataEndResolver {
-    async fn on_data_end(
-        config: &crate::server_config::ServerConfig,
-        mail: &crate::model::mail::MailContext,
-    ) -> (crate::mailprocessing::mail_receiver::State, SMTPReplyCode);
+    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode);
 }
 
 pub struct ResolverWriteDisk;
@@ -98,10 +98,7 @@ impl ResolverWriteDisk {
 
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
-    async fn on_data_end(
-        config: &crate::server_config::ServerConfig,
-        mail: &crate::model::mail::MailContext,
-    ) -> (crate::mailprocessing::mail_receiver::State, SMTPReplyCode) {
+    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
         Self::write_mail_to_process(&config.smtp.spool_dir, mail).unwrap();
 
         log::trace!(target: "queuer", "mail: {:#?}", mail.envelop);
@@ -115,9 +112,6 @@ impl DataEndResolver for ResolverWriteDisk {
                 log::error!(target: "queuer", "Couldn't write email to inbox: {:?}", e);
             };
         }
-        (
-            crate::mailprocessing::mail_receiver::State::MailFrom,
-            SMTPReplyCode::Code250,
-        )
+        (State::MailFrom, SMTPReplyCode::Code250)
     }
 }

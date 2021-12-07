@@ -34,9 +34,10 @@ let vsl = #{
 
     // checks if the object matches one of the recipients
     // given by the current RCPT TO command.
-    IS_RCPT: |object| {
-        __is_rcpt(rcpt, object)
-    },
+    IS_RCPT: |object| __is_rcpt(rcpt, object),
+
+    // checks whether the specified user exists on the system.
+    USER_EXISTS: |object| __user_exists(object),
 
     // returns a state that will influence vsmtp's state machine, if returned by
     // a on_success or on_failure rule callback.
@@ -102,7 +103,7 @@ let vsl = #{
 
     // write the current evenlop and mail content to a file in json format.
     DUMP: |path| {
-        __DUMP(helo, mail, rcpts, data, msg_id, path);
+        __DUMP(connect, port, helo, mail, rcpts, data, connection_timestamp, mail_timestamp, path);
     },
 
     // write a mail to the an user defiened quarantine folder.
