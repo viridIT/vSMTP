@@ -150,6 +150,7 @@ pub(super) mod vsl {
     /// for example, dumping during the rcpt stage will leave the data
     /// field empty.
     #[rhai_fn(name = "__DUMP", return_raw)]
+    #[allow(clippy::too_many_arguments)]
     pub fn dump(
         connect: IpAddr,
         port: u16,
