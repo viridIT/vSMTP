@@ -25,3 +25,9 @@ name = "receiver"
 path = "fuzz_targets/receiver.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "rules"
+path = "fuzz_targets/rules.rs"
+test = false
+doc = false

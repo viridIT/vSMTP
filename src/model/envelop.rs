@@ -19,13 +19,13 @@
 pub struct Envelop {
     pub helo: String,
     pub mail_from: String,
-    pub recipients: Vec<String>,
+    pub rcpt: Vec<String>,
 }
 
 impl Envelop {
     // TODO: need error handling (i.e. @blablah.com should return an error.)
     pub fn get_rcpt_usernames(&self) -> Vec<&str> {
-        self.recipients
+        self.rcpt
             .iter()
             .map(|recipient| {
                 // TODO: find a way to remove everything after the '@' delimiter.
