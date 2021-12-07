@@ -50,6 +50,9 @@ impl std::str::FromStr for State {
     }
 }
 
+const MAIL_CAPACITY: usize = 10_000_000; // 10MB
+const TIMEOUT_DEFAULT: u64 = 10_000; // 10s
+
 lazy_static::lazy_static! {
     static ref NEXT_LINE_TIMEOUT: std::collections::HashMap<State, std::time::Duration> = {
          crate::config::get::<std::collections::HashMap<String,u64>>("smtp.timeout_client")
@@ -116,7 +119,7 @@ where
                     timestamp: std::time::SystemTime::now(),
                 },
                 envelop: Envelop::default(),
-                body: String::with_capacity(20_000),
+                body: String::with_capacity(MAIL_CAPACITY),
                 timestamp: None,
             },
             tls_config,
@@ -124,10 +127,43 @@ where
             is_secured: false,
             next_line_timeout: *NEXT_LINE_TIMEOUT
                 .get(&State::Connect)
-                .unwrap_or(&std::time::Duration::from_millis(10_000)),
+                .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT)),
             _phantom: std::marker::PhantomData,
             error_count: 0,
         }
+    }
+
+    fn set_helo(&mut self, helo: String) {
+        self.mail.envelop = Envelop {
+            helo,
+            mail_from: String::new(),
+            rcpt: vec![],
+        };
+        self.rule_engine
+            .add_data("helo", self.mail.envelop.helo.clone());
+    }
+
+    fn set_mail_from(&mut self, mail_from: String) {
+        self.mail.envelop.mail_from = mail_from;
+        self.mail.timestamp = Some(std::time::SystemTime::now());
+        self.mail.envelop.rcpt = vec![];
+
+        self.rule_engine
+            .add_data("mail", self.mail.envelop.mail_from.clone());
+    }
+
+    // NOTE: too many clone
+    fn set_rcpt_to(&mut self, rcpt_to: String) {
+        self.rule_engine.add_data("rcpt", rcpt_to.clone());
+
+        match self.rule_engine.get_data::<Vec<String>>("rcpts") {
+            Some(mut rcpts) => {
+                rcpts.push(rcpt_to);
+                self.mail.envelop.rcpt = rcpts.clone();
+                self.rule_engine.add_data("rcpts", rcpts.clone());
+            }
+            None => unreachable!("rcpts is injected by the default scope"),
+        };
     }
 
     async fn process_event(&mut self, event: Event) -> (Option<State>, Option<SMTPReplyCode>) {
@@ -137,8 +173,7 @@ where
             (_, Event::HelpCmd(_)) => (None, Some(SMTPReplyCode::Code214)),
 
             (_, Event::RsetCmd) => {
-                self.mail.body = String::with_capacity(20_000);
-                // NOTE: clear envelop but keep helo
+                self.mail.body = String::with_capacity(MAIL_CAPACITY);
                 self.mail.envelop.rcpt = vec![];
                 self.mail.envelop.mail_from = String::new();
 
@@ -151,39 +186,36 @@ where
 
             (_, Event::QuitCmd) => (Some(State::Stop), Some(SMTPReplyCode::Code221)),
 
-            // A mail transaction may be aborted by a new EHLO command.
-            // TODO: clear envelop ?
             (_, Event::HeloCmd(helo)) => {
-                self.mail.envelop.helo = helo.clone();
+                self.set_helo(helo);
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
                     self.mail.connection.peer_addr.port(), self.mail.envelop,
                 );
-
-                self.rule_engine.add_data("helo", helo);
 
                 let status = self.rule_engine.run_when("helo");
                 self.process_rules_status(status, Some(State::Helo), Some(SMTPReplyCode::Code250))
             }
 
             (_, Event::EhloCmd(helo)) => {
-                self.mail.envelop.helo = helo.clone();
+                self.set_helo(helo);
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
                     self.mail.connection.peer_addr.port(), self.mail.envelop,
                 );
-                self.rule_engine.add_data("helo", helo);
-
-                let reply_code = if self.is_secured {
-                    SMTPReplyCode::Code250SecuredEsmtp
-                } else {
-                    SMTPReplyCode::Code250PlainEsmtp
-                };
 
                 let status = self.rule_engine.run_when("helo");
-                self.process_rules_status(status, Some(State::Helo), Some(reply_code))
+                self.process_rules_status(
+                    status,
+                    Some(State::Helo),
+                    Some(if self.is_secured {
+                        SMTPReplyCode::Code250SecuredEsmtp
+                    } else {
+                        SMTPReplyCode::Code250PlainEsmtp
+                    }),
+                )
             }
 
             (State::Helo, Event::StartTls) if self.tls_config.is_some() => {
@@ -200,17 +232,15 @@ where
                 (None, Some(SMTPReplyCode::Code530))
             }
 
-            // SMTP pipeline
             (State::Helo, Event::MailCmd(mail_from)) => {
-                self.mail.envelop.mail_from = mail_from;
-                self.mail.timestamp = Some(std::time::SystemTime::now());
+                self.mail.body = String::with_capacity(MAIL_CAPACITY);
+                self.set_mail_from(mail_from);
+
                 log::trace!(
                     target: "mail_receiver",
                     "[p:{}] envelop=\"{:?}\"",
                     self.mail.connection.peer_addr.port(), self.mail.envelop,
                 );
-                self.rule_engine
-                    .add_data("mail", self.mail.envelop.mail_from.clone());
 
                 let status = self.rule_engine.run_when("mail");
                 self.process_rules_status(
@@ -221,18 +251,7 @@ where
             }
 
             (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
-                self.rule_engine.add_data("rcpt", rcpt_to.clone());
-
-                // FIXME: the whole rcpt vector is cloned each command,
-                //        since it can be changed by the rhai context.
-                match self.rule_engine.get_data::<Vec<String>>("rcpts") {
-                    Some(mut rcpts) => {
-                        rcpts.push(rcpt_to);
-                        self.mail.envelop.rcpt = rcpts.clone();
-                        self.rule_engine.add_data("rcpts", rcpts.clone());
-                    }
-                    None => unreachable!("rcpts is injected by the default scope"),
-                };
+                self.set_rcpt_to(rcpt_to);
 
                 log::trace!(
                     target: "mail_receiver",
@@ -254,7 +273,6 @@ where
 
             (State::Data, Event::DataEnd) => {
                 let (state, code) = R::on_data_end(&self.mail).await;
-                // NOTE: clear envelop and raw_data
 
                 self.rule_engine.add_data("data", self.mail.body.clone());
 
@@ -287,6 +305,8 @@ where
                     "final envelop after executing all rules:\n {:#?}",
                     self.rule_engine.get_scoped_envelop()
                 );
+
+                // NOTE: clear envelop and mail context ?
 
                 result
             }
@@ -343,7 +363,7 @@ where
             self.state = new_state;
             let new_duration = *NEXT_LINE_TIMEOUT
                 .get(&self.state)
-                .unwrap_or(&std::time::Duration::from_millis(10_000));
+                .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
             self.next_line_timeout = new_duration;
         }
 
@@ -502,13 +522,13 @@ where
         );
 
         self.mail.envelop = Envelop::default();
-        self.mail.body = String::with_capacity(20_000);
+        self.mail.body = String::with_capacity(MAIL_CAPACITY);
 
         self.state = State::Connect;
         self.is_secured = true;
         self.next_line_timeout = *NEXT_LINE_TIMEOUT
             .get(&self.state)
-            .unwrap_or(&std::time::Duration::from_millis(10_000));
+            .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
 
         while self.state != State::Stop {
             self.read_and_handle(&mut io).await?;

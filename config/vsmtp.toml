@@ -39,8 +39,8 @@ sni_maps = [
 [smtp.timeout_client]
 ## Delay maximum for the client to the his information
 ## Keys are [connect/helo/mail/rcpt/data], values in milleseconds (10s if missing)
-helo = 10
-data = 2000
+helo = 10000
+data = 10000
 
 
 ## vSMTP keep the count of the client's error
