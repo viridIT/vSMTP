@@ -1,3 +1,5 @@
+// TODO: create a macro that generates sets of data examples.
+
 #[allow(unused)]
 macro_rules! generate_rule_check_test {
     ($init:expr, connect, $($against:expr, $should_be:ident),*) => {
@@ -299,6 +301,262 @@ mod test {
                 "viridit.com",
                 false,
                 "foo.com",
+                false
+            );
+        }
+    }
+
+    #[test]
+    fn test_mail() {
+        // addr.
+        {
+            generate_rule_check_test!(
+                || Object::Address("jones@foo.com".to_string()),
+                mail,
+                "jones@foo.com",
+                true,
+                "jones@bar.com",
+                false,
+                "green@foo.com",
+                false
+            );
+        }
+
+        // regex.
+        {
+            generate_rule_check_test!(
+                || Object::Regex("^[a-z0-9.]+@foo.com$".parse().unwrap()),
+                mail,
+                "jones@foo.com",
+                true,
+                "jones@bar.com",
+                false,
+                "green@foo.com",
+                true,
+                "viridit.staff@foo.com",
+                true
+            );
+        }
+
+        // files & group.
+        {
+            generate_rule_check_test!(
+                || {
+                    let mut file = Map::new();
+                    file.insert("type".into(), "file".into());
+                    file.insert("content_type".into(), "addr".into());
+                    file.insert(
+                        "value".into(),
+                        "src/rules/tests/configs/whitelist.txt".into(),
+                    );
+
+                    Object::from(&file).unwrap()
+                },
+                mail,
+                "green@bar.com",
+                true,
+                "jones@foo.com",
+                true,
+                "unknown@user.com",
+                false
+            );
+
+            generate_rule_check_test!(
+                || {
+                    let mut file = Map::new();
+                    file.insert("type".into(), "file".into());
+                    file.insert("content_type".into(), "ip4".into());
+                    file.insert("value".into(), "src/rules/tests/configs/hosts.txt".into());
+
+                    Object::from(&file).unwrap()
+                },
+                mail,
+                // nothing matches because content isn't of addr type.
+                "green@bar.com",
+                false,
+                "jones@foo.com",
+                false,
+                "unknown@user.com",
+                false
+            );
+
+            generate_rule_check_test!(
+                || {
+                    Object::Group(vec![
+                        Object::Address("jones@foo.com".to_string()),
+                        Object::Fqdn("foo.com".to_string()),
+                        Object::Ip4("0.0.0.0".parse().unwrap()),
+                    ])
+                },
+                mail,
+                "test@foo.com",
+                false,
+                "jones@foo.com",
+                true,
+                "other@user.com",
+                false
+            );
+        }
+
+        // invalid.
+        {
+            generate_rule_check_test!(
+                || Object::Var("".to_string()),
+                mail,
+                "test@foo.com",
+                false,
+                "jones@foo.com",
+                false,
+                "other@user.com",
+                false
+            );
+
+            generate_rule_check_test!(
+                || Object::Ip4(Ipv4Addr::UNSPECIFIED),
+                mail,
+                "test@foo.com",
+                false,
+                "jones@foo.com",
+                false,
+                "other@user.com",
+                false
+            );
+            generate_rule_check_test!(
+                || Object::Ip6(Ipv6Addr::UNSPECIFIED),
+                mail,
+                "test@foo.com",
+                false,
+                "jones@foo.com",
+                false,
+                "other@user.com",
+                false
+            );
+        }
+    }
+
+    #[test]
+    fn test_rcpt() {
+        // addr.
+        {
+            generate_rule_check_test!(
+                || Object::Address("jones@foo.com".to_string()),
+                rcpt,
+                "jones@foo.com",
+                true,
+                "jones@bar.com",
+                false,
+                "green@foo.com",
+                false
+            );
+        }
+
+        // regex.
+        {
+            generate_rule_check_test!(
+                || Object::Regex("^[a-z0-9.]+@foo.com$".parse().unwrap()),
+                rcpt,
+                "jones@foo.com",
+                true,
+                "jones@bar.com",
+                false,
+                "green@foo.com",
+                true,
+                "viridit.staff@foo.com",
+                true
+            );
+        }
+
+        // files & group.
+        {
+            generate_rule_check_test!(
+                || {
+                    let mut file = Map::new();
+                    file.insert("type".into(), "file".into());
+                    file.insert("content_type".into(), "addr".into());
+                    file.insert(
+                        "value".into(),
+                        "src/rules/tests/configs/whitelist.txt".into(),
+                    );
+
+                    Object::from(&file).unwrap()
+                },
+                rcpt,
+                "green@bar.com",
+                true,
+                "jones@foo.com",
+                true,
+                "unknown@user.com",
+                false
+            );
+
+            generate_rule_check_test!(
+                || {
+                    let mut file = Map::new();
+                    file.insert("type".into(), "file".into());
+                    file.insert("content_type".into(), "ip4".into());
+                    file.insert("value".into(), "src/rules/tests/configs/hosts.txt".into());
+
+                    Object::from(&file).unwrap()
+                },
+                rcpt,
+                // nothing matches because content isn't of addr type.
+                "green@bar.com",
+                false,
+                "jones@foo.com",
+                false,
+                "unknown@user.com",
+                false
+            );
+
+            generate_rule_check_test!(
+                || {
+                    Object::Group(vec![
+                        Object::Address("jones@foo.com".to_string()),
+                        Object::Fqdn("foo.com".to_string()),
+                        Object::Ip4("0.0.0.0".parse().unwrap()),
+                    ])
+                },
+                rcpt,
+                "test@foo.com",
+                false,
+                "jones@foo.com",
+                true,
+                "other@user.com",
+                false
+            );
+        }
+
+        // invalid.
+        {
+            generate_rule_check_test!(
+                || Object::Var("".to_string()),
+                rcpt,
+                "test@foo.com",
+                false,
+                "jones@foo.com",
+                false,
+                "other@user.com",
+                false
+            );
+
+            generate_rule_check_test!(
+                || Object::Ip4(Ipv4Addr::UNSPECIFIED),
+                rcpt,
+                "test@foo.com",
+                false,
+                "jones@foo.com",
+                false,
+                "other@user.com",
+                false
+            );
+            generate_rule_check_test!(
+                || Object::Ip6(Ipv6Addr::UNSPECIFIED),
+                rcpt,
+                "test@foo.com",
+                false,
+                "jones@foo.com",
+                false,
+                "other@user.com",
                 false
             );
         }
