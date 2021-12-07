@@ -152,7 +152,7 @@ where
             .add_data("mail", self.mail.envelop.mail_from.clone());
     }
 
-    // NOTE: too many clone
+    // FIXME: too many clone
     fn set_rcpt_to(&mut self, rcpt_to: String) {
         self.rule_engine.add_data("rcpt", rcpt_to.clone());
 
@@ -556,7 +556,6 @@ where
 
         self.rule_engine
             .add_data("connect", self.mail.connection.peer_addr.ip());
-        // self.rule_engine.add_data("msg_id", self.msg_id.clone());
 
         if let Status::Deny = self.rule_engine.run_when("connect") {
             return Err(std::io::Error::new(
