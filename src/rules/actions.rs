@@ -24,6 +24,7 @@ use crate::rules::{
 use std::{
     io::Write,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    process::Command,
     str::FromStr,
 };
 
@@ -271,6 +272,14 @@ pub(super) mod vsl {
             _ => rcpt == object,
         }
     }
+
+    /// checks if the given user exists on the system.
+    pub fn __user_exists(object: &str) -> bool {
+        match RHAI_ENGINE.objects.read().unwrap().get(object) {
+            Some(object) => internal_user_exists(object),
+            _ => internal_user_exists(&Object::Var(object.to_string())),
+        }
+    }
 }
 
 // NOTE: the following functions use pub(super) because they need to be exposed for tests.
@@ -330,5 +339,25 @@ pub(super) fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
         Object::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
         Object::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
         _ => false,
+    }
+}
+
+/// checks recursively if the/all user(s) exists on the system.
+pub(super) fn internal_user_exists(user: &Object) -> bool {
+    match user {
+        Object::Var(user) => user_exists(user),
+        Object::File(content) | Object::Group(content) => content.iter().all(internal_user_exists),
+        _ => false,
+    }
+}
+
+/// execute the id shell command, checking if the given user exists.
+fn user_exists(user: &str) -> bool {
+    match Command::new("sh")
+        .args(["-c", &format!("id -u {}", user)])
+        .status()
+    {
+        Ok(status) => status.success(),
+        Err(_) => false,
     }
 }
