@@ -19,12 +19,12 @@ use crate::model::envelop::Envelop;
 use crate::model::mail::{ConnectionData, MailContext};
 use crate::resolver::DataEndResolver;
 use crate::rules::rule_engine::{RuleEngine, Status};
-use crate::server::TlsSecurityLevel;
+use crate::server_config::TlsSecurityLevel;
 use crate::smtp::code::SMTPReplyCode;
 use crate::smtp::event::Event;
 
 /// Abstracted memory of the last client message
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, serde::Deserialize)]
 pub enum State {
     Connect,
     Helo,
@@ -53,40 +53,28 @@ impl std::str::FromStr for State {
 const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 const TIMEOUT_DEFAULT: u64 = 10_000; // 10s
 
-lazy_static::lazy_static! {
-    static ref NEXT_LINE_TIMEOUT: std::collections::HashMap<State, std::time::Duration> = {
-         crate::config::get::<std::collections::HashMap<String,u64>>("smtp.timeout_client")
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|(k, v)|
-            <State as std::str::FromStr>::from_str(&k).ok().map(|s| (s, std::time::Duration::from_millis(v))))
-            .collect::<std::collections::HashMap<State,std::time::Duration>>()
-    };
-}
-
 pub struct MailReceiver<'a, R>
 where
     R: DataEndResolver,
 {
-    /// state mutated by the client's commands and the rule engine.
-    state: State,
-
-    /// mail information sent by the client.
-    mail: MailContext,
+    /// config
+    server_config: std::sync::Arc<crate::server_config::ServerConfig>,
+    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    smtp_timeouts: std::collections::HashMap<State, std::time::Duration>,
 
     /// rule engine executing the server's rhai configuration.
     rule_engine: RuleEngine<'a>,
 
-    /// tsl metadata.
-    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    tls_security_level: TlsSecurityLevel,
+    /// Current connection data
+    state: State,
+    mail: MailContext,
+    error_count: u64,
     is_secured: bool,
 
-    /// timeout configuration.
+    /// cached state
     next_line_timeout: std::time::Duration,
-    _phantom: std::marker::PhantomData<R>,
 
-    error_count: u64,
+    _phantom: std::marker::PhantomData<R>,
 }
 
 impl<R> MailReceiver<'_, R>
@@ -96,23 +84,39 @@ where
     pub fn new(
         peer_addr: std::net::SocketAddr,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-        tls_security_level: TlsSecurityLevel,
+        server_config: std::sync::Arc<crate::server_config::ServerConfig>,
     ) -> Self {
-        if tls_security_level != TlsSecurityLevel::None && tls_config.is_none() {
+        if server_config.tls.security_level != TlsSecurityLevel::None && tls_config.is_none() {
             log::error!(
                 target: "mail_receiver",
                 "TLS encryption is enabled, but no TLS config provided. If a tls connection is ensured, the server will reply with \"{}\"", SMTPReplyCode::Code454.as_str(),
             );
-        } else if tls_security_level == TlsSecurityLevel::None && tls_config.is_some() {
+        } else if server_config.tls.security_level == TlsSecurityLevel::None && tls_config.is_some()
+        {
             log::error!(
                 target: "mail_receiver",
                 "TLS encryption is disabled, but a TLS config is provided. TLS config will be ignored",
             );
         }
+        let smtp_timeouts = server_config
+            .smtp
+            .timeout_client
+            .iter()
+            .filter_map(|(k, v)| {
+                match (
+                    <State as std::str::FromStr>::from_str(k),
+                    humantime::parse_duration(v),
+                ) {
+                    (Ok(state), Ok(duration)) => Some((state, duration)),
+                    _ => None,
+                }
+            })
+            .collect::<std::collections::HashMap<State, std::time::Duration>>();
 
         Self {
             state: State::Connect,
-            rule_engine: RuleEngine::new(),
+            rule_engine: RuleEngine::new(server_config.as_ref()),
+            server_config,
             mail: MailContext {
                 connection: ConnectionData {
                     peer_addr,
@@ -123,11 +127,11 @@ where
                 timestamp: None,
             },
             tls_config,
-            tls_security_level,
             is_secured: false,
-            next_line_timeout: *NEXT_LINE_TIMEOUT
+            next_line_timeout: *smtp_timeouts
                 .get(&State::Connect)
                 .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT)),
+            smtp_timeouts,
             _phantom: std::marker::PhantomData,
             error_count: 0,
         }
@@ -227,7 +231,8 @@ where
             }
 
             (State::Helo, Event::MailCmd(_))
-                if self.tls_security_level == TlsSecurityLevel::Encrypt && !self.is_secured =>
+                if self.server_config.tls.security_level == TlsSecurityLevel::Encrypt
+                    && !self.is_secured =>
             {
                 (None, Some(SMTPReplyCode::Code530))
             }
@@ -272,7 +277,9 @@ where
             }
 
             (State::Data, Event::DataEnd) => {
-                let (state, code) = R::on_data_end(&self.mail).await;
+                // TODO: resolver should not be responsible for mutating the SMTP state
+                // should return a code and handle if code.is_error()
+                let (state, code) = R::on_data_end(self.server_config.as_ref(), &self.mail).await;
 
                 self.rule_engine.add_data("data", self.mail.body.clone());
 
@@ -361,10 +368,10 @@ where
                 self.mail.connection.peer_addr.port(), self.state, new_state
             );
             self.state = new_state;
-            let new_duration = *NEXT_LINE_TIMEOUT
+            self.next_line_timeout = *self
+                .smtp_timeouts
                 .get(&self.state)
                 .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
-            self.next_line_timeout = new_duration;
         }
 
         reply
@@ -386,10 +393,10 @@ where
                     if response.is_error() {
                         self.error_count += 1;
 
-                        let hard_error =
-                            crate::config::get::<i64>("smtp.error.hard_count").unwrap_or(-1);
-                        let soft_error =
-                            crate::config::get::<i64>("smtp.error.soft_count").unwrap_or(-1);
+                        let hard_error = self.server_config.smtp.error.hard_count;
+                        // crate::config::get::<i64>("smtp.error.hard_count").unwrap_or(-1);
+                        let soft_error = self.server_config.smtp.error.soft_count;
+                        // crate::config::get::<i64>("smtp.error.soft_count").unwrap_or(-1);
 
                         if hard_error != -1 && self.error_count >= hard_error as u64 {
                             let mut response_begin = response.as_str().to_string();
@@ -406,9 +413,7 @@ where
                         std::io::Write::write_all(io, response.as_str().as_bytes())?;
 
                         if soft_error != -1 && self.error_count >= soft_error as u64 {
-                            std::thread::sleep(std::time::Duration::from_millis(
-                                crate::config::get::<u64>("smtp.error.delay").unwrap_or(100),
-                            ));
+                            std::thread::sleep(self.server_config.smtp.error.delay);
                         }
                     } else {
                         std::io::Write::write_all(io, response.as_str().as_bytes())?;
@@ -442,20 +447,15 @@ where
 
     fn complete_tls_handshake<S>(
         io: &mut IoService<rustls::Stream<rustls::ServerConnection, S>>,
+        timeout: &std::time::Duration,
     ) -> Result<(), std::io::Error>
     where
         S: std::io::Read + std::io::Write,
     {
         let begin_handshake = std::time::Instant::now();
-        let duration = std::time::Duration::from_millis(
-            crate::config::get::<u64>("tls.handshake_timeout_ms").unwrap_or(1000),
-        );
 
-        loop {
-            if !io.inner.conn.is_handshaking() {
-                break;
-            }
-            if begin_handshake.elapsed() > duration {
+        while io.inner.conn.is_handshaking() {
+            if begin_handshake.elapsed() > *timeout {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::TimedOut,
                     "too long",
@@ -482,7 +482,7 @@ where
 
         let mut io = IoService::new(&mut tls_stream);
 
-        Self::complete_tls_handshake(&mut io)?;
+        Self::complete_tls_handshake(&mut io, &self.server_config.tls.handshake_timeout)?;
 
         // TODO: rfc:
         // The decision of whether or not to believe the authenticity of the
@@ -526,7 +526,8 @@ where
 
         self.state = State::Connect;
         self.is_secured = true;
-        self.next_line_timeout = *NEXT_LINE_TIMEOUT
+        self.next_line_timeout = *self
+            .smtp_timeouts
             .get(&self.state)
             .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
 

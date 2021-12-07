@@ -4,6 +4,7 @@ domain = "testserver.com"
 [server]
 ## inet address for the server to listen to
 addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
+spool_dir = "./tmp/spool"
 
 [log]
 ## Filepath of logger
@@ -16,31 +17,33 @@ default = "warn"
 rule_engine = "trace"
 mail_receiver = "error"
 
-[paths]
-rules_dir = "./config/rules"
-## TODO: replace for smtp.spool_path
-spool_dir = "./tmp/spool"
+# [paths]
+# rules_dir = "./config/rules"
 ## TODO: replace for smtp.quarantine_path
-quarantine_dir = "./tmp/quarantine"
+# quarantine_dir = "./tmp/quarantine"
 
 [tls]
-## [none/may/encrypt] => disable/allow/force encryption
-security_level = "may"
+## [None/May/Encrypt] => disable/allow/force encryption
+security_level = "May"
 capath = "./config/certs"
 ## Use the server's prefered cipherlist instead of the client one
 preempt_cipherlist = true
 ## Maxmimun delay for the tls handshake (milliseconds)
-handshake_timeout_ms = 100
+handshake_timeout = "100ms"
 
-sni_maps = [
-    { domain = "testserver.com", cert = "{capath}/fullchain.{domain}.pem", chain = "{capath}/rsa.{domain}.pem" },
-]
+[[tls.sni_maps]]
+domain = "testserver.com"
+cert = "{capath}/fullchain.{domain}.pem"
+chain = "{capath}/rsa.{domain}.pem"
+
+[smtp]
+spool_dir = "./tmp/spool"
 
 [smtp.timeout_client]
 ## Delay maximum for the client to the his information
-## Keys are [connect/helo/mail/rcpt/data], values in milleseconds (10s if missing)
-helo = 10000
-data = 10000
+## Keys are [Connect/Helo/MailFrom/RcptTo/Data] (10s if missing)
+Helo = "10000ms"
+Data = "10000ms"
 
 
 ## vSMTP keep the count of the client's error
@@ -52,4 +55,4 @@ soft_count = 5
 ## hard_count = -1 to disable this feature (default: -1)
 hard_count = 10
 ## in milliseconds
-delay = 5000
+delay = "5000ms"
