@@ -24,11 +24,11 @@ impl MailContext {
     pub(crate) fn generate_message_id(&mut self) {
         self.envelop.msg_id = format!(
             "{}_{}",
-            std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
                 .unwrap()
-                .as_millis()
+                .as_millis(),
+            std::process::id(),
         );
     }
 }
@@ -41,8 +41,8 @@ impl serde::Serialize for MailContext {
         let mut state = serializer.serialize_struct(
             "MailContext",
             self.envelop.helo.len()
-                + self.envelop.mail_from.len()
-                + self.envelop.recipients.iter().fold(0, |s, i| s + i.len())
+                + self.envelop.mail.len()
+                + self.envelop.rcpt.iter().fold(0, |s, i| s + i.len())
                 + self.body.len(),
         )?;
         serde::ser::SerializeStruct::serialize_field(&mut state, "envelop", &self.envelop)?;

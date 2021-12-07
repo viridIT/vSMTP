@@ -37,6 +37,9 @@ macro_rules! collection {
 }
 
 pub mod tests {
+    use std::error::Error;
+
+    use crate::rules::rule_engine::RhaiEngine;
 
     pub struct Mock<'a> {
         read_cursor: std::io::Cursor<Vec<u8>>,
@@ -65,6 +68,16 @@ pub mod tests {
     impl std::io::Read for Mock<'_> {
         fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
             self.read_cursor.read(buf)
+        }
+    }
+
+    pub struct MockRhaiEngine(RhaiEngine);
+
+    impl MockRhaiEngine {
+        pub fn from_bytes(src: &[u8]) -> Result<Self, Box<dyn Error>> {
+            Ok(Self {
+                0: RhaiEngine::from_bytes(src)?,
+            })
         }
     }
 }

@@ -1,0 +1,73 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug vsmtp",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=vsmtp",
+          "--package=vsmtp",
+        ],
+        "filter": {
+          "name": "vsmtp",
+          "kind": "bin"
+        }
+      },
+      "args": [
+        "-c ${workspaceFolder}/config/vsmtp.toml"
+      ],
+      "program": "${workspaceFolder}/target/debug/vsmtp",
+      "cwd": "${workspaceFolder}/target/debug",
+      "sourceLanguages": [
+        "rust"
+      ],
+      "env": {
+        "VSMTP_CONFIG_PATH": "${workspaceFolder}/config/vsmtp.toml"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'vsmtp'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--bin=vsmtp",
+          "--package=vsmtp"
+        ],
+        "filter": {
+          "name": "vsmtp",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug integration test 'test_parser'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--test=test_parser",
+          "--package=vsmtp",
+        ],
+        "filter": {
+          "name": "test_parser",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

@@ -15,6 +15,7 @@
         "Rset",
         "rustls",
         "STARTTLS",
+        "viridit",
         "Vrfy",
         "VSMTP"
     ],

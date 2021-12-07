@@ -17,13 +17,11 @@
 use crate::config;
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
+use crate::rules::obj::Object;
+use crate::rules::operation_queue::{Operation, OperationQueue};
 
-use ipnet::{Ipv4Net, Ipv6Net};
-use iprange::IpRange;
 use lazy_static::lazy_static;
-use lettre::{Message, SmtpTransport, Transport};
-use regex::Regex;
-use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Module, Scope, AST};
+use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
 
 use std::net::IpAddr;
@@ -31,157 +29,11 @@ use std::{
     collections::BTreeMap,
     error::Error,
     fs,
-    io::{BufRead, BufReader, Write},
-    net::{Ipv4Addr, Ipv6Addr},
+    net::Ipv4Addr,
     path::Path,
     str::FromStr,
     sync::{Arc, RwLock},
 };
-
-#[derive(Debug, Clone)]
-pub enum Operation {
-    /// header, value
-    MutateHeader(String, String),
-    /// blocked email path
-    Block(String),
-}
-
-/// used to yield expensive operations
-/// and executing them using rust's context instead of rhai's.
-#[derive(Default, Debug, Clone)]
-pub struct OperationQueue {
-    inner: Vec<Operation>,
-}
-
-impl OperationQueue {
-    pub fn push(&mut self, op: Operation) {
-        self.inner.push(op);
-    }
-}
-
-#[derive(Debug)]
-enum Var {
-    Ip4(Ipv4Addr),
-    Ip6(Ipv6Addr),
-    Rg4(IpRange<Ipv4Net>),
-    Rg6(IpRange<Ipv6Net>),
-    Address(String),
-    Fqdn(String),
-    Regex(Regex),
-    File(Vec<Var>),
-
-    /// contains a set of objects.
-    Group(Vec<Var>),
-
-    /// a string object (default).
-    Val(String),
-}
-
-impl Var {
-    // NOTE: what does the 'static lifetime implies here ?
-    fn value<T: 'static + Clone>(map: &Map, key: &str) -> Result<T, Box<dyn Error>> {
-        match map.get(key) {
-            Some(value) => Ok(value.clone_cast::<T>()),
-            None => return Err(format!("{} not found.", key).into()),
-        }
-    }
-
-    fn from(map: &Map) -> Result<Self, Box<dyn Error>> {
-        let t = Var::value::<String>(map, "type")?;
-
-        match t.as_str() {
-            "ip4" => Ok(Var::Ip4(Ipv4Addr::from_str(&Var::value::<String>(
-                map, "value",
-            )?)?)),
-            "ip6" => Ok(Var::Ip6(Ipv6Addr::from_str(&Var::value::<String>(
-                map, "value",
-            )?)?)),
-            "rg4" => Ok(Var::Rg4(
-                [Var::value::<String>(map, "value")?.parse::<Ipv4Net>()?]
-                    .into_iter()
-                    .collect(),
-            )),
-            "rg6" => Ok(Var::Rg6(
-                [Var::value::<String>(map, "value")?.parse::<Ipv6Net>()?]
-                    .into_iter()
-                    .collect(),
-            )),
-            "fqdn" => {
-                let value = Var::value::<String>(map, "value")?;
-                match addr::parse_domain_name(&value) {
-                    Ok(domain) => Ok(Var::Fqdn(domain.to_string())),
-                    Err(_) => Err(format!("'{}' is not a valid fqdn.", value).into()),
-                }
-            }
-            "addr" => {
-                let value = Var::value::<String>(map, "value")?;
-                match addr::parse_email_address(&value) {
-                    Ok(domain) => Ok(Var::Address(domain.to_string())),
-                    Err(_) => Err(format!("'{}' is not a valid address.", value).into()),
-                }
-            }
-            "val" => Ok(Var::Val(Var::value::<String>(map, "value")?)),
-            "regex" => Ok(Var::Regex(Regex::from_str(&Var::value::<String>(
-                map, "value",
-            )?)?)),
-            "file" => {
-                let value = Var::value::<String>(map, "value")?;
-                let content_type = Var::value::<String>(map, "content_type")?;
-                let reader = BufReader::new(fs::File::open(&value)?);
-                let mut content = Vec::with_capacity(20);
-
-                for line in reader.lines() {
-                    match line {
-                        Ok(line) => match content_type.as_str() {
-                            "ip4" => content.push(Var::Ip4(Ipv4Addr::from_str(&line)?)),
-                            "ip6" => content.push(Var::Ip6(Ipv6Addr::from_str(&line)?)),
-                            "fqdn" => match addr::parse_domain_name(&line) {
-                                Ok(domain) => content.push(Var::Fqdn(domain.to_string())),
-                                Err(_) => {
-                                    return Err(format!("'{}' is not a valid fqdn.", value).into());
-                                }
-                            },
-                            "addr" => match addr::parse_email_address(&line) {
-                                Ok(domain) => content.push(Var::Address(domain.to_string())),
-                                Err(_) => {
-                                    return Err(
-                                        format!("'{}' is not a valid address.", value).into()
-                                    );
-                                }
-                            },
-                            "val" => content.push(Var::Val(line)),
-                            "regex" => content.push(Var::Regex(Regex::from_str(&line)?)),
-                            _ => {}
-                        },
-                        Err(error) => log::error!("coudln't read line in '{}': {}", value, error),
-                    };
-                }
-
-                Ok(Var::File(content))
-            }
-
-            "grp" => {
-                let mut group = vec![];
-                let elements = Var::value::<Array>(map, "value")?;
-
-                for element in elements.iter() {
-                    match element.is::<Map>() {
-                        true => group.push(Var::from(&element.clone_cast::<Map>())?),
-                        false => {
-                            return Err(
-                                "'{}' is not an inline object or an already defined one.".into()
-                            )
-                        }
-                    }
-                }
-
-                Ok(Var::Group(group))
-            }
-
-            _ => Err(format!("'{}' is not a known object type.", t).into()),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -191,7 +43,7 @@ pub enum Status {
     /// continue to the next rule / stage.
     Continue,
 
-    /// immediatly stops the transaction and send an error code.
+    /// immediately stops the transaction and send an error code.
     Deny,
 
     /// ignore all future rules for the current transaction.
@@ -203,302 +55,13 @@ pub enum Status {
     Block,
 }
 
-// exported methods are used in rhai context, so we allow dead code.
-#[allow(dead_code)]
-#[export_module]
-mod vsl {
-    use std::net::IpAddr;
-
-    use crate::model::{envelop::Envelop, mail::MailContext};
-
-    pub fn op_block(queue: &mut OperationQueue, path: &str) {
-        queue.push(Operation::Block(path.to_string()))
-    }
-
-    pub fn op_mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
-        queue.push(Operation::MutateHeader(
-            header.to_string(),
-            value.to_string(),
-        ))
-    }
-
-    #[rhai_fn(name = "__FACCEPT")]
-    pub fn faccept() -> Status {
-        Status::Faccept
-    }
-
-    #[rhai_fn(name = "__ACCEPT")]
-    pub fn accept() -> Status {
-        Status::Accept
-    }
-
-    #[rhai_fn(name = "__CONTINUE")]
-    pub fn ct() -> Status {
-        Status::Continue
-    }
-
-    #[rhai_fn(name = "__DENY")]
-    pub fn deny() -> Status {
-        Status::Deny
-    }
-
-    #[rhai_fn(name = "__BLOCK")]
-    pub fn block() -> Status {
-        Status::Block
-    }
-
-    /// logs a message to stdout, stderr or a file.
-    #[rhai_fn(name = "__LOG", return_raw)]
-    pub fn log(message: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
-        match path {
-            "stdout" => {
-                println!("{}", message);
-                Ok(())
-            }
-            "stderr" => {
-                eprintln!("{}", message);
-                Ok(())
-            }
-            _ => {
-                let path = std::path::PathBuf::from_str(path).unwrap();
-                let file = if !path.exists() {
-                    std::fs::File::create(&path)
-                } else {
-                    std::fs::OpenOptions::new().append(true).open(&path)
-                };
-
-                match file {
-                    Ok(mut file) => file
-                        .write_all(message.as_bytes())
-                        .map_err(|_| format!("could not log to '{:?}'.", path).into()),
-                    Err(error) => Err(format!(
-                        "'{:?}' is not a valid path to log to: {:#?}",
-                        path, error
-                    )
-                    .into()),
-                }
-            }
-        }
-    }
-
-    /// write the email to a specified file.
-    /// NOTE: this function needs to be curried to access data,
-    ///       could it be added to the operation queue ?
-    #[rhai_fn(name = "__WRITE", return_raw)]
-    pub fn write_mail(data: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
-        if data.is_empty() {
-            return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
-        }
-
-        let path = std::path::PathBuf::from_str(path).unwrap();
-        let file = if !path.exists() {
-            std::fs::File::create(&path)
-        } else {
-            std::fs::OpenOptions::new().append(true).open(&path)
-        };
-
-        match file {
-            Ok(mut file) => file
-                .write_all(data.as_bytes())
-                .map_err(|_| format!("could not write email to '{:?}'.", path).into()),
-            Err(error) => Err(format!(
-                "'{:?}' is not a valid path to write the email to: {:#?}",
-                path, error
-            )
-            .into()),
-        }
-    }
-
-    #[rhai_fn(name = "__DUMP", return_raw)]
-    pub fn dump(
-        helo: &str,
-        mail: &str,
-        rcpt: Vec<String>,
-        data: &str,
-        msg_id: &str,
-        path: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
-        if mail.is_empty() {
-            return Err("the DUMP action can only be called after or in the 'mail' stage.".into());
-        }
-
-        if let Err(error) = std::fs::create_dir_all(path) {
-            return Err(format!("could not write email to '{:?}': {}", path, error).into());
-        }
-
-        let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
-            // Error is of infallible type, we can unwrap.
-            let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(msg_id);
-            path.set_extension("json");
-            path
-        }) {
-            Ok(file) => file,
-            Err(error) => {
-                return Err(format!("could not write email to '{:?}': {}", path, error).into())
-            }
-        };
-
-        let ctx = MailContext {
-            envelop: Envelop {
-                helo: helo.to_string(),
-                mail_from: mail.to_string(),
-                recipients: rcpt,
-                msg_id: msg_id.to_string(),
-            },
-            body: data.into(),
-        };
-
-        std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
-            .map_err(|error| format!("could not write email to '{:?}': {}", path, error).into())
-    }
-
-    // NOTE: instead of filling the email using arguments, should we create a 'mail' object
-    //       defined beforehand in the user's object files ?
-    #[rhai_fn(name = "__MAIL", return_raw)]
-    pub fn send_mail(
-        from: &str,
-        to: &str,
-        subject: &str,
-        body: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
-        let email = Message::builder()
-            .from(from.parse().unwrap())
-            .to(to.parse().unwrap())
-            .subject(subject)
-            .body(String::from(body))
-            .unwrap();
-
-        // Send the email
-        match SmtpTransport::unencrypted_localhost().send(&email) {
-            Ok(_) => Ok(()),
-            Err(error) => Err(EvalAltResult::ErrorInFunctionCall(
-                "MAIL".to_string(),
-                "__MAIL".to_string(),
-                format!("Couldn't send the email: {}", error).into(),
-                Position::NONE,
-            )
-            .into()),
-        }
-    }
-
-    #[rhai_fn(name = "==")]
-    pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
-        *in1 == in2
-    }
-
-    #[rhai_fn(name = "!=")]
-    pub fn neq_status_operator(in1: &mut Status, in2: Status) -> bool {
-        !(*in1 == in2)
-    }
-
-    pub fn __is_connect(connect: &mut IpAddr, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
-            Some(object) => internal_is_connect(connect, object),
-            None => match Ipv4Addr::from_str(object) {
-                Ok(ip) => ip == *connect,
-                Err(_) => match Ipv6Addr::from_str(object) {
-                    Ok(ip) => ip == *connect,
-                    Err(_) => {
-                        log::error!(
-                            target: "rule_engine",
-                            "tried to convert '{}' to ipv4 because it is not a object, but convertion failed.",
-                            object
-                        );
-                        false
-                    }
-                },
-            },
-        }
-    }
-
-    pub fn __is_helo(helo: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
-            Some(object) => internal_is_helo(helo, object),
-            _ => object == helo,
-        }
-    }
-
-    pub fn __is_mail(mail: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
-            Some(object) => internal_is_mail(mail, object),
-            _ => object == mail,
-        }
-    }
-
-    pub fn __is_rcpt(rcpt: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
-            Some(object) => internal_is_rcpt(rcpt, object),
-            _ => rcpt == object,
-        }
-    }
-
-    // TODO: what does the user can do here ?
-    pub fn __is_data(_data: &mut Vec<u8>, _object: &str) -> bool {
-        false
-    }
-}
-
-fn internal_is_connect(connect: &IpAddr, object: &Var) -> bool {
-    match object {
-        Var::Ip4(ip) => *ip == *connect,
-        Var::Ip6(ip) => *ip == *connect,
-        Var::Rg4(range) => match connect {
-            IpAddr::V4(ip4) => range.contains(ip4),
-            _ => false,
-        },
-        Var::Rg6(range) => match connect {
-            IpAddr::V6(ip6) => range.contains(ip6),
-            _ => false,
-        },
-        // NOTE: is there a way to get a &str instead of a String here ?
-        Var::Regex(re) => re.is_match(connect.to_string().as_str()),
-        Var::File(content) => content
-            .iter()
-            .any(|object| internal_is_connect(connect, object)),
-        Var::Group(group) => group
-            .iter()
-            .any(|object| internal_is_connect(connect, object)),
-        _ => false,
-    }
-}
-
-fn internal_is_helo(helo: &str, object: &Var) -> bool {
-    match object {
-        Var::Fqdn(fqdn) => *fqdn == helo,
-        Var::Regex(re) => re.is_match(helo),
-        Var::File(content) => content.iter().any(|object| internal_is_helo(helo, object)),
-        Var::Group(group) => group.iter().any(|object| internal_is_helo(helo, object)),
-        _ => false,
-    }
-}
-
-fn internal_is_mail(mail: &str, object: &Var) -> bool {
-    match object {
-        Var::Address(addr) => *addr == mail,
-        Var::Regex(re) => re.is_match(mail),
-        Var::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
-        Var::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
-        _ => false,
-    }
-}
-
-fn internal_is_rcpt(rcpt: &str, object: &Var) -> bool {
-    match object {
-        Var::Address(addr) => rcpt == addr.as_str(),
-        Var::Regex(re) => re.is_match(rcpt),
-        Var::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
-        Var::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
-        _ => false,
-    }
-}
-
 pub struct RuleEngine<'a> {
     scope: Scope<'a>,
     skip: Option<Status>,
 }
 
 impl<'a> RuleEngine<'a> {
+    /// creates a new rule engine with an empty scope.
     pub(crate) fn new() -> Self {
         let mut scope = Scope::new();
         scope
@@ -539,6 +102,7 @@ impl<'a> RuleEngine<'a> {
         Self { scope, skip: None }
     }
 
+    /// add data to the scope of the engine.
     pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T)
     where
         // TODO: find a way to remove the static.
@@ -548,6 +112,7 @@ impl<'a> RuleEngine<'a> {
         self.scope.set_or_push(name, data);
     }
 
+    /// fetch data from the scope, cloning the variable in the process.
     pub(crate) fn get_data<T>(&mut self, name: &'a str) -> Option<T>
     where
         T: Clone + Send + Sync + 'static,
@@ -555,6 +120,7 @@ impl<'a> RuleEngine<'a> {
         self.scope.get_value(name)
     }
 
+    /// run the engine for a specific stage. (connect, helo, mail, etc ...)
     pub(crate) fn run_when(&mut self, stage: &str) -> Status {
         if let Some(status) = self.skip {
             return status;
@@ -607,6 +173,7 @@ impl<'a> RuleEngine<'a> {
         }
     }
 
+    /// empty the operation queue and executing all operations stored.
     pub(crate) fn execute_operation_queue(
         &mut self,
         ctx: &MailContext,
@@ -615,13 +182,12 @@ impl<'a> RuleEngine<'a> {
             .scope
             .get_value::<OperationQueue>("__OPERATION_QUEUE")
             .unwrap()
-            .inner
-            .iter()
+            .into_iter()
         {
             log::info!(target: "rule_engine", "executing heavy operation: {:?}", op);
             match op {
                 Operation::Block(path) => {
-                    let mut path = std::path::PathBuf::from_str(path)?;
+                    let mut path = std::path::PathBuf::from_str(&path)?;
                     std::fs::create_dir_all(&path)?;
 
                     path.push(&ctx.envelop.msg_id);
@@ -641,60 +207,55 @@ impl<'a> RuleEngine<'a> {
         Ok(())
     }
 
+    /// fetch the whole envelop (possibly) mutated by the user's rules.
     pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
         Some(Envelop {
             helo: self.scope.get_value::<String>("helo")?,
-            mail_from: self.scope.get_value::<String>("mail")?,
-            recipients: self.scope.get_value::<Vec<String>>("rcpts")?,
+            mail: self.scope.get_value::<String>("mail")?,
+            rcpt: self.scope.get_value::<Vec<String>>("rcpts")?,
             msg_id: self.scope.get_value::<String>("msg_id")?,
         })
     }
 }
 
+/// a sharable rhai engine.
+/// contains an ast representing the user's parsed .vsl script files,
+/// and objects parsed from rhai's context to rust's, this way,
+/// they can be used directly into rust functions, and the engine
+/// doesn't need to evaluate them each call.
 #[derive(Debug)]
 pub(crate) struct RhaiEngine {
-    context: Engine,
-    ast: AST,
+    /// rhai's engine structure.
+    pub(super) context: Engine,
+    /// the ast, built from the user's .vsl files.
+    pub(super) ast: AST,
 
     // ? use SmartString<LazyCompact> ? What about long object names ?
-    objects: Arc<RwLock<BTreeMap<String, Var>>>,
+    /// objects parsed from rhai's context.
+    /// they are accessible from rust function registered into the engine.
+    ///
+    /// ! you should not use a writer to modify the variables.
+    /// ! objects are immutable.
+    pub(super) objects: Arc<RwLock<BTreeMap<String, Object>>>,
 }
 
 impl RhaiEngine {
-    fn new() -> Result<Self, Box<dyn Error>> {
-        let path = config::get::<String>("paths.rules_dir").unwrap();
-        let src_path = Path::new(&path);
+    /// create an engine from a script encoded in raw bytes.
+    pub(crate) fn from_bytes(src: &[u8]) -> Result<Self, Box<dyn Error>> {
         let mut engine = Engine::new();
-
         let objects = Arc::new(RwLock::new(BTreeMap::new()));
-
-        fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
-            let mut buffer = vec![];
-
-            if path.is_file() {
-                buffer.push(format!("{}\n", fs::read_to_string(path)?));
-            } else if path.is_dir() {
-                for entry in fs::read_dir(path)? {
-                    let dir = entry?;
-                    buffer.extend(load_sources(&dir.path())?);
-                }
-            }
-
-            Ok(buffer)
-        }
-
         let shared_obj = objects.clone();
 
-        // register our vsl global module
-        let api_mod = exported_module!(vsl);
+        // register the vsl global module.
+        let api_mod = exported_module!(crate::rules::actions::vsl);
         engine
         .register_global_module(api_mod.into())
 
-        // the operation queue is used to defere heavy computation.
+        // the operation queue is used to defer heavy computation.
         .register_type::<OperationQueue>()
 
         // adding a string vector as a custom type.
-        // it is used to easly manipulate the rcpt container.
+        // it is used to easlly manipulate the rcpt container.
         .register_iterator::<Vec<String>>()
         .register_fn("push", <Vec<String>>::push)
 
@@ -781,6 +342,7 @@ impl RhaiEngine {
                 Ok(Dynamic::UNIT)
             },
         )
+
         // `obj $type$ $name$ #{}` container syntax.
         .register_custom_syntax_raw(
             "obj",
@@ -834,9 +396,9 @@ impl RhaiEngine {
                 let var_type = input[0].get_variable_name().unwrap().to_string();
                 let var_name: String;
 
-                // checking if object declaration is using a map, an inline string or an array.
-                // we create a map either way.
                 // FIXME: refactor this expression.
+                // file type as a special syntax (file:type),
+                // so we need a different method to parse it.
                 let object = match var_type.as_str() {
                     "file" => {
 
@@ -844,6 +406,7 @@ impl RhaiEngine {
                         var_name = input[3].get_literal_value::<ImmutableString>().unwrap().to_string();
                         let object = context.eval_expression_tree(&input[4])?;
 
+                        // the object syntax can use a map or an inline string.
                         if object.is::<Map>() {
                             let mut object: Map = object.cast();
                             object.insert("type".into(), Dynamic::from(var_type.clone()));
@@ -865,6 +428,7 @@ impl RhaiEngine {
                         }
                     },
 
+                    // generic type, we can parse it easlly.
                     _ => {
                         var_name = input[1].get_literal_value::<ImmutableString>().unwrap().to_string();
                         let object = context.eval_expression_tree(&input[2])?;
@@ -890,14 +454,14 @@ impl RhaiEngine {
                 };
 
                 // injecting the object in rust's scope.
-                match Var::from(&object) {
+                match Object::from(&object) {
                     Ok(rust_var) => shared_obj.write()
                         .unwrap()
                         .insert(var_name.to_string(), rust_var),
                     Err(error) => panic!("object '{}' could not be parsed as a '{}' object: {}", var_name, var_type, error),
                 };
 
-                // FIXME: there is now way to tell if the parent scope of the object.
+                // FIXME: there is no way to tell if the parent scope of the object
                 //        is a group or the global scope, so we have to inject the variable
                 //        two times, one in the case of the global scope, one
                 //        in the case of the parent being a group.
@@ -912,18 +476,21 @@ impl RhaiEngine {
             },
         );
 
-        let mut src = Vec::with_capacity(100);
+        let mut script = Vec::with_capacity(100);
 
-        src.extend(include_bytes!("./currying.rhai"));
-        src.extend(load_sources(src_path)?.concat().as_bytes());
-        src.extend(include_bytes!("./rule_executor.rhai"));
+        // loading scripts that will curry function that needs special
+        // variables from stages (helo, rcpt etc ...) and that will
+        // execute the rule engine stage logic.
+        script.extend(include_bytes!("./currying.rhai"));
+        script.extend(src);
+        script.extend(include_bytes!("./rule_executor.rhai"));
 
-        let src = std::str::from_utf8(&src)?;
+        let script = std::str::from_utf8(&script)?;
 
         log::debug!(target: "rule_engine", "compiling rhai script ...");
-        log::trace!(target: "rule_engine", "sources:\n{}", src);
+        log::trace!(target: "rule_engine", "sources:\n{}", script);
 
-        let ast = engine.compile(src)?;
+        let ast = engine.compile(script)?;
 
         log::debug!(target: "rule_engine", "done.");
 
@@ -933,22 +500,52 @@ impl RhaiEngine {
             objects,
         })
     }
+
+    /// creates a new instance of the rule engine, reading all files in
+    /// paths.rules_dir configuration variable.
+    fn new() -> Result<Self, Box<dyn Error>> {
+        let path = config::get::<String>("paths.rules_dir").unwrap();
+        let src_path = Path::new(&path);
+
+        // load all sources from file.
+        // this function is declared here since it isn't needed anywhere else.
+        fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+            let mut buffer = vec![];
+
+            if path.is_file() {
+                buffer.push(format!("{}\n", fs::read_to_string(path)?));
+            } else if path.is_dir() {
+                for entry in fs::read_dir(path)? {
+                    let dir = entry?;
+                    buffer.extend(load_sources(&dir.path())?);
+                }
+            }
+
+            Ok(buffer)
+        }
+
+        RhaiEngine::from_bytes(load_sources(src_path)?.concat().as_bytes())
+    }
 }
 
 lazy_static! {
-    // ! FIXME: this could be slow, locks seems to appen in the engine.
+    // ! FIXME: this could be slow, locks seems to happen in the engine.
     // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
-    static ref RHAI_ENGINE: RhaiEngine = {
+    /// the rhai engine static that gets initialized once.
+    /// it is used internally to evaluate user's scripts with a scope
+    /// different for each connection.
+    pub(super) static ref RHAI_ENGINE: RhaiEngine = {
         match RhaiEngine::new() {
             Ok(engine) => engine,
             Err(error) => {
-                log::error!("could not initialise the rule engine: {}", error);
+                log::error!("could not initialize the rule engine: {}", error);
                 panic!();
             }
         }
     };
 
-    static ref DEFAULT_SCOPE: Scope<'static> = {
+    /// an scope that initialize all needed variables.
+    pub(crate) static ref DEFAULT_SCOPE: Scope<'static> = {
         let mut scope = Scope::new();
         scope
         // stage variables.
@@ -984,11 +581,16 @@ lazy_static! {
     };
 }
 
+/// initialize the rule engine.
+/// this function checks your given scripts and parses all necessary items.
+///
+/// not calling this method when initializing your server could lead to
+/// uncached configuration error and a slow process for the first connection.
 pub fn init() {
     RHAI_ENGINE
         .context
         .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &RHAI_ENGINE.ast)
-        .expect("couldn't initialise the rule engine");
+        .expect("couldn't initialize the rule engine");
 
     log::debug!(target: "rule_engine", "{} objects found.", RHAI_ENGINE.objects.read().unwrap().len());
     log::trace!(target: "rule_engine", "{:#?}", RHAI_ENGINE.objects.read().unwrap());
