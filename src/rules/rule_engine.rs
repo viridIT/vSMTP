@@ -224,7 +224,7 @@ impl<'a> RuleEngine<'a> {
 /// they can be used directly into rust functions, and the engine
 /// doesn't need to evaluate them each call.
 #[derive(Debug)]
-pub(super) struct RhaiEngine {
+pub(crate) struct RhaiEngine {
     /// rhai's engine structure.
     pub(super) context: Engine,
     /// the ast, built from the user's .vsl files.
