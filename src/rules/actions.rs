@@ -346,9 +346,7 @@ pub(super) fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
 pub(super) fn internal_user_exists(user: &Object) -> bool {
     match user {
         Object::Var(user) => user_exists(user),
-        Object::File(content) | Object::Group(content) => {
-            content.iter().all(|object| internal_user_exists(object))
-        }
+        Object::File(content) | Object::Group(content) => content.iter().all(internal_user_exists),
         _ => false,
     }
 }
