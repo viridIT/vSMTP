@@ -150,6 +150,8 @@ where
 
         self.rule_engine
             .add_data("mail", self.mail.envelop.mail_from.clone());
+        self.rule_engine
+            .add_data("mail_timestamp", self.mail.timestamp);
     }
 
     // FIXME: too many clone
@@ -284,19 +286,7 @@ where
                 };
 
                 // executing all registered extensive operations.
-                if let Err(error) = self.rule_engine.execute_operation_queue(
-                    &self.mail,
-                    &format!(
-                        "{}_{:?}",
-                        self.mail
-                            .timestamp
-                            .unwrap()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis(),
-                        std::thread::current().id()
-                    ),
-                ) {
+                if let Err(error) = self.rule_engine.execute_operation_queue(&self.mail) {
                     log::error!(target: "rule_engine", "failed to empty the operation queue: '{}'", error);
                 }
 
@@ -556,6 +546,10 @@ where
 
         self.rule_engine
             .add_data("connect", self.mail.connection.peer_addr.ip());
+        self.rule_engine
+            .add_data("port", self.mail.connection.peer_addr.port());
+        self.rule_engine
+            .add_data("connection_timestamp", self.mail.connection.timestamp);
 
         if let Status::Deny = self.rule_engine.run_when("connect") {
             return Err(std::io::Error::new(
