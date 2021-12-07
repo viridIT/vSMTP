@@ -27,7 +27,7 @@ mod tests {
         expected_output: &[u8],
         level: TlsSecurityLevel,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    ) {
+    ) -> Result<(), std::io::Error> {
         let mut receiver = MailReceiver::<DataEndResolverTest>::new(
             "0.0.0.0:0".parse().unwrap(),
             tls_config,
@@ -42,15 +42,16 @@ mod tests {
                 assert_eq!(
                     std::str::from_utf8(&write),
                     std::str::from_utf8(&expected_output.to_vec())
-                )
+                );
+                Ok(())
             }
-            Err(e) => panic!("receiver produce an error {}", e),
+            Err(e) => Err(e),
         }
     }
 
     #[tokio::test]
     async fn test_receiver_1() {
-        make_test(
+        let _ = make_test(
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<jhon@doe>\r\n",
@@ -80,7 +81,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_2() {
-        make_test(
+        let _ = make_test(
             ["foo\r\n"].concat().as_bytes(),
             [
                 "220 testserver.com Service ready\r\n",
@@ -96,7 +97,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_3() {
-        make_test(
+        let _ = make_test(
             ["MAIL FROM:<jhon@doe>\r\n"].concat().as_bytes(),
             [
                 "220 testserver.com Service ready\r\n",
@@ -112,7 +113,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_4() {
-        make_test(
+        let _ = make_test(
             ["RCPT TO:<jhon@doe>\r\n"].concat().as_bytes(),
             [
                 "220 testserver.com Service ready\r\n",
@@ -128,7 +129,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_5() {
-        make_test(
+        let _ = make_test(
             ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n"]
                 .concat()
                 .as_bytes(),
@@ -147,7 +148,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_6() {
-        make_test(
+        let _ = make_test(
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
                 "220 testserver.com Service ready\r\n",
@@ -164,7 +165,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_7() {
-        make_test(
+        let _ = make_test(
             ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
                 .concat()
                 .as_bytes(),
@@ -185,7 +186,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_8() {
-        make_test(
+        let _ = make_test(
             ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
                 .concat()
                 .as_bytes(),
@@ -202,5 +203,48 @@ mod tests {
             None,
         )
         .await;
+    }
+
+    #[tokio::test]
+    async fn test_receiver_9() {
+        let before_test = std::time::Instant::now();
+        let res = make_test(
+            [
+                "RCPT TO:<bar@foo>\r\n",
+                "MAIL FROM: <foo@bar>\r\n",
+                "EHLO\r\n",
+                "NOOP\r\n",
+                "azeai\r\n",
+                "STARTTLS\r\n",
+                "MAIL FROM:<jhon@doe>\r\n",
+                "EHLO\r\n",
+                "EHLO\r\n",
+                "HELP\r\n",
+                "aieari\r\n",
+                "not a valid smtp command\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            [
+                "220 testserver.com Service ready\r\n",
+                "503 Bad sequence of commands\r\n",
+                "503 Bad sequence of commands\r\n",
+                "501 Syntax error in parameters or arguments\r\n",
+                "250 Ok\r\n",
+                "501 Syntax error in parameters or arguments\r\n",
+                "503 Bad sequence of commands\r\n",
+                "503 Bad sequence of commands\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            TlsSecurityLevel::None,
+            None,
+        )
+        .await;
+
+        assert!(res.is_err());
+
+        // (hard_error - soft_error) * error_delay
+        assert!(before_test.elapsed().as_millis() >= 5 * 100);
     }
 }
