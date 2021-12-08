@@ -14,13 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::config;
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
 use crate::rules::obj::Object;
 use crate::rules::operation_queue::{Operation, OperationQueue};
 
-use lazy_static::lazy_static;
 use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
 
@@ -62,7 +60,7 @@ pub struct RuleEngine<'a> {
 
 impl<'a> RuleEngine<'a> {
     /// creates a new rule engine with an empty scope.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(config: &crate::server_config::ServerConfig) -> Self {
         let mut scope = Scope::new();
         scope
             .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
@@ -78,28 +76,23 @@ impl<'a> RuleEngine<'a> {
             .push("__init", true)
             .push("date", "")
             .push("time", "")
-            .push("connection_timestamp", std::time::SystemTime::now())
-            .push("mail_timestamp", None::<std::time::SystemTime>)
-            .push("addr", config::get::<Vec<String>>("server.addr").unwrap())
-            .push("logs_file", config::get::<String>("log.file").unwrap())
-            .push(
-                "rules_dir",
-                config::get::<String>("paths.rules_dir").unwrap(),
-            )
-            .push(
-                "spool_dir",
-                config::get::<String>("paths.spool_dir").unwrap(),
-            )
-            .push(
-                "quarantine_dir",
-                config::get::<String>("paths.quarantine_dir").unwrap(),
-            )
-            .push("clamav", config::get::<String>("clamav").unwrap())
-            .push("clamav_port", config::get::<String>("clamav_port").unwrap())
-            .push(
-                "clamav_address",
-                config::get::<String>("clamav_address").unwrap(),
-            );
+            .push("msg_id", "")
+            .push("addr", config.server.addr.clone())
+            .push("logs_file", config.log.file.clone())
+            // .push("rules_dir", config.rule.dir)
+            .push("spool_dir", config.smtp.spool_dir.clone())
+            // quarantine_dir should be ${spool_dir}/quarantine
+            // .push(
+            //     "quarantine_dir",
+            //     config::get::<String>("paths.quarantine_dir").unwrap(),
+            // )
+            //.push("clamav", config::get::<String>("clamav").unwrap())
+            //.push("clamav_port", config::get::<String>("clamav_port").unwrap())
+            //.push(
+            //    "clamav_address",
+            //    config::get::<String>("clamav_address").unwrap(),
+            //);
+        ;
 
         Self { scope, skip: None }
     }
@@ -179,6 +172,7 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn execute_operation_queue(
         &mut self,
         ctx: &MailContext,
+        msg_id: &str,
     ) -> Result<(), Box<dyn Error>> {
         for op in self
             .scope
@@ -192,7 +186,7 @@ impl<'a> RuleEngine<'a> {
                     let mut path = std::path::PathBuf::from_str(&path)?;
                     std::fs::create_dir_all(&path)?;
 
-                    path.push(crate::mailprocessing::utils::generate_msg_id());
+                    path.push(msg_id);
                     path.set_extension("json");
 
                     let mut file = std::fs::OpenOptions::new()
@@ -506,8 +500,9 @@ impl RhaiEngine {
     /// creates a new instance of the rule engine, reading all files in
     /// paths.rules_dir configuration variable.
     fn new() -> Result<Self, Box<dyn Error>> {
-        let path = config::get::<String>("paths.rules_dir").unwrap();
-        let src_path = Path::new(&path);
+        // TODO:
+        // let path = config::get::<String>("paths.rules_dir").unwrap();
+        let src_path = Path::new("./config/rules");
 
         // load all sources from file.
         // this function is declared here since it isn't needed anywhere else.
@@ -530,7 +525,7 @@ impl RhaiEngine {
     }
 }
 
-lazy_static! {
+lazy_static::lazy_static! {
     // ! FIXME: this could be slow, locks seems to happen in the engine.
     // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
     /// the rhai engine static that gets initialized once.

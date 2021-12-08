@@ -94,10 +94,6 @@ pub enum SMTPReplyCode {
     Code523,
 
     /// 530 Must issue a STARTTLS command first
-    /// NOTE:
-    /// A SMTP server that is not publicly referenced may choose to require
-    /// that the client perform a TLS negotiation before accepting any
-    /// commands.  In this case, the server SHOULD return the reply code:
     Code530,
     /// requested action not taken: mailbox unavailable
     Code550,
@@ -117,18 +113,14 @@ pub enum SMTPReplyCode {
 }
 
 lazy_static::lazy_static! {
-    static ref DOMAIN: String = {
-        crate::config::get::<String>("domain")
-                .expect("'domain' is a mandatory field in the config")
-    };
     static ref CODE_220: String = {
-        ["220 ", &DOMAIN, " Service ready\r\n"].concat()
+        ["220 {domain} Service ready\r\n"].concat()
     };
     static ref CODE_250_PLAIN_ESMTP: String = {
-        ["250-", &DOMAIN, "\r\n", "250 STARTTLS\r\n"].concat()
+        ["250-{domain}\r\n", "250 STARTTLS\r\n"].concat()
     };
     static ref CODE_250_SECURED_ESMTP: String = {
-        ["250 ", &DOMAIN, "\r\n"].concat()
+        ["250 {domain}\r\n"].concat()
     };
 }
 
