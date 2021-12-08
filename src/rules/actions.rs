@@ -40,6 +40,8 @@ use rhai::plugin::*;
 pub(super) mod vsl {
     use std::net::SocketAddr;
 
+    use crate::config::log::RULES;
+
     use super::*;
 
     /// enqueue a block operation on the queue.
@@ -251,7 +253,7 @@ pub(super) mod vsl {
                     Ok(ip) => ip == *connect,
                     Err(_) => {
                         log::error!(
-                            target: "rule_engine",
+                            target: RULES,
                             "tried to convert '{}' to ipv4 because it is not a object, but conversion failed.",
                             object
                         );

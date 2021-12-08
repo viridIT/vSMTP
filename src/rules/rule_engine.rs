@@ -13,7 +13,8 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+ **/
+use crate::config::log::RULES;
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
 use crate::rules::obj::Object;
@@ -121,7 +122,7 @@ impl<'a> RuleEngine<'a> {
             return status;
         }
 
-        log::debug!(target: "rule_engine", "[{}] evaluating rules.", stage);
+        log::debug!(target: RULES, "[{}] evaluating rules.", stage);
 
         // updating the internal __stage variable, so that the rhai context
         // knows what rules to execute
@@ -144,14 +145,18 @@ impl<'a> RuleEngine<'a> {
         // can be injected back into fresh new rules.
         self.scope.set_value("__rules", Array::new());
 
-        log::debug!(target: "rule_engine", "[{}] done.", stage);
+        log::debug!(target: RULES, "[{}] done.", stage);
 
         match result {
             Ok(status) => {
-                log::trace!(target: "rule_engine", "[{}] result: {:?}.", stage, status);
+                log::trace!(target: RULES, "[{}] result: {:?}.", stage, status);
 
                 if let Status::Block | Status::Faccept = status {
-                    log::trace!(target: "rule_engine", "[{}] the rule engine will skip all rules because of the previous result.", stage);
+                    log::trace!(
+                        target: RULES,
+                        "[{}] the rule engine will skip all rules because of the previous result.",
+                        stage
+                    );
                     self.skip = Some(status);
                 }
 
@@ -159,7 +164,7 @@ impl<'a> RuleEngine<'a> {
             }
             Err(error) => {
                 log::error!(
-                    target: "rule_engine",
+                    target: RULES,
                     "the rule engine skipped a rule in the '{}' stage because it could not evaluate it: \n\t{}",
                     stage, error
                 );
@@ -180,7 +185,7 @@ impl<'a> RuleEngine<'a> {
             .unwrap()
             .into_iter()
         {
-            log::info!(target: "rule_engine", "executing heavy operation: {:?}", op);
+            log::info!(target: RULES, "executing heavy operation: {:?}", op);
             match op {
                 Operation::Block(path) => {
                     let mut path = std::path::PathBuf::from_str(&path)?;
@@ -424,7 +429,7 @@ impl RhaiEngine {
                         }
                     },
 
-                    // generic type, we can parse it easlly.
+                    // generic type, we can parse it easily.
                     _ => {
                         var_name = input[1].get_literal_value::<ImmutableString>().unwrap().to_string();
                         let object = context.eval_expression_tree(&input[2])?;
@@ -483,12 +488,12 @@ impl RhaiEngine {
 
         let script = std::str::from_utf8(&script)?;
 
-        log::debug!(target: "rule_engine", "compiling rhai script ...");
-        log::trace!(target: "rule_engine", "sources:\n{}", script);
+        log::debug!(target: RULES, "compiling rhai script ...");
+        log::trace!(target: RULES, "sources:\n{}", script);
 
         let ast = engine.compile(script)?;
 
-        log::debug!(target: "rule_engine", "done.");
+        log::debug!(target: RULES, "done.");
 
         Ok(Self {
             context: engine,
@@ -591,6 +596,10 @@ pub fn init() {
         .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &RHAI_ENGINE.ast)
         .expect("couldn't initialize the rule engine");
 
-    log::debug!(target: "rule_engine", "{} objects found.", RHAI_ENGINE.objects.read().unwrap().len());
-    log::trace!(target: "rule_engine", "{:#?}", RHAI_ENGINE.objects.read().unwrap());
+    log::debug!(
+        target: RULES,
+        "{} objects found.",
+        RHAI_ENGINE.objects.read().unwrap().len()
+    );
+    log::trace!(target: RULES, "{:#?}", RHAI_ENGINE.objects.read().unwrap());
 }

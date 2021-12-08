@@ -13,8 +13,8 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
-pub use super::code::SMTPReplyCode;
+ **/
+use super::code::SMTPReplyCode;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 // TODO: rename enum SMTP verb
@@ -266,7 +266,7 @@ impl Event {
 
         let words = input
             .split_whitespace()
-            // .inspect(|x| log::trace!(target: "mail_receiver", "word:{}", x))
+            // .inspect(|x| log::trace!(target: RECEIVER, "word:{}", x))
             .collect::<Vec<&str>>();
         if words.is_empty() {
             return Err(SMTPReplyCode::Code500);
@@ -449,10 +449,7 @@ impl Event {
     pub fn parse_data(input: &str) -> Result<Event, SMTPReplyCode> {
         match input {
             "." => Ok(Event::DataEnd),
-            too_long if too_long.len() > 998 => {
-                log::warn!(target: "mail_receiver", "data line received is too long.");
-                Err(SMTPReplyCode::Code500)
-            }
+            too_long if too_long.len() > 998 => Err(SMTPReplyCode::Code500),
             _ => Ok(Event::DataLine(input.to_string())),
         }
     }

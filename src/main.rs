@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.value_of("config").expect("clap provide default value"),
     )?)?;
 
-    // println!("{:?}", &v_smtp::config::default::DEFAULT_CONFIG.log);
+    println!("{:?}", &v_smtp::config::default::DEFAULT_CONFIG.log);
 
     ResolverWriteDisk::init_spool_folder(&config.smtp.spool_dir)?;
     let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config))?;

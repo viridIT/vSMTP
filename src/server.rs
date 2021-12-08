@@ -1,4 +1,3 @@
-use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -15,6 +14,8 @@ use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use crate::config::default::DEFAULT_CONFIG;
+use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 use crate::mailprocessing::mail_receiver::MailReceiver;
 use crate::resolver::DataEndResolver;
 
@@ -61,13 +62,13 @@ where
     ) -> Result<log4rs::Config, log4rs::config::runtime::ConfigErrors> {
         use log4rs::*;
 
-        let stdout = append::console::ConsoleAppender::builder()
+        let console = append::console::ConsoleAppender::builder()
             .encoder(Box::new(encode::pattern::PatternEncoder::new(
                 "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
             )))
             .build();
 
-        let requests = append::file::FileAppender::builder()
+        let file = append::file::FileAppender::builder()
             .encoder(Box::new(encode::pattern::PatternEncoder::new(
                 "{d} - {m}{n}",
             )))
@@ -76,34 +77,27 @@ where
             )
             .unwrap();
 
-        let default_level = config
-            .log
-            .level
-            .get("default")
-            .unwrap_or(&log::LevelFilter::Warn);
-
         Config::builder()
-            .appender(config::Appender::builder().build("stdout", Box::new(stdout)))
-            .appender(config::Appender::builder().build("requests", Box::new(requests)))
-            .logger(config::Logger::builder().build(
-                "rule_engine",
-                *config.log.level.get("rule_engine").unwrap_or(default_level),
-            ))
-            .logger(
-                config::Logger::builder().build(
-                    "mail_receiver",
-                    *config
-                        .log
-                        .level
-                        .get("mail_receiver")
-                        .unwrap_or(default_level),
-                ),
+            .appender(config::Appender::builder().build("stdout", Box::new(console)))
+            .appender(config::Appender::builder().build("file", Box::new(file)))
+            .loggers(
+                config
+                    .log
+                    .level
+                    .iter()
+                    .map(|(name, level)| config::Logger::builder().build(name, *level)),
             )
             .build(
                 config::Root::builder()
                     .appender("stdout")
-                    .appender("requests")
-                    .build(*default_level),
+                    .appender("file")
+                    .build(
+                        *config
+                            .log
+                            .level
+                            .get("default")
+                            .unwrap_or(&log::LevelFilter::Warn),
+                    ),
             )
     }
 
@@ -147,47 +141,52 @@ where
     }
 
     fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::ServerConfig> {
-        let capath = config.tls.capath.as_ref(); // .unwrap_or_else(|_| "./certs".to_string());
+        let capath_if_missing_from_both = String::default();
+        let capath = config
+            .tls
+            .capath
+            .as_ref()
+            .or_else(|| DEFAULT_CONFIG.tls.capath.as_ref())
+            .unwrap_or(&capath_if_missing_from_both);
 
         let mut tls_sni_resolver = rustls::server::ResolvesServerCertUsingSni::new();
 
-        config
-            .tls
-            .sni_maps
-            .iter()
-            .filter_map(|sni| {
-                Some((
-                    sni.domain.clone(),
-                    rustls::sign::CertifiedKey {
-                        cert: match Self::get_cert_from_file(
-                            &sni.cert
-                                .replace("{capath}", capath)
-                                .replace("{domain}", &sni.domain),
-                        ) {
-                            Ok(cert) => cert,
-                            Err(e) => {
-                                log::error!("error: {}", e);
-                                return None;
-                            }
+        if let Some(x) = config.tls.sni_maps.as_ref() {
+            x.iter()
+                .filter_map(|sni| {
+                    Some((
+                        sni.domain.clone(),
+                        rustls::sign::CertifiedKey {
+                            cert: match Self::get_cert_from_file(
+                                &sni.cert
+                                    .replace("{capath}", capath)
+                                    .replace("{domain}", &sni.domain),
+                            ) {
+                                Ok(cert) => cert,
+                                Err(e) => {
+                                    log::error!("error: {}", e);
+                                    return None;
+                                }
+                            },
+                            key: match Self::get_signing_key_from_file(
+                                &sni.chain
+                                    .replace("{capath}", capath)
+                                    .replace("{domain}", &sni.domain),
+                            ) {
+                                Ok(key) => key,
+                                Err(e) => {
+                                    log::error!("error: {}", e);
+                                    return None;
+                                }
+                            },
+                            // TODO:
+                            ocsp: None,
+                            sct_list: None,
                         },
-                        key: match Self::get_signing_key_from_file(
-                            &sni.chain
-                                .replace("{capath}", capath)
-                                .replace("{domain}", &sni.domain),
-                        ) {
-                            Ok(key) => key,
-                            Err(e) => {
-                                log::error!("error: {}", e);
-                                return None;
-                            }
-                        },
-                        // TODO:
-                        ocsp: None,
-                        sct_list: None,
-                    },
-                ))
-            })
-            .for_each(|(domain, ck)| tls_sni_resolver.add(&domain, ck).unwrap());
+                    ))
+                })
+                .for_each(|(domain, ck)| tls_sni_resolver.add(&domain, ck).unwrap())
+        }
 
         let mut out = rustls::ServerConfig::builder()
             .with_cipher_suites(rustls::ALL_CIPHER_SUITES)
@@ -202,10 +201,10 @@ where
         std::sync::Arc::new(out)
     }
 
-    pub fn addr(&self) -> Vec<std::io::Result<std::net::SocketAddr>> {
+    pub fn addr(&self) -> Vec<std::net::SocketAddr> {
         self.listeners
             .iter()
-            .map(std::net::TcpListener::local_addr)
+            .filter_map(|i| std::net::TcpListener::local_addr(i).ok())
             .collect::<Vec<_>>()
     }
 

@@ -15,8 +15,10 @@
  *
 **/
 use crate::{
-    config::server_config::ServerConfig, mailprocessing::mail_receiver::State,
-    model::mail::MailContext, smtp::code::SMTPReplyCode,
+    config::{log::RESOLVER, server_config::ServerConfig},
+    mailprocessing::mail_receiver::State,
+    model::mail::MailContext,
+    smtp::code::SMTPReplyCode,
 };
 
 #[async_trait::async_trait]
@@ -30,7 +32,10 @@ impl ResolverWriteDisk {
         let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
         if filepath.exists() {
             if filepath.is_dir() {
-                log::debug!(target: "mail_receiver", "vmta's mail spool is already initialized.");
+                log::debug!(
+                    target: RESOLVER,
+                    "vmta's mail spool is already initialized."
+                );
                 Ok(filepath)
             } else {
                 Err(std::io::Error::new(
@@ -40,7 +45,7 @@ impl ResolverWriteDisk {
             }
         } else {
             std::fs::create_dir_all(&filepath)?;
-            log::debug!(target: "mail_receiver", "vmta's mail spool initialized.");
+            log::debug!(target: RESOLVER, "vmta's mail spool initialized.");
             Ok(filepath)
         }
     }
@@ -64,7 +69,12 @@ impl ResolverWriteDisk {
 
         std::io::Write::write_all(&mut inbox, content.as_bytes()).unwrap();
 
-        log::debug!(target: "mail_receiver", "{} bytes written to {}'s mail spool", content.len(), rcpt);
+        log::debug!(
+            target: RESOLVER,
+            "{} bytes written to {}'s mail spool",
+            content.len(),
+            rcpt
+        );
 
         Ok(())
     }
@@ -101,15 +111,15 @@ impl DataEndResolver for ResolverWriteDisk {
     async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
         Self::write_mail_to_process(&config.smtp.spool_dir, mail).unwrap();
 
-        log::trace!(target: "queuer", "mail: {:#?}", mail.envelop);
+        log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
         for rcpt in mail.envelop.get_rcpt_usernames() {
-            log::debug!(target: "queuer", "writing email to {}'s inbox.", rcpt);
+            log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
             if let Err(e) =
                 Self::write_email_to_rcpt_inbox(&config.smtp.spool_dir, rcpt, &mail.body)
             {
-                log::error!(target: "queuer", "Couldn't write email to inbox: {:?}", e);
+                log::error!(target: RESOLVER, "Couldn't write email to inbox: {:?}", e);
             };
         }
         (State::MailFrom, SMTPReplyCode::Code250)

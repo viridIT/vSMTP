@@ -15,6 +15,7 @@
  *
 **/
 use super::io_service::{IoService, ReadError};
+use crate::config::log::{RECEIVER, RULES};
 use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 use crate::model::envelop::Envelop;
 use crate::model::mail::{ConnectionData, MailContext};
@@ -88,13 +89,13 @@ where
     ) -> Self {
         if server_config.tls.security_level != TlsSecurityLevel::None && tls_config.is_none() {
             log::error!(
-                target: "mail_receiver",
+                target: RECEIVER,
                 "TLS encryption is enabled, but no TLS config provided. If a tls connection is ensured, the server will reply with \"{}\"", SMTPReplyCode::Code454.as_str(),
             );
         } else if server_config.tls.security_level == TlsSecurityLevel::None && tls_config.is_some()
         {
             log::error!(
-                target: "mail_receiver",
+                target: RECEIVER,
                 "TLS encryption is disabled, but a TLS config is provided. TLS config will be ignored",
             );
         }
@@ -195,9 +196,10 @@ where
             (_, Event::HeloCmd(helo)) => {
                 self.set_helo(helo);
                 log::trace!(
-                    target: "mail_receiver",
+                    target: RECEIVER,
                     "[p:{}] envelop=\"{:?}\"",
-                    self.mail.connection.peer_addr.port(), self.mail.envelop,
+                    self.mail.connection.peer_addr.port(),
+                    self.mail.envelop,
                 );
 
                 let status = self.rule_engine.run_when("helo");
@@ -207,9 +209,10 @@ where
             (_, Event::EhloCmd(helo)) => {
                 self.set_helo(helo);
                 log::trace!(
-                    target: "mail_receiver",
+                    target: RECEIVER,
                     "[p:{}] envelop=\"{:?}\"",
-                    self.mail.connection.peer_addr.port(), self.mail.envelop,
+                    self.mail.connection.peer_addr.port(),
+                    self.mail.envelop,
                 );
 
                 let status = self.rule_engine.run_when("helo");
@@ -244,9 +247,10 @@ where
                 self.set_mail_from(mail_from);
 
                 log::trace!(
-                    target: "mail_receiver",
+                    target: RECEIVER,
                     "[p:{}] envelop=\"{:?}\"",
-                    self.mail.connection.peer_addr.port(), self.mail.envelop,
+                    self.mail.connection.peer_addr.port(),
+                    self.mail.envelop,
                 );
 
                 let status = self.rule_engine.run_when("mail");
@@ -261,9 +265,10 @@ where
                 self.set_rcpt_to(rcpt_to);
 
                 log::trace!(
-                    target: "mail_receiver",
+                    target: RECEIVER,
                     "[p:{}] envelop=\"{:?}\"",
-                    self.mail.connection.peer_addr.port(), self.mail.envelop,
+                    self.mail.connection.peer_addr.port(),
+                    self.mail.envelop,
                 );
 
                 let status = self.rule_engine.run_when("rcpt");
@@ -306,11 +311,15 @@ where
                         std::thread::current().id()
                     ),
                 ) {
-                    log::error!(target: "rule_engine", "failed to empty the operation queue: '{}'", error);
+                    log::error!(
+                        target: RULES,
+                        "failed to empty the operation queue: '{}'",
+                        error
+                    );
                 }
 
                 log::info!(
-                    target: "mail_receiver",
+                    target: RECEIVER,
                     "final envelop after executing all rules:\n {:#?}",
                     self.rule_engine.get_scoped_envelop()
                 );
@@ -340,7 +349,7 @@ where
     /// handle a clear text received with plain_stream or tls_stream
     async fn handle_plain_text(&mut self, client_message: String) -> Option<SMTPReplyCode> {
         log::trace!(
-            target: "mail_receiver",
+            target: RECEIVER,
             "[p:{}] buffer=\"{}\"",
             self.mail.connection.peer_addr.port(),
             client_message
@@ -353,9 +362,10 @@ where
         }(&client_message);
 
         log::trace!(
-            target: "mail_receiver",
+            target: RECEIVER,
             "[p:{}] parsed=\"{:?}\"",
-            self.mail.connection.peer_addr.port(), command_or_code
+            self.mail.connection.peer_addr.port(),
+            command_or_code
         );
 
         let (new_state, reply) = match command_or_code {
@@ -365,9 +375,11 @@ where
 
         if let Some(new_state) = new_state {
             log::warn!(
-                target: "mail_receiver",
+                target: RECEIVER,
                 "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
-                self.mail.connection.peer_addr.port(), self.state, new_state
+                self.mail.connection.peer_addr.port(),
+                self.state,
+                new_state
             );
             self.state = new_state;
             self.next_line_timeout = *self
@@ -387,9 +399,10 @@ where
             Ok(Ok(client_message)) => {
                 if let Some(response) = self.handle_plain_text(client_message).await {
                     log::warn!(
-                        target: "mail_receiver",
+                        target: RECEIVER,
                         "[p:{}] send=\"{:?}\"",
-                        self.mail.connection.peer_addr.port(), response
+                        self.mail.connection.peer_addr.port(),
+                        response
                     );
 
                     if response.is_error() {
@@ -426,16 +439,21 @@ where
             Ok(Err(ReadError::Blocking)) => Ok(()),
             Ok(Err(ReadError::Eof)) => {
                 log::warn!(
-                    target: "mail_receiver", "[p:{}] (secured:{}) eof",
-                    self.mail.connection.peer_addr.port(), self.is_secured
+                    target: RECEIVER,
+                    "[p:{}] (secured:{}) eof",
+                    self.mail.connection.peer_addr.port(),
+                    self.is_secured
                 );
                 self.state = State::Stop;
                 Ok(())
             }
             Ok(Err(ReadError::Other(e))) => {
                 log::error!(
-                    target: "mail_receiver", "[p:{}] (secured:{}) error {}",
-                    self.mail.connection.peer_addr.port(), self.is_secured, e
+                    target: RECEIVER,
+                    "[p:{}] (secured:{}) error {}",
+                    self.mail.connection.peer_addr.port(),
+                    self.is_secured,
+                    e
                 );
                 self.state = State::Stop;
                 Err(e)
@@ -501,13 +519,14 @@ where
         //    from the client.
 
         log::info!(
-            target: "mail_receiver",
+            target: RECEIVER,
             "[p:{}] is_handshaking={}",
-            self.mail.connection.peer_addr.port(), io.inner.conn.is_handshaking()
+            self.mail.connection.peer_addr.port(),
+            io.inner.conn.is_handshaking()
         );
 
         log::debug!(
-            target: "mail_receiver",
+            target: RECEIVER,
             "[p:{}] protocol_version={:#?}\n alpn_protocol={:#?}\n negotiated_cipher_suite={:#?}\n peer_certificates={:#?}\n sni_hostname={:#?}",
             self.mail.connection.peer_addr.port(),
             io.inner.conn.protocol_version(),
@@ -518,9 +537,11 @@ where
         );
 
         log::warn!(
-            target: "mail_receiver",
+            target: RECEIVER,
             "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
-            self.mail.connection.peer_addr.port(), self.state, State::Connect
+            self.mail.connection.peer_addr.port(),
+            self.state,
+            State::Connect
         );
 
         self.mail.envelop = Envelop::default();
@@ -550,8 +571,9 @@ where
             Ok(_) => {}
             Err(e) => {
                 log::error!(
-                    target: "mail_receiver",
-                    "Error on sending response (receiving); error = {:?}", e
+                    target: RECEIVER,
+                    "Error on sending response (receiving); error = {:?}",
+                    e
                 );
                 return Err(e);
             }

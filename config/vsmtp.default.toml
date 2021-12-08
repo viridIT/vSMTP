@@ -7,12 +7,12 @@ addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
 
 [log]
 ## Filepath of logger
-file = "/etc/vsmtp/log"
+file = "./tmp/etc/vsmtp.log"
 
 [log.level]
 ## Log level of the different part of the program
 ## Keys are [default/rule_engine/mail_receiver], values in [trace/debug/info/warn/error/off]
-default = "warn"
+default = "trace"
 
 # [paths]
 # rules_dir = "./config/rules"
@@ -30,7 +30,7 @@ handshake_timeout = "5s"
 # [[tls.sni_maps]]
 
 [smtp]
-spool_dir = "/var/spool/vsmtp"
+spool_dir = "./tmp/var/spool/vsmtp"
 
 [smtp.timeout_client]
 ## Delay maximum for the client to the his information

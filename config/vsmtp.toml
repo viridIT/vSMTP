@@ -12,10 +12,10 @@ file = "./tmp/vsmtp.log"
 
 [log.level]
 ## Log level of the different part of the program
-## Keys are [default/rule_engine/mail_receiver], values in [trace/debug/info/warn/error/off]
+## Keys are [default/receiver/resolver/rules], values in [trace/debug/info/warn/error/off]
 default = "warn"
-rule_engine = "trace"
-mail_receiver = "error"
+rules = "warn"
+receiver = "info"
 
 # [paths]
 # rules_dir = "./config/rules"
