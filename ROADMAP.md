@@ -1,12 +1,12 @@
 # vSMTP standard edition roadmap
 
->Release candidate versions should not be used for production purpose.  
+>Release candidate versions should not be used for production purpose.
 
-More details about installation and supported features can be found in the project wiki pages. https://github.com/viridIT/vSMTP/wiki  
+More details about installation and supported features can be found in the project wiki pages. <https://github.com/viridIT/vSMTP/wiki>
 
-Join vSMTP community, ask questions and get in-depth answers at https://www.viridit.com/community-forum/  
+Join vSMTP community, ask questions and get in-depth answers at <https://www.viridit.com/community-forum>
 
-For the enhanced edition roadmap, please feel free to contact us at <https://www.viridit.com/contact/>.
+For the enhanced edition roadmap, please feel free to contact us at <https://www.viridit.com/contact>.
 
 ## Release Candidate 1
 
@@ -27,7 +27,7 @@ About filtering :
 - User defined quarantine queues and logs
 - JSON and RAW exports
 
->This version only manages incoming mails. For outoing mail you must use your current SMTP server.
+>This version only manages incoming mails. For outgoing mail you must use your current SMTP server.
 
 ## Release Candidate 2
 

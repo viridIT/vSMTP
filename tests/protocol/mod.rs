@@ -4,13 +4,13 @@ mod tests {
 
     use log::LevelFilter;
     use vsmtp::{
-        mailprocessing::mail_receiver::{MailReceiver, State},
-        model::mail::MailContext,
-        resolver::DataEndResolver,
-        server_config::{
+        config::server_config::{
             InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
             InnerTlsConfig, ServerConfig, TlsSecurityLevel,
         },
+        mailprocessing::mail_receiver::{MailReceiver, State},
+        model::mail::MailContext,
+        resolver::DataEndResolver,
         smtp::code::SMTPReplyCode,
         tests::Mock,
     };
@@ -38,10 +38,10 @@ mod tests {
             },
             tls: InnerTlsConfig {
                 security_level: TlsSecurityLevel::None,
-                capath: "".to_string(),
+                capath: None,
                 preempt_cipherlist: true,
                 handshake_timeout: std::time::Duration::from_millis(10_000),
-                sni_maps: vec![],
+                sni_maps: None,
             },
             smtp: InnerSMTPConfig {
                 spool_dir: "./tests/generated/spool/".to_string(),

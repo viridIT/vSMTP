@@ -13,13 +13,13 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+ **/
+pub mod config;
 pub mod mailprocessing;
 pub mod model;
 pub mod resolver;
 pub mod rules;
 pub mod server;
-pub mod server_config;
 pub mod smtp;
 
 #[macro_export]

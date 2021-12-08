@@ -10,7 +10,7 @@ publish = false
 log = "0.4.14"
 log4rs = { version = "1.0" }
 
-config = { version = "0.11.0", features = ["toml"] }
+# config = { version = "0.11.0", features = ["toml"] }
 clap = "2.34.0"
 # inactive since Oct. 2020
 users = "0.11"

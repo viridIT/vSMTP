@@ -14,9 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use crate::config::default::DEFAULT_CONFIG;
+use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 use crate::mailprocessing::mail_receiver::MailReceiver;
 use crate::resolver::DataEndResolver;
-use crate::server_config::TlsSecurityLevel;
 
 pub struct ServerVSMTP<R>
 where
@@ -24,7 +25,7 @@ where
 {
     listeners: Vec<std::net::TcpListener>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    config: std::sync::Arc<crate::server_config::ServerConfig>,
+    config: std::sync::Arc<ServerConfig>,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -32,9 +33,7 @@ impl<R> ServerVSMTP<R>
 where
     R: DataEndResolver + std::marker::Send,
 {
-    pub fn new(
-        config: std::sync::Arc<crate::server_config::ServerConfig>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(config: std::sync::Arc<ServerConfig>) -> Result<Self, Box<dyn std::error::Error>> {
         log4rs::init_config(Self::get_logger_config(&config)?)?;
 
         Ok(Self {
@@ -43,9 +42,9 @@ where
                 .addr
                 .iter()
                 .filter_map(|addr| std::net::TcpListener::bind(addr).ok())
-                .map(|listener| {
-                    listener.set_nonblocking(true).unwrap();
-                    listener
+                .filter_map(|listener| {
+                    listener.set_nonblocking(true).ok()?;
+                    Some(listener)
                 })
                 .collect::<Vec<_>>(),
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {
@@ -58,55 +57,47 @@ where
         })
     }
 
-    fn get_logger_config(
-        config: &crate::server_config::ServerConfig,
-    ) -> Result<log4rs::Config, log4rs::config::runtime::ConfigErrors> {
+    fn get_logger_config(config: &ServerConfig) -> Result<log4rs::Config, std::io::Error> {
         use log4rs::*;
 
-        let stdout = append::console::ConsoleAppender::builder()
+        let console = append::console::ConsoleAppender::builder()
             .encoder(Box::new(encode::pattern::PatternEncoder::new(
                 "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
             )))
             .build();
 
-        let requests = append::file::FileAppender::builder()
+        let file = append::file::FileAppender::builder()
             .encoder(Box::new(encode::pattern::PatternEncoder::new(
                 "{d} - {m}{n}",
             )))
-            .build(
-                config.log.file.clone(), // .unwrap_or_else(|_| "vsmtp.log".to_string()),
-            )
-            .unwrap();
-
-        let default_level = config
-            .log
-            .level
-            .get("default")
-            .unwrap_or(&log::LevelFilter::Warn);
+            .build(config.log.file.clone())?;
 
         Config::builder()
-            .appender(config::Appender::builder().build("stdout", Box::new(stdout)))
-            .appender(config::Appender::builder().build("requests", Box::new(requests)))
-            .logger(config::Logger::builder().build(
-                "rule_engine",
-                *config.log.level.get("rule_engine").unwrap_or(default_level),
-            ))
-            .logger(
-                config::Logger::builder().build(
-                    "mail_receiver",
-                    *config
-                        .log
-                        .level
-                        .get("mail_receiver")
-                        .unwrap_or(default_level),
-                ),
+            .appender(config::Appender::builder().build("stdout", Box::new(console)))
+            .appender(config::Appender::builder().build("file", Box::new(file)))
+            .loggers(
+                config
+                    .log
+                    .level
+                    .iter()
+                    .map(|(name, level)| config::Logger::builder().build(name, *level)),
             )
             .build(
                 config::Root::builder()
                     .appender("stdout")
-                    .appender("requests")
-                    .build(*default_level),
+                    .appender("file")
+                    .build(
+                        *config
+                            .log
+                            .level
+                            .get("default")
+                            .unwrap_or(&log::LevelFilter::Warn),
+                    ),
             )
+            .map_err(|e| {
+                e.errors().iter().for_each(|e| log::error!("{}", e));
+                std::io::Error::new(std::io::ErrorKind::Other, e)
+            })
     }
 
     fn get_cert_from_file(cert_path: &str) -> Result<Vec<rustls::Certificate>, std::io::Error> {
@@ -148,50 +139,53 @@ where
         }
     }
 
-    fn get_rustls_config(
-        config: &crate::server_config::ServerConfig,
-    ) -> std::sync::Arc<rustls::ServerConfig> {
-        let capath = config.tls.capath.as_ref(); // .unwrap_or_else(|_| "./certs".to_string());
+    fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::ServerConfig> {
+        let capath_if_missing_from_both = String::default();
+        let capath = config
+            .tls
+            .capath
+            .as_ref()
+            .or_else(|| DEFAULT_CONFIG.tls.capath.as_ref())
+            .unwrap_or(&capath_if_missing_from_both);
 
         let mut tls_sni_resolver = rustls::server::ResolvesServerCertUsingSni::new();
 
-        config
-            .tls
-            .sni_maps
-            .iter()
-            .filter_map(|sni| {
-                Some((
-                    sni.domain.clone(),
-                    rustls::sign::CertifiedKey {
-                        cert: match Self::get_cert_from_file(
-                            &sni.cert
-                                .replace("{capath}", capath)
-                                .replace("{domain}", &sni.domain),
-                        ) {
-                            Ok(cert) => cert,
-                            Err(e) => {
-                                log::error!("error: {}", e);
-                                return None;
-                            }
+        if let Some(x) = config.tls.sni_maps.as_ref() {
+            x.iter()
+                .filter_map(|sni| {
+                    Some((
+                        sni.domain.clone(),
+                        rustls::sign::CertifiedKey {
+                            cert: match Self::get_cert_from_file(
+                                &sni.cert
+                                    .replace("{capath}", capath)
+                                    .replace("{domain}", &sni.domain),
+                            ) {
+                                Ok(cert) => cert,
+                                Err(e) => {
+                                    log::error!("error: {}", e);
+                                    return None;
+                                }
+                            },
+                            key: match Self::get_signing_key_from_file(
+                                &sni.chain
+                                    .replace("{capath}", capath)
+                                    .replace("{domain}", &sni.domain),
+                            ) {
+                                Ok(key) => key,
+                                Err(e) => {
+                                    log::error!("error: {}", e);
+                                    return None;
+                                }
+                            },
+                            // TODO:
+                            ocsp: None,
+                            sct_list: None,
                         },
-                        key: match Self::get_signing_key_from_file(
-                            &sni.chain
-                                .replace("{capath}", capath)
-                                .replace("{domain}", &sni.domain),
-                        ) {
-                            Ok(key) => key,
-                            Err(e) => {
-                                log::error!("error: {}", e);
-                                return None;
-                            }
-                        },
-                        // TODO:
-                        ocsp: None,
-                        sct_list: None,
-                    },
-                ))
-            })
-            .for_each(|(domain, ck)| tls_sni_resolver.add(&domain, ck).unwrap());
+                    ))
+                })
+                .for_each(|(domain, ck)| tls_sni_resolver.add(&domain, ck).unwrap())
+        }
 
         let mut out = rustls::ServerConfig::builder()
             .with_cipher_suites(rustls::ALL_CIPHER_SUITES)
@@ -206,10 +200,10 @@ where
         std::sync::Arc::new(out)
     }
 
-    pub fn addr(&self) -> Vec<std::io::Result<std::net::SocketAddr>> {
+    pub fn addr(&self) -> Vec<std::net::SocketAddr> {
         self.listeners
             .iter()
-            .map(std::net::TcpListener::local_addr)
+            .filter_map(|i| std::net::TcpListener::local_addr(i).ok())
             .collect::<Vec<_>>()
     }
 

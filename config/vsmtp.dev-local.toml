@@ -4,10 +4,10 @@ version = "0.1.0"
 domain = "testserver.com"
 
 [server]
-addr = ["0.0.0.0:10025"]
+addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
 
 [log]
-file = "./var/log/vsmtp/vsmtp.log"
+file = "./tmp/var/log/vsmtp/vsmtp.log"
 
 [log.level]
 default = "warn"
@@ -21,7 +21,7 @@ receiver = "info"
 
 [tls]
 security_level = "May"
-capath = "/etc/vsmtp/certs"
+capath = "./config/certs"
 preempt_cipherlist = true
 handshake_timeout = "100ms"
 
@@ -31,7 +31,7 @@ cert = "{capath}/fullchain.{domain}.pem"
 chain = "{capath}/rsa.{domain}.pem"
 
 [smtp]
-spool_dir = "/var/spool/vsmtp"
+spool_dir = "./tmp/var/spool/vsmtp"
 
 [smtp.timeout_client]
 Helo = "10000ms"
