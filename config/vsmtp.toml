@@ -1,18 +1,16 @@
+### See vsmtp.default.toml documentation for this file format
+
 version = "0.1.0"
 domain = "testserver.com"
 
 [server]
-## inet address for the server to listen to
 addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
 spool_dir = "./tmp/spool"
 
 [log]
-## Filepath of logger
 file = "./tmp/vsmtp.log"
 
 [log.level]
-## Log level of the different part of the program
-## Keys are [default/receiver/resolver/rules], values in [trace/debug/info/warn/error/off]
 default = "warn"
 rules = "warn"
 receiver = "info"
@@ -23,12 +21,9 @@ receiver = "info"
 # quarantine_dir = "./tmp/quarantine"
 
 [tls]
-## [None/May/Encrypt] => disable/allow/force encryption
 security_level = "May"
 capath = "./config/certs"
-## Use the server's prefered cipherlist instead of the client one
 preempt_cipherlist = true
-## Maxmimun delay for the tls handshake (milliseconds)
 handshake_timeout = "100ms"
 
 [[tls.sni_maps]]
@@ -40,19 +35,11 @@ chain = "{capath}/rsa.{domain}.pem"
 spool_dir = "./tmp/spool"
 
 [smtp.timeout_client]
-## Delay maximum for the client to the his information
-## Keys are [Connect/Helo/MailFrom/RcptTo/Data] (10s if missing)
 Helo = "10000ms"
 Data = "10000ms"
 
 
-## vSMTP keep the count of the client's error
 [smtp.error]
-## if error > soft_count then vSMTP will delay the connection for $smtp.error.delay
-## soft_count = -1 to disable this feature (default: -1)
 soft_count = 5
-## if error > hard_count then vSMTP will close the connection
-## hard_count = -1 to disable this feature (default: -1)
 hard_count = 10
-## in milliseconds
 delay = "5000ms"
