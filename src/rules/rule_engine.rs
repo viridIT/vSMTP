@@ -23,8 +23,10 @@ use crate::rules::operation_queue::{Operation, OperationQueue};
 use lazy_static::lazy_static;
 use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
+use users::{Users, UsersCache};
 
 use std::net::IpAddr;
+use std::sync::Mutex;
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -224,7 +226,6 @@ impl<'a> RuleEngine<'a> {
 /// and objects parsed from rhai's context to rust's, this way,
 /// they can be used directly into rust functions, and the engine
 /// doesn't need to evaluate them each call.
-#[derive(Debug)]
 pub(crate) struct RhaiEngine {
     /// rhai's engine structure.
     pub(super) context: Engine,
@@ -235,9 +236,12 @@ pub(crate) struct RhaiEngine {
     /// objects parsed from rhai's context.
     /// they are accessible from rust function registered into the engine.
     ///
-    /// ! you should not use a writer to modify the variables.
-    /// ! objects are immutable.
+    /// FIXME: remove RwLock, objects are immutable.
     pub(super) objects: Arc<RwLock<BTreeMap<String, Object>>>,
+
+    /// system user cache, used for retreiving user information. (used in vsl.USER_EXISTS for example)
+    /// TODO: add configuration to refresh the cache every x hour/minute/seconds.
+    pub(super) users: Mutex<UsersCache>,
 }
 
 impl RhaiEngine {
@@ -500,6 +504,7 @@ impl RhaiEngine {
             context: engine,
             ast,
             objects,
+            users: Mutex::new(UsersCache::new()),
         })
     }
 
@@ -598,4 +603,15 @@ pub fn init() {
 
     log::debug!(target: "rule_engine", "{} objects found.", RHAI_ENGINE.objects.read().unwrap().len());
     log::trace!(target: "rule_engine", "{:#?}", RHAI_ENGINE.objects.read().unwrap());
+}
+
+/// use the user cache to check if a user exists on the system.
+pub(super) fn user_exists(name: &str) -> bool {
+    match RHAI_ENGINE.users.lock() {
+        Ok(users) => users.get_user_by_name(name).is_some(),
+        Err(error) => {
+            log::error!("FATAL ERROR: {}", error);
+            false
+        }
+    }
 }

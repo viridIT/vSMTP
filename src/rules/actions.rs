@@ -18,16 +18,16 @@ use crate::model::{
     envelop::Envelop,
     mail::{ConnectionData, MailContext},
 };
+
 use crate::rules::{
     obj::Object,
     operation_queue::{Operation, OperationQueue},
-    rule_engine::{Status, RHAI_ENGINE},
+    rule_engine::{user_exists, Status, RHAI_ENGINE},
 };
 
 use std::{
     io::Write,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    process::Command,
     str::FromStr,
 };
 
@@ -362,16 +362,5 @@ pub(super) fn internal_user_exists(user: &Object) -> bool {
         Object::Var(user) => user_exists(user),
         Object::File(content) | Object::Group(content) => content.iter().all(internal_user_exists),
         _ => false,
-    }
-}
-
-/// execute the id shell command, checking if the given user exists.
-fn user_exists(user: &str) -> bool {
-    match Command::new("sh")
-        .args(["-c", &format!("id -u {}", user)])
-        .status()
-    {
-        Ok(status) => status.success(),
-        Err(_) => false,
     }
 }
