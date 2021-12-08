@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config))?;
 
-    rule_engine::init();
+    rule_engine::init("./config/rules");
 
     log::warn!("Listening on: {:?}", server.addr());
     server.listen_and_serve().await

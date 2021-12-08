@@ -291,7 +291,10 @@ pub(super) mod vsl {
     pub fn __user_exists(object: &str) -> bool {
         match RHAI_ENGINE.objects.read().unwrap().get(object) {
             Some(object) => internal_user_exists(object),
-            _ => internal_user_exists(&Object::Var(object.to_string())),
+            _ => {
+                println!("ERROR, OBJECT NOT FOUND");
+                internal_user_exists(&Object::Var(object.to_string()))
+            },
         }
     }
 }

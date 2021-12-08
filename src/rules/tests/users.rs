@@ -1,36 +1,31 @@
 #[cfg(test)]
 mod test {
-    use crate::rules::rule_engine::{RhaiEngine, Status, DEFAULT_SCOPE};
-    use lazy_static::lazy_static;
-    use users::mock::MockUsers;
+    use crate::rules::rule_engine;
 
-    // internals tests.
+    #[ignore]
+    #[test]
+    fn test_object_parsing_count() {
+        rule_engine::init("./src/rules/tests/configs/users.vsl");
 
-    lazy_static! {
-        static ref TEST_ENGINE: RhaiEngine<MockUsers> = {
-            let users = MockUsers::with_current_uid(1000);
-
-            // TODO: add users here ...
-
-            match RhaiEngine::new(include_bytes!("configs/users.vsl"), users) {
-                Ok(engine) => {
-                    engine
-                        .context
-                        .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &engine.ast)
-                        .expect("couldn't initialize the rule engine");
-
-                    engine
-                }
-                Err(error) => {
-                    eprintln!("object parsing failed: {}", error);
-                    panic!("object parsing failed.");
-                }
-            }
-        };
+        assert_eq!(rule_engine::RHAI_ENGINE.objects.read().unwrap().len(), 3);
     }
 
+    #[ignore]
     #[test]
-    fn object_parsing_count() {
-        assert_eq!(TEST_ENGINE.objects.read().unwrap().len(), 15);
+    fn test_all_users_exists() {
+        rule_engine::init("./src/rules/tests/configs/users.vsl");
+
+        let mut scope = rule_engine::DEFAULT_SCOPE.clone();
+
+        scope.push("__stage", "connect");
+
+        match rule_engine::RHAI_ENGINE
+            .context
+            .eval_ast_with_scope::<rule_engine::Status>(&mut scope, &rule_engine::RHAI_ENGINE.ast)
+        {
+            Ok(rule_engine::Status::Accept) => {}
+            Ok(status) => panic!("the engine returned {:?} instead of Accept", status),
+            Err(error) => panic!("engine returned an evaluation error: {}", error),
+        }
     }
 }

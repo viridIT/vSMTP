@@ -21,8 +21,7 @@ use crate::rules::operation_queue::{Operation, OperationQueue};
 
 use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
-use users::mock::MockUsers;
-use users::{Users, UsersCache};
+use users::Users;
 
 use std::net::IpAddr;
 use std::sync::Mutex;
@@ -80,22 +79,11 @@ impl<'a> RuleEngine<'a> {
             .push("date", "")
             .push("time", "")
             .push("msg_id", "")
+            .push("connection_timestamp", std::time::SystemTime::now())
+            .push("mail_timestamp", None::<std::time::SystemTime>)
             .push("addr", config.server.addr.clone())
             .push("logs_file", config.log.file.clone())
-            // .push("rules_dir", config.rule.dir)
-            .push("spool_dir", config.smtp.spool_dir.clone())
-            // quarantine_dir should be ${spool_dir}/quarantine
-            // .push(
-            //     "quarantine_dir",
-            //     config::get::<String>("paths.quarantine_dir").unwrap(),
-            // )
-            //.push("clamav", config::get::<String>("clamav").unwrap())
-            //.push("clamav_port", config::get::<String>("clamav_port").unwrap())
-            //.push(
-            //    "clamav_address",
-            //    config::get::<String>("clamav_address").unwrap(),
-            //);
-        ;
+            .push("spool_dir", config.smtp.spool_dir.clone());
 
         Self { scope, skip: None }
     }
@@ -223,7 +211,7 @@ impl<'a> RuleEngine<'a> {
 /// doesn't need to evaluate them each call.
 /// the engine also stores a user cache that is used to fetch
 /// data about system users.
-pub struct RhaiEngine<U: Users> {
+pub(super) struct RhaiEngine<U: Users> {
     /// rhai's engine structure.
     pub(super) context: Engine,
     /// the ast, built from the user's .vsl files.
@@ -506,14 +494,11 @@ impl<U: Users> RhaiEngine<U> {
     }
 }
 
-impl RhaiEngine<UsersCache> {
+#[cfg(not(test))]
+impl RhaiEngine<users::UsersCache> {
     /// creates a new instance of the rule engine, reading all files in
-    /// paths.rules_dir configuration variable.
-    fn new() -> Result<Self, Box<dyn Error>> {
-        // TODO:
-        // let path = config::get::<String>("paths.rules_dir").unwrap();
-        let src_path = Path::new("./config/rules");
-
+    /// src_path parameter.
+    fn new(src_path: &str) -> Result<Self, Box<dyn Error>> {
         // load all sources from file.
         // this function is declared here since it isn't needed anywhere else.
         fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
@@ -531,38 +516,46 @@ impl RhaiEngine<UsersCache> {
             Ok(buffer)
         }
 
-        let cache = UsersCache::default();
+        let cache = users::UsersCache::default();
 
-        RhaiEngine::from_bytes(load_sources(src_path)?.concat().as_bytes(), cache)
+        RhaiEngine::from_bytes(
+            load_sources(Path::new(src_path))?.concat().as_bytes(),
+            cache,
+        )
     }
 }
 
-impl RhaiEngine<MockUsers> {
+#[cfg(test)]
+impl RhaiEngine<users::mock::MockUsers> {
     /// creates a new instance of the rule engine, used for tests.
     /// allow unused is () becuase this new static method is
     /// for tests only.
-    #[allow(unused)]
-    pub fn new(src: &[u8], users: MockUsers) -> Result<Self, Box<dyn Error>> {
-        RhaiEngine::from_bytes(src, users)
+    fn new(src_path: &str, users: users::mock::MockUsers) -> Result<Self, Box<dyn Error>> {
+        // load all sources from file.
+        // this function is declared here since it isn't needed anywhere else.
+        fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+            let mut buffer = vec![];
+
+            if path.is_file() {
+                buffer.push(format!("{}\n", fs::read_to_string(path)?));
+            } else if path.is_dir() {
+                for entry in fs::read_dir(path)? {
+                    let dir = entry?;
+                    buffer.extend(load_sources(&dir.path())?);
+                }
+            }
+
+            Ok(buffer)
+        }
+
+        RhaiEngine::from_bytes(
+            load_sources(Path::new(src_path))?.concat().as_bytes(),
+            users,
+        )
     }
 }
 
 lazy_static::lazy_static! {
-    // ! FIXME: this could be slow, locks seems to happen in the engine.
-    // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
-    /// the rhai engine static that gets initialized once.
-    /// it is used internally to evaluate user's scripts with a scope
-    /// different for each connection.
-    pub(super) static ref RHAI_ENGINE: RhaiEngine<UsersCache> = {
-        match RhaiEngine::<UsersCache>::new() {
-            Ok(engine) => engine,
-            Err(error) => {
-                log::error!("could not initialize the rule engine: {}", error);
-                panic!();
-            }
-        }
-    };
-
     /// an scope that initialize all needed variables.
     pub(crate) static ref DEFAULT_SCOPE: Scope<'static> = {
         let mut scope = Scope::new();
@@ -591,27 +584,80 @@ lazy_static::lazy_static! {
         // configuration variables.
         .push("addr", Vec::<String>::new())
         .push("logs_file", "")
-        .push("rules_dir", "")
-        .push("spool_dir", "")
-        .push("quarantine_dir", "")
-        .push("clamav", "")
-        .push("clamav_port", "")
-        .push("clamav_address", "");
+        .push("spool_dir", "");
 
         scope
     };
+}
+
+#[cfg(not(test))]
+lazy_static::lazy_static! {
+    // ! FIXME: this could be slow, locks seems to happen in the engine.
+    // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
+    /// the rhai engine static that gets initialized once.
+    /// it is used internally to evaluate user's scripts with a different
+    /// scope for each connection.
+    pub(super) static ref RHAI_ENGINE: RhaiEngine<users::UsersCache> = {
+        match RhaiEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
+            Ok(engine) => engine,
+            Err(error) => {
+                log::error!("could not initialize the rule engine: {}", error);
+                panic!();
+            }
+        }
+    };
+}
+
+#[cfg(test)]
+lazy_static::lazy_static! {
+    // ! FIXME: this could be slow, locks seems to happen in the engine.
+    // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
+    /// the rhai engine static that gets initialized once.
+    /// it is used internally to evaluate user's scripts with a different
+    /// scope for each connection.
+    pub(super) static ref RHAI_ENGINE: RhaiEngine<users::mock::MockUsers> = {
+
+        let mut users = users::mock::MockUsers::with_current_uid(1);
+
+        assert!(users.add_group(users::Group::new(100, "mail")).is_none());
+        assert!(users.add_user(users::User::new(1, "jones", 100)).is_none());
+        assert!(users.add_user(users::User::new(2, "green", 100)).is_none());
+        assert!(users.add_user(users::User::new(3, "smith", 100)).is_none());
+
+        match RhaiEngine::<users::mock::MockUsers>::new(unsafe { RULES_PATH }, users) {
+            Ok(engine) => engine,
+            Err(error) => {
+                log::error!("could not initialize the rule engine: {}", error);
+                panic!();
+            }
+        }
+    };
+}
+
+static mut RULES_PATH: &str = "./config/rules";
+static INIT_CONFIG_PATH: std::sync::Once = std::sync::Once::new();
+
+/// initialise the default rule path.
+/// this is mainly used for test purposes, and does not
+/// need to be used most of the time.
+pub fn set_rules_path(src: &'static str) {
+    INIT_CONFIG_PATH.call_once(|| unsafe {
+        RULES_PATH = src;
+    })
 }
 
 /// initialize the rule engine.
 /// this function checks your given scripts and parses all necessary items.
 ///
 /// not calling this method when initializing your server could lead to
-/// uncached configuration error and a slow process for the first connection.
-pub fn init() {
+/// undetected configuration errors and a slow process for the first connection.
+pub fn init(src: &'static str) {
+    set_rules_path(src);
+
     RHAI_ENGINE
         .context
         .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &RHAI_ENGINE.ast)
-        .expect("couldn't initialize the rule engine");
+        .expect("could not initialize the rule engine");
 
     log::debug!(target: "rule_engine", "{} objects found.", RHAI_ENGINE.objects.read().unwrap().len());
     log::trace!(target: "rule_engine", "{:#?}", RHAI_ENGINE.objects.read().unwrap());

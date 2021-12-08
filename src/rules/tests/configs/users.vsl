@@ -4,6 +4,6 @@ obj val "user3" "smith";
 
 rule connect "check_all_users" #{
   condition: || vsl.USER_EXISTS("user1") && vsl.USER_EXISTS("user2") && vsl.USER_EXISTS("user3"),
-  on_success: || vsl.ACCEPT,
-  on_failure: || vsl.DENY
+  on_success: vsl.ACCEPT,
+  on_failure: vsl.DENY
 };

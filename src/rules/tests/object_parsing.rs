@@ -2,45 +2,21 @@
 mod test {
     use std::net::Ipv4Addr;
 
-    use crate::rules::{
-        obj::Object,
-        rule_engine::{RhaiEngine, Status, DEFAULT_SCOPE},
-    };
-    use lazy_static::lazy_static;
-    use users::mock::MockUsers;
+    use crate::rules::obj::Object;
+    use crate::rules::rule_engine;
 
-    // internals tests.
+    #[test]
+    fn test_object_parsing_count() {
+        rule_engine::init("./src/rules/tests/configs/objects-parsing.vsl");
 
-    lazy_static! {
-        static ref TEST_ENGINE: RhaiEngine<MockUsers> = {
-            match RhaiEngine::<MockUsers>::new(
-                include_bytes!("configs/objects-parsing.vsl"),
-                MockUsers::with_current_uid(1000),
-            ) {
-                Ok(engine) => {
-                    engine
-                        .context
-                        .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &engine.ast)
-                        .expect("couldn't initialize the rule engine");
-
-                    engine
-                }
-                Err(error) => {
-                    eprintln!("object parsing failed: {}", error);
-                    panic!("object parsing failed.");
-                }
-            }
-        };
+        assert_eq!(rule_engine::RHAI_ENGINE.objects.read().unwrap().len(), 15);
     }
 
     #[test]
-    fn object_parsing_count() {
-        assert_eq!(TEST_ENGINE.objects.read().unwrap().len(), 15);
-    }
+    fn test_object_parsing_ip4() {
+        rule_engine::init("./src/rules/tests/configs/objects-parsing.vsl");
 
-    #[test]
-    fn object_parsing_ip4() {
-        let objects = TEST_ENGINE.objects.read().unwrap();
+        let objects = rule_engine::RHAI_ENGINE.objects.read().unwrap();
         let unspecified = objects.get("unspecified");
         let localhost = objects.get("localhost");
 
@@ -57,8 +33,10 @@ mod test {
     }
 
     #[test]
-    fn object_parsing_fqdn() {
-        let objects = TEST_ENGINE.objects.read().unwrap();
+    fn test_object_parsing_fqdn() {
+        rule_engine::init("./src/rules/tests/configs/objects-parsing.vsl");
+
+        let objects = rule_engine::RHAI_ENGINE.objects.read().unwrap();
         let obj = objects.get("inline_fqdn");
 
         assert!(obj.is_some());
@@ -69,8 +47,10 @@ mod test {
     }
 
     #[test]
-    fn object_parsing_val() {
-        let objects = TEST_ENGINE.objects.read().unwrap();
+    fn test_object_parsing_val() {
+        rule_engine::init("./src/rules/tests/configs/objects-parsing.vsl");
+
+        let objects = rule_engine::RHAI_ENGINE.objects.read().unwrap();
         let vars = vec![
             objects.get("user_dev"),
             objects.get("user_prod"),
@@ -93,8 +73,10 @@ mod test {
     }
 
     #[test]
-    fn object_parsing_addr() {
-        let objects = TEST_ENGINE.objects.read().unwrap();
+    fn test_object_parsing_addr() {
+        rule_engine::init("./src/rules/tests/configs/objects-parsing.vsl");
+
+        let objects = rule_engine::RHAI_ENGINE.objects.read().unwrap();
         let jones = objects.get("jones");
         let green = objects.get("green");
 
@@ -111,8 +93,10 @@ mod test {
     }
 
     #[test]
-    fn object_parsing_file() {
-        let objects = TEST_ENGINE.objects.read().unwrap();
+    fn test_object_parsing_file() {
+        rule_engine::init("./src/rules/tests/configs/objects-parsing.vsl");
+
+        let objects = rule_engine::RHAI_ENGINE.objects.read().unwrap();
         let whitelist = objects.get("whitelist");
 
         assert!(whitelist.is_some());
@@ -131,8 +115,10 @@ mod test {
     }
 
     #[test]
-    fn object_parsing_regex() {
-        let objects = TEST_ENGINE.objects.read().unwrap();
+    fn test_object_parsing_regex() {
+        rule_engine::init("./src/rules/tests/configs/objects-parsing.vsl");
+
+        let objects = rule_engine::RHAI_ENGINE.objects.read().unwrap();
         let viridit_staff = objects.get("viridit_staff");
         let localhost_emails = objects.get("localhost_emails");
 
@@ -151,8 +137,10 @@ mod test {
     }
 
     #[test]
-    fn object_parsing_groups() {
-        let objects = TEST_ENGINE.objects.read().unwrap();
+    fn test_object_parsing_groups() {
+        rule_engine::init("./src/rules/tests/configs/objects-parsing.vsl");
+
+        let objects = rule_engine::RHAI_ENGINE.objects.read().unwrap();
         let authorized_users = objects.get("authorized_users");
         let deep_group = objects.get("deep_group");
 
