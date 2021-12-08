@@ -42,9 +42,9 @@ where
                 .addr
                 .iter()
                 .filter_map(|addr| std::net::TcpListener::bind(addr).ok())
-                .map(|listener| {
-                    listener.set_nonblocking(true).unwrap();
-                    listener
+                .filter_map(|listener| {
+                    listener.set_nonblocking(true).ok()?;
+                    Some(listener)
                 })
                 .collect::<Vec<_>>(),
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {
@@ -57,9 +57,7 @@ where
         })
     }
 
-    fn get_logger_config(
-        config: &ServerConfig,
-    ) -> Result<log4rs::Config, log4rs::config::runtime::ConfigErrors> {
+    fn get_logger_config(config: &ServerConfig) -> Result<log4rs::Config, std::io::Error> {
         use log4rs::*;
 
         let console = append::console::ConsoleAppender::builder()
@@ -72,10 +70,7 @@ where
             .encoder(Box::new(encode::pattern::PatternEncoder::new(
                 "{d} - {m}{n}",
             )))
-            .build(
-                config.log.file.clone(), // .unwrap_or_else(|_| "vsmtp.log".to_string()),
-            )
-            .unwrap();
+            .build(config.log.file.clone())?;
 
         Config::builder()
             .appender(config::Appender::builder().build("stdout", Box::new(console)))
@@ -99,6 +94,10 @@ where
                             .unwrap_or(&log::LevelFilter::Warn),
                     ),
             )
+            .map_err(|e| {
+                e.errors().iter().for_each(|e| log::error!("{}", e));
+                std::io::Error::new(std::io::ErrorKind::Other, e)
+            })
     }
 
     fn get_cert_from_file(cert_path: &str) -> Result<Vec<rustls::Certificate>, std::io::Error> {

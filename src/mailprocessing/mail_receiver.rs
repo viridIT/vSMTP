@@ -409,9 +409,7 @@ where
                         self.error_count += 1;
 
                         let hard_error = self.server_config.smtp.error.hard_count;
-                        // crate::config::get::<i64>("smtp.error.hard_count").unwrap_or(-1);
                         let soft_error = self.server_config.smtp.error.soft_count;
-                        // crate::config::get::<i64>("smtp.error.soft_count").unwrap_or(-1);
 
                         if hard_error != -1 && self.error_count >= hard_error as u64 {
                             let mut response_begin = response.as_str().to_string();

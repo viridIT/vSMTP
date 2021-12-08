@@ -1,4 +1,3 @@
-pub mod config;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -14,7 +13,8 @@ pub mod config;
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+ **/
+pub mod config;
 pub mod mailprocessing;
 pub mod model;
 pub mod resolver;
