@@ -1,0 +1,51 @@
+version = "0.1.0"
+domain = "mydomain.com"
+
+[server]
+## inet address for the server to listen to
+addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
+
+[log]
+## Filepath of logger
+file = "/etc/vsmtp/log"
+
+[log.level]
+## Log level of the different part of the program
+## Keys are [default/rule_engine/mail_receiver], values in [trace/debug/info/warn/error/off]
+default = "warn"
+
+# [paths]
+# rules_dir = "./config/rules"
+## TODO: replace for smtp.quarantine_path
+# quarantine_dir = "./tmp/quarantine"
+
+[tls]
+## [None/May/Encrypt]
+security_level = "May"
+# capath = "./config/certs"
+## Use the server's prefered cipherlist instead of the client one
+preempt_cipherlist = false
+handshake_timeout = "5s"
+
+# [[tls.sni_maps]]
+
+[smtp]
+spool_dir = "/var/spool/vsmtp"
+
+[smtp.timeout_client]
+## Delay maximum for the client to the his information
+Connect = "5min"
+Helo = "5min"
+MailFrom = "5min"
+RcptTo = "5min"
+Data = "5min"
+
+
+## vSMTP keep the count of the client's error
+[smtp.error]
+## if error > soft_count then vSMTP will delay the connection for $smtp.error.delay
+soft_count = -1
+## if error > hard_count then vSMTP will close the connection
+## hard_count = -1 to disable this feature (default: -1)
+hard_count = -1
+delay = "1000ms"

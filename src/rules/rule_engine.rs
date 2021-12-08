@@ -60,7 +60,7 @@ pub struct RuleEngine<'a> {
 
 impl<'a> RuleEngine<'a> {
     /// creates a new rule engine with an empty scope.
-    pub(crate) fn new(config: &crate::server_config::ServerConfig) -> Self {
+    pub(crate) fn new(config: &crate::config::server_config::ServerConfig) -> Self {
         let mut scope = Scope::new();
         scope
             .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))

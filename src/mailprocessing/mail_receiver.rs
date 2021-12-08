@@ -15,11 +15,11 @@
  *
 **/
 use super::io_service::{IoService, ReadError};
+use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 use crate::model::envelop::Envelop;
 use crate::model::mail::{ConnectionData, MailContext};
 use crate::resolver::DataEndResolver;
 use crate::rules::rule_engine::{RuleEngine, Status};
-use crate::server_config::TlsSecurityLevel;
 use crate::smtp::code::SMTPReplyCode;
 use crate::smtp::event::Event;
 
@@ -58,7 +58,7 @@ where
     R: DataEndResolver,
 {
     /// config
-    server_config: std::sync::Arc<crate::server_config::ServerConfig>,
+    server_config: std::sync::Arc<ServerConfig>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     smtp_timeouts: std::collections::HashMap<State, std::time::Duration>,
 
@@ -84,7 +84,7 @@ where
     pub fn new(
         peer_addr: std::net::SocketAddr,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-        server_config: std::sync::Arc<crate::server_config::ServerConfig>,
+        server_config: std::sync::Arc<ServerConfig>,
     ) -> Self {
         if server_config.tls.security_level != TlsSecurityLevel::None && tls_config.is_none() {
             log::error!(

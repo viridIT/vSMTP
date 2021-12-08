@@ -14,23 +14,33 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use v_smtp::config::server_config::ServerConfig;
 use v_smtp::resolver::ResolverWriteDisk;
 use v_smtp::rules::rule_engine;
 use v_smtp::server::ServerVSMTP;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = clap::App::new("vSMTP")
+    let args = clap::App::new("vSMTP")
         .version("1.0")
         .author("ViridIT https://www.viridit.com")
         .about("vSMTP : the next-gen MTA")
+        .arg(
+            clap::Arg::with_name("config")
+                .short("-c")
+                .long("--config")
+                .takes_value(true)
+                .default_value("config/vsmtp.toml"),
+        )
         .get_matches();
 
-    let config: v_smtp::server_config::ServerConfig =
-        toml::from_str(&std::fs::read_to_string("./config/vsmtp.toml").unwrap()).unwrap();
+    let config: ServerConfig = toml::from_str(&std::fs::read_to_string(
+        args.value_of("config").expect("clap provide default value"),
+    )?)?;
+
+    // println!("{:?}", &v_smtp::config::default::DEFAULT_CONFIG.log);
 
     ResolverWriteDisk::init_spool_folder(&config.smtp.spool_dir)?;
-
     let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config))?;
 
     rule_engine::init();

@@ -1,3 +1,4 @@
+pub mod config;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -19,7 +20,6 @@ pub mod model;
 pub mod resolver;
 pub mod rules;
 pub mod server;
-pub mod server_config;
 pub mod smtp;
 
 #[macro_export]

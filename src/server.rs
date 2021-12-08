@@ -1,3 +1,4 @@
+use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -16,7 +17,6 @@
 **/
 use crate::mailprocessing::mail_receiver::MailReceiver;
 use crate::resolver::DataEndResolver;
-use crate::server_config::TlsSecurityLevel;
 
 pub struct ServerVSMTP<R>
 where
@@ -24,7 +24,7 @@ where
 {
     listeners: Vec<std::net::TcpListener>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    config: std::sync::Arc<crate::server_config::ServerConfig>,
+    config: std::sync::Arc<ServerConfig>,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -32,9 +32,7 @@ impl<R> ServerVSMTP<R>
 where
     R: DataEndResolver + std::marker::Send,
 {
-    pub fn new(
-        config: std::sync::Arc<crate::server_config::ServerConfig>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(config: std::sync::Arc<ServerConfig>) -> Result<Self, Box<dyn std::error::Error>> {
         log4rs::init_config(Self::get_logger_config(&config)?)?;
 
         Ok(Self {
@@ -59,7 +57,7 @@ where
     }
 
     fn get_logger_config(
-        config: &crate::server_config::ServerConfig,
+        config: &ServerConfig,
     ) -> Result<log4rs::Config, log4rs::config::runtime::ConfigErrors> {
         use log4rs::*;
 
@@ -148,9 +146,7 @@ where
         }
     }
 
-    fn get_rustls_config(
-        config: &crate::server_config::ServerConfig,
-    ) -> std::sync::Arc<rustls::ServerConfig> {
+    fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::ServerConfig> {
         let capath = config.tls.capath.as_ref(); // .unwrap_or_else(|_| "./certs".to_string());
 
         let mut tls_sni_resolver = rustls::server::ResolvesServerCertUsingSni::new();

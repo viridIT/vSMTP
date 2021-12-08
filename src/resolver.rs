@@ -15,8 +15,8 @@
  *
 **/
 use crate::{
-    mailprocessing::mail_receiver::State, model::mail::MailContext, server_config::ServerConfig,
-    smtp::code::SMTPReplyCode,
+    config::server_config::ServerConfig, mailprocessing::mail_receiver::State,
+    model::mail::MailContext, smtp::code::SMTPReplyCode,
 };
 
 #[async_trait::async_trait]
