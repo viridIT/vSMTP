@@ -4,7 +4,7 @@ use libfuzzer_sys::fuzz_target;
 use std::{collections::HashMap};
 use log::LevelFilter;
 
-use v_smtp::{
+use vsmtp::{
     mailprocessing::mail_receiver::{MailReceiver, State},
     model::mail::MailContext,
     resolver::DataEndResolver,

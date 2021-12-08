@@ -3,7 +3,7 @@ mod tests {
     use std::{collections::HashMap, io::Write};
 
     use log::LevelFilter;
-    use v_smtp::{
+    use vsmtp::{
         config::server_config::{
             InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
             InnerTlsConfig, ServerConfig, TlsSecurityLevel,

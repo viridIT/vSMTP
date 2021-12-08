@@ -14,10 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use v_smtp::config::server_config::ServerConfig;
-use v_smtp::resolver::ResolverWriteDisk;
-use v_smtp::rules::rule_engine;
-use v_smtp::server::ServerVSMTP;
+use vsmtp::config::server_config::ServerConfig;
+use vsmtp::resolver::ResolverWriteDisk;
+use vsmtp::rules::rule_engine;
+use vsmtp::server::ServerVSMTP;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ResolverWriteDisk::init_spool_folder(&config.smtp.spool_dir)?;
     let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config))?;
 
-    rule_engine::init();
+    rule_engine::init("./config/rules");
 
     log::warn!("Listening on: {:?}", server.addr());
     server.listen_and_serve().await
