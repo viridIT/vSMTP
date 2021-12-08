@@ -1,38 +1,70 @@
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use std::{collections::HashMap, io::Write};
 
+    use log::LevelFilter;
     use vsmtp::{
         mailprocessing::mail_receiver::{MailReceiver, State},
         model::mail::MailContext,
         resolver::DataEndResolver,
-        server::TlsSecurityLevel,
+        server_config::{
+            InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
+            InnerTlsConfig, ServerConfig, TlsSecurityLevel,
+        },
         smtp::code::SMTPReplyCode,
         tests::Mock,
     };
 
     // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
-    struct DataEndResolverTest;
+    struct ResolverTest;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for DataEndResolverTest {
-        async fn on_data_end(_: &MailContext) -> (State, SMTPReplyCode) {
+    impl DataEndResolver for ResolverTest {
+        async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (State, SMTPReplyCode) {
             // after a successful exchange, the server is ready for a new RCPT
             (State::MailFrom, SMTPReplyCode::Code250)
+        }
+    }
+
+    fn get_test_config() -> ServerConfig {
+        ServerConfig {
+            domain: "{domain}".to_string(),
+            version: "1.0.0".to_string(),
+            server: InnerServerConfig { addr: vec![] },
+            log: InnerLogConfig {
+                file: "./tests/generated/output.log".to_string(),
+                level: HashMap::<String, LevelFilter>::new(),
+            },
+            tls: InnerTlsConfig {
+                security_level: TlsSecurityLevel::None,
+                capath: "".to_string(),
+                preempt_cipherlist: true,
+                handshake_timeout: std::time::Duration::from_millis(10_000),
+                sni_maps: vec![],
+            },
+            smtp: InnerSMTPConfig {
+                spool_dir: "./tests/generated/spool/".to_string(),
+                timeout_client: HashMap::<String, String>::new(),
+                error: InnerSMTPErrorConfig {
+                    soft_count: 5,
+                    hard_count: 10,
+                    delay: std::time::Duration::from_millis(100),
+                },
+            },
         }
     }
 
     async fn make_test(
         smtp_input: &[u8],
         expected_output: &[u8],
-        level: TlsSecurityLevel,
+        config: ServerConfig,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     ) -> Result<(), std::io::Error> {
-        let mut receiver = MailReceiver::<DataEndResolverTest>::new(
+        let mut receiver = MailReceiver::<ResolverTest>::new(
             "0.0.0.0:0".parse().unwrap(),
             tls_config,
-            level,
+            std::sync::Arc::new(config),
         );
         let mut write = Vec::new();
         let mock = Mock::new(smtp_input.to_vec(), &mut write);
@@ -64,7 +96,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
@@ -74,7 +106,13 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::None,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::None,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -86,12 +124,18 @@ mod tests {
         assert!(make_test(
             ["foo\r\n"].concat().as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::None,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::None,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -103,12 +147,18 @@ mod tests {
         assert!(make_test(
             ["MAIL FROM:<jhon@doe>\r\n"].concat().as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::None,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::None,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -120,12 +170,18 @@ mod tests {
         assert!(make_test(
             ["RCPT TO:<jhon@doe>\r\n"].concat().as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::None,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::None,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -139,13 +195,19 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "250 Ok\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::None,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::None,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -157,13 +219,19 @@ mod tests {
         assert!(make_test(
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "250 Ok\r\n",
                 "221 Service closing transmission channel\r\n",
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::None,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::None,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -177,15 +245,21 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
-                "250-testserver.com\r\n",
+                "220 {domain} Service ready\r\n",
+                "250-{domain}\r\n",
                 "250 STARTTLS\r\n",
                 "454 TLS not available due to temporary reason\r\n",
                 "221 Service closing transmission channel\r\n",
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::Encrypt,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::Encrypt,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -199,15 +273,21 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
-                "250-testserver.com\r\n",
+                "220 {domain} Service ready\r\n",
+                "250-{domain}\r\n",
                 "250 STARTTLS\r\n",
                 "530 Must issue a STARTTLS command first\r\n",
                 "221 Service closing transmission channel\r\n",
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::Encrypt,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::Encrypt,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -235,7 +315,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "503 Bad sequence of commands\r\n",
                 "503 Bad sequence of commands\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
@@ -246,7 +326,13 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::None,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::None,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await;
@@ -262,12 +348,18 @@ mod tests {
         assert!(make_test(
             ["HELP\r\n"].concat().as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "214 joining us https://viridit.com/support\r\n",
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::Encrypt,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::Encrypt,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await
@@ -289,7 +381,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 testserver.com Service ready\r\n",
+                "220 {domain} Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
@@ -300,7 +392,13 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
-            TlsSecurityLevel::None,
+            ServerConfig {
+                tls: InnerTlsConfig {
+                    security_level: TlsSecurityLevel::None,
+                    ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
             None,
         )
         .await

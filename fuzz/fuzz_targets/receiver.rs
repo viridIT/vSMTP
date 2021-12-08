@@ -1,20 +1,54 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
+use std::{collections::HashMap};
+use log::LevelFilter;
+
 use vsmtp::{
     mailprocessing::mail_receiver::{MailReceiver, State},
     model::mail::MailContext,
     resolver::DataEndResolver,
-    server::TlsSecurityLevel,
     smtp::code::SMTPReplyCode,
     tests::Mock,
+    server_config::{
+        InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
+        InnerTlsConfig, ServerConfig, TlsSecurityLevel,
+    },
 };
 
 struct DataEndResolverTest;
 #[async_trait::async_trait]
 impl DataEndResolver for DataEndResolverTest {
-    async fn on_data_end(_: &MailContext) -> (State, SMTPReplyCode) {
-        (State::Helo, SMTPReplyCode::Code250)
+    async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (State, SMTPReplyCode) {
+        (State::MailFrom, SMTPReplyCode::Code250)
+    }
+}
+
+fn get_test_config() -> ServerConfig {
+    ServerConfig {
+        domain: "{domain}".to_string(),
+        version: "1.0.0".to_string(),
+        server: InnerServerConfig { addr: vec![] },
+        log: InnerLogConfig {
+            file: "./tests/generated/output.log".to_string(),
+            level: HashMap::<String, LevelFilter>::new(),
+        },
+        tls: InnerTlsConfig {
+            security_level: TlsSecurityLevel::None,
+            capath: "".to_string(),
+            preempt_cipherlist: true,
+            handshake_timeout: std::time::Duration::from_millis(10_000),
+            sni_maps: vec![],
+        },
+        smtp: InnerSMTPConfig {
+            spool_dir: "./tests/generated/spool/".to_string(),
+            timeout_client: HashMap::<String, String>::new(),
+            error: InnerSMTPErrorConfig {
+                soft_count: -1,
+                hard_count: 10,
+                delay: std::time::Duration::from_millis(0),
+            },
+        },
     }
 }
 
@@ -24,7 +58,7 @@ fuzz_target!(|data: &[u8]| {
     let mut receiver = MailReceiver::<DataEndResolverTest>::new(
         "0.0.0.0:0".parse().unwrap(),
         None,
-        TlsSecurityLevel::May,
+        std::sync::Arc::new(get_test_config()),
     );
     let future = receiver.receive_plain(&mut mock);
 

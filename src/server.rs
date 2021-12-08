@@ -16,6 +16,7 @@
 **/
 use crate::mailprocessing::mail_receiver::MailReceiver;
 use crate::resolver::DataEndResolver;
+use crate::server_config::TlsSecurityLevel;
 
 pub struct ServerVSMTP<R>
 where
@@ -23,71 +24,89 @@ where
 {
     listeners: Vec<std::net::TcpListener>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    tls_security_level: TlsSecurityLevel,
+    config: std::sync::Arc<crate::server_config::ServerConfig>,
     _phantom: std::marker::PhantomData<R>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TlsSecurityLevel {
-    None,
-    May,
-    Encrypt,
-}
-
-impl std::str::FromStr for TlsSecurityLevel {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "none" => Ok(TlsSecurityLevel::None),
-            "may" => Ok(TlsSecurityLevel::May),
-            "encrypt" => Ok(TlsSecurityLevel::Encrypt),
-            _ => Err("not a valid value"),
-        }
-    }
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct SniKey {
-    domain: String,
-    cert: String,
-    chain: String,
 }
 
 impl<R> ServerVSMTP<R>
 where
     R: DataEndResolver + std::marker::Send,
 {
-    pub fn new<A>(addrs: Vec<A>) -> Result<Self, Box<dyn std::error::Error>>
-    where
-        A: std::net::ToSocketAddrs,
-    {
-        let (tls_config, tls_security_level) =
-            match crate::config::get::<String>("tls.security_level")
-                .as_ref()
-                .map(|c| {
-                    <TlsSecurityLevel as std::str::FromStr>::from_str(c)
-                        .expect("tls.security_level is not valid")
-                })
-                .unwrap_or(TlsSecurityLevel::None)
-            {
-                TlsSecurityLevel::None => (None, TlsSecurityLevel::None),
-                level => (Some(Self::get_tls_config()), level),
-            };
+    pub fn new(
+        config: std::sync::Arc<crate::server_config::ServerConfig>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        log4rs::init_config(Self::get_logger_config(&config)?)?;
 
         Ok(Self {
-            listeners: addrs
-                .into_iter()
+            listeners: config
+                .server
+                .addr
+                .iter()
                 .filter_map(|addr| std::net::TcpListener::bind(addr).ok())
                 .map(|listener| {
                     listener.set_nonblocking(true).unwrap();
                     listener
                 })
                 .collect::<Vec<_>>(),
-            tls_config,
-            tls_security_level,
+            tls_config: if config.tls.security_level == TlsSecurityLevel::None {
+                None
+            } else {
+                Some(Self::get_rustls_config(&config))
+            },
+            config,
             _phantom: std::marker::PhantomData,
         })
+    }
+
+    fn get_logger_config(
+        config: &crate::server_config::ServerConfig,
+    ) -> Result<log4rs::Config, log4rs::config::runtime::ConfigErrors> {
+        use log4rs::*;
+
+        let stdout = append::console::ConsoleAppender::builder()
+            .encoder(Box::new(encode::pattern::PatternEncoder::new(
+                "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
+            )))
+            .build();
+
+        let requests = append::file::FileAppender::builder()
+            .encoder(Box::new(encode::pattern::PatternEncoder::new(
+                "{d} - {m}{n}",
+            )))
+            .build(
+                config.log.file.clone(), // .unwrap_or_else(|_| "vsmtp.log".to_string()),
+            )
+            .unwrap();
+
+        let default_level = config
+            .log
+            .level
+            .get("default")
+            .unwrap_or(&log::LevelFilter::Warn);
+
+        Config::builder()
+            .appender(config::Appender::builder().build("stdout", Box::new(stdout)))
+            .appender(config::Appender::builder().build("requests", Box::new(requests)))
+            .logger(config::Logger::builder().build(
+                "rule_engine",
+                *config.log.level.get("rule_engine").unwrap_or(default_level),
+            ))
+            .logger(
+                config::Logger::builder().build(
+                    "mail_receiver",
+                    *config
+                        .log
+                        .level
+                        .get("mail_receiver")
+                        .unwrap_or(default_level),
+                ),
+            )
+            .build(
+                config::Root::builder()
+                    .appender("stdout")
+                    .appender("requests")
+                    .build(*default_level),
+            )
     }
 
     fn get_cert_from_file(cert_path: &str) -> Result<Vec<rustls::Certificate>, std::io::Error> {
@@ -129,15 +148,17 @@ where
         }
     }
 
-    fn get_tls_config() -> std::sync::Arc<rustls::ServerConfig> {
-        let capath =
-            &crate::config::get::<String>("tls.capath").unwrap_or_else(|_| "./certs".to_string());
+    fn get_rustls_config(
+        config: &crate::server_config::ServerConfig,
+    ) -> std::sync::Arc<rustls::ServerConfig> {
+        let capath = config.tls.capath.as_ref(); // .unwrap_or_else(|_| "./certs".to_string());
 
         let mut tls_sni_resolver = rustls::server::ResolvesServerCertUsingSni::new();
 
-        crate::config::get::<Vec<SniKey>>("tls.sni_maps")
-            .unwrap_or_default()
-            .into_iter()
+        config
+            .tls
+            .sni_maps
+            .iter()
             .filter_map(|sni| {
                 Some((
                     sni.domain.clone(),
@@ -172,7 +193,7 @@ where
             })
             .for_each(|(domain, ck)| tls_sni_resolver.add(&domain, ck).unwrap());
 
-        let mut config = rustls::ServerConfig::builder()
+        let mut out = rustls::ServerConfig::builder()
             .with_cipher_suites(rustls::ALL_CIPHER_SUITES)
             .with_kx_groups(&rustls::ALL_KX_GROUPS)
             .with_protocol_versions(rustls::ALL_VERSIONS)
@@ -180,10 +201,9 @@ where
             .with_client_cert_verifier(rustls::server::NoClientAuth::new())
             .with_cert_resolver(std::sync::Arc::new(tls_sni_resolver));
 
-        config.ignore_client_order =
-            crate::config::get::<bool>("tls.preempt_cipherlist").unwrap_or(false);
+        out.ignore_client_order = config.tls.preempt_cipherlist; //.unwrap_or(false);
 
-        std::sync::Arc::new(config)
+        std::sync::Arc::new(out)
     }
 
     pub fn addr(&self) -> Vec<std::io::Result<std::net::SocketAddr>> {
@@ -200,20 +220,30 @@ where
     ) -> Result<(), std::io::Error> {
         log::warn!("Connection from: {}", client_addr);
         let tls_config = self.tls_config.as_ref().map(std::sync::Arc::clone);
-        let tls_security_level = self.tls_security_level.clone();
+        let config = self.config.clone();
 
         stream.set_nonblocking(true)?;
 
         tokio::spawn(async move {
+            let begin = std::time::SystemTime::now();
             log::warn!("Handling client: {}", client_addr);
 
-            match MailReceiver::<R>::new(client_addr, tls_config, tls_security_level)
+            match MailReceiver::<R>::new(client_addr, tls_config, config)
                 .receive_plain(stream)
                 .await
             {
-                Ok(_) => log::warn!("Connection {} closed cleanly", client_addr),
+                Ok(_) => log::warn!(
+                    "{{ elapsed: {:?} }} Connection {} closed cleanly",
+                    begin.elapsed(),
+                    client_addr,
+                ),
                 Err(e) => {
-                    log::error!("Connection {} closed with an error {}", client_addr, e)
+                    log::error!(
+                        "{{ elapsed: {:?} }} Connection {} closed with an error {}",
+                        begin.elapsed(),
+                        client_addr,
+                        e,
+                    )
                 }
             }
 

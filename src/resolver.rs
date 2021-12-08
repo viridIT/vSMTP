@@ -1,5 +1,3 @@
-use std::{path::PathBuf, str::FromStr};
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -16,46 +14,29 @@ use std::{path::PathBuf, str::FromStr};
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::smtp::code::SMTPReplyCode;
+use crate::{
+    mailprocessing::mail_receiver::State, model::mail::MailContext, server_config::ServerConfig,
+    smtp::code::SMTPReplyCode,
+};
 
 #[async_trait::async_trait]
 pub trait DataEndResolver {
-    async fn on_data_end(
-        mail: &crate::model::mail::MailContext,
-    ) -> (crate::mailprocessing::mail_receiver::State, SMTPReplyCode);
-}
-
-#[derive(Debug)]
-pub enum SpoolInitializationError {
-    ExistAndNotDir(String),
-}
-
-impl std::error::Error for SpoolInitializationError {}
-
-impl std::fmt::Display for SpoolInitializationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SpoolInitializationError::ExistAndNotDir(path) => {
-                write!(f, "path is not a directory: {}", path)
-            }
-        }
-    }
+    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode);
 }
 
 pub struct ResolverWriteDisk;
 impl ResolverWriteDisk {
-    pub fn init_spool_folder(
-        path: &str,
-    ) -> Result<std::path::PathBuf, Box<(dyn std::error::Error + 'static)>> {
-        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path)?;
+    pub fn init_spool_folder(path: &str) -> Result<std::path::PathBuf, std::io::Error> {
+        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
         if filepath.exists() {
             if filepath.is_dir() {
                 log::debug!(target: "mail_receiver", "vmta's mail spool is already initialized.");
                 Ok(filepath)
             } else {
-                Err(Box::new(SpoolInitializationError::ExistAndNotDir(
-                    path.to_string(),
-                )))
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::AlreadyExists,
+                    "path specified is not a folder",
+                ))
             }
         } else {
             std::fs::create_dir_all(&filepath)?;
@@ -64,12 +45,14 @@ impl ResolverWriteDisk {
         }
     }
 
-    fn write_email_to_rcpt_inbox(rcpt: &str, content: &str) -> std::io::Result<()> {
-        let folder = format!(
-            "{}/inbox",
-            crate::config::get::<String>("paths.spool_dir")
-                .unwrap_or_else(|_| crate::config::DEFAULT_SPOOL_PATH.to_string()),
-        );
+    /// write to ${spool_dir}/inbox/${rcpt}
+    /// the mail body sent by the client
+    fn write_email_to_rcpt_inbox(
+        spool_dir: &str,
+        rcpt: &str,
+        content: &str,
+    ) -> std::io::Result<()> {
+        let folder = format!("{}/inbox", spool_dir,);
         std::fs::create_dir_all(&folder).unwrap();
 
         let mut inbox = std::fs::OpenOptions::new()
@@ -86,31 +69,28 @@ impl ResolverWriteDisk {
         Ok(())
     }
 
-    fn write_mail_to_process(mail: &crate::model::mail::MailContext) -> std::io::Result<()> {
-        let mut path = PathBuf::from_str(
-            &crate::config::get::<String>("paths.spool_dir")
-                .unwrap_or_else(|_| crate::config::DEFAULT_SPOOL_PATH.to_string()),
-        )
-        .unwrap();
-
-        path.set_file_name("to_process");
-        std::fs::create_dir_all(&path)?;
-
-        path.set_file_name(format!(
-            "{}_{:?}",
-            mail.timestamp
-                .unwrap()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis(),
-            std::thread::current().id()
-        ));
-        path.set_extension("json");
+    /// write to ${spool_dir}/to_process/${timestamp}_${thread_id}.json
+    /// the mail context in a serialized json format
+    fn write_mail_to_process(
+        spool_dir: &str,
+        mail: &crate::model::mail::MailContext,
+    ) -> std::io::Result<()> {
+        let folder = format!("{}/to_process", spool_dir);
+        std::fs::create_dir_all(&folder)?;
 
         let mut to_process = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open(path)?;
+            .open(format!(
+                "{}/{}_{:?}.json",
+                folder,
+                mail.timestamp
+                    .unwrap()
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+                std::thread::current().id()
+            ))?;
 
         std::io::Write::write_all(&mut to_process, serde_json::to_string(&mail)?.as_bytes())
     }
@@ -118,24 +98,20 @@ impl ResolverWriteDisk {
 
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
-    async fn on_data_end(
-        mail: &crate::model::mail::MailContext,
-    ) -> (crate::mailprocessing::mail_receiver::State, SMTPReplyCode) {
-        Self::write_mail_to_process(mail).unwrap();
+    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
+        Self::write_mail_to_process(&config.smtp.spool_dir, mail).unwrap();
 
-        log::trace!(target: "mail_receiver", "mail: {:#?}", mail.envelop);
+        log::trace!(target: "queuer", "mail: {:#?}", mail.envelop);
 
         for rcpt in mail.envelop.get_rcpt_usernames() {
-            log::debug!(target: "mail_receiver", "writing email to {}'s inbox.", rcpt);
+            log::debug!(target: "queuer", "writing email to {}'s inbox.", rcpt);
 
-            // TODO: parse each recipient name.
-            if let Err(e) = Self::write_email_to_rcpt_inbox(rcpt, &mail.body) {
-                log::error!(target: "mail_receiver","Couldn't write email to inbox: {:?}", e);
+            if let Err(e) =
+                Self::write_email_to_rcpt_inbox(&config.smtp.spool_dir, rcpt, &mail.body)
+            {
+                log::error!(target: "queuer", "Couldn't write email to inbox: {:?}", e);
             };
         }
-        (
-            crate::mailprocessing::mail_receiver::State::MailFrom,
-            SMTPReplyCode::Code250,
-        )
+        (State::MailFrom, SMTPReplyCode::Code250)
     }
 }
