@@ -14,10 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use v_smtp::config;
-use v_smtp::resolver::ResolverWriteDisk;
-use v_smtp::rules::rule_engine;
-use v_smtp::server::ServerVSMTP;
+use vsmtp::config;
+use vsmtp::resolver::ResolverWriteDisk;
+use vsmtp::rules::rule_engine;
+use vsmtp::server::ServerVSMTP;
 
 fn get_log_config() -> Result<log4rs::Config, log4rs::config::runtime::ConfigErrors> {
     use log4rs::*;

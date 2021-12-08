@@ -75,7 +75,7 @@ impl Event {
     /// Just Errors
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd(""), Err(SMTPReplyCode::Code500));
     /// assert_eq!(Event::parse_cmd("💖 갇강개객거건걸검겁겨게격견결"), Err(SMTPReplyCode::Code500));
@@ -88,7 +88,7 @@ impl Event {
     /// Helo Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("HELO foobar"), Ok(Event::HeloCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("hElO   ibm.com  "), Ok(Event::HeloCmd("ibm.com".to_string())));
@@ -101,7 +101,7 @@ impl Event {
     /// Ehlo Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("EHLO foobar"), Ok(Event::EhloCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("EHLO   ibm.com  "), Ok(Event::EhloCmd("ibm.com".to_string())));
@@ -122,7 +122,7 @@ impl Event {
     /// Mail from Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(
     ///     Event::parse_cmd("Mail FROM:<valid@reverse.path.com>"),
@@ -149,7 +149,7 @@ impl Event {
     /// Rcpt to Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// // TODO: RCPT TO:<@hosta.int,@jkl.org:userc@d.bar.org>
     ///
@@ -178,7 +178,7 @@ impl Event {
     /// Data Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("DATA"), Ok(Event::DataCmd));
     /// assert_eq!(Event::parse_cmd("dAtA"), Ok(Event::DataCmd));
@@ -188,7 +188,7 @@ impl Event {
     /// Quit Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("QuIt"), Ok(Event::QuitCmd));
     /// assert_eq!(Event::parse_cmd("quit"), Ok(Event::QuitCmd));
@@ -198,7 +198,7 @@ impl Event {
     /// Reset Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("rset"), Ok(Event::RsetCmd));
     /// assert_eq!(Event::parse_cmd("RsEt"), Ok(Event::RsetCmd));
@@ -208,7 +208,7 @@ impl Event {
     /// Noop Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("Noop"), Ok(Event::NoopCmd));
     /// assert_eq!(Event::parse_cmd("NOOP"), Ok(Event::NoopCmd));
@@ -219,7 +219,7 @@ impl Event {
     /// Verify Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("VrFy foobar"), Ok(Event::VrfyCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("VRFY"), Err(SMTPReplyCode::Code501));
@@ -230,7 +230,7 @@ impl Event {
     /// Expand Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("EXPN foobar"), Ok(Event::ExpnCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("eXpN"), Err(SMTPReplyCode::Code501));
@@ -241,7 +241,7 @@ impl Event {
     /// Help Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("HELP foobar"), Ok(Event::HelpCmd(Some("foobar".to_string()))));
     /// assert_eq!(Event::parse_cmd("help"), Ok(Event::HelpCmd(None)));
@@ -252,7 +252,7 @@ impl Event {
     /// Start tls Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("StarTtLs"), Ok(Event::StartTls));
     /// assert_eq!(Event::parse_cmd("STARTTLS"), Ok(Event::StartTls));
@@ -423,13 +423,13 @@ impl Event {
     /// Data Command
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_data("."), Ok(Event::DataEnd));
     /// ```
     ///
     /// ```
-    /// use v_smtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_data(""), Ok(Event::DataLine("".to_string())));
     /// assert_eq!(Event::parse_data("foobar helo"), Ok(Event::DataLine("foobar helo".to_string())));

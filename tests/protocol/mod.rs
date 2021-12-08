@@ -2,7 +2,7 @@
 mod tests {
     use std::io::Write;
 
-    use v_smtp::{
+    use vsmtp::{
         mailprocessing::mail_receiver::{MailReceiver, State},
         model::mail::MailContext,
         resolver::DataEndResolver,
