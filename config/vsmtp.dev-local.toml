@@ -4,7 +4,7 @@ version = "0.1.0"
 domain = "testserver.com"
 
 [server]
-addr = ["0.0.0.0:10025", "0.0.0.0:22", "0.2.3.0:22"]
+addr = "0.0.0.0:10025"
 
 [log]
 file = "./tmp/var/log/vsmtp/vsmtp.log"

@@ -14,6 +14,7 @@ async-trait = "0.1.51"
 tokio = { version = "1.12.0", features = ["full"] }
 users = "0.11"
 log = "0.4.14"
+toml = "0.5.8"
 
 [dependencies.vsmtp]
 path = ".."
@@ -31,5 +32,11 @@ doc = false
 [[bin]]
 name = "rules"
 path = "fuzz_targets/rules.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "server_config"
+path = "fuzz_targets/server_config.rs"
 test = false
 doc = false

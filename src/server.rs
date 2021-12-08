@@ -39,13 +39,8 @@ where
     ) -> Result<Self, Box<dyn std::error::Error>> {
         log4rs::init_config(Self::get_logger_config(&config)?)?;
 
-        // let mut listeners = vec![];
-        // for addr in &config.server.addr {
-        //     listeners.push(tokio::net::TcpListener::bind(addr).await?);
-        // }
-
         Ok(Self {
-            listener: tokio::net::TcpListener::bind(&config.server.addr.first().unwrap()).await?,
+            listener: tokio::net::TcpListener::bind(&config.server.addr).await?,
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {
                 None
             } else {
@@ -199,17 +194,8 @@ where
         std::sync::Arc::new(out)
     }
 
-    pub fn addr(&self) -> Vec<std::net::SocketAddr> {
-        match self.listener.local_addr() {
-            Ok(i) => vec![i],
-            Err(_) => vec![],
-        }
-        /*
-        self.listeners
-            .iter()
-            .filter_map(|i| i.local_addr().ok())
-            .collect::<Vec<_>>()
-        */
+    pub fn addr(&self) -> std::result::Result<std::net::SocketAddr, std::io::Error> {
+        self.listener.local_addr()
     }
 
     fn handle_client(
@@ -259,22 +245,5 @@ where
                 Err(e) => log::error!("Error accepting socket; error = {:?}", e),
             }
         }
-
-        /*
-        loop {
-            for i in &self.listeners {
-                match i.accept() {
-                    Ok((stream, addr)) => {
-                        let _ = self.handle_client(stream, addr);
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
-                    Err(e) => {
-                        log::error!("Error accepting socket; error = {:?}", e);
-                        // TODO: pop listener ?
-                    }
-                }
-            }
-        }
-        */
     }
 }
