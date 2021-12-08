@@ -7,12 +7,16 @@ mod test {
         rule_engine::{RhaiEngine, Status, DEFAULT_SCOPE},
     };
     use lazy_static::lazy_static;
+    use users::mock::MockUsers;
 
     // internals tests.
 
     lazy_static! {
-        static ref TEST_ENGINE: RhaiEngine = {
-            match RhaiEngine::from_bytes(include_bytes!("configs/objects-parsing.vsl")) {
+        static ref TEST_ENGINE: RhaiEngine<MockUsers> = {
+            match RhaiEngine::<MockUsers>::new(
+                include_bytes!("configs/objects-parsing.vsl"),
+                MockUsers::with_current_uid(1000),
+            ) {
                 Ok(engine) => {
                     engine
                         .context

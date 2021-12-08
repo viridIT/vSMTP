@@ -23,6 +23,7 @@ use crate::rules::operation_queue::{Operation, OperationQueue};
 use lazy_static::lazy_static;
 use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};
+use users::mock::MockUsers;
 use users::{Users, UsersCache};
 
 use std::net::IpAddr;
@@ -222,11 +223,13 @@ impl<'a> RuleEngine<'a> {
 }
 
 /// a sharable rhai engine.
-/// contains an ast representing the user's parsed .vsl script files,
-/// and objects parsed from rhai's context to rust's, this way,
+/// contains an ast representation of the user's parsed .vsl script files
+/// and objects parsed from rhai's context to rust's. This way,
 /// they can be used directly into rust functions, and the engine
 /// doesn't need to evaluate them each call.
-pub(crate) struct RhaiEngine {
+/// the engine also stores a user cache that is used to fetch
+/// data about system users.
+pub struct RhaiEngine<U: Users> {
     /// rhai's engine structure.
     pub(super) context: Engine,
     /// the ast, built from the user's .vsl files.
@@ -241,12 +244,12 @@ pub(crate) struct RhaiEngine {
 
     /// system user cache, used for retreiving user information. (used in vsl.USER_EXISTS for example)
     /// TODO: add configuration to refresh the cache every x hour/minute/seconds.
-    pub(super) users: Mutex<UsersCache>,
+    pub(super) users: Mutex<U>,
 }
 
-impl RhaiEngine {
+impl<U: Users> RhaiEngine<U> {
     /// create an engine from a script encoded in raw bytes.
-    pub(crate) fn from_bytes(src: &[u8]) -> Result<Self, Box<dyn Error>> {
+    fn from_bytes(src: &[u8], users: U) -> Result<Self, Box<dyn Error>> {
         let mut engine = Engine::new();
         let objects = Arc::new(RwLock::new(BTreeMap::new()));
         let shared_obj = objects.clone();
@@ -504,10 +507,12 @@ impl RhaiEngine {
             context: engine,
             ast,
             objects,
-            users: Mutex::new(UsersCache::new()),
+            users: Mutex::new(users),
         })
     }
+}
 
+impl RhaiEngine<UsersCache> {
     /// creates a new instance of the rule engine, reading all files in
     /// paths.rules_dir configuration variable.
     fn new() -> Result<Self, Box<dyn Error>> {
@@ -531,7 +536,19 @@ impl RhaiEngine {
             Ok(buffer)
         }
 
-        RhaiEngine::from_bytes(load_sources(src_path)?.concat().as_bytes())
+        let cache = UsersCache::default();
+
+        RhaiEngine::from_bytes(load_sources(src_path)?.concat().as_bytes(), cache)
+    }
+}
+
+impl RhaiEngine<MockUsers> {
+    /// creates a new instance of the rule engine, used for tests.
+    /// allow unused is () becuase this new static method is
+    /// for tests only.
+    #[allow(unused)]
+    pub fn new(src: &[u8], users: MockUsers) -> Result<Self, Box<dyn Error>> {
+        RhaiEngine::from_bytes(src, users)
     }
 }
 
@@ -541,8 +558,8 @@ lazy_static! {
     /// the rhai engine static that gets initialized once.
     /// it is used internally to evaluate user's scripts with a scope
     /// different for each connection.
-    pub(super) static ref RHAI_ENGINE: RhaiEngine = {
-        match RhaiEngine::new() {
+    pub(super) static ref RHAI_ENGINE: RhaiEngine<UsersCache> = {
+        match RhaiEngine::<UsersCache>::new() {
             Ok(engine) => engine,
             Err(error) => {
                 log::error!("could not initialize the rule engine: {}", error);

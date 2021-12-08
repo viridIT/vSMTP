@@ -12,8 +12,9 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 async-trait = "0.1.51"
 tokio = { version = "1.12.0", features = ["full"] }
+users = "0.11"
 
-[dependencies.v-smtp]
+[dependencies.vsmtp]
 path = ".."
 
 # Prevent this from interfering with workspaces
