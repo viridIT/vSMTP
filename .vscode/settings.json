@@ -3,6 +3,7 @@
         "alpn",
         "appender",
         "capath",
+        "chrono",
         "cipherlist",
         "clamav",
         "ehlo",
@@ -13,6 +14,7 @@
         "humantime",
         "maildir",
         "nonblocking",
+        "pemfile",
         "preq",
         "rcpts",
         "rhai",
@@ -21,6 +23,7 @@
         "rustls",
         "STARTTLS",
         "viridit",
+        "vmta",
         "Vrfy",
         "VSMTP"
     ],

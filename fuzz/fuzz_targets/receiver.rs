@@ -10,7 +10,7 @@ use v_smtp::{
     resolver::DataEndResolver,
     smtp::code::SMTPReplyCode,
     tests::Mock,
-    server_config::{
+    config::server_config::{
         InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
         InnerTlsConfig, ServerConfig, TlsSecurityLevel,
     },
@@ -35,10 +35,10 @@ fn get_test_config() -> ServerConfig {
         },
         tls: InnerTlsConfig {
             security_level: TlsSecurityLevel::None,
-            capath: "".to_string(),
+            capath: None,
             preempt_cipherlist: true,
             handshake_timeout: std::time::Duration::from_millis(10_000),
-            sni_maps: vec![],
+            sni_maps: None,
         },
         smtp: InnerSMTPConfig {
             spool_dir: "./tests/generated/spool/".to_string(),

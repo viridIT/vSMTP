@@ -26,11 +26,11 @@ pub struct SniKey {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct InnerTlsConfig {
     pub security_level: TlsSecurityLevel,
-    pub capath: String,
+    pub capath: Option<String>,
     pub preempt_cipherlist: bool,
     #[serde(with = "humantime_serde")]
     pub handshake_timeout: std::time::Duration,
-    pub sni_maps: Vec<SniKey>,
+    pub sni_maps: Option<Vec<SniKey>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
