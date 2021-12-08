@@ -7,7 +7,7 @@ domain = "testserver.com"
 addr = ["0.0.0.0:10025"]
 
 [log]
-file = "./var/log/vsmtp/vsmtp.log"
+file = "/var/log/vsmtp/vsmtp.log"
 
 [log.level]
 default = "warn"

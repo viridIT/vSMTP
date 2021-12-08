@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?)?;
 
     ResolverWriteDisk::init_spool_folder(&config.smtp.spool_dir)?;
-    let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config))?;
+    let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config)).await?;
 
     rule_engine::init("./config/rules");
 

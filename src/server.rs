@@ -23,7 +23,8 @@ pub struct ServerVSMTP<R>
 where
     R: DataEndResolver,
 {
-    listeners: Vec<std::net::TcpListener>,
+    // listeners: Vec<tokio::net::TcpListener>,
+    listener: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     config: std::sync::Arc<ServerConfig>,
     _phantom: std::marker::PhantomData<R>,
@@ -33,20 +34,18 @@ impl<R> ServerVSMTP<R>
 where
     R: DataEndResolver + std::marker::Send,
 {
-    pub fn new(config: std::sync::Arc<ServerConfig>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(
+        config: std::sync::Arc<ServerConfig>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         log4rs::init_config(Self::get_logger_config(&config)?)?;
 
+        // let mut listeners = vec![];
+        // for addr in &config.server.addr {
+        //     listeners.push(tokio::net::TcpListener::bind(addr).await?);
+        // }
+
         Ok(Self {
-            listeners: config
-                .server
-                .addr
-                .iter()
-                .filter_map(|addr| std::net::TcpListener::bind(addr).ok())
-                .filter_map(|listener| {
-                    listener.set_nonblocking(true).ok()?;
-                    Some(listener)
-                })
-                .collect::<Vec<_>>(),
+            listener: tokio::net::TcpListener::bind(&config.server.addr.first().unwrap()).await?,
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {
                 None
             } else {
@@ -201,10 +200,16 @@ where
     }
 
     pub fn addr(&self) -> Vec<std::net::SocketAddr> {
+        match self.listener.local_addr() {
+            Ok(i) => vec![i],
+            Err(_) => vec![],
+        }
+        /*
         self.listeners
             .iter()
-            .filter_map(|i| std::net::TcpListener::local_addr(i).ok())
+            .filter_map(|i| i.local_addr().ok())
             .collect::<Vec<_>>()
+        */
     }
 
     fn handle_client(
@@ -249,6 +254,14 @@ where
 
     pub async fn listen_and_serve(&self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
+            match self.listener.accept().await {
+                Ok((stream, client_addr)) => self.handle_client(stream.into_std()?, client_addr)?,
+                Err(e) => log::error!("Error accepting socket; error = {:?}", e),
+            }
+        }
+
+        /*
+        loop {
             for i in &self.listeners {
                 match i.accept() {
                     Ok((stream, addr)) => {
@@ -262,5 +275,6 @@ where
                 }
             }
         }
+        */
     }
 }
