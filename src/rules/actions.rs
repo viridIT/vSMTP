@@ -296,7 +296,7 @@ pub(super) mod vsl {
             _ => {
                 println!("ERROR, OBJECT NOT FOUND");
                 internal_user_exists(&Object::Var(object.to_string()))
-            },
+            }
         }
     }
 }
