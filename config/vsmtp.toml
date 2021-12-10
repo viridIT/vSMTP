@@ -1,13 +1,13 @@
 ### See vsmtp.default.toml documentation for this file format
 
 version = "0.1.0"
-domain = "testserver.com"
+domain = "mydomain.com"
 
 [server]
-addr = ["0.0.0.0:10025"]
+addr = ["127.0.0.1:25"]
 
 [log]
-file = "./var/log/vsmtp/vsmtp.log"
+file = "/var/log/vsmtp/vsmtp.log"
 
 [log.level]
 default = "warn"
