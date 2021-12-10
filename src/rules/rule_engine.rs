@@ -82,7 +82,7 @@ impl<'a> RuleEngine<'a> {
             .push("msg_id", "")
             .push("connection_timestamp", std::time::SystemTime::now())
             .push("mail_timestamp", None::<std::time::SystemTime>)
-            .push("addr", config.server.addr.clone())
+            .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
             .push("spool_dir", config.smtp.spool_dir.clone());
 
