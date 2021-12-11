@@ -19,6 +19,9 @@ receiver = "info"
 ## TODO: replace for smtp.quarantine_path
 # quarantine_dir = "./tmp/quarantine"
 
+[rules]
+dir = "/etc/vsmtp/rules"
+
 [tls]
 security_level = "May"
 capath = "/etc/vsmtp/certs"

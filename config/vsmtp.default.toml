@@ -17,10 +17,8 @@ file = "/etc/vsmtp/console.log"
 ### { key: [default/receiver/resolver/rules], value: [trace/debug/info/warn/error/off] }
 default = "warn"
 
-### TODO:
-## [paths]
-## rules_dir = "./config/rules"
-## quarantine_dir = "./tmp/quarantine"
+[rules]
+dir = "/etc/vsmtp/rules"
 
 [tls]
 ### Define the behaviour of the SSL/TLS connection, value can be:

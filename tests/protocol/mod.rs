@@ -5,8 +5,8 @@ mod tests {
     use log::LevelFilter;
     use vsmtp::{
         config::server_config::{
-            InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
-            InnerTlsConfig, ServerConfig, TlsSecurityLevel,
+            InnerLogConfig, InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig,
+            InnerServerConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel,
         },
         mailprocessing::mail_receiver::{MailReceiver, State},
         model::mail::MailContext,
@@ -51,6 +51,9 @@ mod tests {
                     hard_count: 10,
                     delay: std::time::Duration::from_millis(100),
                 },
+            },
+            rules: InnerRulesConfig {
+                dir: String::default(),
             },
         }
     }
