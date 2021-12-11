@@ -14,10 +14,8 @@ default = "warn"
 rules = "warn"
 receiver = "info"
 
-# [paths]
-# rules_dir = "./config/rules"
-## TODO: replace for smtp.quarantine_path
-# quarantine_dir = "./tmp/quarantine"
+[rules]
+dir = "./config/rules"
 
 [tls]
 security_level = "May"

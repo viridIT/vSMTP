@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get_matches();
 
     let config: ServerConfig = toml::from_str(
-        &std::fs::read_to_string(args.value_of("config").expect("clap provide default value"))
+        &std::fs::read_to_string(args.value_of("config").unwrap())
             .expect("Failed to get the default config"),
     )
     .expect("Failed to create toml config");
@@ -52,6 +52,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Failed to create the server");
 
+    log::warn!(
+        "Chosen configuration: {:?}",
+        args.value_of("config")
+            .expect("clap should provide default value")
+    );
     log::warn!("Listening on: {:?}", server.addr());
     server.listen_and_serve().await
 }
