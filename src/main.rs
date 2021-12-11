@@ -34,18 +34,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .get_matches();
 
-    let config: ServerConfig = toml::from_str(&std::fs::read_to_string(
-        args.value_of("config").expect("clap provide default value"),
-    )?)?;
+    let config: ServerConfig = toml::from_str(
+        &std::fs::read_to_string(args.value_of("config").expect("clap provide default value"))
+            .expect("Failed to get the default config"),
+    )
+    .expect("Failed to create toml config");
 
-    ResolverWriteDisk::init_spool_folder(&config.smtp.spool_dir)?;
+    ResolverWriteDisk::init_spool_folder(&config.smtp.spool_dir)
+        .expect("Failed to initialize the spool directory");
 
     // the leak is needed to pass from &'a str to &'static str
     // and initialise the rule engine's rule directory.
     let rules_dir = config.rules.dir.clone();
     rule_engine::init(Box::leak(rules_dir.into_boxed_str()));
 
-    let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config))?;
+    let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config))
+        .expect("Failed to create the server");
 
     log::warn!("Listening on: {:?}", server.addr());
     server.listen_and_serve().await

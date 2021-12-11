@@ -29,7 +29,8 @@ pub trait DataEndResolver {
 pub struct ResolverWriteDisk;
 impl ResolverWriteDisk {
     pub fn init_spool_folder(path: &str) -> Result<std::path::PathBuf, std::io::Error> {
-        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
+        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path)
+            .expect("Failed to initialize the spool folder");
         if filepath.exists() {
             if filepath.is_dir() {
                 log::debug!(
@@ -58,16 +59,15 @@ impl ResolverWriteDisk {
         content: &str,
     ) -> std::io::Result<()> {
         let folder = format!("{}/inbox", spool_dir,);
-        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::create_dir_all(&folder)?;
 
         let mut inbox = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             // NOTE: does Path struct path concatenation exists ?
-            .open(&format!("{}/{}", folder, rcpt))
-            .unwrap();
+            .open(&format!("{}/{}", folder, rcpt))?;
 
-        std::io::Write::write_all(&mut inbox, content.as_bytes()).unwrap();
+        std::io::Write::write_all(&mut inbox, content.as_bytes())?;
 
         log::debug!(
             target: RESOLVER,
@@ -109,17 +109,27 @@ impl ResolverWriteDisk {
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
     async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
-        Self::write_mail_to_process(&config.smtp.spool_dir, mail).unwrap();
+        if let Err(error) = Self::write_mail_to_process(&config.smtp.spool_dir, mail) {
+            log::error!(
+                target: RESOLVER,
+                "Couldn't write email to process: {:?}",
+                error
+            );
+        }
 
         log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
         for rcpt in mail.envelop.get_rcpt_usernames() {
             log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-            if let Err(e) =
+            if let Err(error) =
                 Self::write_email_to_rcpt_inbox(&config.smtp.spool_dir, rcpt, &mail.body)
             {
-                log::error!(target: RESOLVER, "Couldn't write email to inbox: {:?}", e);
+                log::error!(
+                    target: RESOLVER,
+                    "Couldn't write email to inbox: {:?}",
+                    error
+                );
             };
         }
         (State::MailFrom, SMTPReplyCode::Code250)

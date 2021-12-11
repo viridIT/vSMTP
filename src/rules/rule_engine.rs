@@ -173,7 +173,9 @@ impl<'a> RuleEngine<'a> {
         for op in self
             .scope
             .get_value::<OperationQueue>("__OPERATION_QUEUE")
-            .unwrap()
+            .ok_or_else::<rhai::EvalAltResult, _>(|| {
+                rhai::ParseErrorType::MissingSymbol("__OPERATION_QUEUE".to_string()).into()
+            })?
             .into_iter()
         {
             log::info!(target: RULES, "executing heavy operation: {:?}", op);
