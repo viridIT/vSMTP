@@ -49,6 +49,11 @@ pub struct InnerSMTPConfig {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct InnerRulesConfig {
+    pub dir: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ServerConfig {
     pub domain: String,
     pub version: String,
@@ -56,4 +61,5 @@ pub struct ServerConfig {
     pub log: InnerLogConfig,
     pub tls: InnerTlsConfig,
     pub smtp: InnerSMTPConfig,
+    pub rules: InnerRulesConfig,
 }

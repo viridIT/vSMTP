@@ -492,8 +492,13 @@ where
     where
         S: std::io::Read + std::io::Write,
     {
-        let mut tls_connection =
-            rustls::ServerConnection::new(self.tls_config.as_ref().unwrap().clone()).unwrap();
+        let mut tls_connection = rustls::ServerConnection::new(
+            self.tls_config
+                .as_ref()
+                .expect("Failed to get tsl_config")
+                .clone(),
+        )
+        .expect("Failed to open tsl connection");
 
         let mut tls_stream: rustls::Stream<rustls::ServerConnection, S> =
             rustls::Stream::new(&mut tls_connection, &mut plain_stream);
