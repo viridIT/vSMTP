@@ -7,7 +7,7 @@ domain = "mydomain.com"
 
 [server]
 ### local address of the listeners
-addr = ["0.0.0.0:10025"]
+addr = "0.0.0.0:10025"
 
 [log]
 file = "/etc/vsmtp/console.log"

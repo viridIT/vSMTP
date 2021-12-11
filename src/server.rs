@@ -23,7 +23,8 @@ pub struct ServerVSMTP<R>
 where
     R: DataEndResolver,
 {
-    listeners: Vec<std::net::TcpListener>,
+    // listeners: Vec<tokio::net::TcpListener>,
+    listener: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     config: std::sync::Arc<ServerConfig>,
     _phantom: std::marker::PhantomData<R>,
@@ -33,20 +34,13 @@ impl<R> ServerVSMTP<R>
 where
     R: DataEndResolver + std::marker::Send,
 {
-    pub fn new(config: std::sync::Arc<ServerConfig>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(
+        config: std::sync::Arc<ServerConfig>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         log4rs::init_config(Self::get_logger_config(&config)?)?;
 
         Ok(Self {
-            listeners: config
-                .server
-                .addr
-                .iter()
-                .filter_map(|addr| std::net::TcpListener::bind(addr).ok())
-                .filter_map(|listener| {
-                    listener.set_nonblocking(true).ok()?;
-                    Some(listener)
-                })
-                .collect::<Vec<_>>(),
+            listener: tokio::net::TcpListener::bind(&config.server.addr).await?,
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {
                 None
             } else {
@@ -204,11 +198,8 @@ where
         std::sync::Arc::new(out)
     }
 
-    pub fn addr(&self) -> Vec<std::net::SocketAddr> {
-        self.listeners
-            .iter()
-            .filter_map(|i| std::net::TcpListener::local_addr(i).ok())
-            .collect::<Vec<_>>()
+    pub fn addr(&self) -> std::result::Result<std::net::SocketAddr, std::io::Error> {
+        self.listener.local_addr()
     }
 
     fn handle_client(
@@ -253,17 +244,9 @@ where
 
     pub async fn listen_and_serve(&self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
-            for i in &self.listeners {
-                match i.accept() {
-                    Ok((stream, addr)) => {
-                        let _ = self.handle_client(stream, addr);
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
-                    Err(e) => {
-                        log::error!("Error accepting socket; error = {:?}", e);
-                        // TODO: pop listener ?
-                    }
-                }
+            match self.listener.accept().await {
+                Ok((stream, client_addr)) => self.handle_client(stream.into_std()?, client_addr)?,
+                Err(e) => log::error!("Error accepting socket; error = {:?}", e),
             }
         }
     }

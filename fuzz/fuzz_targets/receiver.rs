@@ -28,7 +28,9 @@ fn get_test_config() -> ServerConfig {
     ServerConfig {
         domain: "{domain}".to_string(),
         version: "1.0.0".to_string(),
-        server: InnerServerConfig { addr: vec![] },
+        server: InnerServerConfig {
+            addr: "0.0.0.0:10025".parse().unwrap(),
+        },
         log: InnerLogConfig {
             file: "./tests/generated/output.log".to_string(),
             level: HashMap::<String, LevelFilter>::new(),

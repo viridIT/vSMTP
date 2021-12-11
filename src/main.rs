@@ -49,6 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     rule_engine::init(Box::leak(rules_dir.into_boxed_str()));
 
     let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config))
+        .await
         .expect("Failed to create the server");
 
     log::warn!("Listening on: {:?}", server.addr());

@@ -1,6 +1,6 @@
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct InnerServerConfig {
-    pub addr: Vec<std::net::SocketAddr>,
+    pub addr: std::net::SocketAddr,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
