@@ -22,9 +22,9 @@ dir = "/etc/vsmtp/rules"
 
 [tls]
 ### Define the behaviour of the SSL/TLS connection, value can be:
-### * None    => STARTTLS result a "454 TLS not available"
-### * May     => allow both clair and secured messaging
-### * Encrypt => NO STARTTLS result a "530 Must issue a STARTTLS"
+### * None    =STARTTLS result a "454 TLS not available"
+### * May     =allow both clair and secured messaging
+### * Encrypt =NO STARTTLS result a "530 Must issue a STARTTLS"
 security_level = "None"
 
 ### Option path for the certificats and keys (default: undefined)
@@ -66,3 +66,26 @@ soft_count = -1
 ### hard_count = -1 to disable this feature
 hard_count = -1
 delay = "1000ms"
+
+### Message sent to the client in the different scenario
+### Fully customizable, but be carefull to follow the RFC
+### See https://datatracker.ietf.org/doc/html/rfc5321#section-4.2
+[smtp.code]
+Code214 = "214 joining us https://viridit.com/support\r\n"
+Code220 = "220 {domain} Service ready\r\n"
+Code221 = "221 Service closing transmission channel\r\n"
+Code250 = "250 Ok\r\n"
+Code250PlainEsmtp = "250-{domain}\r\n250 STARTTLS\r\n"
+Code250SecuredEsmtp = "250 {domain}\r\n"
+Code354 = "354 Start mail input; end with <CRLF>.<CRLF>\r\n"
+Code451 = "451 Requested action aborted: local error in processing\r\n"
+Code451Timeout = "451 Timeout - closing connection.\r\n"
+Code451TooManyError = "451 Too many errors from the client\r\n"
+Code454 = "454 TLS not available due to temporary reason\r\n"
+Code500 = "500 Syntax error command unrecognized\r\n"
+Code501 = "501 Syntax error in parameters or arguments\r\n"
+Code502 = "502 Command not implemented\r\n"
+Code503 = "503 Bad sequence of commands\r\n"
+Code530 = "530 Must issue a STARTTLS command first\r\n"
+Code554 = "554 permanent problems with the remote server\r\n"
+Code554tls = "554 Command refused due to lack of security\r\n"

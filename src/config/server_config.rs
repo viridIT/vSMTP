@@ -1,3 +1,7 @@
+use crate::{config::default::DEFAULT_CONFIG, resolver::DataEndResolver, server::ServerVSMTP};
+
+use super::custom_code::{CustomSMTPCode, SMTPCode};
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct InnerServerConfig {
     pub addr: std::net::SocketAddr,
@@ -46,6 +50,18 @@ pub struct InnerSMTPConfig {
     pub spool_dir: String,
     pub timeout_client: std::collections::HashMap<String, String>,
     pub error: InnerSMTPErrorConfig,
+    pub code: Option<SMTPCode>,
+}
+
+impl InnerSMTPConfig {
+    pub fn get_code(&self) -> &CustomSMTPCode {
+        match self.code.as_ref() {
+            None | Some(SMTPCode::Raw(_)) => {
+                panic!("@get_code must be called after a valid conversion from to raw")
+            }
+            Some(SMTPCode::Serialized(code)) => code.as_ref(),
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -62,4 +78,36 @@ pub struct ServerConfig {
     pub tls: InnerTlsConfig,
     pub smtp: InnerSMTPConfig,
     pub rules: InnerRulesConfig,
+}
+
+impl ServerConfig {
+    pub fn prepare(&mut self) -> &Self {
+        self.prepare_inner(false)
+    }
+
+    pub fn prepare_default(&mut self) -> &Self {
+        self.prepare_inner(true)
+    }
+
+    fn prepare_inner(&mut self, prepare_for_default: bool) -> &Self {
+        self.smtp.code =
+            Some(match &self.smtp.code {
+                Some(SMTPCode::Raw(raw)) => SMTPCode::Serialized(Box::new(
+                    CustomSMTPCode::from_raw(raw, self, prepare_for_default),
+                )),
+                Some(SMTPCode::Serialized(_)) => unreachable!(),
+                None => SMTPCode::Serialized(Box::new(DEFAULT_CONFIG.smtp.get_code().clone())),
+            });
+        self
+    }
+
+    pub async fn build<R>(mut self) -> ServerVSMTP<R>
+    where
+        R: DataEndResolver + std::marker::Send,
+    {
+        self.prepare();
+        ServerVSMTP::<R>::new(std::sync::Arc::new(self))
+            .await
+            .expect("Failed to create the server")
+    }
 }

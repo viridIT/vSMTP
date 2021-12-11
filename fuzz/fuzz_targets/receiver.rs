@@ -1,19 +1,19 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-use std::{collections::HashMap};
 use log::LevelFilter;
+use std::collections::HashMap;
 
 use vsmtp::{
+    config::server_config::{
+        InnerLogConfig, InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
+        InnerTlsConfig, ServerConfig, TlsSecurityLevel,
+    },
     mailprocessing::mail_receiver::{MailReceiver, State},
     model::mail::MailContext,
     resolver::DataEndResolver,
     smtp::code::SMTPReplyCode,
     tests::Mock,
-    config::server_config::{
-        InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
-        InnerTlsConfig, ServerConfig, TlsSecurityLevel,
-    },
 };
 
 struct DataEndResolverTest;
@@ -25,8 +25,8 @@ impl DataEndResolver for DataEndResolverTest {
 }
 
 fn get_test_config() -> ServerConfig {
-    ServerConfig {
-        domain: "{domain}".to_string(),
+    let mut config = ServerConfig {
+        domain: "fuzzserver.com".to_string(),
         version: "1.0.0".to_string(),
         server: InnerServerConfig {
             addr: "0.0.0.0:10025".parse().unwrap(),
@@ -46,12 +46,18 @@ fn get_test_config() -> ServerConfig {
             spool_dir: "./tests/generated/spool/".to_string(),
             timeout_client: HashMap::<String, String>::new(),
             error: InnerSMTPErrorConfig {
-                soft_count: -1,
+                soft_count: 5,
                 hard_count: 10,
-                delay: std::time::Duration::from_millis(0),
+                delay: std::time::Duration::from_millis(100),
             },
+            code: None,
         },
-    }
+        rules: InnerRulesConfig {
+            dir: String::default(),
+        },
+    };
+    config.prepare();
+    config
 }
 
 fuzz_target!(|data: &[u8]| {
