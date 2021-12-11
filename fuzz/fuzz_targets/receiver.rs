@@ -46,9 +46,9 @@ fn get_test_config() -> ServerConfig {
             spool_dir: "./tests/generated/spool/".to_string(),
             timeout_client: HashMap::<String, String>::new(),
             error: InnerSMTPErrorConfig {
-                soft_count: 5,
+                soft_count: -1,
                 hard_count: 10,
-                delay: std::time::Duration::from_millis(100),
+                delay: std::time::Duration::from_millis(0),
             },
             code: None,
         },

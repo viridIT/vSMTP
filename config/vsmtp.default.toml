@@ -22,9 +22,9 @@ dir = "/etc/vsmtp/rules"
 
 [tls]
 ### Define the behaviour of the SSL/TLS connection, value can be:
-### * None    =STARTTLS result a "454 TLS not available"
-### * May     =allow both clair and secured messaging
-### * Encrypt =NO STARTTLS result a "530 Must issue a STARTTLS"
+### * None    => STARTTLS result a "454 TLS not available"
+### * May     => allow both clair and secured messaging
+### * Encrypt => NO STARTTLS result a "530 Must issue a STARTTLS"
 security_level = "None"
 
 ### Option path for the certificats and keys (default: undefined)
