@@ -157,7 +157,7 @@ where
                             ) {
                                 Ok(cert) => cert,
                                 Err(e) => {
-                                    log::error!("error: {}", e);
+                                    log::error!("failed to get certificates: {}", e);
                                     return None;
                                 }
                             },
@@ -168,7 +168,7 @@ where
                             ) {
                                 Ok(key) => key,
                                 Err(e) => {
-                                    log::error!("error: {}", e);
+                                    log::error!("failed to get signing key: {}", e);
                                     return None;
                                 }
                             },
