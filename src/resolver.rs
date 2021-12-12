@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -59,14 +61,16 @@ impl ResolverWriteDisk {
         rcpt: &Address,
         content: &str,
     ) -> std::io::Result<()> {
-        let folder = format!("{}/inbox", spool_dir,);
+        let mut folder = PathBuf::from_iter([spool_dir, "new"]);
         std::fs::create_dir_all(&folder)?;
+
+        folder.push(rcpt.user());
 
         let mut inbox = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             // NOTE: does Path struct path concatenation exists ?
-            .open(&format!("{}/{}", folder, rcpt))?;
+            .open(folder)?;
 
         std::io::Write::write_all(&mut inbox, content.as_bytes())?;
 
@@ -82,6 +86,8 @@ impl ResolverWriteDisk {
 
     /// write to ${spool_dir}/to_process/${timestamp}_${thread_id}.json
     /// the mail context in a serialized json format
+    /// NOTE: unused for now, as the delivery system isn't ready yet.
+    #[allow(unused)]
     fn write_mail_to_process(
         spool_dir: &str,
         mail: &crate::model::mail::MailContext,
@@ -110,32 +116,34 @@ impl ResolverWriteDisk {
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
     async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
-        if let Err(error) = Self::write_mail_to_process(&config.smtp.spool_dir, mail) {
-            log::error!(
-                target: RESOLVER,
-                "Couldn't write email to process: {:?}",
-                error
-            );
-        }
-
-        log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
-
         // TODO: use temporary file unix syscall to generate temporary files
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
+        //
+        // Self::write_mail_to_process(&config.smtp.spool_dir, mail)
+
+        log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
         for rcpt in &mail.envelop.rcpt {
-            log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
+            if crate::rules::rule_engine::user_exists(rcpt.user()) {
+                log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-            if let Err(error) =
-                Self::write_email_to_rcpt_inbox(&config.smtp.spool_dir, rcpt, &mail.body)
-            {
-                log::error!(
+                if let Err(error) =
+                    Self::write_email_to_rcpt_inbox(&config.smtp.spool_dir, rcpt, &mail.body)
+                {
+                    log::error!(
+                        target: RESOLVER,
+                        "Couldn't write email to inbox: {:?}",
+                        error
+                    );
+                };
+            } else {
+                log::trace!(
                     target: RESOLVER,
-                    "Couldn't write email to inbox: {:?}",
-                    error
+                    "User {} not found on the system, skipping delivery ...",
+                    rcpt
                 );
-            };
+            }
         }
         (State::MailFrom, SMTPReplyCode::Code250)
     }

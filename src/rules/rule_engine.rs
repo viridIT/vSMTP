@@ -682,7 +682,7 @@ pub fn init(src: &'static str) {
 }
 
 /// use the user cache to check if a user exists on the system.
-pub(super) fn user_exists(name: &str) -> bool {
+pub(crate) fn user_exists(name: &str) -> bool {
     match RHAI_ENGINE.users.lock() {
         Ok(users) => users.get_user_by_name(name).is_some(),
         Err(error) => {
