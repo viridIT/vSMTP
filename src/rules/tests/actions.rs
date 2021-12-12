@@ -48,6 +48,7 @@ macro_rules! generate_rule_check_test {
 #[cfg(test)]
 mod test {
     use crate::rules::actions::*;
+    use crate::rules::address::Address;
     use crate::rules::obj::*;
     use rhai::Map;
     use std::net::*;
@@ -145,7 +146,7 @@ mod test {
             generate_rule_check_test!(
                 || {
                     Object::Group(vec![
-                        Object::Address("jones@foo.com".to_string()),
+                        Object::Address(Address::new("jones@foo.com").unwrap()),
                         Object::Ip4("0.0.0.0".parse().unwrap()),
                     ])
                 },
@@ -255,7 +256,7 @@ mod test {
             generate_rule_check_test!(
                 || {
                     Object::Group(vec![
-                        Object::Address("jones@foo.com".to_string()),
+                        Object::Address(Address::new("jones@foo.com").unwrap()),
                         Object::Fqdn("foo.com".to_string()),
                         Object::Ip4("0.0.0.0".parse().unwrap()),
                     ])
@@ -311,7 +312,7 @@ mod test {
         // addr.
         {
             generate_rule_check_test!(
-                || Object::Address("jones@foo.com".to_string()),
+                || Object::Address(Address::new("jones@foo.com").unwrap()),
                 mail,
                 "jones@foo.com",
                 true,
@@ -383,7 +384,7 @@ mod test {
             generate_rule_check_test!(
                 || {
                     Object::Group(vec![
-                        Object::Address("jones@foo.com".to_string()),
+                        Object::Address(Address::new("jones@foo.com").unwrap()),
                         Object::Fqdn("foo.com".to_string()),
                         Object::Ip4("0.0.0.0".parse().unwrap()),
                     ])
@@ -439,7 +440,7 @@ mod test {
         // addr.
         {
             generate_rule_check_test!(
-                || Object::Address("jones@foo.com".to_string()),
+                || Object::Address(Address::new("jones@foo.com").unwrap()),
                 rcpt,
                 "jones@foo.com",
                 true,
@@ -511,7 +512,7 @@ mod test {
             generate_rule_check_test!(
                 || {
                     Object::Group(vec![
-                        Object::Address("jones@foo.com".to_string()),
+                        Object::Address(Address::new("jones@foo.com").unwrap()),
                         Object::Fqdn("foo.com".to_string()),
                         Object::Ip4("0.0.0.0".parse().unwrap()),
                     ])

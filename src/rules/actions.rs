@@ -40,7 +40,7 @@ use rhai::plugin::*;
 pub(super) mod vsl {
     use std::net::SocketAddr;
 
-    use crate::config::log::RULES;
+    use crate::{config::log::RULES, rules::address::Address};
 
     use super::*;
 
@@ -159,8 +159,8 @@ pub(super) mod vsl {
         connect: IpAddr,
         port: u16,
         helo: &str,
-        mail: &str,
-        rcpt: Vec<String>,
+        mail: Address,
+        rcpt: Vec<Address>,
         data: &str,
         connection_timestamp: std::time::SystemTime,
         mail_timestamp: Option<std::time::SystemTime>,
@@ -186,7 +186,7 @@ pub(super) mod vsl {
         let ctx = MailContext {
             envelop: Envelop {
                 helo: helo.to_string(),
-                mail_from: mail.to_string(),
+                mail_from: mail,
                 rcpt,
             },
             body: data.into(),
@@ -295,10 +295,7 @@ pub(super) mod vsl {
     pub fn __user_exists(object: &str) -> bool {
         match RHAI_ENGINE.objects.read().unwrap().get(object) {
             Some(object) => internal_user_exists(object),
-            _ => {
-                println!("ERROR, OBJECT NOT FOUND");
-                internal_user_exists(&Object::Var(object.to_string()))
-            }
+            _ => internal_user_exists(&Object::Var(object.to_string())),
         }
     }
 }
@@ -344,7 +341,7 @@ pub(super) fn internal_is_helo(helo: &str, object: &Object) -> bool {
 /// checks recursively if the current mail value is matching the object's value.
 pub(super) fn internal_is_mail(mail: &str, object: &Object) -> bool {
     match object {
-        Object::Address(addr) => *addr == mail,
+        Object::Address(addr) => addr.full() == mail,
         Object::Regex(re) => re.is_match(mail),
         Object::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
         Object::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
@@ -355,7 +352,7 @@ pub(super) fn internal_is_mail(mail: &str, object: &Object) -> bool {
 /// checks recursively if the current rcpt value is matching the object's value.
 pub(super) fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
     match object {
-        Object::Address(addr) => rcpt == addr.as_str(),
+        Object::Address(addr) => rcpt == addr.full(),
         Object::Regex(re) => re.is_match(rcpt),
         Object::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
         Object::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),

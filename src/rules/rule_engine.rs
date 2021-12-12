@@ -17,6 +17,7 @@
 use crate::config::log::RULES;
 use crate::model::envelop::Envelop;
 use crate::model::mail::MailContext;
+use crate::rules::address::Address;
 use crate::rules::obj::Object;
 use crate::rules::operation_queue::{Operation, OperationQueue};
 
@@ -70,8 +71,8 @@ impl<'a> RuleEngine<'a> {
             .push("port", 0)
             .push("helo", "")
             .push("mail", "")
-            .push("rcpt", "")
-            .push("rcpts", Vec::<String>::new())
+            .push("rcpt", Address::default())
+            .push("rcpts", Vec::<Address>::new())
             .push("data", "")
             .push("__OPERATION_QUEUE", OperationQueue::default())
             .push("__stage", "")
@@ -205,8 +206,8 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
         Some(Envelop {
             helo: self.scope.get_value::<String>("helo")?,
-            mail_from: self.scope.get_value::<String>("mail")?,
-            rcpt: self.scope.get_value::<Vec<String>>("rcpts")?,
+            mail_from: self.scope.get_value::<Address>("mail")?,
+            rcpt: self.scope.get_value::<Vec<Address>>("rcpts")?,
         })
     }
 }
@@ -248,18 +249,24 @@ impl<U: Users> RhaiEngine<U> {
         engine
         .register_global_module(api_mod.into())
 
+        .register_type::<Address>()
+        .register_result_fn("new_address", <Address>::rhai_wrapper)
+        .register_get("full", |addr: &mut Address| addr.full().to_string())
+        .register_get("user", |addr: &mut Address| addr.user().to_string())
+        .register_get("domain", |addr: &mut Address| addr.domain().to_string())
+
         // the operation queue is used to defer actions.
         .register_type::<OperationQueue>()
         .register_type::<std::time::SystemTime>()
 
-        // adding a string vector as a custom type.
+        // adding an Address vector as a custom type.
         // it is used to easily manipulate the rcpt container.
-        .register_iterator::<Vec<String>>()
-        .register_fn("push", <Vec<String>>::push)
+        .register_iterator::<Vec<Address>>()
+        .register_fn("push", <Vec<Address>>::push)
 
-        // NOTE: we can't register Vec<String>::remove & replace method because usize doesn't exists in rhai.
+        // NOTE: we cannot register Vec<Address>::remove & replace method because usize doesn't exists in rhai.
         //       here we create custom replacements that accepts i64 values.
-        .register_fn("custom_remove", |vec: &mut Vec<String>, index: i64| {
+        .register_fn("remove", |vec: &mut Vec<Address>, index: i64| {
 
             if index as usize >= vec.len() {
                 return;
@@ -267,7 +274,7 @@ impl<U: Users> RhaiEngine<U> {
 
             vec.remove(index as usize);
         })
-        .register_fn("custom_replace", |vec: &mut Vec<String>, index: i64, value: String| {
+        .register_fn("replace", |vec: &mut Vec<Address>, index: i64, value: Address| {
             if index as usize >= vec.len() {
                 return;
             }
@@ -572,8 +579,8 @@ lazy_static::lazy_static! {
         .push("port", 0)
         .push("helo", "")
         .push("mail", "")
-        .push("rcpt", "")
-        .push("rcpts", Vec::<String>::new())
+        .push("rcpt", Address::default())
+        .push("rcpts", Vec::<Address>::new())
         .push("data", "")
 
         // rule engine's internals.
