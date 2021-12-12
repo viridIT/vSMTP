@@ -20,6 +20,7 @@ use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 use crate::model::envelop::Envelop;
 use crate::model::mail::{ConnectionData, MailContext};
 use crate::resolver::DataEndResolver;
+use crate::rules::address::Address;
 use crate::rules::rule_engine::{RuleEngine, Status};
 use crate::smtp::code::SMTPReplyCode;
 use crate::smtp::event::Event;
@@ -141,7 +142,7 @@ where
     fn set_helo(&mut self, helo: String) {
         self.mail.envelop = Envelop {
             helo,
-            mail_from: String::new(),
+            mail_from: Address::default(),
             rcpt: vec![],
         };
         self.rule_engine
@@ -149,28 +150,34 @@ where
     }
 
     fn set_mail_from(&mut self, mail_from: String) {
-        self.mail.envelop.mail_from = mail_from;
-        self.mail.timestamp = Some(std::time::SystemTime::now());
-        self.mail.envelop.rcpt = vec![];
+        if let Ok(mail_from) = Address::new(&mail_from) {
+            self.mail.envelop.mail_from = mail_from;
+            self.mail.timestamp = Some(std::time::SystemTime::now());
+            self.mail.envelop.rcpt = vec![];
 
-        self.rule_engine
-            .add_data("mail", self.mail.envelop.mail_from.clone());
-        self.rule_engine
-            .add_data("mail_timestamp", self.mail.timestamp);
+            self.rule_engine
+                .add_data("mail", self.mail.envelop.mail_from.clone());
+            self.rule_engine
+                .add_data("mail_timestamp", self.mail.timestamp);
+        }
     }
 
     // FIXME: too many clone
     fn set_rcpt_to(&mut self, rcpt_to: String) {
-        self.rule_engine.add_data("rcpt", rcpt_to.clone());
+        if let Ok(rcpt_to) = Address::new(&rcpt_to) {
+            self.rule_engine.add_data("rcpt", rcpt_to.clone());
 
-        match self.rule_engine.get_data::<Vec<String>>("rcpts") {
-            Some(mut rcpts) => {
-                rcpts.push(rcpt_to);
-                self.mail.envelop.rcpt = rcpts.clone();
-                self.rule_engine.add_data("rcpts", rcpts.clone());
-            }
-            None => unreachable!("rcpts is injected by the default scope"),
-        };
+            match self.rule_engine.get_data::<Vec<Address>>("rcpts") {
+                Some(mut rcpts) => {
+                    rcpts.push(rcpt_to);
+                    self.mail.envelop.rcpt = rcpts.clone();
+                    self.rule_engine.add_data("rcpts", rcpts.clone());
+                }
+                None => unreachable!("rcpts is injected by the default scope"),
+            };
+        } else {
+            log::error!(target: RECEIVER, "rcpt's email address is invalid.");
+        }
     }
 
     async fn process_event(&mut self, event: Event) -> (Option<State>, Option<SMTPReplyCode>) {
@@ -182,7 +189,7 @@ where
             (_, Event::RsetCmd) => {
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
                 self.mail.envelop.rcpt = vec![];
-                self.mail.envelop.mail_from = String::new();
+                self.mail.envelop.mail_from = Address::default();
 
                 (Some(State::Helo), Some(SMTPReplyCode::Code250))
             }
@@ -284,17 +291,23 @@ where
             }
 
             (State::Data, Event::DataEnd) => {
-                // TODO: resolver should not be responsible for mutating the SMTP state
-                // should return a code and handle if code.is_error()
-                let (state, code) = R::on_data_end(self.server_config.as_ref(), &self.mail).await;
-
                 self.rule_engine.add_data("data", self.mail.body.clone());
 
                 let status = self.rule_engine.run_when("preq");
 
                 let result = match status {
-                    Status::Block => (Some(State::Stop), Some(SMTPReplyCode::Code554)),
-                    _ => self.process_rules_status(status, Some(state), Some(code)),
+                    Status::Block => return (Some(State::Stop), Some(SMTPReplyCode::Code554)),
+                    _ => self.process_rules_status(
+                        status,
+                        Some(State::MailFrom),
+                        Some(SMTPReplyCode::Code250),
+                    ),
+                };
+
+                // checking if the rule engine haven't ran successfuly.
+                match result {
+                    (Some(State::MailFrom), Some(SMTPReplyCode::Code250)) => {}
+                    _ => return result,
                 };
 
                 // executing all registered extensive operations.
@@ -318,15 +331,23 @@ where
                     );
                 }
 
-                log::info!(
-                    target: RECEIVER,
-                    "final envelop after executing all rules:\n {:#?}",
-                    self.rule_engine.get_scoped_envelop()
-                );
+                // getting the server's envelop, that could have mutated in the
+                // rule engine.
+                if let Some(envelop) = self.rule_engine.get_scoped_envelop() {
+                    self.mail.envelop = envelop;
 
-                // NOTE: clear envelop and mail context ?
+                    // TODO: resolver should not be responsible for mutating the SMTP state
+                    // should return a code and handle if code.is_error()
+                    let (state, code) =
+                        R::on_data_end(self.server_config.as_ref(), &self.mail).await;
 
-                result
+                    // NOTE: clear envelop and mail context ?
+
+                    (Some(state), Some(code))
+                } else {
+                    // NOTE: which code is returned when the server failed ?
+                    (Some(State::MailFrom), Some(SMTPReplyCode::Code554))
+                }
             }
 
             _ => (None, Some(SMTPReplyCode::Code503)),

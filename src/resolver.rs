@@ -18,6 +18,7 @@ use crate::{
     config::{log::RESOLVER, server_config::ServerConfig},
     mailprocessing::mail_receiver::State,
     model::mail::MailContext,
+    rules::address::Address,
     smtp::code::SMTPReplyCode,
 };
 
@@ -55,7 +56,7 @@ impl ResolverWriteDisk {
     /// the mail body sent by the client
     fn write_email_to_rcpt_inbox(
         spool_dir: &str,
-        rcpt: &str,
+        rcpt: &Address,
         content: &str,
     ) -> std::io::Result<()> {
         let folder = format!("{}/inbox", spool_dir,);
@@ -119,7 +120,7 @@ impl DataEndResolver for ResolverWriteDisk {
 
         log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
-        for rcpt in mail.envelop.get_rcpt_usernames() {
+        for rcpt in &mail.envelop.rcpt {
             log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
             if let Err(error) =

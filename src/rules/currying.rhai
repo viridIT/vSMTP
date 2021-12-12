@@ -68,14 +68,14 @@ let vsl = #{
 
     // change the content of the MAIL FROM command.
     REWRITE_MAIL_FROM: |value| {
-        mail = value;
+        mail = new_address(value);
     },
 
     // change one of the recipient specified by the RCPT TO command.
     REWRITE_RCPT: |to_rewrite, value| {
         for (recipient, index) in rcpts {
-            if recipient == to_rewrite {
-                rcpts.custom_replace(index, value);
+            if recipient.full == to_rewrite {
+                rcpts.replace(index, new_address(value));
                 break;
             }
         }
@@ -83,14 +83,14 @@ let vsl = #{
 
     // add a recipient to the list.
     ADD_RCPT: |to_add| {
-        rcpts.push(to_add);
+        rcpts.push(new_address(to_add));
     },
 
     // remove a recipient from the list.
     REMOVE_RCPT: |to_remove| {
         for (recipient, index) in rcpts {
-            if recipient == to_remove {
-                rcpts.custom_remove(index);
+            if recipient.full == to_remove {
+                rcpts.remove(index);
                 break;
             }
         }

@@ -14,24 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use crate::rules::address::Address;
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Envelop {
     pub helo: String,
-    pub mail_from: String,
-    pub rcpt: Vec<String>,
-}
-
-impl Envelop {
-    // TODO: need error handling (i.e. @blablah.com should return an error.)
-    pub fn get_rcpt_usernames(&self) -> Vec<&str> {
-        self.rcpt
-            .iter()
-            .map(|recipient| {
-                // TODO: find a way to remove everything after the '@' delimiter.
-                // for now just using splitn, not really clean.
-                Some(recipient.split_once("@").map_or(&**recipient, |x| x.0)).unwrap_or(recipient)
-            })
-            .collect()
-    }
+    pub mail_from: Address,
+    pub rcpt: Vec<Address>,
 }

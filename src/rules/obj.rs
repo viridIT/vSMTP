@@ -27,6 +27,8 @@ use std::{
     str::FromStr,
 };
 
+use super::address::Address;
+
 /// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
 #[derive(Debug)]
@@ -40,7 +42,7 @@ pub(super) enum Object {
     /// an ip v6 range. (x:x:x:x:x:x:x:x/range)
     Rg6(IpRange<Ipv6Net>),
     /// an email address (jones@foo.com)
-    Address(String),
+    Address(Address),
     /// a valid fully qualified domain name (foo.com)
     Fqdn(String),
     /// a regex (^[a-z0-9.]+@foo.com$)
@@ -103,10 +105,7 @@ impl Object {
 
             "addr" => {
                 let value = Object::value::<String>(map, "value")?;
-                match addr::parse_email_address(&value) {
-                    Ok(domain) => Ok(Object::Address(domain.to_string())),
-                    Err(_) => Err(format!("'{}' is not a valid address.", value).into()),
-                }
+                Ok(Object::Address(Address::new(&value)?))
             }
 
             "val" => Ok(Object::Var(Object::value::<String>(map, "value")?)),
@@ -133,14 +132,7 @@ impl Object {
                                     return Err(format!("'{}' is not a valid fqdn.", value).into());
                                 }
                             },
-                            "addr" => match addr::parse_email_address(&line) {
-                                Ok(domain) => content.push(Object::Address(domain.to_string())),
-                                Err(_) => {
-                                    return Err(
-                                        format!("'{}' is not a valid address.", value).into()
-                                    );
-                                }
-                            },
+                            "addr" => content.push(Object::Address(Address::new(&line)?)),
                             "val" => content.push(Object::Var(line)),
                             "regex" => content.push(Object::Regex(Regex::from_str(&line)?)),
                             _ => {}
