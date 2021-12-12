@@ -342,7 +342,7 @@ pub(super) fn internal_is_helo(helo: &str, object: &Object) -> bool {
 /// checks recursively if the current mail value is matching the object's value.
 pub(super) fn internal_is_mail(mail: &str, object: &Object) -> bool {
     match object {
-        Object::Address(addr) => *addr == mail,
+        Object::Address(addr) => addr.full() == mail,
         Object::Regex(re) => re.is_match(mail),
         Object::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
         Object::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
@@ -353,7 +353,7 @@ pub(super) fn internal_is_mail(mail: &str, object: &Object) -> bool {
 /// checks recursively if the current rcpt value is matching the object's value.
 pub(super) fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
     match object {
-        Object::Address(addr) => rcpt == addr.as_str(),
+        Object::Address(addr) => rcpt == addr.full(),
         Object::Regex(re) => re.is_match(rcpt),
         Object::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
         Object::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
