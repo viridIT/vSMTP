@@ -120,6 +120,10 @@ impl DataEndResolver for ResolverWriteDisk {
 
         log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
+        // TODO: use temporary file unix syscall to generate temporary files
+        // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
+        //       and https://en.wikipedia.org/wiki/Maildir
+
         for rcpt in &mail.envelop.rcpt {
             log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
