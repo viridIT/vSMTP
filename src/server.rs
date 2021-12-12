@@ -157,7 +157,7 @@ where
                             ) {
                                 Ok(cert) => cert,
                                 Err(e) => {
-                                    log::error!("error: {}", e);
+                                    log::error!("failed to get certificates: {}", e);
                                     return None;
                                 }
                             },
@@ -168,7 +168,7 @@ where
                             ) {
                                 Ok(key) => key,
                                 Err(e) => {
-                                    log::error!("error: {}", e);
+                                    log::error!("failed to get signing key: {}", e);
                                     return None;
                                 }
                             },
@@ -178,7 +178,11 @@ where
                         },
                     ))
                 })
-                .for_each(|(domain, ck)| tls_sni_resolver.add(&domain, ck).unwrap())
+                .for_each(|(domain, ck)| {
+                    tls_sni_resolver
+                        .add(&domain, ck)
+                        .expect("Failed to add sni resolver")
+                })
         }
 
         let mut out = rustls::ServerConfig::builder()
@@ -189,7 +193,7 @@ where
             .with_client_cert_verifier(rustls::server::NoClientAuth::new())
             .with_cert_resolver(std::sync::Arc::new(tls_sni_resolver));
 
-        out.ignore_client_order = config.tls.preempt_cipherlist; //.unwrap_or(false);
+        out.ignore_client_order = config.tls.preempt_cipherlist;
 
         std::sync::Arc::new(out)
     }

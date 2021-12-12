@@ -91,7 +91,7 @@ where
         if server_config.tls.security_level != TlsSecurityLevel::None && tls_config.is_none() {
             log::error!(
                 target: RECEIVER,
-                "TLS encryption is enabled, but no TLS config provided. If a tls connection is ensured, the server will reply with \"{}\"", SMTPReplyCode::Code454.as_str(),
+                "TLS encryption is enabled, but no TLS config provided. If a tls connection is ensured, the server will reply with \"{:?}\"", SMTPReplyCode::Code454,
             );
         } else if server_config.tls.security_level == TlsSecurityLevel::None && tls_config.is_some()
         {
@@ -433,9 +433,19 @@ where
                         let soft_error = self.server_config.smtp.error.soft_count;
 
                         if hard_error != -1 && self.error_count >= hard_error as u64 {
-                            let mut response_begin = response.as_str().to_string();
+                            let mut response_begin = self
+                                .server_config
+                                .smtp
+                                .get_code()
+                                .get(&response)
+                                .to_string();
                             response_begin.replace_range(3..4, "-");
-                            response_begin.push_str(SMTPReplyCode::Code451TooManyError.as_str());
+                            response_begin.push_str(
+                                self.server_config
+                                    .smtp
+                                    .get_code()
+                                    .get(&SMTPReplyCode::Code451TooManyError),
+                            );
                             std::io::Write::write_all(io, response_begin.as_bytes())?;
 
                             return Err(std::io::Error::new(
@@ -444,13 +454,19 @@ where
                             ));
                         }
 
-                        std::io::Write::write_all(io, response.as_str().as_bytes())?;
+                        std::io::Write::write_all(
+                            io,
+                            self.server_config.smtp.get_code().get(&response).as_bytes(),
+                        )?;
 
                         if soft_error != -1 && self.error_count >= soft_error as u64 {
                             std::thread::sleep(self.server_config.smtp.error.delay);
                         }
                     } else {
-                        std::io::Write::write_all(io, response.as_str().as_bytes())?;
+                        std::io::Write::write_all(
+                            io,
+                            self.server_config.smtp.get_code().get(&response).as_bytes(),
+                        )?;
                     }
                 }
                 Ok(())
@@ -478,7 +494,14 @@ where
                 Err(e)
             }
             Err(e) => {
-                std::io::Write::write_all(io, SMTPReplyCode::Code451Timeout.as_str().as_bytes())?;
+                std::io::Write::write_all(
+                    io,
+                    self.server_config
+                        .smtp
+                        .get_code()
+                        .get(&SMTPReplyCode::Code451Timeout)
+                        .as_bytes(),
+                )?;
                 Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
             }
         }
@@ -513,8 +536,13 @@ where
     where
         S: std::io::Read + std::io::Write,
     {
-        let mut tls_connection =
-            rustls::ServerConnection::new(self.tls_config.as_ref().unwrap().clone()).unwrap();
+        let mut tls_connection = rustls::ServerConnection::new(
+            self.tls_config
+                .as_ref()
+                .expect("Failed to get tsl_config")
+                .clone(),
+        )
+        .expect("Failed to open tsl connection");
 
         let mut tls_stream: rustls::Stream<rustls::ServerConnection, S> =
             rustls::Stream::new(&mut tls_connection, &mut plain_stream);
@@ -586,7 +614,14 @@ where
     {
         let mut io = IoService::new(&mut plain_stream);
 
-        match std::io::Write::write_all(&mut io, SMTPReplyCode::Code220.as_str().as_bytes()) {
+        match std::io::Write::write_all(
+            &mut io,
+            self.server_config
+                .smtp
+                .get_code()
+                .get(&SMTPReplyCode::Code220)
+                .as_bytes(),
+        ) {
             Ok(_) => {}
             Err(e) => {
                 log::error!(

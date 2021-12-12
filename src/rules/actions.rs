@@ -95,6 +95,7 @@ pub(super) mod vsl {
                 Ok(())
             }
             _ => {
+                // from_str is unfailable, we can unwrap.
                 let path = std::path::PathBuf::from_str(path).unwrap();
 
                 // if the file is already containing data, we just append at the end.
@@ -127,6 +128,7 @@ pub(super) mod vsl {
             return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
         }
 
+        // from_str is unfailable, we can unwrap.
         let path = std::path::PathBuf::from_str(path).unwrap();
         let file = if !path.exists() {
             std::fs::File::create(&path)

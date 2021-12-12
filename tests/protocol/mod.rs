@@ -5,8 +5,8 @@ mod tests {
     use log::LevelFilter;
     use vsmtp::{
         config::server_config::{
-            InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
-            InnerTlsConfig, ServerConfig, TlsSecurityLevel,
+            InnerLogConfig, InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig,
+            InnerServerConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel,
         },
         mailprocessing::mail_receiver::{MailReceiver, State},
         model::mail::MailContext,
@@ -17,10 +17,10 @@ mod tests {
 
     // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
-    struct ResolverTest;
+    struct DefaultResolverTest;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for ResolverTest {
+    impl DataEndResolver for DefaultResolverTest {
         async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (State, SMTPReplyCode) {
             // after a successful exchange, the server is ready for a new RCPT
             (State::MailFrom, SMTPReplyCode::Code250)
@@ -28,8 +28,8 @@ mod tests {
     }
 
     fn get_test_config() -> ServerConfig {
-        ServerConfig {
-            domain: "{domain}".to_string(),
+        let mut config = ServerConfig {
+            domain: "testserver.com".to_string(),
             version: "1.0.0".to_string(),
             server: InnerServerConfig {
                 addr: "0.0.0.0:10025".parse().unwrap(),
@@ -53,17 +53,23 @@ mod tests {
                     hard_count: 10,
                     delay: std::time::Duration::from_millis(100),
                 },
+                code: None,
             },
-        }
+            rules: InnerRulesConfig {
+                dir: String::default(),
+            },
+        };
+        config.prepare();
+        config
     }
 
-    async fn make_test(
+    async fn make_test<T: vsmtp::resolver::DataEndResolver>(
         smtp_input: &[u8],
         expected_output: &[u8],
         config: ServerConfig,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     ) -> Result<(), std::io::Error> {
-        let mut receiver = MailReceiver::<ResolverTest>::new(
+        let mut receiver = MailReceiver::<T>::new(
             "0.0.0.0:0".parse().unwrap(),
             tls_config,
             std::sync::Arc::new(config),
@@ -86,7 +92,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_1() {
-        assert!(make_test(
+        struct T;
+
+        #[async_trait::async_trait]
+        impl DataEndResolver for T {
+            async fn on_data_end(_: &ServerConfig, ctx: &MailContext) -> (State, SMTPReplyCode) {
+                assert_eq!(ctx.envelop.helo, "foobar");
+                assert_eq!(ctx.envelop.mail_from, "jhon@doe");
+                assert_eq!(ctx.envelop.rcpt, vec!["aa@bb"]);
+                assert_eq!(ctx.body, "");
+
+                (State::MailFrom, SMTPReplyCode::Code250)
+            }
+        }
+
+        assert!(make_test::<T>(
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<jhon@doe>\r\n",
@@ -123,7 +143,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_2() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             ["foo\r\n"].concat().as_bytes(),
             [
                 "220 {domain} Service ready\r\n",
@@ -146,7 +166,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_3() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             ["MAIL FROM:<jhon@doe>\r\n"].concat().as_bytes(),
             [
                 "220 {domain} Service ready\r\n",
@@ -169,7 +189,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_4() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             ["RCPT TO:<jhon@doe>\r\n"].concat().as_bytes(),
             [
                 "220 {domain} Service ready\r\n",
@@ -192,7 +212,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_5() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n"]
                 .concat()
                 .as_bytes(),
@@ -218,7 +238,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_6() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
                 "220 {domain} Service ready\r\n",
@@ -242,7 +262,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_7() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
                 .concat()
                 .as_bytes(),
@@ -270,7 +290,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_8() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
                 .concat()
                 .as_bytes(),
@@ -299,7 +319,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_9() {
         let before_test = std::time::Instant::now();
-        let res = make_test(
+        let res = make_test::<DefaultResolverTest>(
             [
                 "RCPT TO:<bar@foo>\r\n",
                 "MAIL FROM: <foo@bar>\r\n",
@@ -347,7 +367,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_10() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             ["HELP\r\n"].concat().as_bytes(),
             [
                 "220 {domain} Service ready\r\n",
@@ -370,7 +390,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_11() {
-        assert!(make_test(
+        assert!(make_test::<DefaultResolverTest>(
             [
                 "HELO postmaster\r\n",
                 "MAIL FROM: <lala@foo>\r\n",

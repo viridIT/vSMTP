@@ -17,7 +17,6 @@
 use vsmtp::config::server_config::ServerConfig;
 use vsmtp::resolver::ResolverWriteDisk;
 use vsmtp::rules::rule_engine;
-use vsmtp::server::ServerVSMTP;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,18 +29,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .short("-c")
                 .long("--config")
                 .takes_value(true)
-                .default_value("config/vsmtp.toml"),
+                .default_value("/etc/vsmtp/config.toml"),
         )
         .get_matches();
 
-    let config: ServerConfig = toml::from_str(&std::fs::read_to_string(
-        args.value_of("config").expect("clap provide default value"),
-    )?)?;
+    let config = args
+        .value_of("config")
+        .expect("clap should provide default value");
+    log::warn!("Loading with configuration: \"{:?}\"", config);
 
-    ResolverWriteDisk::init_spool_folder(&config.smtp.spool_dir)?;
-    let server = ServerVSMTP::<ResolverWriteDisk>::new(std::sync::Arc::new(config)).await?;
+    let config: ServerConfig =
+        toml::from_str(&std::fs::read_to_string(config).expect("cannot read file"))
+            .expect("cannot parse config from toml");
 
-    rule_engine::init("./config/rules");
+    ResolverWriteDisk::init_spool_folder(&config.smtp.spool_dir)
+        .expect("Failed to initialize the spool directory");
+
+    // the leak is needed to pass from &'a str to &'static str
+    // and initialize the rule engine's rule directory.
+    let rules_dir = config.rules.dir.clone();
+    rule_engine::init(Box::leak(rules_dir.into_boxed_str()));
+
+    let server = config.build::<ResolverWriteDisk>().await;
 
     log::warn!("Listening on: {:?}", server.addr());
     server.listen_and_serve().await

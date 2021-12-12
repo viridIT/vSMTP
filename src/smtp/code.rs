@@ -39,10 +39,10 @@
 /// mail system vis-a-vis the requested transfer or other mail system
 /// action.
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum SMTPReplyCode {
     /// system status, or system help reply
-    Code211,
+    // Code211,
     /// help message
     Code214,
     /// service ready
@@ -56,27 +56,27 @@ pub enum SMTPReplyCode {
     /// esmtp ehlo message
     Code250SecuredEsmtp,
     /// user not local; will forward
-    Code251,
+    // Code251,
     /// cannot verify the user, but it will try to deliver the message anyway
-    Code252,
+    // Code252,
     ///
     /// start mail input
     Code354,
     ///
     /// service not available, closing transmission channel
-    Code421,
+    // Code421,
     /// requested mail action not taken: mailbox unavailable
-    Code450,
+    // Code450,
     /// requested action aborted: local error in processing
     Code451,
     Code451Timeout,
     Code451TooManyError,
     /// requested action not taken: insufficient system storage
-    Code452,
+    // Code452,
     // TLS not available due to temporary reason
     Code454,
     /// server unable to accommodate parameters
-    Code455,
+    // Code455,
     ///
     /// syntax error, command unrecognized
     Code500,
@@ -87,74 +87,32 @@ pub enum SMTPReplyCode {
     /// bad sequence of commands
     Code503,
     /// command parameter is not implemented
-    Code504,
+    // Code504,
     /// server does not accept mail
-    Code521,
+    // Code521,
     /// encryption Needed
-    Code523,
+    // Code523,
 
     /// 530 Must issue a STARTTLS command first
     Code530,
     /// requested action not taken: mailbox unavailable
-    Code550,
+    // Code550,
     /// user not local; please try <forward-path>
-    Code551,
+    // Code551,
     /// requested mail action aborted: exceeded storage allocation
-    Code552,
+    // Code552,
     /// requested action not taken: mailbox name not allowed
-    Code553,
+    // Code553,
     /// connection has been denied.
     Code554,
     /// transaction has failed
     Code554tls,
-    Code555,
-    /// domain does not accept mail
-    Code556,
-}
-
-lazy_static::lazy_static! {
-    static ref CODE_220: String = {
-        ["220 {domain} Service ready\r\n"].concat()
-    };
-    static ref CODE_250_PLAIN_ESMTP: String = {
-        ["250-{domain}\r\n", "250 STARTTLS\r\n"].concat()
-    };
-    static ref CODE_250_SECURED_ESMTP: String = {
-        ["250 {domain}\r\n"].concat()
-    };
+    // Code555,
+    // domain does not accept mail
+    // Code556,
 }
 
 impl SMTPReplyCode {
-    // TODO: make sure it is compliant
-    // https://datatracker.ietf.org/doc/html/rfc5321#section-4.2
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            SMTPReplyCode::Code214 => "214 joining us https://viridit.com/support\r\n",
-            SMTPReplyCode::Code220 => &CODE_220,
-            SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
-            SMTPReplyCode::Code250 => "250 Ok\r\n",
-            SMTPReplyCode::Code250PlainEsmtp => &CODE_250_PLAIN_ESMTP,
-            SMTPReplyCode::Code250SecuredEsmtp => &CODE_250_SECURED_ESMTP,
-            //
-            SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            //
-            SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n",
-            SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n",
-            SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client\r\n",
-            SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason\r\n",
-            //
-            SMTPReplyCode::Code500 => "500 Syntax error, command unrecognized\r\n",
-            SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments\r\n",
-            SMTPReplyCode::Code502 => "502 Command not implemented\r\n",
-            SMTPReplyCode::Code503 => "503 Bad sequence of commands\r\n",
-            SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n",
-            SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
-            SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
-
-            _ => unimplemented!(),
-        }
-    }
-
     pub(crate) fn is_error(&self) -> bool {
         match self {
             SMTPReplyCode::Code214

@@ -14,10 +14,8 @@ default = "warn"
 rules = "warn"
 receiver = "info"
 
-# [paths]
-# rules_dir = "./config/rules"
-## TODO: replace for smtp.quarantine_path
-# quarantine_dir = "./tmp/quarantine"
+[rules]
+dir = "/etc/vsmtp/rules"
 
 [tls]
 security_level = "May"
@@ -36,7 +34,6 @@ spool_dir = "/var/spool/vsmtp"
 [smtp.timeout_client]
 Helo = "10000ms"
 Data = "10000ms"
-
 
 [smtp.error]
 soft_count = 5
