@@ -40,7 +40,7 @@ use rhai::plugin::*;
 pub(super) mod vsl {
     use std::net::SocketAddr;
 
-    use crate::config::log::RULES;
+    use crate::{config::log::RULES, rules::address::Address};
 
     use super::*;
 
@@ -157,8 +157,8 @@ pub(super) mod vsl {
         connect: IpAddr,
         port: u16,
         helo: &str,
-        mail: &str,
-        rcpt: Vec<String>,
+        mail: Address,
+        rcpt: Vec<Address>,
         data: &str,
         connection_timestamp: std::time::SystemTime,
         mail_timestamp: Option<std::time::SystemTime>,
@@ -184,7 +184,7 @@ pub(super) mod vsl {
         let ctx = MailContext {
             envelop: Envelop {
                 helo: helo.to_string(),
-                mail_from: mail.to_string(),
+                mail_from: mail,
                 rcpt,
             },
             body: data.into(),
@@ -293,10 +293,7 @@ pub(super) mod vsl {
     pub fn __user_exists(object: &str) -> bool {
         match RHAI_ENGINE.objects.read().unwrap().get(object) {
             Some(object) => internal_user_exists(object),
-            _ => {
-                println!("ERROR, OBJECT NOT FOUND");
-                internal_user_exists(&Object::Var(object.to_string()))
-            }
+            _ => internal_user_exists(&Object::Var(object.to_string())),
         }
     }
 }
