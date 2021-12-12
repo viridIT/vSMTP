@@ -10,7 +10,7 @@ addr = "0.0.0.0:10025"
 file = "./tmp/var/log/vsmtp/vsmtp.log"
 
 [log.level]
-default = "warn"
+default = "trace"
 rules = "warn"
 receiver = "info"
 
@@ -35,8 +35,10 @@ spool_dir = "./tmp/var/spool/vsmtp"
 Helo = "10000ms"
 Data = "10000ms"
 
-
 [smtp.error]
 soft_count = 5
 hard_count = 10
 delay = "5000ms"
+
+[smtp.code]
+Code214 = "214 my custom help message\r\n"
