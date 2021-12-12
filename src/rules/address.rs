@@ -19,7 +19,7 @@ use std::{error::Error, fmt::Display};
 use rhai::EvalAltResult;
 
 #[derive(Debug)]
-pub(crate) struct AddressParsingError(String);
+pub struct AddressParsingError(String);
 
 impl Display for AddressParsingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -39,7 +39,7 @@ impl From<&str> for AddressParsingError {
 /// since addr::email::Address needs to be sent in rhai's context,
 /// it needs to be static, thus impossible to do.
 /// TODO: find a way to use addr::email::Address instead of this struct.
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct Address {
     full: String,
     at_sign: usize,
@@ -60,7 +60,7 @@ impl Address {
         }
     }
 
-    pub(crate) fn new(addr: &str) -> Result<Self, AddressParsingError> {
+    pub fn new(addr: &str) -> Result<Self, AddressParsingError> {
         match addr::parse_email_address(addr) {
             Ok(addr) => Ok(Self {
                 full: addr.to_string(),
@@ -76,17 +76,17 @@ impl Address {
     }
 
     /// get the full email address.
-    pub(crate) fn full(&self) -> &str {
+    pub fn full(&self) -> &str {
         &self.full
     }
 
     /// get the user of the address.
-    pub(crate) fn user(&self) -> &str {
+    pub fn user(&self) -> &str {
         &self.full[..self.at_sign]
     }
 
     /// get the fqdn of the address.
-    pub(crate) fn domain(&self) -> &str {
+    pub fn domain(&self) -> &str {
         &self.full[self.at_sign + 1..]
     }
 }

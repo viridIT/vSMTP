@@ -85,8 +85,8 @@ mod test {
 
         match (jones.unwrap(), green.unwrap()) {
             (Object::Address(jones), Object::Address(green)) => {
-                assert_eq!(*jones, "jones@foo.com");
-                assert_eq!(*green, "green@bar.com");
+                assert_eq!(jones.full(), "jones@foo.com");
+                assert_eq!(green.full(), "green@bar.com");
             }
             _ => panic!("failed, objects tested aren't of type 'addr'."),
         }
@@ -104,9 +104,9 @@ mod test {
         match whitelist.unwrap() {
             Object::File(content) => match &content[..] {
                 [Object::Address(green), Object::Address(jones), Object::Address(user)] => {
-                    assert_eq!(green.as_str(), "green@bar.com");
-                    assert_eq!(jones.as_str(), "jones@foo.com");
-                    assert_eq!(user.as_str(), "user@domain.com");
+                    assert_eq!(green.full(), "green@bar.com");
+                    assert_eq!(jones.full(), "jones@foo.com");
+                    assert_eq!(user.full(), "user@domain.com");
                 }
                 _ => panic!("failed, objects tested aren't of type 'addr'."),
             },
@@ -154,9 +154,9 @@ mod test {
                         match &whitelist[..] {
                             [Object::Address(green), Object::Address(jones), Object::Address(user)] =>
                             {
-                                assert_eq!(green.as_str(), "green@bar.com");
-                                assert_eq!(jones.as_str(), "jones@foo.com");
-                                assert_eq!(user.as_str(), "user@domain.com");
+                                assert_eq!(green.full(), "green@bar.com");
+                                assert_eq!(jones.full(), "jones@foo.com");
+                                assert_eq!(user.full(), "user@domain.com");
                             }
                             _ => panic!("failed, objects tested aren't of type 'addr'."),
                         };
@@ -177,9 +177,9 @@ mod test {
                                 match &whitelist[..] {
                                     [Object::Address(green), Object::Address(jones), Object::Address(user)] =>
                                     {
-                                        assert_eq!(green.as_str(), "green@bar.com");
-                                        assert_eq!(jones.as_str(), "jones@foo.com");
-                                        assert_eq!(user.as_str(), "user@domain.com");
+                                        assert_eq!(green.full(), "green@bar.com");
+                                        assert_eq!(jones.full(), "jones@foo.com");
+                                        assert_eq!(user.full(), "user@domain.com");
                                     }
                                     _ => panic!("failed, objects tested aren't of type 'addr'."),
                                 };

@@ -11,6 +11,7 @@ mod tests {
         mailprocessing::mail_receiver::{MailReceiver, State},
         model::mail::MailContext,
         resolver::DataEndResolver,
+        rules::address::Address,
         smtp::code::SMTPReplyCode,
         tests::Mock,
     };
@@ -98,8 +99,8 @@ mod tests {
         impl DataEndResolver for T {
             async fn on_data_end(_: &ServerConfig, ctx: &MailContext) -> (State, SMTPReplyCode) {
                 assert_eq!(ctx.envelop.helo, "foobar");
-                assert_eq!(ctx.envelop.mail_from, "jhon@doe");
-                assert_eq!(ctx.envelop.rcpt, vec!["aa@bb"]);
+                assert_eq!(ctx.envelop.mail_from.full(), "jhon@doe");
+                assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
                 assert_eq!(ctx.body, "");
 
                 (State::MailFrom, SMTPReplyCode::Code250)
