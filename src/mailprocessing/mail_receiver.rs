@@ -291,17 +291,23 @@ where
             }
 
             (State::Data, Event::DataEnd) => {
-                // TODO: resolver should not be responsible for mutating the SMTP state
-                // should return a code and handle if code.is_error()
-                let (state, code) = R::on_data_end(self.server_config.as_ref(), &self.mail).await;
-
                 self.rule_engine.add_data("data", self.mail.body.clone());
 
                 let status = self.rule_engine.run_when("preq");
 
                 let result = match status {
-                    Status::Block => (Some(State::Stop), Some(SMTPReplyCode::Code554)),
-                    _ => self.process_rules_status(status, Some(state), Some(code)),
+                    Status::Block => return (Some(State::Stop), Some(SMTPReplyCode::Code554)),
+                    _ => self.process_rules_status(
+                        status,
+                        Some(State::MailFrom),
+                        Some(SMTPReplyCode::Code250),
+                    ),
+                };
+
+                // checking if the rule engine haven't ran successfuly.
+                match result {
+                    (Some(State::MailFrom), Some(SMTPReplyCode::Code250)) => {}
+                    _ => return result,
                 };
 
                 // executing all registered extensive operations.
@@ -325,15 +331,23 @@ where
                     );
                 }
 
-                log::info!(
-                    target: RECEIVER,
-                    "final envelop after executing all rules:\n {:#?}",
-                    self.rule_engine.get_scoped_envelop()
-                );
+                // getting the server's envelop, that could have mutated in the
+                // rule engine.
+                if let Some(envelop) = self.rule_engine.get_scoped_envelop() {
+                    self.mail.envelop = envelop;
 
-                // NOTE: clear envelop and mail context ?
+                    // TODO: resolver should not be responsible for mutating the SMTP state
+                    // should return a code and handle if code.is_error()
+                    let (state, code) =
+                        R::on_data_end(self.server_config.as_ref(), &self.mail).await;
 
-                result
+                    // NOTE: clear envelop and mail context ?
+
+                    (Some(state), Some(code))
+                } else {
+                    // NOTE: which code is returned when the server failed ?
+                    (Some(State::MailFrom), Some(SMTPReplyCode::Code554))
+                }
             }
 
             _ => (None, Some(SMTPReplyCode::Code503)),
