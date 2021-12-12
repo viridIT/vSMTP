@@ -56,15 +56,21 @@ impl ResolverWriteDisk {
 
     /// write to ${spool_dir}/inbox/${rcpt}
     /// the mail body sent by the client
-    fn write_email_to_rcpt_inbox(
-        spool_dir: &str,
+    fn write_to_maildir(
         rcpt: &Address,
+        timestamp: Option<std::time::SystemTime>,
         content: &str,
     ) -> std::io::Result<()> {
-        let mut folder = PathBuf::from_iter([spool_dir, "new"]);
+        let mut folder = PathBuf::from_iter(["/", "home", rcpt.user(), "Maildir", "new"]);
         std::fs::create_dir_all(&folder)?;
 
-        folder.push(rcpt.user());
+        // TODO: follow maildir's writing convention.
+        // NOTE: see https://en.wikipedia.org/wiki/Maildir
+        if let Some(t) = timestamp {
+            folder.push(format!("{:?}", t));
+        } else {
+            folder.push(format!("{:?}", std::time::SystemTime::now()));
+        }
 
         let mut inbox = std::fs::OpenOptions::new()
             .create(true)
@@ -115,7 +121,7 @@ impl ResolverWriteDisk {
 
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
-    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
+    async fn on_data_end(_config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
         // TODO: use temporary file unix syscall to generate temporary files
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
@@ -128,9 +134,7 @@ impl DataEndResolver for ResolverWriteDisk {
             if crate::rules::rule_engine::user_exists(rcpt.user()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                if let Err(error) =
-                    Self::write_email_to_rcpt_inbox(&config.smtp.spool_dir, rcpt, &mail.body)
-                {
+                if let Err(error) = Self::write_to_maildir(rcpt, mail.timestamp, &mail.body) {
                     log::error!(
                         target: RESOLVER,
                         "Couldn't write email to inbox: {:?}",
