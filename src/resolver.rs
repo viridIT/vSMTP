@@ -68,7 +68,7 @@ impl ResolverWriteDisk {
         unique_id: usize,
         content: &str,
     ) -> std::io::Result<()> {
-        let mut folder = PathBuf::from_iter(["/", "home", rcpt.user(), "Maildir", "new"]);
+        let mut folder = PathBuf::from_iter(["/", "home", rcpt.local_part(), "Maildir", "new"]);
         std::fs::create_dir_all(&folder)?;
 
         // TODO: follow maildir's writing convention.
@@ -144,7 +144,7 @@ impl DataEndResolver for ResolverWriteDisk {
         log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
         for (index, rcpt) in mail.envelop.rcpt.iter().enumerate() {
-            if crate::rules::rule_engine::user_exists(rcpt.user()) {
+            if crate::rules::rule_engine::user_exists(rcpt.local_part()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
                 if let Err(error) = Self::write_to_maildir(

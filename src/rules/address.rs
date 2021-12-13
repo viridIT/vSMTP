@@ -81,7 +81,7 @@ impl Address {
     }
 
     /// get the user of the address.
-    pub fn user(&self) -> &str {
+    pub fn local_part(&self) -> &str {
         &self.full[..self.at_sign]
     }
 
