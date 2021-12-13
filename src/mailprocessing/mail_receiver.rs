@@ -316,13 +316,10 @@ where
                 );
 
                 match self.server_config.smtp.rcpt_count_max {
-                    Some(rcpt_count_max) if rcpt_count_max < self.mail.envelop.rcpt.len() => {
-                        log::error!(target: RECEIVER, "client sent to much rcpt commands");
-                        (
-                            Some(StateSMTP::RcptTo),
-                            Some(SMTPReplyCode::Code452TooManyRecipients),
-                        )
-                    }
+                    Some(rcpt_count_max) if rcpt_count_max < self.mail.envelop.rcpt.len() => (
+                        Some(StateSMTP::RcptTo),
+                        Some(SMTPReplyCode::Code452TooManyRecipients),
+                    ),
                     _ => result,
                 }
             }
