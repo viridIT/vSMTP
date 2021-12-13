@@ -151,7 +151,7 @@ where
                         sni.domain.clone(),
                         rustls::sign::CertifiedKey {
                             cert: match Self::get_cert_from_file(
-                                &sni.cert
+                                &sni.fullchain
                                     .replace("{capath}", capath)
                                     .replace("{domain}", &sni.domain),
                             ) {
@@ -162,7 +162,7 @@ where
                                 }
                             },
                             key: match Self::get_signing_key_from_file(
-                                &sni.chain
+                                &sni.private_key
                                     .replace("{capath}", capath)
                                     .replace("{domain}", &sni.domain),
                             ) {
@@ -198,8 +198,10 @@ where
         std::sync::Arc::new(out)
     }
 
-    pub fn addr(&self) -> std::result::Result<std::net::SocketAddr, std::io::Error> {
-        self.listener.local_addr()
+    pub fn addr(&self) -> std::net::SocketAddr {
+        self.listener
+            .local_addr()
+            .expect("cannot retrieve local address")
     }
 
     fn handle_client(

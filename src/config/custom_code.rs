@@ -19,7 +19,7 @@ pub struct CustomSMTPCode {
     code454: String,
     code500: String,
     code501: String,
-    code502: String,
+    code502_unimplemented: String,
     code503: String,
     code530: String,
     code554: String,
@@ -44,7 +44,7 @@ impl CustomSMTPCode {
             SMTPReplyCode::Code454 => &self.code454,
             SMTPReplyCode::Code500 => &self.code500,
             SMTPReplyCode::Code501 => &self.code501,
-            SMTPReplyCode::Code502 => &self.code502,
+            SMTPReplyCode::Code502unimplemented => &self.code502_unimplemented,
             SMTPReplyCode::Code503 => &self.code503,
             SMTPReplyCode::Code530 => &self.code530,
             SMTPReplyCode::Code554 => &self.code554,
@@ -73,8 +73,8 @@ impl CustomSMTPCode {
              code: &SMTPReplyCode|
              -> String {
                 raw.get(code)
-                    .map(String::clone)
-                    .unwrap_or_else(|| DEFAULT_CONFIG.smtp.get_code().get(code).clone())
+                    .unwrap_or_else(|| DEFAULT_CONFIG.smtp.get_code().get(code))
+                    .clone()
                     .replace("{domain}", &config.domain)
             }
         };
@@ -95,7 +95,7 @@ impl CustomSMTPCode {
             code454: get(raw, config, &SMTPReplyCode::Code454),
             code500: get(raw, config, &SMTPReplyCode::Code500),
             code501: get(raw, config, &SMTPReplyCode::Code501),
-            code502: get(raw, config, &SMTPReplyCode::Code502),
+            code502_unimplemented: get(raw, config, &SMTPReplyCode::Code502unimplemented),
             code503: get(raw, config, &SMTPReplyCode::Code503),
             code530: get(raw, config, &SMTPReplyCode::Code530),
             code554: get(raw, config, &SMTPReplyCode::Code554),

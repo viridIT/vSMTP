@@ -1,6 +1,5 @@
 ### See vsmtp.default.toml documentation for this file format
 
-version = "0.1.0"
 domain = "testserver.com"
 
 [server]
@@ -26,12 +25,13 @@ handshake_timeout = "100ms"
 
 [[tls.sni_maps]]
 domain = "testserver.com"
-cert = "{capath}/fullchain.{domain}.pem"
-chain = "{capath}/rsa.{domain}.pem"
+fullchain = "{capath}/fullchain.{domain}.pem"
+private_key = "{capath}/rsa.{domain}.pem"
 
 [smtp]
 spool_dir = "./tmp/var/spool/vsmtp"
 rcpt_count_max = 25
+disable_ehlo = false
 
 [smtp.timeout_client]
 Helo = "10000ms"

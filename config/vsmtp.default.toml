@@ -2,15 +2,14 @@
 ### Default values used by vSMTP server
 ### This is documentation only : any changes will be ignored
 
-version = "0.1.0"
 domain = "mydomain.com"
 
 [server]
 ### local address of the listeners
-addr = "0.0.0.0:10025"
+addr = "0.0.0.0:25"
 
 [log]
-file = "/etc/vsmtp/console.log"
+file = "/var/log/vsmtp/vsmtp.log"
 
 [log.level]
 ### Log level of the different part of the program
@@ -25,10 +24,10 @@ dir = "/etc/vsmtp/rules"
 ### * None    => STARTTLS result a "454 TLS not available"
 ### * May     => allow both clair and secured messaging
 ### * Encrypt => NO STARTTLS result a "530 Must issue a STARTTLS"
-security_level = "None"
+security_level = "May"
 
 ### Option path for the certificats and keys (default: undefined)
-# capath = "/etc/vsmtp/certs"
+capath = "/etc/vsmtp/certs"
 
 ### Use the server's prefered cipherlist instead of the client one
 preempt_cipherlist = false
@@ -38,16 +37,25 @@ handshake_timeout = "5s"
 
 ### Maps for the "Server Name Indication" during the SSL/TLS handshake
 ### Example:
+#
 # [[tls.sni_maps]]
-# domain = "testserver.com"
-# cert = "{capath}/fullchain.{domain}.pem"
-# chain = "{capath}/rsa.{domain}.pem"
+# domain = "test1.server.com"
+# fullchain = "{capath}/fullchain.{domain}.pem"
+# private_key = "{capath}/rsa.{domain}.pem"
+#
+# [[tls.sni_maps]]
+# domain = "test2.server.com"
+# fullchain = "{capath}/fullchain.{domain}.pem"
+# private_key = "{capath}/rsa.{domain}.pem"
 
 [smtp]
 ### Root path for the storage of the mail received
 spool_dir = "/var/spool/vsmtp"
 ### Maximum number of recipients per mail (0 means any number of rcpt is ok)
 rcpt_count_max = 25
+### You might want (not recommanded) to disable EHLO (and ESMTP),
+### in that case vSMTP will reply a 502 unimplemented code.
+disable_ehlo = false
 
 [smtp.timeout_client]
 ### After receiving a message {key}, wait maximum the delay {value}
@@ -57,7 +65,6 @@ Helo = "5min"
 MailFrom = "5min"
 RcptTo = "5min"
 Data = "5min"
-
 
 ### vSMTP keep the count of the client's error
 [smtp.error]
@@ -88,7 +95,7 @@ Code452TooManyRecipients = "452 Requested action not taken: to many recipiants\r
 Code454 = "454 TLS not available due to temporary reason\r\n"
 Code500 = "500 Syntax error command unrecognized\r\n"
 Code501 = "501 Syntax error in parameters or arguments\r\n"
-Code502 = "502 Command not implemented\r\n"
+Code502unimplemented = "502 Command not implemented\r\n"
 Code503 = "503 Bad sequence of commands\r\n"
 Code530 = "530 Must issue a STARTTLS command first\r\n"
 Code554 = "554 permanent problems with the remote server\r\n"

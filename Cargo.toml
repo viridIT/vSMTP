@@ -18,7 +18,9 @@ users = "0.11"
 ## Parser / Serializer
 serde = { version = "1.0.130", features = ["derive"] }
 serde_derive = "1.0.130"
+serde_with = { version = "1.11.0", features = ["macros"] }
 serde_json = "1.0.72"
+
 toml = "0.5.8"
 humantime = "2.1.0"
 humantime-serde = "1.0.1"
