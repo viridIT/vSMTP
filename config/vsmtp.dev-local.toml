@@ -30,6 +30,7 @@ private_key = "{capath}/rsa.{domain}.pem"
 
 [smtp]
 spool_dir = "./tmp/var/spool/vsmtp"
+rcpt_count_max = 25
 disable_ehlo = false
 
 [smtp.timeout_client]
