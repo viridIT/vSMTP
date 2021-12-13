@@ -1,4 +1,8 @@
-use crate::{config::default::DEFAULT_CONFIG, resolver::DataEndResolver, server::ServerVSMTP};
+use serde_with::{serde_as, DisplayFromStr};
+
+use crate::{
+    mailprocessing::mail_receiver::StateSMTP, resolver::DataEndResolver, server::ServerVSMTP,
+};
 
 use super::custom_code::{CustomSMTPCode, SMTPCode};
 
@@ -23,8 +27,8 @@ pub enum TlsSecurityLevel {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SniKey {
     pub domain: String,
-    pub cert: String,
-    pub chain: String,
+    pub private_key: String,
+    pub fullchain: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -45,12 +49,18 @@ pub struct InnerSMTPErrorConfig {
     pub delay: std::time::Duration,
 }
 
+#[serde_as]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct InnerSMTPConfig {
     pub spool_dir: String,
-    pub timeout_client: std::collections::HashMap<String, String>,
+    pub disable_ehlo: bool,
+    #[serde_as(as = "std::collections::HashMap<DisplayFromStr, _>")]
+    // #[serde(with = "humantime_serde")]
+    pub timeout_client: std::collections::HashMap<StateSMTP, String>,
     pub error: InnerSMTPErrorConfig,
+    // TODO: ? use serde_as ?
     pub code: Option<SMTPCode>,
+    pub rcpt_count_max: Option<usize>,
 }
 
 impl InnerSMTPConfig {
@@ -72,7 +82,6 @@ pub struct InnerRulesConfig {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ServerConfig {
     pub domain: String,
-    pub version: String,
     pub server: InnerServerConfig,
     pub log: InnerLogConfig,
     pub tls: InnerTlsConfig,
@@ -95,8 +104,12 @@ impl ServerConfig {
                 Some(SMTPCode::Raw(raw)) => SMTPCode::Serialized(Box::new(
                     CustomSMTPCode::from_raw(raw, self, prepare_for_default),
                 )),
+                None => SMTPCode::Serialized(Box::new(CustomSMTPCode::from_raw(
+                    &std::collections::HashMap::<_, _>::new(),
+                    self,
+                    prepare_for_default,
+                ))),
                 Some(SMTPCode::Serialized(_)) => unreachable!(),
-                None => SMTPCode::Serialized(Box::new(DEFAULT_CONFIG.smtp.get_code().clone())),
             });
         self
     }

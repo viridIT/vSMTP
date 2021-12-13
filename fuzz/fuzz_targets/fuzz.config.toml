@@ -1,0 +1,31 @@
+### See vsmtp.default.toml documentation for this file format
+
+domain = "fuzzserver.com"
+
+[server]
+addr = "0.0.0.0:10025"
+
+[log]
+file = "./tests/generated/output.log"
+
+[log.level]
+default = "off"
+
+[rules]
+dir = "./tests/rules"
+
+[tls]
+security_level = "None"
+preempt_cipherlist = true
+handshake_timeout = "100ms"
+
+[smtp]
+spool_dir = "./tests/generated/spool/"
+disable_ehlo = false
+
+[smtp.timeout_client]
+
+[smtp.error]
+soft_count = -1
+hard_count = 5
+delay = "100ms"

@@ -1,14 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, io::Write};
+    use std::io::Write;
 
-    use log::LevelFilter;
     use vsmtp::{
-        config::server_config::{
-            InnerLogConfig, InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig,
-            InnerServerConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel,
-        },
-        mailprocessing::mail_receiver::{MailReceiver, State},
+        config::server_config::{InnerSMTPConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel},
+        mailprocessing::mail_receiver::{MailReceiver, StateSMTP},
         model::mail::MailContext,
         resolver::DataEndResolver,
         rules::address::Address,
@@ -26,54 +22,24 @@ mod tests {
             _: &ServerConfig,
             _: usize,
             _: &MailContext,
-        ) -> (State, SMTPReplyCode) {
+        ) -> (StateSMTP, SMTPReplyCode) {
             // after a successful exchange, the server is ready for a new RCPT
-            (State::MailFrom, SMTPReplyCode::Code250)
+            (StateSMTP::MailFrom, SMTPReplyCode::Code250)
         }
     }
 
     fn get_test_config() -> ServerConfig {
-        let mut config = ServerConfig {
-            domain: "testserver.com".to_string(),
-            version: "1.0.0".to_string(),
-            server: InnerServerConfig {
-                addr: "0.0.0.0:10025".parse().unwrap(),
-            },
-            log: InnerLogConfig {
-                file: "./tests/generated/output.log".to_string(),
-                level: HashMap::<String, LevelFilter>::new(),
-            },
-            tls: InnerTlsConfig {
-                security_level: TlsSecurityLevel::None,
-                capath: None,
-                preempt_cipherlist: true,
-                handshake_timeout: std::time::Duration::from_millis(10_000),
-                sni_maps: None,
-            },
-            smtp: InnerSMTPConfig {
-                spool_dir: "./tests/generated/spool/".to_string(),
-                timeout_client: HashMap::<String, String>::new(),
-                error: InnerSMTPErrorConfig {
-                    soft_count: 5,
-                    hard_count: 10,
-                    delay: std::time::Duration::from_millis(100),
-                },
-                code: None,
-            },
-            rules: InnerRulesConfig {
-                dir: String::default(),
-            },
-        };
-        config.prepare();
-        config
+        toml::from_str(include_str!("config.toml")).expect("cannot parse config from toml")
     }
 
     async fn make_test<T: vsmtp::resolver::DataEndResolver>(
         smtp_input: &[u8],
         expected_output: &[u8],
-        config: ServerConfig,
+        mut config: ServerConfig,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     ) -> Result<(), std::io::Error> {
+        config.prepare();
+
         let mut receiver = MailReceiver::<T>::new(
             "0.0.0.0:0".parse().unwrap(),
             tls_config,
@@ -105,20 +71,20 @@ mod tests {
                 _: &ServerConfig,
                 _: usize,
                 ctx: &MailContext,
-            ) -> (State, SMTPReplyCode) {
+            ) -> (StateSMTP, SMTPReplyCode) {
                 assert_eq!(ctx.envelop.helo, "foobar");
-                assert_eq!(ctx.envelop.mail_from.full(), "jhon@doe");
+                assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
                 assert_eq!(ctx.body, "");
 
-                (State::MailFrom, SMTPReplyCode::Code250)
+                (StateSMTP::MailFrom, SMTPReplyCode::Code250)
             }
         }
 
         assert!(make_test::<T>(
             [
                 "HELO foobar\r\n",
-                "MAIL FROM:<jhon@doe>\r\n",
+                "MAIL FROM:<john@doe>\r\n",
                 "RCPT TO:<aa@bb>\r\n",
                 "DATA\r\n",
                 ".\r\n",
@@ -127,7 +93,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
@@ -155,7 +121,7 @@ mod tests {
         assert!(make_test::<DefaultResolverTest>(
             ["foo\r\n"].concat().as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
             ]
             .concat()
@@ -176,9 +142,9 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_3() {
         assert!(make_test::<DefaultResolverTest>(
-            ["MAIL FROM:<jhon@doe>\r\n"].concat().as_bytes(),
+            ["MAIL FROM:<john@doe>\r\n"].concat().as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
             .concat()
@@ -199,9 +165,9 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_4() {
         assert!(make_test::<DefaultResolverTest>(
-            ["RCPT TO:<jhon@doe>\r\n"].concat().as_bytes(),
+            ["RCPT TO:<john@doe>\r\n"].concat().as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
             .concat()
@@ -226,7 +192,7 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "503 Bad sequence of commands\r\n",
             ]
@@ -250,7 +216,7 @@ mod tests {
         assert!(make_test::<DefaultResolverTest>(
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "221 Service closing transmission channel\r\n",
             ]
@@ -276,8 +242,8 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
-                "250-{domain}\r\n",
+                "220 testserver.com Service ready\r\n",
+                "250-testserver.com\r\n",
                 "250 STARTTLS\r\n",
                 "454 TLS not available due to temporary reason\r\n",
                 "221 Service closing transmission channel\r\n",
@@ -304,8 +270,8 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
-                "250-{domain}\r\n",
+                "220 testserver.com Service ready\r\n",
+                "250-testserver.com\r\n",
                 "250 STARTTLS\r\n",
                 "530 Must issue a STARTTLS command first\r\n",
                 "221 Service closing transmission channel\r\n",
@@ -336,7 +302,7 @@ mod tests {
                 "NOOP\r\n",
                 "azeai\r\n",
                 "STARTTLS\r\n",
-                "MAIL FROM:<jhon@doe>\r\n",
+                "MAIL FROM:<john@doe>\r\n",
                 "EHLO\r\n",
                 "EHLO\r\n",
                 "HELP\r\n",
@@ -346,7 +312,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "503 Bad sequence of commands\r\n",
                 "503 Bad sequence of commands\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
@@ -379,7 +345,7 @@ mod tests {
         assert!(make_test::<DefaultResolverTest>(
             ["HELP\r\n"].concat().as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "214 joining us https://viridit.com/support\r\n",
             ]
             .concat()
@@ -412,7 +378,7 @@ mod tests {
             .concat()
             .as_bytes(),
             [
-                "220 {domain} Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
@@ -427,6 +393,29 @@ mod tests {
                 tls: InnerTlsConfig {
                     security_level: TlsSecurityLevel::None,
                     ..get_test_config().tls
+                },
+                ..get_test_config()
+            },
+            None,
+        )
+        .await
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_receiver_12() {
+        assert!(make_test::<DefaultResolverTest>(
+            ["EHLO postmaster\r\n"].concat().as_bytes(),
+            [
+                "220 testserver.com Service ready\r\n",
+                "502 Command not implemented\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            ServerConfig {
+                smtp: InnerSMTPConfig {
+                    disable_ehlo: true,
+                    ..get_test_config().smtp
                 },
                 ..get_test_config()
             },

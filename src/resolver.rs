@@ -18,7 +18,7 @@ use std::path::PathBuf;
 **/
 use crate::{
     config::{log::RESOLVER, server_config::ServerConfig},
-    mailprocessing::mail_receiver::State,
+    mailprocessing::mail_receiver::StateSMTP,
     model::mail::MailContext,
     rules::address::Address,
     smtp::code::SMTPReplyCode,
@@ -30,7 +30,7 @@ pub trait DataEndResolver {
         config: &ServerConfig,
         deliveries: usize,
         mail: &MailContext,
-    ) -> (State, SMTPReplyCode);
+    ) -> (StateSMTP, SMTPReplyCode);
 }
 
 pub struct ResolverWriteDisk;
@@ -134,7 +134,7 @@ impl DataEndResolver for ResolverWriteDisk {
         _config: &ServerConfig,
         deliveries: usize,
         mail: &MailContext,
-    ) -> (State, SMTPReplyCode) {
+    ) -> (StateSMTP, SMTPReplyCode) {
         // TODO: use temporary file unix syscall to generate temporary files
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
@@ -156,13 +156,13 @@ impl DataEndResolver for ResolverWriteDisk {
                                 Ok(elapsed) => elapsed,
                                 Err(error) => {
                                     log::error!("failed to deliver mail to '{}': {}", rcpt, error);
-                                    return (State::MailFrom, SMTPReplyCode::Code250);
+                                    return (StateSMTP::MailFrom, SMTPReplyCode::Code250);
                                 }
                             },
 
                             None => {
                                 log::error!("failed to deliver mail to '{}': timestamp for email file name is unavailable", rcpt);
-                                return (State::MailFrom, SMTPReplyCode::Code250);
+                                return (StateSMTP::MailFrom, SMTPReplyCode::Code250);
                             }
                         }
                     ),
@@ -184,7 +184,6 @@ impl DataEndResolver for ResolverWriteDisk {
                 );
             }
         }
-
-        (State::MailFrom, SMTPReplyCode::Code250)
+        (StateSMTP::MailFrom, SMTPReplyCode::Code250)
     }
 }
