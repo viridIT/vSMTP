@@ -51,7 +51,7 @@ handshake_timeout = "5s"
 [smtp]
 ### Root path for the storage of the mail received
 spool_dir = "/var/spool/vsmtp"
-### Maximum number of recipients per mail (0 means any number of rcpt is ok)
+### Maximum number of recipients per mail.
 rcpt_count_max = 25
 ### You might want (not recommanded) to disable EHLO (and ESMTP),
 ### in that case vSMTP will reply a 502 unimplemented code.
