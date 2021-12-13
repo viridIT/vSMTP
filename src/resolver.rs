@@ -26,7 +26,11 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait DataEndResolver {
-    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode);
+    async fn on_data_end(
+        config: &ServerConfig,
+        deliveries: usize,
+        mail: &MailContext,
+    ) -> (State, SMTPReplyCode);
 }
 
 pub struct ResolverWriteDisk;
@@ -54,11 +58,14 @@ impl ResolverWriteDisk {
         }
     }
 
-    /// write to ${spool_dir}/inbox/${rcpt}
-    /// the mail body sent by the client
+    /// write to /home/${user}/Maildir/ the mail body sent by the client.
+    /// the format of the file name is the following:
+    /// `{timestamp}.Size={content size}.D={deliveries}.ID={unique_id}.vsmtp`
     fn write_to_maildir(
         rcpt: &Address,
-        timestamp: Option<std::time::SystemTime>,
+        timestamp: &str,
+        deliveries: usize,
+        unique_id: usize,
         content: &str,
     ) -> std::io::Result<()> {
         let mut folder = PathBuf::from_iter(["/", "home", rcpt.user(), "Maildir", "new"]);
@@ -66,16 +73,18 @@ impl ResolverWriteDisk {
 
         // TODO: follow maildir's writing convention.
         // NOTE: see https://en.wikipedia.org/wiki/Maildir
-        if let Some(t) = timestamp {
-            folder.push(format!("{:?}", t));
-        } else {
-            folder.push(format!("{:?}", std::time::SystemTime::now()));
-        }
+        let filename = format!(
+            "{}.Size={}.D={}.ID={}.vsmtp",
+            timestamp,
+            content.as_bytes().len(),
+            deliveries,
+            unique_id
+        );
+        folder.push(filename);
 
         let mut inbox = std::fs::OpenOptions::new()
+            .write(true)
             .create(true)
-            .append(true)
-            // NOTE: does Path struct path concatenation exists ?
             .open(folder)?;
 
         std::io::Write::write_all(&mut inbox, content.as_bytes())?;
@@ -121,7 +130,11 @@ impl ResolverWriteDisk {
 
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
-    async fn on_data_end(_config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
+    async fn on_data_end(
+        _config: &ServerConfig,
+        deliveries: usize,
+        mail: &MailContext,
+    ) -> (State, SMTPReplyCode) {
         // TODO: use temporary file unix syscall to generate temporary files
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
@@ -130,17 +143,39 @@ impl DataEndResolver for ResolverWriteDisk {
 
         log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
-        for rcpt in &mail.envelop.rcpt {
+        for (index, rcpt) in mail.envelop.rcpt.iter().enumerate() {
             if crate::rules::rule_engine::user_exists(rcpt.user()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                if let Err(error) = Self::write_to_maildir(rcpt, mail.timestamp, &mail.body) {
+                if let Err(error) = Self::write_to_maildir(
+                    rcpt,
+                    &format!(
+                        "{:?}",
+                        match mail.timestamp {
+                            Some(timestamp) => match timestamp.elapsed() {
+                                Ok(elapsed) => elapsed,
+                                Err(error) => {
+                                    log::error!("failed to deliver mail to '{}': {}", rcpt, error);
+                                    return (State::MailFrom, SMTPReplyCode::Code250);
+                                }
+                            },
+
+                            None => {
+                                log::error!("failed to deliver mail to '{}': timestamp for email file name is unavailable", rcpt);
+                                return (State::MailFrom, SMTPReplyCode::Code250);
+                            }
+                        }
+                    ),
+                    deliveries,
+                    index,
+                    &mail.body,
+                ) {
                     log::error!(
                         target: RESOLVER,
                         "Couldn't write email to inbox: {:?}",
                         error
                     );
-                };
+                }
             } else {
                 log::trace!(
                     target: RESOLVER,
@@ -149,6 +184,7 @@ impl DataEndResolver for ResolverWriteDisk {
                 );
             }
         }
+
         (State::MailFrom, SMTPReplyCode::Code250)
     }
 }
