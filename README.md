@@ -1,4 +1,27 @@
-# vSMTP `:mailbox:`
+<h1 align="center">vSMTP 📫</h1>
+<div align="center">
+  <strong>
+    The next-gen MTA. Secured, Faster and Greener
+  </strong>
+</div>
+
+<br />
+
+<div align="center">
+  <a href="https://www.viridit.com">
+    <img src="https://img.shields.io/badge/visit-website-green"
+      alt="website" />
+  </a>
+</div>
+
+<div align="center">
+  <a href="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml">
+    <img src="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml/badge.svg?branch=rc-01"
+      alt="CI" />
+  </a>
+</div>
+
+---
 
 vSMTP is a next-gen Mail Transfer Agent (MTA) developed by viridIT teams.
 You can follow us on <https://www.viridit.com>
