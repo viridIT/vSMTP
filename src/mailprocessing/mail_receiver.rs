@@ -274,7 +274,22 @@ where
             }
 
             (State::MailFrom | State::RcptTo, Event::RcptCmd(rcpt_to)) => {
-                // NOTE: the rule engine can change rcpt's length.
+                self.set_rcpt_to(rcpt_to);
+
+                log::trace!(
+                    target: RECEIVER,
+                    "[p:{}] envelop=\"{:?}\"",
+                    self.mail.connection.peer_addr.port(),
+                    self.mail.envelop,
+                );
+
+                let status = self.rule_engine.run_when("rcpt");
+                let result = self.process_rules_status(
+                    status,
+                    Some(State::RcptTo),
+                    Some(SMTPReplyCode::Code250),
+                );
+
                 match self.server_config.smtp.rcpt_count_max {
                     Some(rcpt_count_max) if rcpt_count_max < self.mail.envelop.rcpt.len() => {
                         log::error!(target: RECEIVER, "client sent to much rcpt commands");
@@ -283,23 +298,7 @@ where
                             Some(SMTPReplyCode::Code452TooManyRecipients),
                         )
                     }
-                    _ => {
-                        self.set_rcpt_to(rcpt_to);
-
-                        log::trace!(
-                            target: RECEIVER,
-                            "[p:{}] envelop=\"{:?}\"",
-                            self.mail.connection.peer_addr.port(),
-                            self.mail.envelop,
-                        );
-
-                        let status = self.rule_engine.run_when("rcpt");
-                        self.process_rules_status(
-                            status,
-                            Some(State::RcptTo),
-                            Some(SMTPReplyCode::Code250),
-                        )
-                    }
+                    _ => result,
                 }
             }
 
