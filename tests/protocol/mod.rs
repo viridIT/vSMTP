@@ -22,7 +22,11 @@ mod tests {
 
     #[async_trait::async_trait]
     impl DataEndResolver for DefaultResolverTest {
-        async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (State, SMTPReplyCode) {
+        async fn on_data_end(
+            _: &ServerConfig,
+            _: usize,
+            _: &MailContext,
+        ) -> (State, SMTPReplyCode) {
             // after a successful exchange, the server is ready for a new RCPT
             (State::MailFrom, SMTPReplyCode::Code250)
         }
@@ -97,7 +101,11 @@ mod tests {
 
         #[async_trait::async_trait]
         impl DataEndResolver for T {
-            async fn on_data_end(_: &ServerConfig, ctx: &MailContext) -> (State, SMTPReplyCode) {
+            async fn on_data_end(
+                _: &ServerConfig,
+                _: usize,
+                ctx: &MailContext,
+            ) -> (State, SMTPReplyCode) {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "jhon@doe");
                 assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
