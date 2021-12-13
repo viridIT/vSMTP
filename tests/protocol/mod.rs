@@ -59,6 +59,7 @@ mod tests {
                     delay: std::time::Duration::from_millis(100),
                 },
                 code: None,
+                rcpt_count_max: None,
             },
             rules: InnerRulesConfig {
                 dir: String::default(),

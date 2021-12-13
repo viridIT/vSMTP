@@ -31,6 +31,7 @@ chain = "{capath}/rsa.{domain}.pem"
 
 [smtp]
 spool_dir = "./tmp/var/spool/vsmtp"
+rcpt_count_max = 3
 
 [smtp.timeout_client]
 Helo = "10000ms"

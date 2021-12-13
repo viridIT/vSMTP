@@ -51,6 +51,7 @@ pub struct InnerSMTPConfig {
     pub timeout_client: std::collections::HashMap<String, String>,
     pub error: InnerSMTPErrorConfig,
     pub code: Option<SMTPCode>,
+    pub rcpt_count_max: Option<usize>,
 }
 
 impl InnerSMTPConfig {

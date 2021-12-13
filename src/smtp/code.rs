@@ -72,7 +72,8 @@ pub enum SMTPReplyCode {
     Code451Timeout,
     Code451TooManyError,
     /// requested action not taken: insufficient system storage
-    // Code452,
+    Code452,
+    Code452TooManyRecipients,
     // TLS not available due to temporary reason
     Code454,
     /// server unable to accommodate parameters
@@ -125,6 +126,8 @@ impl SMTPReplyCode {
             //
             SMTPReplyCode::Code451Timeout
             | SMTPReplyCode::Code451
+            | SMTPReplyCode::Code452
+            | SMTPReplyCode::Code452TooManyRecipients
             | SMTPReplyCode::Code454
             | SMTPReplyCode::Code500
             | SMTPReplyCode::Code501
