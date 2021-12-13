@@ -10,6 +10,7 @@
         "ENHANCEDSTATUSCODES",
         "Expn",
         "Faccept",
+        "fullchain",
         "helo",
         "humantime",
         "maildir",
