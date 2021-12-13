@@ -1,15 +1,9 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-use log::LevelFilter;
-use std::collections::HashMap;
-
 use vsmtp::{
-    config::server_config::{
-        InnerLogConfig, InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
-        InnerTlsConfig, ServerConfig, TlsSecurityLevel,
-    },
-    mailprocessing::mail_receiver::{MailReceiver, State},
+    config::server_config::ServerConfig,
+    mailprocessing::mail_receiver::{MailReceiver, StateSMTP},
     model::mail::MailContext,
     resolver::DataEndResolver,
     smtp::code::SMTPReplyCode,
@@ -19,54 +13,22 @@ use vsmtp::{
 struct DataEndResolverTest;
 #[async_trait::async_trait]
 impl DataEndResolver for DataEndResolverTest {
-    async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (State, SMTPReplyCode) {
-        (State::MailFrom, SMTPReplyCode::Code250)
+    async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (StateSMTP, SMTPReplyCode) {
+        (StateSMTP::MailFrom, SMTPReplyCode::Code250)
     }
 }
 
-fn get_test_config() -> ServerConfig {
-    let mut config = ServerConfig {
-        domain: "fuzzserver.com".to_string(),
-        version: "1.0.0".to_string(),
-        server: InnerServerConfig {
-            addr: "0.0.0.0:10025".parse().unwrap(),
-        },
-        log: InnerLogConfig {
-            file: "./tests/generated/output.log".to_string(),
-            level: HashMap::<String, LevelFilter>::new(),
-        },
-        tls: InnerTlsConfig {
-            security_level: TlsSecurityLevel::None,
-            capath: None,
-            preempt_cipherlist: true,
-            handshake_timeout: std::time::Duration::from_millis(10_000),
-            sni_maps: None,
-        },
-        smtp: InnerSMTPConfig {
-            spool_dir: "./tests/generated/spool/".to_string(),
-            timeout_client: HashMap::<String, String>::new(),
-            error: InnerSMTPErrorConfig {
-                soft_count: -1,
-                hard_count: 10,
-                delay: std::time::Duration::from_millis(0),
-            },
-            code: None,
-        },
-        rules: InnerRulesConfig {
-            dir: String::default(),
-        },
-    };
-    config.prepare();
-    config
-}
-
 fuzz_target!(|data: &[u8]| {
+    let mut config: ServerConfig =
+        toml::from_str(include_str!("fuzz.config.toml")).expect("cannot parse config from toml");
+    config.prepare();
+
     let mut write_vec = Vec::new();
     let mut mock = Mock::new(data.to_vec(), &mut write_vec);
     let mut receiver = MailReceiver::<DataEndResolverTest>::new(
         "0.0.0.0:0".parse().unwrap(),
         None,
-        std::sync::Arc::new(get_test_config()),
+        std::sync::Arc::new(config),
     );
     let future = receiver.receive_plain(&mut mock);
 

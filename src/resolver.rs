@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{log::RESOLVER, server_config::ServerConfig},
-    mailprocessing::mail_receiver::State,
+    mailprocessing::mail_receiver::StateSMTP,
     model::mail::MailContext,
     rules::address::Address,
     smtp::code::SMTPReplyCode,
@@ -24,7 +24,7 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait DataEndResolver {
-    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode);
+    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (StateSMTP, SMTPReplyCode);
 }
 
 pub struct ResolverWriteDisk;
@@ -109,7 +109,7 @@ impl ResolverWriteDisk {
 
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
-    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (State, SMTPReplyCode) {
+    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (StateSMTP, SMTPReplyCode) {
         if let Err(error) = Self::write_mail_to_process(&config.smtp.spool_dir, mail) {
             log::error!(
                 target: RESOLVER,
@@ -137,6 +137,6 @@ impl DataEndResolver for ResolverWriteDisk {
                 );
             };
         }
-        (State::MailFrom, SMTPReplyCode::Code250)
+        (StateSMTP::MailFrom, SMTPReplyCode::Code250)
     }
 }
