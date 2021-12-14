@@ -39,7 +39,7 @@
 /// mail system vis-a-vis the requested transfer or other mail system
 /// action.
 
-#[derive(Debug, Eq, PartialEq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, serde::Deserialize, serde::Serialize)]
 pub enum SMTPReplyCode {
     /// system status, or system help reply
     // Code211,

@@ -104,7 +104,7 @@ impl CustomSMTPCode {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum SMTPCode {
     Raw(std::collections::HashMap<SMTPReplyCode, String>),
