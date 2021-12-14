@@ -117,3 +117,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: bench
+      - uses: actions/upload-artifact@v2
+        with:
+          name: benchmark-report
+          path: target/criterion
