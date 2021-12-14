@@ -6,12 +6,12 @@ use crate::{
 
 use super::custom_code::{CustomSMTPCode, SMTPCode};
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct InnerServerConfig {
     pub addr: std::net::SocketAddr,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct InnerLogConfig {
     pub file: String,
     pub level: std::collections::HashMap<String, log::LevelFilter>,
@@ -24,14 +24,14 @@ pub enum TlsSecurityLevel {
     Encrypt,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct SniKey {
     pub domain: String,
     pub private_key: String,
     pub fullchain: String,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct InnerTlsConfig {
     pub security_level: TlsSecurityLevel,
     pub capath: Option<String>,
@@ -41,7 +41,7 @@ pub struct InnerTlsConfig {
     pub sni_maps: Option<Vec<SniKey>>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct InnerSMTPErrorConfig {
     pub soft_count: i64,
     pub hard_count: i64,
@@ -50,7 +50,7 @@ pub struct InnerSMTPErrorConfig {
 }
 
 #[serde_as]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct InnerSMTPConfig {
     pub spool_dir: String,
     pub disable_ehlo: bool,
@@ -74,12 +74,12 @@ impl InnerSMTPConfig {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct InnerRulesConfig {
     pub dir: String,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ServerConfig {
     pub domain: String,
     pub server: InnerServerConfig,
