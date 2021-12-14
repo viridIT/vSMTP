@@ -252,7 +252,7 @@ impl<U: Users> RhaiEngine<U> {
         .register_type::<Address>()
         .register_result_fn("new_address", <Address>::rhai_wrapper)
         .register_get("full", |addr: &mut Address| addr.full().to_string())
-        .register_get("user", |addr: &mut Address| addr.user().to_string())
+        .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
         .register_get("domain", |addr: &mut Address| addr.domain().to_string())
 
         // the operation queue is used to defer actions.
@@ -262,7 +262,14 @@ impl<U: Users> RhaiEngine<U> {
         // adding an Address vector as a custom type.
         // it is used to easily manipulate the rcpt container.
         .register_iterator::<Vec<Address>>()
+        .register_iterator::<Vec<String>>()
         .register_fn("push", <Vec<Address>>::push)
+        .register_fn("local_parts", |vec: &mut Vec<Address>| -> Vec<String> {
+            vec.iter().map(|addr| addr.local_part().to_string()).collect()
+        })
+        .register_fn("domains", |vec: &mut Vec<Address>| -> Vec<String> {
+            vec.iter().map(|addr| addr.domain().to_string()).collect()
+        })
 
         // NOTE: we cannot register Vec<Address>::remove & replace method because usize doesn't exists in rhai.
         //       here we create custom replacements that accepts i64 values.

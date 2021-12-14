@@ -60,6 +60,7 @@ pub struct InnerSMTPConfig {
     pub error: InnerSMTPErrorConfig,
     // TODO: ? use serde_as ?
     pub code: Option<SMTPCode>,
+    pub rcpt_count_max: Option<usize>,
 }
 
 impl InnerSMTPConfig {

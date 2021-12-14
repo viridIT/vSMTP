@@ -309,11 +309,19 @@ where
                 );
 
                 let status = self.rule_engine.run_when("rcpt");
-                self.process_rules_status(
+                let result = self.process_rules_status(
                     status,
                     Some(StateSMTP::RcptTo),
                     Some(SMTPReplyCode::Code250),
-                )
+                );
+
+                match self.server_config.smtp.rcpt_count_max {
+                    Some(rcpt_count_max) if rcpt_count_max < self.mail.envelop.rcpt.len() => (
+                        Some(StateSMTP::RcptTo),
+                        Some(SMTPReplyCode::Code452TooManyRecipients),
+                    ),
+                    _ => result,
+                }
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
