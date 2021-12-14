@@ -6,10 +6,10 @@
         "tamasfe.even-better-toml",
         "serayuzgur.crates",
         "streetsidesoftware.code-spell-checker",
-        "coenraads.bracket-pair-colorizer-2",
         "vadimcn.vscode-lldb"
     ],
     "unwantedRecommendations": [
-        "rust-lang.rust"
+        "rust-lang.rust",
+        "coenraads.bracket-pair-colorizer-2"
     ]
 }
