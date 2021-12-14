@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -68,7 +66,8 @@ impl ResolverWriteDisk {
         unique_id: usize,
         content: &str,
     ) -> std::io::Result<()> {
-        let mut folder = PathBuf::from_iter(["/", "home", rcpt.user(), "Maildir", "new"]);
+        let mut folder =
+            std::path::PathBuf::from_iter(["/", "home", rcpt.user(), "Maildir", "new"]);
         std::fs::create_dir_all(&folder)?;
 
         // TODO: follow maildir's writing convention.

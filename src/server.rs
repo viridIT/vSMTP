@@ -23,7 +23,6 @@ pub struct ServerVSMTP<R>
 where
     R: DataEndResolver,
 {
-    // listeners: Vec<tokio::net::TcpListener>,
     listener: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     config: std::sync::Arc<ServerConfig>,
@@ -94,9 +93,11 @@ where
             })
     }
 
-    fn get_cert_from_file(cert_path: &str) -> Result<Vec<rustls::Certificate>, std::io::Error> {
-        let cert_file = std::fs::File::open(&cert_path)?;
-        let mut reader = std::io::BufReader::new(cert_file);
+    fn get_cert_from_file(
+        fullchain_path: &str,
+    ) -> Result<Vec<rustls::Certificate>, std::io::Error> {
+        let fullchain_file = std::fs::File::open(&fullchain_path)?;
+        let mut reader = std::io::BufReader::new(fullchain_file);
         rustls_pemfile::certs(&mut reader).map(|certs| {
             certs
                 .into_iter()
@@ -106,15 +107,10 @@ where
     }
 
     fn get_signing_key_from_file(
-        chain_path: &str,
+        rsa_path: &str,
     ) -> Result<std::sync::Arc<dyn rustls::sign::SigningKey>, std::io::Error> {
-        // NOTE: ?
-        // The chain files MUST start with the private key,
-        // with the certificate chain next, starting with the leaf
-        // (server) certificate, and then the issuer certificates.
-
-        let key_file = std::fs::File::open(&chain_path)?;
-        let mut reader = std::io::BufReader::new(key_file);
+        let rsa_file = std::fs::File::open(&rsa_path)?;
+        let mut reader = std::io::BufReader::new(rsa_file);
 
         let private_keys_rsa = rustls_pemfile::rsa_private_keys(&mut reader)?
             .into_iter()
