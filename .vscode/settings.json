@@ -13,6 +13,7 @@
         "fullchain",
         "helo",
         "humantime",
+        "lettre",
         "maildir",
         "nonblocking",
         "pemfile",

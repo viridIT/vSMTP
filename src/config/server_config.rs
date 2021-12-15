@@ -36,6 +36,8 @@ pub struct InnerTlsConfig {
     pub security_level: TlsSecurityLevel,
     pub capath: Option<String>,
     pub preempt_cipherlist: bool,
+    pub fullchain: Option<String>,
+    pub private_key: Option<String>,
     #[serde(with = "humantime_serde")]
     pub handshake_timeout: std::time::Duration,
     pub sni_maps: Option<Vec<SniKey>>,

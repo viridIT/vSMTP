@@ -35,6 +35,11 @@ preempt_cipherlist = false
 ### Maximum delay for the handshake SSL/TLS
 handshake_timeout = "5s"
 
+### Default domain certificate file
+fullchain = "{capath}/fullchain.{domain}.pem"
+### Default domain private key
+private_key = "{capath}/rsa.{domain}.pem"
+
 ### Maps for the "Server Name Indication" during the SSL/TLS handshake
 ### Example:
 #
