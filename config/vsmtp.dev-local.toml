@@ -20,6 +20,9 @@ capath = "./config/certs"
 preempt_cipherlist = true
 handshake_timeout = "100ms"
 
+fullchain = "{capath}/certificate.crt"
+private_key = "{capath}/privateKey.key"
+
 [[tls.sni_maps]]
 domain = "testserver.com"
 fullchain = "{capath}/fullchain.{domain}.pem"

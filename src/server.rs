@@ -195,22 +195,9 @@ where
                 &self,
                 client_hello: rustls::server::ClientHello,
             ) -> Option<std::sync::Arc<rustls::sign::CertifiedKey>> {
-                log::error!("{:?}", client_hello.signature_schemes());
-                if let Some(a) = client_hello.alpn() {
-                    a.for_each(|i| log::error!("{:?}", i))
-                }
-                log::error!("{:?}", client_hello.server_name());
-                let x = self
-                    .sni_resolver
+                self.sni_resolver
                     .resolve(client_hello)
-                    .or_else(|| self.cert.clone());
-
-                log::error!(
-                    "{:?}",
-                    x.as_ref()
-                        .map(|i| std::str::from_utf8(&i.cert.first().unwrap().0))
-                );
-                x
+                    .or_else(|| self.cert.clone())
             }
         }
 
@@ -243,8 +230,6 @@ where
                             .map(|private_key| (fullchain, private_key))
                     })
                     .and_then(|(fullchain, private_key)| {
-                        log::error!("{:?}", fullchain);
-                        log::error!("{:?}", private_key);
                         Some((
                             match Self::get_cert_from_file(
                                 &fullchain
