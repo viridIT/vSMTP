@@ -70,7 +70,7 @@ impl<'a> RuleEngine<'a> {
             .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
             .push("port", 0)
             .push("helo", "")
-            .push("mail", "")
+            .push("mail", Address::default())
             .push("rcpt", Address::default())
             .push("rcpts", Vec::<Address>::new())
             .push("data", "")
@@ -127,9 +127,9 @@ impl<'a> RuleEngine<'a> {
         self.scope
             .set_value("time", now.time().format("%H:%M:%S").to_string());
 
-        let result = RHAI_ENGINE
+        let result = acquire_engine()
             .context
-            .eval_ast_with_scope::<Status>(&mut self.scope, &RHAI_ENGINE.ast);
+            .eval_ast_with_scope::<Status>(&mut self.scope, &acquire_engine().ast);
 
         // FIXME: clarify this comment.
         // rules are cleared after evaluation, this way,
@@ -219,7 +219,7 @@ impl<'a> RuleEngine<'a> {
 /// doesn't need to evaluate them each call.
 /// the engine also stores a user cache that is used to fetch
 /// data about system users.
-pub(super) struct RhaiEngine<U: Users> {
+pub struct RhaiEngine<U: Users> {
     /// rhai's engine structure.
     pub(super) context: Engine,
     /// the ast, built from the user's .vsl files.
@@ -239,7 +239,7 @@ pub(super) struct RhaiEngine<U: Users> {
 
 impl<U: Users> RhaiEngine<U> {
     /// create an engine from a script encoded in raw bytes.
-    fn from_bytes(src: &[u8], users: U) -> Result<Self, Box<dyn Error>> {
+    pub fn from_bytes(src: &[u8], users: U) -> Result<Self, Box<dyn Error>> {
         let mut engine = Engine::new();
         let objects = Arc::new(RwLock::new(BTreeMap::new()));
         let shared_obj = objects.clone();
@@ -551,7 +551,10 @@ impl RhaiEngine<users::mock::MockUsers> {
     /// creates a new instance of the rule engine, used for tests.
     /// allow unused is () becuase this new static method is
     /// for tests only.
-    fn new(src_path: &str, users: users::mock::MockUsers) -> Result<Self, Box<dyn Error>> {
+    pub(super) fn new(
+        src_path: &str,
+        users: users::mock::MockUsers,
+    ) -> Result<Self, Box<dyn Error>> {
         // load all sources from file.
         // this function is declared here since it isn't needed anywhere else.
         fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
@@ -577,7 +580,7 @@ impl RhaiEngine<users::mock::MockUsers> {
 }
 
 lazy_static::lazy_static! {
-    /// an scope that initialize all needed variables.
+    /// a scope that initialize all needed variables by default.
     pub(crate) static ref DEFAULT_SCOPE: Scope<'static> = {
         let mut scope = Scope::new();
         scope
@@ -585,7 +588,7 @@ lazy_static::lazy_static! {
         .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
         .push("port", 0)
         .push("helo", "")
-        .push("mail", "")
+        .push("mail", Address::default())
         .push("rcpt", Address::default())
         .push("rcpts", Vec::<Address>::new())
         .push("data", "")
@@ -636,17 +639,9 @@ lazy_static::lazy_static! {
     /// the rhai engine static that gets initialized once.
     /// it is used internally to evaluate user's scripts with a different
     /// scope for each connection.
-    pub(super) static ref RHAI_ENGINE: RhaiEngine<users::mock::MockUsers> = {
-
-        let mut users = users::mock::MockUsers::with_current_uid(1);
-
-        assert!(users.add_group(users::Group::new(100, "mail")).is_none());
-        assert!(users.add_user(users::User::new(1, "jones", 100)).is_none());
-        assert!(users.add_user(users::User::new(2, "green", 100)).is_none());
-        assert!(users.add_user(users::User::new(3, "smith", 100)).is_none());
-
-        match RhaiEngine::<users::mock::MockUsers>::new(unsafe { RULES_PATH }, users) {
-            Ok(engine) => engine,
+    pub(super) static ref RHAI_ENGINE: RwLock<RhaiEngine<users::mock::MockUsers>> = {
+        match RhaiEngine::<users::mock::MockUsers>::new(unsafe { RULES_PATH }, users::mock::MockUsers::with_current_uid(1)) {
+            Ok(engine) => RwLock::new(engine),
             Err(error) => {
                 log::error!("could not initialize the rule engine: {}", error);
                 panic!();
@@ -672,25 +667,45 @@ pub fn set_rules_path(src: &'static str) {
 ///
 /// not calling this method when initializing your server could lead to
 /// undetected configuration errors and a slow process for the first connection.
+#[cfg(not(test))]
 pub fn init(src: &'static str) {
     set_rules_path(src);
 
-    RHAI_ENGINE
+    acquire_engine()
         .context
-        .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &RHAI_ENGINE.ast)
+        .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &acquire_engine().ast)
         .expect("could not initialize the rule engine");
 
     log::debug!(
         target: RULES,
         "{} objects found.",
-        RHAI_ENGINE.objects.read().unwrap().len()
+        acquire_engine().objects.read().unwrap().len()
     );
-    log::trace!(target: RULES, "{:#?}", RHAI_ENGINE.objects.read().unwrap());
+    log::trace!(
+        target: RULES,
+        "{:#?}",
+        acquire_engine().objects.read().unwrap()
+    );
+}
+
+#[cfg(not(test))]
+/// aquire a ref of the engine for production code.
+pub(super) fn acquire_engine() -> &'static RhaiEngine<users::UsersCache> {
+    &RHAI_ENGINE
+}
+
+#[cfg(test)]
+/// mock the acquiring of the engine for test code,
+/// because the test Rhai Engine is locked behind a mutex.
+pub fn acquire_engine() -> std::sync::RwLockReadGuard<'static, RhaiEngine<users::mock::MockUsers>> {
+    RHAI_ENGINE
+        .read()
+        .expect("engine mutex couldn't be locked for tests")
 }
 
 /// use the user cache to check if a user exists on the system.
 pub(crate) fn user_exists(name: &str) -> bool {
-    match RHAI_ENGINE.users.lock() {
+    match acquire_engine().users.lock() {
         Ok(users) => users.get_user_by_name(name).is_some(),
         Err(error) => {
             log::error!("FATAL ERROR: {}", error);

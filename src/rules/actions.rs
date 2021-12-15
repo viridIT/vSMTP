@@ -22,7 +22,7 @@ use crate::model::{
 use crate::rules::{
     obj::Object,
     operation_queue::{Operation, OperationQueue},
-    rule_engine::{user_exists, Status, RHAI_ENGINE},
+    rule_engine::{acquire_engine, user_exists, Status},
 };
 
 use std::{
@@ -247,7 +247,7 @@ pub(super) mod vsl {
 
     /// checks if the object exists and check if it matches against the connect value.
     pub fn __is_connect(connect: &mut IpAddr, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
+        match acquire_engine().objects.read().unwrap().get(object) {
             Some(object) => internal_is_connect(connect, object),
             None => match Ipv4Addr::from_str(object) {
                 Ok(ip) => ip == *connect,
@@ -269,7 +269,7 @@ pub(super) mod vsl {
     // TODO: the following function could be refactored as one.
     /// checks if the object exists and check if it matches against the helo value.
     pub fn __is_helo(helo: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
+        match acquire_engine().objects.read().unwrap().get(object) {
             Some(object) => internal_is_helo(helo, object),
             _ => object == helo,
         }
@@ -277,7 +277,7 @@ pub(super) mod vsl {
 
     /// checks if the object exists and check if it matches against the mail value.
     pub fn __is_mail(mail: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
+        match acquire_engine().objects.read().unwrap().get(object) {
             Some(object) => internal_is_mail(mail, object),
             _ => object == mail,
         }
@@ -285,7 +285,7 @@ pub(super) mod vsl {
 
     /// checks if the object exists and check if it matches against the rcpt value.
     pub fn __is_rcpt(rcpt: &str, object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
+        match acquire_engine().objects.read().unwrap().get(object) {
             Some(object) => internal_is_rcpt(rcpt, object),
             _ => rcpt == object,
         }
@@ -293,7 +293,7 @@ pub(super) mod vsl {
 
     /// checks if the given user exists on the system.
     pub fn __user_exists(object: &str) -> bool {
-        match RHAI_ENGINE.objects.read().unwrap().get(object) {
+        match acquire_engine().objects.read().unwrap().get(object) {
             Some(object) => internal_user_exists(object),
             _ => internal_user_exists(&Object::Var(object.to_string())),
         }
