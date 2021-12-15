@@ -10,4 +10,4 @@ Remediation of security vulnerabilities is prioritized by viridIT team. The proj
 
 ## Security advisories
 
-The project team is committed to transparency in the security issue disclosure process. The vSMTP team announces security issues via [project Github Release notes](https://github.com/tokio-rs/tokio/releases) and via the [vSMTP community forum](https://viridit.com/community-forum/).
+The project team is committed to transparency in the security issue disclosure process. The vSMTP team announces security issues via [project Github Release notes](https://github.com/viridIT/vSMTP/releases) and via the [vSMTP community forum](https://viridit.com/community-forum/).
