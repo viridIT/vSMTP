@@ -10,9 +10,6 @@ file = "./tmp/var/log/vsmtp/vsmtp.log"
 
 [log.level]
 default = "trace"
-rules = "warn"
-receiver = "info"
-resolver = "warn"
 
 [rules]
 dir = "./config/rules"
