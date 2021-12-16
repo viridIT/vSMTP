@@ -433,7 +433,7 @@ where
         };
 
         if let Some(new_state) = new_state {
-            log::warn!(
+            log::info!(
                 target: RECEIVER,
                 "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
                 self.mail.connection.peer_addr.port(),
@@ -457,7 +457,7 @@ where
         match tokio::time::timeout(self.next_line_timeout, io.get_next_line_async()).await {
             Ok(Ok(client_message)) => {
                 if let Some(response) = self.handle_plain_text(client_message).await {
-                    log::warn!(
+                    log::info!(
                         target: RECEIVER,
                         "[p:{}] send=\"{:?}\"",
                         self.mail.connection.peer_addr.port(),
@@ -511,7 +511,7 @@ where
             }
             Ok(Err(ReadError::Blocking)) => Ok(()),
             Ok(Err(ReadError::Eof)) => {
-                log::warn!(
+                log::info!(
                     target: RECEIVER,
                     "[p:{}] (secured:{}) eof",
                     self.mail.connection.peer_addr.port(),
