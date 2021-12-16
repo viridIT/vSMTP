@@ -1,4 +1,4 @@
-## Testing Policies
+# Testing Policies
 
 Linting
 

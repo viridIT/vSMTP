@@ -40,7 +40,6 @@ About filtering functionalities :
 - Offline filtering stage (post-queue)
 - Deliver stage related rules and actions
 
-
 ## Release 0.9.x
 
 These releases will focus on the vSMTP policy server and on performances.
