@@ -5,7 +5,7 @@
       alt="vSMTP" />
   </a>
   <a href="https://www.viridit.com/#gh-dark-mode-only">
-    <img src="https://github.com/viridIT/vSMTP/blob/doc/misc/assets/vsmtp-white-bckgrd.png"
+    <img src="https://github.com/viridIT/vSMTP/blob/doc/misc/assets/vsmtp-black-bckgrd.png"
       alt="vSMTP" />
   </a>
 </div>
