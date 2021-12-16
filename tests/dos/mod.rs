@@ -16,11 +16,7 @@ async fn test_dos() {
 
     #[async_trait::async_trait]
     impl vsmtp::resolver::DataEndResolver for R {
-        async fn on_data_end(
-            _: &ServerConfig,
-            _: usize,
-            _: &MailContext,
-        ) -> (StateSMTP, SMTPReplyCode) {
+        async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (StateSMTP, SMTPReplyCode) {
             (StateSMTP::MailFrom, SMTPReplyCode::Code250)
         }
     }

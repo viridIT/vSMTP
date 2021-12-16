@@ -100,10 +100,6 @@ where
     /// cached state // TODO: move that cleanly in config
     next_line_timeout: std::time::Duration,
 
-    // NOTE: an overflow could happen.
-    // FIXME: prevent delivery counting overflow.
-    deliveries: usize,
-
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -154,7 +150,6 @@ where
                 .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT)),
             smtp_timeouts,
             server_config,
-            deliveries: 0,
             error_count: 0,
             _phantom: std::marker::PhantomData,
         }
@@ -382,9 +377,7 @@ where
 
                     // TODO: resolver should not be responsible for mutating the SMTP state
                     // should return a code and handle if code.is_error()
-                    let (state, code) =
-                        R::on_data_end(&self.server_config, self.deliveries, &self.mail).await;
-                    self.deliveries += 1;
+                    let (state, code) = R::on_data_end(&self.server_config, &self.mail).await;
 
                     // NOTE: clear envelop and mail context ?
 
