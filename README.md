@@ -1,8 +1,9 @@
 <h1 align="center">vSMTP 📫</h1>
 <div align="center">
-  <strong>
-    The next-gen MTA. Secured, Faster and Greener
-  </strong>
+  <a href="https://www.viridit.com">
+    <img src="https://github.com/viridIT/vSMTP/blob/doc/misc/assets/vsmtp-white-bckgrd.png"
+      alt="vSMTP" />
+  </a>
 </div>
 
 <br />
