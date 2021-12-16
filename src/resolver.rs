@@ -24,12 +24,11 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait DataEndResolver {
-    async fn on_data_end(
-        config: &ServerConfig,
-        deliveries: usize,
-        mail: &MailContext,
-    ) -> (StateSMTP, SMTPReplyCode);
+    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (StateSMTP, SMTPReplyCode);
 }
+
+// TODO: use a AtomicUsize instead of a wrapper.
+struct Wrapper(usize);
 
 pub struct ResolverWriteDisk;
 impl ResolverWriteDisk {
@@ -62,10 +61,23 @@ impl ResolverWriteDisk {
     fn write_to_maildir(
         rcpt: &Address,
         timestamp: &str,
-        deliveries: usize,
         unique_id: usize,
         content: &str,
     ) -> std::io::Result<()> {
+        lazy_static::lazy_static! {
+            static ref DELIVERIES: std::sync::Mutex<Wrapper> = std::sync::Mutex::new(Wrapper{0:0});
+        }
+
+        let mut delivery_count = match DELIVERIES.lock() {
+            Ok(count) => count,
+            Err(_) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "delivery mutex poisoned.",
+                ))
+            }
+        };
+
         let mut folder =
             std::path::PathBuf::from_iter(["/", "home", rcpt.local_part(), "Maildir", "new"]);
         std::fs::create_dir_all(&folder)?;
@@ -73,10 +85,10 @@ impl ResolverWriteDisk {
         // TODO: follow maildir's writing convention.
         // NOTE: see https://en.wikipedia.org/wiki/Maildir
         let filename = format!(
-            "{}.Size={}.D={}.ID={}.vsmtp",
+            "{}.{}{}{}.vsmtp",
             timestamp,
             content.as_bytes().len(),
-            deliveries,
+            delivery_count.0,
             unique_id
         );
         folder.push(filename);
@@ -84,9 +96,30 @@ impl ResolverWriteDisk {
         let mut inbox = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open(folder)?;
+            .open(&folder)?;
 
         std::io::Write::write_all(&mut inbox, content.as_bytes())?;
+
+        delivery_count.0 += 1;
+
+        // we can unwrap here since we've already checked if the user existed.
+        let uid = crate::rules::rule_engine::get_user_by_name(rcpt.local_part())
+            .unwrap()
+            .uid();
+
+        if unsafe {
+            libc::chown(
+                // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
+                //       to a CString because it is plateform independant.
+                std::ffi::CString::new(folder.to_string_lossy().as_bytes())?.as_ptr(),
+                uid,
+                uid,
+            )
+        } != 0
+        {
+            log::error!("unable to setuid of user {}", rcpt.local_part());
+            return Err(std::io::Error::last_os_error());
+        }
 
         log::debug!(
             target: RESOLVER,
@@ -129,11 +162,7 @@ impl ResolverWriteDisk {
 
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
-    async fn on_data_end(
-        _config: &ServerConfig,
-        deliveries: usize,
-        mail: &MailContext,
-    ) -> (StateSMTP, SMTPReplyCode) {
+    async fn on_data_end(_config: &ServerConfig, mail: &MailContext) -> (StateSMTP, SMTPReplyCode) {
         // TODO: use temporary file unix syscall to generate temporary files
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
@@ -148,24 +177,20 @@ impl DataEndResolver for ResolverWriteDisk {
 
                 if let Err(error) = Self::write_to_maildir(
                     rcpt,
-                    &format!(
-                        "{:?}",
-                        match mail.timestamp {
-                            Some(timestamp) => match timestamp.elapsed() {
-                                Ok(elapsed) => elapsed,
-                                Err(error) => {
-                                    log::error!("failed to deliver mail to '{}': {}", rcpt, error);
-                                    return (StateSMTP::MailFrom, SMTPReplyCode::Code250);
-                                }
-                            },
-
-                            None => {
-                                log::error!("failed to deliver mail to '{}': timestamp for email file name is unavailable", rcpt);
+                    &match mail.timestamp {
+                        Some(timestamp) => match timestamp.elapsed() {
+                            Ok(elapsed) => elapsed.as_nanos().to_string(),
+                            Err(error) => {
+                                log::error!("failed to deliver mail to '{}': {}", rcpt, error);
                                 return (StateSMTP::MailFrom, SMTPReplyCode::Code250);
                             }
+                        },
+
+                        None => {
+                            log::error!("failed to deliver mail to '{}': timestamp for email file name is unavailable", rcpt);
+                            return (StateSMTP::MailFrom, SMTPReplyCode::Code250);
                         }
-                    ),
-                    deliveries,
+                    },
                     index,
                     &mail.body,
                 ) {
