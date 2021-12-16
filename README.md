@@ -48,9 +48,12 @@ Because it is secured, faster and greener.
 ## Documentation
 
 About the code and related issues, please check the [project Wiki](https://github.com/viridIT/vSMTP/wiki) and use the GitHub issue tracker.
-To stay tuned, ask questions and get in-depth answers feel free to register and visit our forums at <https://www.viridit.com/community-forum>.
-For documentation, user guide, etc. please consult GitHub wiki or our dedicated page at <https://www.viridit.com/support>
-For any question related to commercial, licensing, etc. you can join us at <https://www.viridit.com/contact>
+To stay tuned, ask questions and get in-depth answers feel free to register and visit our [community forums](https://www.viridit.com/community-forum). You can also open a GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).  
+For documentation, user guide, etc. please consult [GitHub wiki](https://github.com/viridIT/vSMTP/wiki) or our dedicated page at <https://www.viridit.com/support>.  
+
+## Commercial 
+
+For any question related to commercial, licensing, etc. you can join us at <https://www.viridit.com/contact>.
 
 ## Roadmap
 
