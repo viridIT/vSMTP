@@ -24,7 +24,7 @@ Prefer not to reference github issue or PR numbers in commits and try to keep co
 
 ## Testing
 
-If the change being proposed alters code, the pull request should include one or more tests to ensure that vSMTP does not regress in the future. Please follow instructions described in the [testing policies](#) file.
+If the change being proposed alters code, the pull request should include one or more tests to ensure that vSMTP does not regress in the future. Please follow instructions described in the [testing policies](https://github.com/viridIT/vSMTP/blob/doc/misc/TESTING.md) file.
 
 PRs which cause test failures or a significant coverage decrease are unlikely to be accepted.
 
