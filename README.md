@@ -56,35 +56,9 @@ For any question related to commercial, licensing, etc. you can join us at <http
 
 vSMTP is currently under development. The current version "RC1" focus on the SMTP connection and state machine. You can find more information about the project agenda in the [ROADMAP](https://github.com/viridIT/vSMTP/blob/main/ROADMAP.md).
 
-## Testing Policies
-
-Linting
-
-```sh
-cargo lint
-```
-
-Unit test / Integration test
-
-```sh
-cargo +nightly test
-```
-
-Benchmarking
-
-```sh
-cargo bench
-```
-
-Fuzzing
-
-```sh
-cargo +nightly fuzz run
-```
-
 ## License
 
 The standard version of vSMTP is free and under an Open Source license.
 
 It is provided as usual without any warranty.
-Please refer to the LICENSE file for further informations.
+Please refer to the [LICENSE](https://github.com/viridIT/vSMTP/blob/main/LICENSE) file for further information.
