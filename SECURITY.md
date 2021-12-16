@@ -2,7 +2,7 @@
 
 The viridIT team welcomes security reports and is committed to providing prompt attention to security issues.
 Please report a security issue by email to [security@viridit.com](mailto:security@tokio.rs) and include the word "SECURITY" in the subject line.
-Security issues should not be reported via the public Github Issue tracker or via the [vSMTP community forum](https://viridit.com/community-forum/).
+Security issues should not be reported via the public Github Issue tracker or via the vSMTP community forum.
 
 ## Remediation process
 
