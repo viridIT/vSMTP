@@ -1,6 +1,10 @@
 
 <div align="center">
-  <a href="https://www.viridit.com">
+  <a href="https://www.viridit.com/#gh-light-mode-only">
+    <img src="https://github.com/viridIT/vSMTP/blob/doc/misc/assets/vsmtp-white-bckgrd.png"
+      alt="vSMTP" />
+  </a>
+  <a href="https://www.viridit.com/#gh-dark-mode-only">
     <img src="https://github.com/viridIT/vSMTP/blob/doc/misc/assets/vsmtp-white-bckgrd.png"
       alt="vSMTP" />
   </a>
