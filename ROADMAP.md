@@ -1,16 +1,12 @@
 # vSMTP standard edition roadmap
 
->Release candidate versions should not be used for production purpose.
-
-More details about installation and supported features can be found in the project wiki pages. <https://github.com/viridIT/vSMTP/wiki>
-
-Join vSMTP community, ask questions and get in-depth answers at <https://www.viridit.com/community-forum>
+>Release before 1.0 should not be used for production purpose.
 
 For the enhanced edition roadmap, please feel free to contact us at <https://www.viridit.com/contact>.
 
-## Release Candidate 1
+## Release 0.7.x
 
-Available on December 2021, 6th. this release focuses on:
+Available in December 2021, these releases focus on:
 
 - Handling network connections, including TLS support
 - SMTP compliancy (RFC 5321/5322)
@@ -19,7 +15,7 @@ Available on December 2021, 6th. this release focuses on:
 - Local delivery using "maildir" (IMAP) protocol
 - Application logs
 
-About filtering :
+About filtering functionalities :
 
 - All SMTP state : HELO/EHLO, CONNECT, MAIL, RCPT, DATA
 - Inline filtering (pre-queue)
@@ -29,30 +25,25 @@ About filtering :
 
 >This version only manages incoming mails. For outgoing mail you must use your current SMTP server.
 
-## Release Candidate 2
+## Release 0.8.x
 
-Available early January 2022, version RC2 main objectives are:
+Available early January 2022, these versions main objectives are:
 
 - The delivery process (local/remote, delivery queues, etc.)
-- Permit standard/enhanced edition switching
-- Post-queue filtering
-- Syslog
+- The Post-queue filtering
+- Enhance logging
 
-About filtering:
+About filtering functionalities :
 
 - MIME compliancy (RFC 2045+) checks
 - Actions on MIME headers related to RFC 5322
 - Offline filtering stage (post-queue)
 - Deliver stage related rules and actions
 
-## Release Candidate 3
 
-This release will focus on:
+## Release 0.9.x
 
-- The vSMTP policy server
-- Performances
-
-About vSMTP policy server:
+These releases will focus on the vSMTP policy server and on performances.
 
 The vSMTP Policy Server (vPS) is a module dedicated to integrating of third-party software. Thanks to its logic engine it can manage complex filtering and security rules. In version RC3, vPS will accept delegation trough :
 
@@ -64,4 +55,4 @@ It can be called at any stage of a SMTP transaction via the rule engine.
 
 ## Production release
 
-Depending on Release Candidate versions fixes and user feedbacks, the production version is expected for Q2/2022.
+Depending on versions 0.7+ fixes and user feedbacks, the production version is expected for Q2/2022.

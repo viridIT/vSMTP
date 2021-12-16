@@ -51,13 +51,13 @@ About the code and related issues, please check the [project Wiki](https://githu
 To stay tuned, ask questions and get in-depth answers feel free to register and visit our [community forums](https://www.viridit.com/community-forum). You can also open a GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).  
 For documentation, user guide, etc. please consult [GitHub wiki](https://github.com/viridIT/vSMTP/wiki) or our dedicated page at <https://www.viridit.com/support>.  
 
-## Commercial 
+## Commercial
 
 For any question related to commercial, licensing, etc. you can join us at <https://www.viridit.com/contact>.
 
 ## Roadmap
 
-vSMTP is currently under development. The current version "RC1" focus on the SMTP connection and state machine. You can find more information about the project agenda in the [ROADMAP](https://github.com/viridIT/vSMTP/blob/main/ROADMAP.md).
+vSMTP is currently under development. The current versions "0.7.x" focus on the SMTP connection and state machine. You can find more information about the project agenda in the [ROADMAP](https://github.com/viridIT/vSMTP/blob/main/ROADMAP.md).
 
 ## License
 
