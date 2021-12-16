@@ -47,7 +47,7 @@ let vsl = #{
     DENY:     || __DENY(),
 
     // logs a message to stdout.
-    LOG: |message| {
+    LOG_OUT: |message| {
         __LOG(message, "stdout");
     },
 
@@ -57,22 +57,22 @@ let vsl = #{
     },
 
     // logs a message to a file.
-    LOG_FILE: |message, path| {
+    LOG: |message, path| {
         __LOG(message, path);
     },
 
     // change the content of the HELO command.
-    REWRITE_HELO: |value| {
+    RW_HELO: |value| {
         helo = value;
     },
 
     // change the content of the MAIL FROM command.
-    REWRITE_MAIL_FROM: |value| {
+    RW_MAIL: |value| {
         mail = new_address(value);
     },
 
     // change one of the recipient specified by the RCPT TO command.
-    REWRITE_RCPT: |to_rewrite, value| {
+    RW_RCPT: |to_rewrite, value| {
         for (recipient, index) in rcpts {
             if recipient.full == to_rewrite {
                 rcpts.replace(index, new_address(value));
@@ -87,7 +87,7 @@ let vsl = #{
     },
 
     // remove a recipient from the list.
-    REMOVE_RCPT: |to_remove| {
+    DEL_RCPT: |to_remove| {
         for (recipient, index) in rcpts {
             if recipient.full == to_remove {
                 rcpts.remove(index);
