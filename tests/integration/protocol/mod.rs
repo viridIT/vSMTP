@@ -13,11 +13,7 @@ struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl DataEndResolver for DefaultResolverTest {
-    async fn on_data_end(
-        _: &ServerConfig,
-        _: usize,
-        _: &MailContext,
-    ) -> (StateSMTP, SMTPReplyCode) {
+    async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (StateSMTP, SMTPReplyCode) {
         // after a successful exchange, the server is ready for a new RCPT
         (StateSMTP::MailFrom, SMTPReplyCode::Code250)
     }

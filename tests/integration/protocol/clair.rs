@@ -22,7 +22,6 @@ mod tests {
         impl DataEndResolver for T {
             async fn on_data_end(
                 _: &ServerConfig,
-                _: usize,
                 ctx: &MailContext,
             ) -> (StateSMTP, SMTPReplyCode) {
                 assert_eq!(ctx.envelop.helo, "foobar");
