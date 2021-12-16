@@ -1,13 +1,10 @@
-<h1 align="center">vSMTP 📫</h1>
+
 <div align="center">
   <a href="https://www.viridit.com">
     <img src="https://github.com/viridIT/vSMTP/blob/doc/misc/assets/vsmtp-white-bckgrd.png"
       alt="vSMTP" />
   </a>
 </div>
-
-<br />
-
 <div align="center">
   <a href="https://www.viridit.com">
     <img src="https://img.shields.io/badge/visit-website-green"
@@ -17,9 +14,6 @@
     <img src="https://img.shields.io/badge/License-GPLv3-blue.svg"
       alt="License GPLv3" />
   </a>
-</div>
-
-<div align="center">
   <a href="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml">
     <img src="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml/badge.svg?branch=rc-01"
       alt="CI" />
@@ -27,11 +21,12 @@
 </div>
 
 ---
+# What is vSMTP ?
 
 vSMTP is a next-gen Mail Transfer Agent (MTA) developed by viridIT teams.
 You can follow us on <https://www.viridit.com>.
 
-## What is vSMTP ?
+## Why develop a new MTA ?
 
 Whereas optimizing allocated resources is becoming a growing challenge, computer attacks remain a constant issue.
 Over 300 billion emails are sent and received in the world every day. Billions of attachments are processed, analyzed and delivered, contributing to the increase in greenhouse gas emissions.
@@ -39,12 +34,12 @@ To meet this challenge, viridIT is developing a new technology of email gateways
 
 ## Why vSMTP is your future SMTP server ?
 
-- Developed in Rust, implying high performance and stability
-- Modular and highly customizable
-- It has a a complete filtering system
-- Actively maintained and developed
-
 Because it is secured, faster and greener.
+
+- It is developed in Rust, implying high performance and stability
+- It is Modular and highly customizable
+- It has a a complete filtering system
+- It is actively maintained and developed
 
 ## Documentation
 
