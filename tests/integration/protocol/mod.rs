@@ -8,6 +8,7 @@ use vsmtp::{
 };
 
 pub mod clair;
+pub mod rset;
 
 struct DefaultResolverTest;
 

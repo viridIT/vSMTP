@@ -161,12 +161,16 @@ where
             mail_from: Address::default(),
             rcpt: vec![],
         };
+        // TODO: reset mail_from/mail_timestamp/rcpt/rcpts in Rules Stack ??
+
         self.rule_engine
             .add_data("helo", self.mail.envelop.helo.clone());
     }
 
     fn set_mail_from(&mut self, mail_from: String) {
         if let Ok(mail_from) = Address::new(&mail_from) {
+            // TODO: reset mail rcpt/rcpts in Rules Stack ??
+
             self.mail.envelop.mail_from = mail_from;
             self.mail.timestamp = Some(std::time::SystemTime::now());
             self.mail.envelop.rcpt = vec![];
@@ -203,6 +207,7 @@ where
             (_, Event::HelpCmd(_)) => (None, Some(SMTPReplyCode::Code214)),
 
             (_, Event::RsetCmd) => {
+                // TODO: reset in Rules Stack ??
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
                 self.mail.envelop.rcpt = vec![];
                 self.mail.envelop.mail_from = Address::default();
@@ -602,13 +607,6 @@ where
         //    want to put distinguishing information about the certificate in
         //    the Received header of messages that were relayed or submitted
         //    from the client.
-
-        log::info!(
-            target: RECEIVER,
-            "[p:{}] is_handshaking={}",
-            self.mail.connection.peer_addr.port(),
-            io.inner.conn.is_handshaking()
-        );
 
         log::debug!(
             target: RECEIVER,
