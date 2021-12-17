@@ -625,8 +625,7 @@ lazy_static::lazy_static! {
         match RhaiEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
             Ok(engine) => engine,
             Err(error) => {
-                log::error!("could not initialize the rule engine: {}", error);
-                panic!();
+                panic!("could not initialize the rule engine: {}", error);
             }
         }
     };
@@ -643,8 +642,7 @@ lazy_static::lazy_static! {
         match RhaiEngine::<users::mock::MockUsers>::new(unsafe { RULES_PATH }, users::mock::MockUsers::with_current_uid(1)) {
             Ok(engine) => RwLock::new(engine),
             Err(error) => {
-                log::error!("could not initialize the rule engine: {}", error);
-                panic!();
+                panic!("could not initialize the rule engine: {}", error);
             }
         }
     };

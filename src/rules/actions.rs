@@ -42,8 +42,6 @@ pub(super) mod vsl {
 
     use crate::{config::log::RULES, rules::address::Address};
 
-    use super::*;
-
     /// enqueue a block operation on the queue.
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
         queue.enqueue(Operation::Block(path.to_string()))
@@ -95,8 +93,13 @@ pub(super) mod vsl {
                 Ok(())
             }
             _ => {
-                // from_str is unfailable, we can unwrap.
-                let path = std::path::PathBuf::from_str(path).unwrap();
+                // the only writer on "objects" is called and unlocked
+                // at the start of the server, we can unwrap here.
+                let path = match acquire_engine().objects.read().unwrap().get(path) {
+                    // from_str is unfailable, we can unwrap.
+                    Some(Object::Var(p)) => std::path::PathBuf::from_str(p.as_str()).unwrap(),
+                    _ => std::path::PathBuf::from_str(path).unwrap(),
+                };
 
                 // if the file is already containing data, we just append at the end.
                 let file = if !path.exists() {
