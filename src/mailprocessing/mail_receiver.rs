@@ -382,11 +382,11 @@ where
 
                     // TODO: resolver should not be responsible for mutating the SMTP state
                     // should return a code and handle if code.is_error()
-                    let (state, code) = R::on_data_end(&self.server_config, &self.mail).await;
-
                     // NOTE: clear envelop and mail context ?
-
-                    (Some(state), Some(code))
+                    match R::on_data_end(&self.server_config, &self.mail).await {
+                        Ok(code) => (Some(StateSMTP::Helo), Some(code)),
+                        Err(error) => todo!("{}", error),
+                    }
                 } else {
                     // NOTE: which code is returned when the server failed ?
                     (Some(StateSMTP::MailFrom), Some(SMTPReplyCode::Code554))

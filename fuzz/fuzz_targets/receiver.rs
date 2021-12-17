@@ -13,8 +13,8 @@ use vsmtp::{
 struct DataEndResolverTest;
 #[async_trait::async_trait]
 impl DataEndResolver for DataEndResolverTest {
-    async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (StateSMTP, SMTPReplyCode) {
-        (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+    async fn on_data_end(_: &ServerConfig, _: &MailContext) ->  Result<SMTPReplyCode, std::io::Error> {
+        Ok(SMTPReplyCode::Code250)
     }
 }
 

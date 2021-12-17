@@ -2,9 +2,8 @@
 mod tests {
 
     use vsmtp::{
-        config::server_config::ServerConfig, mailprocessing::mail_receiver::StateSMTP,
-        model::mail::MailContext, resolver::DataEndResolver, rules::address::Address,
-        smtp::code::SMTPReplyCode,
+        config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
+        rules::address::Address, smtp::code::SMTPReplyCode,
     };
 
     use crate::integration::protocol::{get_test_config, make_test, DefaultResolverTest};
@@ -18,13 +17,13 @@ mod tests {
             async fn on_data_end(
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> (StateSMTP, SMTPReplyCode) {
+            ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "a@b");
                 assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap()]);
                 assert_eq!(ctx.body, "mail content wow\n");
 
-                (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+                Ok(SMTPReplyCode::Code250)
             }
         }
 
@@ -120,13 +119,13 @@ mod tests {
             async fn on_data_end(
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> (StateSMTP, SMTPReplyCode) {
+            ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foo2");
                 assert_eq!(ctx.envelop.mail_from.full(), "d@e");
                 assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap()]);
                 assert_eq!(ctx.body, "mail content wow");
 
-                (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+                Ok(SMTPReplyCode::Code250)
             }
         }
 
@@ -167,13 +166,13 @@ mod tests {
             async fn on_data_end(
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> (StateSMTP, SMTPReplyCode) {
+            ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "foo@foo");
                 assert_eq!(ctx.envelop.rcpt, vec![Address::new("toto@bar").unwrap()]);
                 assert_eq!(ctx.body, "");
 
-                (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+                Ok(SMTPReplyCode::Code250)
             }
         }
 
@@ -212,7 +211,7 @@ mod tests {
             async fn on_data_end(
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> (StateSMTP, SMTPReplyCode) {
+            ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "foo2@foo");
                 assert_eq!(
@@ -224,7 +223,7 @@ mod tests {
                 );
                 assert_eq!(ctx.body, "");
 
-                (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+                Ok(SMTPReplyCode::Code250)
             }
         }
 

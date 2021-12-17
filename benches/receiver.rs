@@ -2,22 +2,20 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
 use vsmtp::{
-    config::server_config::ServerConfig,
-    mailprocessing::mail_receiver::{MailReceiver, StateSMTP},
-    model::mail::MailContext,
-    resolver::DataEndResolver,
-    rules::address::Address,
-    smtp::code::SMTPReplyCode,
-    tests::Mock,
+    config::server_config::ServerConfig, mailprocessing::mail_receiver::MailReceiver,
+    model::mail::MailContext, resolver::DataEndResolver, rules::address::Address,
+    smtp::code::SMTPReplyCode, tests::Mock,
 };
 
 struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl DataEndResolver for DefaultResolverTest {
-    async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (StateSMTP, SMTPReplyCode) {
-        // after a successful exchange, the server is ready for a new RCPT
-        (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+    async fn on_data_end(
+        _: &ServerConfig,
+        _: &MailContext,
+    ) -> Result<SMTPReplyCode, std::io::Error> {
+        Ok(SMTPReplyCode::Code250)
     }
 }
 
@@ -64,13 +62,13 @@ fn criterion_benchmark(c: &mut Criterion) {
             async fn on_data_end(
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> (StateSMTP, SMTPReplyCode) {
+            ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
                 assert_eq!(ctx.body, "");
 
-                (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+                Ok(SMTPReplyCode::Code250)
             }
         }
 
