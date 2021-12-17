@@ -531,7 +531,12 @@ impl RhaiEngine<users::UsersCache> {
             let mut buffer = vec![];
 
             if path.is_file() {
-                buffer.push(format!("{}\n", fs::read_to_string(path)?));
+                match path.extension() {
+                    Some(extension) if extension == "vsl" => {
+                        buffer.push(format!("{}\n", fs::read_to_string(path)?))
+                    }
+                    _ => {}
+                };
             } else if path.is_dir() {
                 for entry in fs::read_dir(path)? {
                     let dir = entry?;
@@ -566,7 +571,12 @@ impl RhaiEngine<users::mock::MockUsers> {
             let mut buffer = vec![];
 
             if path.is_file() {
-                buffer.push(format!("{}\n", fs::read_to_string(path)?));
+                match path.extension() {
+                    Some(extension) if extension == "vsl" => {
+                        buffer.push(format!("{}\n", fs::read_to_string(path)?))
+                    }
+                    _ => {}
+                };
             } else if path.is_dir() {
                 for entry in fs::read_dir(path)? {
                     let dir = entry?;
