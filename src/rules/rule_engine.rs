@@ -715,7 +715,7 @@ pub(crate) fn user_exists(name: &str) -> bool {
 }
 
 pub(crate) fn get_user_by_name(name: &str) -> Option<Arc<users::User>> {
-    match RHAI_ENGINE.users.lock() {
+    match acquire_engine().users.lock() {
         Ok(users) => users.get_user_by_name(name),
         Err(error) => {
             log::error!("FATAL ERROR: {}", error);
