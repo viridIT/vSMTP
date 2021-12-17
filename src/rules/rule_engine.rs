@@ -629,8 +629,8 @@ lazy_static::lazy_static! {
     pub(super) static ref RHAI_ENGINE: RhaiEngine<users::UsersCache> = {
         match RhaiEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
             Ok(engine) => engine,
-            Err(error) => {
-                panic!("could not initialize the rule engine: {}", error);
+            Err(_) => {
+                unreachable!("rules::rule_engine::init() should be called before using the engine.");
             }
         }
     };
@@ -654,13 +654,13 @@ lazy_static::lazy_static! {
 }
 
 static mut RULES_PATH: &str = "./config/rules";
-static INIT_CONFIG_PATH: std::sync::Once = std::sync::Once::new();
+static INIT_RULES_PATH: std::sync::Once = std::sync::Once::new();
 
 /// initialise the default rule path.
 /// this is mainly used for test purposes, and does not
 /// need to be used most of the time.
 pub fn set_rules_path(src: &'static str) {
-    INIT_CONFIG_PATH.call_once(|| unsafe {
+    INIT_RULES_PATH.call_once(|| unsafe {
         RULES_PATH = src;
     })
 }
@@ -671,13 +671,18 @@ pub fn set_rules_path(src: &'static str) {
 /// not calling this method when initializing your server could lead to
 /// undetected configuration errors and a slow process for the first connection.
 #[cfg(not(test))]
-pub fn init(src: &'static str) {
+pub fn init(src: &'static str) -> Result<(), Box<dyn Error>> {
     set_rules_path(src);
+
+    // creating a temporary engine to try construction.
+    match RhaiEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
+        Ok(engine) => engine,
+        Err(error) => return Err(error),
+    };
 
     acquire_engine()
         .context
-        .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &acquire_engine().ast)
-        .expect("could not initialize the rule engine");
+        .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &acquire_engine().ast)?;
 
     log::debug!(
         target: RULES,
@@ -689,6 +694,8 @@ pub fn init(src: &'static str) {
         "{:#?}",
         acquire_engine().objects.read().unwrap()
     );
+
+    Ok(())
 }
 
 #[cfg(not(test))]
