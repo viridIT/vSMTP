@@ -12,7 +12,7 @@ Please do not report security bugs by filing a github issue. Just follow the pro
 
 ## Getting help
 
-If you have reviewed existing documentation and still have questions or are having problems, you can [open a GitHub discussion](https://github.com/tokio-rs/tokio/discussions/new) asking for help. After receiving a response, feel free to contribute by opening some PR documentation that will help others avoid any issues you have encountered.
+If you have reviewed existing documentation and still have questions or are having problems, you can open a [GitHub discussion](https://github.com/tokio-rs/tokio/discussions/new) asking for help. After receiving a response, feel free to contribute by opening some PR documentation that will help others avoid any issues you have encountered.
 
 ## Code changes
 
