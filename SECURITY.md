@@ -1,3 +1,5 @@
+# How to track and report security issues
+
 ## Report a security issue
 
 The viridIT team welcomes security reports and is committed to providing prompt attention to security issues.
