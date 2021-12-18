@@ -1,8 +1,7 @@
 use std::thread;
 
 use vsmtp::{
-    config::server_config::ServerConfig, mailprocessing::mail_receiver::StateSMTP,
-    model::mail::MailContext, smtp::code::SMTPReplyCode,
+    config::server_config::ServerConfig, model::mail::MailContext, smtp::code::SMTPReplyCode,
 };
 
 const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
@@ -16,8 +15,11 @@ async fn test_dos() {
 
     #[async_trait::async_trait]
     impl vsmtp::resolver::DataEndResolver for R {
-        async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (StateSMTP, SMTPReplyCode) {
-            (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+        async fn on_data_end(
+            _: &ServerConfig,
+            _: &MailContext,
+        ) -> Result<SMTPReplyCode, std::io::Error> {
+            Ok(SMTPReplyCode::Code250)
         }
     }
 

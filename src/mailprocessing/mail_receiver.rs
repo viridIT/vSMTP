@@ -161,12 +161,16 @@ where
             mail_from: Address::default(),
             rcpt: vec![],
         };
+        // TODO: reset mail_from/mail_timestamp/rcpt/rcpts in Rules Stack ??
+
         self.rule_engine
             .add_data("helo", self.mail.envelop.helo.clone());
     }
 
     fn set_mail_from(&mut self, mail_from: String) {
         if let Ok(mail_from) = Address::new(&mail_from) {
+            // TODO: reset mail rcpt/rcpts in Rules Stack ??
+
             self.mail.envelop.mail_from = mail_from;
             self.mail.timestamp = Some(std::time::SystemTime::now());
             self.mail.envelop.rcpt = vec![];
@@ -203,6 +207,7 @@ where
             (_, Event::HelpCmd(_)) => (None, Some(SMTPReplyCode::Code214)),
 
             (_, Event::RsetCmd) => {
+                // TODO: reset in Rules Stack ??
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
                 self.mail.envelop.rcpt = vec![];
                 self.mail.envelop.mail_from = Address::default();
@@ -377,11 +382,11 @@ where
 
                     // TODO: resolver should not be responsible for mutating the SMTP state
                     // should return a code and handle if code.is_error()
-                    let (state, code) = R::on_data_end(&self.server_config, &self.mail).await;
-
                     // NOTE: clear envelop and mail context ?
-
-                    (Some(state), Some(code))
+                    match R::on_data_end(&self.server_config, &self.mail).await {
+                        Ok(code) => (Some(StateSMTP::Helo), Some(code)),
+                        Err(error) => todo!("{}", error),
+                    }
                 } else {
                     // NOTE: which code is returned when the server failed ?
                     (Some(StateSMTP::MailFrom), Some(SMTPReplyCode::Code554))
@@ -602,13 +607,6 @@ where
         //    want to put distinguishing information about the certificate in
         //    the Received header of messages that were relayed or submitted
         //    from the client.
-
-        log::info!(
-            target: RECEIVER,
-            "[p:{}] is_handshaking={}",
-            self.mail.connection.peer_addr.port(),
-            io.inner.conn.is_handshaking()
-        );
 
         log::debug!(
             target: RECEIVER,
