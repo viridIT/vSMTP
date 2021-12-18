@@ -42,7 +42,7 @@ Because it is secured, faster and greener.
 
 - It is developed in Rust, implying high performance and stability.
 - It is modular and highly customizable.
-- It has a a complete filtering system.
+- It includes a complete filtering system.
 - It is actively maintained and developed.
 
 ## Documentation
