@@ -251,6 +251,11 @@ impl<U: Users> RhaiEngine<U> {
 
         .register_type::<Address>()
         .register_result_fn("new_address", <Address>::rhai_wrapper)
+        .register_fn("to_string", |addr: &mut Address| addr.full().to_string())
+        .register_fn("to_debug", |addr: &mut Address| format!("{:?}", addr))
+        .register_fn("to_string", |addr: &mut IpAddr| addr.to_string())
+        .register_fn("to_debug", |addr: &mut IpAddr| format!("{:?}", addr))
+
         .register_get("full", |addr: &mut Address| addr.full().to_string())
         .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
         .register_get("domain", |addr: &mut Address| addr.domain().to_string())
@@ -526,7 +531,12 @@ impl RhaiEngine<users::UsersCache> {
             let mut buffer = vec![];
 
             if path.is_file() {
-                buffer.push(format!("{}\n", fs::read_to_string(path)?));
+                match path.extension() {
+                    Some(extension) if extension == "vsl" => {
+                        buffer.push(format!("{}\n", fs::read_to_string(path)?))
+                    }
+                    _ => {}
+                };
             } else if path.is_dir() {
                 for entry in fs::read_dir(path)? {
                     let dir = entry?;
@@ -561,7 +571,12 @@ impl RhaiEngine<users::mock::MockUsers> {
             let mut buffer = vec![];
 
             if path.is_file() {
-                buffer.push(format!("{}\n", fs::read_to_string(path)?));
+                match path.extension() {
+                    Some(extension) if extension == "vsl" => {
+                        buffer.push(format!("{}\n", fs::read_to_string(path)?))
+                    }
+                    _ => {}
+                };
             } else if path.is_dir() {
                 for entry in fs::read_dir(path)? {
                     let dir = entry?;
@@ -624,9 +639,8 @@ lazy_static::lazy_static! {
     pub(super) static ref RHAI_ENGINE: RhaiEngine<users::UsersCache> = {
         match RhaiEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
             Ok(engine) => engine,
-            Err(error) => {
-                log::error!("could not initialize the rule engine: {}", error);
-                panic!();
+            Err(_) => {
+                unreachable!("rules::rule_engine::init() should be called before using the engine.");
             }
         }
     };
@@ -643,21 +657,20 @@ lazy_static::lazy_static! {
         match RhaiEngine::<users::mock::MockUsers>::new(unsafe { RULES_PATH }, users::mock::MockUsers::with_current_uid(1)) {
             Ok(engine) => RwLock::new(engine),
             Err(error) => {
-                log::error!("could not initialize the rule engine: {}", error);
-                panic!();
+                panic!("could not initialize the rule engine: {}", error);
             }
         }
     };
 }
 
 static mut RULES_PATH: &str = "./config/rules";
-static INIT_CONFIG_PATH: std::sync::Once = std::sync::Once::new();
+static INIT_RULES_PATH: std::sync::Once = std::sync::Once::new();
 
 /// initialise the default rule path.
 /// this is mainly used for test purposes, and does not
 /// need to be used most of the time.
 pub fn set_rules_path(src: &'static str) {
-    INIT_CONFIG_PATH.call_once(|| unsafe {
+    INIT_RULES_PATH.call_once(|| unsafe {
         RULES_PATH = src;
     })
 }
@@ -668,13 +681,18 @@ pub fn set_rules_path(src: &'static str) {
 /// not calling this method when initializing your server could lead to
 /// undetected configuration errors and a slow process for the first connection.
 #[cfg(not(test))]
-pub fn init(src: &'static str) {
+pub fn init(src: &'static str) -> Result<(), Box<dyn Error>> {
     set_rules_path(src);
+
+    // creating a temporary engine to try construction.
+    match RhaiEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
+        Ok(engine) => engine,
+        Err(error) => return Err(error),
+    };
 
     acquire_engine()
         .context
-        .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &acquire_engine().ast)
-        .expect("could not initialize the rule engine");
+        .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &acquire_engine().ast)?;
 
     log::debug!(
         target: RULES,
@@ -686,6 +704,8 @@ pub fn init(src: &'static str) {
         "{:#?}",
         acquire_engine().objects.read().unwrap()
     );
+
+    Ok(())
 }
 
 #[cfg(not(test))]

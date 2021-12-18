@@ -48,7 +48,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the leak is needed to pass from &'a str to &'static str
     // and initialize the rule engine's rule directory.
     let rules_dir = config.rules.dir.clone();
-    rule_engine::init(Box::leak(rules_dir.into_boxed_str()));
+    if let Err(error) = rule_engine::init(Box::leak(rules_dir.into_boxed_str())) {
+        // we can't use logs here because it is initialized when building the server.
+        // NOTE: should we remove the log initialization inside the server ?
+        eprintln!("could not initalize the rule engine: {}", error);
+        return Err(error);
+    }
 
     let server = config.build::<ResolverWriteDisk>().await;
 

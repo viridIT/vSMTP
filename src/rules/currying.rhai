@@ -58,7 +58,7 @@ let vsl = #{
 
     // logs a message to a file.
     LOG: |message, path| {
-        __LOG(message, path);
+        __LOG(`${message}\n`, path);
     },
 
     // change the content of the HELO command.
