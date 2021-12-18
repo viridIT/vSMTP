@@ -3,7 +3,6 @@ mod tests {
 
     use vsmtp::{
         config::server_config::{InnerSMTPConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel},
-        mailprocessing::mail_receiver::StateSMTP,
         model::mail::MailContext,
         resolver::DataEndResolver,
         rules::address::Address,
@@ -23,13 +22,13 @@ mod tests {
             async fn on_data_end(
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> (StateSMTP, SMTPReplyCode) {
+            ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
                 assert_eq!(ctx.body, "");
 
-                (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+                Ok(SMTPReplyCode::Code250)
             }
         }
 
@@ -273,6 +272,38 @@ mod tests {
                 "DATA\r\n",
                 ".\r\n",
                 "DATA\r\n",
+                "MAIL FROM:<b@b>\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+                "250 Ok\r\n",
+                "503 Bad sequence of commands\r\n",
+                "250 Ok\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            get_test_config()
+        )
+        .await
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_receiver_11_bis() {
+        assert!(make_test::<DefaultResolverTest>(
+            [
+                "HELO postmaster\r\n",
+                "MAIL FROM: <lala@foo>\r\n",
+                "RCPT TO: <lala@foo>\r\n",
+                "DATA\r\n",
+                ".\r\n",
+                "DATA\r\n",
                 "RCPT TO:<b@b>\r\n",
             ]
             .concat()
@@ -285,7 +316,7 @@ mod tests {
                 "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
                 "250 Ok\r\n",
                 "503 Bad sequence of commands\r\n",
-                "250 Ok\r\n"
+                "503 Bad sequence of commands\r\n",
             ]
             .concat()
             .as_bytes(),
@@ -312,6 +343,80 @@ mod tests {
                 },
                 ..get_test_config()
             },
+        )
+        .await
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_receiver_13() {
+        struct T;
+
+        static mut COUNT: u32 = 0;
+
+        #[async_trait::async_trait]
+        impl DataEndResolver for T {
+            async fn on_data_end(
+                _: &ServerConfig,
+                ctx: &MailContext,
+            ) -> Result<SMTPReplyCode, std::io::Error> {
+                let count = unsafe { COUNT };
+
+                match count {
+                    0 => {
+                        assert_eq!(ctx.envelop.helo, "foobar");
+                        assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
+                        assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
+                        assert_eq!(ctx.body, "");
+                    }
+                    1 => {
+                        assert_eq!(ctx.envelop.helo, "foobar");
+                        assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
+                        assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
+                        assert_eq!(ctx.body, "");
+                    }
+                    _ => panic!(),
+                }
+
+                unsafe { COUNT += 1 };
+
+                Ok(SMTPReplyCode::Code250)
+            }
+        }
+
+        assert!(make_test::<T>(
+            [
+                "HELO foobar\r\n",
+                "MAIL FROM:<john@doe>\r\n",
+                "RCPT TO:<aa@bb>\r\n",
+                "DATA\r\n",
+                "mail one",
+                ".\r\n",
+                "MAIL FROM:<john2@doe>\r\n",
+                "RCPT TO:<aa2@bb>\r\n",
+                "DATA\r\n",
+                "mail two",
+                ".\r\n",
+                "QUIT\r\n"
+            ]
+            .concat()
+            .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+                "250 Ok\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            get_test_config(),
         )
         .await
         .is_ok());

@@ -16,7 +16,6 @@
 **/
 use crate::{
     config::{log::RESOLVER, server_config::ServerConfig},
-    mailprocessing::mail_receiver::StateSMTP,
     model::mail::MailContext,
     rules::address::Address,
     smtp::code::SMTPReplyCode,
@@ -24,7 +23,10 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait DataEndResolver {
-    async fn on_data_end(config: &ServerConfig, mail: &MailContext) -> (StateSMTP, SMTPReplyCode);
+    async fn on_data_end(
+        config: &ServerConfig,
+        mail: &MailContext,
+    ) -> Result<SMTPReplyCode, std::io::Error>;
 }
 
 // TODO: use a AtomicUsize instead of a wrapper.
@@ -162,7 +164,10 @@ impl ResolverWriteDisk {
 
 #[async_trait::async_trait]
 impl DataEndResolver for ResolverWriteDisk {
-    async fn on_data_end(_config: &ServerConfig, mail: &MailContext) -> (StateSMTP, SMTPReplyCode) {
+    async fn on_data_end(
+        _config: &ServerConfig,
+        mail: &MailContext,
+    ) -> Result<SMTPReplyCode, std::io::Error> {
         // TODO: use temporary file unix syscall to generate temporary files
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
@@ -182,13 +187,13 @@ impl DataEndResolver for ResolverWriteDisk {
                             Ok(elapsed) => elapsed.as_nanos().to_string(),
                             Err(error) => {
                                 log::error!("failed to deliver mail to '{}': {}", rcpt, error);
-                                return (StateSMTP::MailFrom, SMTPReplyCode::Code250);
+                                return Ok(SMTPReplyCode::Code250);
                             }
                         },
 
                         None => {
                             log::error!("failed to deliver mail to '{}': timestamp for email file name is unavailable", rcpt);
-                            return (StateSMTP::MailFrom, SMTPReplyCode::Code250);
+                            return Ok(SMTPReplyCode::Code250);
                         }
                     },
                     index,
@@ -208,6 +213,6 @@ impl DataEndResolver for ResolverWriteDisk {
                 );
             }
         }
-        (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+        Ok(SMTPReplyCode::Code250)
     }
 }

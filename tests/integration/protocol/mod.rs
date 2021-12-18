@@ -1,21 +1,20 @@
 use vsmtp::{
-    config::server_config::ServerConfig,
-    mailprocessing::mail_receiver::{MailReceiver, StateSMTP},
-    model::mail::MailContext,
-    resolver::DataEndResolver,
-    smtp::code::SMTPReplyCode,
-    tests::Mock,
+    config::server_config::ServerConfig, mailprocessing::mail_receiver::MailReceiver,
+    model::mail::MailContext, resolver::DataEndResolver, smtp::code::SMTPReplyCode, tests::Mock,
 };
 
 pub mod clair;
+pub mod rset;
 
 struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl DataEndResolver for DefaultResolverTest {
-    async fn on_data_end(_: &ServerConfig, _: &MailContext) -> (StateSMTP, SMTPReplyCode) {
-        // after a successful exchange, the server is ready for a new RCPT
-        (StateSMTP::MailFrom, SMTPReplyCode::Code250)
+    async fn on_data_end(
+        _: &ServerConfig,
+        _: &MailContext,
+    ) -> Result<SMTPReplyCode, std::io::Error> {
+        Ok(SMTPReplyCode::Code250)
     }
 }
 
