@@ -1,8 +1,9 @@
 # vSMTP standard edition roadmap
 
->Release before 1.0 should not be used for production purpose.
+> Release before 1.0 should not be used for production purpose.
 
-For the enhanced edition roadmap, please feel free to contact us at <https://www.viridit.com/contact>.
+For the enhanced edition roadmap, please feel free to contact us at
+<https://www.viridit.com/contact>.
 
 ## Release 0.7.x
 
@@ -23,7 +24,8 @@ About filtering functionalities :
 - User defined quarantine queues and logs
 - JSON and RAW exports
 
->This version only manages incoming mails. For outgoing mail you must use your current SMTP server.
+> This version only manages incoming mails. For outgoing mail you must use your
+> current SMTP server.
 
 ## Release 0.8.x
 
@@ -44,7 +46,9 @@ About filtering functionalities :
 
 These releases will focus on the vSMTP policy server and on performances.
 
-The vSMTP Policy Server (vPS) is a module dedicated to integrating of third-party software. Thanks to its logic engine it can manage complex filtering and security rules. In version RC3, vPS will accept delegation trough :
+The vSMTP Policy Server (vPS) is a module dedicated to integrating of
+third-party software. Thanks to its logic engine it can manage complex filtering
+and security rules. In version RC3, vPS will accept delegation trough :
 
 - The SMTP protocol
 - A libmilter-like emulator
@@ -54,4 +58,5 @@ It can be called at any stage of a SMTP transaction via the rule engine.
 
 ## Production release
 
-Depending on versions 0.7+ fixes and user feedbacks, the production version is expected for Q2/2022.
+Depending on versions 0.7+ fixes and user feedbacks, the production version is
+expected for Q2/2022.
