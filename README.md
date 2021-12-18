@@ -28,7 +28,7 @@
 # What is vSMTP ?
 
 vSMTP is a next-gen Mail Transfer Agent (MTA) developed by viridIT teams.
-You can follow us on <https://www.viridit.com>.
+You can follow us on [viridit.com](https://www.viridit.com).
 
 ## Why develop a new MTA ?
 
@@ -40,16 +40,16 @@ To meet this challenge, viridIT is developing a new technology of email gateways
 
 Because it is secured, faster and greener.
 
-- It is developed in Rust, implying high performance and stability
-- It is Modular and highly customizable
-- It has a a complete filtering system
-- It is actively maintained and developed
+- It is developed in Rust, implying high performance and stability.
+- It is modular and highly customizable.
+- It has a a complete filtering system.
+- It is actively maintained and developed.
 
 ## Documentation
 
 About the code and related issues, please check the [project Wiki](https://github.com/viridIT/vSMTP/wiki) and use the GitHub issue tracker.
 To stay tuned, ask questions and get in-depth answers feel free to register and visit our [community forums](https://www.viridit.com/community-forum). You can also open a GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).  
-For documentation, user guide, etc. please consult [GitHub wiki](https://github.com/viridIT/vSMTP/wiki) or our dedicated page at <https://www.viridit.com/support>.  
+For documentation, user guide, etc. please consult [GitHub wiki](https://github.com/viridIT/vSMTP/wiki).  
 
 ## Commercial
 
