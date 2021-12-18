@@ -47,7 +47,7 @@ These releases will focus on the vSMTP policy server and on performances.
 
 The vSMTP Policy Server (vPS) is a module dedicated to integrating of
 third-party software. Thanks to its logic engine it can manage complex filtering
-and security rules. In version RC3, vPS will accept delegation trough:
+and security rules. In version 0.9.x, vPS will accept delegation trough:
 
 - The SMTP protocol.
 - A libmilter-like emulator.
