@@ -5,6 +5,7 @@ use vsmtp::{
 
 pub mod clair;
 pub mod rset;
+pub mod utf8;
 
 struct DefaultResolverTest;
 
