@@ -101,17 +101,23 @@ pub(super) mod vsl {
                     _ => std::path::PathBuf::from_str(path).unwrap(),
                 };
 
-                // if the file is already containing data, we just append at the end.
-                let file = if !path.exists() {
-                    std::fs::File::create(&path)
-                } else {
-                    std::fs::OpenOptions::new().append(true).open(&path)
-                };
+                match std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&path)
+                {
+                    Ok(file) => {
+                        let mut writer = std::io::LineWriter::new(file);
 
-                match file {
-                    Ok(mut file) => file
-                        .write_all(message.as_bytes())
-                        .map_err(|_| format!("could not log to '{:?}'.", path).into()),
+                        writer
+                            .write_all(message.as_bytes())
+                            .map_err::<Box<EvalAltResult>, _>(|_| {
+                                format!("could not log to '{:?}'.", path).into()
+                            })?;
+                        writer
+                            .write_all(b"\n")
+                            .map_err(|_| format!("could not log to '{:?}'.", path).into())
+                    }
                     Err(error) => Err(format!(
                         "'{:?}' is not a valid path to log to: {:#?}",
                         path, error
@@ -133,13 +139,12 @@ pub(super) mod vsl {
 
         // from_str is unfailable, we can unwrap.
         let path = std::path::PathBuf::from_str(path).unwrap();
-        let file = if !path.exists() {
-            std::fs::File::create(&path)
-        } else {
-            std::fs::OpenOptions::new().append(true).open(&path)
-        };
 
-        match file {
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+        {
             Ok(mut file) => file
                 .write_all(data.as_bytes())
                 .map_err(|_| format!("could not write email to '{:?}'.", path).into()),
