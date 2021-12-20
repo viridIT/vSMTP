@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use std::{error::Error, fmt::Display};
+use std::{error::Error, fmt::Display, hash::Hash};
 
 use rhai::EvalAltResult;
 
@@ -39,10 +39,22 @@ impl From<&str> for AddressParsingError {
 /// since addr::email::Address needs to be sent in rhai's context,
 /// it needs to be static, thus impossible to do.
 /// TODO: find a way to use addr::email::Address instead of this struct.
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
 pub struct Address {
     full: String,
     at_sign: usize,
+}
+
+impl PartialEq for Address {
+    fn eq(&self, other: &Self) -> bool {
+        self.full == other.full
+    }
+}
+
+impl Hash for Address {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.full.hash(state);
+    }
 }
 
 impl Display for Address {
