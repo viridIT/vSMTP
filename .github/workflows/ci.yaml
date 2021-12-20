@@ -4,7 +4,6 @@ name: CI
     branches:
       - '**'
       - '!doc/**'
-  pull_request: null
 jobs:
   check:
     runs-on: ubuntu-latest
