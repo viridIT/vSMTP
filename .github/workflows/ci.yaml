@@ -3,7 +3,6 @@ name: CI
   pull_request:
     branches:
       - '**'
-    branches-ignore:
       - '!doc/**'
   pull_request: null
 jobs:
