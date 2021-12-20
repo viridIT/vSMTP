@@ -269,10 +269,10 @@ impl<U: Users> RhaiEngine<U> {
         .register_iterator::<Vec<Address>>()
         .register_iterator::<Vec<String>>()
         .register_fn("push", <Vec<Address>>::push)
-        .register_fn("local_parts", |vec: &mut Vec<Address>| -> Vec<String> {
+        .register_get("local_part", |vec: &mut Vec<Address>| -> Vec<String> {
             vec.iter().map(|addr| addr.local_part().to_string()).collect()
         })
-        .register_fn("domains", |vec: &mut Vec<Address>| -> Vec<String> {
+        .register_get("domain", |vec: &mut Vec<Address>| -> Vec<String> {
             vec.iter().map(|addr| addr.domain().to_string()).collect()
         })
 
