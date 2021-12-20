@@ -21,7 +21,7 @@ use vsmtp::rules::rule_engine;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = clap::App::new("vSMTP")
-        .version("1.0")
+        .version(env!("CARGO_PKG_VERSION", "no option provided"))
         .author("ViridIT https://www.viridit.com")
         .about("vSMTP : the next-gen MTA")
         .arg(
@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(error) = rule_engine::init(Box::leak(rules_dir.into_boxed_str())) {
         // we can't use logs here because it is initialized when building the server.
         // NOTE: should we remove the log initialization inside the server ?
-        eprintln!("could not initalize the rule engine: {}", error);
+        eprintln!("could not initialize the rule engine: {}", error);
         return Err(error);
     }
 
