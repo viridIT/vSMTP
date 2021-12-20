@@ -38,7 +38,7 @@ use rhai::plugin::*;
 #[allow(dead_code)]
 #[export_module]
 pub(super) mod vsl {
-    use std::net::SocketAddr;
+    use std::{net::SocketAddr, collections::HashSet};
 
     use crate::{config::log::RULES, rules::address::Address};
 
@@ -168,7 +168,7 @@ pub(super) mod vsl {
         port: u16,
         helo: &str,
         mail: Address,
-        rcpt: Vec<Address>,
+        rcpt: HashSet<Address>,
         data: &str,
         connection_timestamp: std::time::SystemTime,
         mail_timestamp: Option<std::time::SystemTime>,

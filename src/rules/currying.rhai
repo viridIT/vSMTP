@@ -73,27 +73,17 @@ let vsl = #{
 
     // change one of the recipient specified by the RCPT TO command.
     RW_RCPT: |to_rewrite, value| {
-        for (recipient, index) in rcpts {
-            if recipient.full == to_rewrite {
-                rcpts.replace(index, new_address(value));
-                break;
-            }
-        }
+        rcpts.replace(new_address(value));
     },
 
     // add a recipient to the list.
     ADD_RCPT: |to_add| {
-        rcpts.push(new_address(to_add));
+        rcpts.insert(new_address(to_add));
     },
 
     // remove a recipient from the list.
     DEL_RCPT: |to_remove| {
-        for (recipient, index) in rcpts {
-            if recipient.full == to_remove {
-                rcpts.remove(index);
-                break;
-            }
-        }
+        rcpts.remove(new_address(to_remove));
     },
 
     // write the current mail to a file.

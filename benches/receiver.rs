@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
@@ -65,7 +67,10 @@ fn criterion_benchmark(c: &mut Criterion) {
             ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
-                assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
+                assert_eq!(
+                    ctx.envelop.rcpt,
+                    HashSet::from([Address::new("aa@bb").unwrap()])
+                );
                 assert_eq!(ctx.body, "");
 
                 Ok(SMTPReplyCode::Code250)

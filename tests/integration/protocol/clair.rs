@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashSet;
+
     use vsmtp::{
         config::server_config::{InnerSMTPConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel},
         model::mail::MailContext,
@@ -25,7 +27,10 @@ mod tests {
             ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
-                assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
+                assert_eq!(
+                    ctx.envelop.rcpt,
+                    HashSet::from([Address::new("aa@bb").unwrap()])
+                );
                 assert_eq!(ctx.body, "");
 
                 Ok(SMTPReplyCode::Code250)
@@ -366,13 +371,19 @@ mod tests {
                     0 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
                         assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
-                        assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
+                        assert_eq!(
+                            ctx.envelop.rcpt,
+                            HashSet::from([Address::new("aa@bb").unwrap()])
+                        );
                         assert_eq!(ctx.body, "");
                     }
                     1 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
                         assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
-                        assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
+                        assert_eq!(
+                            ctx.envelop.rcpt,
+                            HashSet::from([Address::new("aa@bb").unwrap()])
+                        );
                         assert_eq!(ctx.body, "");
                     }
                     _ => panic!(),

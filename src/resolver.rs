@@ -35,8 +35,8 @@ struct Wrapper(usize);
 pub struct ResolverWriteDisk;
 impl ResolverWriteDisk {
     pub fn init_spool_folder(path: &str) -> Result<std::path::PathBuf, std::io::Error> {
-        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path)
-            .expect("Failed to initialize the spool folder");
+        // will never crash, we can unwrap.
+        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
         if filepath.exists() {
             if filepath.is_dir() {
                 log::debug!(
@@ -59,7 +59,7 @@ impl ResolverWriteDisk {
 
     /// write to /home/${user}/Maildir/ the mail body sent by the client.
     /// the format of the file name is the following:
-    /// `{timestamp}.Size={content size}.D={deliveries}.ID={unique_id}.vsmtp`
+    /// `{timestamp}.{content size}{deliveries}{rcpt id}.vsmtp`
     fn write_to_maildir(
         rcpt: &Address,
         timestamp: &str,
@@ -80,47 +80,52 @@ impl ResolverWriteDisk {
             }
         };
 
+        // TODO: following Maildir++, user maildir path shouldn't be hardcoded.
         let mut folder =
             std::path::PathBuf::from_iter(["/", "home", rcpt.local_part(), "Maildir", "new"]);
         std::fs::create_dir_all(&folder)?;
 
-        // TODO: follow maildir's writing convention.
         // NOTE: see https://en.wikipedia.org/wiki/Maildir
-        let filename = format!(
+        folder.push(format!(
             "{}.{}{}{}.vsmtp",
             timestamp,
             content.as_bytes().len(),
             delivery_count.0,
             unique_id
-        );
-        folder.push(filename);
+        ));
 
         let mut inbox = std::fs::OpenOptions::new()
-            .write(true)
             .create(true)
+            .write(true)
             .open(&folder)?;
 
         std::io::Write::write_all(&mut inbox, content.as_bytes())?;
 
         delivery_count.0 += 1;
 
-        // we can unwrap here since we've already checked if the user existed.
-        let uid = crate::rules::rule_engine::get_user_by_name(rcpt.local_part())
-            .unwrap()
-            .uid();
-
-        if unsafe {
-            libc::chown(
-                // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
-                //       to a CString because it is plateform independant.
-                std::ffi::CString::new(folder.to_string_lossy().as_bytes())?.as_ptr(),
-                uid,
-                uid,
-            )
-        } != 0
-        {
-            log::error!("unable to setuid of user {}", rcpt.local_part());
-            return Err(std::io::Error::last_os_error());
+        match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
+            Some(user) => {
+                if unsafe {
+                    libc::chown(
+                        // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
+                        //       to a CString because it is plateform independant.
+                        std::ffi::CString::new(folder.to_string_lossy().as_bytes())?.as_ptr(),
+                        user.uid(),
+                        user.uid(),
+                    )
+                } != 0
+                {
+                    log::error!("unable to setuid of user {}", rcpt.local_part());
+                    return Err(std::io::Error::last_os_error());
+                }
+            }
+            None => {
+                log::error!("unable to get user '{}' by name", rcpt.local_part());
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "unable to get user",
+                ));
+            }
         }
 
         log::debug!(

@@ -28,7 +28,7 @@ use users::Users;
 use std::net::IpAddr;
 use std::sync::Mutex;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     error::Error,
     fs,
     net::Ipv4Addr,
@@ -72,7 +72,7 @@ impl<'a> RuleEngine<'a> {
             .push("helo", "")
             .push("mail", Address::default())
             .push("rcpt", Address::default())
-            .push("rcpts", Vec::<Address>::new())
+            .push("rcpts", HashSet::<Address>::new())
             .push("data", "")
             .push("__OPERATION_QUEUE", OperationQueue::default())
             .push("__stage", "")
@@ -207,7 +207,7 @@ impl<'a> RuleEngine<'a> {
         Some(Envelop {
             helo: self.scope.get_value::<String>("helo")?,
             mail_from: self.scope.get_value::<Address>("mail")?,
-            rcpt: self.scope.get_value::<Vec<Address>>("rcpts")?,
+            rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
         })
     }
 }
@@ -266,33 +266,18 @@ impl<U: Users> RhaiEngine<U> {
 
         // adding an Address vector as a custom type.
         // it is used to easily manipulate the rcpt container.
-        .register_iterator::<Vec<Address>>()
+        .register_iterator::<HashSet<Address>>()
         .register_iterator::<Vec<String>>()
-        .register_fn("push", <Vec<Address>>::push)
-        .register_get("local_part", |vec: &mut Vec<Address>| -> Vec<String> {
+        .register_fn("insert", <HashSet<Address>>::insert)
+        .register_get("local_part", |vec: &mut HashSet<Address>| -> Vec<String> {
             vec.iter().map(|addr| addr.local_part().to_string()).collect()
         })
-        .register_get("domain", |vec: &mut Vec<Address>| -> Vec<String> {
+        .register_get("domain", |vec: &mut HashSet<Address>| -> Vec<String> {
             vec.iter().map(|addr| addr.domain().to_string()).collect()
         })
 
-        // NOTE: we cannot register Vec<Address>::remove & replace method because usize doesn't exists in rhai.
-        //       here we create custom replacements that accepts i64 values.
-        .register_fn("remove", |vec: &mut Vec<Address>, index: i64| {
-
-            if index as usize >= vec.len() {
-                return;
-            }
-
-            vec.remove(index as usize);
-        })
-        .register_fn("replace", |vec: &mut Vec<Address>, index: i64, value: Address| {
-            if index as usize >= vec.len() {
-                return;
-            }
-
-            vec[index as usize] = value;
-        })
+        .register_fn("remove", HashSet::<Address>::remove)
+        .register_fn("replace", HashSet::<Address>::replace)
 
         // eval is not authorized.
         .disable_symbol("eval")
@@ -605,7 +590,7 @@ lazy_static::lazy_static! {
         .push("helo", "")
         .push("mail", Address::default())
         .push("rcpt", Address::default())
-        .push("rcpts", Vec::<Address>::new())
+        .push("rcpts", HashSet::<Address>::new())
         .push("data", "")
 
         // rule engine's internals.

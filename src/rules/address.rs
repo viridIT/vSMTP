@@ -39,7 +39,7 @@ impl From<&str> for AddressParsingError {
 /// since addr::email::Address needs to be sent in rhai's context,
 /// it needs to be static, thus impossible to do.
 /// TODO: find a way to use addr::email::Address instead of this struct.
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
 pub struct Address {
     full: String,
     at_sign: usize,
