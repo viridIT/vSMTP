@@ -1,5 +1,6 @@
 mod actions;
 mod connect;
+mod helo;
 mod init;
 mod object_parsing;
 mod users;

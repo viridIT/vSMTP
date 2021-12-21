@@ -1,0 +1,7 @@
+obj regex "eu" "^[a-z0-9.]+.eu$";
+
+rule helo "test_helo_regex" #{
+  condition: || vsl.IS_HELO("eu"),
+  on_success: vsl.ACCEPT,
+  on_failure: vsl.DENY,
+};
