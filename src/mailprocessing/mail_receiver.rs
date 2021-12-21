@@ -691,7 +691,6 @@ where
             if self.state == StateSMTP::NegotiationTLS {
                 return self.receive_secured(plain_stream).await;
             }
-
             self.read_and_handle(&mut io).await?;
         }
         Ok(plain_stream)
