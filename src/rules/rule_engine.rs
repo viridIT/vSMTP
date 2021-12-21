@@ -87,13 +87,6 @@ impl<'a> RuleEngine<'a> {
             .push("logs_file", config.log.file.clone())
             .push("spool_dir", config.smtp.spool_dir.clone());
 
-        // pushing objects names in the scope.
-        if let Ok(objects) = acquire_engine().objects.read() {
-            objects.keys().for_each(|object| {
-                scope.push(object.clone(), object.clone());
-            });
-        }
-
         Self { scope, skip: None }
     }
 
@@ -407,11 +400,6 @@ impl<U: Users> RhaiEngine<U> {
             },
             true,
             move |context, input| {
-                // we parse the object only once.
-                if let Some(true) = context.scope_mut().get_value::<bool>("__init") {
-                    return Ok(Dynamic::UNIT);
-                }
-
                 let var_type = input[0].get_variable_name().unwrap().to_string();
                 let var_name: String;
 
@@ -472,13 +460,16 @@ impl<U: Users> RhaiEngine<U> {
                     }
                 };
 
-                // injecting the object in rust's scope.
-                match Object::from(&object) {
-                    Ok(rust_var) => shared_obj.write()
-                        .unwrap()
-                        .insert(var_name.clone(), rust_var),
-                    Err(error) => panic!("object '{}' could not be parsed as a '{}' object: {}", var_name, var_type, error),
-                };
+                // we inject objects only once in Rust's scope.
+                if let Some(false) = context.scope_mut().get_value::<bool>("__init") {
+                    match Object::from(&object) {
+                        // write is called once at initialisation, no need to check the result.
+                        Ok(rust_var) => shared_obj.write()
+                            .unwrap()
+                            .insert(var_name.clone(), rust_var),
+                        Err(error) => panic!("object '{}' could not be parsed as a '{}' object: {}", var_name, var_type, error),
+                    };
+                }
 
                 // FIXME: there is no way to tell if the parent scope of the object
                 //        is a group or the global scope, so we have to inject the variable

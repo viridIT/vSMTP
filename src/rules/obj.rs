@@ -31,7 +31,7 @@ use super::address::Address;
 
 /// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) enum Object {
     /// ip v4 address. (a.b.c.d)
     Ip4(Ipv4Addr),
