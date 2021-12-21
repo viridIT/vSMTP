@@ -163,7 +163,7 @@ where
             mail_from: Address::default(),
             rcpt: HashSet::default(),
         };
-        // TODO: reset mail_from/mail_timestamp/rcpt/rcpts in Rules Stack ??
+        self.rule_engine.reset();
 
         self.rule_engine
             .add_data("helo", self.mail.envelop.helo.clone());
@@ -171,11 +171,10 @@ where
 
     fn set_mail_from(&mut self, mail_from: String) {
         if let Ok(mail_from) = Address::new(&mail_from) {
-            // TODO: reset mail rcpt/rcpts in Rules Stack ??
-
             self.mail.envelop.mail_from = mail_from;
             self.mail.timestamp = Some(std::time::SystemTime::now());
             self.mail.envelop.rcpt.clear();
+            self.rule_engine.reset();
 
             self.rule_engine
                 .add_data("mail", self.mail.envelop.mail_from.clone());
@@ -209,10 +208,10 @@ where
             (_, Event::HelpCmd(_)) => (None, Some(SMTPReplyCode::Code214)),
 
             (_, Event::RsetCmd) => {
-                // TODO: reset in Rules Stack ??
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
                 self.mail.envelop.rcpt.clear();
                 self.mail.envelop.mail_from = Address::default();
+                self.rule_engine.reset();
 
                 (Some(StateSMTP::Helo), Some(SMTPReplyCode::Code250))
             }

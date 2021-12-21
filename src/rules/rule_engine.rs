@@ -217,6 +217,16 @@ impl<'a> RuleEngine<'a> {
             rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
         })
     }
+
+    /// clears mail_from, mail_timestamp, rcpt, rcpts & data values from the scope.
+    pub(crate) fn reset(&mut self) {
+        self.scope
+            .push("mail", Address::default())
+            .push("mail_timestamp", None::<std::time::SystemTime>)
+            .push("rcpt", Address::default())
+            .push("rcpts", HashSet::<Address>::new())
+            .push("data", "");
+    }
 }
 
 /// a sharable rhai engine.
