@@ -1,11 +1,16 @@
 [package]
-name = "vsmtp"
-version = "0.7.0"
 edition = "2021"
-publish = false
+
+name = "vsmtp"
+version = "0.7.1"
 license = "GPLv3"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+
+publish = false
 
 [dependencies]
 log = "0.4.14"

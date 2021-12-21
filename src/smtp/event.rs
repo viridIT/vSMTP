@@ -302,8 +302,6 @@ impl Event {
 
             ("STARTTLS", []) => Ok(Event::StartTls),
 
-            ("PRIV", _) => Err(SMTPReplyCode::Code500),
-
             _ => Err(SMTPReplyCode::Code501),
         }
     }

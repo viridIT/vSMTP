@@ -21,7 +21,7 @@ use vsmtp::rules::rule_engine;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = clap::App::new("vSMTP")
-        .version("1.0")
+        .version(env!("CARGO_PKG_VERSION", "no option provided"))
         .author("ViridIT https://www.viridit.com")
         .about("vSMTP : the next-gen MTA")
         .arg(
