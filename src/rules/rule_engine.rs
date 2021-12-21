@@ -243,7 +243,6 @@ pub struct RhaiEngine<U: Users> {
     pub(super) objects: Arc<RwLock<BTreeMap<String, Object>>>,
 
     /// system user cache, used for retreiving user information. (used in vsl.USER_EXISTS for example)
-    /// TODO: add configuration to refresh the cache every x hour/minute/seconds.
     pub(super) users: Mutex<U>,
 }
 
