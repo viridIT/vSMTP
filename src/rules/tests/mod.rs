@@ -1,6 +1,7 @@
 mod actions;
 mod connect;
 mod helo;
+mod mail;
 mod object_parsing;
 mod rcpt;
 mod users;

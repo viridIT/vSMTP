@@ -68,11 +68,13 @@ let vsl = #{
 
     // change the content of the MAIL FROM command.
     RW_MAIL: |value| {
-        mail = new_address(value);
+        // string interpolation used to parse from a String or an Address.
+        mail = new_address(`${value}`);
     },
 
     // change one of the recipient specified by the RCPT TO command.
     RW_RCPT: |to_replace, value| {
+        // string interpolation used to parse from a String or an Address.
         rcpts.replace(`${to_replace}`, `${value}`);
     },
 
