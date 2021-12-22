@@ -231,8 +231,13 @@ pub mod test {
                 .rcpt
                 .get(&Address::new("green@satan.org").unwrap())
                 .is_none());
+            assert!(ctx
+                .envelop
+                .rcpt
+                .get(&Address::new("john@foo.eu").unwrap())
+                .is_some());
 
-            assert_eq!(ctx.envelop.rcpt.len(), 1);
+            assert_eq!(ctx.envelop.rcpt.len(), 2);
             Ok(SMTPReplyCode::Code250)
         }
     }
@@ -248,6 +253,7 @@ pub mod test {
                 "MAIL FROM:<test@viridit.com>\r\n",
                 "RCPT TO:<staff@viridit.com>\r\n",
                 "RCPT TO:<green@satan.org>\r\n",
+                "RCPT TO:<john@foo.eu>\r\n",
                 "DATA\r\n",
                 ".\r\n",
                 "QUIT\r\n",
@@ -256,6 +262,7 @@ pub mod test {
             .as_bytes(),
             [
                 "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
