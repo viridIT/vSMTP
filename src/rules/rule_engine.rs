@@ -325,21 +325,30 @@ impl<U: Users> RhaiEngine<U> {
             }
         })
 
-        .register_fn("replace", HashSet::<Address>::replace)
-
         // added an overload to remove an address using a string.
-        .register_result_fn("replace", |set: &mut HashSet::<Address>, value: String| {
-            match Address::new(&value) {
-                Ok(addr) => {
-                    set.replace(addr);
-                    Ok(())
-                },
-                Err(error) => Err(format!(
+        .register_result_fn("replace", |set: &mut HashSet::<Address>, to_replace: String, value: String| {
+            let to_replace = match Address::new(&to_replace) {
+                Ok(addr) => addr,
+                Err(error) => return Err(format!(
                     "failed to replace address from set: {}",
                     error
                 )
                 .into()),
+            };
+
+            if set.contains(&to_replace) {
+                set.remove(&to_replace);
+                match Address::new(&value) {
+                    Ok(addr) => set.insert(addr),
+                    Err(error) => return Err(format!(
+                        "failed to replace address from set: {}",
+                        error
+                    )
+                    .into()),
+                };
             }
+
+            Ok(())
         })
 
         // eval is not authorized.

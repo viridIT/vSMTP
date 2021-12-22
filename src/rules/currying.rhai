@@ -72,8 +72,8 @@ let vsl = #{
     },
 
     // change one of the recipient specified by the RCPT TO command.
-    RW_RCPT: |to_rewrite, value| {
-        rcpts.replace(new_address(value));
+    RW_RCPT: |to_replace, value| {
+        rcpts.replace(`${to_replace}`, `${value}`);
     },
 
     // add a recipient to the list.

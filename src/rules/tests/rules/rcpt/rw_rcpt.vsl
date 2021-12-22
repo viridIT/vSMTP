@@ -1,0 +1,13 @@
+obj regex "redirect" "^[a-z0-9.]+@viridit.[a-z0-9]+$";
+
+rule rcpt "test_rw_rcpt" #{
+  condition: || vsl.IS_RCPT("redirect"),
+
+  // quietly replacing the recipient's domain.
+  on_success: || {
+    vsl.RW_RCPT(rcpt, `${rcpt.local_part}@viridit.fr`);
+    vsl.CONTINUE()
+  },
+
+  on_failure: vsl.CONTINUE
+};
