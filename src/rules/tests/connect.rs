@@ -1,14 +1,8 @@
 #[cfg(test)]
 pub mod test {
     use crate::{
-        config::server_config::ServerConfig,
-        model::mail::MailContext,
-        resolver::DataEndResolver,
-        rules::{
-            tests::init::run_engine_test,
-            tests::test::{get_test_config, make_test},
-        },
-        smtp::code::SMTPReplyCode,
+        config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
+        rules::tests::helpers::run_integration_engine_test, smtp::code::SMTPReplyCode,
     };
 
     struct Test;
@@ -25,42 +19,24 @@ pub mod test {
 
     #[tokio::test]
     async fn test_connect_rules() {
-        async fn test() {
-            assert!(make_test::<Test>(
-                b"",
-                ["220 test.server.com Service ready\r\n",]
-                    .concat()
-                    .as_bytes(),
-                get_test_config("./src/rules/tests/configs/default.config.toml"),
-            )
-            .await
-            .is_ok());
-        }
-
-        run_engine_test(
+        assert!(run_integration_engine_test::<Test>(
             "./src/rules/tests/rules/connect/valid_connect.vsl",
+            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
-            test,
+            b"",
+            b"220 test.server.com Service ready\r\n"
         )
-        .await;
+        .await
+        .is_ok());
 
-        async fn test2() {
-            assert!(make_test::<Test>(
-                b"",
-                ["220 test.server.com Service ready\r\n",]
-                    .concat()
-                    .as_bytes(),
-                get_test_config("./src/rules/tests/configs/default.config.toml"),
-            )
-            .await
-            .is_err());
-        }
-
-        run_engine_test(
+        assert!(run_integration_engine_test::<Test>(
             "./src/rules/tests/rules/connect/invalid_connect.vsl",
+            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
-            test2,
+            b"",
+            b"",
         )
-        .await;
+        .await
+        .is_err());
     }
 }
