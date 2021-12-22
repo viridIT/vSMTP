@@ -2,6 +2,7 @@ mod actions;
 mod connect;
 mod helo;
 mod object_parsing;
+mod rcpt;
 mod users;
 
 #[cfg(test)]
