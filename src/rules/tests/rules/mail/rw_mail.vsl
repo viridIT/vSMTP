@@ -5,7 +5,7 @@ obj grp "staff" [
   obj addr "ruben" "ruben@email.ru",
 ];
 
-rule rcpt "test_rw_mail" #{
+rule mail "test_rw_mail" #{
   condition: || vsl.IS_MAIL("staff"),
 
   // hide a specific sender.

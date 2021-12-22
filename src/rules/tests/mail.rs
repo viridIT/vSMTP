@@ -14,6 +14,138 @@ pub mod test {
     impl DataEndResolver for Test {
         async fn on_data_end(
             _: &ServerConfig,
+            _: &MailContext,
+        ) -> Result<SMTPReplyCode, std::io::Error> {
+            Ok(SMTPReplyCode::Code250)
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mail_by_user() {
+        assert!(run_integration_engine_test::<Test>(
+            "./src/rules/tests/rules/mail/mail.vsl",
+            "./src/rules/tests/configs/default.config.toml",
+            users::mock::MockUsers::with_current_uid(1),
+            ["HELO foobar\r\n", "MAIL FROM:<johndoe@test.com>\r\n",]
+                .concat()
+                .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+        )
+        .await
+        .is_ok());
+
+        assert!(run_integration_engine_test::<Test>(
+            "./src/rules/tests/rules/mail/mail.vsl",
+            "./src/rules/tests/configs/default.config.toml",
+            users::mock::MockUsers::with_current_uid(1),
+            ["HELO foobar\r\n", "MAIL FROM:<unknown@test.com>\r\n",]
+                .concat()
+                .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "554 permanent problems with the remote server\r\n"
+            ]
+            .concat()
+            .as_bytes(),
+        )
+        .await
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mail_by_fqdn() {
+        assert!(run_integration_engine_test::<Test>(
+            "./src/rules/tests/rules/mail/mail.vsl",
+            "./src/rules/tests/configs/default.config.toml",
+            users::mock::MockUsers::with_current_uid(1),
+            ["HELO foobar\r\n", "MAIL FROM:<johndoe@viridit.com>\r\n",]
+                .concat()
+                .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+        )
+        .await
+        .is_ok());
+
+        assert!(run_integration_engine_test::<Test>(
+            "./src/rules/tests/rules/mail/mail.vsl",
+            "./src/rules/tests/configs/default.config.toml",
+            users::mock::MockUsers::with_current_uid(1),
+            ["HELO foobar\r\n", "MAIL FROM:<user@unknown.com>\r\n",]
+                .concat()
+                .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "554 permanent problems with the remote server\r\n"
+            ]
+            .concat()
+            .as_bytes(),
+        )
+        .await
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mail_by_address() {
+        assert!(run_integration_engine_test::<Test>(
+            "./src/rules/tests/rules/mail/mail.vsl",
+            "./src/rules/tests/configs/default.config.toml",
+            users::mock::MockUsers::with_current_uid(1),
+            ["HELO foobar\r\n", "MAIL FROM:<customer@company.com>\r\n",]
+                .concat()
+                .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+        )
+        .await
+        .is_ok());
+
+        assert!(run_integration_engine_test::<Test>(
+            "./src/rules/tests/rules/mail/mail.vsl",
+            "./src/rules/tests/configs/default.config.toml",
+            users::mock::MockUsers::with_current_uid(1),
+            [
+                "HELO foobar\r\n",
+                "MAIL FROM:<another.customer@company.com>\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "554 permanent problems with the remote server\r\n"
+            ]
+            .concat()
+            .as_bytes(),
+        )
+        .await
+        .is_ok());
+    }
+
+    struct TestRewriten;
+
+    #[async_trait::async_trait]
+    impl DataEndResolver for TestRewriten {
+        async fn on_data_end(
+            _: &ServerConfig,
             ctx: &MailContext,
         ) -> Result<SMTPReplyCode, std::io::Error> {
             println!("{:?}", ctx.envelop.rcpt);
@@ -31,17 +163,15 @@ pub mod test {
         }
     }
 
-    // -- testing out rcpt checking.
-
     #[tokio::test]
     async fn test_mail_rewrite() {
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<TestRewriten>(
             "./src/rules/tests/rules/mail/rw_mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             [
                 "HELO foobar\r\n",
-                "MAIL FROM:<johndoe@viridit.com>\r\n",
+                "MAIL FROM:<steven@personnal.fr>\r\n",
                 "RCPT TO:<client@other.com>\r\n",
                 "DATA\r\n",
                 ".\r\n",
