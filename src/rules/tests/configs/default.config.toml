@@ -9,7 +9,7 @@ addr = "0.0.0.0:10025"
 file = "./tests/generated/output.log"
 
 [log.level]
-default = "off"
+default = "error"
 
 [rules]
 dir = "./src/rules/tests/rules/simple"

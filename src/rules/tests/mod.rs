@@ -16,7 +16,9 @@ pub mod helpers {
         smtp::code::SMTPReplyCode,
         tests::Mock,
     };
-    use std::panic;
+    use std::{panic, sync::Once};
+
+    static INIT: Once = Once::new();
 
     struct DefaultResolverTest;
 
@@ -105,6 +107,19 @@ pub mod helpers {
         smtp_input: &[u8],
         expected_output: &[u8],
     ) -> Result<(), std::io::Error> {
+        let config: ServerConfig = toml::from_str(
+            &std::fs::read_to_string(config_path).expect("failed to read config from file"),
+        )
+        .unwrap();
+
+        // init logs once.
+        INIT.call_once(|| {
+            log4rs::init_config(
+                get_logger_config(&config).expect("couldn't initialize logs for a test"),
+            )
+            .expect("couldn't initialize logs for a test");
+        });
+
         // re-initialize the engine.
         *RHAI_ENGINE.write().unwrap() = RhaiEngine::new(src_path, users)
             .unwrap_or_else(|error| panic!("couldn't initialize the engine for a test: {}", error));
@@ -120,14 +135,49 @@ pub mod helpers {
             .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &reader.ast)
             .expect("could not initialize the rule engine");
 
-        make_test::<T>(
-            smtp_input,
-            expected_output,
-            toml::from_str(
-                &std::fs::read_to_string(config_path).expect("failed to read config from file"),
+        make_test::<T>(smtp_input, expected_output, config).await
+    }
+
+    fn get_logger_config(config: &ServerConfig) -> Result<log4rs::Config, std::io::Error> {
+        use log4rs::*;
+
+        let console = append::console::ConsoleAppender::builder()
+            .encoder(Box::new(encode::pattern::PatternEncoder::new(
+                "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
+            )))
+            .build();
+
+        let file = append::file::FileAppender::builder()
+            .encoder(Box::new(encode::pattern::PatternEncoder::new(
+                "{d} - {m}{n}",
+            )))
+            .build(config.log.file.clone())?;
+
+        Config::builder()
+            .appender(config::Appender::builder().build("stdout", Box::new(console)))
+            .appender(config::Appender::builder().build("file", Box::new(file)))
+            .loggers(
+                config
+                    .log
+                    .level
+                    .iter()
+                    .map(|(name, level)| config::Logger::builder().build(name, *level)),
             )
-            .expect("cannot parse config from toml"),
-        )
-        .await
+            .build(
+                config::Root::builder()
+                    .appender("stdout")
+                    .appender("file")
+                    .build(
+                        *config
+                            .log
+                            .level
+                            .get("default")
+                            .unwrap_or(&log::LevelFilter::Warn),
+                    ),
+            )
+            .map_err(|e| {
+                e.errors().iter().for_each(|e| log::error!("{}", e));
+                std::io::Error::new(std::io::ErrorKind::Other, e)
+            })
     }
 }

@@ -265,6 +265,7 @@ impl<U: Users> RhaiEngine<U> {
         .register_fn("to_string", |addr: &mut IpAddr| addr.to_string())
         .register_fn("to_debug", |addr: &mut IpAddr| format!("{:?}", addr))
 
+        // local_part + "@" + domain) = full.
         .register_get("full", |addr: &mut Address| addr.full().to_string())
         .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
         .register_get("domain", |addr: &mut Address| addr.domain().to_string())
@@ -273,20 +274,57 @@ impl<U: Users> RhaiEngine<U> {
         .register_type::<OperationQueue>()
         .register_type::<std::time::SystemTime>()
 
-        // adding an Address vector as a custom type.
-        // it is used to easily manipulate the rcpt container.
+        // adding an Address hash set as a custom type.
+        // used to easily manipulate the rcpt container.
         .register_iterator::<HashSet<Address>>()
         .register_iterator::<Vec<String>>()
-        .register_fn("insert", <HashSet<Address>>::insert)
-        .register_get("local_part", |vec: &mut HashSet<Address>| -> Vec<String> {
-            vec.iter().map(|addr| addr.local_part().to_string()).collect()
+
+        // extract all users / domains from the rcpt set.
+        .register_get("local_part", |set: &mut HashSet<Address>| -> Vec<String> {
+            set.iter().map(|addr| addr.local_part().to_string()).collect()
         })
-        .register_get("domain", |vec: &mut HashSet<Address>| -> Vec<String> {
-            vec.iter().map(|addr| addr.domain().to_string()).collect()
+        .register_get("domain", |set: &mut HashSet<Address>| -> Vec<String> {
+            set.iter().map(|addr| addr.domain().to_string()).collect()
         })
 
-        .register_fn("remove", HashSet::<Address>::remove)
+        .register_fn("insert", <HashSet<Address>>::insert)
+
+        // added an overload to insert an address using a string.
+        .register_fn("insert", |set: &mut HashSet::<Address>, value: String| {
+            match Address::new(&value) {
+                Ok(addr) => {
+                    set.insert(addr);
+                },
+                Err(error) => log::error!("failed to insert address in set: {}", error),
+            }
+        })
+
+        // need to overload remove because the address isn't passed by ref in rhai.
+        .register_fn("remove", |set: &mut HashSet::<Address>, addr: Address| {
+            set.remove(&addr);
+        })
+
+        // added an overload to remove an address using a string.
+        .register_fn("remove", |set: &mut HashSet::<Address>, value: String| {
+            match Address::new(&value) {
+                Ok(addr) => {
+                    set.remove(&addr);
+                },
+                Err(error) => log::error!("failed to remove address from set: {}", error),
+            }
+        })
+
         .register_fn("replace", HashSet::<Address>::replace)
+
+        // added an overload to remove an address using a string.
+        .register_fn("replace", |set: &mut HashSet::<Address>, value: String| {
+            match Address::new(&value) {
+                Ok(addr) => {
+                    set.replace(addr);
+                },
+                Err(error) => log::error!("failed to replace address from set: {}", error),
+            }
+        })
 
         // eval is not authorized.
         .disable_symbol("eval")

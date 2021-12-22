@@ -83,7 +83,7 @@ let vsl = #{
 
     // remove a recipient from the list.
     DEL_RCPT: |to_remove| {
-        rcpts.remove(new_address(to_remove));
+        rcpts.remove(to_remove);
     },
 
     // write the current mail to a file.
