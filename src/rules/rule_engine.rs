@@ -290,12 +290,18 @@ impl<U: Users> RhaiEngine<U> {
         .register_fn("insert", <HashSet<Address>>::insert)
 
         // added an overload to insert an address using a string.
-        .register_fn("insert", |set: &mut HashSet::<Address>, value: String| {
+        .register_result_fn("insert", |set: &mut HashSet::<Address>, value: String| {
             match Address::new(&value) {
                 Ok(addr) => {
                     set.insert(addr);
+                    Ok(())
                 },
-                Err(error) => log::error!("failed to insert address in set: {}", error),
+                Err(error) =>
+                    Err(format!(
+                        "failed to insert address in set: {}",
+                        error
+                    )
+                    .into()),
             }
         })
 
@@ -305,24 +311,34 @@ impl<U: Users> RhaiEngine<U> {
         })
 
         // added an overload to remove an address using a string.
-        .register_fn("remove", |set: &mut HashSet::<Address>, value: String| {
+        .register_result_fn("remove", |set: &mut HashSet::<Address>, value: String| {
             match Address::new(&value) {
                 Ok(addr) => {
                     set.remove(&addr);
+                    Ok(())
                 },
-                Err(error) => log::error!("failed to remove address from set: {}", error),
+                Err(error) => Err(format!(
+                    "failed to remove address from set: {}",
+                    error
+                )
+                .into()),
             }
         })
 
         .register_fn("replace", HashSet::<Address>::replace)
 
         // added an overload to remove an address using a string.
-        .register_fn("replace", |set: &mut HashSet::<Address>, value: String| {
+        .register_result_fn("replace", |set: &mut HashSet::<Address>, value: String| {
             match Address::new(&value) {
                 Ok(addr) => {
                     set.replace(addr);
+                    Ok(())
                 },
-                Err(error) => log::error!("failed to replace address from set: {}", error),
+                Err(error) => Err(format!(
+                    "failed to replace address from set: {}",
+                    error
+                )
+                .into()),
             }
         })
 
