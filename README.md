@@ -18,7 +18,7 @@
       alt="License GPLv3" />
   </a>
   <a href="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml">
-    <img src="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml/badge.svg?branch=rc-01"
+    <img src="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml/badge.svg?branch=main"
       alt="CI" />
   </a>
 </div>
