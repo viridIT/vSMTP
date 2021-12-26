@@ -279,7 +279,9 @@ where
                 (None, Some(SMTPReplyCode::Code530))
             }
 
-            (StateSMTP::Helo, Event::MailCmd(mail_from, _)) => {
+            (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {
+                // TODO: store in envelop _body_bit_mime
+
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
                 self.set_mail_from(mail_from);
 
