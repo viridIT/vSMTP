@@ -307,7 +307,8 @@ impl Event {
             return Err(SMTPReplyCode::Code500);
         }
 
-        if input.len() > 78 {
+        // 80 - "\r\n".len() (if SMTPUTF8 + 10)
+        if input.len() > 88 {
             return Err(SMTPReplyCode::Code500);
         }
 

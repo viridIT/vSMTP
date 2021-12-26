@@ -153,6 +153,7 @@ mod tests {
             [
                 "220 test.server.com Service ready\r\n",
                 "250-test.server.com\r\n",
+                "250-8BITMIME\r\n",
                 "250 STARTTLS\r\n",
                 "454 TLS not available due to temporary reason\r\n",
                 "221 Service closing transmission channel\r\n",
@@ -180,6 +181,7 @@ mod tests {
             [
                 "220 test.server.com Service ready\r\n",
                 "250-test.server.com\r\n",
+                "250-8BITMIME\r\n",
                 "250 STARTTLS\r\n",
                 "530 Must issue a STARTTLS command first\r\n",
                 "221 Service closing transmission channel\r\n",
