@@ -16,13 +16,31 @@
  **/
 use super::code::SMTPReplyCode;
 
+// see https://datatracker.ietf.org/doc/html/rfc6152
 #[derive(Debug, PartialEq, Eq, Clone)]
-// TODO: rename enum SMTP verb
+pub enum EightBitMimeBody {
+    SevenBit,
+    EightBitMime,
+}
+
+impl std::str::FromStr for EightBitMimeBody {
+    type Err = SMTPReplyCode;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "7BIT" => Ok(EightBitMimeBody::SevenBit),
+            "8BITMIME" => Ok(EightBitMimeBody::EightBitMime),
+            _ => Err(SMTPReplyCode::Code501),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Event {
     // SMTP
     HeloCmd(String),
     EhloCmd(String),
-    MailCmd(String),
+    MailCmd(String, Option<EightBitMimeBody>),
     RcptCmd(String),
     DataCmd,
     DataLine(String),
@@ -33,12 +51,10 @@ pub enum Event {
     HelpCmd(Option<String>),
     NoopCmd,
     QuitCmd,
-    PrivCmd, // TODO:
+    // PrivCmd, // TODO:
 
     // ESMTP
 
-    // 8 bit data transmission // https://datatracker.ietf.org/doc/html/rfc6152
-    // EIGHT_BITMIME,
     // Authenticated TURN for On-Demand Mail Relay // https://datatracker.ietf.org/doc/html/rfc2645
     // ATRN,
     // Authenticated SMTP // https://datatracker.ietf.org/doc/html/rfc4954
@@ -75,7 +91,7 @@ impl Event {
     /// Just Errors
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd(""), Err(SMTPReplyCode::Code500));
     /// assert_eq!(Event::parse_cmd("💖 갇강개객거건걸검겁겨게격견결"), Err(SMTPReplyCode::Code500));
@@ -88,7 +104,7 @@ impl Event {
     /// Helo Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("HELO foobar"), Ok(Event::HeloCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("hElO   ibm.com  "), Ok(Event::HeloCmd("ibm.com".to_string())));
@@ -101,7 +117,7 @@ impl Event {
     /// Ehlo Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("EHLO foobar"), Ok(Event::EhloCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("EHLO   ibm.com  "), Ok(Event::EhloCmd("ibm.com".to_string())));
@@ -122,34 +138,60 @@ impl Event {
     /// Mail from Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, event::EightBitMimeBody, code::SMTPReplyCode};
     ///
     /// assert_eq!(
     ///     Event::parse_cmd("Mail FROM:<valid@reverse.path.com>"),
-    ///     Ok(Event::MailCmd("valid@reverse.path.com".to_string()))
+    ///     Ok(Event::MailCmd("valid@reverse.path.com".to_string(), None))
     /// );
     /// assert_eq!(
     ///     Event::parse_cmd("Mail fRoM: <valid2@reverse.path.com>"),
-    ///     Ok(Event::MailCmd("valid2@reverse.path.com".to_string()))
+    ///     Ok(Event::MailCmd("valid2@reverse.path.com".to_string(), None))
     /// );
-    /// assert_eq!(Event::parse_cmd("MaIl From:   <>  "), Ok(Event::MailCmd("".to_string())));
+    /// assert_eq!(Event::parse_cmd("MaIl From:   <>  "), Ok(Event::MailCmd("".to_string(), None)));
+    /// // FIXME:
     /// // assert_eq!(
     /// //     Event::parse_cmd("MaIl From:   <local.part@[127.0.0.1]>  "),
-    /// //     Ok(Event::MailCmd("local.part@[127.0.0.1]".to_string()))
+    /// //     Ok(Event::MailCmd("local.part@[127.0.0.1]".to_string(), None))
     /// // );
     /// assert_eq!(
     ///     Event::parse_cmd("MaIl From:   <\"john..doe\"@example.org>  "),
-    ///     Ok(Event::MailCmd("\"john..doe\"@example.org".to_string()))
+    ///     Ok(Event::MailCmd("\"john..doe\"@example.org".to_string(), None))
     /// );
-    /// assert_eq!(Event::parse_cmd("MAil fRoM:   <ibm@com>  extra_arg "), Ok(Event::MailCmd("ibm@com".to_string())));
     /// assert_eq!(Event::parse_cmd("Mail  From:  "), Err(SMTPReplyCode::Code501));
     /// assert_eq!(Event::parse_cmd("Mail From ko"), Err(SMTPReplyCode::Code501));
+    ///
+    /// ```
+    ///
+    /// Mail from Command with 8bit-MIMEtransport extension
+    ///
+    /// ```
+    /// use vsmtp::smtp::{event::Event, event::EightBitMimeBody, code::SMTPReplyCode};
+    ///
+    /// assert_eq!(
+    ///     Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=8BITMIME"),
+    ///     Ok(Event::MailCmd("ned@ymir.claremont.edu".to_string(), Some(EightBitMimeBody::EightBitMime)))
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=7BIT"),
+    ///     Ok(Event::MailCmd("ned@ymir.claremont.edu".to_string(), Some(EightBitMimeBody::SevenBit)))
+    /// );
+    ///
+    /// assert_eq!(Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> Foo"), Err(SMTPReplyCode::Code504));
+    /// assert_eq!(Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY="), Err(SMTPReplyCode::Code501));
+    /// assert_eq!(Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY"), Err(SMTPReplyCode::Code504));
+    /// assert_eq!(Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=bar"), Err(SMTPReplyCode::Code501));
+    /// assert_eq!(
+    ///     Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=8BITMIME BODY=7BIT"),
+    ///     Err(SMTPReplyCode::Code501)
+    /// );
     /// ```
     ///
     /// Rcpt to Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// // TODO: RCPT TO:<@hosta.int,@jkl.org:userc@d.bar.org>
     ///
@@ -178,7 +220,7 @@ impl Event {
     /// Data Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("DATA"), Ok(Event::DataCmd));
     /// assert_eq!(Event::parse_cmd("dAtA"), Ok(Event::DataCmd));
@@ -188,7 +230,7 @@ impl Event {
     /// Quit Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("QuIt"), Ok(Event::QuitCmd));
     /// assert_eq!(Event::parse_cmd("quit"), Ok(Event::QuitCmd));
@@ -198,7 +240,7 @@ impl Event {
     /// Reset Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("rset"), Ok(Event::RsetCmd));
     /// assert_eq!(Event::parse_cmd("RsEt"), Ok(Event::RsetCmd));
@@ -208,7 +250,7 @@ impl Event {
     /// Noop Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("Noop"), Ok(Event::NoopCmd));
     /// assert_eq!(Event::parse_cmd("NOOP"), Ok(Event::NoopCmd));
@@ -219,7 +261,7 @@ impl Event {
     /// Verify Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("VrFy foobar"), Ok(Event::VrfyCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("VRFY"), Err(SMTPReplyCode::Code501));
@@ -230,7 +272,7 @@ impl Event {
     /// Expand Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("EXPN foobar"), Ok(Event::ExpnCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("eXpN"), Err(SMTPReplyCode::Code501));
@@ -241,7 +283,7 @@ impl Event {
     /// Help Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("HELP foobar"), Ok(Event::HelpCmd(Some("foobar".to_string()))));
     /// assert_eq!(Event::parse_cmd("help"), Ok(Event::HelpCmd(None)));
@@ -252,15 +294,20 @@ impl Event {
     /// Start tls Command
     ///
     /// ```
-    /// use vsmtp::smtp::{event::Event,code::SMTPReplyCode};
+    /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd("StarTtLs"), Ok(Event::StartTls));
     /// assert_eq!(Event::parse_cmd("STARTTLS"), Ok(Event::StartTls));
     /// assert_eq!(Event::parse_cmd("STARTTLS dummy"), Err(SMTPReplyCode::Code501));
     /// ```
     pub fn parse_cmd(input: &str) -> Result<Event, SMTPReplyCode> {
-        // TODO: A verifier
-        if !input.is_ascii() || input.len() > 78 {
+        // TODO: if utf8 extension (8BITMIME && SMTPUTF8) are disable
+        // add a smtp.extensions=[...] or smtp.disabled_extensions=[...] in config
+        if !input.is_ascii() {
+            return Err(SMTPReplyCode::Code500);
+        }
+
+        if input.len() > 78 {
             return Err(SMTPReplyCode::Code500);
         }
 
@@ -358,11 +405,29 @@ impl Event {
     }
 
     fn parse_arg_mail_from(args: &[&str]) -> Result<Event, SMTPReplyCode> {
+        fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
+            let mut bitmime = None;
+
+            for arg in args {
+                if let Some(raw) = arg.strip_prefix("BODY=") {
+                    if bitmime.is_none() {
+                        bitmime = Some(<EightBitMimeBody as std::str::FromStr>::from_str(raw)?);
+                    } else {
+                        return Err(SMTPReplyCode::Code501);
+                    }
+                } else {
+                    return Err(SMTPReplyCode::Code504);
+                }
+            }
+
+            Ok(Event::MailCmd(path, bitmime))
+        }
+
         match args {
             // note: separated word (can return a warning)
             [from, reverse_path, ..] if from.to_ascii_uppercase() == "FROM:" => {
                 match Event::from_path(reverse_path, true) {
-                    Some(path) => Ok(Event::MailCmd(path)),
+                    Some(path) => parse_esmtp_args(path, &args[2..]),
                     None => Err(SMTPReplyCode::Code501),
                 }
             }
@@ -372,7 +437,7 @@ impl Event {
             {
                 Some("") | None => Err(SMTPReplyCode::Code501),
                 Some(_) => match Event::from_path(&from_and_reverse_path["FROM:".len()..], true) {
-                    Some(path) => Ok(Event::MailCmd(path)),
+                    Some(path) => parse_esmtp_args(path, &args[1..]),
                     None => Err(SMTPReplyCode::Code501),
                 },
             },

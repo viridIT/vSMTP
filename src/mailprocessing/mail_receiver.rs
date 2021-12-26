@@ -215,7 +215,7 @@ where
                 (Some(StateSMTP::Helo), Some(SMTPReplyCode::Code250))
             }
 
-            (_, Event::ExpnCmd(_) | Event::VrfyCmd(_) | Event::PrivCmd) => {
+            (_, Event::ExpnCmd(_) | Event::VrfyCmd(_) /*| Event::PrivCmd*/) => {
                 (None, Some(SMTPReplyCode::Code502unimplemented))
             }
 
@@ -272,14 +272,14 @@ where
                 (None, Some(SMTPReplyCode::Code454))
             }
 
-            (StateSMTP::Helo, Event::MailCmd(_))
+            (StateSMTP::Helo, Event::MailCmd(_, _))
                 if self.server_config.tls.security_level == TlsSecurityLevel::Encrypt
                     && !self.is_secured =>
             {
                 (None, Some(SMTPReplyCode::Code530))
             }
 
-            (StateSMTP::Helo, Event::MailCmd(mail_from)) => {
+            (StateSMTP::Helo, Event::MailCmd(mail_from, _)) => {
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
                 self.set_mail_from(mail_from);
 
