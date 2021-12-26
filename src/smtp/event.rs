@@ -21,6 +21,7 @@ use super::code::SMTPReplyCode;
 pub enum EightBitMimeBody {
     SevenBit,
     EightBitMime,
+    // TODO: https://datatracker.ietf.org/doc/html/rfc3030
 }
 
 impl std::str::FromStr for EightBitMimeBody {
@@ -94,9 +95,8 @@ impl Event {
     /// use vsmtp::smtp::{event::Event, code::SMTPReplyCode};
     ///
     /// assert_eq!(Event::parse_cmd(""), Err(SMTPReplyCode::Code500));
-    /// assert_eq!(Event::parse_cmd("💖 갇강개객거건걸검겁겨게격견결"), Err(SMTPReplyCode::Code500));
     /// assert_eq!(
-    ///     Event::parse_cmd(std::str::from_utf8(&vec![b'_'; 80][..]).unwrap()),
+    ///     Event::parse_cmd(std::str::from_utf8(&vec![b'_'; 100][..]).unwrap()),
     ///     Err(SMTPReplyCode::Code500)
     /// );
     /// ```
@@ -188,6 +188,25 @@ impl Event {
     /// );
     /// ```
     ///
+    /// Mail from Command with Internationalized Email
+    ///
+    /// ```
+    /// use vsmtp::smtp::{event::Event, event::EightBitMimeBody, code::SMTPReplyCode};
+    ///
+    /// assert_eq!(
+    ///     Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> SMTPUTF8"),
+    ///     Ok(Event::MailCmd("ned@ymir.claremont.edu".to_string(), None))
+    /// );
+    /// assert_eq!(
+    ///     Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> SMTPUTF8=foo"),
+    ///     Err(SMTPReplyCode::Code504)
+    /// );
+    /// assert_eq!(
+    ///     Event::parse_cmd("MAIL FROM:<用户@例子.广告> SMTPUTF8"),
+    ///     Ok(Event::MailCmd("用户@例子.广告".to_string(), None))
+    /// );
+    /// ```
+    ///
     /// Rcpt to Command
     ///
     /// ```
@@ -212,9 +231,28 @@ impl Event {
     ///     Event::parse_cmd("rcpt to:   <\"john..doe\"@example.org>  "),
     ///     Ok(Event::RcptCmd("\"john..doe\"@example.org".to_string()))
     /// );
-    /// assert_eq!(Event::parse_cmd("RCPT TO:   <ibm@com>  extra_arg "), Ok(Event::RcptCmd("ibm@com".to_string())));
+    /// assert_eq!(Event::parse_cmd("RCPT TO:   <ibm@com>  extra_arg "), Err(SMTPReplyCode::Code504));
     /// assert_eq!(Event::parse_cmd("RcpT  TO:  "), Err(SMTPReplyCode::Code501));
     /// assert_eq!(Event::parse_cmd("RCPT TO ko"), Err(SMTPReplyCode::Code501));
+    /// ```
+    ///
+    /// Rcpt to Command with Internationalized Email
+    ///
+    /// ```
+    /// use vsmtp::smtp::{event::Event, event::EightBitMimeBody, code::SMTPReplyCode};
+    ///
+    /// assert_eq!(
+    ///     Event::parse_cmd("RCPT TO:<ned@ymir.claremont.edu> SMTPUTF8"),
+    ///     Ok(Event::RcptCmd("ned@ymir.claremont.edu".to_string()))
+    /// );
+    /// assert_eq!(
+    ///     Event::parse_cmd("RCPT TO:<ned@ymir.claremont.edu> SMTPUTF8=foo"),
+    ///     Err(SMTPReplyCode::Code504)
+    /// );
+    /// assert_eq!(
+    ///     Event::parse_cmd("RCPT TO:<用户@例子.广告> SMTPUTF8"),
+    ///     Ok(Event::RcptCmd("用户@例子.广告".to_string()))
+    /// );
     /// ```
     ///
     /// Data Command
@@ -301,14 +339,14 @@ impl Event {
     /// assert_eq!(Event::parse_cmd("STARTTLS dummy"), Err(SMTPReplyCode::Code501));
     /// ```
     pub fn parse_cmd(input: &str) -> Result<Event, SMTPReplyCode> {
-        // TODO: if utf8 extension (8BITMIME && SMTPUTF8) are disable
-        // add a smtp.extensions=[...] or smtp.disabled_extensions=[...] in config
-        if !input.is_ascii() {
-            return Err(SMTPReplyCode::Code500);
-        }
+        // // TODO: if utf8 extension (8BITMIME && SMTPUTF8) are disable
+        // // add a smtp.extensions=[...] or smtp.disabled_extensions=[...] in config
+        // if !input.is_ascii() {
+        //     return Err(SMTPReplyCode::Code500);
+        // }
 
         // 80 - "\r\n".len() (if SMTPUTF8 + 10)
-        if input.len() > 88 {
+        if input.len() > 88 || input.is_empty() {
             return Err(SMTPReplyCode::Code500);
         }
 
@@ -337,7 +375,10 @@ impl Event {
             ("EHLO", args) => Event::parse_arg_ehlo(args),
             ("MAIL", args) => Event::parse_arg_mail_from(args),
             ("RCPT", args) => Event::parse_arg_rcpt_to(args),
+
+            // TODO: accept no value argument SMTPUTF8
             ("VRFY", [user_or_mailbox]) => Ok(Event::VrfyCmd(user_or_mailbox.to_string())),
+            // TODO: accept no value argument SMTPUTF8
             ("EXPN", [mailing_list]) => Ok(Event::ExpnCmd(mailing_list.to_string())),
 
             ("HELP", []) => Ok(Event::HelpCmd(None)),
@@ -389,7 +430,72 @@ impl Event {
         }
     }
 
-    fn from_path(input: &str, may_be_empty: bool) -> Option<String> {
+    /// Parse a possible reverse or forward path or return nothing
+    ///
+    /// ```
+    /// use vsmtp::smtp::event::Event;
+    ///
+    /// assert_eq!(Event::from_path("foo@bar", false), None);
+    /// assert_eq!(Event::from_path("foo@bar", true), None);
+    /// assert_eq!(Event::from_path("<>", true), Some("".to_string()));
+    /// assert_eq!(Event::from_path("<>", false), None);
+    ///
+    /// assert_eq!(Event::from_path("<foo@bar>", false), Some("foo@bar".to_string()));
+    /// assert_eq!(Event::from_path("<not-a-valid-address>", false), None);
+    ///
+    /// assert_eq!(Event::from_path("<simple@examplecom>", false), Some("simple@examplecom".to_string()));
+    /// assert_eq!(Event::from_path("<simple@example.com>", false), Some("simple@example.com".to_string()));
+    /// assert_eq!(Event::from_path("<very.common@example.com>", false), Some("very.common@example.com".to_string()));
+    /// assert_eq!(
+    ///     Event::from_path("<disposable.style.email.with+symbol@example.com>", false),
+    ///     Some("disposable.style.email.with+symbol@example.com".to_string())
+    /// );
+    /// assert_eq!(
+    ///     Event::from_path("<other.email-with-hyphen@example.com>", false),
+    ///     Some("other.email-with-hyphen@example.com".to_string())
+    /// );
+    /// assert_eq!(
+    ///     Event::from_path("<fully-qualified-domain@example.com>", false),
+    ///     Some("fully-qualified-domain@example.com".to_string())
+    /// );
+    /// assert_eq!(
+    ///     Event::from_path("<user.name+tag+sorting@example.com>", false),
+    ///     Some("user.name+tag+sorting@example.com".to_string())
+    /// );
+    /// assert_eq!(Event::from_path("<x@example.com>", false), Some("x@example.com".to_string()));
+    /// assert_eq!(
+    ///     Event::from_path("<example-indeed@strange-example.com>", false),
+    ///     Some("example-indeed@strange-example.com".to_string())
+    /// );
+    /// assert_eq!(Event::from_path("<test/test@test.com>", false), Some("test/test@test.com".to_string()));
+    /// assert_eq!(Event::from_path("<admin@mailserver1>", false), Some("admin@mailserver1".to_string()));
+    /// assert_eq!(Event::from_path("<example@s.example>", false), Some("example@s.example".to_string()));
+    /// assert_eq!(Event::from_path("<\" \"@example.org>", false), Some("\" \"@example.org".to_string()));
+    /// assert_eq!(
+    ///     Event::from_path("<\"john..doe\"@example.org>", false),
+    ///     Some("\"john..doe\"@example.org".to_string())
+    /// );
+    /// assert_eq!(
+    ///     Event::from_path("<mailhost!username@example.org>", false),
+    ///     Some("mailhost!username@example.org".to_string())
+    /// );
+    /// assert_eq!(
+    ///     Event::from_path("<user%example.com@example.org>", false),
+    ///     Some("user%example.com@example.org".to_string())
+    /// );
+    /// assert_eq!(Event::from_path("<user-@example.org>", false), Some("user-@example.org".to_string()));
+    ///
+    /// assert_eq!(Event::from_path("<用户@例子.广告>", false), Some("用户@例子.广告".to_string()));
+    /// assert_eq!(Event::from_path("<अजय@डाटा.भारत>", false), Some("अजय@डाटा.भारत".to_string()));
+    /// assert_eq!(Event::from_path("<квіточка@пошта.укр>", false), Some("квіточка@пошта.укр".to_string()));
+    /// assert_eq!(Event::from_path("<χρήστης@παράδειγμα.ελ>", false), Some("χρήστης@παράδειγμα.ελ".to_string()));
+    /// assert_eq!(
+    ///     Event::from_path("<Dörte@Sörensen.example.com>", false),
+    ///     Some("Dörte@Sörensen.example.com".to_string())
+    /// );
+    /// assert_eq!(Event::from_path("<коля@пример.рф>", false), Some("коля@пример.рф".to_string()));
+    /// ```
+    pub fn from_path(input: &str, may_be_empty: bool) -> Option<String> {
         if input.starts_with('<') && input.ends_with('>') {
             match &input[1..input.len() - 1] {
                 "" if may_be_empty => Some("".to_string()),
@@ -416,6 +522,8 @@ impl Event {
                     } else {
                         return Err(SMTPReplyCode::Code501);
                     }
+                } else if *arg == "SMTPUTF8" {
+                    // TODO: ?
                 } else {
                     return Err(SMTPReplyCode::Code504);
                 }
@@ -463,11 +571,23 @@ impl Event {
         // local-parts, the "Postmaster" string shown above is
         // treated as case-insensitive.
 
+        fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
+            for arg in args {
+                if *arg == "SMTPUTF8" {
+                    // TODO: ?
+                } else {
+                    return Err(SMTPReplyCode::Code504);
+                }
+            }
+
+            Ok(Event::RcptCmd(path))
+        }
+
         match args {
             // NOTE: separated word (can return a warning)
             [to, forward_path, ..] if to.to_ascii_uppercase() == "TO:" => {
                 match Event::from_path(forward_path, false) {
-                    Some(path) => Ok(Event::RcptCmd(path)),
+                    Some(path) => parse_esmtp_args(path, &args[2..]),
                     None => Err(SMTPReplyCode::Code501),
                 }
             }
@@ -475,7 +595,7 @@ impl Event {
                 match to_and_forward_path.to_ascii_uppercase().strip_prefix("TO:") {
                     Some("") | None => Err(SMTPReplyCode::Code501),
                     Some(_) => match Event::from_path(&to_and_forward_path["TO:".len()..], false) {
-                        Some(path) => Ok(Event::RcptCmd(path)),
+                        Some(path) => parse_esmtp_args(path, &args[1..]),
                         None => Err(SMTPReplyCode::Code501),
                     },
                 }
