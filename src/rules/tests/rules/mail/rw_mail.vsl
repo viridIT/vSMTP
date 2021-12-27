@@ -1,0 +1,18 @@
+obj grp "staff" [
+  obj addr "john" "johndoe@viridit.com",
+  obj addr "green" "green@personnal.eu",
+  obj addr "steven" "steven@personnal.fr",
+  obj addr "ruben" "ruben@email.ru",
+];
+
+rule mail "test_rw_mail" #{
+  condition: || vsl.IS_MAIL("staff"),
+
+  // hide a specific sender.
+  on_success: || {
+    vsl.RW_MAIL("no-reply@viridit.com");
+    vsl.CONTINUE()
+  },
+
+  on_failure: vsl.CONTINUE
+};

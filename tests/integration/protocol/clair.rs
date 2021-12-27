@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashSet;
+
     use vsmtp::{
         config::server_config::{InnerSMTPConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel},
         model::mail::MailContext,
@@ -25,7 +27,10 @@ mod tests {
             ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
-                assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
+                assert_eq!(
+                    ctx.envelop.rcpt,
+                    HashSet::from([Address::new("aa@bb").unwrap()])
+                );
                 assert_eq!(ctx.body, "");
 
                 Ok(SMTPReplyCode::Code250)
@@ -154,6 +159,7 @@ mod tests {
                 "220 test.server.com Service ready\r\n",
                 "250-test.server.com\r\n",
                 "250-8BITMIME\r\n",
+                "250-SMTPUTF8\r\n",
                 "250 STARTTLS\r\n",
                 "454 TLS not available due to temporary reason\r\n",
                 "221 Service closing transmission channel\r\n",
@@ -182,6 +188,7 @@ mod tests {
                 "220 test.server.com Service ready\r\n",
                 "250-test.server.com\r\n",
                 "250-8BITMIME\r\n",
+                "250-SMTPUTF8\r\n",
                 "250 STARTTLS\r\n",
                 "530 Must issue a STARTTLS command first\r\n",
                 "221 Service closing transmission channel\r\n",
@@ -368,14 +375,20 @@ mod tests {
                     0 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
                         assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
-                        assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
-                        assert_eq!(ctx.body, "");
+                        assert_eq!(
+                            ctx.envelop.rcpt,
+                            HashSet::from([Address::new("aa@bb").unwrap()])
+                        );
+                        assert_eq!(ctx.body, "mail one\n");
                     }
                     1 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
                         assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
-                        assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
-                        assert_eq!(ctx.body, "");
+                        assert_eq!(
+                            ctx.envelop.rcpt,
+                            HashSet::from([Address::new("aa2@bb").unwrap()])
+                        );
+                        assert_eq!(ctx.body, "mail two\n");
                     }
                     _ => panic!(),
                 }
@@ -392,14 +405,14 @@ mod tests {
                 "MAIL FROM:<john@doe>\r\n",
                 "RCPT TO:<aa@bb>\r\n",
                 "DATA\r\n",
-                "mail one",
+                "mail one\r\n",
                 ".\r\n",
                 "MAIL FROM:<john2@doe>\r\n",
                 "RCPT TO:<aa2@bb>\r\n",
                 "DATA\r\n",
-                "mail two",
+                "mail two\r\n",
                 ".\r\n",
-                "QUIT\r\n"
+                "QUIT\r\n",
             ]
             .concat()
             .as_bytes(),
@@ -412,9 +425,9 @@ mod tests {
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
-                "250 Ok\r\n",
                 "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
                 "250 Ok\r\n",
+                "221 Service closing transmission channel\r\n",
             ]
             .concat()
             .as_bytes(),

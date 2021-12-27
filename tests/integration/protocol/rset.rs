@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashSet;
+
     use vsmtp::{
         config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
         rules::address::Address, smtp::code::SMTPReplyCode,
@@ -20,7 +22,10 @@ mod tests {
             ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "a@b");
-                assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap()]);
+                assert_eq!(
+                    ctx.envelop.rcpt,
+                    HashSet::from([Address::new("b@c").unwrap()])
+                );
                 assert_eq!(ctx.body, "mail content wow\n");
 
                 Ok(SMTPReplyCode::Code250)
@@ -122,7 +127,10 @@ mod tests {
             ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foo2");
                 assert_eq!(ctx.envelop.mail_from.full(), "d@e");
-                assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap()]);
+                assert_eq!(
+                    ctx.envelop.rcpt,
+                    HashSet::from([Address::new("b@c").unwrap()])
+                );
                 assert_eq!(ctx.body, "mail content wow");
 
                 Ok(SMTPReplyCode::Code250)
@@ -169,7 +177,10 @@ mod tests {
             ) -> Result<SMTPReplyCode, std::io::Error> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "foo@foo");
-                assert_eq!(ctx.envelop.rcpt, vec![Address::new("toto@bar").unwrap()]);
+                assert_eq!(
+                    ctx.envelop.rcpt,
+                    HashSet::from([Address::new("toto@bar").unwrap()])
+                );
                 assert_eq!(ctx.body, "");
 
                 Ok(SMTPReplyCode::Code250)
@@ -216,10 +227,10 @@ mod tests {
                 assert_eq!(ctx.envelop.mail_from.full(), "foo2@foo");
                 assert_eq!(
                     ctx.envelop.rcpt,
-                    vec![
+                    HashSet::from([
                         Address::new("toto2@bar").unwrap(),
                         Address::new("toto3@bar").unwrap()
-                    ]
+                    ])
                 );
                 assert_eq!(ctx.body, "");
 

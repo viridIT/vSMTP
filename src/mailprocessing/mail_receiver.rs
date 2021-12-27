@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -159,9 +161,9 @@ where
         self.mail.envelop = Envelop {
             helo,
             mail_from: Address::default(),
-            rcpt: vec![],
+            rcpt: HashSet::default(),
         };
-        // TODO: reset mail_from/mail_timestamp/rcpt/rcpts in Rules Stack ??
+        self.rule_engine.reset();
 
         self.rule_engine
             .add_data("helo", self.mail.envelop.helo.clone());
@@ -169,11 +171,10 @@ where
 
     fn set_mail_from(&mut self, mail_from: String) {
         if let Ok(mail_from) = Address::new(&mail_from) {
-            // TODO: reset mail rcpt/rcpts in Rules Stack ??
-
             self.mail.envelop.mail_from = mail_from;
             self.mail.timestamp = Some(std::time::SystemTime::now());
-            self.mail.envelop.rcpt = vec![];
+            self.mail.envelop.rcpt.clear();
+            self.rule_engine.reset();
 
             self.rule_engine
                 .add_data("mail", self.mail.envelop.mail_from.clone());
@@ -187,9 +188,9 @@ where
         if let Ok(rcpt_to) = Address::new(&rcpt_to) {
             self.rule_engine.add_data("rcpt", rcpt_to.clone());
 
-            match self.rule_engine.get_data::<Vec<Address>>("rcpts") {
+            match self.rule_engine.get_data::<HashSet<Address>>("rcpts") {
                 Some(mut rcpts) => {
-                    rcpts.push(rcpt_to);
+                    rcpts.insert(rcpt_to);
                     self.mail.envelop.rcpt = rcpts.clone();
                     self.rule_engine.add_data("rcpts", rcpts.clone());
                 }
@@ -207,10 +208,10 @@ where
             (_, Event::HelpCmd(_)) => (None, Some(SMTPReplyCode::Code214)),
 
             (_, Event::RsetCmd) => {
-                // TODO: reset in Rules Stack ??
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
-                self.mail.envelop.rcpt = vec![];
+                self.mail.envelop.rcpt.clear();
                 self.mail.envelop.mail_from = Address::default();
+                self.rule_engine.reset();
 
                 (Some(StateSMTP::Helo), Some(SMTPReplyCode::Code250))
             }
@@ -692,7 +693,6 @@ where
             if self.state == StateSMTP::NegotiationTLS {
                 return self.receive_secured(plain_stream).await;
             }
-
             self.read_and_handle(&mut io).await?;
         }
         Ok(plain_stream)

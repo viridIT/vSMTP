@@ -1,24 +1,24 @@
 # Testing Policies
 
-Linting
+## Linting
 
 ```sh
 cargo lint
 ```
 
-Unit test / Integration test
+## Unit test / Integration test
 
 ```sh
-cargo +nightly test
+cargo test
 ```
 
-Benchmarking
+## Benchmarking
 
 ```sh
 cargo bench
 ```
 
-Fuzzing
+## Fuzzing
 
 ```sh
 cargo +nightly fuzz run

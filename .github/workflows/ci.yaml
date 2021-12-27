@@ -1,11 +1,9 @@
 name: CI
-on:
+"on":
   pull_request:
     branches:
-      - '**'
-    branches-ignore:
-      - '!doc/**'
-  pull_request: null
+      - "**"
+      - "!doc/**"
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -14,11 +12,11 @@ jobs:
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: '${{ runner.os }}-cargo-registry-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/git
-          key: '${{ runner.os }}-cargo-index-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: target
@@ -32,7 +30,7 @@ jobs:
         with:
           command: check
   test:
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         include:
@@ -44,11 +42,11 @@ jobs:
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: '${{ runner.os }}-cargo-registry-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/git
-          key: '${{ runner.os }}-cargo-index-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: target
@@ -64,7 +62,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: run
-          args: '-- -h'
+          args: "-- -h"
   lints:
     runs-on: ubuntu-latest
     steps:
@@ -72,11 +70,11 @@ jobs:
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: '${{ runner.os }}-cargo-registry-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/git
-          key: '${{ runner.os }}-cargo-index-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: target
@@ -86,15 +84,15 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-          components: 'rustfmt, clippy'
+          components: "rustfmt, clippy"
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: '--all -- --check'
+          args: "--all -- --check"
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: '-- -D warnings'
+          args: "-- -D warnings"
   bench:
     runs-on: ubuntu-latest
     steps:
@@ -102,11 +100,11 @@ jobs:
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: '${{ runner.os }}-cargo-registry-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/git
-          key: '${{ runner.os }}-cargo-index-${{ hashFiles(''**/Cargo.lock'') }}'
+          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: target

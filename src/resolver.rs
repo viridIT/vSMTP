@@ -32,11 +32,11 @@ pub trait DataEndResolver {
 // TODO: use a AtomicUsize instead of a wrapper.
 struct Wrapper(usize);
 
-pub struct ResolverWriteDisk;
-impl ResolverWriteDisk {
+pub struct MailDirResolver;
+impl MailDirResolver {
     pub fn init_spool_folder(path: &str) -> Result<std::path::PathBuf, std::io::Error> {
-        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path)
-            .expect("Failed to initialize the spool folder");
+        // will never crash, we can unwrap.
+        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
         if filepath.exists() {
             if filepath.is_dir() {
                 log::debug!(
@@ -59,7 +59,7 @@ impl ResolverWriteDisk {
 
     /// write to /home/${user}/Maildir/ the mail body sent by the client.
     /// the format of the file name is the following:
-    /// `{timestamp}.Size={content size}.D={deliveries}.ID={unique_id}.vsmtp`
+    /// `{timestamp}.{content size}{deliveries}{rcpt id}.vsmtp`
     fn write_to_maildir(
         rcpt: &Address,
         timestamp: &str,
@@ -80,47 +80,70 @@ impl ResolverWriteDisk {
             }
         };
 
-        let mut folder =
-            std::path::PathBuf::from_iter(["/", "home", rcpt.local_part(), "Maildir", "new"]);
-        std::fs::create_dir_all(&folder)?;
+        match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
+            Some(user) => {
+                // getting user's home directory using getpwuid.
+                let mut maildir = unsafe {
+                    let passwd = libc::getpwuid(user.uid());
+                    if !passwd.is_null() && !(*passwd).pw_dir.is_null() {
+                        match std::ffi::CStr::from_ptr((*passwd).pw_dir).to_str() {
+                            Ok(path) => {
+                                std::path::PathBuf::from_iter([&path.to_string(), "Maildir", "new"])
+                            }
+                            Err(error) => {
+                                return Err(std::io::Error::new(
+                                    std::io::ErrorKind::Other,
+                                    format!("unable to get user's home directory: {}", error),
+                                ))
+                            }
+                        }
+                    } else {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                };
 
-        // TODO: follow maildir's writing convention.
-        // NOTE: see https://en.wikipedia.org/wiki/Maildir
-        let filename = format!(
-            "{}.{}{}{}.vsmtp",
-            timestamp,
-            content.as_bytes().len(),
-            delivery_count.0,
-            unique_id
-        );
-        folder.push(filename);
+                // create and set rights for the MailDir folder if it doesn't exists.
+                if !maildir.exists() {
+                    std::fs::create_dir_all(&maildir)?;
+                    chown_file(&maildir, &user)?;
+                    chown_file(
+                        maildir.parent().ok_or_else(|| {
+                            std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "Maildir parent folder is missing.",
+                            )
+                        })?,
+                        &user,
+                    )?;
+                }
 
-        let mut inbox = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(&folder)?;
+                // NOTE: see https://en.wikipedia.org/wiki/Maildir
+                maildir.push(format!(
+                    "{}.{}{}{}.vsmtp",
+                    timestamp,
+                    content.as_bytes().len(),
+                    delivery_count.0,
+                    unique_id
+                ));
 
-        std::io::Write::write_all(&mut inbox, content.as_bytes())?;
+                // TODO: should loop if an email name is conflicting with another.
+                let mut email = std::fs::OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .open(&maildir)?;
 
-        delivery_count.0 += 1;
+                std::io::Write::write_all(&mut email, content.as_bytes())?;
+                delivery_count.0 += 1;
 
-        // we can unwrap here since we've already checked if the user existed.
-        let uid = crate::rules::rule_engine::get_user_by_name(rcpt.local_part())
-            .unwrap()
-            .uid();
-
-        if unsafe {
-            libc::chown(
-                // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
-                //       to a CString because it is plateform independant.
-                std::ffi::CString::new(folder.to_string_lossy().as_bytes())?.as_ptr(),
-                uid,
-                uid,
-            )
-        } != 0
-        {
-            log::error!("unable to setuid of user {}", rcpt.local_part());
-            return Err(std::io::Error::last_os_error());
+                chown_file(&maildir, &user)?;
+            }
+            None => {
+                log::error!("unable to get user '{}' by name", rcpt.local_part());
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "unable to get user",
+                ));
+            }
         }
 
         log::debug!(
@@ -162,8 +185,27 @@ impl ResolverWriteDisk {
     }
 }
 
+/// a simple function that sets user & group rights to the given file / folder.
+fn chown_file(path: &std::path::Path, user: &users::User) -> std::io::Result<()> {
+    if unsafe {
+        libc::chown(
+            // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
+            //       to a CString because it is plateform independant.
+            std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr(),
+            user.uid(),
+            user.uid(),
+        )
+    } != 0
+    {
+        log::error!("unable to setuid of user {:?}", user.name());
+        return Err(std::io::Error::last_os_error());
+    }
+
+    Ok(())
+}
+
 #[async_trait::async_trait]
-impl DataEndResolver for ResolverWriteDisk {
+impl DataEndResolver for MailDirResolver {
     async fn on_data_end(
         _config: &ServerConfig,
         mail: &MailContext,

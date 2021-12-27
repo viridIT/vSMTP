@@ -1,0 +1,21 @@
+obj val "john" "johndoe";
+obj fqdn "viridit" "viridit.com";
+obj addr "customer" "customer@company.com";
+
+rule rcpt "test_rcpt_user" #{
+  condition: || vsl.IS_RCPT("john"),
+  on_success: vsl.ACCEPT,
+  on_failure: vsl.CONTINUE,
+};
+
+rule rcpt "test_rcpt_fqdn" #{
+  condition: || vsl.IS_RCPT("viridit"),
+  on_success: vsl.ACCEPT,
+  on_failure: vsl.CONTINUE,
+};
+
+rule rcpt "test_rcpt_email" #{
+  condition: || vsl.IS_RCPT("customer"),
+  on_success: vsl.ACCEPT,
+  on_failure: vsl.DENY,
+};

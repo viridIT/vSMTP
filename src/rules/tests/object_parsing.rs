@@ -4,13 +4,12 @@ mod test {
 
     use crate::rules::obj::Object;
     use crate::rules::rule_engine;
-    use crate::rules::tests::init;
+    use crate::rules::tests::helpers::run_engine_test;
 
     #[test]
     fn test_object_parsing_count() {
-        println!("count");
-        init::test::run_engine_test(
-            "./src/rules/tests/configs/objects-parsing.vsl",
+        run_engine_test(
+            "./src/rules/tests/rules/parsing/objects-parsing.vsl",
             users::mock::MockUsers::with_current_uid(1),
             || {
                 assert_eq!(
@@ -23,8 +22,8 @@ mod test {
 
     #[test]
     fn test_object_parsing_ip4() {
-        init::test::run_engine_test(
-            "./src/rules/tests/configs/objects-parsing.vsl",
+        run_engine_test(
+            "./src/rules/tests/rules/parsing/objects-parsing.vsl",
             users::mock::MockUsers::with_current_uid(1),
             || {
                 let engine = rule_engine::acquire_engine();
@@ -49,8 +48,8 @@ mod test {
 
     #[test]
     fn test_object_parsing_fqdn() {
-        init::test::run_engine_test(
-            "./src/rules/tests/configs/objects-parsing.vsl",
+        run_engine_test(
+            "./src/rules/tests/rules/parsing/objects-parsing.vsl",
             users::mock::MockUsers::with_current_uid(1),
             || {
                 let engine = rule_engine::acquire_engine();
@@ -69,8 +68,8 @@ mod test {
 
     #[test]
     fn test_object_parsing_val() {
-        init::test::run_engine_test(
-            "./src/rules/tests/configs/objects-parsing.vsl",
+        run_engine_test(
+            "./src/rules/tests/rules/parsing/objects-parsing.vsl",
             users::mock::MockUsers::with_current_uid(1),
             || {
                 let engine = rule_engine::acquire_engine();
@@ -101,8 +100,8 @@ mod test {
 
     #[test]
     fn test_object_parsing_addr() {
-        init::test::run_engine_test(
-            "./src/rules/tests/configs/objects-parsing.vsl",
+        run_engine_test(
+            "./src/rules/tests/rules/parsing/objects-parsing.vsl",
             users::mock::MockUsers::with_current_uid(1),
             || {
                 let engine = rule_engine::acquire_engine();
@@ -127,8 +126,8 @@ mod test {
 
     #[test]
     fn test_object_parsing_file() {
-        init::test::run_engine_test(
-            "./src/rules/tests/configs/objects-parsing.vsl",
+        run_engine_test(
+            "./src/rules/tests/rules/parsing/objects-parsing.vsl",
             users::mock::MockUsers::with_current_uid(1),
             || {
                 let engine = rule_engine::acquire_engine();
@@ -155,8 +154,8 @@ mod test {
 
     #[test]
     fn test_object_parsing_regex() {
-        init::test::run_engine_test(
-            "./src/rules/tests/configs/objects-parsing.vsl",
+        run_engine_test(
+            "./src/rules/tests/rules/parsing/objects-parsing.vsl",
             users::mock::MockUsers::with_current_uid(1),
             || {
                 let engine = rule_engine::acquire_engine();
@@ -183,9 +182,8 @@ mod test {
 
     #[test]
     fn test_object_parsing_groups() {
-        println!("test_object_parsing_groups");
-        init::test::run_engine_test(
-            "./src/rules/tests/configs/objects-parsing.vsl",
+        run_engine_test(
+            "./src/rules/tests/rules/parsing/objects-parsing.vsl",
             users::mock::MockUsers::with_current_uid(1),
             || {
                 let engine = rule_engine::acquire_engine();
@@ -231,9 +229,11 @@ mod test {
                                                 assert_eq!(jones.full(), "jones@foo.com");
                                                 assert_eq!(user.full(), "user@domain.com");
                                             }
-                                            _ => panic!(
-                                                "failed, objects tested aren't of type 'addr'."
-                                            ),
+                                            _ => {
+                                                panic!(
+                                                    "failed, objects tested aren't of type 'addr'."
+                                                )
+                                            }
                                         };
 
                                         assert_eq!(*authorized_ip, Ipv4Addr::new(1, 1, 1, 1));

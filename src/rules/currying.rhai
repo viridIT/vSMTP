@@ -58,7 +58,7 @@ let vsl = #{
 
     // logs a message to a file.
     LOG: |message, path| {
-        __LOG(`${message}\n`, path);
+        __LOG(message, path);
     },
 
     // change the content of the HELO command.
@@ -68,32 +68,24 @@ let vsl = #{
 
     // change the content of the MAIL FROM command.
     RW_MAIL: |value| {
-        mail = new_address(value);
+        // string interpolation used to parse from a String or an Address.
+        mail = new_address(`${value}`);
     },
 
     // change one of the recipient specified by the RCPT TO command.
-    RW_RCPT: |to_rewrite, value| {
-        for (recipient, index) in rcpts {
-            if recipient.full == to_rewrite {
-                rcpts.replace(index, new_address(value));
-                break;
-            }
-        }
+    RW_RCPT: |to_replace, value| {
+        // string interpolation used to parse from a String or an Address.
+        rcpts.replace(`${to_replace}`, `${value}`);
     },
 
     // add a recipient to the list.
     ADD_RCPT: |to_add| {
-        rcpts.push(new_address(to_add));
+        rcpts.insert(new_address(to_add));
     },
 
     // remove a recipient from the list.
     DEL_RCPT: |to_remove| {
-        for (recipient, index) in rcpts {
-            if recipient.full == to_remove {
-                rcpts.remove(index);
-                break;
-            }
-        }
+        rcpts.remove(to_remove);
     },
 
     // write the current mail to a file.

@@ -19,7 +19,10 @@ mod tests {
                 ) -> Result<SMTPReplyCode, std::io::Error> {
                     assert_eq!(ctx.envelop.helo, "foobar".to_string());
                     assert_eq!(ctx.envelop.mail_from.full(), "john@doe".to_string());
-                    assert_eq!(ctx.envelop.rcpt, vec![Address::new("aa@bb").unwrap()]);
+                    assert_eq!(
+                        ctx.envelop.rcpt,
+                        std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
+                    );
                     assert_eq!(ctx.body, include_str!($lang_code));
                     Ok(SMTPReplyCode::Code250)
                 }

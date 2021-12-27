@@ -1,0 +1,13 @@
+obj fqdn "satan" "satan.org";
+
+rule rcpt "test_rm_rcpt" #{
+  condition: || vsl.IS_RCPT("satan"),
+
+  // quietly removing the recipient.
+  on_success: || {
+    vsl.DEL_RCPT(rcpt);
+    vsl.CONTINUE()
+  },
+
+  on_failure: vsl.CONTINUE
+};

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use crate::rules::rule_engine;
-    use crate::rules::tests::init;
+    use crate::rules::tests::helpers::run_engine_test;
 
     #[test]
     fn test_object_parsing_count() {
@@ -12,7 +12,7 @@ mod test {
         assert!(users.add_user(users::User::new(2, "green", 100)).is_none());
         assert!(users.add_user(users::User::new(3, "smith", 100)).is_none());
 
-        init::test::run_engine_test("./src/rules/tests/configs/users.vsl", users, || {
+        run_engine_test("./src/rules/tests/rules/users/users.vsl", users, || {
             let engine = rule_engine::acquire_engine();
 
             assert_eq!(engine.objects.read().unwrap().len(), 3);
@@ -28,7 +28,7 @@ mod test {
         assert!(users.add_user(users::User::new(2, "green", 100)).is_none());
         assert!(users.add_user(users::User::new(3, "smith", 100)).is_none());
 
-        init::test::run_engine_test("./src/rules/tests/configs/users.vsl", users, || {
+        run_engine_test("./src/rules/tests/rules/users/users.vsl", users, || {
             let mut scope = rule_engine::DEFAULT_SCOPE.clone();
             scope.push("__stage", "connect");
 

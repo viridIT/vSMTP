@@ -314,11 +314,39 @@ mod test {
             generate_rule_check_test!(
                 || Object::Address(Address::new("jones@foo.com").unwrap()),
                 mail,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 true,
-                "jones@bar.com",
+                Address::new("jones@bar.com").unwrap(),
                 false,
-                "green@foo.com",
+                Address::new("green@foo.com").unwrap(),
+                false
+            );
+        }
+
+        // var / user
+        {
+            generate_rule_check_test!(
+                || Object::Var("green".to_string()),
+                mail,
+                Address::new("green@foo.com").unwrap(),
+                true,
+                Address::new("jones@foo.com").unwrap(),
+                false,
+                Address::new("green@bar.com").unwrap(),
+                true
+            );
+        }
+
+        // fqdn
+        {
+            generate_rule_check_test!(
+                || Object::Fqdn("foo.com".to_string()),
+                mail,
+                Address::new("green@foo.com").unwrap(),
+                true,
+                Address::new("jones@foo.com").unwrap(),
+                true,
+                Address::new("green@bar.com").unwrap(),
                 false
             );
         }
@@ -328,13 +356,13 @@ mod test {
             generate_rule_check_test!(
                 || Object::Regex("^[a-z0-9.]+@foo.com$".parse().unwrap()),
                 mail,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 true,
-                "jones@bar.com",
+                Address::new("jones@bar.com").unwrap(),
                 false,
-                "green@foo.com",
+                Address::new("green@foo.com").unwrap(),
                 true,
-                "viridit.staff@foo.com",
+                Address::new("viridit.staff@foo.com").unwrap(),
                 true
             );
         }
@@ -354,11 +382,11 @@ mod test {
                     Object::from(&file).unwrap()
                 },
                 mail,
-                "green@bar.com",
+                Address::new("green@bar.com").unwrap(),
                 true,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 true,
-                "unknown@user.com",
+                Address::new("unknown@user.com").unwrap(),
                 false
             );
 
@@ -373,11 +401,11 @@ mod test {
                 },
                 mail,
                 // nothing matches because content isn't of addr type.
-                "green@bar.com",
+                Address::new("green@bar.com").unwrap(),
                 false,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 false,
-                "unknown@user.com",
+                Address::new("unknown@user.com").unwrap(),
                 false
             );
 
@@ -385,51 +413,40 @@ mod test {
                 || {
                     Object::Group(vec![
                         Object::Address(Address::new("jones@foo.com").unwrap()),
-                        Object::Fqdn("foo.com".to_string()),
+                        Object::Fqdn("x.com".to_string()),
                         Object::Ip4("0.0.0.0".parse().unwrap()),
                     ])
                 },
                 mail,
-                "test@foo.com",
+                Address::new("test@foo.com").unwrap(),
                 false,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 true,
-                "other@user.com",
+                Address::new("other@user.com").unwrap(),
                 false
             );
         }
 
-        // invalid.
+        // invalid
         {
-            generate_rule_check_test!(
-                || Object::Var("".to_string()),
-                mail,
-                "test@foo.com",
-                false,
-                "jones@foo.com",
-                false,
-                "other@user.com",
-                false
-            );
-
             generate_rule_check_test!(
                 || Object::Ip4(Ipv4Addr::UNSPECIFIED),
                 mail,
-                "test@foo.com",
+                Address::new("test@foo.com").unwrap(),
                 false,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 false,
-                "other@user.com",
+                Address::new("other@user.com").unwrap(),
                 false
             );
             generate_rule_check_test!(
                 || Object::Ip6(Ipv6Addr::UNSPECIFIED),
                 mail,
-                "test@foo.com",
+                Address::new("test@foo.com").unwrap(),
                 false,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 false,
-                "other@user.com",
+                Address::new("other@user.com").unwrap(),
                 false
             );
         }
@@ -442,11 +459,39 @@ mod test {
             generate_rule_check_test!(
                 || Object::Address(Address::new("jones@foo.com").unwrap()),
                 rcpt,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 true,
-                "jones@bar.com",
+                Address::new("jones@bar.com").unwrap(),
                 false,
-                "green@foo.com",
+                Address::new("green@foo.com").unwrap(),
+                false
+            );
+        }
+
+        // var / user
+        {
+            generate_rule_check_test!(
+                || Object::Var("green".to_string()),
+                mail,
+                Address::new("green@foo.com").unwrap(),
+                true,
+                Address::new("jones@foo.com").unwrap(),
+                false,
+                Address::new("green@bar.com").unwrap(),
+                true
+            );
+        }
+
+        // fqdn
+        {
+            generate_rule_check_test!(
+                || Object::Fqdn("foo.com".to_string()),
+                mail,
+                Address::new("green@foo.com").unwrap(),
+                true,
+                Address::new("jones@foo.com").unwrap(),
+                true,
+                Address::new("green@bar.com").unwrap(),
                 false
             );
         }
@@ -456,13 +501,13 @@ mod test {
             generate_rule_check_test!(
                 || Object::Regex("^[a-z0-9.]+@foo.com$".parse().unwrap()),
                 rcpt,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 true,
-                "jones@bar.com",
+                Address::new("jones@bar.com").unwrap(),
                 false,
-                "green@foo.com",
+                Address::new("green@foo.com").unwrap(),
                 true,
-                "viridit.staff@foo.com",
+                Address::new("viridit.staff@foo.com").unwrap(),
                 true
             );
         }
@@ -482,11 +527,11 @@ mod test {
                     Object::from(&file).unwrap()
                 },
                 rcpt,
-                "green@bar.com",
+                Address::new("green@bar.com").unwrap(),
                 true,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 true,
-                "unknown@user.com",
+                Address::new("unknown@user.com").unwrap(),
                 false
             );
 
@@ -501,11 +546,11 @@ mod test {
                 },
                 rcpt,
                 // nothing matches because content isn't of addr type.
-                "green@bar.com",
+                Address::new("green@bar.com").unwrap(),
                 false,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 false,
-                "unknown@user.com",
+                Address::new("unknown@user.com").unwrap(),
                 false
             );
 
@@ -513,16 +558,16 @@ mod test {
                 || {
                     Object::Group(vec![
                         Object::Address(Address::new("jones@foo.com").unwrap()),
-                        Object::Fqdn("foo.com".to_string()),
+                        Object::Fqdn("x.com".to_string()),
                         Object::Ip4("0.0.0.0".parse().unwrap()),
                     ])
                 },
                 rcpt,
-                "test@foo.com",
+                Address::new("test@foo.com").unwrap(),
                 false,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 true,
-                "other@user.com",
+                Address::new("other@user.com").unwrap(),
                 false
             );
         }
@@ -530,34 +575,23 @@ mod test {
         // invalid.
         {
             generate_rule_check_test!(
-                || Object::Var("".to_string()),
-                rcpt,
-                "test@foo.com",
-                false,
-                "jones@foo.com",
-                false,
-                "other@user.com",
-                false
-            );
-
-            generate_rule_check_test!(
                 || Object::Ip4(Ipv4Addr::UNSPECIFIED),
                 rcpt,
-                "test@foo.com",
+                Address::new("test@foo.com").unwrap(),
                 false,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 false,
-                "other@user.com",
+                Address::new("other@user.com").unwrap(),
                 false
             );
             generate_rule_check_test!(
                 || Object::Ip6(Ipv6Addr::UNSPECIFIED),
                 rcpt,
-                "test@foo.com",
+                Address::new("test@foo.com").unwrap(),
                 false,
-                "jones@foo.com",
+                Address::new("jones@foo.com").unwrap(),
                 false,
-                "other@user.com",
+                Address::new("other@user.com").unwrap(),
                 false
             );
         }

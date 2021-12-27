@@ -28,7 +28,7 @@ use users::Users;
 use std::net::IpAddr;
 use std::sync::Mutex;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     error::Error,
     fs,
     net::Ipv4Addr,
@@ -72,7 +72,7 @@ impl<'a> RuleEngine<'a> {
             .push("helo", "")
             .push("mail", Address::default())
             .push("rcpt", Address::default())
-            .push("rcpts", Vec::<Address>::new())
+            .push("rcpts", HashSet::<Address>::new())
             .push("data", "")
             .push("__OPERATION_QUEUE", OperationQueue::default())
             .push("__stage", "")
@@ -207,8 +207,18 @@ impl<'a> RuleEngine<'a> {
         Some(Envelop {
             helo: self.scope.get_value::<String>("helo")?,
             mail_from: self.scope.get_value::<Address>("mail")?,
-            rcpt: self.scope.get_value::<Vec<Address>>("rcpts")?,
+            rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
         })
+    }
+
+    /// clears mail_from, mail_timestamp, rcpt, rcpts & data values from the scope.
+    pub(crate) fn reset(&mut self) {
+        self.scope
+            .push("mail", Address::default())
+            .push("mail_timestamp", None::<std::time::SystemTime>)
+            .push("rcpt", Address::default())
+            .push("rcpts", HashSet::<Address>::new())
+            .push("data", "");
     }
 }
 
@@ -233,7 +243,6 @@ pub struct RhaiEngine<U: Users> {
     pub(super) objects: Arc<RwLock<BTreeMap<String, Object>>>,
 
     /// system user cache, used for retreiving user information. (used in vsl.USER_EXISTS for example)
-    /// TODO: add configuration to refresh the cache every x hour/minute/seconds.
     pub(super) users: Mutex<U>,
 }
 
@@ -256,6 +265,7 @@ impl<U: Users> RhaiEngine<U> {
         .register_fn("to_string", |addr: &mut IpAddr| addr.to_string())
         .register_fn("to_debug", |addr: &mut IpAddr| format!("{:?}", addr))
 
+        // local_part + "@" + domain) = full.
         .register_get("full", |addr: &mut Address| addr.full().to_string())
         .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
         .register_get("domain", |addr: &mut Address| addr.domain().to_string())
@@ -264,34 +274,81 @@ impl<U: Users> RhaiEngine<U> {
         .register_type::<OperationQueue>()
         .register_type::<std::time::SystemTime>()
 
-        // adding an Address vector as a custom type.
-        // it is used to easily manipulate the rcpt container.
-        .register_iterator::<Vec<Address>>()
+        // adding an Address hash set as a custom type.
+        // used to easily manipulate the rcpt container.
+        .register_iterator::<HashSet<Address>>()
         .register_iterator::<Vec<String>>()
-        .register_fn("push", <Vec<Address>>::push)
-        .register_fn("local_parts", |vec: &mut Vec<Address>| -> Vec<String> {
-            vec.iter().map(|addr| addr.local_part().to_string()).collect()
+
+        // extract all users / domains from the rcpt set.
+        .register_get("local_part", |set: &mut HashSet<Address>| -> Vec<String> {
+            set.iter().map(|addr| addr.local_part().to_string()).collect()
         })
-        .register_fn("domains", |vec: &mut Vec<Address>| -> Vec<String> {
-            vec.iter().map(|addr| addr.domain().to_string()).collect()
+        .register_get("domain", |set: &mut HashSet<Address>| -> Vec<String> {
+            set.iter().map(|addr| addr.domain().to_string()).collect()
         })
 
-        // NOTE: we cannot register Vec<Address>::remove & replace method because usize doesn't exists in rhai.
-        //       here we create custom replacements that accepts i64 values.
-        .register_fn("remove", |vec: &mut Vec<Address>, index: i64| {
+        .register_fn("insert", <HashSet<Address>>::insert)
 
-            if index as usize >= vec.len() {
-                return;
+        // added an overload to insert an address using a string.
+        .register_result_fn("insert", |set: &mut HashSet::<Address>, value: String| {
+            match Address::new(&value) {
+                Ok(addr) => {
+                    set.insert(addr);
+                    Ok(())
+                },
+                Err(error) =>
+                    Err(format!(
+                        "failed to insert address in set: {}",
+                        error
+                    )
+                    .into()),
+            }
+        })
+
+        // need to overload remove because the address isn't passed by ref in rhai.
+        .register_fn("remove", |set: &mut HashSet::<Address>, addr: Address| {
+            set.remove(&addr);
+        })
+
+        // added an overload to remove an address using a string.
+        .register_result_fn("remove", |set: &mut HashSet::<Address>, value: String| {
+            match Address::new(&value) {
+                Ok(addr) => {
+                    set.remove(&addr);
+                    Ok(())
+                },
+                Err(error) => Err(format!(
+                    "failed to remove address from set: {}",
+                    error
+                )
+                .into()),
+            }
+        })
+
+        // added an overload to remove an address using a string.
+        .register_result_fn("replace", |set: &mut HashSet::<Address>, to_replace: String, value: String| {
+            let to_replace = match Address::new(&to_replace) {
+                Ok(addr) => addr,
+                Err(error) => return Err(format!(
+                    "failed to replace address from set: {}",
+                    error
+                )
+                .into()),
+            };
+
+            if set.contains(&to_replace) {
+                set.remove(&to_replace);
+                match Address::new(&value) {
+                    Ok(addr) => set.insert(addr),
+                    Err(error) => return Err(format!(
+                        "failed to replace address from set: {}",
+                        error
+                    )
+                    .into()),
+                };
             }
 
-            vec.remove(index as usize);
-        })
-        .register_fn("replace", |vec: &mut Vec<Address>, index: i64, value: Address| {
-            if index as usize >= vec.len() {
-                return;
-            }
-
-            vec[index as usize] = value;
+            Ok(())
         })
 
         // eval is not authorized.
@@ -405,11 +462,6 @@ impl<U: Users> RhaiEngine<U> {
             },
             true,
             move |context, input| {
-                // we parse the object only once.
-                if let Some(true) = context.scope_mut().get_value::<bool>("__init") {
-                    return Ok(Dynamic::UNIT);
-                }
-
                 let var_type = input[0].get_variable_name().unwrap().to_string();
                 let var_name: String;
 
@@ -470,23 +522,24 @@ impl<U: Users> RhaiEngine<U> {
                     }
                 };
 
-                // injecting the object in rust's scope.
-                match Object::from(&object) {
-                    Ok(rust_var) => shared_obj.write()
-                        .unwrap()
-                        .insert(var_name.to_string(), rust_var),
-                    Err(error) => panic!("object '{}' could not be parsed as a '{}' object: {}", var_name, var_type, error),
-                };
+                // we inject objects only once in Rust's scope.
+                if let Some(false) = context.scope_mut().get_value::<bool>("__init") {
+                    match Object::from(&object) {
+                        // write is called once at initialisation, no need to check the result.
+                        Ok(rust_var) => shared_obj.write()
+                            .unwrap()
+                            .insert(var_name.clone(), rust_var),
+                        Err(error) => panic!("object '{}' could not be parsed as a '{}' object: {}", var_name, var_type, error),
+                    };
+                }
 
                 // FIXME: there is no way to tell if the parent scope of the object
                 //        is a group or the global scope, so we have to inject the variable
-                //        two times, one in the case of the global scope, one
+                //        two times, one in the case of the global scope and one
                 //        in the case of the parent being a group.
-
-                // injecting the object in rhai's scope as a new variable.
                 context
                     .scope_mut()
-                    .push_dynamic(var_name, Dynamic::from(object.clone()));
+                    .push(var_name, object.clone());
 
                 // the object is returned in case of groups.
                 Ok(object.into())
@@ -605,7 +658,7 @@ lazy_static::lazy_static! {
         .push("helo", "")
         .push("mail", Address::default())
         .push("rcpt", Address::default())
-        .push("rcpts", Vec::<Address>::new())
+        .push("rcpts", HashSet::<Address>::new())
         .push("data", "")
 
         // rule engine's internals.

@@ -34,11 +34,13 @@ use std::{
 use lettre::{Message, SmtpTransport, Transport};
 use rhai::plugin::*;
 
+use super::address::Address;
+
 // exported methods are used in rhai context, so we allow dead code.
 #[allow(dead_code)]
 #[export_module]
 pub(super) mod vsl {
-    use std::net::SocketAddr;
+    use std::{collections::HashSet, net::SocketAddr};
 
     use crate::{config::log::RULES, rules::address::Address};
 
@@ -101,17 +103,23 @@ pub(super) mod vsl {
                     _ => std::path::PathBuf::from_str(path).unwrap(),
                 };
 
-                // if the file is already containing data, we just append at the end.
-                let file = if !path.exists() {
-                    std::fs::File::create(&path)
-                } else {
-                    std::fs::OpenOptions::new().append(true).open(&path)
-                };
+                match std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&path)
+                {
+                    Ok(file) => {
+                        let mut writer = std::io::LineWriter::new(file);
 
-                match file {
-                    Ok(mut file) => file
-                        .write_all(message.as_bytes())
-                        .map_err(|_| format!("could not log to '{:?}'.", path).into()),
+                        writer
+                            .write_all(message.as_bytes())
+                            .map_err::<Box<EvalAltResult>, _>(|_| {
+                                format!("could not log to '{:?}'.", path).into()
+                            })?;
+                        writer
+                            .write_all(b"\n")
+                            .map_err(|_| format!("could not log to '{:?}'.", path).into())
+                    }
                     Err(error) => Err(format!(
                         "'{:?}' is not a valid path to log to: {:#?}",
                         path, error
@@ -133,13 +141,12 @@ pub(super) mod vsl {
 
         // from_str is unfailable, we can unwrap.
         let path = std::path::PathBuf::from_str(path).unwrap();
-        let file = if !path.exists() {
-            std::fs::File::create(&path)
-        } else {
-            std::fs::OpenOptions::new().append(true).open(&path)
-        };
 
-        match file {
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+        {
             Ok(mut file) => file
                 .write_all(data.as_bytes())
                 .map_err(|_| format!("could not write email to '{:?}'.", path).into()),
@@ -163,7 +170,7 @@ pub(super) mod vsl {
         port: u16,
         helo: &str,
         mail: Address,
-        rcpt: Vec<Address>,
+        rcpt: HashSet<Address>,
         data: &str,
         connection_timestamp: std::time::SystemTime,
         mail_timestamp: Option<std::time::SystemTime>,
@@ -269,7 +276,7 @@ pub(super) mod vsl {
         }
     }
 
-    // TODO: the following function could be refactored as one.
+    // TODO: the following functions could be refactored as one.
     /// checks if the object exists and check if it matches against the helo value.
     pub fn __is_helo(helo: &str, object: &str) -> bool {
         match acquire_engine().objects.read().unwrap().get(object) {
@@ -279,18 +286,20 @@ pub(super) mod vsl {
     }
 
     /// checks if the object exists and check if it matches against the mail value.
-    pub fn __is_mail(mail: &str, object: &str) -> bool {
+    pub fn __is_mail(mail: &mut Address, object: &str) -> bool {
         match acquire_engine().objects.read().unwrap().get(object) {
             Some(object) => internal_is_mail(mail, object),
-            _ => object == mail,
+            // TODO: allow for user / domain search with a string.
+            _ => object == mail.full(),
         }
     }
 
     /// checks if the object exists and check if it matches against the rcpt value.
-    pub fn __is_rcpt(rcpt: &str, object: &str) -> bool {
+    pub fn __is_rcpt(rcpt: &mut Address, object: &str) -> bool {
         match acquire_engine().objects.read().unwrap().get(object) {
             Some(object) => internal_is_rcpt(rcpt, object),
-            _ => rcpt == object,
+            // TODO: allow for user / domain search with a string.
+            _ => rcpt.full() == object,
         }
     }
 
@@ -342,10 +351,12 @@ pub(super) fn internal_is_helo(helo: &str, object: &Object) -> bool {
 }
 
 /// checks recursively if the current mail value is matching the object's value.
-pub(super) fn internal_is_mail(mail: &str, object: &Object) -> bool {
+pub(super) fn internal_is_mail(mail: &Address, object: &Object) -> bool {
     match object {
-        Object::Address(addr) => addr.full() == mail,
-        Object::Regex(re) => re.is_match(mail),
+        Object::Var(user) => mail.local_part() == user,
+        Object::Fqdn(domain) => mail.domain() == domain,
+        Object::Address(addr) => addr == mail,
+        Object::Regex(re) => re.is_match(mail.full()),
         Object::File(content) => content.iter().any(|object| internal_is_mail(mail, object)),
         Object::Group(group) => group.iter().any(|object| internal_is_mail(mail, object)),
         _ => false,
@@ -353,10 +364,12 @@ pub(super) fn internal_is_mail(mail: &str, object: &Object) -> bool {
 }
 
 /// checks recursively if the current rcpt value is matching the object's value.
-pub(super) fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
+pub(super) fn internal_is_rcpt(rcpt: &Address, object: &Object) -> bool {
     match object {
-        Object::Address(addr) => rcpt == addr.full(),
-        Object::Regex(re) => re.is_match(rcpt),
+        Object::Var(user) => rcpt.local_part() == user,
+        Object::Fqdn(domain) => rcpt.domain() == domain,
+        Object::Address(addr) => rcpt == addr,
+        Object::Regex(re) => re.is_match(rcpt.full()),
         Object::File(content) => content.iter().any(|object| internal_is_rcpt(rcpt, object)),
         Object::Group(group) => group.iter().any(|object| internal_is_rcpt(rcpt, object)),
         _ => false,
@@ -367,6 +380,7 @@ pub(super) fn internal_is_rcpt(rcpt: &str, object: &Object) -> bool {
 pub(super) fn internal_user_exists(user: &Object) -> bool {
     match user {
         Object::Var(user) => user_exists(user),
+        Object::Address(addr) => user_exists(addr.local_part()),
         Object::File(content) | Object::Group(content) => content.iter().all(internal_user_exists),
         _ => false,
     }
