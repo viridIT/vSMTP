@@ -15,6 +15,7 @@
  *
 **/
 
+// TODO: EnhancedStatusCodes,
 // see https://datatracker.ietf.org/doc/html/rfc2034
 
 /// 2yz  Positive Completion reply
