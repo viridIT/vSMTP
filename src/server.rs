@@ -15,9 +15,13 @@
  *
 **/
 use crate::config::default::DEFAULT_CONFIG;
+use crate::config::log::RECEIVER;
 use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
-use crate::mailprocessing::mail_receiver::MailReceiver;
+use crate::connection::Connection;
+use crate::mailprocessing::io_service::IoService;
 use crate::resolver::DataEndResolver;
+use crate::smtp::code::SMTPReplyCode;
+use crate::transaction::Transaction;
 
 pub struct ServerVSMTP<R>
 where
@@ -29,7 +33,7 @@ where
     _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R> ServerVSMTP<R>
+impl<R: 'static> ServerVSMTP<R>
 where
     R: DataEndResolver + std::marker::Send,
 {
@@ -278,52 +282,103 @@ where
             .expect("cannot retrieve local address")
     }
 
-    fn handle_client(
-        &self,
-        stream: std::net::TcpStream,
-        client_addr: std::net::SocketAddr,
-    ) -> Result<(), std::io::Error> {
-        log::warn!("Connection from: {}", client_addr);
-        let tls_config = self.tls_config.as_ref().map(std::sync::Arc::clone);
-        let config = self.config.clone();
-
-        stream.set_nonblocking(true)?;
-
-        tokio::spawn(async move {
-            let begin = std::time::SystemTime::now();
-            log::warn!("Handling client: {}", client_addr);
-
-            match MailReceiver::<R>::new(client_addr, tls_config, config)
-                .receive_plain(stream)
-                .await
-            {
-                Ok(_) => log::warn!(
-                    "{{ elapsed: {:?} }} Connection {} closed cleanly",
-                    begin.elapsed(),
-                    client_addr,
-                ),
-                Err(e) => {
-                    log::error!(
-                        "{{ elapsed: {:?} }} Connection {} closed with an error {}",
-                        begin.elapsed(),
-                        client_addr,
-                        e,
-                    )
-                }
-            }
-
-            std::io::Result::Ok(())
-        });
-
-        Ok(())
-    }
-
     pub async fn listen_and_serve(&self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             match self.listener.accept().await {
-                Ok((stream, client_addr)) => self.handle_client(stream.into_std()?, client_addr)?,
+                Ok((stream, client_addr)) => {
+                    log::warn!("Connection from: {}", client_addr);
+
+                    let mut stream = stream.into_std()?;
+                    stream.set_nonblocking(true)?;
+
+                    let config = self.config.clone();
+                    let tls_config = self.tls_config.as_ref().map(std::sync::Arc::clone);
+
+                    tokio::spawn(async move {
+                        let begin = std::time::SystemTime::now();
+                        log::warn!("Handling client: {}", client_addr);
+
+                        let mut io_plain = IoService::new(&mut stream);
+
+                        let mut conn =
+                            Connection::from_plain(client_addr, config, &mut io_plain, tls_config)?;
+                        handle_client::<R, std::net::TcpStream>(&mut conn)
+                            .await
+                            .map(|_| {
+                                log::warn!(
+                                    "{{ elapsed: {:?} }} Connection {} closed cleanly",
+                                    begin.elapsed(),
+                                    client_addr,
+                                );
+                            })
+                            .map_err(|error| {
+                                log::error!(
+                                    "{{ elapsed: {:?} }} Connection {} closed with an error {}",
+                                    begin.elapsed(),
+                                    client_addr,
+                                    error,
+                                );
+                                error
+                            })
+                    });
+                }
                 Err(e) => log::error!("Error accepting socket; error = {:?}", e),
             }
         }
     }
+}
+
+async fn handle_client<'a, 'b, R, S>(conn: &'a mut Connection<'b, S>) -> Result<(), std::io::Error>
+where
+    R: crate::resolver::DataEndResolver,
+    S: std::io::Read + std::io::Write,
+{
+    conn.send_code(SMTPReplyCode::Code220)?;
+
+    while conn.is_alive {
+        if let Some(mail) = Transaction::receive(conn).await? {
+            let code = R::on_data_end(&conn.config, &mail).await?;
+            conn.send_code(code)?;
+        } else {
+            return handle_client_secured::<R, S>(conn).await;
+        }
+    }
+
+    Ok(())
+}
+
+async fn handle_client_secured<'a, 'b, R, S>(
+    conn: &'a mut Connection<'b, S>,
+) -> Result<(), std::io::Error>
+where
+    R: crate::resolver::DataEndResolver,
+    S: std::io::Read + std::io::Write,
+{
+    if let Some(tls_config) = &mut conn.tls_config {
+        let tls_conn = rustls::ServerConnection::new(tls_config.clone()).unwrap();
+        let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
+        let mut io_tls_stream = IoService::new(&mut tls_stream);
+
+        let mut secured_conn = conn.upgrade_tls(&mut io_tls_stream)?;
+
+        log::debug!(
+            target: RECEIVER,
+        "protocol_version={:#?}\n alpn_protocol={:#?}\n negotiated_cipher_suite={:#?}\n peer_certificates={:#?}\n sni_hostname={:#?}",
+
+            tls_conn.protocol_version(),
+            tls_conn.alpn_protocol(),
+            tls_conn.negotiated_cipher_suite(),
+            tls_conn.peer_certificates(),
+            tls_conn.sni_hostname(),
+        );
+
+        while conn.is_alive {
+            if let Some(mail) = Transaction::receive(&mut secured_conn).await? {
+                let code = R::on_data_end(&secured_conn.config, &mail).await?;
+                conn.send_code(code)?;
+            }
+        }
+    }
+
+    Ok(())
 }

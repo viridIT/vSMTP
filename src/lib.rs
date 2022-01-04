@@ -15,12 +15,14 @@
  *
  **/
 pub mod config;
+pub mod connection;
 pub mod mailprocessing;
 pub mod model;
 pub mod resolver;
 pub mod rules;
 pub mod server;
 pub mod smtp;
+pub mod transaction;
 
 #[macro_export]
 macro_rules! collection {

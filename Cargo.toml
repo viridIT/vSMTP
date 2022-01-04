@@ -41,6 +41,7 @@ lettre = "0.10.0-rc.4"
 
 async-trait = "0.1.52"
 lazy_static = "1.4"
+async-recursion = "0.3.2"
 
 rustls = { version = "0.20.2", features = ["tls12", "logging"] }
 rustls-pemfile = "0.2.1"

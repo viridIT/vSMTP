@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::model::{
-    envelop::Envelop,
-    mail::{ConnectionData, MailContext},
-};
+use crate::model::{envelop::Envelop, mail::MailContext};
 
 use crate::rules::{
     obj::Object,
@@ -40,7 +37,7 @@ use super::address::Address;
 #[allow(dead_code)]
 #[export_module]
 pub(super) mod vsl {
-    use std::{collections::HashSet, net::SocketAddr};
+    use std::collections::HashSet;
 
     use crate::{config::log::RULES, rules::address::Address};
 
@@ -200,11 +197,10 @@ pub(super) mod vsl {
                 rcpt,
             },
             body: data.into(),
-            connection: ConnectionData {
-                peer_addr: SocketAddr::new(connect, port),
-                timestamp: connection_timestamp,
-            },
-
+            // connection: ConnectionData {
+            //     peer_addr: SocketAddr::new(connect, port),
+            //     timestamp: connection_timestamp,
+            // },
             timestamp: mail_timestamp,
         };
 
