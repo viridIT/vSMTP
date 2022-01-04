@@ -183,13 +183,13 @@ where
                 // TODO: find a way to handle SystemTime failure.
                 message_id: format!(
                     "{}{}{}",
-                    now.elapsed()
+                    now.duration_since(std::time::SystemTime::UNIX_EPOCH)
                         .unwrap_or(std::time::Duration::ZERO)
                         .as_micros(),
                     self.mail
                         .connection
                         .timestamp
-                        .elapsed()
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
                         .unwrap_or(std::time::Duration::ZERO)
                         .as_millis(),
                     std::process::id()

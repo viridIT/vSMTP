@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{log::RESOLVER, server_config::ServerConfig},
-    model::mail::MailContext,
+    model::mail::{MailContext, MessageMetadata},
     rules::address::Address,
     smtp::code::SMTPReplyCode,
 };
@@ -62,8 +62,7 @@ impl MailDirResolver {
     /// `{timestamp}.{content size}{deliveries}{rcpt id}.vsmtp`
     fn write_to_maildir(
         rcpt: &Address,
-        timestamp: &str,
-        unique_id: usize,
+        metadata: &MessageMetadata,
         content: &str,
     ) -> std::io::Result<()> {
         lazy_static::lazy_static! {
@@ -118,13 +117,7 @@ impl MailDirResolver {
                 };
 
                 // NOTE: see https://en.wikipedia.org/wiki/Maildir
-                maildir.push(format!(
-                    "{}.{}{}{}.vsmtp",
-                    timestamp,
-                    content.as_bytes().len(),
-                    delivery_count.0,
-                    unique_id
-                ));
+                maildir.push(format!("{}.vsmtp", metadata.message_id));
 
                 // TODO: should loop if an email name is conflicting with another.
                 let mut email = std::fs::OpenOptions::new()
@@ -212,29 +205,13 @@ impl DataEndResolver for MailDirResolver {
 
         log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
-        for (index, rcpt) in mail.envelop.rcpt.iter().enumerate() {
+        for rcpt in mail.envelop.rcpt.iter() {
             if crate::rules::rule_engine::user_exists(rcpt.local_part()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                if let Err(error) = Self::write_to_maildir(
-                    rcpt,
-                    &match &mail.metadata {
-                        Some(metadata) => match metadata.timestamp.elapsed() {
-                            Ok(elapsed) => elapsed.as_nanos().to_string(),
-                            Err(error) => {
-                                log::error!("failed to deliver mail to '{}': {}", rcpt, error);
-                                return Ok(SMTPReplyCode::Code250);
-                            }
-                        },
-
-                        None => {
-                            log::error!("failed to deliver mail to '{}': timestamp for email file name is unavailable", rcpt);
-                            return Ok(SMTPReplyCode::Code250);
-                        }
-                    },
-                    index,
-                    &mail.body,
-                ) {
+                if let Err(error) =
+                    Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), &mail.body)
+                {
                     log::error!(
                         target: RESOLVER,
                         "Couldn't write email to inbox: {:?}",
