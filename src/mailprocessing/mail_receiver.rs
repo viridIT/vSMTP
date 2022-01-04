@@ -35,7 +35,7 @@ enum ProcessedEvent {
     Nothing,
     Reply(SMTPReplyCode),
     ReplyChangeState(StateSMTP, SMTPReplyCode),
-    TransactionCompleted(MailContext),
+    TransactionCompleted(Box<MailContext>),
 }
 
 pub struct MailReceiver<'a, R>
@@ -361,7 +361,7 @@ where
 
                     std::mem::swap(&mut self.mail, &mut output);
 
-                    ProcessedEvent::TransactionCompleted(output)
+                    ProcessedEvent::TransactionCompleted(Box::new(output))
                 } else {
                     ProcessedEvent::ReplyChangeState(StateSMTP::MailFrom, SMTPReplyCode::Code554)
                 }
@@ -501,7 +501,7 @@ where
                 ProcessedEvent::Reply(reply_to_send) => {
                     self.send_reply(io, reply_to_send).map(|_| None)
                 }
-                ProcessedEvent::TransactionCompleted(mail) => Ok(Some(mail)),
+                ProcessedEvent::TransactionCompleted(mail) => Ok(Some(*mail)),
                 ProcessedEvent::Nothing => Ok(None),
                 ProcessedEvent::ReplyChangeState(_, _) => unreachable!(),
             },
