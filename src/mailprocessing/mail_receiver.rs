@@ -346,11 +346,9 @@ where
             (StateSMTP::Data, Event::DataEnd) => {
                 self.rule_engine.add_data("data", self.mail.body.clone());
 
-                let status = self.rule_engine.run_when("preq");
-
-                let result = match status {
+                let result = match self.rule_engine.run_when("preq") {
                     Status::Block => return (Some(StateSMTP::Stop), Some(SMTPReplyCode::Code554)),
-                    _ => self.process_rules_status(
+                    status => self.process_rules_status(
                         status,
                         Some(StateSMTP::MailFrom),
                         Some(SMTPReplyCode::Code250),
