@@ -22,7 +22,7 @@ pub struct ConnectionData {
     pub timestamp: std::time::SystemTime,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MessageMetadata {
     /// instant when the last "MAIL FROM" has been received.
     pub timestamp: std::time::SystemTime,

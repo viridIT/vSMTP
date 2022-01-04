@@ -292,6 +292,14 @@ impl<U: Users> RhaiEngine<U> {
                 None => 0,
             }
         })
+        .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| match metadata {
+            Some(metadata) => format!("{:?}", metadata),
+            None => "".to_string(),
+        })
+        .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| match metadata {
+            Some(metadata) => format!("{:?}", metadata),
+            None => "".to_string(),
+        })
 
         // the operation queue is used to defer actions.
         .register_type::<OperationQueue>()
