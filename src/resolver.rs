@@ -70,16 +70,6 @@ impl MailDirResolver {
             static ref DELIVERIES: std::sync::Mutex<Wrapper> = std::sync::Mutex::new(Wrapper{0:0});
         }
 
-        let mut delivery_count = match DELIVERIES.lock() {
-            Ok(count) => count,
-            Err(_) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "delivery mutex poisoned.",
-                ))
-            }
-        };
-
         match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
             Some(user) => {
                 // getting user's home directory using getpwuid.
@@ -116,6 +106,16 @@ impl MailDirResolver {
                         &user,
                     )?;
                 }
+
+                let mut delivery_count = match DELIVERIES.lock() {
+                    Ok(count) => count,
+                    Err(_) => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "delivery mutex poisoned.",
+                        ))
+                    }
+                };
 
                 // NOTE: see https://en.wikipedia.org/wiki/Maildir
                 maildir.push(format!(
