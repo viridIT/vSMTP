@@ -272,15 +272,47 @@ impl<U: Users> RhaiEngine<U> {
         .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
         .register_get("domain", |addr: &mut Address| addr.domain().to_string())
 
+        // metadata of the email.
+        .register_type::<Option<MessageMetadata>>()
+        .register_get("timestamp", |metadata: &mut Option<MessageMetadata>| {
+            match metadata {
+                Some(metadata) => metadata.timestamp,
+                None => std::time::SystemTime::now(),
+            }
+        })
+        .register_get("message_id", |metadata: &mut Option<MessageMetadata>| {
+            match metadata {
+                Some(metadata) => metadata.message_id.clone(),
+                None => "".to_string(),
+            }
+        })
+        .register_get("retry", |metadata: &mut Option<MessageMetadata>| {
+            match metadata {
+                Some(metadata) => metadata.retry,
+                None => 0,
+            }
+        })
+
         // the operation queue is used to defer actions.
         .register_type::<OperationQueue>()
         .register_type::<std::time::SystemTime>()
+        .register_fn("to_string", |time: &mut std::time::SystemTime| format!("{}",
+            time.elapsed()
+                .unwrap_or(std::time::Duration::ZERO)
+                .as_secs()
+        ))
+        .register_fn("to_debug", |time: &mut std::time::SystemTime| format!("{:?}",
+            time.elapsed()
+            .unwrap_or(std::time::Duration::ZERO)
+            .as_secs()
+        ))
 
         // adding an Address hash set as a custom type.
         // used to easily manipulate the rcpt container.
         .register_iterator::<HashSet<Address>>()
         .register_iterator::<Vec<String>>()
 
+        .register_fn("insert", <HashSet<Address>>::insert)
         // extract all users / domains from the rcpt set.
         .register_get("local_part", |set: &mut HashSet<Address>| -> Vec<String> {
             set.iter().map(|addr| addr.local_part().to_string()).collect()
@@ -288,8 +320,6 @@ impl<U: Users> RhaiEngine<U> {
         .register_get("domain", |set: &mut HashSet<Address>| -> Vec<String> {
             set.iter().map(|addr| addr.domain().to_string()).collect()
         })
-
-        .register_fn("insert", <HashSet<Address>>::insert)
 
         // added an overload to insert an address using a string.
         .register_result_fn("insert", |set: &mut HashSet::<Address>, value: String| {
