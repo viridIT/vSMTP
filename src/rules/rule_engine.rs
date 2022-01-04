@@ -287,10 +287,10 @@ impl<U: Users> RhaiEngine<U> {
             }
         })
         .register_get("retry", |metadata: &mut Option<MessageMetadata>| {
-            match metadata {
+            (match metadata {
                 Some(metadata) => metadata.retry,
                 None => 0,
-            }
+            }) as u64
         })
         .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| match metadata {
             Some(metadata) => format!("{:?}", metadata),
@@ -305,12 +305,12 @@ impl<U: Users> RhaiEngine<U> {
         .register_type::<OperationQueue>()
         .register_type::<std::time::SystemTime>()
         .register_fn("to_string", |time: &mut std::time::SystemTime| format!("{}",
-            time.elapsed()
+            time.duration_since(std::time::SystemTime::UNIX_EPOCH)
                 .unwrap_or(std::time::Duration::ZERO)
                 .as_secs()
         ))
         .register_fn("to_debug", |time: &mut std::time::SystemTime| format!("{:?}",
-            time.elapsed()
+            time.duration_since(std::time::SystemTime::UNIX_EPOCH)
             .unwrap_or(std::time::Duration::ZERO)
             .as_secs()
         ))
