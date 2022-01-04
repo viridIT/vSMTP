@@ -16,6 +16,7 @@
 **/
 pub mod io_service;
 pub mod mail_receiver;
+pub mod state;
 
 pub mod utils {
     pub fn generate_msg_id() -> String {
