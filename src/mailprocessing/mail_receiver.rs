@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -17,6 +15,7 @@ use std::collections::HashSet;
  *
 **/
 use super::io_service::{IoService, ReadError};
+use super::state::StateSMTP;
 use crate::config::log::{RECEIVER, RULES};
 use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 use crate::model::envelop::Envelop;
@@ -27,59 +26,17 @@ use crate::rules::rule_engine::{RuleEngine, Status};
 use crate::smtp::code::SMTPReplyCode;
 use crate::smtp::event::Event;
 
-/// Abstracted memory of the last client message
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, serde::Deserialize, serde::Serialize)]
-pub enum StateSMTP {
-    Connect,
-    Helo,
-    NegotiationTLS,
-    MailFrom,
-    RcptTo,
-    Data,
-    Stop,
-}
-
-impl std::fmt::Display for StateSMTP {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            StateSMTP::Connect => "Connect",
-            StateSMTP::Helo => "Helo",
-            StateSMTP::NegotiationTLS => "NegotiationTLS",
-            StateSMTP::MailFrom => "MailFrom",
-            StateSMTP::RcptTo => "RcptTo",
-            StateSMTP::Data => "Data",
-            StateSMTP::Stop => "Stop",
-        })
-    }
-}
-
-pub struct StateSMTPFromStrError;
-
-impl std::fmt::Display for StateSMTPFromStrError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str("SourceFromStrError")
-    }
-}
-
-impl std::str::FromStr for StateSMTP {
-    type Err = StateSMTPFromStrError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Connect" => Ok(StateSMTP::Connect),
-            "Helo" => Ok(StateSMTP::Helo),
-            "MailFrom" => Ok(StateSMTP::MailFrom),
-            "RcptTo" => Ok(StateSMTP::RcptTo),
-            "Data" => Ok(StateSMTP::Data),
-            _ => Err(StateSMTPFromStrError),
-        }
-    }
-}
-
 const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
 // TODO: move that cleanly in config
 const TIMEOUT_DEFAULT: u64 = 10_000; // 10s
+
+enum ProcessedEvent {
+    Nothing,
+    Reply(SMTPReplyCode),
+    ReplyChangeState(StateSMTP, SMTPReplyCode),
+    TransactionCompleted(MailContext),
+}
 
 pub struct MailReceiver<'a, R>
 where
@@ -161,7 +118,7 @@ where
         self.mail.envelop = Envelop {
             helo,
             mail_from: Address::default(),
-            rcpt: HashSet::default(),
+            rcpt: std::collections::HashSet::default(),
         };
         self.rule_engine.reset();
 
@@ -209,7 +166,10 @@ where
         if let Ok(rcpt_to) = Address::new(&rcpt_to) {
             self.rule_engine.add_data("rcpt", rcpt_to.clone());
 
-            match self.rule_engine.get_data::<HashSet<Address>>("rcpts") {
+            match self
+                .rule_engine
+                .get_data::<std::collections::HashSet<Address>>("rcpts")
+            {
                 Some(mut rcpts) => {
                     rcpts.insert(rcpt_to);
                     self.mail.envelop.rcpt = rcpts.clone();
@@ -222,11 +182,11 @@ where
         }
     }
 
-    async fn process_event(&mut self, event: Event) -> (Option<StateSMTP>, Option<SMTPReplyCode>) {
+    fn process_event(&mut self, event: Event) -> ProcessedEvent {
         match (&self.state, event) {
-            (_, Event::NoopCmd) => (None, Some(SMTPReplyCode::Code250)),
+            (_, Event::NoopCmd) => ProcessedEvent::Reply(SMTPReplyCode::Code250),
 
-            (_, Event::HelpCmd(_)) => (None, Some(SMTPReplyCode::Code214)),
+            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Code214),
 
             (_, Event::RsetCmd) => {
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
@@ -234,14 +194,16 @@ where
                 self.mail.envelop.mail_from = Address::default();
                 self.rule_engine.reset();
 
-                (Some(StateSMTP::Helo), Some(SMTPReplyCode::Code250))
+                ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
             }
 
             (_, Event::ExpnCmd(_) | Event::VrfyCmd(_) /*| Event::PrivCmd*/) => {
-                (None, Some(SMTPReplyCode::Code502unimplemented))
+                ProcessedEvent::Reply(SMTPReplyCode::Code502unimplemented)
             }
 
-            (_, Event::QuitCmd) => (Some(StateSMTP::Stop), Some(SMTPReplyCode::Code221)),
+            (_, Event::QuitCmd) => {
+                ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code221)
+            }
 
             (_, Event::HeloCmd(helo)) => {
                 self.set_helo(helo);
@@ -252,16 +214,16 @@ where
                     self.mail.envelop,
                 );
 
-                let status = self.rule_engine.run_when("helo");
-                self.process_rules_status(
-                    status,
-                    Some(StateSMTP::Helo),
-                    Some(SMTPReplyCode::Code250),
-                )
+                match self.rule_engine.run_when("helo") {
+                    Status::Deny => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
+                    }
+                    _ => ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250),
+                }
             }
 
             (_, Event::EhloCmd(_)) if self.server_config.smtp.disable_ehlo => {
-                (None, Some(SMTPReplyCode::Code502unimplemented))
+                ProcessedEvent::Reply(SMTPReplyCode::Code502unimplemented)
             }
 
             (_, Event::EhloCmd(helo)) => {
@@ -273,32 +235,33 @@ where
                     self.mail.envelop,
                 );
 
-                let status = self.rule_engine.run_when("helo");
-                self.process_rules_status(
-                    status,
-                    Some(StateSMTP::Helo),
-                    Some(if self.is_secured {
-                        SMTPReplyCode::Code250SecuredEsmtp
-                    } else {
-                        SMTPReplyCode::Code250PlainEsmtp
-                    }),
-                )
+                match self.rule_engine.run_when("helo") {
+                    Status::Deny => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
+                    }
+                    _ => ProcessedEvent::ReplyChangeState(
+                        StateSMTP::Helo,
+                        if self.is_secured {
+                            SMTPReplyCode::Code250SecuredEsmtp
+                        } else {
+                            SMTPReplyCode::Code250PlainEsmtp
+                        },
+                    ),
+                }
             }
 
-            (StateSMTP::Helo, Event::StartTls) if self.tls_config.is_some() => (
-                Some(StateSMTP::NegotiationTLS),
-                Some(SMTPReplyCode::Code220),
-            ),
-
+            (StateSMTP::Helo, Event::StartTls) if self.tls_config.is_some() => {
+                ProcessedEvent::ReplyChangeState(StateSMTP::NegotiationTLS, SMTPReplyCode::Code220)
+            }
             (StateSMTP::Helo, Event::StartTls) if self.tls_config.is_none() => {
-                (None, Some(SMTPReplyCode::Code454))
+                ProcessedEvent::Reply(SMTPReplyCode::Code454)
             }
 
             (StateSMTP::Helo, Event::MailCmd(_, _))
                 if self.server_config.tls.security_level == TlsSecurityLevel::Encrypt
                     && !self.is_secured =>
             {
-                (None, Some(SMTPReplyCode::Code530))
+                ProcessedEvent::Reply(SMTPReplyCode::Code530)
             }
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {
@@ -314,12 +277,15 @@ where
                     self.mail.envelop,
                 );
 
-                let status = self.rule_engine.run_when("mail");
-                self.process_rules_status(
-                    status,
-                    Some(StateSMTP::MailFrom),
-                    Some(SMTPReplyCode::Code250),
-                )
+                match self.rule_engine.run_when("mail") {
+                    Status::Deny => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
+                    }
+                    _ => ProcessedEvent::ReplyChangeState(
+                        StateSMTP::MailFrom,
+                        SMTPReplyCode::Code250,
+                    ),
+                }
             }
 
             (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
@@ -332,49 +298,45 @@ where
                     self.mail.envelop,
                 );
 
-                let status = self.rule_engine.run_when("rcpt");
-                let result = self.process_rules_status(
-                    status,
-                    Some(StateSMTP::RcptTo),
-                    Some(SMTPReplyCode::Code250),
-                );
-
-                match self.server_config.smtp.rcpt_count_max {
-                    Some(rcpt_count_max) if rcpt_count_max < self.mail.envelop.rcpt.len() => (
-                        Some(StateSMTP::RcptTo),
-                        Some(SMTPReplyCode::Code452TooManyRecipients),
-                    ),
-                    _ => result,
+                match self.rule_engine.run_when("rcpt") {
+                    Status::Deny => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
+                    }
+                    _ if self.mail.envelop.rcpt.len()
+                        >= self.server_config.smtp.rcpt_count_max.unwrap_or(usize::MAX) =>
+                    {
+                        ProcessedEvent::ReplyChangeState(
+                            StateSMTP::RcptTo,
+                            SMTPReplyCode::Code452TooManyRecipients,
+                        )
+                    }
+                    _ => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::RcptTo, SMTPReplyCode::Code250)
+                    }
                 }
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
-                (Some(StateSMTP::Data), Some(SMTPReplyCode::Code354))
+                ProcessedEvent::ReplyChangeState(StateSMTP::Data, SMTPReplyCode::Code354)
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
                 self.mail.body.push_str(&line);
                 self.mail.body.push('\n');
-                (None, None)
+                ProcessedEvent::Nothing
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
                 self.rule_engine.add_data("data", self.mail.body.clone());
 
-                let result = match self.rule_engine.run_when("preq") {
-                    Status::Block => return (Some(StateSMTP::Stop), Some(SMTPReplyCode::Code554)),
-                    status => self.process_rules_status(
-                        status,
-                        Some(StateSMTP::MailFrom),
-                        Some(SMTPReplyCode::Code250),
-                    ),
-                };
+                let status = self.rule_engine.run_when("preq");
 
-                // checking if the rule engine haven't ran successfully.
-                match result {
-                    (Some(StateSMTP::MailFrom), Some(SMTPReplyCode::Code250)) => {}
-                    _ => return result,
-                };
+                if let Status::Block | Status::Deny = status {
+                    return ProcessedEvent::ReplyChangeState(
+                        StateSMTP::Stop,
+                        SMTPReplyCode::Code554,
+                    );
+                }
 
                 // executing all registered extensive operations.
                 if let Err(error) = self.rule_engine.execute_operation_queue(&self.mail) {
@@ -390,38 +352,42 @@ where
                 if let Some(envelop) = self.rule_engine.get_scoped_envelop() {
                     self.mail.envelop = envelop;
 
-                    // TODO: resolver should not be responsible for mutating the SMTP state
-                    // should return a code and handle if code.is_error()
-                    // NOTE: clear envelop and mail context ?
-                    match R::on_data_end(&self.server_config, &self.mail).await {
-                        Ok(code) => (Some(StateSMTP::Helo), Some(code)),
-                        Err(error) => todo!("{}", error),
-                    }
+                    let mut output = MailContext {
+                        envelop: Envelop::default(),
+                        body: String::with_capacity(MAIL_CAPACITY),
+                        connection: self.mail.connection,
+                        metadata: None,
+                    };
+
+                    std::mem::swap(&mut self.mail, &mut output);
+
+                    ProcessedEvent::TransactionCompleted(output)
                 } else {
-                    // NOTE: which code is returned when the server failed ?
-                    (Some(StateSMTP::MailFrom), Some(SMTPReplyCode::Code554))
+                    ProcessedEvent::ReplyChangeState(StateSMTP::MailFrom, SMTPReplyCode::Code554)
                 }
             }
 
-            _ => (None, Some(SMTPReplyCode::Code503)),
+            _ => ProcessedEvent::Reply(SMTPReplyCode::Code503),
         }
     }
 
-    /// checks the result of the rule engine and returns the appropriate state and code.
-    fn process_rules_status(
-        &mut self,
-        status: Status,
-        desired_state: Option<StateSMTP>,
-        desired_code: Option<SMTPReplyCode>,
-    ) -> (Option<StateSMTP>, Option<SMTPReplyCode>) {
-        match status {
-            Status::Deny => (Some(StateSMTP::Stop), Some(SMTPReplyCode::Code554)),
-            _ => (desired_state, desired_code),
-        }
+    pub fn set_state(&mut self, new_state: StateSMTP) {
+        log::info!(
+            target: RECEIVER,
+            "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
+            self.mail.connection.peer_addr.port(),
+            self.state,
+            new_state
+        );
+        self.state = new_state;
+        self.next_line_timeout = *self
+            .smtp_timeouts
+            .get(&self.state)
+            .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
     }
 
     /// handle a clear text received with plain_stream or tls_stream
-    async fn handle_plain_text(&mut self, client_message: String) -> Option<SMTPReplyCode> {
+    fn handle_plain_text(&mut self, client_message: String) -> ProcessedEvent {
         log::trace!(
             target: RECEIVER,
             "[p:{}] buffer=\"{}\"",
@@ -442,89 +408,104 @@ where
             command_or_code
         );
 
-        let (new_state, reply) = match command_or_code {
-            Ok(event) => self.process_event(event).await,
-            Err(error) => (None, Some(error)),
-        };
-
-        if let Some(new_state) = new_state {
-            log::info!(
-                target: RECEIVER,
-                "[p:{}] ================ STATE: /{:?}/ => /{:?}/",
-                self.mail.connection.peer_addr.port(),
-                self.state,
-                new_state
-            );
-            self.state = new_state;
-            self.next_line_timeout = *self
-                .smtp_timeouts
-                .get(&self.state)
-                .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
+        match command_or_code
+            .map(|command| self.process_event(command))
+            .unwrap_or_else(ProcessedEvent::Reply)
+        {
+            ProcessedEvent::ReplyChangeState(new_state, reply) => {
+                self.set_state(new_state);
+                ProcessedEvent::Reply(reply)
+            }
+            otherwise => otherwise,
         }
-
-        reply
     }
 
-    async fn read_and_handle<S>(&mut self, io: &mut IoService<'_, S>) -> Result<(), std::io::Error>
+    pub fn send_reply<IO>(
+        &mut self,
+        io: &mut IoService<'_, IO>,
+        reply_to_send: SMTPReplyCode,
+    ) -> Result<(), std::io::Error>
+    where
+        IO: std::io::Read + std::io::Write,
+    {
+        log::info!(
+            target: RECEIVER,
+            "[p:{}] send=\"{:?}\"",
+            self.mail.connection.peer_addr.port(),
+            reply_to_send
+        );
+
+        if reply_to_send.is_error() {
+            self.error_count += 1;
+
+            let hard_error = self.server_config.smtp.error.hard_count;
+            let soft_error = self.server_config.smtp.error.soft_count;
+
+            if hard_error != -1 && self.error_count >= hard_error as u64 {
+                let mut response_begin = self
+                    .server_config
+                    .smtp
+                    .get_code()
+                    .get(&reply_to_send)
+                    .to_string();
+                response_begin.replace_range(3..4, "-");
+                response_begin.push_str(
+                    self.server_config
+                        .smtp
+                        .get_code()
+                        .get(&SMTPReplyCode::Code451TooManyError),
+                );
+                std::io::Write::write_all(io, response_begin.as_bytes())?;
+
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::ConnectionAborted,
+                    "too many errors",
+                ));
+            }
+
+            std::io::Write::write_all(
+                io,
+                self.server_config
+                    .smtp
+                    .get_code()
+                    .get(&reply_to_send)
+                    .as_bytes(),
+            )?;
+
+            if soft_error != -1 && self.error_count >= soft_error as u64 {
+                std::thread::sleep(self.server_config.smtp.error.delay);
+            }
+
+            Ok(())
+        } else {
+            std::io::Write::write_all(
+                io,
+                self.server_config
+                    .smtp
+                    .get_code()
+                    .get(&reply_to_send)
+                    .as_bytes(),
+            )
+        }
+    }
+
+    async fn read_and_handle<S>(
+        &mut self,
+        io: &mut IoService<'_, S>,
+    ) -> Result<Option<MailContext>, std::io::Error>
     where
         S: std::io::Write + std::io::Read,
     {
         match tokio::time::timeout(self.next_line_timeout, io.get_next_line_async()).await {
-            Ok(Ok(client_message)) => {
-                if let Some(response) = self.handle_plain_text(client_message).await {
-                    log::info!(
-                        target: RECEIVER,
-                        "[p:{}] send=\"{:?}\"",
-                        self.mail.connection.peer_addr.port(),
-                        response
-                    );
-
-                    if response.is_error() {
-                        self.error_count += 1;
-
-                        let hard_error = self.server_config.smtp.error.hard_count;
-                        let soft_error = self.server_config.smtp.error.soft_count;
-
-                        if hard_error != -1 && self.error_count >= hard_error as u64 {
-                            let mut response_begin = self
-                                .server_config
-                                .smtp
-                                .get_code()
-                                .get(&response)
-                                .to_string();
-                            response_begin.replace_range(3..4, "-");
-                            response_begin.push_str(
-                                self.server_config
-                                    .smtp
-                                    .get_code()
-                                    .get(&SMTPReplyCode::Code451TooManyError),
-                            );
-                            std::io::Write::write_all(io, response_begin.as_bytes())?;
-
-                            return Err(std::io::Error::new(
-                                std::io::ErrorKind::ConnectionAborted,
-                                "too many errors",
-                            ));
-                        }
-
-                        std::io::Write::write_all(
-                            io,
-                            self.server_config.smtp.get_code().get(&response).as_bytes(),
-                        )?;
-
-                        if soft_error != -1 && self.error_count >= soft_error as u64 {
-                            std::thread::sleep(self.server_config.smtp.error.delay);
-                        }
-                    } else {
-                        std::io::Write::write_all(
-                            io,
-                            self.server_config.smtp.get_code().get(&response).as_bytes(),
-                        )?;
-                    }
+            Ok(Ok(client_message)) => match self.handle_plain_text(client_message) {
+                ProcessedEvent::Reply(reply_to_send) => {
+                    self.send_reply(io, reply_to_send).map(|_| None)
                 }
-                Ok(())
-            }
-            Ok(Err(ReadError::Blocking)) => Ok(()),
+                ProcessedEvent::TransactionCompleted(mail) => Ok(Some(mail)),
+                ProcessedEvent::Nothing => Ok(None),
+                ProcessedEvent::ReplyChangeState(_, _) => unreachable!(),
+            },
+            Ok(Err(ReadError::Blocking)) => Ok(None),
             Ok(Err(ReadError::Eof)) => {
                 log::info!(
                     target: RECEIVER,
@@ -533,7 +514,7 @@ where
                     self.is_secured
                 );
                 self.state = StateSMTP::Stop;
-                Ok(())
+                Ok(None)
             }
             Ok(Err(ReadError::Other(e))) => {
                 log::error!(
@@ -648,7 +629,11 @@ where
             .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
 
         while self.state != StateSMTP::Stop {
-            self.read_and_handle(&mut io).await?;
+            if let Some(mail) = self.read_and_handle(&mut io).await? {
+                let code = R::on_data_end(&self.server_config, &mail).await?;
+                self.send_reply(&mut io, code)?;
+                self.set_state(StateSMTP::Helo);
+            }
         }
 
         Ok(plain_stream)
@@ -660,24 +645,7 @@ where
     {
         let mut io = IoService::new(&mut plain_stream);
 
-        match std::io::Write::write_all(
-            &mut io,
-            self.server_config
-                .smtp
-                .get_code()
-                .get(&SMTPReplyCode::Code220)
-                .as_bytes(),
-        ) {
-            Ok(_) => {}
-            Err(e) => {
-                log::error!(
-                    target: RECEIVER,
-                    "Error on sending response (receiving); error = {:?}",
-                    e
-                );
-                return Err(e);
-            }
-        }
+        self.send_reply(&mut io, SMTPReplyCode::Code220)?;
 
         self.rule_engine
             .add_data("connect", self.mail.connection.peer_addr.ip());
@@ -700,7 +668,11 @@ where
             if self.state == StateSMTP::NegotiationTLS {
                 return self.receive_secured(plain_stream).await;
             }
-            self.read_and_handle(&mut io).await?;
+            if let Some(mail) = self.read_and_handle(&mut io).await? {
+                let code = R::on_data_end(&self.server_config, &mail).await?;
+                self.send_reply(&mut io, code)?;
+                self.set_state(StateSMTP::Helo);
+            }
         }
         Ok(plain_stream)
     }

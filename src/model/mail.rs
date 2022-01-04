@@ -15,7 +15,7 @@
  *
 **/
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Copy, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ConnectionData {
     pub peer_addr: std::net::SocketAddr,
     // instant when connection being treated

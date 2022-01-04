@@ -1,8 +1,6 @@
 use serde_with::{serde_as, DisplayFromStr};
 
-use crate::{
-    mailprocessing::mail_receiver::StateSMTP, resolver::DataEndResolver, server::ServerVSMTP,
-};
+use crate::{mailprocessing::state::StateSMTP, resolver::DataEndResolver, server::ServerVSMTP};
 
 use super::custom_code::{CustomSMTPCode, SMTPCode};
 
