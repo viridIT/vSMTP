@@ -175,10 +175,25 @@ where
             self.mail.envelop.rcpt.clear();
             self.rule_engine.reset();
 
+            let now = std::time::SystemTime::now();
+
             // generating email metadata.
             self.mail.metadata = Some(MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                message_id: "".to_string(),
+                timestamp: now,
+                // TODO: find a way to handle SystemTime failure.
+                message_id: format!(
+                    "{}{}{}",
+                    now.elapsed()
+                        .unwrap_or(std::time::Duration::ZERO)
+                        .as_micros(),
+                    self.mail
+                        .connection
+                        .timestamp
+                        .elapsed()
+                        .unwrap_or(std::time::Duration::ZERO)
+                        .as_millis(),
+                    std::process::id()
+                ),
                 retry: 0,
             });
 
