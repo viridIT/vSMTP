@@ -16,7 +16,7 @@
  **/
 use crate::config::log::RULES;
 use crate::model::envelop::Envelop;
-use crate::model::mail::MailContext;
+use crate::model::mail::{MailContext, MessageMetadata};
 use crate::rules::address::Address;
 use crate::rules::obj::Object;
 use crate::rules::operation_queue::{Operation, OperationQueue};
@@ -67,6 +67,7 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn new(config: &crate::config::server_config::ServerConfig) -> Self {
         let mut scope = Scope::new();
         scope
+            // stage variables.
             .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
             .push("port", 0)
             .push("helo", "")
@@ -74,15 +75,17 @@ impl<'a> RuleEngine<'a> {
             .push("rcpt", Address::default())
             .push("rcpts", HashSet::<Address>::new())
             .push("data", "")
+            // rule engine's internals.
             .push("__OPERATION_QUEUE", OperationQueue::default())
             .push("__stage", "")
             .push("__rules", Array::new())
-            .push("__init", true)
+            .push("__init", false)
+            // useful data.
             .push("date", "")
             .push("time", "")
-            .push("msg_id", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            .push("mail_timestamp", None::<std::time::SystemTime>)
+            .push("metadata", None::<MessageMetadata>)
+            // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
             .push("spool_dir", config.smtp.spool_dir.clone());
@@ -169,7 +172,6 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn execute_operation_queue(
         &mut self,
         ctx: &MailContext,
-        msg_id: &str,
     ) -> Result<(), Box<dyn Error>> {
         for op in self
             .scope
@@ -185,7 +187,7 @@ impl<'a> RuleEngine<'a> {
                     let mut path = std::path::PathBuf::from_str(&path)?;
                     std::fs::create_dir_all(&path)?;
 
-                    path.push(msg_id);
+                    path.push(&ctx.metadata.as_ref().unwrap().message_id);
                     path.set_extension("json");
 
                     let mut file = std::fs::OpenOptions::new()
@@ -211,11 +213,11 @@ impl<'a> RuleEngine<'a> {
         })
     }
 
-    /// clears mail_from, mail_timestamp, rcpt, rcpts & data values from the scope.
+    /// clears mail_from, metadata, rcpt, rcpts & data values from the scope.
     pub(crate) fn reset(&mut self) {
         self.scope
             .push("mail", Address::default())
-            .push("mail_timestamp", None::<std::time::SystemTime>)
+            .push("metadata", None::<MessageMetadata>)
             .push("rcpt", Address::default())
             .push("rcpts", HashSet::<Address>::new())
             .push("data", "");
@@ -671,7 +673,7 @@ lazy_static::lazy_static! {
         .push("date", "")
         .push("time", "")
         .push("connection_timestamp", std::time::SystemTime::now())
-        .push("mail_timestamp", None::<std::time::SystemTime>)
+        .push("metadata", None::<MessageMetadata>)
 
         // configuration variables.
         .push("addr", Vec::<String>::new())

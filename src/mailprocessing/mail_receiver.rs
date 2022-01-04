@@ -20,7 +20,7 @@ use super::io_service::{IoService, ReadError};
 use crate::config::log::{RECEIVER, RULES};
 use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 use crate::model::envelop::Envelop;
-use crate::model::mail::{ConnectionData, MailContext};
+use crate::model::mail::{ConnectionData, MailContext, MessageMetadata};
 use crate::resolver::DataEndResolver;
 use crate::rules::address::Address;
 use crate::rules::rule_engine::{RuleEngine, Status};
@@ -143,7 +143,7 @@ where
                 },
                 envelop: Envelop::default(),
                 body: String::with_capacity(MAIL_CAPACITY),
-                timestamp: None,
+                metadata: None,
             },
             tls_config,
             is_secured: false,
@@ -172,14 +172,20 @@ where
     fn set_mail_from(&mut self, mail_from: String) {
         if let Ok(mail_from) = Address::new(&mail_from) {
             self.mail.envelop.mail_from = mail_from;
-            self.mail.timestamp = Some(std::time::SystemTime::now());
             self.mail.envelop.rcpt.clear();
             self.rule_engine.reset();
+
+            // generating email metadata.
+            self.mail.metadata = Some(MessageMetadata {
+                timestamp: std::time::SystemTime::now(),
+                message_id: "".to_string(),
+                retry: 0,
+            });
 
             self.rule_engine
                 .add_data("mail", self.mail.envelop.mail_from.clone());
             self.rule_engine
-                .add_data("mail_timestamp", self.mail.timestamp);
+                .add_data("metadata", self.mail.metadata.clone());
         }
     }
 
@@ -358,19 +364,7 @@ where
                 };
 
                 // executing all registered extensive operations.
-                if let Err(error) = self.rule_engine.execute_operation_queue(
-                    &self.mail,
-                    &format!(
-                        "{}_{:?}",
-                        self.mail
-                            .timestamp
-                            .unwrap()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis(),
-                        std::thread::current().id()
-                    ),
-                ) {
+                if let Err(error) = self.rule_engine.execute_operation_queue(&self.mail) {
                     log::error!(
                         target: RULES,
                         "failed to empty the operation queue: '{}'",

@@ -162,7 +162,7 @@ impl MailDirResolver {
     #[allow(unused)]
     fn write_mail_to_process(
         spool_dir: &str,
-        mail: &crate::model::mail::MailContext,
+        ctx: &crate::model::mail::MailContext,
     ) -> std::io::Result<()> {
         let folder = format!("{}/to_process", spool_dir);
         std::fs::create_dir_all(&folder)?;
@@ -171,17 +171,12 @@ impl MailDirResolver {
             .write(true)
             .create(true)
             .open(format!(
-                "{}/{}_{:?}.json",
+                "{}/{}.json",
                 folder,
-                mail.timestamp
-                    .unwrap()
-                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
-                std::thread::current().id()
+                ctx.metadata.as_ref().unwrap().message_id,
             ))?;
 
-        std::io::Write::write_all(&mut to_process, serde_json::to_string(&mail)?.as_bytes())
+        std::io::Write::write_all(&mut to_process, serde_json::to_string(&ctx)?.as_bytes())
     }
 }
 
@@ -210,7 +205,6 @@ impl DataEndResolver for MailDirResolver {
         _config: &ServerConfig,
         mail: &MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error> {
-        // TODO: use temporary file unix syscall to generate temporary files
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
         //
@@ -224,8 +218,8 @@ impl DataEndResolver for MailDirResolver {
 
                 if let Err(error) = Self::write_to_maildir(
                     rcpt,
-                    &match mail.timestamp {
-                        Some(timestamp) => match timestamp.elapsed() {
+                    &match &mail.metadata {
+                        Some(metadata) => match metadata.timestamp.elapsed() {
                             Ok(elapsed) => elapsed.as_nanos().to_string(),
                             Err(error) => {
                                 log::error!("failed to deliver mail to '{}': {}", rcpt, error);

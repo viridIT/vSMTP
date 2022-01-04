@@ -22,11 +22,30 @@ pub struct ConnectionData {
     pub timestamp: std::time::SystemTime,
 }
 
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+pub struct MessageMetadata {
+    /// instant when the last "MAIL FROM" has been received.
+    pub timestamp: std::time::SystemTime,
+    /// unique id generated when the "MAIL FROM" has been received.
+    pub message_id: String,
+    /// number of times the mta tried to send the email.
+    pub retry: usize,
+}
+
+impl Default for MessageMetadata {
+    fn default() -> Self {
+        Self {
+            timestamp: std::time::SystemTime::now(),
+            message_id: Default::default(),
+            retry: Default::default(),
+        }
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
     pub connection: ConnectionData,
     pub envelop: super::envelop::Envelop,
     pub body: String,
-    // instant when the last "MAIL FROM" has been received
-    pub timestamp: Option<std::time::SystemTime>,
+    pub metadata: Option<MessageMetadata>,
 }

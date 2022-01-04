@@ -42,7 +42,7 @@ use super::address::Address;
 pub(super) mod vsl {
     use std::{collections::HashSet, net::SocketAddr};
 
-    use crate::{config::log::RULES, rules::address::Address};
+    use crate::{config::log::RULES, model::mail::MessageMetadata, rules::address::Address};
 
     /// enqueue a block operation on the queue.
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
@@ -173,7 +173,7 @@ pub(super) mod vsl {
         rcpt: HashSet<Address>,
         data: &str,
         connection_timestamp: std::time::SystemTime,
-        mail_timestamp: Option<std::time::SystemTime>,
+        metadata: Option<MessageMetadata>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
         if let Err(error) = std::fs::create_dir_all(path) {
@@ -205,7 +205,7 @@ pub(super) mod vsl {
                 timestamp: connection_timestamp,
             },
 
-            timestamp: mail_timestamp,
+            metadata,
         };
 
         std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
