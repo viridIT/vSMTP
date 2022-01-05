@@ -39,7 +39,8 @@ use super::address::Address;
 pub(super) mod vsl {
     use std::collections::HashSet;
 
-    use crate::{config::log::RULES, rules::address::Address, utils::generate_msg_id};
+    use crate::utils::generate_msg_id;
+    use crate::{config::log::RULES, model::mail::MessageMetadata, rules::address::Address};
 
     /// enqueue a block operation on the queue.
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
@@ -95,7 +96,7 @@ pub(super) mod vsl {
                 // the only writer on "objects" is called and unlocked
                 // at the start of the server, we can unwrap here.
                 let path = match acquire_engine().objects.read().unwrap().get(path) {
-                    // from_str is unfailable, we can unwrap.
+                    // from_str is infallible, we can unwrap.
                     Some(Object::Var(p)) => std::path::PathBuf::from_str(p.as_str()).unwrap(),
                     _ => std::path::PathBuf::from_str(path).unwrap(),
                 };
@@ -136,7 +137,7 @@ pub(super) mod vsl {
             return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
         }
 
-        // from_str is unfailable, we can unwrap.
+        // from_str is infallible, we can unwrap.
         let path = std::path::PathBuf::from_str(path).unwrap();
 
         match std::fs::OpenOptions::new()
@@ -170,7 +171,7 @@ pub(super) mod vsl {
         rcpt: HashSet<Address>,
         data: &str,
         _connection_timestamp: std::time::SystemTime,
-        mail_timestamp: Option<std::time::SystemTime>,
+        metadata: Option<MessageMetadata>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
         if let Err(error) = std::fs::create_dir_all(path) {
@@ -201,7 +202,12 @@ pub(super) mod vsl {
             //     peer_addr: SocketAddr::new(connect, port),
             //     timestamp: connection_timestamp,
             // },
-            timestamp: mail_timestamp,
+            // timestamp: mail_timestamp,
+            // connection: ConnectionData {
+            //     peer_addr: SocketAddr::new(connect, port),
+            //     timestamp: connection_timestamp,
+            // },
+            metadata,
         };
 
         std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())

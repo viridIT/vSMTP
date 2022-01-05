@@ -1,3 +1,19 @@
+/**
+ * vSMTP mail transfer agent
+ * Copyright (C) 2021 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+**/
 use crate::{
     config::{
         log::{RECEIVER, RULES},
@@ -7,7 +23,7 @@ use crate::{
     io_service::ReadError,
     model::{
         envelop::Envelop,
-        mail::{MailContext, MAIL_CAPACITY},
+        mail::{MailContext, MessageMetadata, MAIL_CAPACITY},
     },
     rules::{
         address::Address,
@@ -18,13 +34,6 @@ use crate::{
 
 const TIMEOUT_DEFAULT: u64 = 10_000; // 10s
 
-enum ProcessedEvent {
-    Nothing,
-    Reply(SMTPReplyCode),
-    ReplyChangeState(StateSMTP, SMTPReplyCode),
-    TransactionCompleted(MailContext),
-}
-
 pub struct Transaction<'re> {
     state: StateSMTP,
     mail: MailContext,
@@ -33,8 +42,16 @@ pub struct Transaction<'re> {
 
 pub enum TransactionResult {
     Nothing,
-    Mail(MailContext),
+    Mail(Box<MailContext>),
     TlsUpgrade,
+}
+
+// Generated from a string received
+enum ProcessedEvent {
+    Nothing,
+    Reply(SMTPReplyCode),
+    ReplyChangeState(StateSMTP, SMTPReplyCode),
+    TransactionCompleted(Box<MailContext>),
 }
 
 impl Transaction<'_> {
@@ -142,7 +159,7 @@ impl Transaction<'_> {
                 // TODO: store in envelop _body_bit_mime
 
                 self.mail.body = String::with_capacity(MAIL_CAPACITY);
-                self.set_mail_from(mail_from);
+                self.set_mail_from(mail_from, conn);
 
                 log::trace!(target: RECEIVER, "envelop=\"{:?}\"", self.mail.envelop,);
 
@@ -203,19 +220,7 @@ impl Transaction<'_> {
                 }
 
                 // executing all registered extensive operations.
-                if let Err(error) = self.rule_engine.execute_operation_queue(
-                    &self.mail,
-                    &format!(
-                        "{}_{:?}",
-                        self.mail
-                            .timestamp
-                            .unwrap()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis(),
-                        std::thread::current().id()
-                    ),
-                ) {
+                if let Err(error) = self.rule_engine.execute_operation_queue(&self.mail) {
                     log::error!(
                         target: RULES,
                         "failed to empty the operation queue: '{}'",
@@ -231,12 +236,12 @@ impl Transaction<'_> {
                     let mut output = MailContext {
                         envelop: Envelop::default(),
                         body: String::with_capacity(MAIL_CAPACITY),
-                        timestamp: None,
+                        metadata: None,
                     };
 
                     std::mem::swap(&mut self.mail, &mut output);
 
-                    ProcessedEvent::TransactionCompleted(output)
+                    ProcessedEvent::TransactionCompleted(Box::new(output))
                 } else {
                     ProcessedEvent::ReplyChangeState(StateSMTP::MailFrom, SMTPReplyCode::Code554)
                 }
@@ -267,38 +272,63 @@ impl Transaction<'_> {
             .add_data("helo", self.mail.envelop.helo.clone());
     }
 
-    fn set_mail_from(&mut self, mail_from: String) {
-        if let Ok(mail_from) = Address::new(&mail_from) {
-            self.mail.envelop.mail_from = mail_from;
-            self.mail.timestamp = Some(std::time::SystemTime::now());
-            self.mail.envelop.rcpt.clear();
-            self.rule_engine.reset();
+    fn set_mail_from<S>(&mut self, mail_from: String, conn: &Connection<'_, S>)
+    where
+        S: std::io::Write + std::io::Read,
+    {
+        match Address::new(&mail_from) {
+            Err(_) => (),
+            Ok(mail_from) => {
+                self.mail.envelop.mail_from = mail_from;
+                self.mail.envelop.rcpt.clear();
+                self.rule_engine.reset();
 
-            self.rule_engine
-                .add_data("mail", self.mail.envelop.mail_from.clone());
-            self.rule_engine
-                .add_data("mail_timestamp", self.mail.timestamp);
+                let now = std::time::SystemTime::now();
+
+                self.mail.metadata = Some(MessageMetadata {
+                    timestamp: now,
+                    // TODO: find a way to handle SystemTime failure.
+                    message_id: format!(
+                        "{}{}{}",
+                        now.duration_since(std::time::SystemTime::UNIX_EPOCH)
+                            .unwrap_or(std::time::Duration::ZERO)
+                            .as_micros(),
+                        conn.timestamp
+                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                            .unwrap_or(std::time::Duration::ZERO)
+                            .as_millis(),
+                        std::process::id()
+                    ),
+                    retry: 0,
+                });
+
+                self.rule_engine
+                    .add_data("mail", self.mail.envelop.mail_from.clone());
+                self.rule_engine
+                    .add_data("metadata", self.mail.metadata.clone());
+            }
         }
     }
 
     // FIXME: too many clone
     fn set_rcpt_to(&mut self, rcpt_to: String) {
-        if let Ok(rcpt_to) = Address::new(&rcpt_to) {
-            self.rule_engine.add_data("rcpt", rcpt_to.clone());
+        match Address::new(&rcpt_to) {
+            Err(_) => (),
+            Ok(rcpt_to) => {
+                self.rule_engine.add_data("rcpt", rcpt_to.clone());
 
-            match self
-                .rule_engine
-                .get_data::<std::collections::HashSet<Address>>("rcpts")
-            {
-                Some(mut rcpts) => {
-                    rcpts.insert(rcpt_to);
-                    self.mail.envelop.rcpt = rcpts.clone();
-                    self.rule_engine.add_data("rcpts", rcpts.clone());
-                }
-                None => unreachable!("rcpts is injected by the default scope"),
-            };
-        } else {
-            log::error!(target: RECEIVER, "rcpt's email address is invalid.");
+                match self
+                    .rule_engine
+                    .get_data::<std::collections::HashSet<Address>>("rcpts")
+                {
+                    Some(mut rcpts) => {
+                        rcpts.insert(rcpt_to);
+                        self.mail.envelop.rcpt = rcpts.clone();
+                        self.rule_engine.add_data("rcpts", rcpts.clone());
+                    }
+                    None => unreachable!("rcpts is injected by the default scope"),
+                };
+            }
         }
     }
 }
@@ -337,7 +367,7 @@ impl Transaction<'_> {
             mail: MailContext {
                 envelop: Envelop::default(),
                 body: String::with_capacity(MAIL_CAPACITY),
-                timestamp: None,
+                metadata: None,
             },
             rule_engine: RuleEngine::new(conn.config.as_ref()),
         };

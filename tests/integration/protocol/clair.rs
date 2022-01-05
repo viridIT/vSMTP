@@ -30,6 +30,7 @@ mod tests {
                     std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                 );
                 assert_eq!(ctx.body, "");
+                assert!(ctx.metadata.is_some());
 
                 Ok(SMTPReplyCode::Code250)
             }
@@ -381,6 +382,7 @@ mod tests {
                             std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                         );
                         assert_eq!(ctx.body, "mail one\n");
+                        assert!(ctx.metadata.is_some());
                     }
                     1 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
@@ -470,6 +472,7 @@ mod tests {
                             std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
                         );
                         assert_eq!(ctx.body, "mail two\n");
+                        assert!(ctx.metadata.is_some());
                     }
                     _ => panic!(),
                 }

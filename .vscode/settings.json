@@ -27,6 +27,7 @@
         "rustls",
         "SMTPUTF",
         "STARTTLS",
+        "unencrypted",
         "viridit",
         "vmta",
         "Vrfy",

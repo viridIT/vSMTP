@@ -16,11 +16,9 @@
 **/
 use crate::rules::address::Address;
 
-use std::collections::HashSet;
-
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Envelop {
     pub helo: String,
     pub mail_from: Address,
-    pub rcpt: HashSet<Address>,
+    pub rcpt: std::collections::HashSet<Address>,
 }
