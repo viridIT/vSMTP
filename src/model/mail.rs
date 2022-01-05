@@ -17,15 +17,6 @@
 
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
-/*
-#[derive(Copy, Clone, serde::Deserialize, serde::Serialize)]
-pub struct ConnectionData {
-    pub peer_addr: std::net::SocketAddr,
-    // instant when connection being treated
-    pub timestamp: std::time::SystemTime,
-}
-*/
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MessageMetadata {
     /// instant when the last "MAIL FROM" has been received.
@@ -49,7 +40,6 @@ impl Default for MessageMetadata {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
-    // pub connection: ConnectionData,
     pub envelop: super::envelop::Envelop,
     pub body: String,
     pub metadata: Option<MessageMetadata>,

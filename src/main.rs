@@ -18,7 +18,6 @@ use vsmtp::config::server_config::ServerConfig;
 use vsmtp::resolver::MailDirResolver;
 use vsmtp::rules::rule_engine;
 
-/// Simple program to greet a person
 #[derive(clap::Parser, Debug)]
 #[clap(about, version, author)]
 struct Args {

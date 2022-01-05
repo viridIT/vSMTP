@@ -162,15 +162,11 @@ pub(super) mod vsl {
     /// for example, dumping during the rcpt stage will leave the data
     /// field empty.
     #[rhai_fn(name = "__DUMP", return_raw)]
-    #[allow(clippy::too_many_arguments)]
     pub fn dump(
-        _connect: IpAddr,
-        _port: u16,
         helo: &str,
         mail: Address,
         rcpt: HashSet<Address>,
         data: &str,
-        _connection_timestamp: std::time::SystemTime,
         metadata: Option<MessageMetadata>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
@@ -198,15 +194,6 @@ pub(super) mod vsl {
                 rcpt,
             },
             body: data.into(),
-            // connection: ConnectionData {
-            //     peer_addr: SocketAddr::new(connect, port),
-            //     timestamp: connection_timestamp,
-            // },
-            // timestamp: mail_timestamp,
-            // connection: ConnectionData {
-            //     peer_addr: SocketAddr::new(connect, port),
-            //     timestamp: connection_timestamp,
-            // },
             metadata,
         };
 
