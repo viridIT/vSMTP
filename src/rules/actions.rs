@@ -245,6 +245,35 @@ pub(super) mod vsl {
         }
     }
 
+    #[rhai_fn(name = "__R_LOOKUP", return_raw)]
+    pub fn reverse_lookup(object: &str, port: i64) -> Result<String, Box<EvalAltResult>> {
+        match acquire_engine().objects.read().unwrap().get(object) {
+            Some(Object::Ip4(addr)) => crate::rules::rule_engine::reverse_lookup(&SocketAddr::new(
+                std::net::IpAddr::V4(*addr),
+                port as u16,
+            ))
+            .map_err(|error| {
+                format!("couldn't process reverse lookup using ipv4: {}", error).into()
+            }),
+
+            Some(Object::Ip6(addr)) => crate::rules::rule_engine::reverse_lookup(&SocketAddr::new(
+                std::net::IpAddr::V6(*addr),
+                port as u16,
+            ))
+            .map_err(|error| {
+                format!("couldn't process reverse lookup using ipv6: {}", error).into()
+            }),
+
+            _ => match SocketAddr::from_str(&format!("{}:{}", object, port)) {
+                Ok(socket) => crate::rules::rule_engine::reverse_lookup(&socket)
+                    .map_err(|error| format!("couldn't process reverse lookup: {}", error).into()),
+                Err(error) => {
+                    Err(format!("couldn't process reverse lookup for {}: {}", object, error).into())
+                }
+            },
+        }
+    }
+
     #[rhai_fn(name = "==")]
     pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
         *in1 == in2
