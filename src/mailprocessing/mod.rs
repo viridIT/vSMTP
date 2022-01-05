@@ -16,17 +16,3 @@
 **/
 pub mod io_service;
 pub mod state;
-
-pub mod utils {
-    pub fn generate_msg_id() -> String {
-        format!(
-            "{}_{:?}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                // TODO: remove unwrap.
-                .unwrap()
-                .as_millis(),
-            std::thread::current().id()
-        )
-    }
-}

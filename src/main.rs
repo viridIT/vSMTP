@@ -18,28 +18,22 @@ use vsmtp::config::server_config::ServerConfig;
 use vsmtp::resolver::MailDirResolver;
 use vsmtp::rules::rule_engine;
 
+/// Simple program to greet a person
+#[derive(clap::Parser, Debug)]
+#[clap(about, version, author)]
+struct Args {
+    #[clap(short, long)]
+    config: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = clap::App::new("vSMTP")
-        .version(env!("CARGO_PKG_VERSION", "no option provided"))
-        .author("ViridIT https://www.viridit.com")
-        .about("vSMTP : the next-gen MTA")
-        .arg(
-            clap::Arg::with_name("config")
-                .short("-c")
-                .long("--config")
-                .takes_value(true)
-                .default_value("/etc/vsmtp/config.toml"),
-        )
-        .get_matches();
+    let args = <Args as clap::StructOpt>::parse();
 
-    let config = args
-        .value_of("config")
-        .expect("clap should provide default value");
-    log::warn!("Loading with configuration: \"{:?}\"", config);
+    log::warn!("Loading with configuration: \"{:?}\"", args.config);
 
     let config: ServerConfig =
-        toml::from_str(&std::fs::read_to_string(config).expect("cannot read file"))
+        toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
             .expect("cannot parse config from toml");
 
     MailDirResolver::init_spool_folder(&config.smtp.spool_dir)

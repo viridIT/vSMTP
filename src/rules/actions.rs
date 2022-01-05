@@ -39,7 +39,7 @@ use super::address::Address;
 pub(super) mod vsl {
     use std::collections::HashSet;
 
-    use crate::{config::log::RULES, rules::address::Address};
+    use crate::{config::log::RULES, rules::address::Address, utils::generate_msg_id};
 
     /// enqueue a block operation on the queue.
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
@@ -163,13 +163,13 @@ pub(super) mod vsl {
     #[rhai_fn(name = "__DUMP", return_raw)]
     #[allow(clippy::too_many_arguments)]
     pub fn dump(
-        connect: IpAddr,
-        port: u16,
+        _connect: IpAddr,
+        _port: u16,
         helo: &str,
         mail: Address,
         rcpt: HashSet<Address>,
         data: &str,
-        connection_timestamp: std::time::SystemTime,
+        _connection_timestamp: std::time::SystemTime,
         mail_timestamp: Option<std::time::SystemTime>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
@@ -180,7 +180,7 @@ pub(super) mod vsl {
         let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
             // Error is of type Infallible, we can unwrap.
             let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(crate::mailprocessing::utils::generate_msg_id());
+            path.push(generate_msg_id());
             path.set_extension("json");
             path
         }) {

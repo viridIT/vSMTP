@@ -16,7 +16,7 @@
  **/
 pub mod config;
 pub mod connection;
-pub mod mailprocessing;
+pub mod io_service;
 pub mod model;
 pub mod resolver;
 pub mod rules;
@@ -37,4 +37,18 @@ macro_rules! collection {
         use std::iter::{Iterator, IntoIterator};
         Iterator::collect(IntoIterator::into_iter([$($v,)*]))
     }};
+}
+
+pub mod utils {
+    pub fn generate_msg_id() -> String {
+        format!(
+            "{}_{:?}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                // TODO: remove unwrap.
+                .unwrap()
+                .as_millis(),
+            std::thread::current().id()
+        )
+    }
 }

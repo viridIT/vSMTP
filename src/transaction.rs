@@ -4,7 +4,7 @@ use crate::{
         server_config::TlsSecurityLevel,
     },
     connection::Connection,
-    mailprocessing::{io_service::ReadError, state::StateSMTP},
+    io_service::ReadError,
     model::{
         envelop::Envelop,
         mail::{MailContext, MAIL_CAPACITY},
@@ -13,7 +13,7 @@ use crate::{
         address::Address,
         rule_engine::{RuleEngine, Status},
     },
-    smtp::{code::SMTPReplyCode, event::Event},
+    smtp::{code::SMTPReplyCode, event::Event, state::StateSMTP},
 };
 
 const TIMEOUT_DEFAULT: u64 = 10_000; // 10s

@@ -1,6 +1,6 @@
 use crate::{
     config::{log::RECEIVER, server_config::ServerConfig},
-    mailprocessing::io_service::{IoService, ReadError},
+    io_service::{IoService, ReadError},
     smtp::code::SMTPReplyCode,
 };
 

@@ -1,7 +1,7 @@
 use crate::{
-    config::server_config::ServerConfig, connection::Connection,
-    mailprocessing::io_service::IoService, model::mail::MailContext, resolver::DataEndResolver,
-    server::handle_client, smtp::code::SMTPReplyCode,
+    config::server_config::ServerConfig, connection::Connection, io_service::IoService,
+    model::mail::MailContext, resolver::DataEndResolver, server::handle_client,
+    smtp::code::SMTPReplyCode,
 };
 
 pub struct Mock<'a> {
