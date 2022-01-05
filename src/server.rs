@@ -19,6 +19,7 @@ use crate::config::log::RECEIVER;
 use crate::config::server_config::{ServerConfig, TlsSecurityLevel};
 use crate::connection::Connection;
 use crate::mailprocessing::io_service::IoService;
+use crate::mailprocessing::state::StateSMTP;
 use crate::resolver::DataEndResolver;
 use crate::smtp::code::SMTPReplyCode;
 use crate::transaction::Transaction;
@@ -300,9 +301,12 @@ where
 
                         let mut io_plain = IoService::new(&mut stream);
 
-                        let mut conn =
-                            Connection::from_plain(client_addr, config, &mut io_plain, tls_config)?;
-                        handle_client::<R, std::net::TcpStream>(&mut conn)
+                        let mut conn = Connection::<std::net::TcpStream>::from_plain(
+                            client_addr,
+                            config,
+                            &mut io_plain,
+                        )?;
+                        handle_client::<R, std::net::TcpStream>(&mut conn, tls_config)
                             .await
                             .map(|_| {
                                 log::warn!(
@@ -328,54 +332,78 @@ where
     }
 }
 
-async fn handle_client<'a, 'b, R, S>(conn: &'a mut Connection<'b, S>) -> Result<(), std::io::Error>
-where
-    R: crate::resolver::DataEndResolver,
-    S: std::io::Read + std::io::Write,
-{
-    conn.send_code(SMTPReplyCode::Code220)?;
-
-    while conn.is_alive {
-        if let Some(mail) = Transaction::receive(conn).await? {
-            let code = R::on_data_end(&conn.config, &mail).await?;
-            conn.send_code(code)?;
-        } else {
-            return handle_client_secured::<R, S>(conn).await;
-        }
-    }
-
-    Ok(())
-}
-
-async fn handle_client_secured<'a, 'b, R, S>(
-    conn: &'a mut Connection<'b, S>,
+pub async fn handle_client<R, S>(
+    conn: &mut Connection<'_, S>,
+    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
 ) -> Result<(), std::io::Error>
 where
     R: crate::resolver::DataEndResolver,
     S: std::io::Read + std::io::Write,
 {
-    if let Some(tls_config) = &mut conn.tls_config {
-        let tls_conn = rustls::ServerConnection::new(tls_config.clone()).unwrap();
-        let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
-        let mut io_tls_stream = IoService::new(&mut tls_stream);
+    let mut helo_domain = None;
 
-        let mut secured_conn = conn.upgrade_tls(&mut io_tls_stream)?;
+    conn.send_code(SMTPReplyCode::Code220)?;
 
-        log::debug!(
-            target: RECEIVER,
-        "protocol_version={:#?}\n alpn_protocol={:#?}\n negotiated_cipher_suite={:#?}\n peer_certificates={:#?}\n sni_hostname={:#?}",
-
-            tls_conn.protocol_version(),
-            tls_conn.alpn_protocol(),
-            tls_conn.negotiated_cipher_suite(),
-            tls_conn.peer_certificates(),
-            tls_conn.sni_hostname(),
-        );
-
-        while conn.is_alive {
-            if let Some(mail) = Transaction::receive(&mut secured_conn).await? {
-                let code = R::on_data_end(&secured_conn.config, &mail).await?;
+    while conn.is_alive {
+        match Transaction::receive(conn, &helo_domain).await? {
+            crate::transaction::TransactionResult::Nothing => {}
+            crate::transaction::TransactionResult::Mail(mail) => {
+                helo_domain = Some(mail.envelop.helo.clone());
+                let code = R::on_data_end(&conn.config, &mail).await?;
                 conn.send_code(code)?;
+            }
+            crate::transaction::TransactionResult::TlsUpgrade if tls_config.is_none() => {
+                conn.send_code(SMTPReplyCode::Code454)?;
+                conn.send_code(SMTPReplyCode::Code221)?;
+                return Ok(());
+            }
+            crate::transaction::TransactionResult::TlsUpgrade => {
+                let mut tls_conn = rustls::ServerConnection::new(tls_config.unwrap()).unwrap();
+                let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
+                let mut io_tls_stream = IoService::new(&mut tls_stream);
+
+                Connection::<IoService<'_, S>>::complete_tls_handshake(
+                    &mut io_tls_stream,
+                    &conn.config.tls.handshake_timeout,
+                )?;
+
+                let mut secured_conn = Connection {
+                    timestamp: conn.timestamp,
+                    is_alive: true,
+                    config: conn.config.clone(),
+                    client_addr: conn.client_addr,
+                    error_count: conn.error_count,
+                    is_secured: true,
+                    io_stream: &mut io_tls_stream,
+                };
+
+                let conn = &secured_conn.io_stream.inner.conn;
+
+                log::debug!(
+                    target: RECEIVER,
+                        "protocol_version={:#?}\n alpn_protocol={:#?}\n negotiated_cipher_suite={:#?}\n peer_certificates={:#?}\n sni_hostname={:#?}",
+
+                    conn.protocol_version(),
+                    conn.alpn_protocol(),
+                    conn.negotiated_cipher_suite(),
+                    conn.peer_certificates(),
+                    conn.sni_hostname(),
+                );
+
+                let mut secured_helo_domain = None;
+
+                while secured_conn.is_alive {
+                    match Transaction::receive(&mut secured_conn, &secured_helo_domain).await? {
+                        crate::transaction::TransactionResult::Nothing => {}
+                        crate::transaction::TransactionResult::Mail(mail) => {
+                            secured_helo_domain = Some(mail.envelop.helo.clone());
+                            let code = R::on_data_end(&secured_conn.config, &mail).await?;
+                            secured_conn.send_code(code)?;
+                        }
+                        crate::transaction::TransactionResult::TlsUpgrade => todo!(),
+                    }
+                }
+                return Ok(());
             }
         }
     }

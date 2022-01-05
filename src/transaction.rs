@@ -31,6 +31,12 @@ pub struct Transaction<'re> {
     rule_engine: RuleEngine<'re>,
 }
 
+pub enum TransactionResult {
+    Nothing,
+    Mail(MailContext),
+    TlsUpgrade,
+}
+
 impl Transaction<'_> {
     fn parse_and_apply_and_get_reply<S: std::io::Read + std::io::Write>(
         &mut self,
@@ -300,7 +306,8 @@ impl Transaction<'_> {
 impl Transaction<'_> {
     pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write>(
         conn: &'a mut Connection<'b, S>,
-    ) -> std::io::Result<Option<MailContext>> {
+        helo_domain: &Option<String>,
+    ) -> std::io::Result<TransactionResult> {
         // TODO: move that cleanly in config
         let smtp_timeouts = conn
             .config
@@ -322,7 +329,11 @@ impl Transaction<'_> {
             .collect::<std::collections::HashMap<_, _>>();
 
         let mut transaction = Transaction {
-            state: StateSMTP::Connect,
+            state: if helo_domain.is_none() {
+                StateSMTP::Connect
+            } else {
+                StateSMTP::Helo
+            },
             mail: MailContext {
                 envelop: Envelop::default(),
                 body: String::with_capacity(MAIL_CAPACITY),
@@ -332,6 +343,10 @@ impl Transaction<'_> {
         };
 
         transaction.set_connect(conn);
+
+        if let Some(helo) = helo_domain.as_ref().cloned() {
+            transaction.set_helo(helo)
+        }
 
         if let Status::Deny = transaction.rule_engine.run_when("connect") {
             return Err(std::io::Error::new(
@@ -349,7 +364,7 @@ impl Transaction<'_> {
 
         while transaction.state != StateSMTP::Stop {
             if transaction.state == StateSMTP::NegotiationTLS {
-                return Ok(None);
+                return Ok(TransactionResult::TlsUpgrade);
             }
             match conn.read(read_timeout).await {
                 Ok(Ok(client_message)) => {
@@ -370,7 +385,9 @@ impl Transaction<'_> {
                                 .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
                             conn.send_code(reply_to_send)?;
                         }
-                        ProcessedEvent::TransactionCompleted(mail) => return Ok(Some(mail)),
+                        ProcessedEvent::TransactionCompleted(mail) => {
+                            return Ok(TransactionResult::Mail(mail))
+                        }
                         ProcessedEvent::Nothing => {}
                     }
                 }
@@ -391,6 +408,6 @@ impl Transaction<'_> {
         }
 
         conn.is_alive = false;
-        Ok(None)
+        Ok(TransactionResult::Nothing)
     }
 }

@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
+    use crate::integration::protocol::get_test_config;
+    use vsmtp::test_helpers::test_receiver;
     use vsmtp::{
         config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
         rules::address::Address, smtp::code::SMTPReplyCode,
     };
-
-    use crate::integration::protocol::{get_test_config, make_test};
 
     macro_rules! test_lang {
         ($lang_code:expr) => {{
@@ -28,7 +28,7 @@ mod tests {
                 }
             }
 
-            assert!(make_test::<T>(
+            assert!(test_receiver::<T>(
                 [
                     "HELO foobar\r\n",
                     "MAIL FROM:<john@doe>\r\n",

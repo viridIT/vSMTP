@@ -4,11 +4,15 @@ mod tests {
     use std::collections::HashSet;
 
     use vsmtp::{
-        config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
-        rules::address::Address, smtp::code::SMTPReplyCode,
+        config::server_config::ServerConfig,
+        model::mail::MailContext,
+        resolver::DataEndResolver,
+        rules::address::Address,
+        smtp::code::SMTPReplyCode,
+        test_helpers::{test_receiver, DefaultResolverTest},
     };
 
-    use crate::integration::protocol::{get_test_config, make_test, DefaultResolverTest};
+    use crate::integration::protocol::get_test_config;
 
     #[tokio::test]
     async fn test_receiver_rset_1() {
@@ -32,7 +36,7 @@ mod tests {
             }
         }
 
-        assert!(make_test::<T>(
+        assert!(test_receiver::<T>(
             [
                 "HELO foo\r\n",
                 "RSET\r\n",
@@ -63,7 +67,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_rset_2() {
-        assert!(make_test::<DefaultResolverTest>(
+        assert!(test_receiver::<DefaultResolverTest>(
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -89,7 +93,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_rset_3() {
-        assert!(make_test::<DefaultResolverTest>(
+        assert!(test_receiver::<DefaultResolverTest>(
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -137,7 +141,7 @@ mod tests {
             }
         }
 
-        assert!(make_test::<T>(
+        assert!(test_receiver::<T>(
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -187,7 +191,7 @@ mod tests {
             }
         }
 
-        assert!(make_test::<T>(
+        assert!(test_receiver::<T>(
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<foo@foo>\r\n",
@@ -238,7 +242,7 @@ mod tests {
             }
         }
 
-        assert!(make_test::<T>(
+        assert!(test_receiver::<T>(
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<foo@foo>\r\n",

@@ -4,9 +4,8 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
 use vsmtp::{
-    config::server_config::ServerConfig, mailprocessing::mail_receiver::MailReceiver,
-    model::mail::MailContext, resolver::DataEndResolver, rules::address::Address,
-    smtp::code::SMTPReplyCode, tests::Mock,
+    config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
+    rules::address::Address, smtp::code::SMTPReplyCode, test_helpers::test_receiver,
 };
 
 struct DefaultResolverTest;
@@ -31,27 +30,7 @@ fn make_bench<R: vsmtp::resolver::DataEndResolver>(
 ) {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
-            let mut config = config.clone();
-            config.prepare();
-
-            let mut receiver = MailReceiver::<R>::new(
-                "0.0.0.0:0".parse().unwrap(),
-                None,
-                std::sync::Arc::new(config),
-            );
-            let mut write = Vec::new();
-            let mock = Mock::new(input.to_vec(), &mut write);
-
-            match receiver.receive_plain(mock).await {
-                Ok(mut mock) => {
-                    let _ = std::io::Write::flush(&mut mock);
-                    assert_eq!(
-                        std::str::from_utf8(&write),
-                        std::str::from_utf8(&output.to_vec())
-                    );
-                }
-                Err(e) => panic!("{}", e),
-            }
+            let _ = test_receiver::<R>(input, output, config.clone()).await;
         })
 }
 
