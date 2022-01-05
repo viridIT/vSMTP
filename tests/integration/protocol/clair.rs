@@ -17,9 +17,16 @@ mod tests {
     async fn test_receiver_1() {
         struct T;
 
+        impl Default for T {
+            fn default() -> Self {
+                Self {}
+            }
+        }
+
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -361,19 +368,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_13() {
-        struct T;
+        struct T {
+            count: u32,
+        }
 
-        static mut COUNT: u32 = 0;
+        impl Default for T {
+            fn default() -> Self {
+                Self { count: 0 }
+            }
+        }
 
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
-                let count = unsafe { COUNT };
-
-                match count {
+                match self.count {
                     0 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
                         assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
@@ -396,7 +408,7 @@ mod tests {
                     _ => panic!(),
                 }
 
-                unsafe { COUNT += 1 };
+                self.count += 1;
 
                 Ok(SMTPReplyCode::Code250)
             }
@@ -442,19 +454,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_14() {
-        struct T;
+        struct T {
+            count: u32,
+        }
 
-        static mut COUNT: u32 = 0;
+        impl Default for T {
+            fn default() -> Self {
+                Self { count: 0 }
+            }
+        }
 
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
-                let count = unsafe { COUNT };
-
-                match count {
+                match self.count {
                     0 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
                         assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
@@ -477,7 +494,7 @@ mod tests {
                     _ => panic!(),
                 }
 
-                unsafe { COUNT += 1 };
+                self.count += 1;
 
                 Ok(SMTPReplyCode::Code250)
             }

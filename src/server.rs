@@ -35,7 +35,7 @@ where
 
 impl<R: 'static> ServerVSMTP<R>
 where
-    R: DataEndResolver + std::marker::Send,
+    R: DataEndResolver + std::marker::Send + std::default::Default,
 {
     pub async fn new(
         config: std::sync::Arc<ServerConfig>,
@@ -336,9 +336,10 @@ pub async fn handle_client<R, S>(
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
 ) -> Result<(), std::io::Error>
 where
-    R: crate::resolver::DataEndResolver,
+    R: crate::resolver::DataEndResolver + std::default::Default,
     S: std::io::Read + std::io::Write,
 {
+    let mut resolver: R = R::default();
     let mut helo_domain = None;
 
     conn.send_code(SMTPReplyCode::Code220)?;
@@ -348,7 +349,7 @@ where
             crate::transaction::TransactionResult::Nothing => {}
             crate::transaction::TransactionResult::Mail(mail) => {
                 helo_domain = Some(mail.envelop.helo.clone());
-                let code = R::on_data_end(&conn.config, &mail).await?;
+                let code = resolver.on_data_end(&conn.config, &mail).await?;
                 conn.send_code(code)?;
             }
             crate::transaction::TransactionResult::TlsUpgrade if tls_config.is_none() => {
@@ -396,7 +397,7 @@ where
                         crate::transaction::TransactionResult::Nothing => {}
                         crate::transaction::TransactionResult::Mail(mail) => {
                             secured_helo_domain = Some(mail.envelop.helo.clone());
-                            let code = R::on_data_end(&secured_conn.config, &mail).await?;
+                            let code = resolver.on_data_end(&secured_conn.config, &mail).await?;
                             secured_conn.send_code(code)?;
                         }
                         crate::transaction::TransactionResult::TlsUpgrade => todo!(),

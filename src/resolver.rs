@@ -24,6 +24,7 @@ use crate::{
 #[async_trait::async_trait]
 pub trait DataEndResolver {
     async fn on_data_end(
+        &mut self,
         config: &ServerConfig,
         mail: &MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error>;
@@ -33,6 +34,13 @@ pub trait DataEndResolver {
 struct Wrapper(usize);
 
 pub struct MailDirResolver;
+
+impl Default for MailDirResolver {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
 impl MailDirResolver {
     pub fn init_spool_folder(path: &str) -> Result<std::path::PathBuf, std::io::Error> {
         // will never crash, we can unwrap.
@@ -195,6 +203,7 @@ fn chown_file(path: &std::path::Path, user: &users::User) -> std::io::Result<()>
 #[async_trait::async_trait]
 impl DataEndResolver for MailDirResolver {
     async fn on_data_end(
+        &mut self,
         _config: &ServerConfig,
         mail: &MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error> {

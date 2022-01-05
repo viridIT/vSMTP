@@ -18,9 +18,16 @@ mod tests {
     async fn test_receiver_rset_1() {
         struct T;
 
+        impl Default for T {
+            fn default() -> Self {
+                Self {}
+            }
+        }
+
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -123,9 +130,16 @@ mod tests {
     async fn test_receiver_rset_4() {
         struct T;
 
+        impl Default for T {
+            fn default() -> Self {
+                Self {}
+            }
+        }
+
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -173,9 +187,16 @@ mod tests {
     async fn test_receiver_rset_5() {
         struct T;
 
+        impl Default for T {
+            fn default() -> Self {
+                Self {}
+            }
+        }
+
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -221,9 +242,16 @@ mod tests {
     async fn test_receiver_rset_6() {
         struct T;
 
+        impl Default for T {
+            fn default() -> Self {
+                Self {}
+            }
+        }
+
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {

@@ -11,9 +11,16 @@ mod tests {
         ($lang_code:expr) => {{
             struct T;
 
+            impl Default for T {
+                fn default() -> Self {
+                    Self {}
+                }
+            }
+
             #[async_trait::async_trait]
             impl DataEndResolver for T {
                 async fn on_data_end(
+                    &mut self,
                     _: &ServerConfig,
                     ctx: &MailContext,
                 ) -> Result<SMTPReplyCode, std::io::Error> {

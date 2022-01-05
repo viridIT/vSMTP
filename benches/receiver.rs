@@ -10,9 +10,16 @@ use vsmtp::{
 
 struct DefaultResolverTest;
 
+impl Default for DefaultResolverTest {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
 #[async_trait::async_trait]
 impl DataEndResolver for DefaultResolverTest {
     async fn on_data_end(
+        &mut self,
         _: &ServerConfig,
         _: &MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -24,7 +31,7 @@ fn get_test_config() -> ServerConfig {
     toml::from_str(include_str!("bench.config.toml")).expect("cannot parse config from toml")
 }
 
-fn make_bench<R: vsmtp::resolver::DataEndResolver>(
+fn make_bench<R: vsmtp::resolver::DataEndResolver + std::default::Default>(
     b: &mut Bencher<WallTime>,
     (input, output, config): &(&[u8], &[u8], ServerConfig),
 ) {
@@ -38,9 +45,16 @@ fn criterion_benchmark(c: &mut Criterion) {
     {
         struct T;
 
+        impl Default for T {
+            fn default() -> Self {
+                Self {}
+            }
+        }
+
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {

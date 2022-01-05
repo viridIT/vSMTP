@@ -52,9 +52,16 @@ impl std::io::Read for Mock<'_> {
 
 pub struct DefaultResolverTest;
 
+impl Default for DefaultResolverTest {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
 #[async_trait::async_trait]
 impl DataEndResolver for DefaultResolverTest {
     async fn on_data_end(
+        &mut self,
         _: &ServerConfig,
         _: &MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -62,7 +69,7 @@ impl DataEndResolver for DefaultResolverTest {
     }
 }
 
-pub async fn test_receiver<T: DataEndResolver>(
+pub async fn test_receiver<T: DataEndResolver + std::default::Default>(
     smtp_input: &[u8],
     expected_output: &[u8],
     mut config: ServerConfig,

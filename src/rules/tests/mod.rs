@@ -58,7 +58,7 @@ pub mod helpers {
     /// to reset the engine, `users` needed to run the test successfuly,
     /// (using the *users* crate) the commands to send to the state machine
     /// and the expected output of the server.
-    pub async fn run_integration_engine_test<T: DataEndResolver>(
+    pub async fn run_integration_engine_test<T: DataEndResolver + std::default::Default>(
         src_path: &str,
         config_path: &str,
         users: users::mock::MockUsers,

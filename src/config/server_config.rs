@@ -116,7 +116,7 @@ impl ServerConfig {
 
     pub async fn build<R: 'static>(mut self) -> ServerVSMTP<R>
     where
-        R: DataEndResolver + std::marker::Send,
+        R: DataEndResolver + std::marker::Send + std::default::Default,
     {
         self.prepare();
         ServerVSMTP::<R>::new(std::sync::Arc::new(self))
