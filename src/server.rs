@@ -276,16 +276,13 @@ impl ServerVSMTP {
 }
 
 impl ServerVSMTP {
-    pub async fn listen_and_serve<R>(&self) -> Result<(), Box<dyn std::error::Error>>
+    pub async fn listen_and_serve<R>(
+        &self,
+        resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
+    ) -> std::io::Result<()>
     where
-        R: DataEndResolver
-            + std::default::Default
-            + std::marker::Send
-            + std::marker::Sync
-            + 'static,
+        R: DataEndResolver + std::marker::Send + std::marker::Sync + 'static,
     {
-        let resolver = std::sync::Arc::new(tokio::sync::Mutex::new(R::default()));
-
         loop {
             match self.listener.accept().await {
                 Ok((stream, client_addr)) => {
@@ -342,7 +339,7 @@ impl ServerVSMTP {
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     ) -> Result<(), std::io::Error>
     where
-        R: crate::resolver::DataEndResolver + std::default::Default,
+        R: crate::resolver::DataEndResolver,
         S: std::io::Read + std::io::Write,
     {
         let mut helo_domain = None;

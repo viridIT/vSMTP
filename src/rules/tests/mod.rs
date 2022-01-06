@@ -51,14 +51,15 @@ pub mod helpers {
 
     /// the rule engine uses a special architecture using a static variable
     /// to optimize performances. thus, it is difficult to test.
-    /// this function wrapps emulates the behavior of vsmtp's state machine
+    /// this function wraps emulates the behavior of vsmtp's state machine
     /// while using a fresh rule engine for every tests.
     ///
     /// it takes the sources (`src_path`) and configuration (`config_path`) paths of the script used
-    /// to reset the engine, `users` needed to run the test successfuly,
+    /// to reset the engine, `users` needed to run the test successfully,
     /// (using the *users* crate) the commands to send to the state machine
     /// and the expected output of the server.
-    pub async fn run_integration_engine_test<T: DataEndResolver + std::default::Default>(
+    pub async fn run_integration_engine_test<T: DataEndResolver>(
+        resolver: T,
         src_path: &str,
         config_path: &str,
         users: users::mock::MockUsers,
@@ -93,7 +94,13 @@ pub mod helpers {
             .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &reader.ast)
             .expect("could not initialize the rule engine");
 
-        test_receiver::<T>(smtp_input, expected_output, config).await
+        test_receiver(
+            std::sync::Arc::new(tokio::sync::Mutex::new(resolver)),
+            smtp_input,
+            expected_output,
+            config,
+        )
+        .await
     }
 
     fn get_logger_config(config: &ServerConfig) -> Result<log4rs::Config, std::io::Error> {

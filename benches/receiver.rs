@@ -10,12 +10,6 @@ use vsmtp::{
 
 struct DefaultResolverTest;
 
-impl Default for DefaultResolverTest {
-    fn default() -> Self {
-        Self {}
-    }
-}
-
 #[async_trait::async_trait]
 impl DataEndResolver for DefaultResolverTest {
     async fn on_data_end(
@@ -31,25 +25,20 @@ fn get_test_config() -> ServerConfig {
     toml::from_str(include_str!("bench.config.toml")).expect("cannot parse config from toml")
 }
 
-fn make_bench<R: vsmtp::resolver::DataEndResolver + std::default::Default>(
+fn make_bench<R: vsmtp::resolver::DataEndResolver>(
+    resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
     b: &mut Bencher<WallTime>,
     (input, output, config): &(&[u8], &[u8], ServerConfig),
 ) {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
-            let _ = test_receiver::<R>(input, output, config.clone()).await;
+            let _ = test_receiver(resolver.clone(), input, output, config.clone()).await;
         })
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
     {
         struct T;
-
-        impl Default for T {
-            fn default() -> Self {
-                Self {}
-            }
-        }
 
         #[async_trait::async_trait]
         impl DataEndResolver for T {
@@ -96,7 +85,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 .as_bytes(),
                 get_test_config(),
             ),
-            |b, input| make_bench::<T>(b, input),
+            |b, input| make_bench(std::sync::Arc::new(tokio::sync::Mutex::new(T {})), b, input),
         );
     }
 
@@ -112,7 +101,13 @@ fn criterion_benchmark(c: &mut Criterion) {
             .as_bytes(),
             get_test_config(),
         ),
-        |b, input| make_bench::<DefaultResolverTest>(b, input),
+        |b, input| {
+            make_bench(
+                std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest {})),
+                b,
+                input,
+            )
+        },
     );
 }
 

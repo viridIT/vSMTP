@@ -6,7 +6,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_valid_helo() {
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/helo/valid_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -18,7 +19,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/helo/valid_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -36,7 +38,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_types_helo() {
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/helo/regex_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -48,7 +51,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/helo/regex_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -63,7 +67,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -75,7 +80,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -90,7 +96,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),

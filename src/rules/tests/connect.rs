@@ -6,7 +6,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_connect_rules() {
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/connect/valid_connect.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -16,7 +17,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/connect/invalid_connect.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),

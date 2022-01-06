@@ -18,12 +18,6 @@ mod tests {
     async fn test_receiver_rset_1() {
         struct T;
 
-        impl Default for T {
-            fn default() -> Self {
-                Self {}
-            }
-        }
-
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
@@ -44,6 +38,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
                 "RSET\r\n",
@@ -75,6 +70,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_rset_2() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -101,6 +97,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_rset_3() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -130,12 +127,6 @@ mod tests {
     async fn test_receiver_rset_4() {
         struct T;
 
-        impl Default for T {
-            fn default() -> Self {
-                Self {}
-            }
-        }
-
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
@@ -156,6 +147,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -187,12 +179,6 @@ mod tests {
     async fn test_receiver_rset_5() {
         struct T;
 
-        impl Default for T {
-            fn default() -> Self {
-                Self {}
-            }
-        }
-
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
@@ -213,6 +199,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<foo@foo>\r\n",
@@ -242,12 +229,6 @@ mod tests {
     async fn test_receiver_rset_6() {
         struct T;
 
-        impl Default for T {
-            fn default() -> Self {
-                Self {}
-            }
-        }
-
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
@@ -271,6 +252,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<foo@foo>\r\n",

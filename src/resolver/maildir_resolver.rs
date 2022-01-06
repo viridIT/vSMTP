@@ -44,11 +44,15 @@ fn chown_file(path: &std::path::Path, user: &users::User) -> std::io::Result<()>
 
 pub struct MailDirResolver {
     delivery_count: usize,
+    sender: crossbeam_channel::Sender<String>,
 }
 
-impl Default for MailDirResolver {
-    fn default() -> Self {
-        Self { delivery_count: 0 }
+impl MailDirResolver {
+    pub fn new(sender: crossbeam_channel::Sender<String>) -> Self {
+        Self {
+            delivery_count: 0,
+            sender,
+        }
     }
 }
 
@@ -217,6 +221,11 @@ impl DataEndResolver for MailDirResolver {
                     );
                 } else {
                     self.delivery_count += 1;
+                    self.sender
+                        .send(mail.metadata.as_ref().unwrap().message_id.clone())
+                        .map_err(|e| {
+                            std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
+                        })?;
                 }
             } else {
                 log::trace!(

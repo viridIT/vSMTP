@@ -12,6 +12,7 @@ pub mod test {
     #[tokio::test]
     async fn test_mail_by_user() {
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -30,6 +31,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -51,6 +53,7 @@ pub mod test {
     #[tokio::test]
     async fn test_mail_by_fqdn() {
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -69,6 +72,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -90,6 +94,7 @@ pub mod test {
     #[tokio::test]
     async fn test_mail_by_address() {
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -108,6 +113,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -130,12 +136,6 @@ pub mod test {
     }
 
     struct TestRewritten;
-
-    impl Default for TestRewritten {
-        fn default() -> Self {
-            Self {}
-        }
-    }
 
     #[async_trait::async_trait]
     impl DataEndResolver for TestRewritten {
@@ -162,6 +162,7 @@ pub mod test {
     #[tokio::test]
     async fn test_mail_rewrite() {
         assert!(run_integration_engine_test::<TestRewritten>(
+            TestRewritten {},
             "./src/rules/tests/rules/mail/rw_mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),

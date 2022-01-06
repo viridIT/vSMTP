@@ -52,12 +52,6 @@ impl std::io::Read for Mock<'_> {
 
 pub struct DefaultResolverTest;
 
-impl Default for DefaultResolverTest {
-    fn default() -> Self {
-        Self {}
-    }
-}
-
 #[async_trait::async_trait]
 impl DataEndResolver for DefaultResolverTest {
     async fn on_data_end(
@@ -69,7 +63,8 @@ impl DataEndResolver for DefaultResolverTest {
     }
 }
 
-pub async fn test_receiver<T: DataEndResolver + std::default::Default>(
+pub async fn test_receiver<T: DataEndResolver>(
+    resolver: std::sync::Arc<tokio::sync::Mutex<T>>,
     smtp_input: &[u8],
     expected_output: &[u8],
     mut config: ServerConfig,
@@ -84,8 +79,6 @@ pub async fn test_receiver<T: DataEndResolver + std::default::Default>(
         std::sync::Arc::new(config),
         &mut io,
     )?;
-
-    let resolver = std::sync::Arc::new(tokio::sync::Mutex::new(T::default()));
 
     ServerVSMTP::handle_connection::<T, Mock<'_>>(&mut conn, resolver, None).await?;
     std::io::Write::flush(&mut conn.io_stream.inner)?;

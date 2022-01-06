@@ -19,7 +19,9 @@ async fn test_dos() {
             log::warn!("Listening on: {:?}", server.addr());
             match tokio::time::timeout(
                 SERVER_TIMEOUT,
-                server.listen_and_serve::<DefaultResolverTest>(),
+                server.listen_and_serve(std::sync::Arc::new(tokio::sync::Mutex::new(
+                    DefaultResolverTest {},
+                ))),
             )
             .await
             {

@@ -17,12 +17,6 @@ mod tests {
     async fn test_receiver_1() {
         struct T;
 
-        impl Default for T {
-            fn default() -> Self {
-                Self {}
-            }
-        }
-
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
@@ -43,7 +37,8 @@ mod tests {
             }
         }
 
-        assert!(test_receiver::<T>(
+        assert!(test_receiver(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<john@doe>\r\n",
@@ -74,6 +69,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_2() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["foo\r\n"].concat().as_bytes(),
             [
                 "220 test.server.com Service ready\r\n",
@@ -90,6 +86,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_3() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["MAIL FROM:<john@doe>\r\n"].concat().as_bytes(),
             [
                 "220 test.server.com Service ready\r\n",
@@ -106,6 +103,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_4() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["RCPT TO:<john@doe>\r\n"].concat().as_bytes(),
             [
                 "220 test.server.com Service ready\r\n",
@@ -122,6 +120,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_5() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n"]
                 .concat()
                 .as_bytes(),
@@ -141,6 +140,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_6() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
                 "220 test.server.com Service ready\r\n",
@@ -190,6 +190,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_8() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
                 .concat()
                 .as_bytes(),
@@ -220,6 +221,7 @@ mod tests {
     async fn test_receiver_9() {
         let before_test = std::time::Instant::now();
         let res = test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "RCPT TO:<bar@foo>\r\n",
                 "MAIL FROM: <foo@bar>\r\n",
@@ -261,6 +263,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_10() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["HELP\r\n"].concat().as_bytes(),
             [
                 "220 test.server.com Service ready\r\n",
@@ -283,6 +286,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_11() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO postmaster\r\n",
                 "MAIL FROM: <lala@foo>\r\n",
@@ -315,6 +319,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_11_bis() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO postmaster\r\n",
                 "MAIL FROM: <lala@foo>\r\n",
@@ -347,6 +352,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_12() {
         assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["EHLO postmaster\r\n"].concat().as_bytes(),
             [
                 "220 test.server.com Service ready\r\n",
@@ -370,12 +376,6 @@ mod tests {
     async fn test_receiver_13() {
         struct T {
             count: u32,
-        }
-
-        impl Default for T {
-            fn default() -> Self {
-                Self { count: 0 }
-            }
         }
 
         #[async_trait::async_trait]
@@ -415,6 +415,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T { count: 0 })),
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<john@doe>\r\n",
@@ -458,12 +459,6 @@ mod tests {
             count: u32,
         }
 
-        impl Default for T {
-            fn default() -> Self {
-                Self { count: 0 }
-            }
-        }
-
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
@@ -501,6 +496,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T { count: 0 })),
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<john@doe>\r\n",

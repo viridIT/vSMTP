@@ -50,8 +50,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(error);
     }
 
-    let server = config.build().await;
+    let (s, r) = crossbeam_channel::bounded::<String>(0);
 
-    log::warn!("Listening on: {:?}", server.addr());
-    server.listen_and_serve::<MailDirResolver>().await
+    tokio::spawn(async move {
+        let server = config.build().await;
+        log::warn!("Listening on: {:?}", server.addr());
+
+        server
+            .listen_and_serve(std::sync::Arc::new(tokio::sync::Mutex::new(
+                MailDirResolver::new(s),
+            )))
+            .await?;
+
+        std::io::Result::Ok(())
+    });
+
+    loop {
+        if let Ok(name) = r.try_recv() {
+            println!("No one received {}’s message.", name);
+        }
+    }
 }

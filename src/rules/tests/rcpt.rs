@@ -13,7 +13,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_rcpt_by_user() {
-        assert!(run_integration_engine_test::<DefaultResolverTest>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -37,6 +38,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -63,6 +65,7 @@ pub mod test {
     #[tokio::test]
     async fn test_rcpt_by_fqdn() {
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -86,6 +89,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -112,6 +116,7 @@ pub mod test {
     #[tokio::test]
     async fn test_rcpt_by_address() {
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -138,12 +143,6 @@ pub mod test {
     // -- testing out rcpt actions.
 
     struct TestRcptAdded;
-
-    impl Default for TestRcptAdded {
-        fn default() -> Self {
-            Self {}
-        }
-    }
 
     #[async_trait::async_trait]
     impl DataEndResolver for TestRcptAdded {
@@ -176,6 +175,7 @@ pub mod test {
     #[tokio::test]
     async fn test_add_rcpt() {
         assert!(run_integration_engine_test::<TestRcptAdded>(
+            TestRcptAdded {},
             "./src/rules/tests/rules/rcpt/add_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -208,12 +208,6 @@ pub mod test {
     }
 
     struct TestRcptRemoved;
-
-    impl Default for TestRcptRemoved {
-        fn default() -> Self {
-            Self {}
-        }
-    }
 
     #[async_trait::async_trait]
     impl DataEndResolver for TestRcptRemoved {
@@ -248,6 +242,7 @@ pub mod test {
     #[tokio::test]
     async fn test_remove_rcpt() {
         assert!(run_integration_engine_test::<TestRcptRemoved>(
+            TestRcptRemoved {},
             "./src/rules/tests/rules/rcpt/rm_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -282,12 +277,6 @@ pub mod test {
     }
 
     struct TestRcptRewritten;
-
-    impl Default for TestRcptRewritten {
-        fn default() -> Self {
-            Self {}
-        }
-    }
 
     #[async_trait::async_trait]
     impl DataEndResolver for TestRcptRewritten {
@@ -327,6 +316,7 @@ pub mod test {
     #[tokio::test]
     async fn test_rewrite_rcpt() {
         assert!(run_integration_engine_test::<TestRcptRewritten>(
+            TestRcptRewritten {},
             "./src/rules/tests/rules/rcpt/rw_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),

@@ -11,12 +11,6 @@ mod tests {
         ($lang_code:expr) => {{
             struct T;
 
-            impl Default for T {
-                fn default() -> Self {
-                    Self {}
-                }
-            }
-
             #[async_trait::async_trait]
             impl DataEndResolver for T {
                 async fn on_data_end(
@@ -35,7 +29,8 @@ mod tests {
                 }
             }
 
-            assert!(test_receiver::<T>(
+            assert!(test_receiver(
+                std::sync::Arc::new(tokio::sync::Mutex::new(T)),
                 [
                     "HELO foobar\r\n",
                     "MAIL FROM:<john@doe>\r\n",
