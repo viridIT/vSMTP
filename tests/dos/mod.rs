@@ -14,10 +14,15 @@ async fn test_dos() {
             let config: ServerConfig = toml::from_str(include_str!("dos.config.toml"))
                 .expect("cannot parse config from toml");
 
-            let server = config.build::<DefaultResolverTest>().await;
+            let server = config.build().await;
 
             log::warn!("Listening on: {:?}", server.addr());
-            match tokio::time::timeout(SERVER_TIMEOUT, server.listen_and_serve()).await {
+            match tokio::time::timeout(
+                SERVER_TIMEOUT,
+                server.listen_and_serve::<DefaultResolverTest>(),
+            )
+            .await
+            {
                 Ok(Ok(_)) => unreachable!(),
                 Ok(Err(e)) => panic!("{}", e),
                 Err(_) => {}

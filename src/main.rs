@@ -15,7 +15,7 @@
  *
 **/
 use vsmtp::config::server_config::ServerConfig;
-use vsmtp::resolver::MailDirResolver;
+use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::rules::rule_engine;
 
 #[derive(clap::Parser, Debug)]
@@ -48,8 +48,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(error);
     }
 
-    let server = config.build::<MailDirResolver>().await;
+    let server = config.build().await;
 
     log::warn!("Listening on: {:?}", server.addr());
-    server.listen_and_serve().await
+    server.listen_and_serve::<MailDirResolver>().await
 }
