@@ -27,6 +27,7 @@
         "roadmap",
         "Rset",
         "rustls",
+        "setuid",
         "SMTPUTF",
         "STARTTLS",
         "unencrypted",

@@ -35,8 +35,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
             .expect("cannot parse config from toml");
 
+    /*
     MailDirResolver::init_spool_folder(&config.smtp.spool_dir)
         .expect("Failed to initialize the spool directory");
+    */
 
     // the leak is needed to pass from &'a str to &'static str
     // and initialize the rule engine's rule directory.

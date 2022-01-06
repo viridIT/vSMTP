@@ -23,18 +23,37 @@ use crate::{
 
 use super::DataEndResolver;
 
-// TODO: use a AtomicUsize instead of a wrapper.
-struct Wrapper(usize);
+/// sets user & group rights to the given file / folder.
+fn chown_file(path: &std::path::Path, user: &users::User) -> std::io::Result<()> {
+    if unsafe {
+        libc::chown(
+            // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
+            //       to a CString because it is platform independent.
+            std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr(),
+            user.uid(),
+            user.uid(),
+        )
+    } != 0
+    {
+        log::error!("unable to setuid of user {:?}", user.name());
+        return Err(std::io::Error::last_os_error());
+    }
 
-pub struct MailDirResolver;
+    Ok(())
+}
+
+pub struct MailDirResolver {
+    delivery_count: usize,
+}
 
 impl Default for MailDirResolver {
     fn default() -> Self {
-        Self {}
+        Self { delivery_count: 0 }
     }
 }
 
 impl MailDirResolver {
+    /*
     pub fn init_spool_folder(path: &str) -> Result<std::path::PathBuf, std::io::Error> {
         // will never crash, we can unwrap.
         let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
@@ -57,40 +76,44 @@ impl MailDirResolver {
             Ok(filepath)
         }
     }
+    */
+
+    // getting user's home directory using getpwuid.
+    unsafe fn get_maildir_path(
+        user: &std::sync::Arc<users::User>,
+    ) -> std::io::Result<std::path::PathBuf> {
+        let passwd = libc::getpwuid(user.uid());
+        if !passwd.is_null() && !(*passwd).pw_dir.is_null() {
+            match std::ffi::CStr::from_ptr((*passwd).pw_dir).to_str() {
+                Ok(path) => Ok(std::path::PathBuf::from_iter([
+                    &path.to_string(),
+                    "Maildir",
+                    "new",
+                ])),
+                Err(error) => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("unable to get user's home directory: {}", error),
+                    ))
+                }
+            }
+        } else {
+            Err(std::io::Error::last_os_error())
+        }
+    }
 
     /// write to /home/${user}/Maildir/ the mail body sent by the client.
     /// the format of the file name is the following:
     /// `{timestamp}.{content size}{deliveries}{rcpt id}.vsmtp`
     fn write_to_maildir(
+        delivery_count: usize,
         rcpt: &Address,
         metadata: &MessageMetadata,
         content: &str,
     ) -> std::io::Result<()> {
-        lazy_static::lazy_static! {
-            static ref DELIVERIES: std::sync::Mutex<Wrapper> = std::sync::Mutex::new(Wrapper{0:0});
-        }
-
         match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
             Some(user) => {
-                // getting user's home directory using getpwuid.
-                let mut maildir = unsafe {
-                    let passwd = libc::getpwuid(user.uid());
-                    if !passwd.is_null() && !(*passwd).pw_dir.is_null() {
-                        match std::ffi::CStr::from_ptr((*passwd).pw_dir).to_str() {
-                            Ok(path) => {
-                                std::path::PathBuf::from_iter([&path.to_string(), "Maildir", "new"])
-                            }
-                            Err(error) => {
-                                return Err(std::io::Error::new(
-                                    std::io::ErrorKind::Other,
-                                    format!("unable to get user's home directory: {}", error),
-                                ))
-                            }
-                        }
-                    } else {
-                        return Err(std::io::Error::last_os_error());
-                    }
-                };
+                let mut maildir = unsafe { Self::get_maildir_path(&user)? };
 
                 // create and set rights for the MailDir folder if it doesn't exists.
                 if !maildir.exists() {
@@ -107,16 +130,6 @@ impl MailDirResolver {
                     )?;
                 }
 
-                let mut delivery_count = match DELIVERIES.lock() {
-                    Ok(count) => count,
-                    Err(_) => {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "delivery mutex poisoned.",
-                        ))
-                    }
-                };
-
                 // NOTE: see https://en.wikipedia.org/wiki/Maildir
                 maildir.push(format!("{}.vsmtp", metadata.message_id));
 
@@ -127,7 +140,6 @@ impl MailDirResolver {
                     .open(&maildir)?;
 
                 std::io::Write::write_all(&mut email, content.as_bytes())?;
-                delivery_count.0 += 1;
 
                 chown_file(&maildir, &user)?;
             }
@@ -174,25 +186,6 @@ impl MailDirResolver {
     }
 }
 
-/// a simple function that sets user & group rights to the given file / folder.
-fn chown_file(path: &std::path::Path, user: &users::User) -> std::io::Result<()> {
-    if unsafe {
-        libc::chown(
-            // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
-            //       to a CString because it is plateform independant.
-            std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr(),
-            user.uid(),
-            user.uid(),
-        )
-    } != 0
-    {
-        log::error!("unable to setuid of user {:?}", user.name());
-        return Err(std::io::Error::last_os_error());
-    }
-
-    Ok(())
-}
-
 #[async_trait::async_trait]
 impl DataEndResolver for MailDirResolver {
     async fn on_data_end(
@@ -211,14 +204,19 @@ impl DataEndResolver for MailDirResolver {
             if crate::rules::rule_engine::user_exists(rcpt.local_part()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                if let Err(error) =
-                    Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), &mail.body)
-                {
+                if let Err(error) = Self::write_to_maildir(
+                    self.delivery_count,
+                    rcpt,
+                    mail.metadata.as_ref().unwrap(),
+                    &mail.body,
+                ) {
                     log::error!(
                         target: RESOLVER,
                         "Couldn't write email to inbox: {:?}",
                         error
                     );
+                } else {
+                    self.delivery_count += 1;
                 }
             } else {
                 log::trace!(
