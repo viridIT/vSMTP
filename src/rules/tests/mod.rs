@@ -3,6 +3,7 @@ mod connect;
 mod helo;
 mod mail;
 mod object_parsing;
+mod r_lookup;
 mod rcpt;
 mod users;
 
