@@ -246,6 +246,7 @@ pub(super) mod vsl {
     }
 
     #[rhai_fn(name = "__R_LOOKUP", return_raw)]
+    /// find an address from an object / string litteral ip.
     pub fn reverse_lookup(object: &str, port: i64) -> Result<String, Box<EvalAltResult>> {
         match acquire_engine().objects.read().unwrap().get(object) {
             Some(Object::Ip4(addr)) => crate::rules::rule_engine::reverse_lookup(&SocketAddr::new(
@@ -272,6 +273,14 @@ pub(super) mod vsl {
                 }
             },
         }
+    }
+
+    #[rhai_fn(name = "__R_LOOKUP", return_raw)]
+    /// find an address from an IpAddr object (connect).
+    pub fn reverse_lookup_from_ip(ip: IpAddr, port: i64) -> Result<String, Box<EvalAltResult>> {
+        crate::rules::rule_engine::reverse_lookup(&SocketAddr::new(ip, port as u16)).map_err(
+            |error| format!("couldn't process reverse lookup using ipv4: {}", error).into(),
+        )
     }
 
     #[rhai_fn(name = "==")]

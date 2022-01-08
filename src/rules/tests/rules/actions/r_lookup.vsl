@@ -15,8 +15,6 @@ rule helo "test_rlookup_google_with_object" #{
 };
 
 rule helo "test_rlookup_satan" #{
-  // we suppose that the dns google address won't change in the futur
-  // for this test.
   condition: || vsl.R_LOOKUP(connect, 25) != "satan.org",
   on_success: vsl.ACCEPT,
   on_failure: vsl.DENY,
