@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{log::RESOLVER, server_config::ServerConfig},
-    model::mail::MailContext,
+    model::mail::{MailContext, MessageMetadata},
     rules::address::Address,
     smtp::code::SMTPReplyCode,
 };
@@ -62,23 +62,12 @@ impl MailDirResolver {
     /// `{timestamp}.{content size}{deliveries}{rcpt id}.vsmtp`
     fn write_to_maildir(
         rcpt: &Address,
-        timestamp: &str,
-        unique_id: usize,
+        metadata: &MessageMetadata,
         content: &str,
     ) -> std::io::Result<()> {
         lazy_static::lazy_static! {
             static ref DELIVERIES: std::sync::Mutex<Wrapper> = std::sync::Mutex::new(Wrapper{0:0});
         }
-
-        let mut delivery_count = match DELIVERIES.lock() {
-            Ok(count) => count,
-            Err(_) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "delivery mutex poisoned.",
-                ))
-            }
-        };
 
         match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
             Some(user) => {
@@ -117,14 +106,18 @@ impl MailDirResolver {
                     )?;
                 }
 
+                let mut delivery_count = match DELIVERIES.lock() {
+                    Ok(count) => count,
+                    Err(_) => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "delivery mutex poisoned.",
+                        ))
+                    }
+                };
+
                 // NOTE: see https://en.wikipedia.org/wiki/Maildir
-                maildir.push(format!(
-                    "{}.{}{}{}.vsmtp",
-                    timestamp,
-                    content.as_bytes().len(),
-                    delivery_count.0,
-                    unique_id
-                ));
+                maildir.push(format!("{}.vsmtp", metadata.message_id));
 
                 // TODO: should loop if an email name is conflicting with another.
                 let mut email = std::fs::OpenOptions::new()
@@ -162,7 +155,7 @@ impl MailDirResolver {
     #[allow(unused)]
     fn write_mail_to_process(
         spool_dir: &str,
-        mail: &crate::model::mail::MailContext,
+        ctx: &crate::model::mail::MailContext,
     ) -> std::io::Result<()> {
         let folder = format!("{}/to_process", spool_dir);
         std::fs::create_dir_all(&folder)?;
@@ -171,17 +164,12 @@ impl MailDirResolver {
             .write(true)
             .create(true)
             .open(format!(
-                "{}/{}_{:?}.json",
+                "{}/{}.json",
                 folder,
-                mail.timestamp
-                    .unwrap()
-                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
-                std::thread::current().id()
+                ctx.metadata.as_ref().unwrap().message_id,
             ))?;
 
-        std::io::Write::write_all(&mut to_process, serde_json::to_string(&mail)?.as_bytes())
+        std::io::Write::write_all(&mut to_process, serde_json::to_string(&ctx)?.as_bytes())
     }
 }
 
@@ -210,7 +198,6 @@ impl DataEndResolver for MailDirResolver {
         _config: &ServerConfig,
         mail: &MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error> {
-        // TODO: use temporary file unix syscall to generate temporary files
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
         //
@@ -218,29 +205,13 @@ impl DataEndResolver for MailDirResolver {
 
         log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
-        for (index, rcpt) in mail.envelop.rcpt.iter().enumerate() {
+        for rcpt in mail.envelop.rcpt.iter() {
             if crate::rules::rule_engine::user_exists(rcpt.local_part()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                if let Err(error) = Self::write_to_maildir(
-                    rcpt,
-                    &match mail.timestamp {
-                        Some(timestamp) => match timestamp.elapsed() {
-                            Ok(elapsed) => elapsed.as_nanos().to_string(),
-                            Err(error) => {
-                                log::error!("failed to deliver mail to '{}': {}", rcpt, error);
-                                return Ok(SMTPReplyCode::Code250);
-                            }
-                        },
-
-                        None => {
-                            log::error!("failed to deliver mail to '{}': timestamp for email file name is unavailable", rcpt);
-                            return Ok(SMTPReplyCode::Code250);
-                        }
-                    },
-                    index,
-                    &mail.body,
-                ) {
+                if let Err(error) =
+                    Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), &mail.body)
+                {
                     log::error!(
                         target: RESOLVER,
                         "Couldn't write email to inbox: {:?}",
