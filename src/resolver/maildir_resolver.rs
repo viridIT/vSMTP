@@ -43,45 +43,16 @@ fn chown_file(path: &std::path::Path, user: &users::User) -> std::io::Result<()>
 }
 
 pub struct MailDirResolver {
-    delivery_count: usize,
     sender: crossbeam_channel::Sender<String>,
 }
 
 impl MailDirResolver {
     pub fn new(sender: crossbeam_channel::Sender<String>) -> Self {
-        Self {
-            delivery_count: 0,
-            sender,
-        }
+        Self { sender }
     }
 }
 
 impl MailDirResolver {
-    /*
-    pub fn init_spool_folder(path: &str) -> Result<std::path::PathBuf, std::io::Error> {
-        // will never crash, we can unwrap.
-        let filepath = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
-        if filepath.exists() {
-            if filepath.is_dir() {
-                log::debug!(
-                    target: RESOLVER,
-                    "vmta's mail spool is already initialized."
-                );
-                Ok(filepath)
-            } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::AlreadyExists,
-                    "path specified is not a folder",
-                ))
-            }
-        } else {
-            std::fs::create_dir_all(&filepath)?;
-            log::debug!(target: RESOLVER, "vmta's mail spool initialized.");
-            Ok(filepath)
-        }
-    }
-    */
-
     // getting user's home directory using getpwuid.
     unsafe fn get_maildir_path(
         user: &std::sync::Arc<users::User>,
@@ -110,7 +81,6 @@ impl MailDirResolver {
     /// the format of the file name is the following:
     /// `{timestamp}.{content size}{deliveries}{rcpt id}.vsmtp`
     fn write_to_maildir(
-        delivery_count: usize,
         rcpt: &Address,
         metadata: &MessageMetadata,
         content: &str,
@@ -208,19 +178,15 @@ impl DataEndResolver for MailDirResolver {
             if crate::rules::rule_engine::user_exists(rcpt.local_part()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                if let Err(error) = Self::write_to_maildir(
-                    self.delivery_count,
-                    rcpt,
-                    mail.metadata.as_ref().unwrap(),
-                    &mail.body,
-                ) {
+                if let Err(error) =
+                    Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), &mail.body)
+                {
                     log::error!(
                         target: RESOLVER,
                         "Couldn't write email to inbox: {:?}",
                         error
                     );
                 } else {
-                    self.delivery_count += 1;
                     self.sender
                         .send(mail.metadata.as_ref().unwrap().message_id.clone())
                         .map_err(|e| {
