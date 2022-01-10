@@ -105,16 +105,10 @@ pub fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::Server
         }
     }
 
-    struct TlsLogger;
-    impl rustls::KeyLog for TlsLogger {
-        fn log(&self, label: &str, client_random: &[u8], secret: &[u8]) {
-            log::trace!("{} {:?} {:?}", label, client_random, secret);
-        }
-    }
-
     let mut out = rustls::ServerConfig::builder()
         .with_cipher_suites(rustls::ALL_CIPHER_SUITES)
         .with_kx_groups(&rustls::ALL_KX_GROUPS)
+        // NOTE: cannot change version, we have no way to change it...
         .with_protocol_versions(rustls::ALL_VERSIONS)
         .expect("inconsistent cipher-suites/versions specified")
         .with_client_cert_verifier(rustls::server::NoClientAuth::new())
@@ -171,6 +165,13 @@ pub fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::Server
         }));
 
     out.ignore_client_order = config.tls.preempt_cipherlist;
+
+    struct TlsLogger;
+    impl rustls::KeyLog for TlsLogger {
+        fn log(&self, label: &str, client_random: &[u8], secret: &[u8]) {
+            log::trace!("{} {:?} {:?}", label, client_random, secret);
+        }
+    }
     out.key_log = std::sync::Arc::new(TlsLogger {});
 
     std::sync::Arc::new(out)

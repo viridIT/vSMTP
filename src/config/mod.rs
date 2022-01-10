@@ -1,5 +1,6 @@
 pub mod custom_code;
 pub mod default;
+pub mod serializer;
 pub mod server_config;
 
 pub mod log_channel {

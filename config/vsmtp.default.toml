@@ -40,6 +40,9 @@ fullchain = "{capath}/fullchain.{domain}.pem"
 ### Default domain private key
 private_key = "{capath}/rsa.{domain}.pem"
 
+protocol_version = "^TLSv1.3"
+
+
 ### Maps for the "Server Name Indication" during the SSL/TLS handshake
 ### Example:
 #

@@ -174,6 +174,45 @@ impl ServerVSMTP {
                     );
                     log::debug!(target: RECEIVER, "sni_hostname={:#?}", conn.sni_hostname());
 
+                    let protocol_version_requirement = secured_conn
+                        .config
+                        .tls
+                        .sni_maps
+                        .as_ref()
+                        .and_then(|map| {
+                            if let Some(sni) = conn.sni_hostname() {
+                                for i in map {
+                                    if i.domain == sni {
+                                        return Some(i);
+                                    }
+                                }
+                            }
+
+                            None
+                        })
+                        .and_then(|i| i.protocol_version.as_ref())
+                        .unwrap_or(&secured_conn.config.tls.protocol_version);
+
+                    let protocol_satisfy_requirement = conn
+                        .protocol_version()
+                        .map(|protocol_version| {
+                            protocol_version_requirement
+                                .0
+                                .iter()
+                                .filter(|i| i.0 != protocol_version)
+                                .count()
+                                != 0
+                        })
+                        .unwrap_or(false);
+
+                    if !protocol_satisfy_requirement {
+                        log::error!(
+                            "requirement not satisfied {:?}",
+                            protocol_version_requirement
+                        );
+                        return Ok(());
+                    }
+
                     let mut secured_helo_domain = None;
 
                     while secured_conn.is_alive {
