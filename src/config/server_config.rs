@@ -19,27 +19,30 @@ use serde_with::{serde_as, DisplayFromStr};
 
 use crate::{server::ServerVSMTP, smtp::state::StateSMTP};
 
-use super::custom_code::{CustomSMTPCode, SMTPCode};
+use super::{
+    custom_code::{CustomSMTPCode, SMTPCode},
+    default::DEFAULT_CONFIG,
+};
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerServerConfig {
     pub addr: std::net::SocketAddr,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerLogConfig {
     pub file: String,
     pub level: std::collections::HashMap<String, log::LevelFilter>,
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 pub enum TlsSecurityLevel {
     None,
     May,
     Encrypt,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct SniKey {
     pub domain: String,
     pub private_key: String,
@@ -108,7 +111,6 @@ pub struct ProtocolVersion(pub rustls::ProtocolVersion);
 /// ]);
 /// ```
 ///
-///
 /// ```
 /// use vsmtp::config::server_config::ProtocolVersion;
 /// use vsmtp::config::server_config::ProtocolVersionRequirement;
@@ -125,7 +127,7 @@ pub struct ProtocolVersion(pub rustls::ProtocolVersion);
 ///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
 /// ]);
 ///
-/// let s = toml::from_str::<S>("v = \"^SSLv3\"").unwrap();
+/// let s = toml::from_str::<S>("v = \">=SSLv3\"").unwrap();
 /// assert_eq!(s.v.0, vec![
 ///     ProtocolVersion(rustls::ProtocolVersion::SSLv3),
 ///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_0),
@@ -135,10 +137,10 @@ pub struct ProtocolVersion(pub rustls::ProtocolVersion);
 /// ]);
 ///
 /// ```
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProtocolVersionRequirement(pub Vec<ProtocolVersion>);
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerTlsConfig {
     pub security_level: TlsSecurityLevel,
     pub protocol_version: ProtocolVersionRequirement,
@@ -151,7 +153,7 @@ pub struct InnerTlsConfig {
     pub sni_maps: Option<Vec<SniKey>>,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerSMTPErrorConfig {
     pub soft_count: i64,
     pub hard_count: i64,
@@ -160,7 +162,7 @@ pub struct InnerSMTPErrorConfig {
 }
 
 #[serde_as]
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerSMTPConfig {
     pub spool_dir: String,
     pub disable_ehlo: bool,
@@ -184,12 +186,12 @@ impl InnerSMTPConfig {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerRulesConfig {
     pub dir: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct ServerConfig {
     pub domain: String,
     pub server: InnerServerConfig,
@@ -197,6 +199,12 @@ pub struct ServerConfig {
     pub tls: InnerTlsConfig,
     pub smtp: InnerSMTPConfig,
     pub rules: InnerRulesConfig,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        DEFAULT_CONFIG.clone()
+    }
 }
 
 impl ServerConfig {
@@ -219,7 +227,7 @@ impl ServerConfig {
                     self,
                     prepare_for_default,
                 ))),
-                Some(SMTPCode::Serialized(_)) => unreachable!(),
+                Some(SMTPCode::Serialized(c)) => SMTPCode::Serialized(c.clone()),
             });
         self
     }

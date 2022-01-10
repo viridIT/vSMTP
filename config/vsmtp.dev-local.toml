@@ -19,7 +19,7 @@ security_level = "May"
 capath = "./config/certs"
 preempt_cipherlist = true
 handshake_timeout = "100ms"
-protocol_version = ["TLSv1.2", "TLSv1.3"]
+protocol_version = ["TLSv1.3"]
 
 fullchain = "{capath}/certificate.crt"
 private_key = "{capath}/privateKey.key"

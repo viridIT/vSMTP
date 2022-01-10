@@ -40,8 +40,15 @@ fullchain = "{capath}/fullchain.{domain}.pem"
 ### Default domain private key
 private_key = "{capath}/rsa.{domain}.pem"
 
-protocol_version = "^TLSv1.3"
-
+### Protocol versions
+### Can be a string within [SSLv2, 0x0200, SSLv3, 0x0300, TLSv1.0, 0x0301,
+### TLSv1.1, 0x0302, TLSv1.2, 0x0303, TLSv1.3, 0x0304]
+###
+### protocol_version = "TLSv1.0"
+### protocol_version = ["TLSv1.1", "TLSv1.2", "TLSv1.3"]
+### protocol_version = "^SSLv3"
+### protocol_version = ">=0x0301"
+protocol_version = "^TLSv1.2"
 
 ### Maps for the "Server Name Indication" during the SSL/TLS handshake
 ### Example:
@@ -55,6 +62,8 @@ protocol_version = "^TLSv1.3"
 # domain = "test2.server.com"
 # fullchain = "{capath}/fullchain.{domain}.pem"
 # private_key = "{capath}/rsa.{domain}.pem"
+# ### Can specify a protocol version for this specifique server name
+# protocol_version = "^SSLv3"
 
 [smtp]
 ### Root path for the storage of the mail received

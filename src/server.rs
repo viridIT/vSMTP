@@ -1,7 +1,22 @@
+/**
+ * vSMTP mail transfer agent
+ * Copyright (C) 2021 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+**/
 use crate::{
     config::{
         get_logger_config,
-        log_channel::RECEIVER,
         server_config::{ServerConfig, TlsSecurityLevel},
     },
     connection::Connection,
@@ -40,9 +55,7 @@ impl ServerVSMTP {
             .local_addr()
             .expect("cannot retrieve local address")
     }
-}
 
-impl ServerVSMTP {
     pub async fn listen_and_serve<R>(
         &self,
         resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
@@ -100,6 +113,41 @@ impl ServerVSMTP {
         }
     }
 
+    fn is_version_requirement_satisfied(
+        conn: &rustls::ServerConnection,
+        config: &ServerConfig,
+    ) -> bool {
+        let protocol_version_requirement = config
+            .tls
+            .sni_maps
+            .as_ref()
+            .and_then(|map| {
+                if let Some(sni) = conn.sni_hostname() {
+                    for i in map {
+                        if i.domain == sni {
+                            return Some(i);
+                        }
+                    }
+                }
+                None
+            })
+            .and_then(|i| i.protocol_version.as_ref())
+            .unwrap_or(&config.tls.protocol_version);
+
+        println!("{:?}", protocol_version_requirement);
+
+        conn.protocol_version()
+            .map(|protocol_version| {
+                protocol_version_requirement
+                    .0
+                    .iter()
+                    .filter(|i| i.0 == protocol_version)
+                    .count()
+                    != 0
+            })
+            .unwrap_or(false)
+    }
+
     pub async fn handle_connection<R, S>(
         conn: &mut Connection<'_, S>,
         resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
@@ -150,66 +198,15 @@ impl ServerVSMTP {
                         io_stream: &mut io_tls_stream,
                     };
 
-                    let conn = &secured_conn.io_stream.inner.conn;
+                    // FIXME: the rejection of the client because of the SSL/TLS protocol
+                    // version is done after the handshake...
 
-                    log::debug!(
-                        target: RECEIVER,
-                        "protocol_version={:#?}",
-                        conn.protocol_version()
-                    );
-                    log::debug!(
-                        target: RECEIVER,
-                        "alpn_protocol={:#?}",
-                        conn.alpn_protocol()
-                    );
-                    log::debug!(
-                        target: RECEIVER,
-                        "negotiated_cipher_suite={:#?}",
-                        conn.negotiated_cipher_suite()
-                    );
-                    log::debug!(
-                        target: RECEIVER,
-                        "peer_certificates={:#?}",
-                        conn.peer_certificates()
-                    );
-                    log::debug!(target: RECEIVER, "sni_hostname={:#?}", conn.sni_hostname());
-
-                    let protocol_version_requirement = secured_conn
-                        .config
-                        .tls
-                        .sni_maps
-                        .as_ref()
-                        .and_then(|map| {
-                            if let Some(sni) = conn.sni_hostname() {
-                                for i in map {
-                                    if i.domain == sni {
-                                        return Some(i);
-                                    }
-                                }
-                            }
-
-                            None
-                        })
-                        .and_then(|i| i.protocol_version.as_ref())
-                        .unwrap_or(&secured_conn.config.tls.protocol_version);
-
-                    let protocol_satisfy_requirement = conn
-                        .protocol_version()
-                        .map(|protocol_version| {
-                            protocol_version_requirement
-                                .0
-                                .iter()
-                                .filter(|i| i.0 != protocol_version)
-                                .count()
-                                != 0
-                        })
-                        .unwrap_or(false);
-
-                    if !protocol_satisfy_requirement {
-                        log::error!(
-                            "requirement not satisfied {:?}",
-                            protocol_version_requirement
-                        );
+                    if !Self::is_version_requirement_satisfied(
+                        secured_conn.io_stream.inner.conn,
+                        &secured_conn.config,
+                    ) {
+                        log::error!("requirement not satisfied");
+                        // TODO: send error 500 ?
                         return Ok(());
                     }
 
