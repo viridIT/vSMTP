@@ -230,20 +230,21 @@ impl Transaction<'_> {
 
                 // getting the server's envelop, that could have mutated in the
                 // rule engine.
-                if let Some(envelop) = self.rule_engine.get_scoped_envelop() {
-                    self.mail.envelop = envelop;
+                match self.rule_engine.get_scoped_envelop() {
+                    Some(envelop) => {
+                        self.mail.envelop = envelop;
 
-                    let mut output = MailContext {
-                        envelop: Envelop::default(),
-                        body: String::with_capacity(MAIL_CAPACITY),
-                        metadata: None,
-                    };
+                        let mut output = MailContext {
+                            envelop: Envelop::default(),
+                            body: String::with_capacity(MAIL_CAPACITY),
+                            metadata: None,
+                        };
 
-                    std::mem::swap(&mut self.mail, &mut output);
+                        std::mem::swap(&mut self.mail, &mut output);
 
-                    ProcessedEvent::TransactionCompleted(Box::new(output))
-                } else {
-                    ProcessedEvent::ReplyChangeState(StateSMTP::MailFrom, SMTPReplyCode::Code554)
+                        ProcessedEvent::TransactionCompleted(Box::new(output))
+                    }
+                    _ => ProcessedEvent::Reply(SMTPReplyCode::Code451),
                 }
             }
 
