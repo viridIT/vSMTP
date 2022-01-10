@@ -22,12 +22,6 @@ use crate::rules::{
     rule_engine::{acquire_engine, user_exists, Status},
 };
 
-use std::{
-    io::Write,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    str::FromStr,
-};
-
 use lettre::{Message, SmtpTransport, Transport};
 use rhai::plugin::*;
 
@@ -98,8 +92,10 @@ pub(super) mod vsl {
                 // at the start of the server, we can unwrap here.
                 let path = match acquire_engine().objects.read().unwrap().get(path) {
                     // from_str is infallible, we can unwrap.
-                    Some(Object::Var(p)) => std::path::PathBuf::from_str(p.as_str()).unwrap(),
-                    _ => std::path::PathBuf::from_str(path).unwrap(),
+                    Some(Object::Var(p)) => {
+                        <std::path::PathBuf as std::str::FromStr>::from_str(p.as_str()).unwrap()
+                    }
+                    _ => <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap(),
                 };
 
                 match std::fs::OpenOptions::new()
@@ -110,13 +106,12 @@ pub(super) mod vsl {
                     Ok(file) => {
                         let mut writer = std::io::LineWriter::new(file);
 
-                        writer
-                            .write_all(message.as_bytes())
-                            .map_err::<Box<EvalAltResult>, _>(|_| {
-                                format!("could not log to '{:?}'.", path).into()
-                            })?;
-                        writer
-                            .write_all(b"\n")
+                        std::io::Write::write_all(&mut writer, message.as_bytes()).map_err::<Box<
+                            EvalAltResult,
+                        >, _>(
+                            |_| format!("could not log to '{:?}'.", path).into(),
+                        )?;
+                        std::io::Write::write_all(&mut writer, b"\n")
                             .map_err(|_| format!("could not log to '{:?}'.", path).into())
                     }
                     Err(error) => Err(format!(
@@ -139,15 +134,14 @@ pub(super) mod vsl {
         }
 
         // from_str is infallible, we can unwrap.
-        let path = std::path::PathBuf::from_str(path).unwrap();
+        let path = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
 
         match std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(&path)
         {
-            Ok(mut file) => file
-                .write_all(data.as_bytes())
+            Ok(mut file) => std::io::Write::write_all(&mut file, data.as_bytes())
                 .map_err(|_| format!("could not write email to '{:?}'.", path).into()),
             Err(error) => Err(format!(
                 "'{:?}' is not a valid path to write the email to: {:#?}",
@@ -177,7 +171,7 @@ pub(super) mod vsl {
 
         let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
             // Error is of type Infallible, we can unwrap.
-            let mut path = std::path::PathBuf::from_str(path).unwrap();
+            let mut path = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
             path.push(
                 metadata
                     .as_ref()
@@ -243,6 +237,51 @@ pub(super) mod vsl {
         }
     }
 
+    #[rhai_fn(name = "__R_LOOKUP", return_raw)]
+    /// find an address from an object / string literal ip.
+    pub fn reverse_lookup(object: &str, port: i64) -> Result<String, Box<EvalAltResult>> {
+        use std::net::*;
+
+        match acquire_engine().objects.read().unwrap().get(object) {
+            Some(Object::Ip4(addr)) => crate::rules::rule_engine::reverse_lookup(&SocketAddr::new(
+                IpAddr::V4(*addr),
+                port as u16,
+            ))
+            .map_err(|error| {
+                format!("couldn't process reverse lookup using ipv4: {}", error).into()
+            }),
+
+            Some(Object::Ip6(addr)) => crate::rules::rule_engine::reverse_lookup(&SocketAddr::new(
+                IpAddr::V6(*addr),
+                port as u16,
+            ))
+            .map_err(|error| {
+                format!("couldn't process reverse lookup using ipv6: {}", error).into()
+            }),
+
+            _ => match <SocketAddr as std::str::FromStr>::from_str(&format!("{}:{}", object, port))
+            {
+                Ok(socket) => crate::rules::rule_engine::reverse_lookup(&socket)
+                    .map_err(|error| format!("couldn't process reverse lookup: {}", error).into()),
+                Err(error) => {
+                    Err(format!("couldn't process reverse lookup for {}: {}", object, error).into())
+                }
+            },
+        }
+    }
+
+    #[rhai_fn(name = "__R_LOOKUP", return_raw)]
+    /// find an address from an IpAddr object (connect).
+    pub fn reverse_lookup_from_ip(
+        ip: std::net::IpAddr,
+        port: i64,
+    ) -> Result<String, Box<EvalAltResult>> {
+        crate::rules::rule_engine::reverse_lookup(&std::net::SocketAddr::new(ip, port as u16))
+            .map_err(|error| {
+                format!("couldn't process reverse lookup using ipv4: {}", error).into()
+            })
+    }
+
     #[rhai_fn(name = "==")]
     pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
         *in1 == in2
@@ -254,12 +293,12 @@ pub(super) mod vsl {
     }
 
     /// checks if the object exists and check if it matches against the connect value.
-    pub fn __is_connect(connect: &mut IpAddr, object: &str) -> bool {
+    pub fn __is_connect(connect: &mut std::net::IpAddr, object: &str) -> bool {
         match acquire_engine().objects.read().unwrap().get(object) {
             Some(object) => internal_is_connect(connect, object),
-            None => match Ipv4Addr::from_str(object) {
+            None => match <std::net::Ipv4Addr as std::str::FromStr>::from_str(object) {
                 Ok(ip) => ip == *connect,
-                Err(_) => match Ipv6Addr::from_str(object) {
+                Err(_) => match <std::net::Ipv6Addr as std::str::FromStr>::from_str(object) {
                     Ok(ip) => ip == *connect,
                     Err(_) => {
                         log::error!(
@@ -313,16 +352,16 @@ pub(super) mod vsl {
 // NOTE: the following functions use pub(super) because they need to be exposed for tests.
 // FIXME: find a way to hide the following function to the parent scope.
 /// checks recursively if the current connect value is matching the object's value.
-pub(super) fn internal_is_connect(connect: &IpAddr, object: &Object) -> bool {
+pub(super) fn internal_is_connect(connect: &std::net::IpAddr, object: &Object) -> bool {
     match object {
         Object::Ip4(ip) => *ip == *connect,
         Object::Ip6(ip) => *ip == *connect,
         Object::Rg4(range) => match connect {
-            IpAddr::V4(ip4) => range.contains(ip4),
+            std::net::IpAddr::V4(ip4) => range.contains(ip4),
             _ => false,
         },
         Object::Rg6(range) => match connect {
-            IpAddr::V6(ip6) => range.contains(ip6),
+            std::net::IpAddr::V6(ip6) => range.contains(ip6),
             _ => false,
         },
         // NOTE: is there a way to get a &str instead of a String here ?
