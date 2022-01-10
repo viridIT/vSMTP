@@ -39,7 +39,6 @@ use super::address::Address;
 pub(super) mod vsl {
     use std::collections::HashSet;
 
-    use crate::utils::generate_msg_id;
     use crate::{config::log::RULES, model::mail::MessageMetadata, rules::address::Address};
 
     /// enqueue a block operation on the queue.
@@ -177,7 +176,15 @@ pub(super) mod vsl {
         let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
             // Error is of type Infallible, we can unwrap.
             let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(generate_msg_id());
+            path.push(
+                metadata
+                    .as_ref()
+                    .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                        "could not dump email, metadata has not been received yet.".into()
+                    })?
+                    .message_id
+                    .clone(),
+            );
             path.set_extension("json");
             path
         }) {
