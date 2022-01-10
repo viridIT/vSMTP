@@ -32,11 +32,7 @@ fn make_bench<R: vsmtp::resolver::DataEndResolver>(
 ) {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
-<<<<<<< HEAD
             let _ = test_receiver(resolver.clone(), input, output, config.clone()).await;
-=======
-            let _ = test_receiver::<R>(input, output, config.clone()).await;
->>>>>>> develop
         })
 }
 
