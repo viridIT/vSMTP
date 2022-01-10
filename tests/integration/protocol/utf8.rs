@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
+    use crate::integration::protocol::get_test_config;
+    use vsmtp::test_helpers::test_receiver;
     use vsmtp::{
         config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
         rules::address::Address, smtp::code::SMTPReplyCode,
     };
-
-    use crate::integration::protocol::{get_test_config, make_test};
 
     macro_rules! test_lang {
         ($lang_code:expr) => {{
@@ -14,6 +14,7 @@ mod tests {
             #[async_trait::async_trait]
             impl DataEndResolver for T {
                 async fn on_data_end(
+                    &mut self,
                     _: &ServerConfig,
                     ctx: &MailContext,
                 ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -28,7 +29,8 @@ mod tests {
                 }
             }
 
-            assert!(make_test::<T>(
+            assert!(test_receiver(
+                std::sync::Arc::new(tokio::sync::Mutex::new(T)),
                 [
                     "HELO foobar\r\n",
                     "MAIL FROM:<john@doe>\r\n",

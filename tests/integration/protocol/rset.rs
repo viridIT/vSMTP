@@ -4,11 +4,15 @@ mod tests {
     use std::collections::HashSet;
 
     use vsmtp::{
-        config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
-        rules::address::Address, smtp::code::SMTPReplyCode,
+        config::server_config::ServerConfig,
+        model::mail::MailContext,
+        resolver::DataEndResolver,
+        rules::address::Address,
+        smtp::code::SMTPReplyCode,
+        test_helpers::{test_receiver, DefaultResolverTest},
     };
 
-    use crate::integration::protocol::{get_test_config, make_test, DefaultResolverTest};
+    use crate::integration::protocol::get_test_config;
 
     #[tokio::test]
     async fn test_receiver_rset_1() {
@@ -17,6 +21,7 @@ mod tests {
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -32,7 +37,8 @@ mod tests {
             }
         }
 
-        assert!(make_test::<T>(
+        assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
                 "RSET\r\n",
@@ -63,7 +69,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_rset_2() {
-        assert!(make_test::<DefaultResolverTest>(
+        assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -89,7 +96,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_rset_3() {
-        assert!(make_test::<DefaultResolverTest>(
+        assert!(test_receiver::<DefaultResolverTest>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -122,6 +130,7 @@ mod tests {
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -137,7 +146,8 @@ mod tests {
             }
         }
 
-        assert!(make_test::<T>(
+        assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<a@b>\r\n",
@@ -172,6 +182,7 @@ mod tests {
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -187,7 +198,8 @@ mod tests {
             }
         }
 
-        assert!(make_test::<T>(
+        assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<foo@foo>\r\n",
@@ -220,6 +232,7 @@ mod tests {
         #[async_trait::async_trait]
         impl DataEndResolver for T {
             async fn on_data_end(
+                &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
             ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -238,7 +251,8 @@ mod tests {
             }
         }
 
-        assert!(make_test::<T>(
+        assert!(test_receiver::<T>(
+            std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
                 "MAIL FROM:<foo@foo>\r\n",

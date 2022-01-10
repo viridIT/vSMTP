@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::model::{
-    envelop::Envelop,
-    mail::{ConnectionData, MailContext},
-};
+use crate::model::{envelop::Envelop, mail::MailContext};
 
 use crate::rules::{
     obj::Object,
@@ -40,7 +37,7 @@ use super::address::Address;
 #[allow(dead_code)]
 #[export_module]
 pub(super) mod vsl {
-    use std::{collections::HashSet, net::SocketAddr};
+    use std::collections::HashSet;
 
     use crate::{config::log::RULES, model::mail::MessageMetadata, rules::address::Address};
 
@@ -98,7 +95,7 @@ pub(super) mod vsl {
                 // the only writer on "objects" is called and unlocked
                 // at the start of the server, we can unwrap here.
                 let path = match acquire_engine().objects.read().unwrap().get(path) {
-                    // from_str is unfailable, we can unwrap.
+                    // from_str is infallible, we can unwrap.
                     Some(Object::Var(p)) => std::path::PathBuf::from_str(p.as_str()).unwrap(),
                     _ => std::path::PathBuf::from_str(path).unwrap(),
                 };
@@ -139,7 +136,7 @@ pub(super) mod vsl {
             return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
         }
 
-        // from_str is unfailable, we can unwrap.
+        // from_str is infallible, we can unwrap.
         let path = std::path::PathBuf::from_str(path).unwrap();
 
         match std::fs::OpenOptions::new()
@@ -164,15 +161,11 @@ pub(super) mod vsl {
     /// for example, dumping during the rcpt stage will leave the data
     /// field empty.
     #[rhai_fn(name = "__DUMP", return_raw)]
-    #[allow(clippy::too_many_arguments)]
     pub fn dump(
-        connect: IpAddr,
-        port: u16,
         helo: &str,
         mail: Address,
         rcpt: HashSet<Address>,
         data: &str,
-        connection_timestamp: std::time::SystemTime,
         metadata: Option<MessageMetadata>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
@@ -183,7 +176,15 @@ pub(super) mod vsl {
         let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
             // Error is of type Infallible, we can unwrap.
             let mut path = std::path::PathBuf::from_str(path).unwrap();
-            path.push(crate::mailprocessing::utils::generate_msg_id());
+            path.push(
+                metadata
+                    .as_ref()
+                    .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                        "could not dump email, metadata has not been received yet.".into()
+                    })?
+                    .message_id
+                    .clone(),
+            );
             path.set_extension("json");
             path
         }) {
@@ -200,11 +201,6 @@ pub(super) mod vsl {
                 rcpt,
             },
             body: data.into(),
-            connection: ConnectionData {
-                peer_addr: SocketAddr::new(connect, port),
-                timestamp: connection_timestamp,
-            },
-
             metadata,
         };
 

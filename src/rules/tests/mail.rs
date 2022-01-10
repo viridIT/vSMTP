@@ -6,23 +6,13 @@ pub mod test {
         resolver::DataEndResolver,
         rules::{address::Address, tests::helpers::run_integration_engine_test},
         smtp::code::SMTPReplyCode,
+        test_helpers::DefaultResolverTest,
     };
-
-    struct Test;
-
-    #[async_trait::async_trait]
-    impl DataEndResolver for Test {
-        async fn on_data_end(
-            _: &ServerConfig,
-            _: &MailContext,
-        ) -> Result<SMTPReplyCode, std::io::Error> {
-            Ok(SMTPReplyCode::Code250)
-        }
-    }
 
     #[tokio::test]
     async fn test_mail_by_user() {
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -40,7 +30,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -61,7 +52,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_mail_by_fqdn() {
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -79,7 +71,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -100,7 +93,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_mail_by_address() {
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -118,7 +112,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -140,11 +135,12 @@ pub mod test {
         .is_ok());
     }
 
-    struct TestRewriten;
+    struct TestRewritten;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for TestRewriten {
+    impl DataEndResolver for TestRewritten {
         async fn on_data_end(
+            &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
         ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -165,7 +161,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_mail_rewrite() {
-        assert!(run_integration_engine_test::<TestRewriten>(
+        assert!(run_integration_engine_test::<TestRewritten>(
+            TestRewritten {},
             "./src/rules/tests/rules/mail/rw_mail.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),

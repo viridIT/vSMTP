@@ -15,35 +15,30 @@
  *
 **/
 use vsmtp::config::server_config::ServerConfig;
-use vsmtp::resolver::MailDirResolver;
+use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::rules::rule_engine;
+
+#[derive(clap::Parser, Debug)]
+#[clap(about, version, author)]
+struct Args {
+    #[clap(short, long)]
+    config: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = clap::App::new("vSMTP")
-        .version(env!("CARGO_PKG_VERSION", "no option provided"))
-        .author("ViridIT https://www.viridit.com")
-        .about("vSMTP : the next-gen MTA")
-        .arg(
-            clap::Arg::with_name("config")
-                .short("-c")
-                .long("--config")
-                .takes_value(true)
-                .default_value("/etc/vsmtp/config.toml"),
-        )
-        .get_matches();
+    let args = <Args as clap::StructOpt>::parse();
 
-    let config = args
-        .value_of("config")
-        .expect("clap should provide default value");
-    log::warn!("Loading with configuration: \"{:?}\"", config);
+    log::warn!("Loading with configuration: \"{:?}\"", args.config);
 
     let config: ServerConfig =
-        toml::from_str(&std::fs::read_to_string(config).expect("cannot read file"))
+        toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
             .expect("cannot parse config from toml");
 
+    /*
     MailDirResolver::init_spool_folder(&config.smtp.spool_dir)
         .expect("Failed to initialize the spool directory");
+    */
 
     // the leak is needed to pass from &'a str to &'static str
     // and initialize the rule engine's rule directory.
@@ -51,12 +46,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(error) = rule_engine::init(Box::leak(rules_dir.into_boxed_str())) {
         // we can't use logs here because it is initialized when building the server.
         // NOTE: should we remove the log initialization inside the server ?
-        eprintln!("could not initalize the rule engine: {}", error);
+        eprintln!("could not initialize the rule engine: {}", error);
         return Err(error);
     }
 
-    let server = config.build::<MailDirResolver>().await;
+    let (s, r) = crossbeam_channel::bounded::<String>(0);
 
-    log::warn!("Listening on: {:?}", server.addr());
-    server.listen_and_serve().await
+    tokio::spawn(async move {
+        let server = config.build().await;
+        log::warn!("Listening on: {:?}", server.addr());
+
+        server
+            .listen_and_serve(std::sync::Arc::new(tokio::sync::Mutex::new(
+                MailDirResolver::new(s),
+            )))
+            .await?;
+
+        std::io::Result::Ok(())
+    });
+
+    loop {
+        if let Ok(name) = r.try_recv() {
+            println!("No one received {}’s message.", name);
+        }
+    }
 }

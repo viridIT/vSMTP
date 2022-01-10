@@ -1,6 +1,6 @@
 use serde_with::{serde_as, DisplayFromStr};
 
-use crate::{mailprocessing::state::StateSMTP, resolver::DataEndResolver, server::ServerVSMTP};
+use crate::{server::ServerVSMTP, smtp::state::StateSMTP};
 
 use super::custom_code::{CustomSMTPCode, SMTPCode};
 
@@ -114,12 +114,9 @@ impl ServerConfig {
         self
     }
 
-    pub async fn build<R>(mut self) -> ServerVSMTP<R>
-    where
-        R: DataEndResolver + std::marker::Send,
-    {
+    pub async fn build(mut self) -> ServerVSMTP {
         self.prepare();
-        ServerVSMTP::<R>::new(std::sync::Arc::new(self))
+        ServerVSMTP::new(std::sync::Arc::new(self))
             .await
             .expect("Failed to create the server")
     }

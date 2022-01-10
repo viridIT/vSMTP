@@ -181,7 +181,7 @@ impl<'a> RuleEngine<'a> {
             })?
             .into_iter()
         {
-            log::info!(target: RULES, "executing heavy operation: {:?}", op);
+            log::debug!(target: RULES, "executing heavy operation: {:?}", op);
             match op {
                 Operation::Block(path) => {
                     let mut path = std::path::PathBuf::from_str(&path)?;

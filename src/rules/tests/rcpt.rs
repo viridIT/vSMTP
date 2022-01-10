@@ -6,25 +6,15 @@ pub mod test {
         resolver::DataEndResolver,
         rules::{address::Address, tests::helpers::run_integration_engine_test},
         smtp::code::SMTPReplyCode,
+        test_helpers::DefaultResolverTest,
     };
-
-    struct Test;
-
-    #[async_trait::async_trait]
-    impl DataEndResolver for Test {
-        async fn on_data_end(
-            _: &ServerConfig,
-            _: &MailContext,
-        ) -> Result<SMTPReplyCode, std::io::Error> {
-            Ok(SMTPReplyCode::Code250)
-        }
-    }
 
     // -- testing out rcpt checking.
 
     #[tokio::test]
     async fn test_rcpt_by_user() {
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -47,7 +37,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -73,7 +64,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_rcpt_by_fqdn() {
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -96,7 +88,8 @@ pub mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -122,7 +115,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_rcpt_by_address() {
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test::<DefaultResolverTest>(
+            DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -153,6 +147,7 @@ pub mod test {
     #[async_trait::async_trait]
     impl DataEndResolver for TestRcptAdded {
         async fn on_data_end(
+            &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
         ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -180,6 +175,7 @@ pub mod test {
     #[tokio::test]
     async fn test_add_rcpt() {
         assert!(run_integration_engine_test::<TestRcptAdded>(
+            TestRcptAdded {},
             "./src/rules/tests/rules/rcpt/add_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -216,6 +212,7 @@ pub mod test {
     #[async_trait::async_trait]
     impl DataEndResolver for TestRcptRemoved {
         async fn on_data_end(
+            &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
         ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -245,6 +242,7 @@ pub mod test {
     #[tokio::test]
     async fn test_remove_rcpt() {
         assert!(run_integration_engine_test::<TestRcptRemoved>(
+            TestRcptRemoved {},
             "./src/rules/tests/rules/rcpt/rm_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -278,11 +276,12 @@ pub mod test {
         .is_ok());
     }
 
-    struct TestRcptRewriten;
+    struct TestRcptRewritten;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for TestRcptRewriten {
+    impl DataEndResolver for TestRcptRewritten {
         async fn on_data_end(
+            &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
         ) -> Result<SMTPReplyCode, std::io::Error> {
@@ -316,7 +315,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_rewrite_rcpt() {
-        assert!(run_integration_engine_test::<TestRcptRewriten>(
+        assert!(run_integration_engine_test::<TestRcptRewritten>(
+            TestRcptRewritten {},
             "./src/rules/tests/rules/rcpt/rw_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
