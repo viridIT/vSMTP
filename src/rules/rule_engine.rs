@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
-use crate::config::log::RULES;
+use crate::config::log_channel::RULES;
 use crate::model::envelop::Envelop;
 use crate::model::mail::{MailContext, MessageMetadata};
 use crate::rules::address::Address;
@@ -244,7 +244,7 @@ pub struct RhaiEngine<U: Users> {
     /// FIXME: remove RwLock, objects are immutable.
     pub(super) objects: Arc<RwLock<BTreeMap<String, Object>>>,
 
-    /// system user cache, used for retreiving user information. (used in vsl.USER_EXISTS for example)
+    /// system user cache, used for retrieving user information. (used in vsl.USER_EXISTS for example)
     pub(super) users: Mutex<U>,
 }
 
@@ -565,7 +565,7 @@ impl<U: Users> RhaiEngine<U> {
                 // we inject objects only once in Rust's scope.
                 if let Some(false) = context.scope_mut().get_value::<bool>("__init") {
                     match Object::from(&object) {
-                        // write is called once at initialisation, no need to check the result.
+                        // write is called once at initialization, no need to check the result.
                         Ok(rust_var) => shared_obj.write()
                             .unwrap()
                             .insert(var_name.clone(), rust_var),
@@ -652,7 +652,7 @@ impl RhaiEngine<users::UsersCache> {
 #[cfg(test)]
 impl RhaiEngine<users::mock::MockUsers> {
     /// creates a new instance of the rule engine, used for tests.
-    /// allow unused is () becuase this new static method is
+    /// allow unused is () because this new static method is
     /// for tests only.
     pub(super) fn new(
         src_path: &str,
@@ -759,7 +759,7 @@ lazy_static::lazy_static! {
 static mut RULES_PATH: &str = "./config/rules";
 static INIT_RULES_PATH: std::sync::Once = std::sync::Once::new();
 
-/// initialise the default rule path.
+/// initialize the default rule path.
 /// this is mainly used for test purposes, and does not
 /// need to be used most of the time.
 pub fn set_rules_path(src: &'static str) {
@@ -802,7 +802,7 @@ pub fn init(src: &'static str) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(not(test))]
-/// aquire a ref of the engine for production code.
+/// acquire a ref of the engine for production code.
 pub(super) fn acquire_engine() -> &'static RhaiEngine<users::UsersCache> {
     &RHAI_ENGINE
 }

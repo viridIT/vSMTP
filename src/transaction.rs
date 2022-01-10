@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{
-        log::{RECEIVER, RULES},
+        log_channel::{RECEIVER, RULES},
         server_config::TlsSecurityLevel,
     },
     connection::Connection,

@@ -15,7 +15,7 @@
  *
 **/
 use crate::{
-    config::{log::RESOLVER, server_config::ServerConfig},
+    config::{log_channel::RESOLVER, server_config::ServerConfig},
     model::mail::{MailContext, MessageMetadata},
     rules::address::Address,
     smtp::code::SMTPReplyCode,

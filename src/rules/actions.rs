@@ -39,7 +39,9 @@ use super::address::Address;
 pub(super) mod vsl {
     use std::collections::HashSet;
 
-    use crate::{config::log::RULES, model::mail::MessageMetadata, rules::address::Address};
+    use crate::{
+        config::log_channel::RULES, model::mail::MessageMetadata, rules::address::Address,
+    };
 
     /// enqueue a block operation on the queue.
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
