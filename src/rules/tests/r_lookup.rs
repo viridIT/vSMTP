@@ -1,25 +1,13 @@
 #[cfg(test)]
 mod test {
     use crate::{
-        config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
-        rules::tests::helpers::run_integration_engine_test, smtp::code::SMTPReplyCode,
+        rules::tests::helpers::run_integration_engine_test, test_helpers::DefaultResolverTest,
     };
-
-    struct Test;
-
-    #[async_trait::async_trait]
-    impl DataEndResolver for Test {
-        async fn on_data_end(
-            _: &ServerConfig,
-            _: &MailContext,
-        ) -> Result<SMTPReplyCode, std::io::Error> {
-            Ok(SMTPReplyCode::Code250)
-        }
-    }
 
     #[tokio::test]
     async fn test_reverse_lookup() {
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest,
             "./src/rules/tests/rules/actions/r_lookup.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
@@ -31,7 +19,8 @@ mod test {
         .await
         .is_ok());
 
-        assert!(run_integration_engine_test::<Test>(
+        assert!(run_integration_engine_test(
+            DefaultResolverTest,
             "./src/rules/tests/rules/actions/r_lookup_failure.vsl",
             "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
