@@ -439,6 +439,7 @@ impl ServerVSMTP {
     }
 }
 
+/// indentifiers for all mail queues.
 #[allow(unused)]
 enum Queue {
     Deliver,
@@ -447,6 +448,19 @@ enum Queue {
     Dead,
 }
 
+impl Queue {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Queue::Deliver => "deliver",
+            Queue::Working => "working",
+            Queue::Deferred => "deferred",
+            Queue::Dead => "dead",
+        }
+    }
+}
+
+/// used to write mail to the delivery queue and send a notification
+/// to the delivery process.
 pub struct DeliverQueueResolver {
     deliver_proc: crossbeam_channel::Sender<String>,
 }
@@ -467,7 +481,7 @@ impl DataEndResolver for DeliverQueueResolver {
         ctx: &crate::model::mail::MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error> {
         write_to_queue(Queue::Deliver, server_config, ctx)?;
-        // TODO: use the right codes.
+
         let message_id = ctx.metadata.as_ref().unwrap().message_id.clone();
 
         log::trace!(
@@ -477,20 +491,13 @@ impl DataEndResolver for DeliverQueueResolver {
         );
 
         // TODO: handle send errors.
+        // sending the message id to the delivery process.
+        // NOTE: we could send the context instead, so that the delivery system won't have
+        //       to touch the file system.
         self.deliver_proc.send(message_id).unwrap();
-        Ok(SMTPReplyCode::Code250)
-    }
-}
 
-/// indentifiers for all mail queues.
-impl Queue {
-    fn as_str(&self) -> &'static str {
-        match self {
-            Queue::Deliver => "deliver",
-            Queue::Working => "working",
-            Queue::Deferred => "deferred",
-            Queue::Dead => "dead",
-        }
+        // TODO: use the right codes.
+        Ok(SMTPReplyCode::Code250)
     }
 }
 
@@ -511,7 +518,7 @@ fn write_to_queue(
     // unfailable.
     .unwrap();
 
-    // TODO: should loop if an email name is conflicting with another.
+    // TODO: should loop if a file name is conflicting.
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .write(true)
