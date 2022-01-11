@@ -31,7 +31,7 @@ struct Args {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = <Args as clap::StructOpt>::parse();
 
-    println!("Loading with configuration: \"{:?}\"", args.config);
+    println!("Loading with configuration: '{}'", args.config);
 
     let config: ServerConfig =
         toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
@@ -53,12 +53,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the leak is needed to pass from &'a str to &'static str
     // and initialize the rule engine's rule directory.
     let rules_dir = config.rules.dir.clone();
-    if let Err(error) = rule_engine::init(Box::leak(rules_dir.into_boxed_str())) {
-        // we can't use logs here because it is initialized when building the server.
-        // NOTE: should we remove the log initialization inside the server ?
+    rule_engine::init(Box::leak(rules_dir.into_boxed_str())).map_err(|error| {
         eprintln!("could not initialize the rule engine: {}", error);
-        return Err(error);
-    }
+        error
+    })?;
 
     let (s, r) = crossbeam_channel::bounded::<String>(0);
 
@@ -66,11 +64,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "{}/deliver/tmp",
         config.smtp.spool_dir
     ))
-    // infallible.
     .unwrap();
 
     if !deliver_queue.exists() {
-        std::fs::DirBuilder::new().create(&deliver_queue)?;
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&deliver_queue)?;
     }
 
     let config_deliver = config.clone();

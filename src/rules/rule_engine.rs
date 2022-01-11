@@ -429,7 +429,7 @@ impl<U: Users> RhaiEngine<U> {
             },
             true,
             move |context, input| {
-                let when = input[0].get_variable_name().unwrap().to_string();
+                let when = input[0].get_string_value().unwrap().to_string();
                 let name = input[1].get_literal_value::<ImmutableString>().unwrap();
                 let map = &input[2];
 
@@ -502,7 +502,7 @@ impl<U: Users> RhaiEngine<U> {
             },
             true,
             move |context, input| {
-                let var_type = input[0].get_variable_name().unwrap().to_string();
+                let var_type = input[0].get_string_value().unwrap().to_string();
                 let var_name: String;
 
                 // FIXME: refactor this expression.
@@ -511,7 +511,7 @@ impl<U: Users> RhaiEngine<U> {
                 let object = match var_type.as_str() {
                     "file" => {
 
-                        let content_type = input[2].get_variable_name().unwrap();
+                        let content_type = input[2].get_string_value().unwrap();
                         var_name = input[3].get_literal_value::<ImmutableString>().unwrap().to_string();
                         let object = context.eval_expression_tree(&input[4])?;
 
