@@ -1,11 +1,10 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-
 use vsmtp::{
     config::server_config::ServerConfig,
     connection::Connection,
-    mailprocessing::io_service::IoService,
-    server::handle_client,
+    io_service::IoService,
+    server::ServerVSMTP,
     test_helpers::{DefaultResolverTest, Mock},
 };
 
@@ -24,5 +23,16 @@ fuzz_target!(|data: &[u8]| {
     )
     .unwrap();
 
-    let _ = handle_client::<DefaultResolverTest, Mock<'_>>(&mut conn, None);
+    let _ = match tokio::runtime::Runtime::new() {
+        Ok(r) => r,
+        Err(_) => todo!(),
+    }
+    .block_on(ServerVSMTP::handle_connection::<
+        DefaultResolverTest,
+        Mock<'_>,
+    >(
+        &mut conn,
+        std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
+        None,
+    ));
 });
