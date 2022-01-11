@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{
-        log::{RECEIVER, RULES},
+        log_channel::{RECEIVER, RULES},
         server_config::TlsSecurityLevel,
     },
     connection::Connection,
@@ -32,7 +32,7 @@ use crate::{
     smtp::{code::SMTPReplyCode, event::Event, state::StateSMTP},
 };
 
-const TIMEOUT_DEFAULT: u64 = 10_000; // 10s
+const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
 pub struct Transaction<'re> {
     state: StateSMTP,

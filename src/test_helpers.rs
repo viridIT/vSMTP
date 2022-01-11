@@ -68,18 +68,13 @@ pub async fn test_receiver<T: DataEndResolver>(
     resolver: std::sync::Arc<tokio::sync::Mutex<T>>,
     smtp_input: &[u8],
     expected_output: &[u8],
-    mut config: ServerConfig,
+    config: std::sync::Arc<ServerConfig>,
 ) -> Result<(), std::io::Error> {
-    config.prepare();
-
     let mut written_data = Vec::new();
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = Connection::<Mock<'_>>::from_plain(
-        "0.0.0.0:0".parse().unwrap(),
-        std::sync::Arc::new(config),
-        &mut io,
-    )?;
+    let mut conn =
+        Connection::<Mock<'_>>::from_plain("0.0.0.0:0".parse().unwrap(), config, &mut io)?;
 
     ServerVSMTP::handle_connection::<T, Mock<'_>>(&mut conn, resolver, None).await?;
     std::io::Write::flush(&mut conn.io_stream.inner)?;

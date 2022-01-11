@@ -1,37 +1,149 @@
+/**
+ * vSMTP mail transfer agent
+ * Copyright (C) 2021 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+**/
+// TODO: have a ConfigBuilder struct
 use serde_with::{serde_as, DisplayFromStr};
 
 use crate::{server::ServerVSMTP, smtp::state::StateSMTP};
 
-use super::custom_code::{CustomSMTPCode, SMTPCode};
+use super::{
+    custom_code::{CustomSMTPCode, SMTPCode},
+    default::DEFAULT_CONFIG,
+};
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerServerConfig {
     pub addr: std::net::SocketAddr,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerLogConfig {
     pub file: String,
     pub level: std::collections::HashMap<String, log::LevelFilter>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 pub enum TlsSecurityLevel {
     None,
     May,
     Encrypt,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct SniKey {
     pub domain: String,
     pub private_key: String,
     pub fullchain: String,
+    pub protocol_version: Option<ProtocolVersionRequirement>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+/// Using a wrapping struct for serialization
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProtocolVersion(pub rustls::ProtocolVersion);
+
+/// ```
+/// use vsmtp::config::server_config::ProtocolVersion;
+/// use vsmtp::config::server_config::ProtocolVersionRequirement;
+///
+/// #[derive(Debug, serde::Deserialize)]
+/// struct S {
+///     v: ProtocolVersionRequirement,
+/// }
+///
+/// let s = toml::from_str::<S>("v = \"SSLv2\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv2)]);
+/// let s = toml::from_str::<S>("v = \"0x0200\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv2)]);
+///
+/// let s = toml::from_str::<S>("v = \"SSLv3\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv3)]);
+/// let s = toml::from_str::<S>("v = \"0x0300\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv3)]);
+///
+/// let s = toml::from_str::<S>("v = \"TLSv1.0\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_0)]);
+/// let s = toml::from_str::<S>("v = \"0x0301\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_0)]);
+///
+/// let s = toml::from_str::<S>("v = \"TLSv1.1\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_1)]);
+/// let s = toml::from_str::<S>("v = \"0x0302\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_1)]);
+///
+/// let s = toml::from_str::<S>("v = \"TLSv1.2\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_2)]);
+/// let s = toml::from_str::<S>("v = \"0x0303\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_2)]);
+///
+/// let s = toml::from_str::<S>("v = \"TLSv1.3\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_3)]);
+/// let s = toml::from_str::<S>("v = \"0x0304\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_3)]);
+/// ```
+///
+/// ```
+/// use vsmtp::config::server_config::ProtocolVersion;
+/// use vsmtp::config::server_config::ProtocolVersionRequirement;
+///
+/// #[derive(Debug, serde::Deserialize)]
+/// struct S {
+///     v: ProtocolVersionRequirement,
+/// }
+///
+/// let s = toml::from_str::<S>("v = [\"TLSv1.1\", \"TLSv1.2\", \"TLSv1.3\"]").unwrap();
+/// assert_eq!(s.v.0, vec![
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
+/// ]);
+/// ```
+///
+/// ```
+/// use vsmtp::config::server_config::ProtocolVersion;
+/// use vsmtp::config::server_config::ProtocolVersionRequirement;
+///
+/// #[derive(Debug, serde::Deserialize)]
+/// struct S {
+///     v: ProtocolVersionRequirement,
+/// }
+///
+/// let s = toml::from_str::<S>("v = \"^TLSv1.1\"").unwrap();
+/// assert_eq!(s.v.0, vec![
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
+/// ]);
+///
+/// let s = toml::from_str::<S>("v = \">=SSLv3\"").unwrap();
+/// assert_eq!(s.v.0, vec![
+///     ProtocolVersion(rustls::ProtocolVersion::SSLv3),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_0),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
+/// ]);
+///
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProtocolVersionRequirement(pub Vec<ProtocolVersion>);
+
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerTlsConfig {
     pub security_level: TlsSecurityLevel,
+    pub protocol_version: ProtocolVersionRequirement,
     pub capath: Option<String>,
     pub preempt_cipherlist: bool,
     pub fullchain: Option<String>,
@@ -41,7 +153,7 @@ pub struct InnerTlsConfig {
     pub sni_maps: Option<Vec<SniKey>>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerSMTPErrorConfig {
     pub soft_count: i64,
     pub hard_count: i64,
@@ -50,7 +162,7 @@ pub struct InnerSMTPErrorConfig {
 }
 
 #[serde_as]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerSMTPConfig {
     pub spool_dir: String,
     pub disable_ehlo: bool,
@@ -74,12 +186,12 @@ impl InnerSMTPConfig {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerRulesConfig {
     pub dir: String,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct ServerConfig {
     pub domain: String,
     pub server: InnerServerConfig,
@@ -87,6 +199,12 @@ pub struct ServerConfig {
     pub tls: InnerTlsConfig,
     pub smtp: InnerSMTPConfig,
     pub rules: InnerRulesConfig,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        DEFAULT_CONFIG.clone()
+    }
 }
 
 impl ServerConfig {
@@ -109,7 +227,7 @@ impl ServerConfig {
                     self,
                     prepare_for_default,
                 ))),
-                Some(SMTPCode::Serialized(_)) => unreachable!(),
+                Some(SMTPCode::Serialized(c)) => SMTPCode::Serialized(c.clone()),
             });
         self
     }

@@ -21,6 +21,7 @@
         "maildir",
         "nonblocking",
         "pemfile",
+        "PKCS8",
         "preq",
         "rcpts",
         "rhai",

@@ -15,7 +15,7 @@
  *
 **/
 use crate::{
-    config::{log::RECEIVER, server_config::ServerConfig},
+    config::{log_channel::RECEIVER, server_config::ServerConfig},
     io_service::{IoService, ReadError},
     smtp::code::SMTPReplyCode,
 };

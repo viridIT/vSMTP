@@ -189,14 +189,25 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_8() {
+        let mut config = ServerConfig {
+            domain: "test.server.com".to_string(),
+            tls: InnerTlsConfig {
+                security_level: TlsSecurityLevel::Encrypt,
+                ..ServerConfig::default().tls
+            },
+            ..ServerConfig::default()
+        };
+        config.prepare();
+
         assert!(test_receiver::<DefaultResolverTest>(
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
                 .concat()
                 .as_bytes(),
             [
-                "220 test.server.com Service ready\r\n",
-                "250-test.server.com\r\n",
+                // FIXME:
+                "220 {domain} Service ready\r\n",
+                "250-{domain}\r\n",
                 "250-8BITMIME\r\n",
                 "250-SMTPUTF8\r\n",
                 "250 STARTTLS\r\n",
@@ -205,13 +216,7 @@ mod tests {
             ]
             .concat()
             .as_bytes(),
-            ServerConfig {
-                tls: InnerTlsConfig {
-                    security_level: TlsSecurityLevel::Encrypt,
-                    ..get_test_config().tls
-                },
-                ..get_test_config()
-            },
+            std::sync::Arc::new(config)
         )
         .await
         .is_ok());
@@ -262,22 +267,27 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_10() {
+        let mut config = ServerConfig {
+            domain: "test.server.com".to_string(),
+            tls: InnerTlsConfig {
+                security_level: TlsSecurityLevel::Encrypt,
+                ..ServerConfig::default().tls
+            },
+            ..ServerConfig::default()
+        };
+        config.prepare();
+
         assert!(test_receiver::<DefaultResolverTest>(
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["HELP\r\n"].concat().as_bytes(),
             [
-                "220 test.server.com Service ready\r\n",
+                // FIXME:
+                "220 {domain} Service ready\r\n",
                 "214 joining us https://viridit.com/support\r\n",
             ]
             .concat()
             .as_bytes(),
-            ServerConfig {
-                tls: InnerTlsConfig {
-                    security_level: TlsSecurityLevel::Encrypt,
-                    ..get_test_config().tls
-                },
-                ..get_test_config()
-            },
+            std::sync::Arc::new(config)
         )
         .await
         .is_ok());
@@ -351,22 +361,26 @@ mod tests {
 
     #[tokio::test]
     async fn test_receiver_12() {
+        let mut config = ServerConfig {
+            domain: "test.server.com".to_string(),
+            smtp: InnerSMTPConfig {
+                disable_ehlo: true,
+                ..ServerConfig::default().smtp
+            },
+            ..ServerConfig::default()
+        };
+        config.prepare();
         assert!(test_receiver::<DefaultResolverTest>(
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["EHLO postmaster\r\n"].concat().as_bytes(),
             [
-                "220 test.server.com Service ready\r\n",
+                // FIXME:
+                "220 {domain} Service ready\r\n",
                 "502 Command not implemented\r\n",
             ]
             .concat()
             .as_bytes(),
-            ServerConfig {
-                smtp: InnerSMTPConfig {
-                    disable_ehlo: true,
-                    ..get_test_config().smtp
-                },
-                ..get_test_config()
-            },
+            std::sync::Arc::new(config)
         )
         .await
         .is_ok());

@@ -23,6 +23,7 @@ pub mod rules;
 pub mod server;
 pub mod smtp;
 pub mod test_helpers;
+pub mod tls;
 pub mod transaction;
 
 #[macro_export]
