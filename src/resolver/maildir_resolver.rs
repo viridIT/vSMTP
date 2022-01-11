@@ -179,13 +179,8 @@ impl DataEndResolver for MailDirResolver {
                         "Couldn't write email to inbox: {:?}",
                         error
                     );
-                } else {
-                    todo!();
-                    // self.sender
-                    //     .send(mail.metadata.as_ref().unwrap().message_id.clone())
-                    //     .map_err(|e| {
-                    //         std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
-                    //     })?;
+
+                    return Err(error);
                 }
             } else {
                 log::trace!(

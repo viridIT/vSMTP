@@ -1,3 +1,4 @@
+use vsmtp::config::log::DELIVER;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -59,10 +60,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(error);
     }
 
-    let (s, r) = crossbeam_channel::bounded::<String>(0);
+    let (s, r) = crossbeam_channel::bounded::<String>(1);
 
     let mut deliver_queue = <std::path::PathBuf as std::str::FromStr>::from_str(&format!(
-        "{}/deliver",
+        "{}/deliver/",
         config.smtp.spool_dir
     ))
     // unfailable.
@@ -79,25 +80,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // TODO: check config / rule engine for right resolver.
         // TODO: empty queue when booting.
         let mut resolver = MailDirResolver::default();
+        deliver_queue.push("tmp");
 
         loop {
             if let Ok(message_id) = r.try_recv() {
-                log::error!("delivery process received a new message id: {}", message_id);
+                log::debug!(
+                    target: DELIVER,
+                    "delivery process received a new message id: {}",
+                    message_id
+                );
 
                 // open the file.
                 let mail: vsmtp::model::mail::MailContext = {
-                    deliver_queue.set_file_name(message_id);
+                    deliver_queue.set_file_name(&message_id);
                     // TODO: should not stop process.
                     serde_json::from_str(&std::fs::read_to_string(&deliver_queue)?)?
                 };
 
                 // send mail.
                 resolver.on_data_end(&config_deliver, &mail).await?;
-                log::error!("message received by delivery process: {}", mail.body);
+
+                log::debug!(
+                    target: DELIVER,
+                    "message '{}' sent successfuly.",
+                    message_id
+                );
 
                 // remove mail from queue.
                 // TODO: should not stop process.
                 std::fs::remove_file(&deliver_queue)?;
+
+                log::debug!(
+                    target: DELIVER,
+                    "message '{}' removed from delivery queue.",
+                    message_id
+                );
 
                 return std::io::Result::Ok(());
             }

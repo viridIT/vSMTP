@@ -6,4 +6,5 @@ pub mod log {
     pub const RECEIVER: &str = "receiver";
     pub const RESOLVER: &str = "resolver";
     pub const RULES: &str = "rules";
+    pub const DELIVER: &str = "deliver";
 }
