@@ -18,6 +18,7 @@ use crate::{
     config::server_config::ServerConfig, model::mail::MailContext, smtp::code::SMTPReplyCode,
 };
 
+pub mod deliver_queue;
 pub mod maildir_resolver;
 
 #[async_trait::async_trait]

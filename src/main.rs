@@ -16,6 +16,7 @@
  **/
 use vsmtp::config::log_channel::DELIVER;
 use vsmtp::config::server_config::ServerConfig;
+use vsmtp::resolver::deliver_queue::DeliverQueueResolver;
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::DataEndResolver;
 use vsmtp::rules::rule_engine;
@@ -125,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     server
         .listen_and_serve(std::sync::Arc::new(tokio::sync::Mutex::new(
-            vsmtp::server::DeliverQueueResolver::new(s),
+            DeliverQueueResolver::new(s),
         )))
         .await
 }
