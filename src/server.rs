@@ -17,6 +17,7 @@
 use crate::{
     config::{
         get_logger_config,
+        log_channel::RECEIVER,
         server_config::{ServerConfig, TlsSecurityLevel},
     },
     connection::Connection,
@@ -242,7 +243,7 @@ impl ServerVSMTP {
     }
 }
 
-/// indentifiers for all mail queues.
+/// identifiers for all mail queues.
 #[allow(unused)]
 enum Queue {
     Deliver,
@@ -289,7 +290,7 @@ impl DataEndResolver for DeliverQueueResolver {
 
         log::trace!(
             target: RECEIVER,
-            "mail {} successfuly written to deliver queue",
+            "mail {} successfully written to deliver queue",
             message_id
         );
 
@@ -318,7 +319,7 @@ fn write_to_queue(
         queue.as_str(),
         &message_id
     ))
-    // unfailable.
+    // infallible.
     .unwrap();
 
     // TODO: should loop if a file name is conflicting.

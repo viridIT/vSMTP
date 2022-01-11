@@ -1,4 +1,3 @@
-use vsmtp::config::log::DELIVER;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -14,7 +13,8 @@ use vsmtp::config::log::DELIVER;
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+ **/
+use vsmtp::config::log_channel::DELIVER;
 use vsmtp::config::server_config::ServerConfig;
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::DataEndResolver;
@@ -31,7 +31,7 @@ struct Args {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = <Args as clap::StructOpt>::parse();
 
-    log::warn!("Loading with configuration: \"{:?}\"", args.config);
+    println!("Loading with configuration: \"{:?}\"", args.config);
 
     let config: ServerConfig =
         toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "{}/deliver/tmp",
         config.smtp.spool_dir
     ))
-    // unfailable.
+    // infallible.
     .unwrap();
 
     if !deliver_queue.exists() {
@@ -102,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 log::debug!(
                     target: DELIVER,
-                    "message '{}' sent successfuly.",
+                    "message '{}' sent successfully.",
                     message_id
                 );
 
