@@ -16,7 +16,8 @@
  **/
 use vsmtp::config::log_channel::DELIVER;
 use vsmtp::config::server_config::ServerConfig;
-use vsmtp::resolver::deliver_queue::DeliverQueueResolver;
+use vsmtp::mime::parser::MailMimeParser;
+use vsmtp::resolver::deliver_queue::{DeliverQueueResolver, Queue};
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::DataEndResolver;
 use vsmtp::rules::rule_engine;
@@ -26,6 +27,124 @@ use vsmtp::rules::rule_engine;
 struct Args {
     #[clap(short, long)]
     config: String,
+}
+
+async fn v_deliver(
+    config_deliver: ServerConfig,
+    spool_dir: String,
+    delivery_receiver: crossbeam_channel::Receiver<String>,
+) -> std::io::Result<()> {
+    // TODO: check config / rule engine for right resolver.
+    // TODO: empty queue when booting.
+
+    async fn handle_one(
+        message_id: &str,
+        spool_dir: &str,
+        config_deliver: &ServerConfig,
+    ) -> std::io::Result<()> {
+        let deliver_queue = Queue::Deliver.to_path(&spool_dir)?;
+
+        log::debug!(
+            target: DELIVER,
+            "vDeliver process received a new message id: {}",
+            message_id
+        );
+
+        let file_to_process = deliver_queue.join(&message_id);
+        log::debug!(
+            target: DELIVER,
+            "vDELIVER opening file: {:?}",
+            file_to_process
+        );
+
+        let mail: vsmtp::model::mail::MailContext =
+            serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
+
+        let mut resolver = MailDirResolver::default();
+        resolver.on_data_end(config_deliver, &mail).await?;
+
+        log::debug!(
+            target: DELIVER,
+            "message '{}' sent successfully.",
+            message_id
+        );
+
+        std::fs::remove_file(&file_to_process)?;
+
+        log::debug!(
+            target: DELIVER,
+            "message '{}' removed from delivery queue.",
+            message_id
+        );
+
+        Ok(())
+    }
+
+    loop {
+        if let Ok(message_id) = delivery_receiver.try_recv() {
+            // TODO: should not stop process.
+            handle_one(&message_id, &spool_dir, &config_deliver)
+                .await
+                .unwrap();
+        }
+    }
+}
+
+async fn v_mime(
+    spool_dir: String,
+    working_receiver: crossbeam_channel::Receiver<String>,
+    delivery_sender: crossbeam_channel::Sender<String>,
+) -> std::io::Result<()> {
+    fn handle_one(
+        message_id: &str,
+        spool_dir: &str,
+        delivery_sender: &crossbeam_channel::Sender<String>,
+    ) -> std::io::Result<()> {
+        log::debug!(
+            target: DELIVER,
+            "vMIME process received a new message id: {}",
+            message_id
+        );
+
+        let working_queue = Queue::Working.to_path(spool_dir)?;
+
+        let file_to_process = working_queue.join(&message_id);
+        log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
+
+        let mail: vsmtp::model::mail::MailContext =
+            { serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)? };
+
+        match MailMimeParser::default().parse(mail.body.as_bytes()) {
+            Ok(_mail_mime) => {
+                // TODO: postq rule engine
+            }
+            Err(e) => todo!("handle error, continue receive message {}", e),
+        }
+
+        delivery_sender.send(message_id.to_string()).unwrap();
+
+        std::fs::rename(
+            file_to_process,
+            std::path::PathBuf::from_iter([
+                Queue::Deliver.to_path(&spool_dir)?,
+                std::path::Path::new(&message_id).to_path_buf(),
+            ]),
+        )?;
+
+        log::debug!(
+            target: DELIVER,
+            "message '{}' removed from working queue.",
+            message_id
+        );
+
+        Ok(())
+    }
+
+    loop {
+        if let Ok(message_id) = working_receiver.try_recv() {
+            handle_one(&message_id, &spool_dir, &delivery_sender).unwrap();
+        }
+    }
 }
 
 #[tokio::main]
@@ -51,82 +170,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // the leak is needed to pass from &'a str to &'static str
-    // and initialize the rule engine's rule directory.
-    let rules_dir = config.rules.dir.clone();
-    rule_engine::init(Box::leak(rules_dir.into_boxed_str())).map_err(|error| {
+    rule_engine::init(Box::leak(config.rules.dir.clone().into_boxed_str())).map_err(|error| {
         eprintln!("could not initialize the rule engine: {}", error);
         error
     })?;
 
-    let (s, r) = crossbeam_channel::bounded::<String>(0);
+    let (delivery_sender, delivery_receiver) = crossbeam_channel::bounded::<String>(0);
+    let (working_sender, working_receiver) = crossbeam_channel::bounded::<String>(0);
 
-    let mut deliver_queue = <std::path::PathBuf as std::str::FromStr>::from_str(&format!(
-        "{}/deliver/tmp",
-        config.smtp.spool_dir
-    ))
-    .unwrap();
+    tokio::spawn(v_deliver(
+        config.clone(),
+        config.smtp.spool_dir.clone(),
+        delivery_receiver,
+    ));
 
-    if !deliver_queue.exists() {
-        std::fs::DirBuilder::new()
-            .recursive(true)
-            .create(&deliver_queue)?;
-    }
-
-    let config_deliver = config.clone();
-
-    // vDeliver process.
-    tokio::spawn(async move {
-        // TODO: check config / rule engine for right resolver.
-        // TODO: empty queue when booting.
-        let mut resolver = MailDirResolver::default();
-
-        loop {
-            // TODO: handle errors.
-            if let Ok(message_id) = r.recv() {
-                log::debug!(
-                    target: DELIVER,
-                    "delivery process received a new message id: {}",
-                    message_id
-                );
-
-                // open the file.
-                let mail: vsmtp::model::mail::MailContext = {
-                    deliver_queue.set_file_name(&message_id);
-                    // TODO: should not stop process.
-                    serde_json::from_str(&std::fs::read_to_string(&deliver_queue)?)?
-                };
-
-                // send mail.
-                resolver.on_data_end(&config_deliver, &mail).await?;
-
-                log::debug!(
-                    target: DELIVER,
-                    "message '{}' sent successfully.",
-                    message_id
-                );
-
-                // remove mail from queue.
-                // TODO: should not stop process.
-                std::fs::remove_file(&deliver_queue)?;
-
-                log::debug!(
-                    target: DELIVER,
-                    "message '{}' removed from delivery queue.",
-                    message_id
-                );
-
-                return std::io::Result::Ok(());
-            }
-        }
-    });
+    tokio::spawn(v_mime(
+        config.smtp.spool_dir.clone(),
+        working_receiver,
+        delivery_sender,
+    ));
 
     let server = config.build().await;
     log::warn!("Listening on: {:?}", server.addr());
 
     server
         .listen_and_serve(std::sync::Arc::new(tokio::sync::Mutex::new(
-            DeliverQueueResolver::new(s),
+            DeliverQueueResolver::new(working_sender),
         )))
         .await
 }
