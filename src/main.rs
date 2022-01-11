@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (s, r) = crossbeam_channel::bounded::<String>(0);
 
     let mut deliver_queue = <std::path::PathBuf as std::str::FromStr>::from_str(&format!(
-        "{}/deliver/",
+        "{}/deliver/tmp",
         config.smtp.spool_dir
     ))
     // unfailable.
@@ -80,10 +80,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // TODO: check config / rule engine for right resolver.
         // TODO: empty queue when booting.
         let mut resolver = MailDirResolver::default();
-        deliver_queue.push("tmp");
 
         loop {
-            if let Ok(message_id) = r.try_recv() {
+            // TODO: handle errors.
+            if let Ok(message_id) = r.recv() {
                 log::debug!(
                     target: DELIVER,
                     "delivery process received a new message id: {}",
