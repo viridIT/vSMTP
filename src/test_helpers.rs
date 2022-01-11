@@ -76,7 +76,8 @@ pub async fn test_receiver<T: DataEndResolver>(
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
     let mut conn = Connection::<Mock<'_>>::from_plain(
-        "0.0.0.0:0".parse().unwrap(),
+        // TODO: pass client address as parameter.
+        "127.0.0.1:0".parse().unwrap(),
         std::sync::Arc::new(config),
         &mut io,
     )?;

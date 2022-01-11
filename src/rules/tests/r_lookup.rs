@@ -5,7 +5,7 @@ mod test {
     };
 
     #[tokio::test]
-    async fn test_reverse_lookup() {
+    async fn test_dns_lookup_success() {
         assert!(run_integration_engine_test(
             DefaultResolverTest,
             "./src/rules/tests/rules/actions/r_lookup.vsl",
@@ -18,7 +18,10 @@ mod test {
         )
         .await
         .is_ok());
+    }
 
+    #[tokio::test]
+    async fn test_dns_lookup_failure() {
         assert!(run_integration_engine_test(
             DefaultResolverTest,
             "./src/rules/tests/rules/actions/r_lookup_failure.vsl",

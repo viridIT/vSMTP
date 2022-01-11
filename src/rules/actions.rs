@@ -235,49 +235,43 @@ pub(super) mod vsl {
         }
     }
 
-    #[rhai_fn(name = "__R_LOOKUP", return_raw)]
-    /// find an address from an object / string literal ip.
-    pub fn reverse_lookup(object: &str, port: i64) -> Result<String, Box<EvalAltResult>> {
-        use std::net::*;
+    #[rhai_fn(name = "__DNS_LOOKUP", return_raw)]
+    /// check the client's ip matches against the hostname passed has parameter.
+    /// this can be used, for example, to check if HELO's value
+    /// is matching the `hostname` parameter, preventing relaying.
+    pub fn dns_lookup(
+        // curried parameters.
+        connect: std::net::IpAddr,
+        port: u16,
+        // exposed parameter.
+        hostname: &str,
+    ) -> Result<bool, Box<EvalAltResult>> {
+        // using the ToSocketAddrs to resolve ip(s) and compare them to
+        // the client's connection data.
+        use std::net::ToSocketAddrs;
 
-        match acquire_engine().objects.read().unwrap().get(object) {
-            Some(Object::Ip4(addr)) => crate::rules::rule_engine::reverse_lookup(&SocketAddr::new(
-                IpAddr::V4(*addr),
-                port as u16,
-            ))
-            .map_err(|error| {
-                format!("couldn't process reverse lookup using ipv4: {}", error).into()
-            }),
+        // TODO: can be refactored.
+        match acquire_engine().objects.read().unwrap().get(hostname) {
+            Some(Object::Fqdn(fqdn)) => Ok(format!("{}:{}", fqdn, port)
+                .to_socket_addrs()
+                .map_err::<Box<EvalAltResult>, _>(|error| {
+                    format!("couldn't process dns lookup: {}", error).into()
+                })?
+                .any(|socket| {
+                    println!("socket.ip(): {}, connect: {}", socket.ip(), connect);
+                    socket.ip() == connect
+                })),
 
-            Some(Object::Ip6(addr)) => crate::rules::rule_engine::reverse_lookup(&SocketAddr::new(
-                IpAddr::V6(*addr),
-                port as u16,
-            ))
-            .map_err(|error| {
-                format!("couldn't process reverse lookup using ipv6: {}", error).into()
-            }),
-
-            _ => match <SocketAddr as std::str::FromStr>::from_str(&format!("{}:{}", object, port))
-            {
-                Ok(socket) => crate::rules::rule_engine::reverse_lookup(&socket)
-                    .map_err(|error| format!("couldn't process reverse lookup: {}", error).into()),
-                Err(error) => {
-                    Err(format!("couldn't process reverse lookup for {}: {}", object, error).into())
-                }
-            },
+            _ => Ok(format!("{}:{}", hostname, port)
+                .to_socket_addrs()
+                .map_err::<Box<EvalAltResult>, _>(|error| {
+                    format!("couldn't process dns lookup: {}", error).into()
+                })?
+                .any(|socket| {
+                    println!("socket.ip(): {}, connect: {}", socket.ip(), connect);
+                    socket.ip() == connect
+                })),
         }
-    }
-
-    #[rhai_fn(name = "__R_LOOKUP", return_raw)]
-    /// find an address from an IpAddr object (connect).
-    pub fn reverse_lookup_from_ip(
-        ip: std::net::IpAddr,
-        port: i64,
-    ) -> Result<String, Box<EvalAltResult>> {
-        crate::rules::rule_engine::reverse_lookup(&std::net::SocketAddr::new(ip, port as u16))
-            .map_err(|error| {
-                format!("couldn't process reverse lookup using ipv4: {}", error).into()
-            })
     }
 
     #[rhai_fn(name = "==")]

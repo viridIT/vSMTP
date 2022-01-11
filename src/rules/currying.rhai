@@ -111,8 +111,7 @@ let vsl = #{
         __MAIL(from, to, subject, body);
     },
 
-    // reverse lookup.
-    R_LOOKUP: |address, port| {
-        __R_LOOKUP(address, port)
+    DNS_LOOKUP: |hostname| {
+        __DNS_LOOKUP(connect, port, hostname)
     },
 };

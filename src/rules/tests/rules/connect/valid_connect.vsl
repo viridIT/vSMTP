@@ -1,5 +1,5 @@
 rule connect "test_connect" #{
-  condition: || vsl.IS_CONNECT("0.0.0.0"),
+  condition: || vsl.IS_CONNECT("127.0.0.1"),
   on_success: vsl.CONTINUE,
   on_failure: vsl.DENY,
 };
