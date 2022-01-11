@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(error);
     }
 
-    let (s, r) = crossbeam_channel::bounded::<String>(1);
+    let (s, r) = crossbeam_channel::bounded::<String>(0);
 
     let mut deliver_queue = <std::path::PathBuf as std::str::FromStr>::from_str(&format!(
         "{}/deliver/",
