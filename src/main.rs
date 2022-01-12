@@ -40,6 +40,7 @@ async fn v_deliver(
 
     async fn handle_one_in_deferred_queue(
         path: &std::path::Path,
+        spool_dir: &str,
         config: &ServerConfig,
     ) -> std::io::Result<()> {
         let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
@@ -58,49 +59,78 @@ async fn v_deliver(
         let mut mail: vsmtp::model::mail::MailContext = serde_json::from_str(&raw)?;
         assert_eq!(message_id, mail.metadata.as_ref().unwrap().message_id);
 
-        // TODO: if retry >= max_retry...
+        let max_retry_deferred = config
+            .delivery
+            .queue
+            .get("deferred")
+            .map(|q| q.capacity)
+            .flatten()
+            .unwrap_or(100);
 
-        let mut resolver = MailDirResolver::default();
-        match resolver.on_data_end(config, &mail).await {
-            Ok(_) => {
-                log::trace!(
-                    target: DELIVER,
-                    "vDeliver (deferred) '{}' SEND successfully.",
-                    message_id
-                );
+        if mail.metadata.as_ref().unwrap().retry >= max_retry_deferred {
+            log::warn!(
+                target: DELIVER,
+                "vDeliver (deferred) '{}' MAX RETRY, retry: '{}'",
+                message_id,
+                mail.metadata.as_ref().unwrap().retry
+            );
 
-                std::fs::remove_file(&path)?;
+            std::fs::rename(
+                path,
+                std::path::PathBuf::from_iter([
+                    Queue::Dead.to_path(&spool_dir)?,
+                    std::path::Path::new(&message_id).to_path_buf(),
+                ]),
+            )?;
 
-                log::info!(
-                    target: DELIVER,
-                    "vDeliver (deferred) '{}' REMOVED successfully.",
-                    message_id
-                );
-            }
-            Err(error) => {
-                log::warn!(
-                    target: DELIVER,
-                    "vDeliver (deferred) '{}' SEND FAILED, reason: '{}'",
-                    message_id,
-                    error
-                );
+            log::info!(
+                target: DELIVER,
+                "vDeliver (deferred) '{}' MOVED deferred => dead.",
+                message_id
+            );
+        } else {
+            let mut resolver = MailDirResolver::default();
+            match resolver.on_data_end(config, &mail).await {
+                Ok(_) => {
+                    log::trace!(
+                        target: DELIVER,
+                        "vDeliver (deferred) '{}' SEND successfully.",
+                        message_id
+                    );
 
-                mail.metadata.as_mut().unwrap().retry += 1;
+                    std::fs::remove_file(&path)?;
 
-                let mut file = std::fs::OpenOptions::new()
-                    .truncate(true)
-                    .write(true)
-                    .open(&path)
-                    .unwrap();
+                    log::info!(
+                        target: DELIVER,
+                        "vDeliver (deferred) '{}' REMOVED successfully.",
+                        message_id
+                    );
+                }
+                Err(error) => {
+                    log::warn!(
+                        target: DELIVER,
+                        "vDeliver (deferred) '{}' SEND FAILED, reason: '{}'",
+                        message_id,
+                        error
+                    );
 
-                std::io::Write::write_all(&mut file, serde_json::to_string(&mail)?.as_bytes())?;
+                    mail.metadata.as_mut().unwrap().retry += 1;
 
-                log::info!(
-                    target: DELIVER,
-                    "vDeliver (deferred) '{}' INCREASE retries to '{}'.",
-                    message_id,
-                    mail.metadata.as_mut().unwrap().retry
-                );
+                    let mut file = std::fs::OpenOptions::new()
+                        .truncate(true)
+                        .write(true)
+                        .open(&path)
+                        .unwrap();
+
+                    std::io::Write::write_all(&mut file, serde_json::to_string(&mail)?.as_bytes())?;
+
+                    log::info!(
+                        target: DELIVER,
+                        "vDeliver (deferred) '{}' INCREASE retries to '{}'.",
+                        message_id,
+                        mail.metadata.as_mut().unwrap().retry
+                    );
+                }
             }
         }
 
@@ -109,7 +139,7 @@ async fn v_deliver(
 
     async fn flush_deferred_queue(spool_dir: &str, config: &ServerConfig) -> std::io::Result<()> {
         for path in std::fs::read_dir(Queue::Deferred.to_path(&spool_dir)?)? {
-            handle_one_in_deferred_queue(&path?.path(), config)
+            handle_one_in_deferred_queue(&path?.path(), spool_dir, config)
                 .await
                 .unwrap();
         }
@@ -282,6 +312,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     log4rs::init_config(get_logger_config(&config)?)?;
 
+    println!("{:?}", config);
+
     // TODO: move into server init.
     // creating the spool folder if it doesn't exists yet.
     {
@@ -300,8 +332,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         error
     })?;
 
-    let (delivery_sender, delivery_receiver) = crossbeam_channel::bounded::<String>(0);
-    let (working_sender, working_receiver) = crossbeam_channel::bounded::<String>(0);
+    let (delivery_sender, delivery_receiver) = crossbeam_channel::bounded::<String>(
+        config
+            .delivery
+            .queue
+            .get("delivery")
+            .map(|q| q.capacity)
+            .flatten()
+            .unwrap_or(0),
+    );
+    let (working_sender, working_receiver) = crossbeam_channel::bounded::<String>(
+        config
+            .delivery
+            .queue
+            .get("working")
+            .map(|q| q.capacity)
+            .flatten()
+            .unwrap_or(0),
+    );
 
     tokio::spawn(v_deliver(
         config.clone(),
