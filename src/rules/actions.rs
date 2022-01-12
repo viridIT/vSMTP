@@ -34,7 +34,9 @@ pub(super) mod vsl {
     use std::collections::HashSet;
 
     use crate::{
-        config::log_channel::RULES, model::mail::MessageMetadata, rules::address::Address,
+        config::log_channel::RULES,
+        model::mail::{Body, MessageMetadata},
+        rules::address::Address,
     };
 
     /// enqueue a block operation on the queue.
@@ -196,7 +198,7 @@ pub(super) mod vsl {
                 mail_from: mail,
                 rcpt,
             },
-            body: data.into(),
+            body: Body::Raw(data.into()),
             metadata,
         };
 

@@ -1,5 +1,6 @@
 // NOTE: should be improved
 
+#[derive(Debug)]
 pub enum ParserError {
     InvalidInput,
     InvalidMail(String),
