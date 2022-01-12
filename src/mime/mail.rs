@@ -3,7 +3,7 @@ use super::mime_type::Mime;
 /// we use Vec instead of a HashMap because header ordering is important.
 pub type MailHeaders = Vec<(String, String)>;
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 /// see rfc5322 (section 2.1 and 2.3)
 pub enum BodyType {
     Regular(Vec<String>),
@@ -11,8 +11,31 @@ pub enum BodyType {
     Undefined,
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+impl ToString for BodyType {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Regular(content) => content.join("\n"),
+            Self::Mime(content) => content.to_string(),
+            Self::Undefined => String::default(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Mail {
     pub headers: MailHeaders,
     pub body: BodyType,
+}
+
+impl Mail {
+    pub fn to_raw(&self) -> (String, String) {
+        (
+            self.headers
+                .iter()
+                .map(|(header, value)| format!("{}: {}", header, value))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            self.body.to_string(),
+        )
+    }
 }

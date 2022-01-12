@@ -167,25 +167,28 @@ impl DataEndResolver for MailDirResolver {
 
         log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
 
+        let content = match &mail.body {
+            Body::Raw(content) => content.clone(),
+            Body::Parsed(content) => {
+                let (headers, body) = content.to_raw();
+                [headers, body].join("\n\n")
+            }
+        };
+
         for rcpt in mail.envelop.rcpt.iter() {
             if crate::rules::rule_engine::user_exists(rcpt.local_part()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                match &mail.body {
-                    Body::Raw(content) => {
-                        if let Err(error) =
-                            Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), content)
-                        {
-                            log::error!(
-                                target: RESOLVER,
-                                "Couldn't write email to inbox: {:?}",
-                                error
-                            );
+                if let Err(error) =
+                    Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), &content)
+                {
+                    log::error!(
+                        target: RESOLVER,
+                        "Couldn't write email to inbox: {:?}",
+                        error
+                    );
 
-                            return Err(error);
-                        }
-                    }
-                    _ => todo!(),
+                    return Err(error);
                 }
             } else {
                 log::trace!(

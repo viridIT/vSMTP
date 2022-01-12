@@ -21,6 +21,7 @@ use crate::{
     },
     connection::Connection,
     io_service::ReadError,
+    mime::parser::MailMimeParser,
     model::{
         envelop::Envelop,
         mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
@@ -210,9 +211,14 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                if let Body::Raw(body) = &self.mail.body {
-                    self.rule_engine.add_data("data", body.clone());
-                }
+                let parsed = MailMimeParser::default()
+                    .parse(match &self.mail.body {
+                        Body::Raw(raw) => raw.as_bytes(),
+                        _ => unreachable!("the email cannot be parsed before the DataEnd command"),
+                    })
+                    .expect("handle parsing errors");
+
+                self.rule_engine.add_data("data", parsed.clone());
 
                 let status = self.rule_engine.run_when("preq");
 
@@ -240,7 +246,7 @@ impl Transaction<'_> {
 
                         let mut output = MailContext {
                             envelop: Envelop::default(),
-                            body: Body::Raw(String::with_capacity(MAIL_CAPACITY)),
+                            body: Body::Parsed(Box::new(parsed)),
                             metadata: None,
                         };
 
@@ -343,7 +349,7 @@ impl Transaction<'_> {
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
     ) -> std::io::Result<TransactionResult> {
-        // TODO: move that cleanly in config
+        // TODO: move that cleanly in config.
         let smtp_timeouts = conn
             .config
             .smtp

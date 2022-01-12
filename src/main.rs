@@ -58,11 +58,13 @@ async fn v_deliver(
             file_to_process
         );
 
-        let mail: vsmtp::model::mail::MailContext =
+        let ctx: vsmtp::model::mail::MailContext =
             serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
+        log::trace!(target: DELIVER, "content: {:#?}", ctx);
+
         let mut resolver = MailDirResolver::default();
-        resolver.on_data_end(config_deliver, &mail).await?;
+        resolver.on_data_end(config_deliver, &ctx).await?;
 
         log::debug!(
             target: DELIVER,
@@ -112,28 +114,34 @@ async fn v_mime(
         let file_to_process = working_queue.join(&message_id);
         log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
-        let mail: vsmtp::model::mail::MailContext =
+        let mut ctx: vsmtp::model::mail::MailContext =
             { serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)? };
 
-        match mail.body {
-            Body::Parsed(_) => {
-                todo!("run postq rule engine")
+        ctx.body = Body::Parsed(match ctx.body {
+            Body::Parsed(parsed) => {
+                log::debug!(target: DELIVER, "parsed email: {:?}", parsed);
+                parsed
             }
             Body::Raw(raw) => MailMimeParser::default()
                 .parse(raw.as_bytes())
-                .and_then(|_| todo!("run postq rule engine"))
+                .map(Box::new)
                 .expect("handle errors when parsing email in vMIME"),
-        }
+        });
 
-        delivery_sender.send(message_id.to_string()).unwrap();
+        // TODO: run postq rule engine.
 
-        std::fs::rename(
-            file_to_process,
+        let mut to_deliver = std::fs::OpenOptions::new().create(true).write(true).open(
             std::path::PathBuf::from_iter([
                 Queue::Deliver.to_path(&spool_dir)?,
                 std::path::Path::new(&message_id).to_path_buf(),
             ]),
         )?;
+
+        std::io::Write::write_all(&mut to_deliver, serde_json::to_string(&ctx)?.as_bytes())?;
+
+        delivery_sender.send(message_id.to_string()).unwrap();
+
+        std::fs::remove_file(&file_to_process)?;
 
         log::debug!(
             target: DELIVER,
