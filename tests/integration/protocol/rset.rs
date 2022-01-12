@@ -5,7 +5,7 @@ mod tests {
 
     use vsmtp::{
         config::server_config::ServerConfig,
-        model::mail::MailContext,
+        model::mail::{Body, MailContext},
         resolver::DataEndResolver,
         rules::address::Address,
         smtp::code::SMTPReplyCode,
@@ -31,7 +31,10 @@ mod tests {
                     ctx.envelop.rcpt,
                     HashSet::from([Address::new("b@c").unwrap()])
                 );
-                assert_eq!(ctx.body, "mail content wow\n");
+                assert!(match &ctx.body {
+                    Body::Raw(body) => body == "mail content wow\n",
+                    _ => false,
+                });
 
                 Ok(SMTPReplyCode::Code250)
             }
@@ -140,7 +143,10 @@ mod tests {
                     ctx.envelop.rcpt,
                     HashSet::from([Address::new("b@c").unwrap()])
                 );
-                assert_eq!(ctx.body, "mail content wow");
+                assert!(match &ctx.body {
+                    Body::Raw(body) => body == "mail content wow",
+                    _ => false,
+                });
 
                 Ok(SMTPReplyCode::Code250)
             }
@@ -192,7 +198,10 @@ mod tests {
                     ctx.envelop.rcpt,
                     HashSet::from([Address::new("toto@bar").unwrap()])
                 );
-                assert_eq!(ctx.body, "");
+                assert!(match &ctx.body {
+                    Body::Raw(body) => body.is_empty(),
+                    _ => false,
+                });
 
                 Ok(SMTPReplyCode::Code250)
             }
@@ -245,7 +254,10 @@ mod tests {
                         Address::new("toto3@bar").unwrap()
                     ])
                 );
-                assert_eq!(ctx.body, "");
+                assert!(match &ctx.body {
+                    Body::Raw(body) => body.is_empty(),
+                    _ => false,
+                });
 
                 Ok(SMTPReplyCode::Code250)
             }
