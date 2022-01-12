@@ -41,3 +41,9 @@ name = "server_config"
 path = "fuzz_targets/server_config.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "mime_parser"
+path = "fuzz_targets/mime_parser.rs"
+test = false
+doc = false
