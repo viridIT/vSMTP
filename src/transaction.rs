@@ -23,7 +23,7 @@ use crate::{
     io_service::ReadError,
     model::{
         envelop::Envelop,
-        mail::{MailContext, MessageMetadata, MAIL_CAPACITY},
+        mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
     },
     rules::{
         address::Address,
@@ -86,7 +86,7 @@ impl Transaction<'_> {
             (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Code214),
 
             (_, Event::RsetCmd) => {
-                self.mail.body = String::with_capacity(MAIL_CAPACITY);
+                self.mail.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 self.mail.envelop.rcpt.clear();
                 self.mail.envelop.mail_from = Address::default();
                 self.rule_engine.reset();
@@ -158,7 +158,7 @@ impl Transaction<'_> {
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {
                 // TODO: store in envelop _body_bit_mime
 
-                self.mail.body = String::with_capacity(MAIL_CAPACITY);
+                self.mail.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 self.set_mail_from(mail_from, conn);
 
                 log::trace!(target: RECEIVER, "envelop=\"{:?}\"", self.mail.envelop,);
@@ -202,13 +202,17 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
-                self.mail.body.push_str(&line);
-                self.mail.body.push('\n');
+                if let Body::Raw(body) = &mut self.mail.body {
+                    body.push_str(&line);
+                    body.push('\n');
+                }
                 ProcessedEvent::Nothing
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                self.rule_engine.add_data("data", self.mail.body.clone());
+                if let Body::Raw(body) = &self.mail.body {
+                    self.rule_engine.add_data("data", body.clone());
+                }
 
                 let status = self.rule_engine.run_when("preq");
 
@@ -236,7 +240,7 @@ impl Transaction<'_> {
 
                         let mut output = MailContext {
                             envelop: Envelop::default(),
-                            body: String::with_capacity(MAIL_CAPACITY),
+                            body: Body::Raw(String::with_capacity(MAIL_CAPACITY)),
                             metadata: None,
                         };
 
@@ -367,7 +371,7 @@ impl Transaction<'_> {
             },
             mail: MailContext {
                 envelop: Envelop::default(),
-                body: String::with_capacity(MAIL_CAPACITY),
+                body: Body::Raw(String::with_capacity(MAIL_CAPACITY)),
                 metadata: None,
             },
             rule_engine: RuleEngine::new(conn.config.as_ref()),

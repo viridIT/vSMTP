@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
-    model::mail::{MailContext, MessageMetadata},
+    model::mail::{Body, MailContext, MessageMetadata},
     rules::address::Address,
     smtp::code::SMTPReplyCode,
 };
@@ -171,16 +171,21 @@ impl DataEndResolver for MailDirResolver {
             if crate::rules::rule_engine::user_exists(rcpt.local_part()) {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                if let Err(error) =
-                    Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), &mail.body)
-                {
-                    log::error!(
-                        target: RESOLVER,
-                        "Couldn't write email to inbox: {:?}",
-                        error
-                    );
+                match &mail.body {
+                    Body::Raw(content) => {
+                        if let Err(error) =
+                            Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), content)
+                        {
+                            log::error!(
+                                target: RESOLVER,
+                                "Couldn't write email to inbox: {:?}",
+                                error
+                            );
 
-                    return Err(error);
+                            return Err(error);
+                        }
+                    }
+                    _ => todo!(),
                 }
             } else {
                 log::trace!(

@@ -17,6 +17,7 @@
 use vsmtp::config::log_channel::DELIVER;
 use vsmtp::config::server_config::ServerConfig;
 use vsmtp::mime::parser::MailMimeParser;
+use vsmtp::model::mail::Body;
 use vsmtp::resolver::deliver_queue::{DeliverQueueResolver, Queue};
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::DataEndResolver;
@@ -114,11 +115,14 @@ async fn v_mime(
         let mail: vsmtp::model::mail::MailContext =
             { serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)? };
 
-        match MailMimeParser::default().parse(mail.body.as_bytes()) {
-            Ok(_mail_mime) => {
-                // TODO: postq rule engine
+        match mail.body {
+            Body::Parsed(_) => {
+                todo!("run postq rule engine")
             }
-            Err(e) => todo!("handle error, continue receive message {}", e),
+            Body::Raw(raw) => MailMimeParser::default()
+                .parse(raw.as_bytes())
+                .and_then(|_| todo!("run postq rule engine"))
+                .expect("handle errors when parsing email in vMIME"),
         }
 
         delivery_sender.send(message_id.to_string()).unwrap();
