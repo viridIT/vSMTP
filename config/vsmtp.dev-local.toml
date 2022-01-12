@@ -12,7 +12,7 @@ file = "./tmp/var/log/vsmtp/vsmtp.log"
 default = "trace"
 receiver = "warn"
 resolver = "trace"
-rules = "trace"
+rules = "warn"
 
 [rules]
 dir = "./config/rules"

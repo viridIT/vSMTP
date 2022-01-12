@@ -1,3 +1,4 @@
+use vsmtp::config::get_logger_config;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -31,62 +32,183 @@ struct Args {
 }
 
 async fn v_deliver(
-    config_deliver: ServerConfig,
+    config: ServerConfig,
     spool_dir: String,
     delivery_receiver: crossbeam_channel::Receiver<String>,
 ) -> std::io::Result<()> {
     // TODO: check config / rule engine for right resolver.
-    // TODO: empty queue when booting.
 
-    async fn handle_one(
-        message_id: &str,
-        spool_dir: &str,
-        config_deliver: &ServerConfig,
+    async fn handle_one_in_deferred_queue(
+        path: &std::path::Path,
+        config: &ServerConfig,
     ) -> std::io::Result<()> {
-        let deliver_queue = Queue::Deliver.to_path(&spool_dir)?;
+        let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
 
         log::debug!(
             target: DELIVER,
-            "vDeliver process received a new message id: {}",
+            "vDeliver (deferred) RECEIVED '{}'",
             message_id
         );
 
-        let file_to_process = deliver_queue.join(&message_id);
-        log::debug!(
-            target: DELIVER,
-            "vDELIVER opening file: {:?}",
-            file_to_process
-        );
+        let mut file = std::fs::OpenOptions::new().read(true).open(&path)?;
 
-        let mail: vsmtp::model::mail::MailContext =
-            serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
+        let mut raw = String::with_capacity(file.metadata().unwrap().len() as usize);
+        std::io::Read::read_to_string(&mut file, &mut raw)?;
+
+        let mut mail: vsmtp::model::mail::MailContext = serde_json::from_str(&raw)?;
+        assert_eq!(message_id, mail.metadata.as_ref().unwrap().message_id);
+
+        // TODO: if retry >= max_retry...
 
         let mut resolver = MailDirResolver::default();
-        resolver.on_data_end(config_deliver, &mail).await?;
+        match resolver.on_data_end(config, &mail).await {
+            Ok(_) => {
+                log::trace!(
+                    target: DELIVER,
+                    "vDeliver (deferred) '{}' SEND successfully.",
+                    message_id
+                );
 
-        log::debug!(
-            target: DELIVER,
-            "message '{}' sent successfully.",
-            message_id
-        );
+                std::fs::remove_file(&path)?;
 
-        std::fs::remove_file(&file_to_process)?;
+                log::info!(
+                    target: DELIVER,
+                    "vDeliver (deferred) '{}' REMOVED successfully.",
+                    message_id
+                );
+            }
+            Err(error) => {
+                log::warn!(
+                    target: DELIVER,
+                    "vDeliver (deferred) '{}' SEND FAILED, reason: '{}'",
+                    message_id,
+                    error
+                );
 
-        log::debug!(
-            target: DELIVER,
-            "message '{}' removed from delivery queue.",
-            message_id
-        );
+                mail.metadata.as_mut().unwrap().retry += 1;
+
+                let mut file = std::fs::OpenOptions::new()
+                    .truncate(true)
+                    .write(true)
+                    .open(&path)
+                    .unwrap();
+
+                std::io::Write::write_all(&mut file, serde_json::to_string(&mail)?.as_bytes())?;
+
+                log::info!(
+                    target: DELIVER,
+                    "vDeliver (deferred) '{}' INCREASE retries to '{}'.",
+                    message_id,
+                    mail.metadata.as_mut().unwrap().retry
+                );
+            }
+        }
 
         Ok(())
     }
 
-    loop {
-        if let Ok(message_id) = delivery_receiver.try_recv() {
-            // TODO: should not stop process.
-            handle_one(&message_id, &spool_dir, &config_deliver)
+    async fn flush_deferred_queue(spool_dir: &str, config: &ServerConfig) -> std::io::Result<()> {
+        for path in std::fs::read_dir(Queue::Deferred.to_path(&spool_dir)?)? {
+            handle_one_in_deferred_queue(&path?.path(), config)
                 .await
                 .unwrap();
+        }
+
+        Ok(())
+    }
+
+    flush_deferred_queue(&spool_dir, &config).await?;
+
+    async fn handle_one_in_delivery_queue(
+        path: &std::path::Path,
+        spool_dir: &str,
+        config: &ServerConfig,
+    ) -> std::io::Result<()> {
+        let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
+
+        log::trace!(
+            target: DELIVER,
+            "vDeliver (delivery) RECEIVED '{}'",
+            message_id
+        );
+
+        let mut file = std::fs::OpenOptions::new().read(true).open(&path)?;
+
+        let mut raw = String::with_capacity(file.metadata().unwrap().len() as usize);
+        std::io::Read::read_to_string(&mut file, &mut raw)?;
+
+        let mail: vsmtp::model::mail::MailContext = serde_json::from_str(&raw)?;
+        assert_eq!(message_id, mail.metadata.as_ref().unwrap().message_id);
+
+        let mut resolver = MailDirResolver::default();
+        match resolver.on_data_end(config, &mail).await {
+            Ok(_) => {
+                log::trace!(
+                    target: DELIVER,
+                    "vDeliver (delivery) '{}' SEND successfully.",
+                    message_id
+                );
+
+                std::fs::remove_file(&path)?;
+
+                log::info!(
+                    target: DELIVER,
+                    "vDeliver (delivery) '{}' REMOVED successfully.",
+                    message_id
+                );
+            }
+            Err(error) => {
+                log::warn!(
+                    target: DELIVER,
+                    "vDeliver (delivery) '{}' SEND FAILED, reason: '{}'",
+                    message_id,
+                    error
+                );
+
+                std::fs::rename(
+                    path,
+                    std::path::PathBuf::from_iter([
+                        Queue::Deferred.to_path(&spool_dir)?,
+                        std::path::Path::new(&message_id).to_path_buf(),
+                    ]),
+                )?;
+
+                log::info!(
+                    target: DELIVER,
+                    "vDeliver (delivery) '{}' MOVED delivery => deferred.",
+                    message_id
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn flush_deliver_queue(spool_dir: &str, config: &ServerConfig) -> std::io::Result<()> {
+        for path in std::fs::read_dir(Queue::Deliver.to_path(&spool_dir)?)? {
+            handle_one_in_delivery_queue(&path?.path(), spool_dir, config)
+                .await
+                .unwrap();
+        }
+
+        Ok(())
+    }
+
+    flush_deliver_queue(&spool_dir, &config).await?;
+
+    loop {
+        if let Ok(message_id) = delivery_receiver.try_recv() {
+            handle_one_in_delivery_queue(
+                &std::path::PathBuf::from_iter([
+                    Queue::Deliver.to_path(&spool_dir)?,
+                    std::path::Path::new(&message_id).to_path_buf(),
+                ]),
+                &spool_dir,
+                &config,
+            )
+            .await
+            // TODO: should not stop process.
+            .unwrap();
         }
     }
 }
@@ -113,17 +235,15 @@ async fn v_mime(
         log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
         let mail: vsmtp::model::mail::MailContext =
-            { serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)? };
+            serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
-        match mail.body {
-            Body::Parsed(_) => {
-                todo!("run postq rule engine")
-            }
+        let _ = match mail.body {
+            Body::Parsed(_) => unreachable!(),
             Body::Raw(raw) => MailMimeParser::default()
                 .parse(raw.as_bytes())
-                .and_then(|_| todo!("run postq rule engine"))
+                // .and_then(|_| todo!("run postq rule engine"))
                 .expect("handle errors when parsing email in vMIME"),
-        }
+        };
 
         delivery_sender.send(message_id.to_string()).unwrap();
 
@@ -154,12 +274,13 @@ async fn v_mime(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = <Args as clap::StructOpt>::parse();
-
     println!("Loading with configuration: '{}'", args.config);
 
     let config: ServerConfig =
         toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
             .expect("cannot parse config from toml");
+
+    log4rs::init_config(get_logger_config(&config)?)?;
 
     // TODO: move into server init.
     // creating the spool folder if it doesn't exists yet.
@@ -175,7 +296,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     rule_engine::init(Box::leak(config.rules.dir.clone().into_boxed_str())).map_err(|error| {
-        eprintln!("could not initialize the rule engine: {}", error);
+        log::error!("could not initialize the rule engine: {}", error);
         error
     })?;
 

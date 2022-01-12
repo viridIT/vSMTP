@@ -7,8 +7,8 @@ use super::DataEndResolver;
 
 /// identifiers for all mail queues.
 pub enum Queue {
-    Deliver,
     Working,
+    Deliver,
     Deferred,
     Dead,
 }
@@ -16,8 +16,8 @@ pub enum Queue {
 impl Queue {
     fn as_str(&self) -> &'static str {
         match self {
-            Queue::Deliver => "deliver",
             Queue::Working => "working",
+            Queue::Deliver => "deliver",
             Queue::Deferred => "deferred",
             Queue::Dead => "dead",
         }
@@ -27,7 +27,7 @@ impl Queue {
         &self,
         parent: impl Into<std::path::PathBuf>,
     ) -> std::io::Result<std::path::PathBuf> {
-        let dir = parent.into().join(self.as_str().to_string() + "/");
+        let dir = parent.into().join(self.as_str());
         if !dir.exists() {
             std::fs::DirBuilder::new().recursive(true).create(&dir)?;
         }
