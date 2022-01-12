@@ -20,6 +20,7 @@ use crate::{
 
 pub mod deliver_queue;
 pub mod maildir_resolver;
+pub mod smtp_resolver;
 
 #[async_trait::async_trait]
 pub trait DataEndResolver {

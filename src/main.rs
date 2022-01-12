@@ -17,7 +17,7 @@
 use vsmtp::config::log_channel::DELIVER;
 use vsmtp::config::server_config::ServerConfig;
 use vsmtp::resolver::deliver_queue::DeliverQueueResolver;
-use vsmtp::resolver::maildir_resolver::MailDirResolver;
+use vsmtp::resolver::smtp_resolver::SMTPResolver;
 use vsmtp::resolver::DataEndResolver;
 use vsmtp::rules::rule_engine;
 
@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         // TODO: check config / rule engine for right resolver.
         // TODO: empty queue when booting.
-        let mut resolver = MailDirResolver::default();
+        let mut resolver = SMTPResolver::default();
 
         loop {
             // TODO: handle errors.
