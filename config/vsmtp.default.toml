@@ -120,6 +120,6 @@ Code554 = "554 permanent problems with the remote server\r\n"
 Code554tls = "554 Command refused due to lack of security\r\n"
 
 [delivery.queue]
-working = { capacity = 0 }
-deliver = { capacity = 0 }
-deferred = { retry_max = 100 }
+working = { capacity = 1 }
+deliver = { capacity = 1 }
+deferred = { retry_max = 100, cron_period = "10s" }

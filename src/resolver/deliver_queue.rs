@@ -38,11 +38,11 @@ impl Queue {
 /// used to write mail to the delivery queue and send a notification
 /// to the delivery process.
 pub struct DeliverQueueResolver {
-    sender: crossbeam_channel::Sender<String>,
+    sender: tokio::sync::mpsc::Sender<String>,
 }
 
 impl DeliverQueueResolver {
-    pub fn new(sender: crossbeam_channel::Sender<String>) -> Self {
+    pub fn new(sender: tokio::sync::mpsc::Sender<String>) -> Self {
         Self { sender }
     }
 }
@@ -68,7 +68,7 @@ impl DataEndResolver for DeliverQueueResolver {
         // sending the message id to the delivery process.
         // NOTE: we could send the context instead, so that the delivery system won't have
         //       to touch the file system.
-        self.sender.send(message_id).unwrap();
+        self.sender.send(message_id).await.unwrap();
 
         // TODO: use the right codes.
         Ok(SMTPReplyCode::Code250)

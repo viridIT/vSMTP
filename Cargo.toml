@@ -47,9 +47,16 @@ lazy_static = "1.4"
 rustls = { version = "0.20.2", features = ["tls12", "logging"] }
 rustls-pemfile = "0.2.1"
 
-tokio = { version = "1.15.0", features = ["full"] }
+tokio = { version = "1.15.0", features = [
+    "macros",
+    "time",
+    "sync",
+    "net",
+    "io-util",
+    "rt-multi-thread",
+] }
 
-crossbeam-channel = "0.5.1"
+# crossbeam-channel = "0.5.1"
 
 # inactive since Oct. 2020
 users = "0.11"

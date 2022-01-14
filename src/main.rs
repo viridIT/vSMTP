@@ -33,14 +33,10 @@ struct Args {
 
 async fn v_deliver(
     config: ServerConfig,
-    spool_dir: String,
-    delivery_receiver: crossbeam_channel::Receiver<String>,
+    mut delivery_receiver: tokio::sync::mpsc::Receiver<String>,
 ) -> std::io::Result<()> {
-    // TODO: check config / rule engine for right resolver.
-
     async fn handle_one_in_deferred_queue(
         path: &std::path::Path,
-        spool_dir: &str,
         config: &ServerConfig,
     ) -> std::io::Result<()> {
         let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
@@ -78,7 +74,7 @@ async fn v_deliver(
             std::fs::rename(
                 path,
                 std::path::PathBuf::from_iter([
-                    Queue::Dead.to_path(&spool_dir)?,
+                    Queue::Dead.to_path(&config.smtp.spool_dir)?,
                     std::path::Path::new(&message_id).to_path_buf(),
                 ]),
             )?;
@@ -137,9 +133,9 @@ async fn v_deliver(
         Ok(())
     }
 
-    async fn flush_deferred_queue(spool_dir: &str, config: &ServerConfig) -> std::io::Result<()> {
-        for path in std::fs::read_dir(Queue::Deferred.to_path(&spool_dir)?)? {
-            handle_one_in_deferred_queue(&path?.path(), spool_dir, config)
+    async fn flush_deferred_queue(config: &ServerConfig) -> std::io::Result<()> {
+        for path in std::fs::read_dir(Queue::Deferred.to_path(&config.smtp.spool_dir)?)? {
+            handle_one_in_deferred_queue(&path?.path(), config)
                 .await
                 .unwrap();
         }
@@ -147,11 +143,14 @@ async fn v_deliver(
         Ok(())
     }
 
-    flush_deferred_queue(&spool_dir, &config).await?;
+    log::info!(
+        target: DELIVER,
+        "vDeliver (deferred) booting, flushing queue.",
+    );
+    flush_deferred_queue(&config).await?;
 
     async fn handle_one_in_delivery_queue(
         path: &std::path::Path,
-        spool_dir: &str,
         config: &ServerConfig,
     ) -> std::io::Result<()> {
         let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
@@ -198,7 +197,7 @@ async fn v_deliver(
                 std::fs::rename(
                     path,
                     std::path::PathBuf::from_iter([
-                        Queue::Deferred.to_path(&spool_dir)?,
+                        Queue::Deferred.to_path(&config.smtp.spool_dir)?,
                         std::path::Path::new(&message_id).to_path_buf(),
                     ]),
                 )?;
@@ -214,9 +213,9 @@ async fn v_deliver(
         Ok(())
     }
 
-    async fn flush_deliver_queue(spool_dir: &str, config: &ServerConfig) -> std::io::Result<()> {
-        for path in std::fs::read_dir(Queue::Deliver.to_path(&spool_dir)?)? {
-            handle_one_in_delivery_queue(&path?.path(), spool_dir, config)
+    async fn flush_deliver_queue(config: &ServerConfig) -> std::io::Result<()> {
+        for path in std::fs::read_dir(Queue::Deliver.to_path(&config.smtp.spool_dir)?)? {
+            handle_one_in_delivery_queue(&path?.path(), config)
                 .await
                 .unwrap();
         }
@@ -224,34 +223,68 @@ async fn v_deliver(
         Ok(())
     }
 
-    flush_deliver_queue(&spool_dir, &config).await?;
+    log::info!(
+        target: DELIVER,
+        "vDeliver (delivery) booting, flushing queue.",
+    );
+    flush_deliver_queue(&config).await?;
 
+    let mut flush_deferred_interval = tokio::time::interval(
+        config
+            .delivery
+            .queue
+            .get("deferred")
+            .map(|q| q.cron_period)
+            .flatten()
+            .unwrap_or_else(|| std::time::Duration::from_secs(10)),
+    );
+
+    // NOTE: seems like this is CPU heavy
+    // FIXME: for some reason the thread is yield after a 'recv', the processing will occur after another 'recv'
     loop {
-        if let Ok(message_id) = delivery_receiver.try_recv() {
-            handle_one_in_delivery_queue(
-                &std::path::PathBuf::from_iter([
-                    Queue::Deliver.to_path(&spool_dir)?,
-                    std::path::Path::new(&message_id).to_path_buf(),
-                ]),
-                &spool_dir,
-                &config,
-            )
-            .await
-            // TODO: should not stop process.
-            .unwrap();
-        }
+        let receive_from_working = delivery_receiver.recv();
+        let flush_deferred_tick = flush_deferred_interval.tick();
+
+        tokio::pin!(receive_from_working, flush_deferred_tick);
+
+        tokio::select! {
+            received = receive_from_working => {
+                match received {
+                    Some(message_id) => handle_one_in_delivery_queue(
+                        &std::path::PathBuf::from_iter([
+                            Queue::Deliver.to_path(&config.smtp.spool_dir)?,
+                            std::path::Path::new(&message_id).to_path_buf(),
+                        ]),
+                        &config,
+                    )
+                    .await
+                    .unwrap(),
+                    None => log::error!(
+                        target: DELIVER,
+                        "vDeliver (delivery) channel receiver error.",
+                    ),
+                }
+            }
+            _ = flush_deferred_tick => {
+                log::info!(
+                    target: DELIVER,
+                    "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
+                );
+                flush_deferred_queue(&config).await.unwrap();
+            }
+        };
     }
 }
 
 async fn v_mime(
     spool_dir: String,
-    working_receiver: crossbeam_channel::Receiver<String>,
-    delivery_sender: crossbeam_channel::Sender<String>,
+    mut working_receiver: tokio::sync::mpsc::Receiver<String>,
+    delivery_sender: tokio::sync::mpsc::Sender<String>,
 ) -> std::io::Result<()> {
-    fn handle_one(
+    async fn handle_one(
         message_id: &str,
         spool_dir: &str,
-        delivery_sender: &crossbeam_channel::Sender<String>,
+        delivery_sender: &tokio::sync::mpsc::Sender<String>,
     ) -> std::io::Result<()> {
         log::debug!(
             target: DELIVER,
@@ -275,7 +308,7 @@ async fn v_mime(
                 .expect("handle errors when parsing email in vMIME"),
         };
 
-        delivery_sender.send(message_id.to_string()).unwrap();
+        delivery_sender.send(message_id.to_string()).await.unwrap();
 
         std::fs::rename(
             file_to_process,
@@ -296,7 +329,9 @@ async fn v_mime(
 
     loop {
         if let Ok(message_id) = working_receiver.try_recv() {
-            handle_one(&message_id, &spool_dir, &delivery_sender).unwrap();
+            handle_one(&message_id, &spool_dir, &delivery_sender)
+                .await
+                .unwrap();
         }
     }
 }
@@ -311,8 +346,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("cannot parse config from toml");
 
     log4rs::init_config(get_logger_config(&config)?)?;
-
-    println!("{:?}", config);
 
     // TODO: move into server init.
     // creating the spool folder if it doesn't exists yet.
@@ -332,36 +365,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         error
     })?;
 
-    let (delivery_sender, delivery_receiver) = crossbeam_channel::bounded::<String>(
-        config
-            .delivery
-            .queue
-            .get("delivery")
-            .map(|q| q.capacity)
-            .flatten()
-            .unwrap_or(0),
-    );
-    let (working_sender, working_receiver) = crossbeam_channel::bounded::<String>(
-        config
-            .delivery
-            .queue
-            .get("working")
-            .map(|q| q.capacity)
-            .flatten()
-            .unwrap_or(0),
-    );
+    let delivery_buffer_size = config
+        .delivery
+        .queue
+        .get("delivery")
+        .map(|q| q.capacity)
+        .flatten()
+        .unwrap_or(1);
 
-    tokio::spawn(v_deliver(
-        config.clone(),
-        config.smtp.spool_dir.clone(),
-        delivery_receiver,
-    ));
+    let (delivery_sender, delivery_receiver) =
+        tokio::sync::mpsc::channel::<String>(delivery_buffer_size);
 
-    tokio::spawn(v_mime(
-        config.smtp.spool_dir.clone(),
-        working_receiver,
-        delivery_sender,
-    ));
+    let working_buffer_size = config
+        .delivery
+        .queue
+        .get("working")
+        .map(|q| q.capacity)
+        .flatten()
+        .unwrap_or(1);
+
+    let (working_sender, working_receiver) =
+        tokio::sync::mpsc::channel::<String>(working_buffer_size);
+
+    let config_deliver = config.clone();
+    tokio::spawn(async move {
+        let result = v_deliver(config_deliver, delivery_receiver).await;
+        log::error!("v_deliver ended unexpectedly '{:?}'", result);
+    });
+
+    let config_mime = config.clone();
+    tokio::spawn(async move {
+        let result = v_mime(
+            config_mime.smtp.spool_dir.clone(),
+            working_receiver,
+            delivery_sender,
+        )
+        .await;
+        log::error!("v_mime ended unexpectedly '{:?}'", result);
+    });
 
     let server = config.build().await;
     log::warn!("Listening on: {:?}", server.addr());

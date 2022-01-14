@@ -195,6 +195,8 @@ pub struct InnerRulesConfig {
 pub struct QueueConfig {
     pub capacity: Option<usize>,
     pub retry_max: Option<usize>,
+    #[serde(with = "humantime_serde", default)]
+    pub cron_period: Option<std::time::Duration>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
