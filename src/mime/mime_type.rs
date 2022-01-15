@@ -111,51 +111,53 @@ impl ToString for MimeHeader {
     }
 }
 
-impl ToString for MimeBodyType {
-    /// ```
-    /// use vsmtp::mime::mime_type::MimeBodyType;
-    /// use vsmtp::mime::mime_type::MimeMultipart;
-    ///
-    /// let body = MimeBodyType::Regular(
-    ///     vec![
-    ///         "The two analysts that I have had contact with are Matt Lenhart  and Vishal".to_string(),
-    ///         "Apte.".to_string(),
-    ///         "Matt will be represented by Jeff Shankman.".to_string(),
-    ///         "Vishal joined our group in October.  He was in the Power Trading Group for".to_string(),
-    ///         "the first 9 months.".to_string(),
-    ///     ],
-    /// );
-    ///
-    /// assert_eq!(body.to_string(),
-    /// r#"The two analysts that I have had contact with are Matt Lenhart  and Vishal
-    ///Apte.
-    ///Matt will be represented by Jeff Shankman.
-    ///Vishal joined our group in October.  He was in the Power Trading Group for
-    ///the first 9 months."#);
-    /// ```
-    fn to_string(&self) -> String {
-        match self {
-            MimeBodyType::Regular(regular) => regular.join("\n"),
-            MimeBodyType::Multipart(multipart) => multipart.to_string(),
-            MimeBodyType::Embedded(mail) => {
-                let (headers, body) = mail.to_raw();
-                format!("{}\n{}", headers, body)
-            }
-        }
-    }
-}
+// impl ToString for MimeBodyType {
+//     /// ```
+//     /// use vsmtp::mime::mime_type::MimeBodyType;
+//     /// use vsmtp::mime::mime_type::MimeMultipart;
+//     ///
+//     /// let body = MimeBodyType::Regular(
+//     ///     vec![
+//     ///         "The two analysts that I have had contact with are Matt Lenhart  and Vishal".to_string(),
+//     ///         "Apte.".to_string(),
+//     ///         "Matt will be represented by Jeff Shankman.".to_string(),
+//     ///         "Vishal joined our group in October.  He was in the Power Trading Group for".to_string(),
+//     ///         "the first 9 months.".to_string(),
+//     ///     ],
+//     /// );
+//     ///
+//     /// assert_eq!(body.to_string(),
+//     /// r#"The two analysts that I have had contact with are Matt Lenhart  and Vishal
+//     ///Apte.
+//     ///Matt will be represented by Jeff Shankman.
+//     ///Vishal joined our group in October.  He was in the Power Trading Group for
+//     ///the first 9 months."#);
+//     /// ```
+//     fn to_string(&self) -> String {
+//         match self {
+//             MimeBodyType::Regular(regular) => regular.join("\n"),
+//             MimeBodyType::Multipart(multipart) => multipart.to_string(),
+//             MimeBodyType::Embedded(mail) => {
+//                 let (headers, body) = mail.to_raw();
+//                 format!("{}\n{}", headers, body)
+//             }
+//         }
+//     }
+// }
 
-impl ToString for MimeMultipart {
-    fn to_string(&self) -> String {
+impl MimeMultipart {
+    fn to_raw(&self, boundary: &str) -> String {
         format!(
-            "{}\n{}\n{}",
+            "{}\n--{}\n{}\n{}\n--{}--",
             self.preamble,
+            boundary,
             self.parts
                 .iter()
                 .map(Mime::to_string)
                 .collect::<Vec<_>>()
-                .join("\n"),
-            self.epilogue
+                .join(&format!("\n--{}\n", boundary)),
+            self.epilogue,
+            boundary,
         )
     }
 }
@@ -169,17 +171,32 @@ pub struct Mime {
 impl ToString for Mime {
     fn to_string(&self) -> String {
         format!(
-            r#"
-{}
-
-{}
-        "#,
+            "{}\n\n{}",
             self.headers
                 .iter()
                 .map(MimeHeader::to_string)
                 .collect::<Vec<_>>()
                 .join("\n"),
-            self.content.to_string()
+            match &self.content {
+                MimeBodyType::Regular(regular) => regular.join("\n"),
+                MimeBodyType::Multipart(multipart) => {
+                    let boundary = self
+                        .headers
+                        .iter()
+                        .find(|header| header.args.get("boundary").is_some());
+                    multipart.to_raw(
+                        boundary
+                            .expect("multipart mime message is missing it's boundary argument.")
+                            .args
+                            .get("boundary")
+                            .unwrap(),
+                    )
+                }
+                MimeBodyType::Embedded(mail) => {
+                    let (headers, body) = mail.to_raw();
+                    format!("{}\n{}", headers, body)
+                }
+            }
         )
     }
 }
