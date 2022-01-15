@@ -48,4 +48,6 @@ delay = "5000ms"
 Code214 = "214 my custom help message\r\n"
 
 [delivery.queue]
+working = { capacity = 32 }
+deliver = { capacity = 32 }
 deferred = { retry_max = 10, cron_period = "10s" }

@@ -245,11 +245,4 @@ impl ServerConfig {
             });
         self
     }
-
-    pub async fn build(mut self) -> ServerVSMTP {
-        self.prepare();
-        ServerVSMTP::new(std::sync::Arc::new(self))
-            .await
-            .expect("Failed to create the server")
-    }
 }

@@ -23,6 +23,7 @@ use vsmtp::resolver::deliver_queue::{DeliverQueueResolver, Queue};
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::DataEndResolver;
 use vsmtp::rules::rule_engine;
+use vsmtp::server::ServerVSMTP;
 
 #[derive(clap::Parser, Debug)]
 #[clap(about, version, author)]
@@ -32,7 +33,7 @@ struct Args {
 }
 
 async fn v_deliver(
-    config: ServerConfig,
+    config: std::sync::Arc<ServerConfig>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<String>,
 ) -> std::io::Result<()> {
     async fn handle_one_in_deferred_queue(
@@ -59,7 +60,7 @@ async fn v_deliver(
             .delivery
             .queue
             .get("deferred")
-            .map(|q| q.capacity)
+            .map(|q| q.retry_max)
             .flatten()
             .unwrap_or(100);
 
@@ -341,13 +342,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = <Args as clap::StructOpt>::parse();
     println!("Loading with configuration: '{}'", args.config);
 
-    let config: ServerConfig =
+    let mut config: ServerConfig =
         toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
             .expect("cannot parse config from toml");
+    config.prepare();
+    let config = std::sync::Arc::new(config);
 
     log4rs::init_config(get_logger_config(&config)?)?;
-
-    println!("{:?}", config);
 
     // TODO: move into server init.
     // creating the spool folder if it doesn't exists yet.
@@ -406,7 +407,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         log::error!("v_mime ended unexpectedly '{:?}'", result);
     });
 
-    let server = config.build().await;
+    let server = ServerVSMTP::new(config)
+        .await
+        .expect("Failed to create the server");
     log::warn!("Listening on: {:?}", server.addr());
 
     server

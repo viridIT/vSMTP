@@ -19,7 +19,6 @@ log4rs = { version = "1.0.0" }
 clap = { version = "3.0.4", features = ["derive"] }
 
 libc = "0.2.112"
-# is necessary for reverse lookups.
 socket2 = "0.4.2"
 
 serde = { version = "1.0.133", features = ["derive"] }
