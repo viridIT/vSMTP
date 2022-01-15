@@ -347,6 +347,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     log4rs::init_config(get_logger_config(&config)?)?;
 
+    println!("{:?}", config);
+
     // TODO: move into server init.
     // creating the spool folder if it doesn't exists yet.
     {
