@@ -63,6 +63,15 @@ async fn v_deliver(
 
         log::trace!(target: DELIVER, "content: {:#?}", ctx);
 
+        {
+            if let Body::Parsed(content) = &ctx.body {
+                log::trace!(target: DELIVER, "raw: {}", {
+                    let (headers, body) = content.to_raw();
+                    [headers, body].join("\n")
+                });
+            }
+        }
+
         let mut resolver = MailDirResolver::default();
         resolver.on_data_end(config_deliver, &ctx).await?;
 

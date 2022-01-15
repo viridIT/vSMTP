@@ -112,6 +112,27 @@ impl ToString for MimeHeader {
 }
 
 impl ToString for MimeBodyType {
+    /// ```
+    /// use vsmtp::mime::mime_type::MimeBodyType;
+    /// use vsmtp::mime::mime_type::MimeMultipart;
+    ///
+    /// let body = MimeBodyType::Regular(
+    ///     vec![
+    ///         "The two analysts that I have had contact with are Matt Lenhart  and Vishal".to_string(),
+    ///         "Apte.".to_string(),
+    ///         "Matt will be represented by Jeff Shankman.".to_string(),
+    ///         "Vishal joined our group in October.  He was in the Power Trading Group for".to_string(),
+    ///         "the first 9 months.".to_string(),
+    ///     ],
+    /// );
+    ///
+    /// assert_eq!(body.to_string(),
+    /// r#"The two analysts that I have had contact with are Matt Lenhart  and Vishal
+    ///Apte.
+    ///Matt will be represented by Jeff Shankman.
+    ///Vishal joined our group in October.  He was in the Power Trading Group for
+    ///the first 9 months."#);
+    /// ```
     fn to_string(&self) -> String {
         match self {
             MimeBodyType::Regular(regular) => regular.join("\n"),
