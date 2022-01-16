@@ -118,3 +118,8 @@ Code504 = "504 Command parameter not implemented\r\n"
 Code530 = "530 Must issue a STARTTLS command first\r\n"
 Code554 = "554 permanent problems with the remote server\r\n"
 Code554tls = "554 Command refused due to lack of security\r\n"
+
+[delivery.queue]
+working = { capacity = 0 }
+deliver = { capacity = 0 }
+deferred = { retry_max = 100 }

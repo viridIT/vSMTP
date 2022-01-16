@@ -12,7 +12,7 @@ file = "./tmp/var/log/vsmtp/vsmtp.log"
 default = "trace"
 receiver = "warn"
 resolver = "trace"
-rules = "trace"
+rules = "warn"
 
 [rules]
 dir = "./config/rules"
@@ -46,3 +46,8 @@ delay = "5000ms"
 
 [smtp.code]
 Code214 = "214 my custom help message\r\n"
+
+[delivery.queue]
+deliver = { capacity = 0 }
+working = { capacity = 0 }
+deferred = { retry_max = 100 }

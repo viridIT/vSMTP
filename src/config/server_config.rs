@@ -192,6 +192,17 @@ pub struct InnerRulesConfig {
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
+pub struct QueueConfig {
+    pub capacity: Option<usize>,
+    pub retry_max: Option<usize>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct InnerDeliveryConfig {
+    pub queue: std::collections::HashMap<String, QueueConfig>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct ServerConfig {
     pub domain: String,
     pub server: InnerServerConfig,
@@ -199,6 +210,7 @@ pub struct ServerConfig {
     pub tls: InnerTlsConfig,
     pub smtp: InnerSMTPConfig,
     pub rules: InnerRulesConfig,
+    pub delivery: InnerDeliveryConfig,
 }
 
 impl Default for ServerConfig {
