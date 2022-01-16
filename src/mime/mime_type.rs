@@ -94,7 +94,7 @@ impl ToString for MimeHeader {
         let args = self
             .args
             .iter()
-            .map(|(name, value)| format!("{}={}", name, value))
+            .map(|(name, value)| format!("{}=\"{}\"", name, value))
             .collect::<Vec<_>>()
             .join("; ");
 
