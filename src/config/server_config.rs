@@ -17,7 +17,7 @@
 // TODO: have a ConfigBuilder struct
 use serde_with::{serde_as, DisplayFromStr};
 
-use crate::{server::ServerVSMTP, smtp::state::StateSMTP};
+use crate::smtp::state::StateSMTP;
 
 use super::{
     custom_code::{CustomSMTPCode, SMTPCode},
