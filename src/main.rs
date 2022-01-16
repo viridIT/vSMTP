@@ -1,4 +1,3 @@
-use vsmtp::config::get_logger_config;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -15,6 +14,7 @@ use vsmtp::config::get_logger_config;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
+use vsmtp::config::get_logger_config;
 use vsmtp::config::log_channel::DELIVER;
 use vsmtp::config::server_config::ServerConfig;
 use vsmtp::mime::parser::MailMimeParser;
@@ -240,33 +240,20 @@ async fn v_deliver(
             .unwrap_or_else(|| std::time::Duration::from_secs(10)),
     );
 
-    // NOTE: seems like this is CPU heavy
-    // FIXME: for some reason the thread is yield after a 'recv', the processing will occur after another 'recv'
     loop {
-        let receive_from_working = delivery_receiver.recv();
-        let flush_deferred_tick = flush_deferred_interval.tick();
-
-        tokio::pin!(receive_from_working, flush_deferred_tick);
-
         tokio::select! {
-            received = receive_from_working => {
-                match received {
-                    Some(message_id) => handle_one_in_delivery_queue(
-                        &std::path::PathBuf::from_iter([
-                            Queue::Deliver.to_path(&config.smtp.spool_dir)?,
-                            std::path::Path::new(&message_id).to_path_buf(),
-                        ]),
-                        &config,
-                    )
-                    .await
-                    .unwrap(),
-                    None => log::error!(
-                        target: DELIVER,
-                        "vDeliver (delivery) channel receiver error.",
-                    ),
-                }
+            Some(message_id) = delivery_receiver.recv() => {
+                handle_one_in_delivery_queue(
+                    &std::path::PathBuf::from_iter([
+                        Queue::Deliver.to_path(&config.smtp.spool_dir)?,
+                        std::path::Path::new(&message_id).to_path_buf(),
+                    ]),
+                    &config,
+                )
+                .await
+                .unwrap();
             }
-            _ = flush_deferred_tick => {
+            _ = flush_deferred_interval.tick() => {
                 log::info!(
                     target: DELIVER,
                     "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
@@ -329,7 +316,7 @@ async fn v_mime(
     }
 
     loop {
-        if let Ok(message_id) = working_receiver.try_recv() {
+        if let Some(message_id) = working_receiver.recv().await {
             handle_one(&message_id, &spool_dir, &delivery_sender)
                 .await
                 .unwrap();
