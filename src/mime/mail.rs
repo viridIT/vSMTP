@@ -30,6 +30,15 @@ pub struct Mail {
     pub body: BodyType,
 }
 
+impl Default for Mail {
+    fn default() -> Self {
+        Self {
+            headers: vec![],
+            body: BodyType::Undefined,
+        }
+    }
+}
+
 impl Mail {
     pub fn to_raw(&self) -> (String, String) {
         (

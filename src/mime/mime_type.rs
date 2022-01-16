@@ -76,8 +76,8 @@ impl ToString for MimeHeader {
     ///
     /// assert!(
     ///     // arguments can be in any order.
-    ///     input.to_string() == "Content-Type: text/plain; charset=us-ascii; another=argument".to_string() ||
-    ///     input.to_string() == "Content-Type: text/plain; another=argument; charset=us-ascii".to_string()
+    ///     input.to_string() == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\"".to_string() ||
+    ///     input.to_string() == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\"".to_string()
     /// );
     ///
     /// let input = MimeHeader {

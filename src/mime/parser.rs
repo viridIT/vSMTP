@@ -540,6 +540,7 @@ mod test {
     //       -
 
     #[test]
+    #[ignore]
     fn test_to_raw() {
         let content = vec![
 "x-mozilla-status: 0001",

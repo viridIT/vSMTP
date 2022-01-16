@@ -216,7 +216,8 @@ impl Transaction<'_> {
                         Body::Raw(raw) => raw.as_bytes(),
                         _ => unreachable!("the email cannot be parsed before the DataEnd command"),
                     })
-                    .expect("handle parsing errors");
+                    // TODO: handle parsing errors instead of going default.
+                    .unwrap_or_default();
 
                 self.rule_engine.add_data("data", parsed.clone());
 
