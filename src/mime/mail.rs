@@ -15,7 +15,10 @@ impl ToString for BodyType {
     fn to_string(&self) -> String {
         match self {
             Self::Regular(content) => content.join("\n"),
-            Self::Mime(content) => content.to_string(),
+            Self::Mime(content) => {
+                let (headers, body) = content.to_raw();
+                format!("{}\n{}", headers, body)
+            }
             Self::Undefined => String::default(),
         }
     }

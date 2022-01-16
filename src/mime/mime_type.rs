@@ -148,15 +148,26 @@ impl ToString for MimeHeader {
 impl MimeMultipart {
     fn to_raw(&self, boundary: &str) -> String {
         format!(
-            "{}\n--{}\n{}\n{}\n--{}--",
+            //
+            //  preamble
+            //  --boundary
+            //  *{ headers \n body \n boundary}
+            //  epilogue || nothing
+            //  --end-boundary--
+            "\n{}\n--{}\n{}\n{}--{}--\n",
             self.preamble,
             boundary,
             self.parts
                 .iter()
-                .map(Mime::to_string)
+                .map(Mime::to_raw)
+                .map(|(headers, body)| format!("{}\n{}", headers, body))
                 .collect::<Vec<_>>()
                 .join(&format!("\n--{}\n", boundary)),
-            self.epilogue,
+            if self.epilogue.is_empty() {
+                "".to_string()
+            } else {
+                format!("{}\n", self.epilogue)
+            },
             boundary,
         )
     }
@@ -168,10 +179,9 @@ pub struct Mime {
     pub content: MimeBodyType,
 }
 
-impl ToString for Mime {
-    fn to_string(&self) -> String {
-        format!(
-            "{}\n\n{}",
+impl Mime {
+    pub fn to_raw(&self) -> (String, String) {
+        (
             self.headers
                 .iter()
                 .map(MimeHeader::to_string)
@@ -196,7 +206,7 @@ impl ToString for Mime {
                     let (headers, body) = mail.to_raw();
                     format!("{}\n{}", headers, body)
                 }
-            }
+            },
         )
     }
 }
