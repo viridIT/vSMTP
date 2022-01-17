@@ -219,10 +219,11 @@ impl Transaction<'_> {
                     // TODO: handle parsing errors instead of going default.
                     .unwrap_or_default();
 
-                self.rule_engine.add_data("data", parsed.clone());
+                self.rule_engine.add_data("data", parsed);
 
                 let status = self.rule_engine.run_when("preq");
 
+                // TODO: block & deny should quarantine the email.
                 if let Status::Block | Status::Deny = status {
                     return ProcessedEvent::ReplyChangeState(
                         StateSMTP::Stop,
@@ -242,12 +243,13 @@ impl Transaction<'_> {
                 // getting the server's envelop, that could have mutated in the
                 // rule engine.
                 match self.rule_engine.get_scoped_envelop() {
-                    Some(envelop) => {
+                    Some((envelop, mail)) => {
                         self.mail.envelop = envelop;
+                        self.mail.body = Body::Parsed(mail.into());
 
                         let mut output = MailContext {
                             envelop: Envelop::default(),
-                            body: Body::Parsed(Box::new(parsed)),
+                            body: Body::Raw(String::default()),
                             metadata: None,
                         };
 

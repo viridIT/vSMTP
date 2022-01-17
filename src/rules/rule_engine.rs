@@ -206,12 +206,15 @@ impl<'a> RuleEngine<'a> {
     }
 
     /// fetch the whole envelop (possibly) mutated by the user's rules.
-    pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
-        Some(Envelop {
-            helo: self.scope.get_value::<String>("helo")?,
-            mail_from: self.scope.get_value::<Address>("mail")?,
-            rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
-        })
+    pub(crate) fn get_scoped_envelop(&self) -> Option<(Envelop, Mail)> {
+        Some((
+            Envelop {
+                helo: self.scope.get_value::<String>("helo")?,
+                mail_from: self.scope.get_value::<Address>("mail")?,
+                rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
+            },
+            self.scope.get_value::<Mail>("data")?,
+        ))
     }
 
     /// clears mail_from, metadata, rcpt, rcpts & data values from the scope.
@@ -294,6 +297,38 @@ impl<U: Users> RhaiEngine<U> {
         .register_type::<Mail>()
         .register_get("headers", |mail: &mut Mail| mail.headers.clone())
         .register_get("body", |mail: &mut Mail| mail.body.clone())
+        .register_result_fn  ("rewrite_from", |mail: &mut Mail, value: &str| {
+            if mail.headers.is_empty() {
+                Err("data is only accessible from the 'preq' stage".into())
+            } else {
+                mail.rewrite_from(value);
+                Ok(())
+            }
+        })
+        .register_result_fn  ("rewrite_rcpt", |mail: &mut Mail, old: &str, new: &str| {
+            if mail.headers.is_empty() {
+                Err("data is only accessible from the 'preq' stage".into())
+            } else {
+                mail.rewrite_rcpt(old, new);
+                Ok(())
+            }
+        })
+        .register_result_fn  ("add_rcpt", |mail: &mut Mail, new: &str| {
+            if mail.headers.is_empty() {
+                Err("data is only accessible from the 'preq' stage".into())
+            } else {
+                mail.add_rcpt(new);
+                Ok(())
+            }
+        })
+        .register_result_fn  ("delete_rcpt", |mail: &mut Mail, old: &str| {
+            if mail.headers.is_empty() {
+                Err("data is only accessible from the 'preq' stage".into())
+            } else {
+                mail.delete_rcpt(old);
+                Ok(())
+            }
+        })
 
         // the operation queue is used to defer actions.
         .register_type::<OperationQueue>()

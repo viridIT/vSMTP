@@ -51,4 +51,44 @@ impl Mail {
             self.body.to_string(),
         )
     }
+
+    pub fn rewrite_from(&mut self, value: &str) {
+        self.headers
+            .iter_mut()
+            .find(|(header, _)| header == "from")
+            .and_then::<(), _>(|(_, old)| {
+                *old = value.to_string();
+                None
+            });
+    }
+
+    pub fn rewrite_rcpt(&mut self, old: &str, new: &str) {
+        self.headers
+            .iter_mut()
+            .find(|(header, _)| header == "to")
+            .and_then::<(), _>(|(_, rcpts)| {
+                *rcpts = rcpts.replace(old, new);
+                None
+            });
+    }
+
+    pub fn add_rcpt(&mut self, new: &str) {
+        self.headers
+            .iter_mut()
+            .find(|(header, _)| header == "to")
+            .and_then::<(), _>(|(_, rcpts)| {
+                *rcpts = format!("{}, {}", rcpts, new);
+                None
+            });
+    }
+
+    pub fn delete_rcpt(&mut self, old: &str) {
+        self.headers
+            .iter_mut()
+            .find(|(header, _)| header == "to")
+            .and_then::<(), _>(|(_, rcpts)| {
+                *rcpts = rcpts.replace(format!(", {old}").as_str(), "");
+                None
+            });
+    }
 }
