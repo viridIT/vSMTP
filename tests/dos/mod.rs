@@ -1,6 +1,8 @@
 use std::thread;
 
-use vsmtp::{config::server_config::ServerConfig, test_helpers::DefaultResolverTest};
+use vsmtp::{
+    config::server_config::ServerConfig, server::ServerVSMTP, test_helpers::DefaultResolverTest,
+};
 
 const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 const CLIENT_THREAD_COUNT: u64 = 1000;
@@ -11,10 +13,14 @@ const MAIL_PER_THREAD: u64 = 1000;
 async fn test_dos() {
     match fork::fork().expect("failed to fork process") {
         fork::Fork::Parent(_) => {
-            let config: ServerConfig = toml::from_str(include_str!("dos.config.toml"))
+            let mut config: ServerConfig = toml::from_str(include_str!("dos.config.toml"))
                 .expect("cannot parse config from toml");
+            config.prepare();
+            let config = std::sync::Arc::new(config);
 
-            let server = config.build().await;
+            let server = ServerVSMTP::new(config)
+                .await
+                .expect("failed to initialize server");
 
             log::warn!("Listening on: {:?}", server.addr());
             match tokio::time::timeout(

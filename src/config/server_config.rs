@@ -17,7 +17,7 @@
 // TODO: have a ConfigBuilder struct
 use serde_with::{serde_as, DisplayFromStr};
 
-use crate::{server::ServerVSMTP, smtp::state::StateSMTP};
+use crate::smtp::state::StateSMTP;
 
 use super::{
     custom_code::{CustomSMTPCode, SMTPCode},
@@ -195,6 +195,8 @@ pub struct InnerRulesConfig {
 pub struct QueueConfig {
     pub capacity: Option<usize>,
     pub retry_max: Option<usize>,
+    #[serde(with = "humantime_serde", default)]
+    pub cron_period: Option<std::time::Duration>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -242,12 +244,5 @@ impl ServerConfig {
                 Some(SMTPCode::Serialized(c)) => SMTPCode::Serialized(c.clone()),
             });
         self
-    }
-
-    pub async fn build(mut self) -> ServerVSMTP {
-        self.prepare();
-        ServerVSMTP::new(std::sync::Arc::new(self))
-            .await
-            .expect("Failed to create the server")
     }
 }

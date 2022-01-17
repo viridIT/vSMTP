@@ -14,20 +14,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use std::{error::Error, fmt::Display, hash::Hash};
-
-use rhai::EvalAltResult;
-
 #[derive(Debug)]
 pub struct AddressParsingError(String);
 
-impl Display for AddressParsingError {
+impl std::fmt::Display for AddressParsingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl Error for AddressParsingError {}
+impl std::error::Error for AddressParsingError {}
+
 impl From<&str> for AddressParsingError {
     fn from(s: &str) -> Self {
         Self { 0: s.to_string() }
@@ -42,6 +39,7 @@ impl From<&str> for AddressParsingError {
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
 pub struct Address {
     full: String,
+    // TODO: ignore serialize ?
     at_sign: usize,
 }
 
@@ -51,13 +49,13 @@ impl PartialEq for Address {
     }
 }
 
-impl Hash for Address {
+impl std::hash::Hash for Address {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.full.hash(state);
     }
 }
 
-impl Display for Address {
+impl std::fmt::Display for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.full)
     }
@@ -65,11 +63,8 @@ impl Display for Address {
 
 impl Address {
     /// a wrapper to create the address from rhai's context.
-    pub(crate) fn rhai_wrapper(addr: &str) -> Result<Self, Box<EvalAltResult>> {
-        match Self::new(addr) {
-            Ok(addr) => Ok(addr),
-            Err(error) => Err(error.to_string().into()),
-        }
+    pub(crate) fn rhai_wrapper(addr: &str) -> Result<Self, Box<rhai::EvalAltResult>> {
+        Self::new(addr).map_err(|error| error.to_string().into())
     }
 
     pub fn new(addr: &str) -> Result<Self, AddressParsingError> {
