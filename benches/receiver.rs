@@ -4,8 +4,12 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
 use vsmtp::{
-    config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
-    rules::address::Address, smtp::code::SMTPReplyCode, test_helpers::test_receiver,
+    config::server_config::ServerConfig,
+    model::mail::{Body, MailContext},
+    resolver::DataEndResolver,
+    rules::address::Address,
+    smtp::code::SMTPReplyCode,
+    test_helpers::test_receiver,
 };
 
 struct DefaultResolverTest;
@@ -56,7 +60,10 @@ fn criterion_benchmark(c: &mut Criterion) {
                     ctx.envelop.rcpt,
                     HashSet::from([Address::new("aa@bb").unwrap()])
                 );
-                assert_eq!(ctx.body, "");
+                assert!(match &ctx.body {
+                    Body::Raw(body) => body.is_empty(),
+                    _ => false,
+                });
 
                 Ok(SMTPReplyCode::Code250)
             }

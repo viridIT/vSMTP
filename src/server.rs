@@ -15,10 +15,7 @@
  *
 **/
 use crate::{
-    config::{
-        get_logger_config,
-        server_config::{ServerConfig, TlsSecurityLevel},
-    },
+    config::server_config::{ServerConfig, TlsSecurityLevel},
     connection::Connection,
     io_service::IoService,
     resolver::DataEndResolver,
@@ -37,8 +34,6 @@ impl ServerVSMTP {
     pub async fn new(
         config: std::sync::Arc<ServerConfig>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        log4rs::init_config(get_logger_config(&config)?)?;
-
         Ok(Self {
             listener: tokio::net::TcpListener::bind(&config.server.addr).await?,
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {

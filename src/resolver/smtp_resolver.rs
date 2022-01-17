@@ -53,7 +53,7 @@ impl DataEndResolver for SMTPResolver {
         // Send the email
         match mailer.send(&email) {
             Ok(_) => println!("Email sent successfully!"),
-            Err(e) => panic!("Could not send email: {:?}", e),
+            Err(e) => log::error!("Could not send email: {:?}", e),
         }
 
         Ok(SMTPReplyCode::Code250)

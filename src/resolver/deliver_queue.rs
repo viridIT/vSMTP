@@ -6,10 +6,9 @@ use crate::{
 use super::DataEndResolver;
 
 /// identifiers for all mail queues.
-#[allow(unused)]
-enum Queue {
-    Deliver,
+pub enum Queue {
     Working,
+    Deliver,
     Deferred,
     Dead,
 }
@@ -17,25 +16,34 @@ enum Queue {
 impl Queue {
     fn as_str(&self) -> &'static str {
         match self {
-            Queue::Deliver => "deliver",
             Queue::Working => "working",
+            Queue::Deliver => "deliver",
             Queue::Deferred => "deferred",
             Queue::Dead => "dead",
         }
+    }
+
+    pub fn to_path(
+        &self,
+        parent: impl Into<std::path::PathBuf>,
+    ) -> std::io::Result<std::path::PathBuf> {
+        let dir = parent.into().join(self.as_str());
+        if !dir.exists() {
+            std::fs::DirBuilder::new().recursive(true).create(&dir)?;
+        }
+        Ok(dir)
     }
 }
 
 /// used to write mail to the delivery queue and send a notification
 /// to the delivery process.
 pub struct DeliverQueueResolver {
-    deliver_proc: crossbeam_channel::Sender<String>,
+    sender: tokio::sync::mpsc::Sender<String>,
 }
 
 impl DeliverQueueResolver {
-    pub fn new(sender: crossbeam_channel::Sender<String>) -> Self {
-        Self {
-            deliver_proc: sender,
-        }
+    pub fn new(sender: tokio::sync::mpsc::Sender<String>) -> Self {
+        Self { sender }
     }
 }
 
@@ -46,7 +54,7 @@ impl DataEndResolver for DeliverQueueResolver {
         server_config: &ServerConfig,
         ctx: &crate::model::mail::MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error> {
-        write_to_queue(Queue::Deliver, server_config, ctx)?;
+        write_to_queue(Queue::Working, server_config, ctx)?;
 
         let message_id = ctx.metadata.as_ref().unwrap().message_id.clone();
 
@@ -60,7 +68,7 @@ impl DataEndResolver for DeliverQueueResolver {
         // sending the message id to the delivery process.
         // NOTE: we could send the context instead, so that the delivery system won't have
         //       to touch the file system.
-        self.deliver_proc.send(message_id).unwrap();
+        self.sender.send(message_id).await.unwrap();
 
         // TODO: use the right codes.
         Ok(SMTPReplyCode::Code250)
@@ -73,16 +81,9 @@ fn write_to_queue(
     server_config: &ServerConfig,
     ctx: &crate::model::mail::MailContext,
 ) -> std::io::Result<()> {
-    let message_id = ctx.metadata.as_ref().unwrap().message_id.clone();
-
-    let to_deliver = <std::path::PathBuf as std::str::FromStr>::from_str(&format!(
-        "{}/{}/{}",
-        server_config.smtp.spool_dir,
-        queue.as_str(),
-        &message_id
-    ))
-    // infallible.
-    .unwrap();
+    let to_deliver = queue
+        .to_path(&server_config.smtp.spool_dir)?
+        .join(&ctx.metadata.as_ref().unwrap().message_id);
 
     // TODO: should loop if a file name is conflicting.
     let mut file = std::fs::OpenOptions::new()

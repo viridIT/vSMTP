@@ -30,3 +30,5 @@ disable_ehlo = false
 soft_count = 5
 hard_count = 10
 delay = "100ms"
+
+[delivery.queue]

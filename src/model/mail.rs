@@ -39,8 +39,14 @@ impl Default for MessageMetadata {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
+pub enum Body {
+    Raw(String),
+    Parsed(Box<crate::mime::mail::Mail>),
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
     pub envelop: super::envelop::Envelop,
-    pub body: String,
+    pub body: Body,
     pub metadata: Option<MessageMetadata>,
 }

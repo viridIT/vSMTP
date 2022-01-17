@@ -3,7 +3,7 @@ use super::{
     mail::Mail,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct MimeHeader {
     pub name: String,
     pub value: String,
@@ -11,14 +11,14 @@ pub struct MimeHeader {
     pub args: std::collections::HashMap<String, String>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum MimeBodyType {
     Regular(Vec<String>),
     Multipart(MimeMultipart),
     Embedded(Mail),
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct MimeMultipart {
     pub preamble: String,
     pub parts: Vec<Mime>,
@@ -61,7 +61,7 @@ impl MimeHeader {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Mime {
     pub headers: Vec<MimeHeader>,
     pub content: MimeBodyType,

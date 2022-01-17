@@ -4,7 +4,7 @@ mod tests {
     use crate::integration::protocol::get_test_config;
     use vsmtp::{
         config::server_config::{InnerSMTPConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel},
-        model::mail::MailContext,
+        model::mail::{Body, MailContext},
         resolver::DataEndResolver,
         rules::address::Address,
         smtp::code::SMTPReplyCode,
@@ -30,7 +30,10 @@ mod tests {
                     ctx.envelop.rcpt,
                     std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                 );
-                assert_eq!(ctx.body, "");
+                assert!(match &ctx.body {
+                    Body::Raw(body) => body.is_empty(),
+                    _ => false,
+                });
                 assert!(ctx.metadata.is_some());
 
                 Ok(SMTPReplyCode::Code250)
@@ -407,7 +410,10 @@ mod tests {
                             ctx.envelop.rcpt,
                             std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                         );
-                        assert_eq!(ctx.body, "mail one\n");
+                        assert!(match &ctx.body {
+                            Body::Raw(body) => body == "mail one\n",
+                            _ => false,
+                        });
                         assert!(ctx.metadata.is_some());
                     }
                     1 => {
@@ -417,7 +423,10 @@ mod tests {
                             ctx.envelop.rcpt,
                             std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
                         );
-                        assert_eq!(ctx.body, "mail two\n");
+                        assert!(match &ctx.body {
+                            Body::Raw(body) => body == "mail two\n",
+                            _ => false,
+                        });
                     }
                     _ => panic!(),
                 }
@@ -488,7 +497,10 @@ mod tests {
                             ctx.envelop.rcpt,
                             std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                         );
-                        assert_eq!(ctx.body, "mail one\n");
+                        assert!(match &ctx.body {
+                            Body::Raw(body) => body == "mail one\n",
+                            _ => false,
+                        });
                     }
                     1 => {
                         assert_eq!(ctx.envelop.helo, "foobar2");
@@ -497,7 +509,10 @@ mod tests {
                             ctx.envelop.rcpt,
                             std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
                         );
-                        assert_eq!(ctx.body, "mail two\n");
+                        assert!(match &ctx.body {
+                            Body::Raw(body) => body == "mail two\n",
+                            _ => false,
+                        });
                         assert!(ctx.metadata.is_some());
                     }
                     _ => panic!(),
