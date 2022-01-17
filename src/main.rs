@@ -285,16 +285,18 @@ async fn v_mime(
         let file_to_process = working_queue.join(&message_id);
         log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
-        let mail: vsmtp::model::mail::MailContext =
+        let mut mail: vsmtp::model::mail::MailContext =
             serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
-        let _ = match mail.body {
+        let body = match mail.body {
             Body::Parsed(_) => unreachable!(),
             Body::Raw(ref raw) => MailMimeParser::default()
                 .parse(raw.as_bytes())
                 // .and_then(|_| todo!("run postq rule engine"))
                 .expect("handle errors when parsing email in vMIME"),
         };
+
+        mail.body = Body::Parsed(Box::new(body));
 
         // TODO: run postq rule engine.
 

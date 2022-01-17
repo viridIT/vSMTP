@@ -15,14 +15,13 @@
  *
 **/
 use crate::{
-    config::server_config::ServerConfig, model::mail::MailContext, smtp::code::SMTPReplyCode,
+    config::server_config::ServerConfig,
+    model::mail::{Body, MailContext},
+    smtp::code::SMTPReplyCode,
 };
 
 use super::DataEndResolver;
-use lettre::{
-    transport::smtp::authentication::Credentials,
-    {Message, SmtpTransport, Transport},
-};
+use lettre::{Message, SmtpTransport, Transport};
 
 #[derive(Default)]
 pub struct SMTPResolver;
@@ -32,28 +31,35 @@ impl DataEndResolver for SMTPResolver {
     async fn on_data_end(
         &mut self,
         _: &ServerConfig,
-        _: &MailContext,
+        ctx: &MailContext,
     ) -> Result<SMTPReplyCode, std::io::Error> {
-        let email = Message::builder()
-            .from("NoBody <nobody@domain.tld>".parse().unwrap())
-            .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
-            .to("Hei <hei@domain.tld>".parse().unwrap())
-            .subject("Happy new year")
-            .body(String::from("Be happy!"))
-            .unwrap();
+        if let Body::Parsed(mail) = &ctx.body {
+            let mut builder = Message::builder();
+            for header in mail.headers.iter() {
+                builder = match (header.0.as_str(), header.1.as_str()) {
+                    ("from", value) => builder.from(value.parse().unwrap()),
+                    ("to", value) => {
+                        for inbox in value.split(", ") {
+                            builder = builder.to(inbox.parse().unwrap())
+                        }
+                        builder
+                    }
+                    ("subject", value) => builder.subject(value),
+                    _ => builder,
+                };
+            }
 
-        let creds = Credentials::new("smtp_username".to_string(), "smtp_password".to_string());
+            let to_send = builder.body(mail.to_raw().1).unwrap();
+            let mailer = SmtpTransport::builder_dangerous("127.0.0.1")
+                .port(25)
+                .build();
 
-        // Open a remote connection to gmail
-        let mailer = SmtpTransport::relay("smtp.gmail.com")
-            .unwrap()
-            .credentials(creds)
-            .build();
-
-        // Send the email
-        match mailer.send(&email) {
-            Ok(_) => println!("Email sent successfully!"),
-            Err(e) => log::error!("Could not send email: {:?}", e),
+            match mailer.send(&to_send) {
+                Ok(_) => log::debug!("email sent successfully."),
+                Err(e) => log::error!("could not send email: {:?}", e),
+            }
+        } else {
+            log::error!("email hasn't been parsed, exiting delivery ...");
         }
 
         Ok(SMTPReplyCode::Code250)
