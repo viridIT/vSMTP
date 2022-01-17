@@ -7,18 +7,18 @@ use super::{
 pub struct MimeHeader {
     pub name: String,
     pub value: String,
-    /// parameter ordering is does not matter.
+    /// parameter ordering does not matter.
     pub args: std::collections::HashMap<String, String>,
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum MimeBodyType {
     Regular(Vec<String>),
     Multipart(MimeMultipart),
     Embedded(Mail),
 }
 
-#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct MimeMultipart {
     pub preamble: String,
     pub parts: Vec<Mime>,
@@ -61,8 +61,118 @@ impl MimeHeader {
     }
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+impl ToString for MimeHeader {
+    /// ```
+    /// use vsmtp::mime::mime_type::MimeHeader;
+    ///
+    /// let input = MimeHeader {
+    ///     name: "Content-Type".to_string(),
+    ///     value: "text/plain".to_string(),
+    ///     args: std::collections::HashMap::from([
+    ///       ("charset".to_string(), "us-ascii".to_string()),
+    ///       ("another".to_string(), "argument".to_string()),
+    ///    ]),
+    /// };
+    ///
+    /// assert!(
+    ///     // arguments can be in any order.
+    ///     input.to_string() == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\"".to_string() ||
+    ///     input.to_string() == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\"".to_string()
+    /// );
+    ///
+    /// let input = MimeHeader {
+    ///     name: "Content-Type".to_string(),
+    ///     value: "application/foobar".to_string(),
+    ///     args: std::collections::HashMap::default(),
+    /// };
+    ///
+    /// assert_eq!(input.to_string(),
+    ///   "Content-Type: application/foobar".to_string()
+    /// );
+    /// ```
+    fn to_string(&self) -> String {
+        let args = self
+            .args
+            .iter()
+            .map(|(name, value)| format!("{}=\"{}\"", name, value))
+            .collect::<Vec<_>>()
+            .join("; ");
+
+        format!(
+            "{}: {}{}",
+            self.name,
+            self.value,
+            if args.is_empty() {
+                String::default()
+            } else {
+                format!("; {}", args)
+            }
+        )
+    }
+}
+
+impl MimeMultipart {
+    fn to_raw(&self, boundary: &str) -> String {
+        format!(
+            //
+            //  preamble
+            //  --boundary
+            //  *{ headers \n body \n boundary}
+            //  epilogue || nothing
+            //  --end-boundary--
+            "\n{}\n--{}\n{}\n{}--{}--\n",
+            self.preamble,
+            boundary,
+            self.parts
+                .iter()
+                .map(Mime::to_raw)
+                .map(|(headers, body)| format!("{}\n{}", headers, body))
+                .collect::<Vec<_>>()
+                .join(&format!("\n--{}\n", boundary)),
+            if self.epilogue.is_empty() {
+                "".to_string()
+            } else {
+                format!("{}\n", self.epilogue)
+            },
+            boundary,
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Mime {
     pub headers: Vec<MimeHeader>,
     pub content: MimeBodyType,
+}
+
+impl Mime {
+    pub fn to_raw(&self) -> (String, String) {
+        (
+            self.headers
+                .iter()
+                .map(MimeHeader::to_string)
+                .collect::<Vec<_>>()
+                .join("\n"),
+            match &self.content {
+                MimeBodyType::Regular(regular) => regular.join("\n"),
+                MimeBodyType::Multipart(multipart) => {
+                    let boundary = self
+                        .headers
+                        .iter()
+                        .find(|header| header.args.get("boundary").is_some());
+                    multipart.to_raw(
+                        boundary
+                            .expect("multipart mime message is missing it's boundary argument.")
+                            .args
+                            .get("boundary")
+                            .unwrap(),
+                    )
+                }
+                MimeBodyType::Embedded(mail) => {
+                    let (headers, body) = mail.to_raw();
+                    format!("{}\n{}", headers, body)
+                }
+            },
+        )
+    }
 }

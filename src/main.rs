@@ -290,21 +290,26 @@ async fn v_mime(
 
         let _ = match mail.body {
             Body::Parsed(_) => unreachable!(),
-            Body::Raw(raw) => MailMimeParser::default()
+            Body::Raw(ref raw) => MailMimeParser::default()
                 .parse(raw.as_bytes())
                 // .and_then(|_| todo!("run postq rule engine"))
                 .expect("handle errors when parsing email in vMIME"),
         };
 
-        delivery_sender.send(message_id.to_string()).await.unwrap();
+        // TODO: run postq rule engine.
 
-        std::fs::rename(
-            file_to_process,
+        let mut to_deliver = std::fs::OpenOptions::new().create(true).write(true).open(
             std::path::PathBuf::from_iter([
                 Queue::Deliver.to_path(&spool_dir)?,
                 std::path::Path::new(&message_id).to_path_buf(),
             ]),
         )?;
+
+        std::io::Write::write_all(&mut to_deliver, serde_json::to_string(&mail)?.as_bytes())?;
+
+        delivery_sender.send(message_id.to_string()).await.unwrap();
+
+        std::fs::remove_file(&file_to_process)?;
 
         log::debug!(
             target: DELIVER,

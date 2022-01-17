@@ -362,9 +362,12 @@ impl MailMimeParser {
 
         Ok(multi_parts)
     }
-}
 
-//
+    /// consume a mail instance and return headers and body raw strings.
+    pub fn to_raw(mail: Mail) -> (String, String) {
+        mail.to_raw()
+    }
+}
 
 /// See https://datatracker.ietf.org/doc/html/rfc5322#page-11
 fn remove_comments(line: &str) -> String {
@@ -511,8 +514,7 @@ fn is_mime_header(name: &str) -> bool {
 }
 
 // is used to deduce the boundary type.
-// TODO: move this function outside the parser struct implementation.
-// ! this method is called to many times, causing slow downs.
+// ! this method is called too many times, causing slow downs.
 #[inline]
 fn get_boundary_type(line: &str, boundary: &str) -> Option<BoundaryType> {
     match (
@@ -524,5 +526,73 @@ fn get_boundary_type(line: &str, boundary: &str) -> Option<BoundaryType> {
         (true, false, true) => Some(BoundaryType::Delimiter),
         (true, true, true) => Some(BoundaryType::End),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    // NOTE: things to consider:
+    //       - header folding (does letter does it automatically ?)
+    //       - comments (do we need to keep them ?)
+    //       - boundaries
+    //       -
+
+    #[test]
+    #[ignore]
+    fn test_to_raw() {
+        let content = vec![
+"x-mozilla-status: 0001",
+"x-mozilla-status2: 01000000",
+"x-mozilla-keys:                                                                                 ",
+"fcc: imap://tabis%40localhost.com@localhost.com/sent",
+"x-identity-key: id3",
+"x-account-key: account4",
+"from: tabis lucas <tabis@localhost>",
+"subject: text content",
+"to: tabis@localhost, green@viridit.com, foo@viridit.com, x@x.com",
+"message-id: <51734671-2e09-946e-7e3f-ec59b83e82d0@localhost.com>",
+"date: tue, 30 nov 2021 20:54:27 +0100",
+"x-mozilla-draft-info: internal/draft; vcard=0; receipt=0; dsn=0; uuencode=0;",
+" attachmentreminder=0; deliveryformat=1",
+"user-agent: mozilla/5.0 (x11; linux x86_64; rv:78.0) gecko/20100101",
+" thunderbird/78.14.0",
+"mime-version: 1.0",
+"content-type: text/plain; charset=utf-8; format=flowed",
+"content-language: en-us",
+"content-transfer-encoding: 7bit",
+"",
+"je ne suis qu'un contenu de texte."];
+
+        let parsed = MailMimeParser::default()
+            .parse(content.join("\n").as_bytes())
+            .expect("parsing failed");
+
+        assert_eq!(
+            {
+                let (headers, body) = parsed.to_raw();
+                [headers, body].join("\n")
+            },
+            r#"x-mozilla-status: 0001
+x-mozilla-status2: 01000000
+x-mozilla-keys:
+fcc: imap://tabis%40localhost.com@localhost.com/sent
+x-identity-key: id3
+x-account-key: account4
+from: tabis lucas <tabis@localhost>
+subject: text content
+to: tabis@localhost, green@viridit.com, foo@viridit.com, x@x.com
+message-id: <51734671-2e09-946e-7e3f-ec59b83e82d0@localhost.com>
+date: tue, 30 nov 2021 20:54:27 +0100
+x-mozilla-draft-info: internal/draft; vcard=0; receipt=0; dsn=0; uuencode=0; attachmentreminder=0; deliveryformat=1
+user-agent: mozilla/5.0 (x11; linux x86_64; rv:78.0) gecko/20100101 thunderbird/78.14.0
+mime-version: 1.0
+content-type: text/plain; charset=utf-8; format=flowed
+content-language: en-us
+content-transfer-encoding: 7bit
+
+je ne suis qu'un contenu de texte."#
+        );
     }
 }
