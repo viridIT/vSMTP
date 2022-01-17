@@ -40,6 +40,7 @@ impl Default for Mail {
 }
 
 impl Mail {
+    /// return raw string of the mail with (headers, body).
     pub fn to_raw(&self) -> (String, String) {
         (
             self.headers
