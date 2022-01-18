@@ -32,7 +32,7 @@ mod tests {
                     HashSet::from([Address::new("b@c").unwrap()])
                 );
                 assert!(match &ctx.body {
-                    Body::Raw(body) => body == "mail content wow\n",
+                    Body::Parsed(body) => body.headers.is_empty(),
                     _ => false,
                 });
 
@@ -144,7 +144,7 @@ mod tests {
                     HashSet::from([Address::new("b@c").unwrap()])
                 );
                 assert!(match &ctx.body {
-                    Body::Raw(body) => body == "mail content wow",
+                    Body::Parsed(body) => body.headers.is_empty(),
                     _ => false,
                 });
 
@@ -199,7 +199,7 @@ mod tests {
                     HashSet::from([Address::new("toto@bar").unwrap()])
                 );
                 assert!(match &ctx.body {
-                    Body::Raw(body) => body.is_empty(),
+                    Body::Parsed(body) => body.headers.is_empty(),
                     _ => false,
                 });
 
@@ -255,7 +255,7 @@ mod tests {
                     ])
                 );
                 assert!(match &ctx.body {
-                    Body::Raw(body) => body.is_empty(),
+                    Body::Parsed(body) => body.headers.is_empty(),
                     _ => false,
                 });
 

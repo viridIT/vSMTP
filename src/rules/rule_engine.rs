@@ -15,7 +15,7 @@
  *
  **/
 use crate::config::log_channel::RULES;
-use crate::mime::mail::Mail;
+use crate::mime::mail::{BodyType, Mail};
 use crate::model::envelop::Envelop;
 use crate::model::mail::{MailContext, MessageMetadata};
 use crate::rules::address::Address;
@@ -298,32 +298,32 @@ impl<U: Users> RhaiEngine<U> {
         .register_get("headers", |mail: &mut Mail| mail.headers.clone())
         .register_get("body", |mail: &mut Mail| mail.body.clone())
         .register_result_fn  ("rewrite_from", |mail: &mut Mail, value: &str| {
-            if mail.headers.is_empty() {
-                Err("data is only accessible from the 'preq' stage".into())
+            if mail.body == BodyType::Undefined {
+                Err("failed to execute 'RW_MAIL': body is undefined".into())
             } else {
                 mail.rewrite_from(value);
                 Ok(())
             }
         })
         .register_result_fn  ("rewrite_rcpt", |mail: &mut Mail, old: &str, new: &str| {
-            if mail.headers.is_empty() {
-                Err("data is only accessible from the 'preq' stage".into())
+            if mail.body == BodyType::Undefined {
+                Err("failed to execute 'RW_RCPT': body is undefined".into())
             } else {
                 mail.rewrite_rcpt(old, new);
                 Ok(())
             }
         })
         .register_result_fn  ("add_rcpt", |mail: &mut Mail, new: &str| {
-            if mail.headers.is_empty() {
-                Err("data is only accessible from the 'preq' stage".into())
+            if mail.body == BodyType::Undefined {
+                Err("failed to execute 'ADD_RCPT': body is undefined".into())
             } else {
                 mail.add_rcpt(new);
                 Ok(())
             }
         })
         .register_result_fn  ("delete_rcpt", |mail: &mut Mail, old: &str| {
-            if mail.headers.is_empty() {
-                Err("data is only accessible from the 'preq' stage".into())
+            if mail.body == BodyType::Undefined {
+                Err("failed to execute 'DEL_RCPT': body is undefined".into())
             } else {
                 mail.delete_rcpt(old);
                 Ok(())

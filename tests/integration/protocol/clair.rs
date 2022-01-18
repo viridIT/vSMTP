@@ -31,7 +31,7 @@ mod tests {
                     std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                 );
                 assert!(match &ctx.body {
-                    Body::Raw(body) => body.is_empty(),
+                    Body::Parsed(body) => body.headers.is_empty(),
                     _ => false,
                 });
                 assert!(ctx.metadata.is_some());
@@ -411,7 +411,7 @@ mod tests {
                             std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                         );
                         assert!(match &ctx.body {
-                            Body::Raw(body) => body == "mail one\n",
+                            Body::Parsed(body) => body.headers.is_empty(),
                             _ => false,
                         });
                         assert!(ctx.metadata.is_some());
@@ -424,7 +424,7 @@ mod tests {
                             std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
                         );
                         assert!(match &ctx.body {
-                            Body::Raw(body) => body == "mail two\n",
+                            Body::Parsed(body) => body.headers.is_empty(),
                             _ => false,
                         });
                     }
@@ -498,7 +498,7 @@ mod tests {
                             std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                         );
                         assert!(match &ctx.body {
-                            Body::Raw(body) => body == "mail one\n",
+                            Body::Parsed(body) => body.headers.is_empty(),
                             _ => false,
                         });
                     }
@@ -510,7 +510,7 @@ mod tests {
                             std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
                         );
                         assert!(match &ctx.body {
-                            Body::Raw(body) => body == "mail two\n",
+                            Body::Parsed(body) => body.headers.is_empty(),
                             _ => false,
                         });
                         assert!(ctx.metadata.is_some());
