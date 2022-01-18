@@ -5,6 +5,7 @@ use criterion::{
 };
 use vsmtp::{
     config::server_config::ServerConfig,
+    mime::mail::BodyType,
     model::mail::{Body, MailContext},
     resolver::DataEndResolver,
     rules::address::Address,
@@ -61,7 +62,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                     HashSet::from([Address::new("aa@bb").unwrap()])
                 );
                 assert!(match &ctx.body {
-                    Body::Raw(body) => body.is_empty(),
+                    Body::Parsed(mail) => mail.body == BodyType::Undefined,
                     _ => false,
                 });
 
