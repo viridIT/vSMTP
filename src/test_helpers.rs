@@ -63,7 +63,7 @@ impl DataEndResolver for DefaultResolverTest {
     }
 }
 
-// TODO: should be a macro instead of a function
+// TODO: should be a macro instead of a function.
 pub async fn test_receiver<T: DataEndResolver>(
     resolver: std::sync::Arc<tokio::sync::Mutex<T>>,
     smtp_input: &[u8],

@@ -15,6 +15,7 @@
  *
  **/
 use crate::config::log_channel::RULES;
+use crate::mime::mail::{BodyType, Mail};
 use crate::model::envelop::Envelop;
 use crate::model::mail::{MailContext, MessageMetadata};
 use crate::rules::address::Address;
@@ -74,7 +75,7 @@ impl<'a> RuleEngine<'a> {
             .push("mail", Address::default())
             .push("rcpt", Address::default())
             .push("rcpts", HashSet::<Address>::new())
-            .push("data", "")
+            .push("data", Mail::default())
             // rule engine's internals.
             .push("__OPERATION_QUEUE", OperationQueue::default())
             .push("__stage", "")
@@ -205,12 +206,15 @@ impl<'a> RuleEngine<'a> {
     }
 
     /// fetch the whole envelop (possibly) mutated by the user's rules.
-    pub(crate) fn get_scoped_envelop(&self) -> Option<Envelop> {
-        Some(Envelop {
-            helo: self.scope.get_value::<String>("helo")?,
-            mail_from: self.scope.get_value::<Address>("mail")?,
-            rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
-        })
+    pub(crate) fn get_scoped_envelop(&self) -> Option<(Envelop, Mail)> {
+        Some((
+            Envelop {
+                helo: self.scope.get_value::<String>("helo")?,
+                mail_from: self.scope.get_value::<Address>("mail")?,
+                rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
+            },
+            self.scope.get_value::<Mail>("data")?,
+        ))
     }
 
     /// clears mail_from, metadata, rcpt, rcpts & data values from the scope.
@@ -220,7 +224,7 @@ impl<'a> RuleEngine<'a> {
             .push("metadata", None::<MessageMetadata>)
             .push("rcpt", Address::default())
             .push("rcpts", HashSet::<Address>::new())
-            .push("data", "");
+            .push("data", Mail::default());
     }
 }
 
@@ -267,42 +271,69 @@ impl<U: Users> RhaiEngine<U> {
         .register_fn("to_string", |addr: &mut IpAddr| addr.to_string())
         .register_fn("to_debug", |addr: &mut IpAddr| format!("{:?}", addr))
 
-        // local_part + "@" + domain) = full.
+        // local_part + "@" + domain = full.
         .register_get("full", |addr: &mut Address| addr.full().to_string())
         .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
         .register_get("domain", |addr: &mut Address| addr.domain().to_string())
 
         // metadata of the email.
         .register_type::<Option<MessageMetadata>>()
-        .register_get("timestamp", |metadata: &mut Option<MessageMetadata>| {
-            match metadata {
-                Some(metadata) => metadata.timestamp,
-                None => std::time::SystemTime::now(),
+        .register_get_result("timestamp", |metadata: &mut Option<MessageMetadata>| match metadata {
+            Some(metadata) => Ok(metadata.timestamp),
+            None => Err("metadata isn't available in the current stage".into())
+        })
+        .register_get_result("message_id", |metadata: &mut Option<MessageMetadata>| match metadata {
+            Some(metadata) => Ok(metadata.message_id.clone()),
+            None => Err("metadata isn't available in the current stage".into())
+        })
+        .register_get_result("retry", |metadata: &mut Option<MessageMetadata>| match metadata {
+            Some(metadata) => Ok(metadata.retry as u64),
+            None => Err("metadata isn't available in the current stage".into())
+        })
+        .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
+        .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
+
+        // exposed structure used to read & rewrite the incoming email's content.
+        .register_type::<Mail>()
+        .register_get("headers", |mail: &mut Mail| mail.headers.clone())
+        .register_get("body", |mail: &mut Mail| mail.body.clone())
+        .register_result_fn  ("rewrite_from", |mail: &mut Mail, value: &str| {
+            if mail.body == BodyType::Undefined {
+                Err("failed to execute 'RW_MAIL': body is undefined".into())
+            } else {
+                mail.rewrite_from(value);
+                Ok(())
             }
         })
-        .register_get("message_id", |metadata: &mut Option<MessageMetadata>| {
-            match metadata {
-                Some(metadata) => metadata.message_id.clone(),
-                None => "".to_string(),
+        .register_result_fn  ("rewrite_rcpt", |mail: &mut Mail, old: &str, new: &str| {
+            if mail.body == BodyType::Undefined {
+                Err("failed to execute 'RW_RCPT': body is undefined".into())
+            } else {
+                mail.rewrite_rcpt(old, new);
+                Ok(())
             }
         })
-        .register_get("retry", |metadata: &mut Option<MessageMetadata>| {
-            (match metadata {
-                Some(metadata) => metadata.retry,
-                None => 0,
-            }) as u64
+        .register_result_fn  ("add_rcpt", |mail: &mut Mail, new: &str| {
+            if mail.body == BodyType::Undefined {
+                Err("failed to execute 'ADD_RCPT': body is undefined".into())
+            } else {
+                mail.add_rcpt(new);
+                Ok(())
+            }
         })
-        .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| match metadata {
-            Some(metadata) => format!("{:?}", metadata),
-            None => "".to_string(),
-        })
-        .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| match metadata {
-            Some(metadata) => format!("{:?}", metadata),
-            None => "".to_string(),
+        .register_result_fn  ("delete_rcpt", |mail: &mut Mail, old: &str| {
+            if mail.body == BodyType::Undefined {
+                Err("failed to execute 'DEL_RCPT': body is undefined".into())
+            } else {
+                mail.delete_rcpt(old);
+                Ok(())
+            }
         })
 
         // the operation queue is used to defer actions.
         .register_type::<OperationQueue>()
+
+        // time display.
         .register_type::<std::time::SystemTime>()
         .register_fn("to_string", |time: &mut std::time::SystemTime| format!("{}",
             time.duration_since(std::time::SystemTime::UNIX_EPOCH)
@@ -319,7 +350,6 @@ impl<U: Users> RhaiEngine<U> {
         // used to easily manipulate the rcpt container.
         .register_iterator::<HashSet<Address>>()
         .register_iterator::<Vec<String>>()
-
         .register_fn("insert", <HashSet<Address>>::insert)
         // extract all users / domains from the rcpt set.
         .register_get("local_part", |set: &mut HashSet<Address>| -> Vec<String> {
@@ -365,7 +395,7 @@ impl<U: Users> RhaiEngine<U> {
             }
         })
 
-        // added an overload to remove an address using a string.
+        // added an overload to replace an address using a string.
         .register_result_fn("replace", |set: &mut HashSet::<Address>, to_replace: String, value: String| {
             let to_replace = match Address::new(&to_replace) {
                 Ok(addr) => addr,
@@ -394,7 +424,7 @@ impl<U: Users> RhaiEngine<U> {
         // eval is not authorized.
         .disable_symbol("eval")
 
-        // `rule $when$ $name$ #{}` container syntax.
+        // `rule $when$ $name$ #{expr}` container syntax.
         .register_custom_syntax_raw(
             "rule",
             |symbols, look_ahead| match symbols.len() {
@@ -699,7 +729,7 @@ lazy_static::lazy_static! {
         .push("mail", Address::default())
         .push("rcpt", Address::default())
         .push("rcpts", HashSet::<Address>::new())
-        .push("data", "")
+        .push("data", Mail::default())
 
         // rule engine's internals.
         .push("__OPERATION_QUEUE", OperationQueue::default())

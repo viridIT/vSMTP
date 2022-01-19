@@ -1,11 +1,11 @@
 obj grp "staff" [
   obj addr "john" "johndoe@viridit.com",
-  obj addr "green" "green@personnal.eu",
-  obj addr "steven" "steven@personnal.fr",
+  obj addr "green" "green@personal.eu",
+  obj addr "steven" "steven@personal.fr",
   obj addr "ruben" "ruben@email.ru",
 ];
 
-rule mail "test_rw_mail" #{
+rule preq "test_rw_mail" #{
   condition: || vsl.IS_MAIL("staff"),
 
   // hide a specific sender.

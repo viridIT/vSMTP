@@ -94,7 +94,7 @@ pub mod helpers {
         reader
             .context
             .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &reader.ast)
-            .expect("could not initialize the rule engine");
+            .expect("failed to run the rule engine");
 
         test_receiver(
             std::sync::Arc::new(tokio::sync::Mutex::new(resolver)),

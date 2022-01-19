@@ -67,25 +67,37 @@ let vsl = #{
     },
 
     // change the content of the MAIL FROM command.
-    RW_MAIL: |value| {
+    RW_MAIL: |address| {
         // string interpolation used to parse from a String or an Address.
-        mail = new_address(`${value}`);
+        let address = address.to_string();
+
+        mail = new_address(address);
+        data.rewrite_from(address);
     },
 
     // change one of the recipient specified by the RCPT TO command.
-    RW_RCPT: |to_replace, value| {
-        // string interpolation used to parse from a String or an Address.
-        rcpts.replace(`${to_replace}`, `${value}`);
+    RW_RCPT: |old_addr, new_addr| {
+        let old_addr = `${old_addr}`;
+        let new_addr = `${new_addr}`;
+
+        rcpts.replace(old_addr, new_addr);
+        data.rewrite_rcpt(old_addr, new_addr);
     },
 
     // add a recipient to the list.
-    ADD_RCPT: |to_add| {
-        rcpts.insert(new_address(to_add));
+    ADD_RCPT: |new_addr| {
+        let new_addr = `${new_addr}`;
+
+        rcpts.insert(new_address(new_addr));
+        data.add_rcpt(new_addr);
     },
 
     // remove a recipient from the list.
     DEL_RCPT: |to_remove| {
+        let to_remove = `${to_remove}`;
+
         rcpts.remove(to_remove);
+        data.delete_rcpt(to_remove);
     },
 
     // write the current mail to a file.

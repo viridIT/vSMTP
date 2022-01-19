@@ -25,7 +25,10 @@ mod tests {
                         std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                     );
                     assert!(match &ctx.body {
-                        Body::Raw(body) => body == include_str!($lang_code),
+                        Body::Parsed(mail) => {
+                            let (headers, body) = mail.to_raw();
+                            format!("{headers}\n\n{body}\n").as_str() == include_str!($lang_code)
+                        }
                         _ => false,
                     });
 
