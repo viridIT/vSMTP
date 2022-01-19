@@ -62,9 +62,11 @@ impl DataEndResolver for SMTPResolver {
 
                 match mx {
                     Err(err) => log::error!("could not send email to {rcpt}: {err}"),
-                    Ok(mx_response) => {
-                        // NOTE: to which record should we send the mail to ?
-                        for record in mx_response.iter() {
+                    Ok(mxs) => {
+                        let mut mxs_by_priority = mxs.into_iter().collect::<Vec<_>>();
+                        mxs_by_priority.sort_by_key(|mx| mx.preference());
+
+                        for record in mxs_by_priority.iter() {
                             let exchange = record.exchange().to_ascii();
 
                             let tls_parameters =
