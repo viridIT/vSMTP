@@ -161,16 +161,22 @@ pub struct InnerSMTPErrorConfig {
     pub delay: std::time::Duration,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(transparent)]
+pub struct DurationAlias {
+    #[serde(with = "humantime_serde")]
+    pub alias: std::time::Duration,
+}
+
 #[serde_as]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerSMTPConfig {
     pub spool_dir: String,
     pub disable_ehlo: bool,
-    #[serde_as(as = "std::collections::HashMap<DisplayFromStr, _>")]
-    // #[serde(with = "humantime_serde")]
-    pub timeout_client: std::collections::HashMap<StateSMTP, String>,
+    #[serde(default)]
+    #[serde_as(as = "Option<std::collections::HashMap<DisplayFromStr, _>>")]
+    pub timeout_client: Option<std::collections::HashMap<StateSMTP, DurationAlias>>,
     pub error: InnerSMTPErrorConfig,
-    // TODO: ? use serde_as ?
     pub code: Option<SMTPCode>,
     pub rcpt_count_max: Option<usize>,
 }

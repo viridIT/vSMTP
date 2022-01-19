@@ -37,8 +37,6 @@ spool_dir = "./tmp/var/spool/vsmtp"
 rcpt_count_max = 25
 disable_ehlo = false
 
-[smtp.timeout_client]
-
 [smtp.error]
 soft_count = 5
 hard_count = 10
