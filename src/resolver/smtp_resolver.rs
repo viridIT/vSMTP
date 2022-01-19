@@ -51,10 +51,12 @@ impl DataEndResolver for SMTPResolver {
                 };
             }
 
-            let to_send = builder.body(mail.to_raw().1).unwrap();
+            let to_send = builder
+                .body(mail.to_raw().1)
+                .expect("failed to build email with lettre");
             let resolver =
                 TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default())
-                    .expect("failed to build resolver");
+                    .expect("failed to build resolver with trust-dns-resolver");
 
             for rcpt in ctx.envelop.rcpt.iter() {
                 let domain = rcpt.domain();
@@ -83,8 +85,11 @@ impl DataEndResolver for SMTPResolver {
                                 .build();
 
                             match mailer.send(&to_send) {
-                                Ok(_) => log::debug!("email to {rcpt} sent successfully."),
-                                Err(err) => log::error!("could not send email to {rcpt}: {err:?}"),
+                                Ok(_) => {
+                                    log::debug!("email to {rcpt} sent successfully.");
+                                    break;
+                                }
+                                Err(err) => log::warn!("could not send email to {rcpt}: {err:?}, looking for other exchangers ..."),
                             };
                         }
                     }
