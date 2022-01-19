@@ -17,7 +17,7 @@
 use crate::{
     config::{
         log_channel::{RECEIVER, RULES},
-        server_config::TlsSecurityLevel,
+        server_config::{ServerConfig, TlsSecurityLevel},
     },
     connection::Connection,
     io_service::ReadError,
@@ -352,26 +352,6 @@ impl Transaction<'_> {
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
     ) -> std::io::Result<TransactionResult> {
-        // TODO: move that cleanly in config.
-        let smtp_timeouts = conn
-            .config
-            .smtp
-            .timeout_client
-            .iter()
-            .filter_map(|(k, v)| match humantime::parse_duration(v) {
-                Ok(v) => Some((*k, v)),
-                Err(e) => {
-                    log::error!(
-                        target: RECEIVER,
-                        "error \"{}\" parsing timeout for key={}, ignored",
-                        e,
-                        k
-                    );
-                    None
-                }
-            })
-            .collect::<std::collections::HashMap<_, _>>();
-
         let mut transaction = Transaction {
             state: if helo_domain.is_none() {
                 StateSMTP::Connect
@@ -402,9 +382,20 @@ impl Transaction<'_> {
             ));
         };
 
-        let mut read_timeout = *smtp_timeouts
-            .get(&transaction.state)
-            .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
+        fn get_timeout_for_state(
+            config: &std::sync::Arc<ServerConfig>,
+            state: &StateSMTP,
+        ) -> std::time::Duration {
+            config
+                .smtp
+                .timeout_client
+                .as_ref()
+                .map(|map| map.get(state).map(|t| t.alias))
+                .flatten()
+                .unwrap_or_else(|| std::time::Duration::from_millis(TIMEOUT_DEFAULT))
+        }
+
+        let mut read_timeout = get_timeout_for_state(&conn.config, &transaction.state);
 
         while transaction.state != StateSMTP::Stop {
             if transaction.state == StateSMTP::NegotiationTLS {
@@ -424,9 +415,7 @@ impl Transaction<'_> {
                                 new_state
                             );
                             transaction.state = new_state;
-                            read_timeout = *smtp_timeouts
-                                .get(&transaction.state)
-                                .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
+                            read_timeout = get_timeout_for_state(&conn.config, &transaction.state);
                             conn.send_code(reply_to_send)?;
                         }
                         ProcessedEvent::TransactionCompleted(mail) => {
