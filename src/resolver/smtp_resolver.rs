@@ -22,6 +22,8 @@ use crate::{
 
 use super::DataEndResolver;
 use lettre::{Message, SmtpTransport, Transport};
+use trust_dns_resolver::config::*;
+use trust_dns_resolver::TokioAsyncResolver;
 
 #[derive(Default)]
 pub struct SMTPResolver;
@@ -50,13 +52,41 @@ impl DataEndResolver for SMTPResolver {
             }
 
             let to_send = builder.body(mail.to_raw().1).unwrap();
-            let mailer = SmtpTransport::builder_dangerous("127.0.0.1")
-                .port(25)
-                .build();
+            let resolver =
+                TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default())
+                    .expect("failed to build resolver");
 
-            match mailer.send(&to_send) {
-                Ok(_) => log::debug!("email sent successfully."),
-                Err(e) => log::error!("could not send email: {:?}", e),
+            for rcpt in ctx.envelop.rcpt.iter() {
+                let domain = rcpt.domain();
+                let mx = resolver.mx_lookup(domain).await;
+
+                match mx {
+                    Err(err) => log::error!("could not send email to {rcpt}: {err}"),
+                    Ok(mx_response) => {
+                        // NOTE: to which record should we send the mail to ?
+                        for record in mx_response.iter() {
+                            let exchange = record.exchange().to_ascii();
+
+                            let tls_parameters =
+                                lettre::transport::smtp::client::TlsParameters::new(
+                                    exchange.as_str().into(),
+                                )
+                                .expect("couldn't build tls parameters");
+
+                            let mailer = SmtpTransport::builder_dangerous(exchange.as_str())
+                                .port(25)
+                                .tls(lettre::transport::smtp::client::Tls::Required(
+                                    tls_parameters,
+                                ))
+                                .build();
+
+                            match mailer.send(&to_send) {
+                                Ok(_) => log::debug!("email to {rcpt} sent successfully."),
+                                Err(err) => log::error!("could not send email to {rcpt}: {err:?}"),
+                            };
+                        }
+                    }
+                }
             }
         } else {
             log::error!("email hasn't been parsed, exiting delivery ...");
