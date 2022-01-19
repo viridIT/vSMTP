@@ -20,6 +20,7 @@ clap = { version = "3.0.4", features = ["derive"] }
 
 libc = "0.2.112"
 socket2 = "0.4.2"
+trust-dns-resolver = "0.20.3"
 
 serde = { version = "1.0.133", features = ["derive"] }
 serde_derive = "1.0.133"
