@@ -3,8 +3,8 @@ mod tests {
     use crate::integration::protocol::get_test_config;
     use vsmtp::test_helpers::test_receiver;
     use vsmtp::{
-        config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
-        rules::address::Address, smtp::code::SMTPReplyCode,
+        config::server_config::ServerConfig, model::mail::Body, model::mail::MailContext,
+        resolver::DataEndResolver, rules::address::Address, smtp::code::SMTPReplyCode,
     };
 
     macro_rules! test_lang {
@@ -24,7 +24,14 @@ mod tests {
                         ctx.envelop.rcpt,
                         std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                     );
-                    assert_eq!(ctx.body, include_str!($lang_code));
+                    assert!(match &ctx.body {
+                        Body::Parsed(mail) => {
+                            let (headers, body) = mail.to_raw();
+                            format!("{headers}\n\n{body}\n").as_str() == include_str!($lang_code)
+                        }
+                        _ => false,
+                    });
+
                     Ok(SMTPReplyCode::Code250)
                 }
             }

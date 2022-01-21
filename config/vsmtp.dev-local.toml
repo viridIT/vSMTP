@@ -10,6 +10,9 @@ file = "./tmp/var/log/vsmtp/vsmtp.log"
 
 [log.level]
 default = "trace"
+receiver = "warn"
+resolver = "trace"
+rules = "warn"
 
 [rules]
 dir = "./config/rules"
@@ -19,6 +22,7 @@ security_level = "May"
 capath = "./config/certs"
 preempt_cipherlist = true
 handshake_timeout = "100ms"
+protocol_version = ["TLSv1.3"]
 
 fullchain = "{capath}/certificate.crt"
 private_key = "{capath}/privateKey.key"
@@ -33,8 +37,6 @@ spool_dir = "./tmp/var/spool/vsmtp"
 rcpt_count_max = 25
 disable_ehlo = false
 
-[smtp.timeout_client]
-
 [smtp.error]
 soft_count = 5
 hard_count = 10
@@ -42,3 +44,8 @@ delay = "5000ms"
 
 [smtp.code]
 Code214 = "214 my custom help message\r\n"
+
+[delivery.queue]
+working = { capacity = 32 }
+deliver = { capacity = 32 }
+deferred = { retry_max = 10, cron_period = "10s" }

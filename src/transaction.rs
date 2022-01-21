@@ -16,14 +16,15 @@
 **/
 use crate::{
     config::{
-        log::{RECEIVER, RULES},
-        server_config::TlsSecurityLevel,
+        log_channel::{RECEIVER, RULES},
+        server_config::{ServerConfig, TlsSecurityLevel},
     },
     connection::Connection,
     io_service::ReadError,
+    mime::parser::MailMimeParser,
     model::{
         envelop::Envelop,
-        mail::{MailContext, MessageMetadata, MAIL_CAPACITY},
+        mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
     },
     rules::{
         address::Address,
@@ -32,7 +33,7 @@ use crate::{
     smtp::{code::SMTPReplyCode, event::Event, state::StateSMTP},
 };
 
-const TIMEOUT_DEFAULT: u64 = 10_000; // 10s
+const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
 pub struct Transaction<'re> {
     state: StateSMTP,
@@ -86,7 +87,7 @@ impl Transaction<'_> {
             (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Code214),
 
             (_, Event::RsetCmd) => {
-                self.mail.body = String::with_capacity(MAIL_CAPACITY);
+                self.mail.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 self.mail.envelop.rcpt.clear();
                 self.mail.envelop.mail_from = Address::default();
                 self.rule_engine.reset();
@@ -158,7 +159,7 @@ impl Transaction<'_> {
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {
                 // TODO: store in envelop _body_bit_mime
 
-                self.mail.body = String::with_capacity(MAIL_CAPACITY);
+                self.mail.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 self.set_mail_from(mail_from, conn);
 
                 log::trace!(target: RECEIVER, "envelop=\"{:?}\"", self.mail.envelop,);
@@ -202,16 +203,27 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
-                self.mail.body.push_str(&line);
-                self.mail.body.push('\n');
+                if let Body::Raw(body) = &mut self.mail.body {
+                    body.push_str(&line);
+                    body.push('\n');
+                }
                 ProcessedEvent::Nothing
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                self.rule_engine.add_data("data", self.mail.body.clone());
+                let parsed = MailMimeParser::default()
+                    .parse(match &self.mail.body {
+                        Body::Raw(raw) => raw.as_bytes(),
+                        _ => unreachable!("the email cannot be parsed before the DataEnd command"),
+                    })
+                    // TODO: handle parsing errors instead of going default.
+                    .unwrap_or_default();
+
+                self.rule_engine.add_data("data", parsed);
 
                 let status = self.rule_engine.run_when("preq");
 
+                // TODO: block & deny should quarantine the email.
                 if let Status::Block | Status::Deny = status {
                     return ProcessedEvent::ReplyChangeState(
                         StateSMTP::Stop,
@@ -231,12 +243,13 @@ impl Transaction<'_> {
                 // getting the server's envelop, that could have mutated in the
                 // rule engine.
                 match self.rule_engine.get_scoped_envelop() {
-                    Some(envelop) => {
+                    Some((envelop, mail)) => {
                         self.mail.envelop = envelop;
+                        self.mail.body = Body::Parsed(mail.into());
 
                         let mut output = MailContext {
                             envelop: Envelop::default(),
-                            body: String::with_capacity(MAIL_CAPACITY),
+                            body: Body::Raw(String::default()),
                             metadata: None,
                         };
 
@@ -339,26 +352,6 @@ impl Transaction<'_> {
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
     ) -> std::io::Result<TransactionResult> {
-        // TODO: move that cleanly in config
-        let smtp_timeouts = conn
-            .config
-            .smtp
-            .timeout_client
-            .iter()
-            .filter_map(|(k, v)| match humantime::parse_duration(v) {
-                Ok(v) => Some((*k, v)),
-                Err(e) => {
-                    log::error!(
-                        target: RECEIVER,
-                        "error \"{}\" parsing timeout for key={}, ignored",
-                        e,
-                        k
-                    );
-                    None
-                }
-            })
-            .collect::<std::collections::HashMap<_, _>>();
-
         let mut transaction = Transaction {
             state: if helo_domain.is_none() {
                 StateSMTP::Connect
@@ -367,7 +360,7 @@ impl Transaction<'_> {
             },
             mail: MailContext {
                 envelop: Envelop::default(),
-                body: String::with_capacity(MAIL_CAPACITY),
+                body: Body::Raw(String::with_capacity(MAIL_CAPACITY)),
                 metadata: None,
             },
             rule_engine: RuleEngine::new(conn.config.as_ref()),
@@ -389,9 +382,20 @@ impl Transaction<'_> {
             ));
         };
 
-        let mut read_timeout = *smtp_timeouts
-            .get(&transaction.state)
-            .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
+        fn get_timeout_for_state(
+            config: &std::sync::Arc<ServerConfig>,
+            state: &StateSMTP,
+        ) -> std::time::Duration {
+            config
+                .smtp
+                .timeout_client
+                .as_ref()
+                .map(|map| map.get(state).map(|t| t.alias))
+                .flatten()
+                .unwrap_or_else(|| std::time::Duration::from_millis(TIMEOUT_DEFAULT))
+        }
+
+        let mut read_timeout = get_timeout_for_state(&conn.config, &transaction.state);
 
         while transaction.state != StateSMTP::Stop {
             if transaction.state == StateSMTP::NegotiationTLS {
@@ -411,9 +415,7 @@ impl Transaction<'_> {
                                 new_state
                             );
                             transaction.state = new_state;
-                            read_timeout = *smtp_timeouts
-                                .get(&transaction.state)
-                                .unwrap_or(&std::time::Duration::from_millis(TIMEOUT_DEFAULT));
+                            read_timeout = get_timeout_for_state(&conn.config, &transaction.state);
                             conn.send_code(reply_to_send)?;
                         }
                         ProcessedEvent::TransactionCompleted(mail) => {

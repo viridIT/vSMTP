@@ -33,7 +33,12 @@ use super::address::Address;
 pub(super) mod vsl {
     use std::collections::HashSet;
 
-    use crate::{config::log::RULES, model::mail::MessageMetadata, rules::address::Address};
+    use crate::{
+        config::log_channel::RULES,
+        mime::mail::Mail,
+        model::mail::{Body, MessageMetadata},
+        rules::address::Address,
+    };
 
     /// enqueue a block operation on the queue.
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
@@ -126,8 +131,8 @@ pub(super) mod vsl {
     //       could it be added to the operation queue ?
     /// write the email to a specified file.
     #[rhai_fn(name = "__WRITE", return_raw)]
-    pub fn write_mail(data: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
-        if data.is_empty() {
+    pub fn write_mail(data: Mail, path: &str) -> Result<(), Box<EvalAltResult>> {
+        if data.headers.is_empty() {
             return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
         }
 
@@ -139,8 +144,11 @@ pub(super) mod vsl {
             .append(true)
             .open(&path)
         {
-            Ok(mut file) => std::io::Write::write_all(&mut file, data.as_bytes())
-                .map_err(|_| format!("could not write email to '{:?}'.", path).into()),
+            Ok(mut file) => {
+                let (headers, body) = data.to_raw();
+                std::io::Write::write_all(&mut file, format!("{}\n{}", headers, body).as_bytes())
+                    .map_err(|_| format!("could not write email to '{:?}'.", path).into())
+            }
             Err(error) => Err(format!(
                 "'{:?}' is not a valid path to write the email to: {:#?}",
                 path, error
@@ -159,7 +167,7 @@ pub(super) mod vsl {
         helo: &str,
         mail: Address,
         rcpt: HashSet<Address>,
-        data: &str,
+        data: Mail,
         metadata: Option<MessageMetadata>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
@@ -194,7 +202,7 @@ pub(super) mod vsl {
                 mail_from: mail,
                 rcpt,
             },
-            body: data.into(),
+            body: Body::Parsed(data.into()),
             metadata,
         };
 

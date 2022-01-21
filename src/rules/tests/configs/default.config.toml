@@ -18,6 +18,7 @@ dir = "./src/rules/tests/rules/simple"
 security_level = "None"
 preempt_cipherlist = true
 handshake_timeout = "100ms"
+protocol_version = "^TLSv1.3"
 
 [smtp]
 spool_dir = "./tests/generated/spool/"
@@ -29,3 +30,5 @@ disable_ehlo = false
 soft_count = 5
 hard_count = 10
 delay = "100ms"
+
+[delivery.queue]

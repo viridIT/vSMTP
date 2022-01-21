@@ -4,8 +4,13 @@ use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
 use vsmtp::{
-    config::server_config::ServerConfig, model::mail::MailContext, resolver::DataEndResolver,
-    rules::address::Address, smtp::code::SMTPReplyCode, test_helpers::test_receiver,
+    config::server_config::ServerConfig,
+    mime::mail::BodyType,
+    model::mail::{Body, MailContext},
+    resolver::DataEndResolver,
+    rules::address::Address,
+    smtp::code::SMTPReplyCode,
+    test_helpers::test_receiver,
 };
 
 struct DefaultResolverTest;
@@ -21,14 +26,17 @@ impl DataEndResolver for DefaultResolverTest {
     }
 }
 
-fn get_test_config() -> ServerConfig {
-    toml::from_str(include_str!("bench.config.toml")).expect("cannot parse config from toml")
+fn get_test_config() -> std::sync::Arc<ServerConfig> {
+    let mut c: ServerConfig =
+        toml::from_str(include_str!("bench.config.toml")).expect("cannot parse config from toml");
+    c.prepare();
+    std::sync::Arc::new(c)
 }
 
 fn make_bench<R: vsmtp::resolver::DataEndResolver>(
     resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
     b: &mut Bencher<WallTime>,
-    (input, output, config): &(&[u8], &[u8], ServerConfig),
+    (input, output, config): &(&[u8], &[u8], std::sync::Arc<ServerConfig>),
 ) {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
@@ -53,7 +61,10 @@ fn criterion_benchmark(c: &mut Criterion) {
                     ctx.envelop.rcpt,
                     HashSet::from([Address::new("aa@bb").unwrap()])
                 );
-                assert_eq!(ctx.body, "");
+                assert!(match &ctx.body {
+                    Body::Parsed(mail) => mail.body == BodyType::Undefined,
+                    _ => false,
+                });
 
                 Ok(SMTPReplyCode::Code250)
             }

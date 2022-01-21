@@ -15,6 +15,7 @@ tokio = { version = "1.12.0", features = ["full"] }
 users = "0.11"
 log = "0.4.14"
 toml = "0.5.8"
+futures = "0.3.19"
 
 [dependencies.vsmtp]
 path = ".."
@@ -38,5 +39,11 @@ doc = false
 [[bin]]
 name = "server_config"
 path = "fuzz_targets/server_config.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "mime_parser"
+path = "fuzz_targets/mime_parser.rs"
 test = false
 doc = false

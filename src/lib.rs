@@ -17,12 +17,14 @@
 pub mod config;
 pub mod connection;
 pub mod io_service;
+pub mod mime;
 pub mod model;
 pub mod resolver;
 pub mod rules;
 pub mod server;
 pub mod smtp;
 pub mod test_helpers;
+pub mod tls;
 pub mod transaction;
 
 #[macro_export]

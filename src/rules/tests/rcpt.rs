@@ -2,7 +2,7 @@
 pub mod test {
     use crate::{
         config::server_config::ServerConfig,
-        model::mail::MailContext,
+        model::mail::{Body, MailContext},
         resolver::DataEndResolver,
         rules::{address::Address, tests::helpers::run_integration_engine_test},
         smtp::code::SMTPReplyCode,
@@ -154,20 +154,31 @@ pub mod test {
             assert!(ctx
                 .envelop
                 .rcpt
-                .get(&Address::new("johndoe@personnal.com").unwrap())
+                .get(&Address::new("johndoe@personal.com").unwrap())
                 .is_some());
             assert!(ctx
                 .envelop
                 .rcpt
-                .get(&Address::new("me@personnal.com").unwrap())
+                .get(&Address::new("me@personal.com").unwrap())
                 .is_some());
             assert!(ctx
                 .envelop
                 .rcpt
-                .get(&Address::new("green@personnal.com").unwrap())
+                .get(&Address::new("green@personal.com").unwrap())
                 .is_some());
 
             assert_eq!(ctx.envelop.rcpt.len(), 3);
+
+            assert!(if let Body::Parsed(body) = &ctx.body {
+                if let Some((_, to)) = body.headers.iter().find(|(header, _)| header == "to") {
+                    to == "johndoe@personal.com, green@personal.com, me@personal.com"
+                } else {
+                    false
+                }
+            } else {
+                false
+            });
+
             Ok(SMTPReplyCode::Code250)
         }
     }
@@ -182,9 +193,16 @@ pub mod test {
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<test@viridit.com>\r\n",
-                "RCPT TO:<johndoe@personnal.com>\r\n",
-                "RCPT TO:<green@personnal.com>\r\n",
+                "RCPT TO:<johndoe@personal.com>\r\n",
+                "RCPT TO:<green@personal.com>\r\n",
                 "DATA\r\n",
+                "from: test <test@viridit.com>\r\n",
+                "Subject: ADD_RCPT\r\n",
+                "To: johndoe@personal.com, green@personal.com\r\n",
+                "Message-ID: <xxx@localhost.com>\r\n",
+                "Date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
+                "\r\n",
+                "added rcpts!\r\n",
                 ".\r\n",
                 "QUIT\r\n",
             ]
@@ -235,6 +253,17 @@ pub mod test {
                 .is_some());
 
             assert_eq!(ctx.envelop.rcpt.len(), 2);
+
+            assert!(if let Body::Parsed(body) = &ctx.body {
+                if let Some((_, to)) = body.headers.iter().find(|(header, _)| header == "to") {
+                    to == "staff@viridit.com, john@foo.eu"
+                } else {
+                    false
+                }
+            } else {
+                false
+            });
+
             Ok(SMTPReplyCode::Code250)
         }
     }
@@ -253,6 +282,13 @@ pub mod test {
                 "RCPT TO:<green@satan.org>\r\n",
                 "RCPT TO:<john@foo.eu>\r\n",
                 "DATA\r\n",
+                "from: test <test@viridit.com>\r\n",
+                "Subject: DEL_RCPT\r\n",
+                "To: staff@viridit.com, green@satan.org, john@foo.eu\r\n",
+                "Message-ID: <xxx@localhost.com>\r\n",
+                "Date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
+                "\r\n",
+                "Rewritten rcpts!\r\n",
                 ".\r\n",
                 "QUIT\r\n",
             ]
@@ -309,6 +345,17 @@ pub mod test {
                 .is_some());
 
             assert_eq!(ctx.envelop.rcpt.len(), 4);
+
+            assert!(if let Body::Parsed(body) = &ctx.body {
+                if let Some((_, to)) = body.headers.iter().find(|(header, _)| header == "to") {
+                    to == "staff@viridit.fr, green@viridit.fr, john@viridit.fr, other@unknown.eu"
+                } else {
+                    false
+                }
+            } else {
+                false
+            });
+
             Ok(SMTPReplyCode::Code250)
         }
     }
@@ -328,6 +375,13 @@ pub mod test {
                 "RCPT TO:<john@viridit.com>\r\n",
                 "RCPT TO:<other@unknown.eu>\r\n",
                 "DATA\r\n",
+                "from: test <test@viridit.com>\r\n",
+                "Subject: RCPT\r\n",
+                "To: staff@viridit.eu, green@viridit.org, john@viridit.com, other@unknown.eu\r\n",
+                "Message-ID: <xxx@localhost.com>\r\n",
+                "Date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
+                "\r\n",
+                "Rewritten rcpts!\r\n",
                 ".\r\n",
                 "QUIT\r\n",
             ]

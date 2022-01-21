@@ -1,13 +1,15 @@
-obj addr "john" "johndoe@personnal.com";
+obj addr "john" "johndoe@personal.com";
 
-rule rcpt "test_add_rcpt" #{
-  condition: || vsl.IS_RCPT("john"),
+rule preq "test_add_rcpt" #{
+  condition: || true,
 
-  // I want to track every mail sent to john.
   on_success: || {
-    vsl.ADD_RCPT("me@personnal.com");
+    for r in rcpts {
+      rcpt = r;
+      if vsl.IS_RCPT("john") {
+        // // I want to track every mail sent to john.
+        vsl.ADD_RCPT("me@personal.com");
+      }
+    }
     vsl.CONTINUE()
-  },
-
-  on_failure: vsl.CONTINUE,
-};
+  },};

@@ -1,3 +1,9 @@
+from: john doe <john@doe>
+subject: ar
+to: aa@bb
+message-id: <xxx@localhost.com>
+date: Tue, 30 Nov 2021 20:54:27 +0100
+
 簡單郵件傳輸協議（英語：Simple Mail Transfer Protocol，縮寫：SMTP）是一個在網際網路上傳輸電子郵件的標準。
 
 SMTP是一个相对简单的基于文本的协议。在其之上指定了一条訊息的一个或多个接收者（在大多数情况下被确认是存在的），然后訊息文本会被传输。可以很简单地通过telnet程序来测试一个SMTP服务器。SMTP使用TCP端口25。要为一个给定的域名决定一个SMTP服务器，需要使用DNS的MX记录。

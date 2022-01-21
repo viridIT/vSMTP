@@ -10,7 +10,7 @@ mod users;
 #[cfg(test)]
 pub mod helpers {
     use crate::{
-        config::server_config::ServerConfig,
+        config::{get_logger_config, server_config::ServerConfig},
         resolver::DataEndResolver,
         rules::rule_engine::{RhaiEngine, Status, DEFAULT_SCOPE, RHAI_ENGINE},
         test_helpers::test_receiver,
@@ -67,10 +67,11 @@ pub mod helpers {
         smtp_input: &[u8],
         expected_output: &[u8],
     ) -> Result<(), std::io::Error> {
-        let config: ServerConfig = toml::from_str(
+        let mut config: ServerConfig = toml::from_str(
             &std::fs::read_to_string(config_path).expect("failed to read config from file"),
         )
         .unwrap();
+        config.prepare();
 
         // init logs once.
         INIT.call_once(|| {
@@ -93,57 +94,14 @@ pub mod helpers {
         reader
             .context
             .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &reader.ast)
-            .expect("could not initialize the rule engine");
+            .expect("failed to run the rule engine");
 
         test_receiver(
             std::sync::Arc::new(tokio::sync::Mutex::new(resolver)),
             smtp_input,
             expected_output,
-            config,
+            std::sync::Arc::new(config),
         )
         .await
-    }
-
-    fn get_logger_config(config: &ServerConfig) -> Result<log4rs::Config, std::io::Error> {
-        use log4rs::*;
-
-        let console = append::console::ConsoleAppender::builder()
-            .encoder(Box::new(encode::pattern::PatternEncoder::new(
-                "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
-            )))
-            .build();
-
-        let file = append::file::FileAppender::builder()
-            .encoder(Box::new(encode::pattern::PatternEncoder::new(
-                "{d} - {m}{n}",
-            )))
-            .build(config.log.file.clone())?;
-
-        Config::builder()
-            .appender(config::Appender::builder().build("stdout", Box::new(console)))
-            .appender(config::Appender::builder().build("file", Box::new(file)))
-            .loggers(
-                config
-                    .log
-                    .level
-                    .iter()
-                    .map(|(name, level)| config::Logger::builder().build(name, *level)),
-            )
-            .build(
-                config::Root::builder()
-                    .appender("stdout")
-                    .appender("file")
-                    .build(
-                        *config
-                            .log
-                            .level
-                            .get("default")
-                            .unwrap_or(&log::LevelFilter::Warn),
-                    ),
-            )
-            .map_err(|e| {
-                e.errors().iter().for_each(|e| log::error!("{}", e));
-                std::io::Error::new(std::io::ErrorKind::Other, e)
-            })
     }
 }
