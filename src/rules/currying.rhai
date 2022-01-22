@@ -36,6 +36,9 @@ let vsl = #{
     // given by the current RCPT TO command.
     IS_RCPT: |object| __is_rcpt(rcpt, object),
 
+    // checks if the object matches one of the recipients.
+    CONTAINS_RCPT: |object| __contains_rcpt(rcpts, object),
+
     // checks whether the specified user exists on the system.
     USER_EXISTS: |object| __user_exists(object),
 
