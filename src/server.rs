@@ -18,7 +18,7 @@ use crate::{
     config::server_config::{ServerConfig, TlsSecurityLevel},
     connection::Connection,
     io_service::IoService,
-    resolver::DataEndResolver,
+    queue::Queue,
     smtp::code::SMTPReplyCode,
     tls::get_rustls_config,
     transaction::Transaction,
@@ -61,13 +61,50 @@ impl ServerVSMTP {
             .expect("cannot retrieve local address")
     }
 
-    pub async fn listen_and_serve<R>(
-        &self,
-        resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
-    ) -> Result<(), Box<dyn std::error::Error>>
-    where
-        R: DataEndResolver + std::marker::Send + std::marker::Sync + 'static,
-    {
+    pub async fn listen_and_serve(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let delivery_buffer_size = self
+            .config
+            .delivery
+            .queue
+            .get("delivery")
+            .map(|q| q.capacity)
+            .flatten()
+            .unwrap_or(1);
+
+        let (delivery_sender, delivery_receiver) =
+            tokio::sync::mpsc::channel::<String>(delivery_buffer_size);
+
+        let working_buffer_size = self
+            .config
+            .delivery
+            .queue
+            .get("working")
+            .map(|q| q.capacity)
+            .flatten()
+            .unwrap_or(1);
+
+        let (working_sender, working_receiver) =
+            tokio::sync::mpsc::channel::<String>(working_buffer_size);
+
+        let config_deliver = self.config.clone();
+        tokio::spawn(async move {
+            let result = crate::processes::delivery::start(config_deliver, delivery_receiver).await;
+            log::error!("v_deliver ended unexpectedly '{:?}'", result);
+        });
+
+        let config_mime = self.config.clone();
+        tokio::spawn(async move {
+            let result = crate::processes::mime::start(
+                config_mime.smtp.spool_dir.clone(),
+                working_receiver,
+                delivery_sender,
+            )
+            .await;
+            log::error!("v_mime ended unexpectedly '{:?}'", result);
+        });
+
+        let working_sender = std::sync::Arc::new(working_sender);
+
         loop {
             match self.listener.accept().await {
                 Ok((stream, client_addr)) => {
@@ -79,8 +116,7 @@ impl ServerVSMTP {
                     let config = self.config.clone();
                     let tls_config = self.tls_config.as_ref().map(std::sync::Arc::clone);
 
-                    let resolver = resolver.clone();
-
+                    let working_sender = working_sender.clone();
                     tokio::spawn(async move {
                         let begin = std::time::SystemTime::now();
                         log::warn!("Handling client: {}", client_addr);
@@ -92,8 +128,10 @@ impl ServerVSMTP {
                             config.clone(),
                             &mut io_plain,
                         )?;
-                        Self::handle_connection::<R, std::net::TcpStream>(
-                            &mut conn, resolver, tls_config,
+                        Self::handle_connection::<std::net::TcpStream>(
+                            &mut conn,
+                            working_sender,
+                            tls_config,
                         )
                         .await
                         .map(|_| {
@@ -152,13 +190,12 @@ impl ServerVSMTP {
             .unwrap_or(false)
     }
 
-    pub async fn handle_connection<R, S>(
+    pub async fn handle_connection<S>(
         conn: &mut Connection<'_, S>,
-        resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
+        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<String>>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     ) -> Result<(), std::io::Error>
     where
-        R: crate::resolver::DataEndResolver,
         S: std::io::Read + std::io::Write,
     {
         let mut helo_domain = None;
@@ -171,14 +208,16 @@ impl ServerVSMTP {
                 crate::transaction::TransactionResult::Mail(mail) => {
                     helo_domain = Some(mail.envelop.helo.clone());
 
-                    // writing the context to the delivery queue.
-                    let code = resolver
-                        .lock()
+                    match Queue::Working
+                        .write_to_queue(&working_sender, &conn.config, &mail)
                         .await
-                        .on_data_end(&conn.config, &mail)
-                        .await?;
-
-                    conn.send_code(code)?;
+                    {
+                        Ok(_) => conn.send_code(SMTPReplyCode::Code250)?,
+                        Err(error) => {
+                            log::error!("couldn't write to queue: {}", error);
+                            conn.send_code(SMTPReplyCode::Code554)?
+                        }
+                    };
                 }
                 crate::transaction::TransactionResult::TlsUpgrade if tls_config.is_none() => {
                     conn.send_code(SMTPReplyCode::Code454)?;
@@ -225,13 +264,16 @@ impl ServerVSMTP {
                             crate::transaction::TransactionResult::Mail(mail) => {
                                 secured_helo_domain = Some(mail.envelop.helo.clone());
 
-                                let code = resolver
-                                    .lock()
+                                match Queue::Working
+                                    .write_to_queue(&working_sender, &conn.config, &mail)
                                     .await
-                                    .on_data_end(&secured_conn.config, &mail)
-                                    .await?;
-
-                                secured_conn.send_code(code)?;
+                                {
+                                    Ok(_) => secured_conn.send_code(SMTPReplyCode::Code250)?,
+                                    Err(error) => {
+                                        log::error!("couldn't write to queue: {}", error);
+                                        secured_conn.send_code(SMTPReplyCode::Code554)?
+                                    }
+                                };
                             }
                             crate::transaction::TransactionResult::TlsUpgrade => todo!(),
                         }

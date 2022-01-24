@@ -14,13 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    config::server_config::ServerConfig,
-    model::mail::{Body, MailContext},
-    smtp::code::SMTPReplyCode,
-};
+use crate::model::mail::{Body, MailContext};
 
-use super::DataEndResolver;
 use lettre::{Message, SmtpTransport, Transport};
 use trust_dns_resolver::config::*;
 use trust_dns_resolver::TokioAsyncResolver;
@@ -28,13 +23,8 @@ use trust_dns_resolver::TokioAsyncResolver;
 #[derive(Default)]
 pub struct SMTPResolver;
 
-#[async_trait::async_trait]
-impl DataEndResolver for SMTPResolver {
-    async fn on_data_end(
-        &mut self,
-        _: &ServerConfig,
-        ctx: &MailContext,
-    ) -> Result<SMTPReplyCode, std::io::Error> {
+impl SMTPResolver {
+    pub async fn deliver(&self, ctx: &MailContext) -> Result<(), std::io::Error> {
         if let Body::Parsed(mail) = &ctx.body {
             let mut builder = Message::builder();
             for header in mail.headers.iter() {
@@ -99,6 +89,6 @@ impl DataEndResolver for SMTPResolver {
             log::error!("email hasn't been parsed, exiting delivery ...");
         }
 
-        Ok(SMTPReplyCode::Code250)
+        Ok(())
     }
 }

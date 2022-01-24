@@ -1,39 +1,10 @@
 use crate::{
     config::{log_channel::RECEIVER, server_config::ServerConfig},
+    queue::Queue,
     smtp::code::SMTPReplyCode,
 };
 
 use super::DataEndResolver;
-
-/// identifiers for all mail queues.
-pub enum Queue {
-    Working,
-    Deliver,
-    Deferred,
-    Dead,
-}
-
-impl Queue {
-    fn as_str(&self) -> &'static str {
-        match self {
-            Queue::Working => "working",
-            Queue::Deliver => "deliver",
-            Queue::Deferred => "deferred",
-            Queue::Dead => "dead",
-        }
-    }
-
-    pub fn to_path(
-        &self,
-        parent: impl Into<std::path::PathBuf>,
-    ) -> std::io::Result<std::path::PathBuf> {
-        let dir = parent.into().join(self.as_str());
-        if !dir.exists() {
-            std::fs::DirBuilder::new().recursive(true).create(&dir)?;
-        }
-        Ok(dir)
-    }
-}
 
 /// used to write mail to the delivery queue and send a notification
 /// to the delivery process.
