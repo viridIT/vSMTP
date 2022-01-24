@@ -72,17 +72,7 @@ pub async fn start(
             Status::Deny => Queue::Dead.write_to_queue(config, &ctx).await?,
             Status::Block => Queue::Quarantine.write_to_queue(config, &ctx).await?,
             _ => {
-                let mut to_deliver = std::fs::OpenOptions::new().create(true).write(true).open(
-                    std::path::PathBuf::from_iter([
-                        Queue::Deliver.to_path(&config.smtp.spool_dir)?,
-                        std::path::Path::new(&process_message.message_id).to_path_buf(),
-                    ]),
-                )?;
-
-                std::io::Write::write_all(
-                    &mut to_deliver,
-                    serde_json::to_string(&ctx)?.as_bytes(),
-                )?;
+                Queue::Deliver.write_to_queue(config, &ctx).await?;
 
                 delivery_sender
                     .send(ProcessMessage {

@@ -54,9 +54,17 @@ impl Queue {
         config: &ServerConfig,
         ctx: &crate::model::mail::MailContext,
     ) -> std::io::Result<()> {
-        let to_deliver = self
-            .to_path(&config.smtp.spool_dir)?
-            .join(&ctx.metadata.as_ref().unwrap().message_id);
+        let message_id = match ctx.metadata.as_ref() {
+            Some(metadata) => &metadata.message_id,
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "metadata not found",
+                ))
+            }
+        };
+
+        let to_deliver = self.to_path(&config.smtp.spool_dir)?.join(message_id);
 
         // TODO: should loop if a file name is conflicting.
         let mut file = std::fs::OpenOptions::new()
@@ -65,8 +73,6 @@ impl Queue {
             .open(&to_deliver)?;
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
-
-        let message_id = ctx.metadata.as_ref().unwrap().message_id.clone();
 
         log::trace!(
             target: RECEIVER,
