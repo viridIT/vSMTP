@@ -207,13 +207,15 @@ impl<'a> RuleEngine<'a> {
     }
 
     /// fetch the whole envelop (possibly) mutated by the user's rules.
-    pub(crate) fn get_scoped_envelop(&self) -> Option<(Envelop, Mail)> {
+    pub(crate) fn get_scoped_envelop(&self) -> Option<(Envelop, Option<MessageMetadata>, Mail)> {
         Some((
             Envelop {
                 helo: self.scope.get_value::<String>("helo")?,
                 mail_from: self.scope.get_value::<Address>("mail")?,
                 rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
             },
+            self.scope
+                .get_value::<Option<MessageMetadata>>("metadata")?,
             self.scope.get_value::<Mail>("data")?,
         ))
     }
@@ -293,6 +295,13 @@ impl<U: Users> RhaiEngine<U> {
         })
         .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
         .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
+        .register_set_result("resolver", |metadata: &mut Option<MessageMetadata>, resolver: String| match metadata {
+            Some(metadata) => {
+                metadata.resolver = resolver;
+                Ok(())
+            },
+            None => Err("metadata are not available in the current stage".into())
+        })
 
         // exposed structure used to read & rewrite the incoming email's content.
         .register_type::<Mail>()

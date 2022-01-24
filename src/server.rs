@@ -29,7 +29,7 @@ use crate::{
 };
 
 pub struct ServerVSMTP {
-    resolvers: HashMap<String, Box<dyn Resolver>>,
+    resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
     listener: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     config: std::sync::Arc<ServerConfig>,
@@ -69,13 +69,13 @@ impl ServerVSMTP {
 
     pub fn with_resolver<T>(&mut self, name: &str, resolver: T) -> &mut Self
     where
-        T: Resolver + 'static,
+        T: Resolver + Send + Sync + 'static,
     {
         self.resolvers.insert(name.to_string(), Box::new(resolver));
         self
     }
 
-    pub async fn listen_and_serve(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn listen_and_serve(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let delivery_buffer_size = self
             .config
             .delivery
@@ -101,8 +101,11 @@ impl ServerVSMTP {
             tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
         let config_deliver = self.config.clone();
+        let resolvers = std::mem::take(&mut self.resolvers);
         tokio::spawn(async move {
-            let result = crate::processes::delivery::start(config_deliver, delivery_receiver).await;
+            let result =
+                crate::processes::delivery::start(resolvers, config_deliver, delivery_receiver)
+                    .await;
             log::error!("v_deliver ended unexpectedly '{:?}'", result);
         });
 

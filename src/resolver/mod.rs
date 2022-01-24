@@ -32,5 +32,5 @@ pub trait DataEndResolver {
 
 #[async_trait::async_trait]
 pub trait Resolver {
-    async fn deliver(&mut self, config: &ServerConfig, mail: &MailContext) -> std::io::Result<()>;
+    async fn deliver(&self, config: &ServerConfig, mail: &MailContext) -> std::io::Result<()>;
 }

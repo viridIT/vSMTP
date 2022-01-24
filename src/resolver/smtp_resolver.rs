@@ -28,7 +28,9 @@ pub struct SMTPResolver;
 
 #[async_trait::async_trait]
 impl Resolver for SMTPResolver {
-    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> std::io::Result<()> {
+    async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> std::io::Result<()> {
+        println!("........................................... USING SMTP RESOLVER");
+
         if let Body::Parsed(mail) = &ctx.body {
             let mut builder = Message::builder();
             for header in mail.headers.iter() {

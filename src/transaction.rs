@@ -240,8 +240,9 @@ impl Transaction<'_> {
                 // getting the server's envelop that could have mutated in the
                 // rule engine.
                 match self.rule_engine.get_scoped_envelop() {
-                    Some((envelop, mail)) => {
+                    Some((envelop, metadata, mail)) => {
                         self.mail.envelop = envelop;
+                        self.mail.metadata = metadata;
                         self.mail.body = Body::Parsed(mail.into());
 
                         let mut output = MailContext {
@@ -311,6 +312,7 @@ impl Transaction<'_> {
                         std::process::id()
                     ),
                     retry: 0,
+                    resolver: "smtp".to_string(),
                 });
 
                 self.rule_engine

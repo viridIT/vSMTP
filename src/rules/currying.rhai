@@ -130,4 +130,14 @@ let vsl = #{
     R_LOOKUP: |address, port| {
         __R_LOOKUP(address, port)
     },
+
+    // set resolver to maildir.
+    USE_MAILDIR: || {
+        metadata.resolver = "maildir";
+    },
+
+    // set resolver to smtp.
+    USE_SMTP: || {
+        metadata.resolver = "smtp";
+    },
 };
