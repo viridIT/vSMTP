@@ -126,7 +126,6 @@ impl MailDirResolver {
 #[async_trait::async_trait]
 impl Resolver for MailDirResolver {
     async fn deliver(&self, _: &ServerConfig, mail: &MailContext) -> std::io::Result<()> {
-        println!("........................................... USING MAILDIR RESOLVER");
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
 

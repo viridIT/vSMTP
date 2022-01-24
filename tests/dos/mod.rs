@@ -16,7 +16,7 @@ async fn test_dos() {
             config.prepare();
             let config = std::sync::Arc::new(config);
 
-            let server = ServerVSMTP::new(config)
+            let mut server = ServerVSMTP::new(config)
                 .await
                 .expect("failed to initialize server");
 

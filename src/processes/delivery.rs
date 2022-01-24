@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use super::ProcessMessage;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -21,8 +20,7 @@ use crate::{
     queue::Queue,
     resolver::Resolver,
 };
-
-use super::ProcessMessage;
+use std::collections::HashMap;
 
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
