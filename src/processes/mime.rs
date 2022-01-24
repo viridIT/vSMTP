@@ -65,7 +65,7 @@ pub async fn start(
             .add_data("helo", ctx.envelop.helo.clone())
             .add_data("mail", ctx.envelop.mail_from.clone())
             .add_data("rcpts", ctx.envelop.rcpt.clone())
-            .add_data("data", parsed_email)
+            .add_data("data", *parsed_email)
             .add_data("metadata", ctx.metadata.clone());
 
         match rule_engine.run_when("postq") {
