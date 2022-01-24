@@ -206,11 +206,19 @@ impl ServerVSMTP {
                 crate::transaction::TransactionResult::Mail(mail) => {
                     helo_domain = Some(mail.envelop.helo.clone());
 
-                    match Queue::Working
-                        .write_to_queue(&working_sender, &conn.config, &mail)
-                        .await
-                    {
-                        Ok(_) => conn.send_code(SMTPReplyCode::Code250)?,
+                    match Queue::Working.write_to_queue(&conn.config, &mail).await {
+                        Ok(_) => {
+                            working_sender
+                                .send(ProcessMessage {
+                                    message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
+                                })
+                                .await
+                                .map_err(|err| {
+                                    std::io::Error::new(std::io::ErrorKind::Other, err.to_string())
+                                })?;
+
+                            conn.send_code(SMTPReplyCode::Code250)?
+                        }
                         Err(error) => {
                             log::error!("couldn't write to queue: {}", error);
                             conn.send_code(SMTPReplyCode::Code554)?
@@ -262,11 +270,27 @@ impl ServerVSMTP {
                             crate::transaction::TransactionResult::Mail(mail) => {
                                 secured_helo_domain = Some(mail.envelop.helo.clone());
 
-                                match Queue::Working
-                                    .write_to_queue(&working_sender, &conn.config, &mail)
-                                    .await
-                                {
-                                    Ok(_) => secured_conn.send_code(SMTPReplyCode::Code250)?,
+                                match Queue::Working.write_to_queue(&conn.config, &mail).await {
+                                    Ok(_) => {
+                                        working_sender
+                                            .send(ProcessMessage {
+                                                message_id: mail
+                                                    .metadata
+                                                    .as_ref()
+                                                    .unwrap()
+                                                    .message_id
+                                                    .clone(),
+                                            })
+                                            .await
+                                            .map_err(|err| {
+                                                std::io::Error::new(
+                                                    std::io::ErrorKind::Other,
+                                                    err.to_string(),
+                                                )
+                                            })?;
+
+                                        secured_conn.send_code(SMTPReplyCode::Code250)?
+                                    }
                                     Err(error) => {
                                         log::error!("couldn't write to queue: {}", error);
                                         secured_conn.send_code(SMTPReplyCode::Code554)?

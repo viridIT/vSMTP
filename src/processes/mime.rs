@@ -46,10 +46,10 @@ pub async fn start(
 
         log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
-        let mail: crate::model::mail::MailContext =
+        let ctx: crate::model::mail::MailContext =
             serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
-        let parsed_email = match &mail.body {
+        let parsed_email = match &ctx.body {
             Body::Parsed(parsed_email) => parsed_email.clone(),
             Body::Raw(raw) => Box::new(
                 MailMimeParser::default()
@@ -60,20 +60,17 @@ pub async fn start(
 
         let mut rule_engine = RuleEngine::new(config);
 
+        // TODO: add connection data.
         rule_engine
+            .add_data("helo", ctx.envelop.helo.clone())
+            .add_data("mail", ctx.envelop.mail_from.clone())
+            .add_data("rcpts", ctx.envelop.rcpt.clone())
             .add_data("data", parsed_email)
-            .add_data("helo", mail.envelop.helo.clone())
-            .add_data("mail", mail.envelop.mail_from.clone())
-            .add_data("metadata", mail.metadata.clone())
-            .add_data("rcpts", mail.envelop.rcpt.clone());
+            .add_data("metadata", ctx.metadata.clone());
 
         match rule_engine.run_when("postq") {
-            Status::Deny => {
-                todo!("denied in postq")
-            }
-            Status::Block => {
-                todo!("blocked in postq")
-            }
+            Status::Deny => Queue::Dead.write_to_queue(config, &ctx).await?,
+            Status::Block => Queue::Quarantine.write_to_queue(config, &ctx).await?,
             _ => {
                 let mut to_deliver = std::fs::OpenOptions::new().create(true).write(true).open(
                     std::path::PathBuf::from_iter([
@@ -84,7 +81,7 @@ pub async fn start(
 
                 std::io::Write::write_all(
                     &mut to_deliver,
-                    serde_json::to_string(&mail)?.as_bytes(),
+                    serde_json::to_string(&ctx)?.as_bytes(),
                 )?;
 
                 delivery_sender
