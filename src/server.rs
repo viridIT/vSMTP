@@ -34,6 +34,16 @@ impl ServerVSMTP {
     pub async fn new(
         config: std::sync::Arc<ServerConfig>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        // NOTE: Err type is core::convert::Infallible, it's safe to unwrap.
+        let spool_dir =
+            <std::path::PathBuf as std::str::FromStr>::from_str(&config.smtp.spool_dir).unwrap();
+
+        if !spool_dir.exists() {
+            std::fs::DirBuilder::new()
+                .recursive(true)
+                .create(spool_dir)?;
+        }
+
         Ok(Self {
             listener: tokio::net::TcpListener::bind(&config.server.addr).await?,
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {

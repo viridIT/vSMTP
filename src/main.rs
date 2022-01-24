@@ -344,19 +344,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     log4rs::init_config(get_logger_config(&config)?)?;
 
-    // TODO: move into server init.
-    // creating the spool folder if it doesn't exists yet.
-    {
-        let spool_dir =
-            <std::path::PathBuf as std::str::FromStr>::from_str(&config.smtp.spool_dir).unwrap();
-
-        if !spool_dir.exists() {
-            std::fs::DirBuilder::new()
-                .recursive(true)
-                .create(spool_dir)?;
-        }
-    }
-
     rule_engine::init(Box::leak(config.rules.dir.clone().into_boxed_str())).map_err(|error| {
         log::error!("could not initialize the rule engine: {}", error);
         error
