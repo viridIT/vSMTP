@@ -1,4 +1,7 @@
-use crate::config::{log_channel::RECEIVER, server_config::ServerConfig};
+use crate::{
+    config::{log_channel::RECEIVER, server_config::ServerConfig},
+    processes::ProcessMessage,
+};
 
 /**
  * vSMTP mail transfer agent
@@ -49,7 +52,7 @@ impl Queue {
     /// write the email to a queue and send the message id to another process.
     pub async fn write_to_queue(
         &self,
-        sender: &tokio::sync::mpsc::Sender<String>,
+        sender: &tokio::sync::mpsc::Sender<ProcessMessage>,
         config: &ServerConfig,
         ctx: &crate::model::mail::MailContext,
     ) -> Result<(), std::io::Error> {
@@ -78,7 +81,7 @@ impl Queue {
         // NOTE: we could send the context instead, so that the delivery system won't have
         //       to touch the file system.
         sender
-            .send(message_id)
+            .send(ProcessMessage { message_id })
             .await
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
 

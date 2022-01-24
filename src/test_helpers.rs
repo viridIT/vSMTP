@@ -16,8 +16,8 @@
 **/
 use crate::{
     config::server_config::ServerConfig, connection::Connection, io_service::IoService,
-    model::mail::MailContext, resolver::DataEndResolver, server::ServerVSMTP,
-    smtp::code::SMTPReplyCode,
+    model::mail::MailContext, processes::ProcessMessage, resolver::DataEndResolver,
+    server::ServerVSMTP, smtp::code::SMTPReplyCode,
 };
 
 pub struct Mock<'a> {
@@ -76,7 +76,7 @@ pub async fn test_receiver<T: DataEndResolver>(
     let mut conn =
         Connection::<Mock<'_>>::from_plain("0.0.0.0:0".parse().unwrap(), config, &mut io)?;
 
-    let (working_sender, _receiver) = tokio::sync::mpsc::channel::<String>(10);
+    let (working_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
     ServerVSMTP::handle_connection::<Mock<'_>>(
         &mut conn,

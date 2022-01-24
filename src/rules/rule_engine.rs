@@ -95,13 +95,14 @@ impl<'a> RuleEngine<'a> {
     }
 
     /// add data to the scope of the engine.
-    pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T)
+    pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T) -> &mut Self
     where
         // TODO: find a way to remove the static.
         // maybe create a getter, engine.scope().push(n, v) ?
         T: Clone + Send + Sync + 'static,
     {
         self.scope.set_or_push(name, data);
+        self
     }
 
     /// fetch data from the scope, cloning the variable in the process.
@@ -121,7 +122,7 @@ impl<'a> RuleEngine<'a> {
         log::debug!(target: RULES, "[{}] evaluating rules.", stage);
 
         // updating the internal __stage variable, so that the rhai context
-        // knows what rules to execute
+        // knows what rules to execute.
         self.scope.set_value("__stage", stage.to_string());
 
         // injecting date and time variables.
@@ -280,15 +281,15 @@ impl<U: Users> RhaiEngine<U> {
         .register_type::<Option<MessageMetadata>>()
         .register_get_result("timestamp", |metadata: &mut Option<MessageMetadata>| match metadata {
             Some(metadata) => Ok(metadata.timestamp),
-            None => Err("metadata isn't available in the current stage".into())
+            None => Err("metadata are not available in the current stage".into())
         })
         .register_get_result("message_id", |metadata: &mut Option<MessageMetadata>| match metadata {
             Some(metadata) => Ok(metadata.message_id.clone()),
-            None => Err("metadata isn't available in the current stage".into())
+            None => Err("metadata are not available in the current stage".into())
         })
         .register_get_result("retry", |metadata: &mut Option<MessageMetadata>| match metadata {
             Some(metadata) => Ok(metadata.retry as u64),
-            None => Err("metadata isn't available in the current stage".into())
+            None => Err("metadata are not available in the current stage".into())
         })
         .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
         .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
@@ -432,13 +433,13 @@ impl<U: Users> RhaiEngine<U> {
                 1 => Ok(Some("$ident$".into())),
                 // when the rule will be executed ...
                 2 => match symbols[1].as_str() {
-                    "connect" | "helo" | "mail" | "rcpt" | "preq" => {
+                    "connect" | "helo" | "mail" | "rcpt" | "preq" | "postq" => {
                         Ok(Some("$string$".into()))
                     }
                     entry => Err(ParseError(
                         Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
                             entry.into(),
-                            format!("Improper rule stage '{}'. Must be connect, helo, mail, rcpt or preq.", entry),
+                            format!("Improper rule stage '{}'. Must be connect, helo, mail, rcpt, preq or postq.", entry),
                         ))),
                         Position::NONE,
                     )),

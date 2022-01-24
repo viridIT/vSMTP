@@ -15,73 +15,101 @@
  *
 **/
 use crate::{
-    config::log_channel::DELIVER, mime::parser::MailMimeParser, model::mail::Body, queue::Queue,
+    config::{log_channel::DELIVER, server_config::ServerConfig},
+    mime::parser::MailMimeParser,
+    model::mail::Body,
+    queue::Queue,
+    rules::rule_engine::{RuleEngine, Status},
 };
+
+use super::ProcessMessage;
 
 /// process that treats incoming email offline with the postq stage.
 pub async fn start(
-    spool_dir: String,
-    mut working_receiver: tokio::sync::mpsc::Receiver<String>,
-    delivery_sender: tokio::sync::mpsc::Sender<String>,
+    config: &ServerConfig,
+    mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
+    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> std::io::Result<()> {
     async fn handle_one(
-        message_id: &str,
-        spool_dir: &str,
-        delivery_sender: &tokio::sync::mpsc::Sender<String>,
+        process_message: ProcessMessage,
+        config: &ServerConfig,
+        delivery_sender: &tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> std::io::Result<()> {
         log::debug!(
             target: DELIVER,
             "vMIME process received a new message id: {}",
-            message_id
+            process_message.message_id,
         );
 
-        let working_queue = Queue::Working.to_path(spool_dir)?;
+        let working_queue = Queue::Working.to_path(config.smtp.spool_dir.clone())?;
+        let file_to_process = working_queue.join(&process_message.message_id);
 
-        let file_to_process = working_queue.join(&message_id);
         log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
         let mail: crate::model::mail::MailContext =
             serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
-        match mail.body {
-            Body::Parsed(_) => {}
-            Body::Raw(ref raw) => {
+        let parsed_email = match &mail.body {
+            Body::Parsed(parsed_email) => parsed_email.clone(),
+            Body::Raw(raw) => Box::new(
                 MailMimeParser::default()
                     .parse(raw.as_bytes())
-                    // .and_then(|_| todo!("run postq rule engine"))
-                    .expect("handle errors when parsing email in vMIME");
-            }
+                    .expect("handle errors when parsing email in vMIME"),
+            ),
         };
 
-        // TODO: run postq rule engine.
+        let mut rule_engine = RuleEngine::new(config);
 
-        let mut to_deliver = std::fs::OpenOptions::new().create(true).write(true).open(
-            std::path::PathBuf::from_iter([
-                Queue::Deliver.to_path(&spool_dir)?,
-                std::path::Path::new(&message_id).to_path_buf(),
-            ]),
-        )?;
+        rule_engine
+            .add_data("data", parsed_email)
+            .add_data("helo", mail.envelop.helo.clone())
+            .add_data("mail", mail.envelop.mail_from.clone())
+            .add_data("metadata", mail.metadata.clone())
+            .add_data("rcpts", mail.envelop.rcpt.clone());
 
-        std::io::Write::write_all(&mut to_deliver, serde_json::to_string(&mail)?.as_bytes())?;
+        match rule_engine.run_when("postq") {
+            Status::Deny => {
+                todo!("denied in postq")
+            }
+            Status::Block => {
+                todo!("blocked in postq")
+            }
+            _ => {
+                let mut to_deliver = std::fs::OpenOptions::new().create(true).write(true).open(
+                    std::path::PathBuf::from_iter([
+                        Queue::Deliver.to_path(&config.smtp.spool_dir)?,
+                        std::path::Path::new(&process_message.message_id).to_path_buf(),
+                    ]),
+                )?;
 
-        delivery_sender.send(message_id.to_string()).await.unwrap();
+                std::io::Write::write_all(
+                    &mut to_deliver,
+                    serde_json::to_string(&mail)?.as_bytes(),
+                )?;
 
-        std::fs::remove_file(&file_to_process)?;
+                delivery_sender
+                    .send(ProcessMessage {
+                        message_id: process_message.message_id.to_string(),
+                    })
+                    .await
+                    .unwrap();
 
-        log::debug!(
-            target: DELIVER,
-            "message '{}' removed from working queue.",
-            message_id
-        );
+                std::fs::remove_file(&file_to_process)?;
+
+                log::debug!(
+                    target: DELIVER,
+                    "message '{}' removed from working queue.",
+                    process_message.message_id
+                );
+            }
+        };
 
         Ok(())
     }
 
     loop {
-        if let Some(message_id) = working_receiver.recv().await {
-            handle_one(&message_id, &spool_dir, &delivery_sender)
-                .await
-                .unwrap();
+        if let Some(pm) = working_receiver.recv().await {
+            handle_one(pm, config, &delivery_sender).await.unwrap();
         }
     }
 }

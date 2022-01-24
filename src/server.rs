@@ -18,6 +18,7 @@ use crate::{
     config::server_config::{ServerConfig, TlsSecurityLevel},
     connection::Connection,
     io_service::IoService,
+    processes::ProcessMessage,
     queue::Queue,
     smtp::code::SMTPReplyCode,
     tls::get_rustls_config,
@@ -72,7 +73,7 @@ impl ServerVSMTP {
             .unwrap_or(1);
 
         let (delivery_sender, delivery_receiver) =
-            tokio::sync::mpsc::channel::<String>(delivery_buffer_size);
+            tokio::sync::mpsc::channel::<ProcessMessage>(delivery_buffer_size);
 
         let working_buffer_size = self
             .config
@@ -84,7 +85,7 @@ impl ServerVSMTP {
             .unwrap_or(1);
 
         let (working_sender, working_receiver) =
-            tokio::sync::mpsc::channel::<String>(working_buffer_size);
+            tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
         let config_deliver = self.config.clone();
         tokio::spawn(async move {
@@ -94,12 +95,9 @@ impl ServerVSMTP {
 
         let config_mime = self.config.clone();
         tokio::spawn(async move {
-            let result = crate::processes::mime::start(
-                config_mime.smtp.spool_dir.clone(),
-                working_receiver,
-                delivery_sender,
-            )
-            .await;
+            let result =
+                crate::processes::mime::start(&config_mime, working_receiver, delivery_sender)
+                    .await;
             log::error!("v_mime ended unexpectedly '{:?}'", result);
         });
 
@@ -192,7 +190,7 @@ impl ServerVSMTP {
 
     pub async fn handle_connection<S>(
         conn: &mut Connection<'_, S>,
-        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<String>>,
+        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     ) -> Result<(), std::io::Error>
     where

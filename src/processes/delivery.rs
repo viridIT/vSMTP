@@ -20,11 +20,13 @@ use crate::{
     resolver::smtp_resolver::SMTPResolver,
 };
 
+use super::ProcessMessage;
+
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
 pub async fn start(
     config: std::sync::Arc<ServerConfig>,
-    mut delivery_receiver: tokio::sync::mpsc::Receiver<String>,
+    mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> std::io::Result<()> {
     async fn handle_one_in_deferred_queue(
         path: &std::path::Path,
@@ -232,11 +234,11 @@ pub async fn start(
 
     loop {
         tokio::select! {
-            Some(message_id) = delivery_receiver.recv() => {
+            Some(pm) = delivery_receiver.recv() => {
                 handle_one_in_delivery_queue(
                     &std::path::PathBuf::from_iter([
                         Queue::Deliver.to_path(&config.smtp.spool_dir)?,
-                        std::path::Path::new(&message_id).to_path_buf(),
+                        std::path::Path::new(&pm.message_id).to_path_buf(),
                     ]),
                     &config,
                 )
