@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -20,12 +22,14 @@ use crate::{
     io_service::IoService,
     processes::ProcessMessage,
     queue::Queue,
+    resolver::Resolver,
     smtp::code::SMTPReplyCode,
     tls::get_rustls_config,
     transaction::Transaction,
 };
 
 pub struct ServerVSMTP {
+    resolvers: HashMap<String, Box<dyn Resolver>>,
     listener: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     config: std::sync::Arc<ServerConfig>,
@@ -46,6 +50,7 @@ impl ServerVSMTP {
         }
 
         Ok(Self {
+            resolvers: HashMap::new(),
             listener: tokio::net::TcpListener::bind(&config.server.addr).await?,
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {
                 None
@@ -60,6 +65,14 @@ impl ServerVSMTP {
         self.listener
             .local_addr()
             .expect("cannot retrieve local address")
+    }
+
+    pub fn with_resolver<T>(&mut self, name: &str, resolver: T) -> &mut Self
+    where
+        T: Resolver + 'static,
+    {
+        self.resolvers.insert(name.to_string(), Box::new(resolver));
+        self
     }
 
     pub async fn listen_and_serve(&self) -> Result<(), Box<dyn std::error::Error>> {

@@ -17,7 +17,7 @@
 use crate::{
     config::{log_channel::DELIVER, server_config::ServerConfig},
     queue::Queue,
-    resolver::smtp_resolver::SMTPResolver,
+    resolver::{smtp_resolver::SMTPResolver, Resolver},
 };
 
 use super::ProcessMessage;
@@ -78,8 +78,8 @@ pub async fn start(
                 message_id
             );
         } else {
-            let resolver = SMTPResolver::default();
-            match resolver.deliver(&mail).await {
+            let mut resolver = SMTPResolver::default();
+            match resolver.deliver(config, &mail).await {
                 Ok(_) => {
                     log::trace!(
                         target: DELIVER,
@@ -162,8 +162,8 @@ pub async fn start(
         let mail: crate::model::mail::MailContext = serde_json::from_str(&raw)?;
         assert_eq!(message_id, mail.metadata.as_ref().unwrap().message_id);
 
-        let resolver = SMTPResolver::default();
-        match resolver.deliver(&mail).await {
+        let mut resolver = SMTPResolver::default();
+        match resolver.deliver(config, &mail).await {
             Ok(_) => {
                 log::trace!(
                     target: DELIVER,

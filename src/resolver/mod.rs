@@ -29,3 +29,8 @@ pub trait DataEndResolver {
         mail: &MailContext,
     ) -> std::io::Result<SMTPReplyCode>;
 }
+
+#[async_trait::async_trait]
+pub trait Resolver {
+    async fn deliver(&mut self, config: &ServerConfig, mail: &MailContext) -> std::io::Result<()>;
+}

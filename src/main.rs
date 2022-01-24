@@ -16,6 +16,8 @@
  **/
 use vsmtp::config::get_logger_config;
 use vsmtp::config::server_config::ServerConfig;
+use vsmtp::resolver::maildir_resolver::MailDirResolver;
+use vsmtp::resolver::smtp_resolver::SMTPResolver;
 use vsmtp::rules::rule_engine;
 use vsmtp::server::ServerVSMTP;
 
@@ -44,10 +46,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         error
     })?;
 
-    let server = ServerVSMTP::new(config.clone())
+    let mut server = ServerVSMTP::new(config.clone())
         .await
         .expect("Failed to create the server");
     log::warn!("Listening on: {:?}", server.addr());
 
-    server.listen_and_serve().await
+    server
+        .with_resolver("maildir", MailDirResolver::default())
+        .with_resolver("smtp", SMTPResolver::default())
+        .listen_and_serve()
+        .await
 }

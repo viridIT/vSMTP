@@ -1,3 +1,4 @@
+use crate::config::server_config::ServerConfig;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -20,11 +21,14 @@ use lettre::{Message, SmtpTransport, Transport};
 use trust_dns_resolver::config::*;
 use trust_dns_resolver::TokioAsyncResolver;
 
+use super::Resolver;
+
 #[derive(Default)]
 pub struct SMTPResolver;
 
-impl SMTPResolver {
-    pub async fn deliver(&self, ctx: &MailContext) -> Result<(), std::io::Error> {
+#[async_trait::async_trait]
+impl Resolver for SMTPResolver {
+    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> std::io::Result<()> {
         if let Body::Parsed(mail) = &ctx.body {
             let mut builder = Message::builder();
             for header in mail.headers.iter() {

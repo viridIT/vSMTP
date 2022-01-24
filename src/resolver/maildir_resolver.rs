@@ -18,10 +18,9 @@ use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
     model::mail::{Body, MailContext, MessageMetadata},
     rules::{address::Address, rule_engine::user_exists},
-    smtp::code::SMTPReplyCode,
 };
 
-use super::DataEndResolver;
+use super::Resolver;
 
 /// sets user & group rights to the given file / folder.
 fn chown_file(path: &std::path::Path, user: &users::User) -> std::io::Result<()> {
@@ -125,12 +124,8 @@ impl MailDirResolver {
 }
 
 #[async_trait::async_trait]
-impl DataEndResolver for MailDirResolver {
-    async fn on_data_end(
-        &mut self,
-        _config: &ServerConfig,
-        mail: &MailContext,
-    ) -> Result<SMTPReplyCode, std::io::Error> {
+impl Resolver for MailDirResolver {
+    async fn deliver(&mut self, _: &ServerConfig, mail: &MailContext) -> std::io::Result<()> {
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
 
@@ -175,7 +170,7 @@ impl DataEndResolver for MailDirResolver {
                     _ => todo!(),
                 }
             }
-            Ok(SMTPReplyCode::Code250)
+            Ok(())
         }
     }
 }
