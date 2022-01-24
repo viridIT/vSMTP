@@ -7,6 +7,7 @@ use vsmtp::{
     config::server_config::ServerConfig,
     mime::mail::BodyType,
     model::mail::{Body, MailContext},
+    resolver::DataEndResolver,
     rules::address::Address,
     smtp::code::SMTPReplyCode,
     test_helpers::test_receiver,
