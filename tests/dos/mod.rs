@@ -1,8 +1,6 @@
 use std::thread;
 
-use vsmtp::{
-    config::server_config::ServerConfig, server::ServerVSMTP, test_helpers::DefaultResolverTest,
-};
+use vsmtp::{config::server_config::ServerConfig, server::ServerVSMTP};
 
 const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 const CLIENT_THREAD_COUNT: u64 = 1000;
@@ -23,14 +21,7 @@ async fn test_dos() {
                 .expect("failed to initialize server");
 
             log::warn!("Listening on: {:?}", server.addr());
-            match tokio::time::timeout(
-                SERVER_TIMEOUT,
-                server.listen_and_serve(std::sync::Arc::new(tokio::sync::Mutex::new(
-                    DefaultResolverTest {},
-                ))),
-            )
-            .await
-            {
+            match tokio::time::timeout(SERVER_TIMEOUT, server.listen_and_serve()).await {
                 Ok(Ok(_)) => unreachable!(),
                 Ok(Err(e)) => panic!("{}", e),
                 Err(_) => {}

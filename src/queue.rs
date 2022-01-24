@@ -74,11 +74,13 @@ impl Queue {
             self.as_str()
         );
 
-        // TODO: handle send errors.
         // sending the message id to the delivery process.
         // NOTE: we could send the context instead, so that the delivery system won't have
         //       to touch the file system.
-        sender.send(message_id).await.unwrap();
+        sender
+            .send(message_id)
+            .await
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
 
         Ok(())
     }
