@@ -36,11 +36,23 @@ impl From<&str> for AddressParsingError {
 /// since addr::email::Address needs to be sent in rhai's context,
 /// it needs to be static, thus impossible to do.
 /// TODO: find a way to use addr::email::Address instead of this struct.
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
 pub struct Address {
     full: String,
     // TODO: ignore serialize ?
     at_sign: usize,
+}
+
+impl Default for Address {
+    // NOTE: this object shouldn't expose the default trait,
+    //       this is just for convenience for now, but it will
+    //       need to be removed later.
+    fn default() -> Self {
+        Self {
+            full: "default@address.com".to_string(),
+            at_sign: 7,
+        }
+    }
 }
 
 impl PartialEq for Address {

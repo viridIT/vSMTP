@@ -60,6 +60,7 @@ pub mod helpers {
     /// (using the *users* crate) the commands to send to the state machine
     /// and the expected output of the server.
     pub async fn run_integration_engine_test<T: DataEndResolver>(
+        address: &str,
         resolver: T,
         src_path: &str,
         config_path: &str,
@@ -97,6 +98,7 @@ pub mod helpers {
             .expect("failed to run the rule engine");
 
         test_receiver(
+            address,
             std::sync::Arc::new(tokio::sync::Mutex::new(resolver)),
             smtp_input,
             expected_output,

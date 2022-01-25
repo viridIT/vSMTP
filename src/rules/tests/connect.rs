@@ -7,6 +7,7 @@ pub mod test {
     #[tokio::test]
     async fn test_valid_connect_rules() {
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/connect/valid_connect.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -21,6 +22,7 @@ pub mod test {
     #[tokio::test]
     async fn test_invalid_connect_rules() {
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/connect/invalid_connect.vsl",
             "./src/rules/tests/configs/default.config.toml",

@@ -7,6 +7,7 @@ pub mod test {
     #[tokio::test]
     async fn test_valid_helo() {
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/valid_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -20,6 +21,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/valid_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -39,6 +41,7 @@ pub mod test {
     #[tokio::test]
     async fn test_types_helo() {
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/regex_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -52,6 +55,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/regex_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -68,6 +72,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -81,6 +86,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -97,6 +103,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
             "./src/rules/tests/configs/default.config.toml",

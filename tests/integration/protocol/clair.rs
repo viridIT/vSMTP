@@ -41,6 +41,7 @@ mod tests {
         }
 
         assert!(test_receiver(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foobar\r\n",
@@ -72,6 +73,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_2() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["foo\r\n"].concat().as_bytes(),
             [
@@ -89,6 +91,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_3() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["MAIL FROM:<john@doe>\r\n"].concat().as_bytes(),
             [
@@ -106,6 +109,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_4() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["RCPT TO:<john@doe>\r\n"].concat().as_bytes(),
             [
@@ -123,6 +127,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_5() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n"]
                 .concat()
@@ -143,6 +148,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_6() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
             [
@@ -203,6 +209,7 @@ mod tests {
         config.prepare();
 
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
                 .concat()
@@ -229,6 +236,7 @@ mod tests {
     async fn test_receiver_9() {
         let before_test = std::time::Instant::now();
         let res = test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "RCPT TO:<bar@foo>\r\n",
@@ -281,6 +289,7 @@ mod tests {
         config.prepare();
 
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["HELP\r\n"].concat().as_bytes(),
             [
@@ -299,6 +308,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_11() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO postmaster\r\n",
@@ -332,6 +342,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_11_bis() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO postmaster\r\n",
@@ -374,6 +385,7 @@ mod tests {
         };
         config.prepare();
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             ["EHLO postmaster\r\n"].concat().as_bytes(),
             [
@@ -438,6 +450,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(T { count: 0 })),
             [
                 "HELO foobar\r\n",
@@ -525,6 +538,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(T { count: 0 })),
             [
                 "HELO foobar\r\n",

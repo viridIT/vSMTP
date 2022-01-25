@@ -37,6 +37,7 @@ mod tests {
             }
 
             assert!(test_receiver(
+                "127.0.0.1:0",
                 std::sync::Arc::new(tokio::sync::Mutex::new(T)),
                 [
                     "HELO foobar\r\n",

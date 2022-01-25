@@ -14,6 +14,7 @@ pub mod test {
     #[tokio::test]
     async fn test_rcpt_by_user() {
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -38,6 +39,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -65,6 +67,7 @@ pub mod test {
     #[tokio::test]
     async fn test_rcpt_by_fqdn() {
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -89,6 +92,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -116,6 +120,7 @@ pub mod test {
     #[tokio::test]
     async fn test_rcpt_by_address() {
         assert!(run_integration_engine_test::<DefaultResolverTest>(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -143,6 +148,7 @@ pub mod test {
     #[tokio::test]
     async fn test_rcpt_in_preq() {
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/contains_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -171,6 +177,7 @@ pub mod test {
         .is_ok());
 
         assert!(run_integration_engine_test(
+            "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/rcpt/contains_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -258,6 +265,7 @@ pub mod test {
     #[tokio::test]
     async fn test_add_rcpt() {
         assert!(run_integration_engine_test::<TestRcptAdded>(
+            "127.0.0.1:0",
             TestRcptAdded {},
             "./src/rules/tests/rules/rcpt/add_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -343,6 +351,7 @@ pub mod test {
     #[tokio::test]
     async fn test_remove_rcpt() {
         assert!(run_integration_engine_test::<TestRcptRemoved>(
+            "127.0.0.1:0",
             TestRcptRemoved {},
             "./src/rules/tests/rules/rcpt/rm_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",
@@ -435,6 +444,7 @@ pub mod test {
     #[tokio::test]
     async fn test_rewrite_rcpt() {
         assert!(run_integration_engine_test::<TestRcptRewritten>(
+            "127.0.0.1:0",
             TestRcptRewritten {},
             "./src/rules/tests/rules/rcpt/rw_rcpt.vsl",
             "./src/rules/tests/configs/default.config.toml",

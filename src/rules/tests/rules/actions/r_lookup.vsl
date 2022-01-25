@@ -1,14 +1,5 @@
-obj fqdn "local" "localhost";
-
-rule helo "test_dnslookup_raw" #{
-  // the test suite uses the unspecified address to simulate a connexion.
-  condition: || vsl.DNS_LOOKUP("localhost"),
+rule mail "test_lookup_mail_from" #{
+  condition: || vsl.LOOKUP_MAIL_FROM(),
   on_success: vsl.CONTINUE,
-  on_failure: vsl.DENY,
-};
-
-rule helo "test_dnslookup_object" #{
-  condition: || vsl.DNS_LOOKUP("local"),
-  on_success: vsl.ACCEPT,
   on_failure: vsl.DENY,
 };

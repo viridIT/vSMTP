@@ -41,6 +41,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
@@ -73,6 +74,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_rset_2() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO foo\r\n",
@@ -100,6 +102,7 @@ mod tests {
     #[tokio::test]
     async fn test_receiver_rset_3() {
         assert!(test_receiver::<DefaultResolverTest>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest)),
             [
                 "HELO foo\r\n",
@@ -153,6 +156,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
@@ -208,6 +212,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
@@ -264,6 +269,7 @@ mod tests {
         }
 
         assert!(test_receiver::<T>(
+            "127.0.0.1:0",
             std::sync::Arc::new(tokio::sync::Mutex::new(T)),
             [
                 "HELO foo\r\n",
