@@ -26,6 +26,8 @@ pub struct MessageMetadata {
     pub message_id: String,
     /// number of times the mta tried to send the email.
     pub retry: usize,
+    /// the resolver chosen to deliver the message.
+    pub resolver: String,
 }
 
 impl Default for MessageMetadata {
@@ -34,6 +36,7 @@ impl Default for MessageMetadata {
             timestamp: std::time::SystemTime::now(),
             message_id: Default::default(),
             retry: Default::default(),
+            resolver: "".to_string(),
         }
     }
 }

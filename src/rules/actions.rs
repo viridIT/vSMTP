@@ -340,6 +340,15 @@ pub(super) mod vsl {
         }
     }
 
+    /// check if the given object matches one of the incoming recipients.
+    pub fn __contains_rcpt(rcpts: &mut HashSet<Address>, object: &str) -> bool {
+        match acquire_engine().objects.read().unwrap().get(object) {
+            Some(object) => rcpts.iter().any(|rcpt| internal_is_rcpt(rcpt, object)),
+            // TODO: allow for user / domain search with a string.
+            _ => rcpts.iter().any(|rcpt| rcpt.full() == object),
+        }
+    }
+
     /// checks if the given user exists on the system.
     pub fn __user_exists(object: &str) -> bool {
         match acquire_engine().objects.read().unwrap().get(object) {

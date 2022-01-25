@@ -1,0 +1,35 @@
+obj val "john" "johndoe";
+obj fqdn "viridit" "viridit.com";
+obj addr "customer" "customer@company.com";
+obj addr "satan" "dangerous@satan.com";
+obj addr "green" "green@foo.com";
+
+rule preq "test_rcpt_user" #{
+  condition: || vsl.CONTAINS_RCPT("john"),
+  on_success: vsl.CONTINUE,
+  on_failure: vsl.DENY,
+};
+
+rule preq "test_rcpt_fqdn" #{
+  condition: || vsl.CONTAINS_RCPT("viridit"),
+  on_success: vsl.CONTINUE,
+  on_failure: vsl.DENY,
+};
+
+rule preq "test_rcpt_email" #{
+  condition: || vsl.CONTAINS_RCPT("customer"),
+  on_success: vsl.CONTINUE,
+  on_failure: vsl.DENY,
+};
+
+rule preq "test_not_in_rcpts_1" #{
+  condition: || !vsl.CONTAINS_RCPT("satan"),
+  on_success: vsl.CONTINUE,
+  on_failure: vsl.DENY,
+};
+
+rule preq "test_not_in_rcpts_2" #{
+  condition: || !vsl.CONTAINS_RCPT("green"),
+  on_success: vsl.ACCEPT,
+  on_failure: vsl.DENY,
+};

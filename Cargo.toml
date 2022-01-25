@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp"
-version = "0.7.3"
+version = "0.8.2"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]

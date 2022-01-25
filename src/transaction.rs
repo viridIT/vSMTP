@@ -221,10 +221,7 @@ impl Transaction<'_> {
 
                 self.rule_engine.add_data("data", parsed);
 
-                let status = self.rule_engine.run_when("preq");
-
-                // TODO: block & deny should quarantine the email.
-                if let Status::Block | Status::Deny = status {
+                if let Status::Block | Status::Deny = self.rule_engine.run_when("preq") {
                     return ProcessedEvent::ReplyChangeState(
                         StateSMTP::Stop,
                         SMTPReplyCode::Code554,
@@ -240,11 +237,12 @@ impl Transaction<'_> {
                     );
                 }
 
-                // getting the server's envelop, that could have mutated in the
+                // getting the server's envelop that could have mutated in the
                 // rule engine.
                 match self.rule_engine.get_scoped_envelop() {
-                    Some((envelop, mail)) => {
+                    Some((envelop, metadata, mail)) => {
                         self.mail.envelop = envelop;
+                        self.mail.metadata = metadata;
                         self.mail.body = Body::Parsed(mail.into());
 
                         let mut output = MailContext {
@@ -314,6 +312,7 @@ impl Transaction<'_> {
                         std::process::id()
                     ),
                     retry: 0,
+                    resolver: "smtp".to_string(),
                 });
 
                 self.rule_engine

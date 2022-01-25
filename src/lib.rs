@@ -19,6 +19,8 @@ pub mod connection;
 pub mod io_service;
 pub mod mime;
 pub mod model;
+pub mod processes;
+pub mod queue;
 pub mod resolver;
 pub mod rules;
 pub mod server;

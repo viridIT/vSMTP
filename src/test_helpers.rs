@@ -16,8 +16,8 @@
 **/
 use crate::{
     config::server_config::ServerConfig, connection::Connection, io_service::IoService,
-    model::mail::MailContext, resolver::DataEndResolver, server::ServerVSMTP,
-    smtp::code::SMTPReplyCode,
+    model::mail::MailContext, processes::ProcessMessage, resolver::DataEndResolver,
+    server::ServerVSMTP, smtp::code::SMTPReplyCode,
 };
 
 pub struct Mock<'a> {
@@ -65,7 +65,7 @@ impl DataEndResolver for DefaultResolverTest {
 
 // TODO: should be a macro instead of a function.
 pub async fn test_receiver<T: DataEndResolver>(
-    resolver: std::sync::Arc<tokio::sync::Mutex<T>>,
+    _: std::sync::Arc<tokio::sync::Mutex<T>>,
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<ServerConfig>,
@@ -76,7 +76,14 @@ pub async fn test_receiver<T: DataEndResolver>(
     let mut conn =
         Connection::<Mock<'_>>::from_plain("127.0.0.1:0".parse().unwrap(), config, &mut io)?;
 
-    ServerVSMTP::handle_connection::<T, Mock<'_>>(&mut conn, resolver, None).await?;
+    let (working_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+
+    ServerVSMTP::handle_connection::<Mock<'_>>(
+        &mut conn,
+        std::sync::Arc::new(working_sender),
+        None,
+    )
+    .await?;
     std::io::Write::flush(&mut conn.io_stream.inner)?;
 
     assert_eq!(

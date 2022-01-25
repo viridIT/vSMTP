@@ -1,3 +1,4 @@
+use crate::config::server_config::ServerConfig;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -14,27 +15,20 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    config::server_config::ServerConfig,
-    model::mail::{Body, MailContext},
-    smtp::code::SMTPReplyCode,
-};
+use crate::model::mail::{Body, MailContext};
 
-use super::DataEndResolver;
 use lettre::{Message, SmtpTransport, Transport};
 use trust_dns_resolver::config::*;
 use trust_dns_resolver::TokioAsyncResolver;
+
+use super::Resolver;
 
 #[derive(Default)]
 pub struct SMTPResolver;
 
 #[async_trait::async_trait]
-impl DataEndResolver for SMTPResolver {
-    async fn on_data_end(
-        &mut self,
-        _: &ServerConfig,
-        ctx: &MailContext,
-    ) -> Result<SMTPReplyCode, std::io::Error> {
+impl Resolver for SMTPResolver {
+    async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> std::io::Result<()> {
         if let Body::Parsed(mail) = &ctx.body {
             let mut builder = Message::builder();
             for header in mail.headers.iter() {
@@ -99,6 +93,6 @@ impl DataEndResolver for SMTPResolver {
             log::error!("email hasn't been parsed, exiting delivery ...");
         }
 
-        Ok(SMTPReplyCode::Code250)
+        Ok(())
     }
 }

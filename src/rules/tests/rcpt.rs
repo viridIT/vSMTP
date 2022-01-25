@@ -140,6 +140,78 @@ pub mod test {
         .is_ok());
     }
 
+    #[tokio::test]
+    async fn test_rcpt_in_preq() {
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
+            "./src/rules/tests/rules/rcpt/contains_rcpt.vsl",
+            "./src/rules/tests/configs/default.config.toml",
+            users::mock::MockUsers::with_current_uid(1),
+            [
+                "HELO foobar\r\n",
+                "MAIL FROM:<test@viridit.com>\r\n",
+                "RCPT TO:<johndoe@other.com>\r\n",
+                "RCPT TO:<worker@viridit.com>\r\n",
+                "RCPT TO:<customer@company.com>\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+        )
+        .await
+        .is_ok());
+
+        assert!(run_integration_engine_test(
+            DefaultResolverTest {},
+            "./src/rules/tests/rules/rcpt/contains_rcpt.vsl",
+            "./src/rules/tests/configs/default.config.toml",
+            users::mock::MockUsers::with_current_uid(1),
+            [
+                "HELO foobar\r\n",
+                "MAIL FROM:<test@viridit.com>\r\n",
+                "RCPT TO:<johndoe@other.com>\r\n",
+                "RCPT TO:<worker@viridit.com>\r\n",
+                "RCPT TO:<customer@company.com>\r\n",
+                "RCPT TO:<green@foo.com>\r\n",
+                "DATA\r\n",
+                "from: test <test@viridit.com>\r\n",
+                "Subject: ...\r\n",
+                "To: johndoe@personal.com, green@personal.com\r\n",
+                "Message-ID: <xxx@localhost.com>\r\n",
+                "Date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
+                "\r\n",
+                "...\r\n",
+                ".\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+            [
+                "220 test.server.com Service ready\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "250 Ok\r\n",
+                "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+                "554 permanent problems with the remote server\r\n",
+            ]
+            .concat()
+            .as_bytes(),
+        )
+        .await
+        .is_ok())
+    }
+
     // -- testing out rcpt actions.
 
     struct TestRcptAdded;

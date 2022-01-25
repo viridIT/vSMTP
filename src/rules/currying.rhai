@@ -36,6 +36,9 @@ let vsl = #{
     // given by the current RCPT TO command.
     IS_RCPT: |object| __is_rcpt(rcpt, object),
 
+    // checks if the object matches one of the recipients.
+    CONTAINS_RCPT: |object| __contains_rcpt(rcpts, object),
+
     // checks whether the specified user exists on the system.
     USER_EXISTS: |object| __user_exists(object),
 
@@ -125,5 +128,20 @@ let vsl = #{
 
     DNS_LOOKUP: |hostname| {
         __DNS_LOOKUP(connect, port, hostname)
+    },
+
+    // set resolver to maildir.
+    USE_MAILDIR: || {
+        metadata.resolver = "maildir";
+    },
+
+    // set resolver to smtp (lettre).
+    USE_SMTP: || {
+        metadata.resolver = "smtp";
+    },
+
+    // set resolver to mbox (default mbox database format).
+    USE_MBOX: || {
+        metadata.resolver = "mbox";
     },
 };
