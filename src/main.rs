@@ -17,6 +17,7 @@
 use vsmtp::config::get_logger_config;
 use vsmtp::config::server_config::ServerConfig;
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
+use vsmtp::resolver::mbox_resolver::MBoxResolver;
 use vsmtp::resolver::smtp_resolver::SMTPResolver;
 use vsmtp::rules::rule_engine;
 use vsmtp::server::ServerVSMTP;
@@ -54,6 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     server
         .with_resolver("maildir", MailDirResolver::default())
         .with_resolver("smtp", SMTPResolver::default())
+        .with_resolver("mbox", MBoxResolver::default())
         .listen_and_serve()
         .await
 }

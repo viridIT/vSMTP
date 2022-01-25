@@ -46,7 +46,7 @@ pub async fn start(
 
         log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
-        let ctx: crate::model::mail::MailContext =
+        let mut ctx: crate::model::mail::MailContext =
             serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
         let parsed_email = match &ctx.body {
@@ -72,6 +72,18 @@ pub async fn start(
             Status::Deny => Queue::Dead.write_to_queue(config, &ctx).await?,
             Status::Block => Queue::Quarantine.write_to_queue(config, &ctx).await?,
             _ => {
+                match rule_engine.get_scoped_envelop() {
+                    Some((envelop, metadata, mail)) => {
+                        ctx.envelop = envelop;
+                        ctx.metadata = metadata;
+                        ctx.body = Body::Parsed(mail.into());
+                    }
+                    _ => return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "one of the email context variables could not be found in rhai's context.",
+                    )),
+                };
+
                 Queue::Deliver.write_to_queue(config, &ctx).await?;
 
                 delivery_sender

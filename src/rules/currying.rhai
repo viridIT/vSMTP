@@ -136,8 +136,13 @@ let vsl = #{
         metadata.resolver = "maildir";
     },
 
-    // set resolver to smtp.
+    // set resolver to smtp (lettre).
     USE_SMTP: || {
         metadata.resolver = "smtp";
+    },
+
+    // set resolver to mbox (default mbox database format).
+    USE_MBOX: || {
+        metadata.resolver = "mbox";
     },
 };
