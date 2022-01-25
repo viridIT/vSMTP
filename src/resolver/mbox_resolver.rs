@@ -45,11 +45,11 @@ impl Resolver for MBoxResolver {
                 .map(|metadata| metadata.timestamp)
                 .unwrap_or_else(std::time::SystemTime::now)
                 .into();
-            let timestamp = timestamp.to_rfc2822();
+            let timestamp = timestamp.format("%c");
 
             let content = match &ctx.body {
                 crate::model::mail::Body::Raw(raw) => {
-                    format!("From {} {timestamp}\n\n{raw}\n", ctx.envelop.mail_from)
+                    format!("From {} {timestamp}\n{raw}\n", ctx.envelop.mail_from)
                 }
                 crate::model::mail::Body::Parsed(parsed) => {
                     let (headers, body) = parsed.to_raw();
