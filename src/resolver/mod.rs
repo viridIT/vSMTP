@@ -19,6 +19,7 @@ use crate::{
 };
 
 pub mod maildir_resolver;
+pub mod mbox_resolver;
 pub mod smtp_resolver;
 
 #[async_trait::async_trait]
