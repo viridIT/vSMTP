@@ -31,43 +31,55 @@ pub struct MBoxResolver;
 impl Resolver for MBoxResolver {
     async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> std::io::Result<()> {
         for rcpt in ctx.envelop.rcpt.iter() {
-            // NOTE: only linux system is supported here, is the
-            //       path to all mboxes always /var/mail ?
-            let mbox = std::path::PathBuf::from_iter(["/var/mail/", rcpt.local_part()]);
-            let mut file = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&mbox)?;
+            match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
+                Some(user) => {
+                    let timestamp: chrono::DateTime<chrono::offset::Utc> = ctx
+                        .metadata
+                        .as_ref()
+                        .map(|metadata| metadata.timestamp)
+                        .unwrap_or_else(std::time::SystemTime::now)
+                        .into();
+                    let timestamp = timestamp.format("%c");
 
-            let timestamp: chrono::DateTime<chrono::offset::Utc> = ctx
-                .metadata
-                .as_ref()
-                .map(|metadata| metadata.timestamp)
-                .unwrap_or_else(std::time::SystemTime::now)
-                .into();
-            let timestamp = timestamp.format("%c");
+                    let content = match &ctx.body {
+                        crate::model::mail::Body::Raw(raw) => {
+                            format!("From {} {timestamp}\n{raw}\n", ctx.envelop.mail_from)
+                        }
+                        crate::model::mail::Body::Parsed(parsed) => {
+                            let (headers, body) = parsed.to_raw();
+                            format!(
+                                "From {} {timestamp}\n{headers}\n\n{body}\n",
+                                ctx.envelop.mail_from
+                            )
+                        }
+                    };
 
-            let content = match &ctx.body {
-                crate::model::mail::Body::Raw(raw) => {
-                    format!("From {} {timestamp}\n{raw}\n", ctx.envelop.mail_from)
+                    // NOTE: only linux system is supported here, is the
+                    //       path to all mboxes always /var/mail ?
+                    let mbox = std::path::PathBuf::from_iter(["/var/mail/", rcpt.local_part()]);
+                    let mut file = std::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(&mbox)?;
+                    super::chown_file(&mbox, &user)?;
+
+                    std::io::Write::write_all(&mut file, content.as_bytes())?;
+
+                    log::debug!(
+                        target: RESOLVER,
+                        "{} bytes written to {}'s mbox",
+                        content.len(),
+                        rcpt
+                    );
                 }
-                crate::model::mail::Body::Parsed(parsed) => {
-                    let (headers, body) = parsed.to_raw();
-                    format!(
-                        "From {} {timestamp}\n{headers}\n\n{body}\n",
-                        ctx.envelop.mail_from
-                    )
+                _ => {
+                    log::error!("unable to get user '{}' by name", rcpt.local_part());
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "unable to get user",
+                    ));
                 }
-            };
-
-            std::io::Write::write_all(&mut file, content.as_bytes())?;
-
-            log::debug!(
-                target: RESOLVER,
-                "{} bytes written to {}'s mbox",
-                content.len(),
-                rcpt
-            );
+            }
         }
         Ok(())
     }
