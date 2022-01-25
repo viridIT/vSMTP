@@ -126,8 +126,8 @@ let vsl = #{
         __MAIL(from, to, subject, body);
     },
 
-    DNS_LOOKUP: |hostname| {
-        __DNS_LOOKUP(connect, port, hostname)
+    LOOKUP_MAIL_FROM: || {
+        __LOOKUP_MAIL_FROM(connect, port, mail.domain)
     },
 
     // set resolver to maildir.

@@ -27,6 +27,8 @@ use rhai::plugin::*;
 
 use super::address::Address;
 
+use std::net::ToSocketAddrs;
+
 // exported methods are used in rhai context, so we allow dead code.
 #[allow(dead_code)]
 #[export_module]
@@ -243,43 +245,31 @@ pub(super) mod vsl {
         }
     }
 
-    #[rhai_fn(name = "__DNS_LOOKUP", return_raw)]
+    #[rhai_fn(name = "__LOOKUP_MAIL_FROM", return_raw)]
     /// check the client's ip matches against the hostname passed has parameter.
-    /// this can be used, for example, to check if HELO's value
-    /// is matching the `hostname` parameter, preventing relaying.
-    pub fn dns_lookup(
+    /// this can be used, for example, to check if MAIL FROM's value
+    /// is matching the connection, preventing relaying.
+    pub fn lookup_mail_from(
         // curried parameters.
         connect: std::net::IpAddr,
         port: u16,
         // exposed parameter.
         hostname: &str,
     ) -> Result<bool, Box<EvalAltResult>> {
-        // using the ToSocketAddrs to resolve ip(s) and compare them to
-        // the client's connection data.
-        use std::net::ToSocketAddrs;
+        let engine = acquire_engine();
+        let objects = engine.objects.read().unwrap();
 
-        // TODO: can be refactored.
-        match acquire_engine().objects.read().unwrap().get(hostname) {
-            Some(Object::Fqdn(fqdn)) => Ok(format!("{}:{}", fqdn, port)
-                .to_socket_addrs()
-                .map_err::<Box<EvalAltResult>, _>(|error| {
-                    format!("couldn't process dns lookup: {}", error).into()
-                })?
-                .any(|socket| {
-                    println!("socket.ip(): {}, connect: {}", socket.ip(), connect);
-                    socket.ip() == connect
-                })),
+        let hostname = match objects.get(hostname) {
+            Some(Object::Fqdn(fqdn)) => fqdn.as_str(),
+            _ => hostname,
+        };
 
-            _ => Ok(format!("{}:{}", hostname, port)
-                .to_socket_addrs()
-                .map_err::<Box<EvalAltResult>, _>(|error| {
-                    format!("couldn't process dns lookup: {}", error).into()
-                })?
-                .any(|socket| {
-                    println!("socket.ip(): {}, connect: {}", socket.ip(), connect);
-                    socket.ip() == connect
-                })),
-        }
+        Ok(format!("{}:{}", hostname, port)
+            .to_socket_addrs()
+            .map_err::<Box<EvalAltResult>, _>(|error| {
+                format!("couldn't process dns lookup: {}", error).into()
+            })?
+            .any(|socket| socket.ip() == connect))
     }
 
     #[rhai_fn(name = "==")]
