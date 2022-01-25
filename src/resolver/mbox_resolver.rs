@@ -46,7 +46,18 @@ impl Resolver for MBoxResolver {
                 .unwrap_or_else(std::time::SystemTime::now)
                 .into();
 
-            let content = format!("From {} {}", ctx.envelop.mail_from, timestamp);
+            let content = match &ctx.body {
+                crate::model::mail::Body::Raw(raw) => {
+                    format!("From {} {timestamp}\n{raw}\n", ctx.envelop.mail_from)
+                }
+                crate::model::mail::Body::Parsed(parsed) => {
+                    let (headers, body) = parsed.to_raw();
+                    format!(
+                        "From {} {timestamp}\n{headers}\n{body}\n",
+                        ctx.envelop.mail_from
+                    )
+                }
+            };
 
             std::io::Write::write_all(&mut file, content.as_bytes())?;
 
