@@ -257,7 +257,10 @@ pub(super) mod vsl {
         hostname: &str,
     ) -> Result<bool, Box<EvalAltResult>> {
         if hostname.is_empty() {
-            return Err("the LOOKUP_MAIL_FROM action can only be called after or in the 'mail' stage.".into());
+            return Err(
+                "the LOOKUP_MAIL_FROM action can only be called after or in the 'mail' stage."
+                    .into(),
+            );
         }
 
         let engine = acquire_engine();
