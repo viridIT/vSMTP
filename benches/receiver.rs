@@ -40,7 +40,14 @@ fn make_bench<R: vsmtp::resolver::DataEndResolver>(
 ) {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
-            let _ = test_receiver(resolver.clone(), input, output, config.clone()).await;
+            let _ = test_receiver(
+                "127.0.0.1:0",
+                resolver.clone(),
+                input,
+                output,
+                config.clone(),
+            )
+            .await;
         })
 }
 
