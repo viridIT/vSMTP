@@ -30,8 +30,6 @@ use std::net::IpAddr;
 use std::sync::Mutex;
 use std::{
     collections::{BTreeMap, HashSet},
-    error::Error,
-    fs,
     net::Ipv4Addr,
     path::Path,
     str::FromStr,
@@ -171,10 +169,7 @@ impl<'a> RuleEngine<'a> {
     }
 
     /// empty the operation queue and executing all operations stored.
-    pub(crate) fn execute_operation_queue(
-        &mut self,
-        ctx: &MailContext,
-    ) -> Result<(), Box<dyn Error>> {
+    pub(crate) fn execute_operation_queue(&mut self, ctx: &MailContext) -> anyhow::Result<()> {
         for op in self
             .scope
             .get_value::<OperationQueue>("__OPERATION_QUEUE")
@@ -257,7 +252,7 @@ pub struct RhaiEngine<U: Users> {
 
 impl<U: Users> RhaiEngine<U> {
     /// create an engine from a script encoded in raw bytes.
-    pub fn from_bytes(src: &[u8], users: U) -> Result<Self, Box<dyn Error>> {
+    pub fn from_bytes(src: &[u8], users: U) -> anyhow::Result<Self> {
         let mut engine = Engine::new();
         let objects = Arc::new(RwLock::new(BTreeMap::new()));
         let shared_obj = objects.clone();
@@ -657,21 +652,21 @@ impl<U: Users> RhaiEngine<U> {
 impl RhaiEngine<users::UsersCache> {
     /// creates a new instance of the rule engine, reading all files in
     /// src_path parameter.
-    fn new(src_path: &str) -> Result<Self, Box<dyn Error>> {
+    fn new(src_path: &str) -> anyhow::Result<Self> {
         // load all sources from file.
         // this function is declared here since it isn't needed anywhere else.
-        fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+        fn load_sources(path: &Path) -> anyhow::Result<Vec<String>> {
             let mut buffer = vec![];
 
             if path.is_file() {
                 match path.extension() {
                     Some(extension) if extension == "vsl" => {
-                        buffer.push(format!("{}\n", fs::read_to_string(path)?))
+                        buffer.push(format!("{}\n", std::fs::read_to_string(path)?))
                     }
                     _ => {}
                 };
             } else if path.is_dir() {
-                for entry in fs::read_dir(path)? {
+                for entry in std::fs::read_dir(path)? {
                     let dir = entry?;
                     buffer.extend(load_sources(&dir.path())?);
                 }
@@ -694,24 +689,21 @@ impl RhaiEngine<users::mock::MockUsers> {
     /// creates a new instance of the rule engine, used for tests.
     /// allow unused is () because this new static method is
     /// for tests only.
-    pub(super) fn new(
-        src_path: &str,
-        users: users::mock::MockUsers,
-    ) -> Result<Self, Box<dyn Error>> {
+    pub(super) fn new(src_path: &str, users: users::mock::MockUsers) -> anyhow::Result<Self> {
         // load all sources from file.
         // this function is declared here since it isn't needed anywhere else.
-        fn load_sources(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+        fn load_sources(path: &Path) -> anyhow::Result<Vec<String>> {
             let mut buffer = vec![];
 
             if path.is_file() {
                 match path.extension() {
                     Some(extension) if extension == "vsl" => {
-                        buffer.push(format!("{}\n", fs::read_to_string(path)?))
+                        buffer.push(format!("{}\n", std::fs::read_to_string(path)?))
                     }
                     _ => {}
                 };
             } else if path.is_dir() {
-                for entry in fs::read_dir(path)? {
+                for entry in std::fs::read_dir(path)? {
                     let dir = entry?;
                     buffer.extend(load_sources(&dir.path())?);
                 }
@@ -814,7 +806,7 @@ pub fn set_rules_path(src: &'static str) {
 /// not calling this method when initializing your server could lead to
 /// undetected configuration errors and a slow process for the first connection.
 #[cfg(not(test))]
-pub fn init(src: &'static str) -> Result<(), Box<dyn Error>> {
+pub fn init(src: &'static str) -> anyhow::Result<()> {
     set_rules_path(src);
 
     // creating a temporary engine to try construction.

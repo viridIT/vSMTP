@@ -28,7 +28,7 @@ pub trait DataEndResolver {
         &mut self,
         config: &ServerConfig,
         mail: &MailContext,
-    ) -> std::io::Result<SMTPReplyCode>;
+    ) -> anyhow::Result<SMTPReplyCode>;
 }
 
 #[async_trait::async_trait]

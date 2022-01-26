@@ -30,7 +30,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
     println!("Loading with configuration: '{}'", args.config);
 
