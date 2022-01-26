@@ -29,12 +29,12 @@ pub async fn start(
     config: &ServerConfig,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-) -> std::io::Result<()> {
+) -> anyhow::Result<()> {
     async fn handle_one(
         process_message: ProcessMessage,
         config: &ServerConfig,
         delivery_sender: &tokio::sync::mpsc::Sender<ProcessMessage>,
-    ) -> std::io::Result<()> {
+    ) -> anyhow::Result<()> {
         log::debug!(
             target: DELIVER,
             "vMIME process received a new message id: {}",
@@ -51,11 +51,7 @@ pub async fn start(
 
         let parsed_email = match &ctx.body {
             Body::Parsed(parsed_email) => parsed_email.clone(),
-            Body::Raw(raw) => Box::new(
-                MailMimeParser::default()
-                    .parse(raw.as_bytes())
-                    .expect("handle errors when parsing email in vMIME"),
-            ),
+            Body::Raw(raw) => Box::new(MailMimeParser::default().parse(raw.as_bytes())?),
         };
 
         let mut rule_engine = RuleEngine::new(config);
@@ -78,10 +74,9 @@ pub async fn start(
                         ctx.metadata = metadata;
                         ctx.body = Body::Parsed(mail.into());
                     }
-                    _ => return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "one of the email context variables could not be found in rhai's context.",
-                    )),
+                    _ => anyhow::bail!(
+                        "one of the email context variables could not be found in rhai's context."
+                    ),
                 };
 
                 Queue::Deliver.write_to_queue(config, &ctx).await?;

@@ -20,7 +20,6 @@ use regex::Regex;
 use rhai::{Array, Map};
 
 use std::{
-    error::Error,
     fs,
     io::{BufRead, BufReader},
     net::{Ipv4Addr, Ipv6Addr},
@@ -59,19 +58,19 @@ impl Object {
     // NOTE: what does the 'static lifetime implies here ?
     /// get a specific value from a rhai map and convert it to a specific type.
     /// returns an error if the cast failed.
-    pub(crate) fn value<T: 'static + Clone>(map: &Map, key: &str) -> Result<T, Box<dyn Error>> {
+    pub(crate) fn value<T: 'static + Clone>(map: &Map, key: &str) -> anyhow::Result<T> {
         match map.get(key) {
             Some(value) => value.clone().try_cast::<T>().ok_or_else(|| {
-                format!("{} is not of type {}.", key, std::any::type_name::<T>()).into()
+                anyhow::anyhow!("{} is not of type {}.", key, std::any::type_name::<T>())
             }),
-            None => Err(format!("{} not found.", key).into()),
+            None => anyhow::bail!("{} not found.", key),
         }
     }
 
     /// create an object from a raw rhai Map data structure.
     /// this map must have the "value" and "type" keys to be parsed
     /// successfully.
-    pub(crate) fn from(map: &Map) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn from(map: &Map) -> anyhow::Result<Self> {
         let t = Object::value::<String>(map, "type")?;
 
         match t.as_str() {
@@ -99,7 +98,7 @@ impl Object {
                 let value = Object::value::<String>(map, "value")?;
                 match addr::parse_domain_name(&value) {
                     Ok(domain) => Ok(Object::Fqdn(domain.to_string())),
-                    Err(_) => Err(format!("'{}' is not a valid fqdn.", value).into()),
+                    Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                 }
             }
 
@@ -128,9 +127,7 @@ impl Object {
                             "ip6" => content.push(Object::Ip6(Ipv6Addr::from_str(&line)?)),
                             "fqdn" => match addr::parse_domain_name(&line) {
                                 Ok(domain) => content.push(Object::Fqdn(domain.to_string())),
-                                Err(_) => {
-                                    return Err(format!("'{}' is not a valid fqdn.", value).into());
-                                }
+                                Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                             },
                             "addr" => content.push(Object::Address(Address::new(&line)?)),
                             "val" => content.push(Object::Var(line)),
@@ -152,17 +149,17 @@ impl Object {
                     match element.is::<Map>() {
                         true => group.push(Object::from(&element.clone_cast::<Map>())?),
                         false => {
-                            return Err(
-                                "'{}' is not an inline object or an already defined one.".into()
-                            )
+                            let name = Object::value::<String>(map, "name")
+                                .unwrap_or_else(|_| "unknown variable".to_string());
+                            anyhow::bail!("'{name}' needs to be a map to be defined as a group.")
                         }
-                    }
+                    };
                 }
 
                 Ok(Object::Group(group))
             }
 
-            _ => Err(format!("'{}' is an unknown object type.", t).into()),
+            _ => anyhow::bail!("'{}' is an unknown object type.", t),
         }
     }
 }

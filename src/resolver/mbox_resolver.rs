@@ -29,7 +29,7 @@ pub struct MBoxResolver;
 
 #[async_trait::async_trait]
 impl Resolver for MBoxResolver {
-    async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> std::io::Result<()> {
+    async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         for rcpt in ctx.envelop.rcpt.iter() {
             match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
                 Some(user) => {
@@ -72,13 +72,7 @@ impl Resolver for MBoxResolver {
                         rcpt
                     );
                 }
-                _ => {
-                    log::error!("unable to get user '{}' by name", rcpt.local_part());
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "unable to get user",
-                    ));
-                }
+                _ => anyhow::bail!("unable to get user '{}' by name", rcpt.local_part()),
             }
         }
         Ok(())

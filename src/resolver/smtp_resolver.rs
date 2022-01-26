@@ -17,6 +17,7 @@ use crate::config::server_config::ServerConfig;
 **/
 use crate::model::mail::{Body, MailContext};
 
+use anyhow::Context;
 use lettre::{Message, SmtpTransport, Transport};
 use trust_dns_resolver::config::*;
 use trust_dns_resolver::TokioAsyncResolver;
@@ -28,7 +29,7 @@ pub struct SMTPResolver;
 
 #[async_trait::async_trait]
 impl Resolver for SMTPResolver {
-    async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> std::io::Result<()> {
+    async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         if let Body::Parsed(mail) = &ctx.body {
             let mut builder = Message::builder();
             for header in mail.headers.iter() {
@@ -47,10 +48,11 @@ impl Resolver for SMTPResolver {
 
             let to_send = builder
                 .body(mail.to_raw().1)
-                .expect("failed to build email with lettre");
+                .context("failed to build email with lettre")?;
+
             let resolver =
                 TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default())
-                    .expect("failed to build resolver with trust-dns-resolver");
+                    .context("failed to build resolver with trust-dns-resolver")?;
 
             for rcpt in ctx.envelop.rcpt.iter() {
                 let domain = rcpt.domain();
@@ -69,7 +71,7 @@ impl Resolver for SMTPResolver {
                                 lettre::transport::smtp::client::TlsParameters::new(
                                     exchange.as_str().into(),
                                 )
-                                .expect("couldn't build tls parameters");
+                                .context("couldn't build tls parameters in smtp resolver")?;
 
                             let mailer = SmtpTransport::builder_dangerous(exchange.as_str())
                                 .port(25)
@@ -90,7 +92,7 @@ impl Resolver for SMTPResolver {
                 }
             }
         } else {
-            log::error!("email hasn't been parsed, exiting delivery ...");
+            anyhow::bail!("email hasn't been parsed")
         }
 
         Ok(())

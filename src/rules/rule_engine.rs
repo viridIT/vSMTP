@@ -655,7 +655,7 @@ impl RhaiEngine<users::UsersCache> {
     fn new(src_path: &str) -> anyhow::Result<Self> {
         // load all sources from file.
         // this function is declared here since it isn't needed anywhere else.
-        fn load_sources(path: &Path) -> anyhow::Result<Vec<String>> {
+        fn load_sources(path: &Path) -> std::io::Result<Vec<String>> {
             let mut buffer = vec![];
 
             if path.is_file() {
@@ -692,7 +692,7 @@ impl RhaiEngine<users::mock::MockUsers> {
     pub(super) fn new(src_path: &str, users: users::mock::MockUsers) -> anyhow::Result<Self> {
         // load all sources from file.
         // this function is declared here since it isn't needed anywhere else.
-        fn load_sources(path: &Path) -> anyhow::Result<Vec<String>> {
+        fn load_sources(path: &Path) -> std::io::Result<Vec<String>> {
             let mut buffer = vec![];
 
             if path.is_file() {
@@ -765,7 +765,7 @@ lazy_static::lazy_static! {
         match RhaiEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
             Ok(engine) => engine,
             Err(_) => {
-                unreachable!("rules::rule_engine::init() should be called before using the engine.");
+                panic!("rules::rule_engine::init() should be called before using the engine.");
             }
         }
     };
@@ -782,7 +782,7 @@ lazy_static::lazy_static! {
         match RhaiEngine::<users::mock::MockUsers>::new(unsafe { RULES_PATH }, users::mock::MockUsers::with_current_uid(1)) {
             Ok(engine) => RwLock::new(engine),
             Err(error) => {
-                panic!("could not initialize the rule engine: {}", error);
+                panic!("could not initialize the rule engine: {error}");
             }
         }
     };
@@ -812,7 +812,7 @@ pub fn init(src: &'static str) -> anyhow::Result<()> {
     // creating a temporary engine to try construction.
     match RhaiEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
         Ok(engine) => engine,
-        Err(error) => return Err(error),
+        Err(error) => anyhow::bail!(error),
     };
 
     acquire_engine()
@@ -853,7 +853,7 @@ pub(crate) fn user_exists(name: &str) -> bool {
     match acquire_engine().users.lock() {
         Ok(users) => users.get_user_by_name(name).is_some(),
         Err(error) => {
-            log::error!("FATAL ERROR: {}", error);
+            log::error!("FATAL: {}", error);
             false
         }
     }
@@ -864,7 +864,7 @@ pub(crate) fn get_user_by_name(name: &str) -> Option<Arc<users::User>> {
     match acquire_engine().users.lock() {
         Ok(users) => users.get_user_by_name(name),
         Err(error) => {
-            log::error!("FATAL ERROR: {}", error);
+            log::error!("FATAL: {}", error);
             None
         }
     }

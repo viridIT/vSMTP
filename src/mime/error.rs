@@ -9,6 +9,8 @@ pub enum ParserError {
     MisplacedBoundary(String),
 }
 
+impl std::error::Error for ParserError {}
+
 pub type ParserResult<T> = Result<T, ParserError>;
 
 impl std::fmt::Display for ParserError {

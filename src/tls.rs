@@ -2,7 +2,7 @@ use crate::config::{default::DEFAULT_CONFIG, server_config::ServerConfig};
 
 fn get_signing_key_from_file(
     rsa_path: &str,
-) -> Result<std::sync::Arc<dyn rustls::sign::SigningKey>, std::io::Error> {
+) -> anyhow::Result<std::sync::Arc<dyn rustls::sign::SigningKey>> {
     let rsa_file = std::fs::File::open(&rsa_path)?;
     let mut reader = std::io::BufReader::new(rsa_file);
 
@@ -17,16 +17,13 @@ fn get_signing_key_from_file(
 
     if let Some(key) = private_keys_rsa.first() {
         rustls::sign::any_supported_type(key)
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cannot parse signing key"))
+            .map_err(|_| anyhow::anyhow!("cannot parse signing key"))
     } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "private key missing",
-        ))
+        anyhow::bail!("private key missing")
     }
 }
 
-fn get_cert_from_file(fullchain_path: &str) -> Result<Vec<rustls::Certificate>, std::io::Error> {
+fn get_cert_from_file(fullchain_path: &str) -> std::io::Result<Vec<rustls::Certificate>> {
     let fullchain_file = std::fs::File::open(&fullchain_path)?;
     let mut reader = std::io::BufReader::new(fullchain_file);
     rustls_pemfile::certs(&mut reader).map(|certs| {
