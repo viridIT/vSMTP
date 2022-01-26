@@ -58,7 +58,7 @@ impl<S> Connection<'_, S>
 where
     S: std::io::Read + std::io::Write,
 {
-    pub fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> Result<(), std::io::Error> {
+    pub fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> anyhow::Result<()> {
         log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
 
         if reply_to_send.is_error() {
@@ -79,10 +79,7 @@ where
                 );
                 std::io::Write::write_all(&mut self.io_stream, response_begin.as_bytes())?;
 
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::ConnectionAborted,
-                    "too many errors",
-                ));
+                anyhow::bail!("too many errors")
             }
 
             std::io::Write::write_all(
@@ -93,14 +90,14 @@ where
             if soft_error != -1 && self.error_count >= soft_error as u64 {
                 std::thread::sleep(self.config.smtp.error.delay);
             }
-
-            Ok(())
         } else {
             std::io::Write::write_all(
                 &mut self.io_stream,
                 self.config.smtp.get_code().get(&reply_to_send).as_bytes(),
-            )
+            )?;
         }
+
+        Ok(())
     }
 
     pub async fn read(

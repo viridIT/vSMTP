@@ -21,7 +21,7 @@ impl DataEndResolver for DefaultResolverTest {
         &mut self,
         _: &ServerConfig,
         _: &MailContext,
-    ) -> Result<SMTPReplyCode, std::io::Error> {
+    ) -> anyhow::Result<SMTPReplyCode> {
         Ok(SMTPReplyCode::Code250)
     }
 }
@@ -61,7 +61,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> Result<SMTPReplyCode, std::io::Error> {
+            ) -> anyhow::Result<SMTPReplyCode> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
