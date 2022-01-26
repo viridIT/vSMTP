@@ -121,8 +121,11 @@ let vsl = #{
         __BLOCK()
     },
 
+    // put the email in the quarantine queue.
+    // autmaticaly calls NO_DELIVERY.
     QUARANTINE: || {
         __OPERATION_QUEUE.op_quarantine();
+        metadata.resolver = "none";
     },
 
     // send a mail.
@@ -147,5 +150,10 @@ let vsl = #{
     // set resolver to mbox (default mbox database format).
     USE_MBOX: || {
         metadata.resolver = "mbox";
+    },
+
+    // prevent the system to deliver the email.
+    NO_DELIVERY: || {
+        metadata.resolver = "none";
     },
 };

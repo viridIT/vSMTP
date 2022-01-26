@@ -84,6 +84,19 @@ pub async fn start(
                     )),
                 };
 
+                match &ctx.metadata {
+                    // quietly skipping delivery processes when there is no resolver.
+                    // (in case of a quarantine for example)
+                    Some(metadata) if metadata.resolver == "none" => {
+                        log::warn!(
+                            target: DELIVER,
+                            "delivery skipped due to NO_DELIVERY action call."
+                        );
+                        return Ok(());
+                    }
+                    _ => {}
+                };
+
                 Queue::Deliver.write_to_queue(config, &ctx)?;
 
                 delivery_sender

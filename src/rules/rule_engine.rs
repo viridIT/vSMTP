@@ -190,9 +190,10 @@ impl<'a> RuleEngine<'a> {
             match op {
                 Operation::Block(path) => {
                     let mut path = std::path::PathBuf::from_str(&path)?;
+                    let message_id = &ctx.metadata.as_ref().unwrap().message_id;
                     std::fs::create_dir_all(&path)?;
 
-                    path.push(&ctx.metadata.as_ref().unwrap().message_id);
+                    path.push(message_id);
                     path.set_extension("json");
 
                     let mut file = std::fs::OpenOptions::new()
@@ -201,8 +202,17 @@ impl<'a> RuleEngine<'a> {
                         .open(path)?;
 
                     std::io::Write::write_all(&mut file, serde_json::to_string(&ctx)?.as_bytes())?;
+                    log::warn!(target: RULES, "'{message_id}' email blocked.");
                 }
-                Operation::Quarantine => Queue::Quarantine.write_to_queue(config, ctx)?,
+                Operation::Quarantine => {
+                    log::warn!(
+                        target: RULES,
+                        "'{}' email quarantined.",
+                        &ctx.metadata.as_ref().unwrap().message_id
+                    );
+
+                    Queue::Quarantine.write_to_queue(config, ctx)?
+                }
                 Operation::MutateHeader(_, _) => todo!("MutateHeader operation not implemented"),
             }
         }

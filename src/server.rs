@@ -222,6 +222,17 @@ impl ServerVSMTP {
                 crate::transaction::TransactionResult::Mail(mail) => {
                     helo_domain = Some(mail.envelop.helo.clone());
 
+                    match &mail.metadata {
+                        // quietly skipping mime & delivery processes when there is no resolver.
+                        // (in case of a quarantine for example)
+                        Some(metadata) if metadata.resolver == "none" => {
+                            log::warn!("delivery skipped due to NO_DELIVERY action call.");
+                            conn.send_code(SMTPReplyCode::Code250)?;
+                            continue;
+                        }
+                        _ => {}
+                    };
+
                     match Queue::Working.write_to_queue(&conn.config, &mail) {
                         Ok(_) => {
                             working_sender
@@ -285,6 +296,19 @@ impl ServerVSMTP {
                             crate::transaction::TransactionResult::Nothing => {}
                             crate::transaction::TransactionResult::Mail(mail) => {
                                 secured_helo_domain = Some(mail.envelop.helo.clone());
+
+                                match &mail.metadata {
+                                    // quietly skipping mime & delivery processes when there is no resolver.
+                                    // (in case of a quarantine for example)
+                                    Some(metadata) if metadata.resolver == "none" => {
+                                        log::warn!(
+                                            "delivery skipped due to NO_DELIVERY action call."
+                                        );
+                                        secured_conn.send_code(SMTPReplyCode::Code250)?;
+                                        continue;
+                                    }
+                                    _ => {}
+                                };
 
                                 match Queue::Working.write_to_queue(&conn.config, &mail) {
                                     Ok(_) => {
