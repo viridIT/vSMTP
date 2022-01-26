@@ -149,7 +149,7 @@ pub mod test {
             &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
-        ) -> Result<SMTPReplyCode, std::io::Error> {
+        ) -> anyhow::Result<SMTPReplyCode> {
             println!("{:?}", ctx.envelop.rcpt);
             println!("{:?}", ctx.envelop.mail_from);
 

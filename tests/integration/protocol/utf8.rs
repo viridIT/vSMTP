@@ -17,7 +17,7 @@ mod tests {
                     &mut self,
                     _: &ServerConfig,
                     ctx: &MailContext,
-                ) -> Result<SMTPReplyCode, std::io::Error> {
+                ) -> anyhow::Result<SMTPReplyCode> {
                     assert_eq!(ctx.envelop.helo, "foobar".to_string());
                     assert_eq!(ctx.envelop.mail_from.full(), "john@doe".to_string());
                     assert_eq!(
