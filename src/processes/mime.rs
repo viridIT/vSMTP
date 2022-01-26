@@ -69,8 +69,8 @@ pub async fn start(
             .add_data("metadata", ctx.metadata.clone());
 
         match rule_engine.run_when("postq") {
-            Status::Deny => Queue::Dead.write_to_queue(config, &ctx).await?,
-            Status::Block => Queue::Quarantine.write_to_queue(config, &ctx).await?,
+            Status::Deny => Queue::Dead.write_to_queue(config, &ctx)?,
+            Status::Block => Queue::Quarantine.write_to_queue(config, &ctx)?,
             _ => {
                 match rule_engine.get_scoped_envelop() {
                     Some((envelop, metadata, mail)) => {
@@ -84,7 +84,7 @@ pub async fn start(
                     )),
                 };
 
-                Queue::Deliver.write_to_queue(config, &ctx).await?;
+                Queue::Deliver.write_to_queue(config, &ctx)?;
 
                 delivery_sender
                     .send(ProcessMessage {

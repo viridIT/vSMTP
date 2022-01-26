@@ -15,9 +15,11 @@
  *
  **/
 use crate::config::log_channel::RULES;
+use crate::config::server_config::ServerConfig;
 use crate::mime::mail::{BodyType, Mail};
 use crate::model::envelop::Envelop;
 use crate::model::mail::{MailContext, MessageMetadata};
+use crate::queue::Queue;
 use crate::rules::address::Address;
 use crate::rules::obj::Object;
 use crate::rules::operation_queue::{Operation, OperationQueue};
@@ -173,6 +175,7 @@ impl<'a> RuleEngine<'a> {
     /// empty the operation queue and executing all operations stored.
     pub(crate) fn execute_operation_queue(
         &mut self,
+        config: &ServerConfig,
         ctx: &MailContext,
     ) -> Result<(), Box<dyn Error>> {
         for op in self
@@ -183,7 +186,7 @@ impl<'a> RuleEngine<'a> {
             })?
             .into_iter()
         {
-            log::debug!(target: RULES, "executing heavy operation: {:?}", op);
+            log::debug!(target: RULES, "executing deferred operation: {:?}", op);
             match op {
                 Operation::Block(path) => {
                     let mut path = std::path::PathBuf::from_str(&path)?;
@@ -199,7 +202,8 @@ impl<'a> RuleEngine<'a> {
 
                     std::io::Write::write_all(&mut file, serde_json::to_string(&ctx)?.as_bytes())?;
                 }
-                Operation::MutateHeader(_, _) => todo!(),
+                Operation::Quarantine => Queue::Quarantine.write_to_queue(config, ctx)?,
+                Operation::MutateHeader(_, _) => todo!("MutateHeader operation not implemented"),
             }
         }
 

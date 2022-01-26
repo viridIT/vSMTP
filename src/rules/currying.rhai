@@ -121,6 +121,10 @@ let vsl = #{
         __BLOCK()
     },
 
+    QUARANTINE: || {
+        __OPERATION_QUEUE.op_quarantine();
+    },
+
     // send a mail.
     MAIL: |from, to, subject, body| {
         __MAIL(from, to, subject, body);

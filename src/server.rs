@@ -222,7 +222,7 @@ impl ServerVSMTP {
                 crate::transaction::TransactionResult::Mail(mail) => {
                     helo_domain = Some(mail.envelop.helo.clone());
 
-                    match Queue::Working.write_to_queue(&conn.config, &mail).await {
+                    match Queue::Working.write_to_queue(&conn.config, &mail) {
                         Ok(_) => {
                             working_sender
                                 .send(ProcessMessage {
@@ -286,7 +286,7 @@ impl ServerVSMTP {
                             crate::transaction::TransactionResult::Mail(mail) => {
                                 secured_helo_domain = Some(mail.envelop.helo.clone());
 
-                                match Queue::Working.write_to_queue(&conn.config, &mail).await {
+                                match Queue::Working.write_to_queue(&conn.config, &mail) {
                                     Ok(_) => {
                                         working_sender
                                             .send(ProcessMessage {

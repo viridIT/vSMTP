@@ -47,6 +47,11 @@ pub(super) mod vsl {
         queue.enqueue(Operation::Block(path.to_string()))
     }
 
+    /// enqueue a quarantine operation on the queue.
+    pub fn op_quarantine(queue: &mut OperationQueue) {
+        queue.enqueue(Operation::Quarantine)
+    }
+
     /// enqueue a header mutation operation on the queue.
     pub fn op_mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
         queue.enqueue(Operation::MutateHeader(

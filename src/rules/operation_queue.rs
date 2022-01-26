@@ -29,6 +29,8 @@ pub enum Operation {
     MutateHeader(String, String),
     /// block an incoming email (blocked email directory)
     Block(String),
+    /// put an email in the quarantine queue.
+    Quarantine,
 }
 
 impl OperationQueue {

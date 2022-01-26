@@ -49,7 +49,7 @@ impl Queue {
     }
 
     /// write the email to a queue and send the message id to another process.
-    pub async fn write_to_queue(
+    pub fn write_to_queue(
         &self,
         config: &ServerConfig,
         ctx: &crate::model::mail::MailContext,

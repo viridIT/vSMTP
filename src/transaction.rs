@@ -229,7 +229,10 @@ impl Transaction<'_> {
                 }
 
                 // executing all registered extensive operations.
-                if let Err(error) = self.rule_engine.execute_operation_queue(&self.mail) {
+                if let Err(error) = self
+                    .rule_engine
+                    .execute_operation_queue(&conn.config, &self.mail)
+                {
                     log::error!(
                         target: RULES,
                         "failed to empty the operation queue: '{}'",
