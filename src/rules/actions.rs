@@ -48,8 +48,8 @@ pub(super) mod vsl {
     }
 
     /// enqueue a quarantine operation on the queue.
-    pub fn op_quarantine(queue: &mut OperationQueue) {
-        queue.enqueue(Operation::Quarantine)
+    pub fn op_quarantine(queue: &mut OperationQueue, reason: String) {
+        queue.enqueue(Operation::Quarantine { reason })
     }
 
     /// enqueue a header mutation operation on the queue.

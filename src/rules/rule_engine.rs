@@ -204,10 +204,10 @@ impl<'a> RuleEngine<'a> {
                     std::io::Write::write_all(&mut file, serde_json::to_string(&ctx)?.as_bytes())?;
                     log::warn!(target: RULES, "'{message_id}' email blocked.");
                 }
-                Operation::Quarantine => {
+                Operation::Quarantine { reason } => {
                     log::warn!(
                         target: RULES,
-                        "'{}' email quarantined.",
+                        "'{}' email quarantined: {reason}.",
                         &ctx.metadata.as_ref().unwrap().message_id
                     );
 

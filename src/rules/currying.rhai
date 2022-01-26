@@ -123,8 +123,8 @@ let vsl = #{
 
     // put the email in the quarantine queue.
     // autmaticaly calls NO_DELIVERY.
-    QUARANTINE: || {
-        __OPERATION_QUEUE.op_quarantine();
+    QUARANTINE: |reason| {
+        __OPERATION_QUEUE.op_quarantine(reason);
         metadata.resolver = "none";
     },
 

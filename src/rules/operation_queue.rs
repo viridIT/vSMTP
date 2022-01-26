@@ -30,7 +30,7 @@ pub enum Operation {
     /// block an incoming email (blocked email directory)
     Block(String),
     /// put an email in the quarantine queue.
-    Quarantine,
+    Quarantine { reason: String },
 }
 
 impl OperationQueue {
