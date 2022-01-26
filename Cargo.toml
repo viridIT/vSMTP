@@ -20,16 +20,16 @@ clap = { version = "3.0.4", features = ["derive"] }
 
 libc = "0.2.112"
 socket2 = "0.4.2"
-trust-dns-resolver = "0.20.3"
+anyhow = "1.0"
 
 serde = { version = "1.0.133", features = ["derive"] }
 serde_derive = "1.0.133"
 serde_with = { version = "1.11.0", features = ["macros"] }
 serde_json = "1.0.74"
-
 toml = "0.5.8"
 humantime = "2.1.0"
 humantime-serde = "1.0.1"
+
 addr = { version = "0.15.2" } # features = ["net"] } # create some issue..
 regex = "1.5.4"
 iprange = "0.6.6"
@@ -40,6 +40,7 @@ rhai = { version = "1.4.0", features = ["unchecked", "sync"] }
 
 # the 0.10 release is more stable than the 0.9 and enable async support.
 lettre = "0.10.0-rc.4"
+trust-dns-resolver = "0.20.3"
 
 async-trait = "0.1.52"
 lazy_static = "1.4"
