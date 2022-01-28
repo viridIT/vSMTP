@@ -24,7 +24,7 @@ mod tests {
                 &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> Result<SMTPReplyCode, std::io::Error> {
+            ) -> anyhow::Result<SMTPReplyCode> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "a@b");
                 assert_eq!(
@@ -139,7 +139,7 @@ mod tests {
                 &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> Result<SMTPReplyCode, std::io::Error> {
+            ) -> anyhow::Result<SMTPReplyCode> {
                 assert_eq!(ctx.envelop.helo, "foo2");
                 assert_eq!(ctx.envelop.mail_from.full(), "d@e");
                 assert_eq!(
@@ -195,7 +195,7 @@ mod tests {
                 &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> Result<SMTPReplyCode, std::io::Error> {
+            ) -> anyhow::Result<SMTPReplyCode> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "foo@foo");
                 assert_eq!(
@@ -249,7 +249,7 @@ mod tests {
                 &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> Result<SMTPReplyCode, std::io::Error> {
+            ) -> anyhow::Result<SMTPReplyCode> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "foo2@foo");
                 assert_eq!(

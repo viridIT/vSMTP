@@ -67,7 +67,7 @@ pub mod helpers {
         users: users::mock::MockUsers,
         smtp_input: &[u8],
         expected_output: &[u8],
-    ) -> Result<(), std::io::Error> {
+    ) -> anyhow::Result<()> {
         let mut config: ServerConfig = toml::from_str(
             &std::fs::read_to_string(config_path).expect("failed to read config from file"),
         )

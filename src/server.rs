@@ -36,9 +36,7 @@ pub struct ServerVSMTP {
 }
 
 impl ServerVSMTP {
-    pub async fn new(
-        config: std::sync::Arc<ServerConfig>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<Self> {
         // NOTE: Err type is core::convert::Infallible, it's safe to unwrap.
         let spool_dir =
             <std::path::PathBuf as std::str::FromStr>::from_str(&config.smtp.spool_dir).unwrap();
@@ -75,7 +73,7 @@ impl ServerVSMTP {
         self
     }
 
-    pub async fn listen_and_serve(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
         let delivery_buffer_size = self
             .config
             .delivery
@@ -208,7 +206,7 @@ impl ServerVSMTP {
         conn: &mut Connection<'_, S>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    ) -> Result<(), std::io::Error>
+    ) -> anyhow::Result<()>
     where
         S: std::io::Read + std::io::Write,
     {

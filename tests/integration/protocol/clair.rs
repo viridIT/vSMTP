@@ -23,7 +23,7 @@ mod tests {
                 &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> Result<SMTPReplyCode, std::io::Error> {
+            ) -> anyhow::Result<SMTPReplyCode> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
@@ -413,7 +413,7 @@ mod tests {
                 &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> Result<SMTPReplyCode, std::io::Error> {
+            ) -> anyhow::Result<SMTPReplyCode> {
                 match self.count {
                     0 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
@@ -501,7 +501,7 @@ mod tests {
                 &mut self,
                 _: &ServerConfig,
                 ctx: &MailContext,
-            ) -> Result<SMTPReplyCode, std::io::Error> {
+            ) -> anyhow::Result<SMTPReplyCode> {
                 match self.count {
                     0 => {
                         assert_eq!(ctx.envelop.helo, "foobar");

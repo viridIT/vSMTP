@@ -28,12 +28,12 @@ pub trait DataEndResolver {
         &mut self,
         config: &ServerConfig,
         mail: &MailContext,
-    ) -> std::io::Result<SMTPReplyCode>;
+    ) -> anyhow::Result<SMTPReplyCode>;
 }
 
 #[async_trait::async_trait]
 pub trait Resolver {
-    async fn deliver(&self, config: &ServerConfig, mail: &MailContext) -> std::io::Result<()>;
+    async fn deliver(&self, config: &ServerConfig, mail: &MailContext) -> anyhow::Result<()>;
 }
 
 /// sets user & group rights to the given file / folder.

@@ -53,15 +53,10 @@ impl Queue {
         &self,
         config: &ServerConfig,
         ctx: &crate::model::mail::MailContext,
-    ) -> std::io::Result<()> {
+    ) -> anyhow::Result<()> {
         let message_id = match ctx.metadata.as_ref() {
             Some(metadata) => &metadata.message_id,
-            None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "metadata not found",
-                ))
-            }
+            None => anyhow::bail!("mail metadata not found"),
         };
 
         let to_deliver = self.to_path(&config.smtp.spool_dir)?.join(message_id);

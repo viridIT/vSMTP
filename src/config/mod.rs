@@ -10,9 +10,7 @@ pub mod log_channel {
     pub const DELIVER: &str = "deliver";
 }
 
-pub fn get_logger_config(
-    config: &server_config::ServerConfig,
-) -> Result<log4rs::Config, std::io::Error> {
+pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result<log4rs::Config> {
     use log4rs::*;
 
     let console = append::console::ConsoleAppender::builder()
@@ -51,6 +49,6 @@ pub fn get_logger_config(
         )
         .map_err(|e| {
             e.errors().iter().for_each(|e| log::error!("{}", e));
-            std::io::Error::new(std::io::ErrorKind::Other, e)
+            anyhow::anyhow!(e)
         })
 }

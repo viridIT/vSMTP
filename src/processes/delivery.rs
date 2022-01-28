@@ -28,7 +28,7 @@ pub async fn start(
     resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: std::sync::Arc<ServerConfig>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
-) -> std::io::Result<()> {
+) -> anyhow::Result<()> {
     log::info!(
         target: DELIVER,
         "vDeliver (deferred) booting, flushing queue.",
@@ -80,7 +80,7 @@ async fn handle_one_in_delivery_queue(
     resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
     path: &std::path::Path,
     config: &ServerConfig,
-) -> std::io::Result<()> {
+) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
 
     log::trace!(
@@ -99,12 +99,7 @@ async fn handle_one_in_delivery_queue(
     let resolver_name = &mail.metadata.as_ref().unwrap().resolver;
     let resolver = match resolvers.get(resolver_name) {
         Some(resolver) => resolver,
-        None => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!("resolver '{resolver_name}' not found"),
-            ))
-        }
+        None => anyhow::bail!("resolver '{resolver_name}' not found"),
     };
 
     match resolver.deliver(config, &mail).await {
@@ -153,7 +148,7 @@ async fn handle_one_in_delivery_queue(
 async fn flush_deliver_queue(
     resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: &ServerConfig,
-) -> std::io::Result<()> {
+) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.smtp.spool_dir)?)? {
         handle_one_in_delivery_queue(resolvers, &path?.path(), config)
             .await
@@ -167,7 +162,7 @@ async fn handle_one_in_deferred_queue(
     resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
     path: &std::path::Path,
     config: &ServerConfig,
-) -> std::io::Result<()> {
+) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
 
     log::debug!(
@@ -192,10 +187,7 @@ async fn handle_one_in_deferred_queue(
         .unwrap_or(100);
 
     if mail.metadata.is_none() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "metadata are missing",
-        ));
+        anyhow::bail!("email metadata is missing")
     }
 
     if mail.metadata.as_ref().unwrap().retry >= max_retry_deferred {
@@ -223,12 +215,7 @@ async fn handle_one_in_deferred_queue(
         let resolver_name = &mail.metadata.as_ref().unwrap().resolver;
         let resolver = match resolvers.get(resolver_name) {
             Some(resolver) => resolver,
-            None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    format!("resolver '{resolver_name}' not found"),
-                ))
-            }
+            None => anyhow::bail!("resolver '{resolver_name}' not found"),
         };
 
         match resolver.deliver(config, &mail).await {
@@ -281,7 +268,7 @@ async fn handle_one_in_deferred_queue(
 async fn flush_deferred_queue(
     resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: &ServerConfig,
-) -> std::io::Result<()> {
+) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deferred.to_path(&config.smtp.spool_dir)?)? {
         handle_one_in_deferred_queue(resolvers, &path?.path(), config)
             .await

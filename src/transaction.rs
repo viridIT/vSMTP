@@ -326,7 +326,7 @@ impl Transaction<'_> {
         }
     }
 
-    // FIXME: too many clone
+    // FIXME: too many clones.
     fn set_rcpt_to(&mut self, rcpt_to: String) {
         match Address::new(&rcpt_to) {
             Err(_) => (),
@@ -353,7 +353,7 @@ impl Transaction<'_> {
     pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write>(
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
-    ) -> std::io::Result<TransactionResult> {
+    ) -> anyhow::Result<TransactionResult> {
         let mut transaction = Transaction {
             state: if helo_domain.is_none() {
                 StateSMTP::Connect
@@ -375,13 +375,10 @@ impl Transaction<'_> {
         }
 
         if let Status::Deny = transaction.rule_engine.run_when("connect") {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!(
-                    "connection at '{}' has been denied when connecting.",
-                    conn.client_addr
-                ),
-            ));
+            anyhow::bail!(
+                "connection at '{}' has been denied when connecting.",
+                conn.client_addr
+            )
         };
 
         fn get_timeout_for_state(
@@ -433,11 +430,11 @@ impl Transaction<'_> {
                 }
                 Ok(Err(ReadError::Other(e))) => {
                     // TODO: send error to client ?
-                    return Err(e);
+                    anyhow::bail!(e)
                 }
                 Err(e) => {
                     conn.send_code(SMTPReplyCode::Code451Timeout)?;
-                    return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
+                    anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
                 }
             }
         }

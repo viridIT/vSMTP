@@ -229,7 +229,7 @@ pub mod test {
             &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
-        ) -> Result<SMTPReplyCode, std::io::Error> {
+        ) -> anyhow::Result<SMTPReplyCode> {
             assert!(ctx
                 .envelop
                 .rcpt
@@ -313,7 +313,7 @@ pub mod test {
             &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
-        ) -> Result<SMTPReplyCode, std::io::Error> {
+        ) -> anyhow::Result<SMTPReplyCode> {
             println!("{:?}", ctx.envelop.rcpt);
 
             assert!(ctx
@@ -401,7 +401,7 @@ pub mod test {
             &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
-        ) -> Result<SMTPReplyCode, std::io::Error> {
+        ) -> anyhow::Result<SMTPReplyCode> {
             println!("{:?}", ctx.envelop.rcpt);
 
             assert!(ctx
