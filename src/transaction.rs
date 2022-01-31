@@ -248,6 +248,17 @@ impl Transaction<'_> {
                         self.mail.metadata = metadata;
                         self.mail.body = Body::Parsed(mail.into());
 
+                        // TODO: find a better way to propagate force accept.
+                        // the "skipped" field is updated by the rule engine internal state,
+                        // which does result in hard to read code, but it was the fastest way
+                        // to propagate the force accept to the server.
+                        // Alternatives:
+                        //  - return ProcessedEvent::CompletedMimeSkipped
+                        //  - set body to Body::ParsingFailed or Body::ParsingSkipped.
+                        if let Some(metadata) = &mut self.mail.metadata {
+                            metadata.skipped = self.rule_engine.skipped();
+                        }
+
                         let mut output = MailContext {
                             envelop: Envelop::default(),
                             body: Body::Raw(String::default()),
@@ -316,6 +327,7 @@ impl Transaction<'_> {
                     ),
                     retry: 0,
                     resolver: "smtp".to_string(),
+                    skipped: self.rule_engine.skipped(),
                 });
 
                 self.rule_engine

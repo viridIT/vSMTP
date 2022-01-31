@@ -69,7 +69,7 @@ impl Queue {
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 
-        log::trace!(
+        log::debug!(
             target: RECEIVER,
             "mail {} successfully written to {} queue",
             message_id,

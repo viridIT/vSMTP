@@ -77,10 +77,12 @@ pub async fn test_receiver<T: DataEndResolver>(
     let mut conn = Connection::<Mock<'_>>::from_plain(address.parse().unwrap(), config, &mut io)?;
 
     let (working_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+    let (delivery_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
     ServerVSMTP::handle_connection::<Mock<'_>>(
         &mut conn,
         std::sync::Arc::new(working_sender),
+        std::sync::Arc::new(delivery_sender),
         None,
     )
     .await?;
