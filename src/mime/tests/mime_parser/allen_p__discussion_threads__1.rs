@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.");
+const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");
 
 #[test]
 fn mime_parser() {
