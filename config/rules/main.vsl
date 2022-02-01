@@ -1,0 +1,26 @@
+rule connect "my_runner" #{
+    condition: || true,
+    on_success: || {
+        let output = vsl.SHELL("echo hello world");
+        vsl.LOG_OUT(`${output.status} ${output.stdout} ${output.stderr}`);
+        vsl.ACCEPT()
+    },
+    on_failure: vsl.DENY,
+};
+
+fn my_scan(vsl) {
+    vsl.DUMP("/tmp/to_scan");
+    // NOTE: this is very slow
+    let output = vsl.SHELL("clamscan /tmp/to_scan");
+    print(output.stdout);
+    output.status == 0
+}
+
+rule preq "my_clamscan" #{
+    condition: || my_scan(vsl),
+    on_success: || {
+        print("no virus");
+        vsl.ACCEPT()
+    },
+    on_failure: vsl.DENY,
+};

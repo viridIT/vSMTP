@@ -282,6 +282,10 @@ impl<U: Users> RhaiEngine<U> {
         engine
         .register_global_module(api_mod.into())
 
+        .register_get("stdout", |output: &mut std::process::Output| std::str::from_utf8(&output.stdout).unwrap().to_string())
+        .register_get("stderr", |output: &mut std::process::Output| std::str::from_utf8(&output.stderr).unwrap().to_string())
+        .register_get("status", |output: &mut std::process::Output| output.status.code().unwrap())
+
         .register_type::<Address>()
         .register_result_fn("new_address", <Address>::rhai_wrapper)
         .register_fn("to_string", |addr: &mut Address| addr.full().to_string())

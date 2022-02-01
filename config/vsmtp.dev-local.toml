@@ -9,10 +9,10 @@ addr = "0.0.0.0:10025"
 file = "./tmp/var/log/vsmtp/vsmtp.log"
 
 [log.level]
-default = "trace"
+default = "warn"
 receiver = "warn"
-resolver = "trace"
-rules = "warn"
+resolver = "warn"
+rules = "trace"
 
 [rules]
 dir = "./config/rules"

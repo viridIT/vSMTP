@@ -42,6 +42,15 @@ pub(super) mod vsl {
         rules::address::Address,
     };
 
+    #[rhai_fn(name = "__SHELL")]
+    pub fn shell(command: &str) -> std::process::Output {
+        std::process::Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .output()
+            .expect("failed to execute process")
+    }
+
     /// enqueue a block operation on the queue.
     pub fn op_block(queue: &mut OperationQueue, path: &str) {
         queue.enqueue(Operation::Block(path.to_string()))
@@ -287,6 +296,16 @@ pub(super) mod vsl {
     #[rhai_fn(name = "==")]
     pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
         *in1 == in2
+    }
+
+    #[rhai_fn(name = "==")]
+    pub fn eq_integer1(i1: i64, i2: i32) -> bool {
+        i1 as i32 == i2
+    }
+
+    #[rhai_fn(name = "==")]
+    pub fn eq_integer2(i1: i32, i2: i64) -> bool {
+        i1 == i2 as i32
     }
 
     #[rhai_fn(name = "!=")]
