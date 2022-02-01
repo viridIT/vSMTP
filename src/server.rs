@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -16,10 +14,13 @@ use std::collections::HashMap;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use std::collections::HashMap;
+
 use crate::{
     config::server_config::{ServerConfig, TlsSecurityLevel},
     connection::Connection,
     io_service::IoService,
+    model::mail::MailContext,
     processes::ProcessMessage,
     queue::Queue,
     resolver::Resolver,
@@ -31,13 +32,14 @@ use crate::{
 pub struct ServerVSMTP {
     resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
     listener: tokio::net::TcpListener,
+    listener_submission: tokio::net::TcpListener,
+    listener_submissions: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     config: std::sync::Arc<ServerConfig>,
 }
 
 impl ServerVSMTP {
     pub async fn new(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<Self> {
-        // NOTE: Err type is core::convert::Infallible, it's safe to unwrap.
         let spool_dir =
             <std::path::PathBuf as std::str::FromStr>::from_str(&config.smtp.spool_dir).unwrap();
 
@@ -50,6 +52,10 @@ impl ServerVSMTP {
         Ok(Self {
             resolvers: HashMap::new(),
             listener: tokio::net::TcpListener::bind(&config.server.addr).await?,
+            listener_submission: tokio::net::TcpListener::bind(&config.server.addr_submission)
+                .await?,
+            listener_submissions: tokio::net::TcpListener::bind(&config.server.addr_submissions)
+                .await?,
             tls_config: if config.tls.security_level == TlsSecurityLevel::None {
                 None
             } else {
@@ -59,10 +65,18 @@ impl ServerVSMTP {
         })
     }
 
-    pub fn addr(&self) -> std::net::SocketAddr {
-        self.listener
-            .local_addr()
-            .expect("cannot retrieve local address")
+    pub fn addr(&self) -> Vec<std::net::SocketAddr> {
+        vec![
+            self.listener
+                .local_addr()
+                .expect("cannot retrieve local address"),
+            self.listener_submission
+                .local_addr()
+                .expect("cannot retrieve local address"),
+            self.listener_submissions
+                .local_addr()
+                .expect("cannot retrieve local address"),
+        ]
     }
 
     pub fn with_resolver<T>(&mut self, name: &str, resolver: T) -> &mut Self
@@ -120,29 +134,44 @@ impl ServerVSMTP {
         let delivery_sender = std::sync::Arc::new(delivery_sender);
 
         loop {
-            match self.listener.accept().await {
-                Ok((stream, client_addr)) => {
-                    log::warn!("Connection from: {}", client_addr);
+            let (stream, client_addr, kind) = tokio::select! {
+                Ok((stream, client_addr)) = self.listener.accept() => {
+                    (stream, client_addr, crate::connection::Kind::Opportunistic)
+                }
+                Ok((stream, client_addr)) = self.listener_submission.accept() => {
+                    (stream, client_addr, crate::connection::Kind::Submission)
+                }
+                Ok((stream, client_addr)) = self.listener_submissions.accept() => {
+                    (stream, client_addr, crate::connection::Kind::Tunneled)
+                }
+            };
 
-                    let mut stream = stream.into_std()?;
-                    stream.set_nonblocking(true)?;
+            log::warn!("Connection from: {:?}, {}", kind, client_addr);
 
-                    let config = self.config.clone();
-                    let tls_config = self.tls_config.as_ref().map(std::sync::Arc::clone);
+            let mut stream = stream.into_std()?;
+            stream.set_nonblocking(true)?;
 
-                    let working_sender = working_sender.clone();
-                    let delivery_sender = delivery_sender.clone();
-                    tokio::spawn(async move {
-                        let begin = std::time::SystemTime::now();
-                        log::warn!("Handling client: {}", client_addr);
+            let config = self.config.clone();
+            let tls_config = self.tls_config.clone();
 
-                        let mut io_plain = IoService::new(&mut stream);
+            let working_sender = working_sender.clone();
+            let delivery_sender = delivery_sender.clone();
 
-                        let mut conn = Connection::<std::net::TcpStream>::from_plain(
-                            client_addr,
-                            config.clone(),
-                            &mut io_plain,
-                        )?;
+            tokio::spawn(async move {
+                let begin = std::time::SystemTime::now();
+                log::warn!("Handling client: {}", client_addr);
+
+                let mut io_plain = IoService::new(&mut stream);
+
+                let mut conn = Connection::<std::net::TcpStream>::from_plain(
+                    kind,
+                    client_addr,
+                    config.clone(),
+                    &mut io_plain,
+                )?;
+                match conn.kind {
+                    crate::connection::Kind::Opportunistic
+                    | crate::connection::Kind::Submission => {
                         Self::handle_connection::<std::net::TcpStream>(
                             &mut conn,
                             working_sender,
@@ -150,26 +179,34 @@ impl ServerVSMTP {
                             tls_config,
                         )
                         .await
-                        .map(|_| {
-                            log::warn!(
-                                "{{ elapsed: {:?} }} Connection {} closed cleanly",
-                                begin.elapsed(),
-                                client_addr,
-                            );
-                        })
-                        .map_err(|error| {
-                            log::error!(
-                                "{{ elapsed: {:?} }} Connection {} closed with an error {}",
-                                begin.elapsed(),
-                                client_addr,
-                                error,
-                            );
-                            error
-                        })
-                    });
+                    }
+                    crate::connection::Kind::Tunneled => {
+                        Self::handle_connection_secured(
+                            &mut conn,
+                            working_sender,
+                            delivery_sender,
+                            tls_config,
+                        )
+                        .await
+                    }
                 }
-                Err(e) => log::error!("Error accepting socket; error = {:?}", e),
-            }
+                .map(|_| {
+                    log::warn!(
+                        "{{ elapsed: {:?} }} Connection {} closed cleanly",
+                        begin.elapsed(),
+                        client_addr,
+                    );
+                })
+                .map_err(|error| {
+                    log::error!(
+                        "{{ elapsed: {:?} }} Connection {} closed with an error {}",
+                        begin.elapsed(),
+                        client_addr,
+                        error,
+                    );
+                    error
+                })
+            });
         }
     }
 
@@ -206,6 +243,62 @@ impl ServerVSMTP {
             .unwrap_or(false)
     }
 
+    async fn on_mail<S: std::io::Read + std::io::Write>(
+        conn: &mut Connection<'_, S>,
+        mail: Box<MailContext>,
+        helo_domain: &mut Option<String>,
+        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+        delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+    ) -> anyhow::Result<()> {
+        *helo_domain = Some(mail.envelop.helo.clone());
+
+        match &mail.metadata {
+            // quietly skipping mime & delivery processes when there is no resolver.
+            // (in case of a quarantine for example)
+            Some(metadata) if metadata.resolver == "none" => {
+                log::warn!("delivery skipped due to NO_DELIVERY action call.");
+                conn.send_code(SMTPReplyCode::Code250)?;
+            }
+            Some(metadata) if metadata.skipped.is_some() => {
+                log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
+                match Queue::Deliver.write_to_queue(&conn.config, &mail) {
+                    Ok(_) => {
+                        delivery_sender
+                            .send(ProcessMessage {
+                                message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
+                            })
+                            .await?;
+
+                        conn.send_code(SMTPReplyCode::Code250)?
+                    }
+                    Err(error) => {
+                        log::error!("couldn't write to delivery queue: {}", error);
+                        conn.send_code(SMTPReplyCode::Code554)?
+                    }
+                };
+            }
+            _ => {
+                match Queue::Working.write_to_queue(&conn.config, &mail) {
+                    Ok(_) => {
+                        working_sender
+                            .send(ProcessMessage {
+                                message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
+                            })
+                            .await?;
+
+                        conn.send_code(SMTPReplyCode::Code250)?
+                    }
+                    Err(error) => {
+                        log::error!("couldn't write to queue: {}", error);
+                        conn.send_code(SMTPReplyCode::Code554)?
+                    }
+                };
+            }
+        };
+
+        Ok(())
+    }
+
     pub async fn handle_connection<S>(
         conn: &mut Connection<'_, S>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
@@ -223,61 +316,14 @@ impl ServerVSMTP {
             match Transaction::receive(conn, &helo_domain).await? {
                 crate::transaction::TransactionResult::Nothing => {}
                 crate::transaction::TransactionResult::Mail(mail) => {
-                    helo_domain = Some(mail.envelop.helo.clone());
-
-                    match &mail.metadata {
-                        // quietly skipping mime & delivery processes when there is no resolver.
-                        // (in case of a quarantine for example)
-                        Some(metadata) if metadata.resolver == "none" => {
-                            log::warn!("delivery skipped due to NO_DELIVERY action call.");
-                            conn.send_code(SMTPReplyCode::Code250)?;
-                        }
-                        Some(metadata) if metadata.skipped.is_some() => {
-                            log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
-                            match Queue::Deliver.write_to_queue(&conn.config, &mail) {
-                                Ok(_) => {
-                                    delivery_sender
-                                        .send(ProcessMessage {
-                                            message_id: mail
-                                                .metadata
-                                                .as_ref()
-                                                .unwrap()
-                                                .message_id
-                                                .clone(),
-                                        })
-                                        .await?;
-
-                                    conn.send_code(SMTPReplyCode::Code250)?
-                                }
-                                Err(error) => {
-                                    log::error!("couldn't write to delivery queue: {}", error);
-                                    conn.send_code(SMTPReplyCode::Code554)?
-                                }
-                            };
-                        }
-                        _ => {
-                            match Queue::Working.write_to_queue(&conn.config, &mail) {
-                                Ok(_) => {
-                                    working_sender
-                                        .send(ProcessMessage {
-                                            message_id: mail
-                                                .metadata
-                                                .as_ref()
-                                                .unwrap()
-                                                .message_id
-                                                .clone(),
-                                        })
-                                        .await?;
-
-                                    conn.send_code(SMTPReplyCode::Code250)?
-                                }
-                                Err(error) => {
-                                    log::error!("couldn't write to queue: {}", error);
-                                    conn.send_code(SMTPReplyCode::Code554)?
-                                }
-                            };
-                        }
-                    };
+                    Self::on_mail(
+                        conn,
+                        mail,
+                        &mut helo_domain,
+                        working_sender.clone(),
+                        delivery_sender.clone(),
+                    )
+                    .await?;
                 }
                 crate::transaction::TransactionResult::TlsUpgrade if tls_config.is_none() => {
                     conn.send_code(SMTPReplyCode::Code454)?;
@@ -285,93 +331,83 @@ impl ServerVSMTP {
                     return Ok(());
                 }
                 crate::transaction::TransactionResult::TlsUpgrade => {
-                    let mut tls_conn = rustls::ServerConnection::new(tls_config.unwrap()).unwrap();
-                    let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
-                    let mut io_tls_stream = IoService::new(&mut tls_stream);
-
-                    Connection::<IoService<'_, S>>::complete_tls_handshake(
-                        &mut io_tls_stream,
-                        &conn.config.tls.handshake_timeout,
-                    )?;
-
-                    let mut secured_conn = Connection {
-                        timestamp: conn.timestamp,
-                        is_alive: true,
-                        config: conn.config.clone(),
-                        client_addr: conn.client_addr,
-                        error_count: conn.error_count,
-                        is_secured: true,
-                        io_stream: &mut io_tls_stream,
-                    };
-
-                    // FIXME: the rejection of the client because of the SSL/TLS protocol
-                    // version is done after the handshake...
-
-                    if !Self::is_version_requirement_satisfied(
-                        secured_conn.io_stream.inner.conn,
-                        &secured_conn.config,
-                    ) {
-                        log::error!("requirement not satisfied");
-                        // TODO: send error 500 ?
-                        return Ok(());
-                    }
-
-                    let mut secured_helo_domain = None;
-
-                    while secured_conn.is_alive {
-                        match Transaction::receive(&mut secured_conn, &secured_helo_domain).await? {
-                            crate::transaction::TransactionResult::Nothing => {}
-                            crate::transaction::TransactionResult::Mail(mail) => {
-                                secured_helo_domain = Some(mail.envelop.helo.clone());
-
-                                match &mail.metadata {
-                                    // quietly skipping mime & delivery processes when there is no resolver.
-                                    // (in case of a quarantine for example)
-                                    Some(metadata) if metadata.resolver == "none" => {
-                                        log::warn!(
-                                            "delivery skipped due to NO_DELIVERY action call."
-                                        );
-                                        secured_conn.send_code(SMTPReplyCode::Code250)?;
-                                        continue;
-                                    }
-                                    _ => {}
-                                };
-
-                                match Queue::Working.write_to_queue(&conn.config, &mail) {
-                                    Ok(_) => {
-                                        working_sender
-                                            .send(ProcessMessage {
-                                                message_id: mail
-                                                    .metadata
-                                                    .as_ref()
-                                                    .unwrap()
-                                                    .message_id
-                                                    .clone(),
-                                            })
-                                            .await
-                                            .map_err(|err| {
-                                                std::io::Error::new(
-                                                    std::io::ErrorKind::Other,
-                                                    err.to_string(),
-                                                )
-                                            })?;
-
-                                        secured_conn.send_code(SMTPReplyCode::Code250)?
-                                    }
-                                    Err(error) => {
-                                        log::error!("couldn't write to queue: {}", error);
-                                        secured_conn.send_code(SMTPReplyCode::Code554)?
-                                    }
-                                };
-                            }
-                            crate::transaction::TransactionResult::TlsUpgrade => todo!(),
-                        }
-                    }
-                    return Ok(());
+                    return Self::handle_connection_secured(
+                        conn,
+                        working_sender.clone(),
+                        delivery_sender.clone(),
+                        tls_config.clone(),
+                    )
+                    .await;
                 }
             }
         }
 
+        Ok(())
+    }
+
+    pub async fn handle_connection_secured<S>(
+        conn: &mut Connection<'_, S>,
+        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+        delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+        tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    ) -> anyhow::Result<()>
+    where
+        S: std::io::Read + std::io::Write,
+    {
+        let mut tls_conn = rustls::ServerConnection::new(tls_config.unwrap()).unwrap();
+        let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
+        let mut io_tls_stream = IoService::new(&mut tls_stream);
+
+        Connection::<IoService<'_, S>>::complete_tls_handshake(
+            &mut io_tls_stream,
+            &conn.config.tls.handshake_timeout,
+        )?;
+
+        let mut secured_conn = Connection {
+            kind: conn.kind,
+            timestamp: conn.timestamp,
+            is_alive: true,
+            config: conn.config.clone(),
+            client_addr: conn.client_addr,
+            error_count: conn.error_count,
+            is_secured: true,
+            io_stream: &mut io_tls_stream,
+        };
+
+        // FIXME: the rejection of the client because of the SSL/TLS protocol
+        // version is done after the handshake...
+
+        if !Self::is_version_requirement_satisfied(
+            secured_conn.io_stream.inner.conn,
+            &secured_conn.config,
+        ) {
+            log::error!("requirement not satisfied");
+            // TODO: send error 500 ?
+            return Ok(());
+        }
+
+        if let crate::connection::Kind::Tunneled = secured_conn.kind {
+            secured_conn.send_code(SMTPReplyCode::Code220)?;
+        }
+
+        let mut helo_domain = None;
+
+        while secured_conn.is_alive {
+            match Transaction::receive(&mut secured_conn, &helo_domain).await? {
+                crate::transaction::TransactionResult::Nothing => {}
+                crate::transaction::TransactionResult::Mail(mail) => {
+                    Self::on_mail(
+                        &mut secured_conn,
+                        mail,
+                        &mut helo_domain,
+                        working_sender.clone(),
+                        delivery_sender.clone(),
+                    )
+                    .await?;
+                }
+                crate::transaction::TransactionResult::TlsUpgrade => todo!(),
+            }
+        }
         Ok(())
     }
 }
