@@ -134,108 +134,80 @@ impl ServerVSMTP {
         let delivery_sender = std::sync::Arc::new(delivery_sender);
 
         loop {
-            tokio::select! {
+            let (stream, client_addr, kind) = tokio::select! {
                 Ok((stream, client_addr)) = self.listener.accept() => {
-                    Self::start_handle_connection(
-                        crate::connection::Kind::Opportunistic,
-                        self.config.clone(),
-                        self.tls_config.as_ref().map(std::sync::Arc::clone),
-                        stream.into_std()?,
-                        client_addr,
-                        working_sender.clone(),
-                        delivery_sender.clone(),
-                    )?;
+                    (stream, client_addr, crate::connection::Kind::Opportunistic)
                 }
                 Ok((stream, client_addr)) = self.listener_submission.accept() => {
-                    Self::start_handle_connection(
-                        crate::connection::Kind::Submission,
-                        self.config.clone(),
-                        self.tls_config.as_ref().map(std::sync::Arc::clone),
-                        stream.into_std()?,
-                        client_addr,
-                        working_sender.clone(),
-                        delivery_sender.clone(),
-                    )?;
+                    (stream, client_addr, crate::connection::Kind::Submission)
                 }
                 Ok((stream, client_addr)) = self.listener_submissions.accept() => {
-                    Self::start_handle_connection(
-                        crate::connection::Kind::Tunneled,
-                        self.config.clone(),
-                        self.tls_config.as_ref().map(std::sync::Arc::clone),
-                        stream.into_std()?,
+                    (stream, client_addr, crate::connection::Kind::Tunneled)
+                }
+            };
+
+            log::warn!("Connection from: {:?}, {}", kind, client_addr);
+
+            let mut stream = stream.into_std()?;
+            stream.set_nonblocking(true)?;
+
+            let config = self.config.clone();
+            let tls_config = self.tls_config.clone();
+
+            let working_sender = working_sender.clone();
+            let delivery_sender = delivery_sender.clone();
+
+            tokio::spawn(async move {
+                let begin = std::time::SystemTime::now();
+                log::warn!("Handling client: {}", client_addr);
+
+                let mut io_plain = IoService::new(&mut stream);
+
+                let mut conn = Connection::<std::net::TcpStream>::from_plain(
+                    kind,
+                    client_addr,
+                    config.clone(),
+                    &mut io_plain,
+                )?;
+                match conn.kind {
+                    crate::connection::Kind::Opportunistic
+                    | crate::connection::Kind::Submission => {
+                        Self::handle_connection::<std::net::TcpStream>(
+                            &mut conn,
+                            working_sender,
+                            delivery_sender,
+                            tls_config,
+                        )
+                        .await
+                    }
+                    crate::connection::Kind::Tunneled => {
+                        Self::handle_connection_secured(
+                            &mut conn,
+                            working_sender,
+                            delivery_sender,
+                            tls_config,
+                        )
+                        .await
+                    }
+                }
+                .map(|_| {
+                    log::warn!(
+                        "{{ elapsed: {:?} }} Connection {} closed cleanly",
+                        begin.elapsed(),
                         client_addr,
-                        working_sender.clone(),
-                        delivery_sender.clone(),
-                    )?;
-                }
-            }
+                    );
+                })
+                .map_err(|error| {
+                    log::error!(
+                        "{{ elapsed: {:?} }} Connection {} closed with an error {}",
+                        begin.elapsed(),
+                        client_addr,
+                        error,
+                    );
+                    error
+                })
+            });
         }
-    }
-
-    fn start_handle_connection(
-        kind: crate::connection::Kind,
-        config: std::sync::Arc<ServerConfig>,
-        tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-        mut stream: std::net::TcpStream,
-        client_addr: std::net::SocketAddr,
-        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-        delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-    ) -> anyhow::Result<()> {
-        log::warn!("Connection from: {:?}, {}", kind, client_addr);
-
-        stream.set_nonblocking(true)?;
-
-        tokio::spawn(async move {
-            let begin = std::time::SystemTime::now();
-            log::warn!("Handling client: {}", client_addr);
-
-            let mut io_plain = IoService::new(&mut stream);
-
-            let mut conn = Connection::<std::net::TcpStream>::from_plain(
-                kind,
-                client_addr,
-                config.clone(),
-                &mut io_plain,
-            )?;
-            match conn.kind {
-                crate::connection::Kind::Opportunistic | crate::connection::Kind::Submission => {
-                    Self::handle_connection::<std::net::TcpStream>(
-                        &mut conn,
-                        working_sender,
-                        delivery_sender,
-                        tls_config,
-                    )
-                    .await
-                }
-                crate::connection::Kind::Tunneled => {
-                    Self::handle_connection_secured(
-                        &mut conn,
-                        working_sender,
-                        delivery_sender,
-                        tls_config,
-                    )
-                    .await
-                }
-            }
-            .map(|_| {
-                log::warn!(
-                    "{{ elapsed: {:?} }} Connection {} closed cleanly",
-                    begin.elapsed(),
-                    client_addr,
-                );
-            })
-            .map_err(|error| {
-                log::error!(
-                    "{{ elapsed: {:?} }} Connection {} closed with an error {}",
-                    begin.elapsed(),
-                    client_addr,
-                    error,
-                );
-                error
-            })
-        });
-
-        Ok(())
     }
 
     fn is_version_requirement_satisfied(
