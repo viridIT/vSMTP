@@ -20,6 +20,7 @@ use crate::{
     config::server_config::{ServerConfig, TlsSecurityLevel},
     connection::Connection,
     io_service::IoService,
+    model::mail::MailContext,
     processes::ProcessMessage,
     queue::Queue,
     resolver::Resolver,
@@ -270,7 +271,62 @@ impl ServerVSMTP {
             .unwrap_or(false)
     }
 
-    // TODO: refact with handle_connection_secured
+    async fn on_mail<S: std::io::Read + std::io::Write>(
+        conn: &mut Connection<'_, S>,
+        mail: Box<MailContext>,
+        helo_domain: &mut Option<String>,
+        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+        delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+    ) -> anyhow::Result<()> {
+        *helo_domain = Some(mail.envelop.helo.clone());
+
+        match &mail.metadata {
+            // quietly skipping mime & delivery processes when there is no resolver.
+            // (in case of a quarantine for example)
+            Some(metadata) if metadata.resolver == "none" => {
+                log::warn!("delivery skipped due to NO_DELIVERY action call.");
+                conn.send_code(SMTPReplyCode::Code250)?;
+            }
+            Some(metadata) if metadata.skipped.is_some() => {
+                log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
+                match Queue::Deliver.write_to_queue(&conn.config, &mail) {
+                    Ok(_) => {
+                        delivery_sender
+                            .send(ProcessMessage {
+                                message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
+                            })
+                            .await?;
+
+                        conn.send_code(SMTPReplyCode::Code250)?
+                    }
+                    Err(error) => {
+                        log::error!("couldn't write to delivery queue: {}", error);
+                        conn.send_code(SMTPReplyCode::Code554)?
+                    }
+                };
+            }
+            _ => {
+                match Queue::Working.write_to_queue(&conn.config, &mail) {
+                    Ok(_) => {
+                        working_sender
+                            .send(ProcessMessage {
+                                message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
+                            })
+                            .await?;
+
+                        conn.send_code(SMTPReplyCode::Code250)?
+                    }
+                    Err(error) => {
+                        log::error!("couldn't write to queue: {}", error);
+                        conn.send_code(SMTPReplyCode::Code554)?
+                    }
+                };
+            }
+        };
+
+        Ok(())
+    }
+
     pub async fn handle_connection<S>(
         conn: &mut Connection<'_, S>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
@@ -288,61 +344,14 @@ impl ServerVSMTP {
             match Transaction::receive(conn, &helo_domain).await? {
                 crate::transaction::TransactionResult::Nothing => {}
                 crate::transaction::TransactionResult::Mail(mail) => {
-                    helo_domain = Some(mail.envelop.helo.clone());
-
-                    match &mail.metadata {
-                        // quietly skipping mime & delivery processes when there is no resolver.
-                        // (in case of a quarantine for example)
-                        Some(metadata) if metadata.resolver == "none" => {
-                            log::warn!("delivery skipped due to NO_DELIVERY action call.");
-                            conn.send_code(SMTPReplyCode::Code250)?;
-                        }
-                        Some(metadata) if metadata.skipped.is_some() => {
-                            log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
-                            match Queue::Deliver.write_to_queue(&conn.config, &mail) {
-                                Ok(_) => {
-                                    delivery_sender
-                                        .send(ProcessMessage {
-                                            message_id: mail
-                                                .metadata
-                                                .as_ref()
-                                                .unwrap()
-                                                .message_id
-                                                .clone(),
-                                        })
-                                        .await?;
-
-                                    conn.send_code(SMTPReplyCode::Code250)?
-                                }
-                                Err(error) => {
-                                    log::error!("couldn't write to delivery queue: {}", error);
-                                    conn.send_code(SMTPReplyCode::Code554)?
-                                }
-                            };
-                        }
-                        _ => {
-                            match Queue::Working.write_to_queue(&conn.config, &mail) {
-                                Ok(_) => {
-                                    working_sender
-                                        .send(ProcessMessage {
-                                            message_id: mail
-                                                .metadata
-                                                .as_ref()
-                                                .unwrap()
-                                                .message_id
-                                                .clone(),
-                                        })
-                                        .await?;
-
-                                    conn.send_code(SMTPReplyCode::Code250)?
-                                }
-                                Err(error) => {
-                                    log::error!("couldn't write to queue: {}", error);
-                                    conn.send_code(SMTPReplyCode::Code554)?
-                                }
-                            };
-                        }
-                    };
+                    Self::on_mail(
+                        conn,
+                        mail,
+                        &mut helo_domain,
+                        working_sender.clone(),
+                        delivery_sender.clone(),
+                    )
+                    .await?;
                 }
                 crate::transaction::TransactionResult::TlsUpgrade if tls_config.is_none() => {
                     conn.send_code(SMTPReplyCode::Code454)?;
@@ -364,7 +373,6 @@ impl ServerVSMTP {
         Ok(())
     }
 
-    // TODO: refact with handle_connection
     pub async fn handle_connection_secured<S>(
         conn: &mut Connection<'_, S>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
@@ -410,43 +418,20 @@ impl ServerVSMTP {
             secured_conn.send_code(SMTPReplyCode::Code220)?;
         }
 
-        let mut secured_helo_domain = None;
+        let mut helo_domain = None;
 
         while secured_conn.is_alive {
-            match Transaction::receive(&mut secured_conn, &secured_helo_domain).await? {
+            match Transaction::receive(&mut secured_conn, &helo_domain).await? {
                 crate::transaction::TransactionResult::Nothing => {}
                 crate::transaction::TransactionResult::Mail(mail) => {
-                    secured_helo_domain = Some(mail.envelop.helo.clone());
-
-                    match &mail.metadata {
-                        // quietly skipping mime & delivery processes when there is no resolver.
-                        // (in case of a quarantine for example)
-                        Some(metadata) if metadata.resolver == "none" => {
-                            log::warn!("delivery skipped due to NO_DELIVERY action call.");
-                            secured_conn.send_code(SMTPReplyCode::Code250)?;
-                            continue;
-                        }
-                        _ => {}
-                    };
-
-                    match Queue::Working.write_to_queue(&conn.config, &mail) {
-                        Ok(_) => {
-                            working_sender
-                                .send(ProcessMessage {
-                                    message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
-                                })
-                                .await
-                                .map_err(|err| {
-                                    std::io::Error::new(std::io::ErrorKind::Other, err.to_string())
-                                })?;
-
-                            secured_conn.send_code(SMTPReplyCode::Code250)?
-                        }
-                        Err(error) => {
-                            log::error!("couldn't write to queue: {}", error);
-                            secured_conn.send_code(SMTPReplyCode::Code554)?
-                        }
-                    };
+                    Self::on_mail(
+                        &mut secured_conn,
+                        mail,
+                        &mut helo_domain,
+                        working_sender.clone(),
+                        delivery_sender.clone(),
+                    )
+                    .await?;
                 }
                 crate::transaction::TransactionResult::TlsUpgrade => todo!(),
             }
