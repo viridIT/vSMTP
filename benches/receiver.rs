@@ -12,6 +12,7 @@ use vsmtp::{
     test_helpers::test_receiver,
 };
 
+#[derive(Clone)]
 struct DefaultResolverTest;
 
 #[async_trait::async_trait]
@@ -28,11 +29,13 @@ fn get_test_config() -> std::sync::Arc<ServerConfig> {
     std::sync::Arc::new(c)
 }
 
-fn make_bench<R: Resolver>(
-    resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
+fn make_bench<R>(
+    resolver: R,
     b: &mut Bencher<WallTime>,
     (input, output, config): &(&[u8], &[u8], std::sync::Arc<ServerConfig>),
-) {
+) where
+    R: Resolver + Clone + Send + Sync + 'static,
+{
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
             let _ = test_receiver(
@@ -48,6 +51,7 @@ fn make_bench<R: Resolver>(
 
 fn criterion_benchmark(c: &mut Criterion) {
     {
+        #[derive(Clone)]
         struct T;
 
         #[async_trait::async_trait]
@@ -94,7 +98,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 .as_bytes(),
                 get_test_config(),
             ),
-            |b, input| make_bench(std::sync::Arc::new(tokio::sync::Mutex::new(T {})), b, input),
+            |b, input| make_bench(T, b, input),
         );
     }
 
@@ -110,13 +114,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             .as_bytes(),
             get_test_config(),
         ),
-        |b, input| {
-            make_bench(
-                std::sync::Arc::new(tokio::sync::Mutex::new(DefaultResolverTest {})),
-                b,
-                input,
-            )
-        },
+        |b, input| make_bench(DefaultResolverTest, b, input),
     );
 }
 
