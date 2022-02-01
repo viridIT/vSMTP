@@ -284,7 +284,7 @@ impl<U: Users> RhaiEngine<U> {
 
         .register_get("stdout", |output: &mut std::process::Output| std::str::from_utf8(&output.stdout).unwrap().to_string())
         .register_get("stderr", |output: &mut std::process::Output| std::str::from_utf8(&output.stderr).unwrap().to_string())
-        .register_get("status", |output: &mut std::process::Output| output.status.code().unwrap())
+        .register_get("status", |output: &mut std::process::Output| output.status.code().unwrap() as i64)
 
         .register_type::<Address>()
         .register_result_fn("new_address", <Address>::rhai_wrapper)

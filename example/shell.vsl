@@ -9,9 +9,9 @@ rule connect "my_runner" #{
 };
 
 fn my_scan(vsl) {
-    vsl.DUMP("/tmp/to_scan");
-    // NOTE: this is very slow
-    let output = vsl.SHELL("clamscan /tmp/to_scan");
+    vsl.DUMP("/tmp/to_scan/${connection_timestamp}");
+    // NOTE: the scanning can be slow
+    let output = vsl.SHELL("clamscan /tmp/to_scan/${connection_timestamp}");
     print(output.stdout);
     output.status == 0
 }
