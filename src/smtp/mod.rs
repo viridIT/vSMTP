@@ -17,3 +17,6 @@
 pub mod code;
 pub mod event;
 pub mod state;
+
+#[cfg(test)]
+mod event_tests;
