@@ -108,14 +108,16 @@ impl ServerVSMTP {
         });
 
         let config_mime = self.config.clone();
+        let mime_delivery_sender = delivery_sender.clone();
         tokio::spawn(async move {
             let result =
-                crate::processes::mime::start(&config_mime, working_receiver, delivery_sender)
+                crate::processes::mime::start(&config_mime, working_receiver, mime_delivery_sender)
                     .await;
             log::error!("v_mime ended unexpectedly '{:?}'", result);
         });
 
         let working_sender = std::sync::Arc::new(working_sender);
+        let delivery_sender = std::sync::Arc::new(delivery_sender);
 
         loop {
             match self.listener.accept().await {
@@ -129,6 +131,7 @@ impl ServerVSMTP {
                     let tls_config = self.tls_config.as_ref().map(std::sync::Arc::clone);
 
                     let working_sender = working_sender.clone();
+                    let delivery_sender = delivery_sender.clone();
                     tokio::spawn(async move {
                         let begin = std::time::SystemTime::now();
                         log::warn!("Handling client: {}", client_addr);
@@ -143,6 +146,7 @@ impl ServerVSMTP {
                         Self::handle_connection::<std::net::TcpStream>(
                             &mut conn,
                             working_sender,
+                            delivery_sender,
                             tls_config,
                         )
                         .await
@@ -205,6 +209,7 @@ impl ServerVSMTP {
     pub async fn handle_connection<S>(
         conn: &mut Connection<'_, S>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+        delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     ) -> anyhow::Result<()>
     where
@@ -226,27 +231,51 @@ impl ServerVSMTP {
                         Some(metadata) if metadata.resolver == "none" => {
                             log::warn!("delivery skipped due to NO_DELIVERY action call.");
                             conn.send_code(SMTPReplyCode::Code250)?;
-                            continue;
                         }
-                        _ => {}
-                    };
+                        Some(metadata) if metadata.skipped.is_some() => {
+                            log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
+                            match Queue::Deliver.write_to_queue(&conn.config, &mail) {
+                                Ok(_) => {
+                                    delivery_sender
+                                        .send(ProcessMessage {
+                                            message_id: mail
+                                                .metadata
+                                                .as_ref()
+                                                .unwrap()
+                                                .message_id
+                                                .clone(),
+                                        })
+                                        .await?;
 
-                    match Queue::Working.write_to_queue(&conn.config, &mail) {
-                        Ok(_) => {
-                            working_sender
-                                .send(ProcessMessage {
-                                    message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
-                                })
-                                .await
-                                .map_err(|err| {
-                                    std::io::Error::new(std::io::ErrorKind::Other, err.to_string())
-                                })?;
-
-                            conn.send_code(SMTPReplyCode::Code250)?
+                                    conn.send_code(SMTPReplyCode::Code250)?
+                                }
+                                Err(error) => {
+                                    log::error!("couldn't write to delivery queue: {}", error);
+                                    conn.send_code(SMTPReplyCode::Code554)?
+                                }
+                            };
                         }
-                        Err(error) => {
-                            log::error!("couldn't write to queue: {}", error);
-                            conn.send_code(SMTPReplyCode::Code554)?
+                        _ => {
+                            match Queue::Working.write_to_queue(&conn.config, &mail) {
+                                Ok(_) => {
+                                    working_sender
+                                        .send(ProcessMessage {
+                                            message_id: mail
+                                                .metadata
+                                                .as_ref()
+                                                .unwrap()
+                                                .message_id
+                                                .clone(),
+                                        })
+                                        .await?;
+
+                                    conn.send_code(SMTPReplyCode::Code250)?
+                                }
+                                Err(error) => {
+                                    log::error!("couldn't write to queue: {}", error);
+                                    conn.send_code(SMTPReplyCode::Code554)?
+                                }
+                            };
                         }
                     };
                 }

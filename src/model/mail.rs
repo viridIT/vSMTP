@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use crate::rules::rule_engine::Status;
 
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
@@ -22,12 +23,14 @@ pub struct MessageMetadata {
     /// instant when the last "MAIL FROM" has been received.
     pub timestamp: std::time::SystemTime,
     /// unique id generated when the "MAIL FROM" has been received.
-    /// format: {mail timestamp}{connection timestamp}{process id (on reboot)}
+    /// format: {mail timestamp}{connection timestamp}{process id}
     pub message_id: String,
     /// number of times the mta tried to send the email.
     pub retry: usize,
     /// the resolver chosen to deliver the message.
     pub resolver: String,
+    /// whether further rule analysis has been skipped.
+    pub skipped: Option<Status>,
 }
 
 impl Default for MessageMetadata {
@@ -37,6 +40,7 @@ impl Default for MessageMetadata {
             message_id: Default::default(),
             retry: Default::default(),
             resolver: "".to_string(),
+            skipped: None,
         }
     }
 }
