@@ -3,9 +3,8 @@ pub mod test {
     use crate::{
         config::server_config::ServerConfig,
         model::mail::{Body, MailContext},
-        resolver::DataEndResolver,
+        resolver::Resolver,
         rules::{address::Address, tests::helpers::run_integration_engine_test},
-        smtp::code::SMTPReplyCode,
         test_helpers::DefaultResolverTest,
     };
 
@@ -144,15 +143,8 @@ pub mod test {
     struct TestRewritten;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for TestRewritten {
-        async fn on_data_end(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-        ) -> anyhow::Result<SMTPReplyCode> {
-            println!("{:?}", ctx.envelop.rcpt);
-            println!("{:?}", ctx.envelop.mail_from);
-
+    impl Resolver for TestRewritten {
+        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
             // envelop should have been rewritten.
             assert!(ctx
                 .envelop
@@ -173,7 +165,7 @@ pub mod test {
                 false
             });
 
-            Ok(SMTPReplyCode::Code250)
+            Ok(())
         }
     }
 

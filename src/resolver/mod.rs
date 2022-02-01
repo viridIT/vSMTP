@@ -14,26 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    config::server_config::ServerConfig, model::mail::MailContext, smtp::code::SMTPReplyCode,
-};
+use crate::{config::server_config::ServerConfig, model::mail::MailContext};
 
 pub mod maildir_resolver;
 pub mod mbox_resolver;
 pub mod smtp_resolver;
 
 #[async_trait::async_trait]
-pub trait DataEndResolver {
-    async fn on_data_end(
-        &mut self,
-        config: &ServerConfig,
-        mail: &MailContext,
-    ) -> anyhow::Result<SMTPReplyCode>;
-}
-
-#[async_trait::async_trait]
 pub trait Resolver {
-    async fn deliver(&self, config: &ServerConfig, mail: &MailContext) -> anyhow::Result<()>;
+    async fn deliver(&mut self, config: &ServerConfig, mail: &MailContext) -> anyhow::Result<()>;
 }
 
 /// sets user & group rights to the given file / folder.

@@ -11,7 +11,7 @@ mod users;
 pub mod helpers {
     use crate::{
         config::{get_logger_config, server_config::ServerConfig},
-        resolver::DataEndResolver,
+        resolver::Resolver,
         rules::rule_engine::{RhaiEngine, Status, DEFAULT_SCOPE, RHAI_ENGINE},
         test_helpers::test_receiver,
     };
@@ -59,7 +59,7 @@ pub mod helpers {
     /// to reset the engine, `users` needed to run the test successfully,
     /// (using the *users* crate) the commands to send to the state machine
     /// and the expected output of the server.
-    pub async fn run_integration_engine_test<T: DataEndResolver>(
+    pub async fn run_integration_engine_test<T: Resolver>(
         address: &str,
         resolver: T,
         src_path: &str,

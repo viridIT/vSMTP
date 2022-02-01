@@ -5,9 +5,8 @@ mod tests {
     use vsmtp::{
         config::server_config::{InnerSMTPConfig, InnerTlsConfig, ServerConfig, TlsSecurityLevel},
         model::mail::{Body, MailContext},
-        resolver::DataEndResolver,
+        resolver::Resolver,
         rules::address::Address,
-        smtp::code::SMTPReplyCode,
         test_helpers::{test_receiver, DefaultResolverTest},
     };
 
@@ -18,12 +17,8 @@ mod tests {
         struct T;
 
         #[async_trait::async_trait]
-        impl DataEndResolver for T {
-            async fn on_data_end(
-                &mut self,
-                _: &ServerConfig,
-                ctx: &MailContext,
-            ) -> anyhow::Result<SMTPReplyCode> {
+        impl Resolver for T {
+            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
@@ -36,7 +31,7 @@ mod tests {
                 });
                 assert!(ctx.metadata.is_some());
 
-                Ok(SMTPReplyCode::Code250)
+                Ok(())
             }
         }
 
@@ -408,12 +403,8 @@ mod tests {
         }
 
         #[async_trait::async_trait]
-        impl DataEndResolver for T {
-            async fn on_data_end(
-                &mut self,
-                _: &ServerConfig,
-                ctx: &MailContext,
-            ) -> anyhow::Result<SMTPReplyCode> {
+        impl Resolver for T {
+            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
                 match self.count {
                     0 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
@@ -445,7 +436,7 @@ mod tests {
 
                 self.count += 1;
 
-                Ok(SMTPReplyCode::Code250)
+                Ok(())
             }
         }
 
@@ -496,12 +487,8 @@ mod tests {
         }
 
         #[async_trait::async_trait]
-        impl DataEndResolver for T {
-            async fn on_data_end(
-                &mut self,
-                _: &ServerConfig,
-                ctx: &MailContext,
-            ) -> anyhow::Result<SMTPReplyCode> {
+        impl Resolver for T {
+            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
                 match self.count {
                     0 => {
                         assert_eq!(ctx.envelop.helo, "foobar");
@@ -533,7 +520,7 @@ mod tests {
 
                 self.count += 1;
 
-                Ok(SMTPReplyCode::Code250)
+                Ok(())
             }
         }
 

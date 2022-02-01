@@ -7,22 +7,17 @@ use vsmtp::{
     config::server_config::ServerConfig,
     mime::mail::BodyType,
     model::mail::{Body, MailContext},
-    resolver::DataEndResolver,
+    resolver::Resolver,
     rules::address::Address,
-    smtp::code::SMTPReplyCode,
     test_helpers::test_receiver,
 };
 
 struct DefaultResolverTest;
 
 #[async_trait::async_trait]
-impl DataEndResolver for DefaultResolverTest {
-    async fn on_data_end(
-        &mut self,
-        _: &ServerConfig,
-        _: &MailContext,
-    ) -> anyhow::Result<SMTPReplyCode> {
-        Ok(SMTPReplyCode::Code250)
+impl Resolver for DefaultResolverTest {
+    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+        Ok(())
     }
 }
 
@@ -33,7 +28,7 @@ fn get_test_config() -> std::sync::Arc<ServerConfig> {
     std::sync::Arc::new(c)
 }
 
-fn make_bench<R: vsmtp::resolver::DataEndResolver>(
+fn make_bench<R: Resolver>(
     resolver: std::sync::Arc<tokio::sync::Mutex<R>>,
     b: &mut Bencher<WallTime>,
     (input, output, config): &(&[u8], &[u8], std::sync::Arc<ServerConfig>),
@@ -56,12 +51,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         struct T;
 
         #[async_trait::async_trait]
-        impl DataEndResolver for T {
-            async fn on_data_end(
-                &mut self,
-                _: &ServerConfig,
-                ctx: &MailContext,
-            ) -> anyhow::Result<SMTPReplyCode> {
+        impl Resolver for T {
+            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
@@ -73,7 +64,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                     _ => false,
                 });
 
-                Ok(SMTPReplyCode::Code250)
+                Ok(())
             }
         }
 

@@ -3,9 +3,8 @@ pub mod test {
     use crate::{
         config::server_config::ServerConfig,
         model::mail::{Body, MailContext},
-        resolver::DataEndResolver,
+        resolver::Resolver,
         rules::{address::Address, tests::helpers::run_integration_engine_test},
-        smtp::code::SMTPReplyCode,
         test_helpers::DefaultResolverTest,
     };
 
@@ -224,12 +223,8 @@ pub mod test {
     struct TestRcptAdded;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for TestRcptAdded {
-        async fn on_data_end(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-        ) -> anyhow::Result<SMTPReplyCode> {
+    impl Resolver for TestRcptAdded {
+        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
             assert!(ctx
                 .envelop
                 .rcpt
@@ -258,7 +253,7 @@ pub mod test {
                 false
             });
 
-            Ok(SMTPReplyCode::Code250)
+            Ok(())
         }
     }
 
@@ -308,12 +303,8 @@ pub mod test {
     struct TestRcptRemoved;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for TestRcptRemoved {
-        async fn on_data_end(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-        ) -> anyhow::Result<SMTPReplyCode> {
+    impl Resolver for TestRcptRemoved {
+        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
             println!("{:?}", ctx.envelop.rcpt);
 
             assert!(ctx
@@ -344,7 +335,7 @@ pub mod test {
                 false
             });
 
-            Ok(SMTPReplyCode::Code250)
+            Ok(())
         }
     }
 
@@ -396,12 +387,8 @@ pub mod test {
     struct TestRcptRewritten;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for TestRcptRewritten {
-        async fn on_data_end(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-        ) -> anyhow::Result<SMTPReplyCode> {
+    impl Resolver for TestRcptRewritten {
+        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
             println!("{:?}", ctx.envelop.rcpt);
 
             assert!(ctx
@@ -437,7 +424,7 @@ pub mod test {
                 false
             });
 
-            Ok(SMTPReplyCode::Code250)
+            Ok(())
         }
     }
 

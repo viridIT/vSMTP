@@ -29,7 +29,7 @@ pub struct MBoxResolver;
 
 #[async_trait::async_trait]
 impl Resolver for MBoxResolver {
-    async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         for rcpt in ctx.envelop.rcpt.iter() {
             match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
                 Some(user) => {

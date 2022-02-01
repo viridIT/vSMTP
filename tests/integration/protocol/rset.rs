@@ -6,9 +6,8 @@ mod tests {
     use vsmtp::{
         config::server_config::ServerConfig,
         model::mail::{Body, MailContext},
-        resolver::DataEndResolver,
+        resolver::Resolver,
         rules::address::Address,
-        smtp::code::SMTPReplyCode,
         test_helpers::{test_receiver, DefaultResolverTest},
     };
 
@@ -19,12 +18,8 @@ mod tests {
         struct T;
 
         #[async_trait::async_trait]
-        impl DataEndResolver for T {
-            async fn on_data_end(
-                &mut self,
-                _: &ServerConfig,
-                ctx: &MailContext,
-            ) -> anyhow::Result<SMTPReplyCode> {
+        impl Resolver for T {
+            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "a@b");
                 assert_eq!(
@@ -36,7 +31,7 @@ mod tests {
                     _ => false,
                 });
 
-                Ok(SMTPReplyCode::Code250)
+                Ok(())
             }
         }
 
@@ -134,12 +129,8 @@ mod tests {
         struct T;
 
         #[async_trait::async_trait]
-        impl DataEndResolver for T {
-            async fn on_data_end(
-                &mut self,
-                _: &ServerConfig,
-                ctx: &MailContext,
-            ) -> anyhow::Result<SMTPReplyCode> {
+        impl Resolver for T {
+            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foo2");
                 assert_eq!(ctx.envelop.mail_from.full(), "d@e");
                 assert_eq!(
@@ -151,7 +142,7 @@ mod tests {
                     _ => false,
                 });
 
-                Ok(SMTPReplyCode::Code250)
+                Ok(())
             }
         }
 
@@ -190,12 +181,8 @@ mod tests {
         struct T;
 
         #[async_trait::async_trait]
-        impl DataEndResolver for T {
-            async fn on_data_end(
-                &mut self,
-                _: &ServerConfig,
-                ctx: &MailContext,
-            ) -> anyhow::Result<SMTPReplyCode> {
+        impl Resolver for T {
+            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "foo@foo");
                 assert_eq!(
@@ -207,7 +194,7 @@ mod tests {
                     _ => false,
                 });
 
-                Ok(SMTPReplyCode::Code250)
+                Ok(())
             }
         }
 
@@ -244,12 +231,8 @@ mod tests {
         struct T;
 
         #[async_trait::async_trait]
-        impl DataEndResolver for T {
-            async fn on_data_end(
-                &mut self,
-                _: &ServerConfig,
-                ctx: &MailContext,
-            ) -> anyhow::Result<SMTPReplyCode> {
+        impl Resolver for T {
+            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foo");
                 assert_eq!(ctx.envelop.mail_from.full(), "foo2@foo");
                 assert_eq!(
@@ -264,7 +247,7 @@ mod tests {
                     _ => false,
                 });
 
-                Ok(SMTPReplyCode::Code250)
+                Ok(())
             }
         }
 

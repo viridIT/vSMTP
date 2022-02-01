@@ -16,8 +16,7 @@
 **/
 use crate::{
     config::server_config::ServerConfig, connection::Connection, io_service::IoService,
-    model::mail::MailContext, processes::ProcessMessage, resolver::DataEndResolver,
-    server::ServerVSMTP, smtp::code::SMTPReplyCode,
+    model::mail::MailContext, processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP,
 };
 
 pub struct Mock<'a> {
@@ -53,18 +52,14 @@ impl std::io::Read for Mock<'_> {
 pub struct DefaultResolverTest;
 
 #[async_trait::async_trait]
-impl DataEndResolver for DefaultResolverTest {
-    async fn on_data_end(
-        &mut self,
-        _: &ServerConfig,
-        _: &MailContext,
-    ) -> anyhow::Result<SMTPReplyCode> {
-        Ok(SMTPReplyCode::Code250)
+impl Resolver for DefaultResolverTest {
+    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+        Ok(())
     }
 }
 
 // TODO: should be a macro instead of a function.
-pub async fn test_receiver<T: DataEndResolver>(
+pub async fn test_receiver<T: Resolver>(
     address: &str,
     _: std::sync::Arc<tokio::sync::Mutex<T>>,
     smtp_input: &[u8],
