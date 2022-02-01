@@ -97,8 +97,6 @@ impl<'a> RuleEngine<'a> {
     /// add data to the scope of the engine.
     pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T) -> &mut Self
     where
-        // TODO: find a way to remove the static.
-        // maybe create a getter, engine.scope().push(n, v) ?
         T: Clone + Send + Sync + 'static,
     {
         self.scope.set_or_push(name, data);
