@@ -74,7 +74,12 @@ pub async fn test_receiver<T: DataEndResolver>(
     let mut written_data = Vec::new();
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = Connection::<Mock<'_>>::from_plain(address.parse().unwrap(), config, &mut io)?;
+    let mut conn = Connection::<Mock<'_>>::from_plain(
+        crate::connection::Kind::Opportunistic,
+        address.parse().unwrap(),
+        config,
+        &mut io,
+    )?;
 
     let (working_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);

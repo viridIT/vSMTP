@@ -1,4 +1,6 @@
 const MTA_PORT_PLAIN: u16 = 10025;
+// NOTE: todo submission port too (plain with auth)
+const MTA_PORT_SUBMISSIONS: u16 = 10465;
 
 fn get_mail() -> lettre::Message {
     lettre::Message::builder()
@@ -46,8 +48,6 @@ fn send_mail_starttls() {
     }
 }
 
-// FIXME: support fully tunneled tls connection
-/*
 #[test]
 #[ignore = "require a server running and supporting tunneled tls"]
 fn send_mail_tunneled_tls() {
@@ -60,7 +60,7 @@ fn send_mail_tunneled_tls() {
                 .build()
                 .unwrap(),
         ))
-        .port(MTA_PORT_PLAIN)
+        .port(MTA_PORT_SUBMISSIONS)
         .build();
 
     match lettre::Transport::send(&mailer, &email) {
@@ -68,4 +68,3 @@ fn send_mail_tunneled_tls() {
         Err(e) => panic!("Could not send email: {:?}", e),
     }
 }
-*/

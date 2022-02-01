@@ -539,6 +539,7 @@ mod test {
     //       - boundaries
     //       -
 
+    /// FIXME: a \n is added between the headers and the body
     #[test]
     #[ignore]
     fn test_to_raw() {
@@ -576,7 +577,7 @@ mod test {
             },
             r#"x-mozilla-status: 0001
 x-mozilla-status2: 01000000
-x-mozilla-keys:
+x-mozilla-keys: 
 fcc: imap://tabis%40localhost.com@localhost.com/sent
 x-identity-key: id3
 x-account-key: account4
@@ -586,9 +587,9 @@ to: tabis@localhost, green@viridit.com, foo@viridit.com, x@x.com
 message-id: <51734671-2e09-946e-7e3f-ec59b83e82d0@localhost.com>
 date: tue, 30 nov 2021 20:54:27 +0100
 x-mozilla-draft-info: internal/draft; vcard=0; receipt=0; dsn=0; uuencode=0; attachmentreminder=0; deliveryformat=1
-user-agent: mozilla/5.0 (x11; linux x86_64; rv:78.0) gecko/20100101 thunderbird/78.14.0
+user-agent: mozilla/5.0 gecko/20100101 thunderbird/78.14.0
 mime-version: 1.0
-content-type: text/plain; charset=utf-8; format=flowed
+content-type: text/plain; charset="utf-8"; format="flowed"
 content-language: en-us
 content-transfer-encoding: 7bit
 
