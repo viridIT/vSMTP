@@ -137,23 +137,12 @@ let vsl = #{
         __LOOKUP_MAIL_FROM(connect, port, mail.domain)
     },
 
-    // set resolver to maildir.
-    USE_MAILDIR: || {
-        metadata.resolver = "maildir";
-    },
+    // set delivery resolver type.
+    USE_DEFAULT: || metadata.resolver = "default",
+    USE_SMTP: || metadata.resolver = "smtp",
+    USE_MAILDIR: || metadata.resolver = "maildir",
+    USE_MBOX: || metadata.resolver = "mbox",
 
-    // set resolver to smtp (lettre).
-    USE_SMTP: || {
-        metadata.resolver = "smtp";
-    },
-
-    // set resolver to mbox (default mbox database format).
-    USE_MBOX: || {
-        metadata.resolver = "mbox";
-    },
-
-    // prevent the system to deliver the email.
-    NO_DELIVERY: || {
-        metadata.resolver = "none";
-    },
+    // prevent the system from delivering the email.
+    NO_DELIVERY: || metadata.resolver = "none",
 };

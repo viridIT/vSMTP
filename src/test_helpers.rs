@@ -15,8 +15,14 @@
  *
 **/
 use crate::{
-    config::server_config::ServerConfig, connection::Connection, io_service::IoService,
-    model::mail::MailContext, processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP,
+    config::server_config::ServerConfig,
+    connection::Connection,
+    io_service::IoService,
+    model::mail::MailContext,
+    processes::{delivery::handle_one_in_delivery_queue, ProcessMessage},
+    queue::Queue,
+    resolver::Resolver,
+    server::ServerVSMTP,
 };
 
 pub struct Mock<'a> {
@@ -59,19 +65,53 @@ impl Resolver for DefaultResolverTest {
 }
 
 // TODO: should be a macro instead of a function.
-pub async fn test_receiver<T: Resolver>(
+pub async fn test_receiver<T>(
     address: &str,
-    _: std::sync::Arc<tokio::sync::Mutex<T>>,
+    resolver: T,
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<ServerConfig>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<()>
+where
+    T: Resolver + Send + Sync + 'static,
+{
     let mut written_data = Vec::new();
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = Connection::<Mock<'_>>::from_plain(address.parse().unwrap(), config, &mut io)?;
+    let mut conn =
+        Connection::<Mock<'_>>::from_plain(address.parse().unwrap(), config.clone(), &mut io)?;
 
-    let (working_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+    let (working_sender, working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+    let (delivery_sender, mut delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+
+    let config_deliver = config.clone();
+    let deliver_handle = tokio::spawn(async move {
+        let mut resolvers =
+            std::collections::HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
+        resolvers.insert("default".to_string(), Box::new(resolver));
+
+        while let Some(pm) = delivery_receiver.recv().await {
+            handle_one_in_delivery_queue(
+                &mut resolvers,
+                &std::path::PathBuf::from_iter([
+                    Queue::Deliver
+                        .to_path(&config_deliver.smtp.spool_dir)
+                        .unwrap(),
+                    std::path::Path::new(&pm.message_id).to_path_buf(),
+                ]),
+                &config_deliver,
+            )
+            .await
+            .unwrap();
+        }
+    });
+
+    let config_mime = config.clone();
+    let mime_handle = tokio::spawn(async move {
+        let result =
+            crate::processes::mime::start(&config_mime, working_receiver, delivery_sender).await;
+        log::error!("v_mime ended unexpectedly '{:?}'", result);
+    });
 
     ServerVSMTP::handle_connection::<Mock<'_>>(
         &mut conn,
@@ -81,9 +121,13 @@ pub async fn test_receiver<T: Resolver>(
     .await?;
     std::io::Write::flush(&mut conn.io_stream.inner)?;
 
+    mime_handle.await.unwrap();
+    deliver_handle.await.unwrap();
+
     assert_eq!(
         std::str::from_utf8(&written_data),
         std::str::from_utf8(&expected_output.to_vec())
     );
+
     Ok(())
 }

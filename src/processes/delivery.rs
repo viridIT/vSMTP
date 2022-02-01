@@ -76,7 +76,7 @@ pub async fn start(
     }
 }
 
-async fn handle_one_in_delivery_queue(
+pub(crate) async fn handle_one_in_delivery_queue(
     resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
     path: &std::path::Path,
     config: &ServerConfig,

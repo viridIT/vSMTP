@@ -114,9 +114,9 @@ pub async fn start(
         Ok(())
     }
 
-    loop {
-        if let Some(pm) = working_receiver.recv().await {
-            handle_one(pm, config, &delivery_sender).await.unwrap();
-        }
+    while let Some(pm) = working_receiver.recv().await {
+        handle_one(pm, config, &delivery_sender).await.unwrap();
     }
+
+    Ok(())
 }

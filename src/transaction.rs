@@ -315,7 +315,7 @@ impl Transaction<'_> {
                         std::process::id()
                     ),
                     retry: 0,
-                    resolver: "smtp".to_string(),
+                    resolver: "default".to_string(),
                 });
 
                 self.rule_engine

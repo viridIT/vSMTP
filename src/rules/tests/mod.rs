@@ -59,7 +59,7 @@ pub mod helpers {
     /// to reset the engine, `users` needed to run the test successfully,
     /// (using the *users* crate) the commands to send to the state machine
     /// and the expected output of the server.
-    pub async fn run_integration_engine_test<T: Resolver>(
+    pub async fn run_integration_engine_test<T>(
         address: &str,
         resolver: T,
         src_path: &str,
@@ -67,7 +67,10 @@ pub mod helpers {
         users: users::mock::MockUsers,
         smtp_input: &[u8],
         expected_output: &[u8],
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<()>
+    where
+        T: Resolver + Send + Sync + 'static,
+    {
         let mut config: ServerConfig = toml::from_str(
             &std::fs::read_to_string(config_path).expect("failed to read config from file"),
         )
@@ -99,7 +102,7 @@ pub mod helpers {
 
         test_receiver(
             address,
-            std::sync::Arc::new(tokio::sync::Mutex::new(resolver)),
+            resolver,
             smtp_input,
             expected_output,
             std::sync::Arc::new(config),
