@@ -17,6 +17,8 @@
 
 let vsl = #{
 
+    SHELL: |command| { __SHELL(command) },
+
     // checks if the object matches the connection data.
     IS_CONNECT: |object| {
         __is_connect(connect, object)
