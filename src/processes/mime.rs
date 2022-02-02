@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -50,8 +52,9 @@ pub(crate) async fn handle_one_in_working_queue(
         process_message.message_id,
     );
 
-    let working_queue = Queue::Working.to_path(config.smtp.spool_dir.clone())?;
-    let file_to_process = working_queue.join(&process_message.message_id);
+    let file_to_process = Queue::Working
+        .to_path(&config.smtp.spool_dir)?
+        .join(&process_message.message_id);
 
     log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
@@ -107,10 +110,10 @@ pub(crate) async fn handle_one_in_working_queue(
                 .send(ProcessMessage {
                     message_id: process_message.message_id.to_string(),
                 })
-                .await
-                .unwrap();
+                .await?;
 
-            std::fs::remove_file(&file_to_process)?;
+            std::fs::remove_file(&file_to_process)
+                .context("failed to remove a file from the working queue")?;
 
             log::debug!(
                 target: DELIVER,

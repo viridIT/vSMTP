@@ -49,7 +49,6 @@ impl Queue {
         Ok(dir)
     }
 
-    /// write the email to a queue and send the message id to another process.
     pub fn write_to_queue(
         &self,
         config: &ServerConfig,
