@@ -29,7 +29,7 @@ pub struct SMTPResolver;
 
 #[async_trait::async_trait]
 impl Resolver for SMTPResolver {
-    async fn deliver(&self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         let envelop = lettre::address::Envelope::new(
             Some(ctx.envelop.mail_from.full().parse()?),
             ctx.envelop

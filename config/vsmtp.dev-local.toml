@@ -1,8 +1,7 @@
 ### See vsmtp.default.toml documentation for this file format
 
-domain = "testserver.com"
-
 [server]
+domain = "testserver.com"
 addr = "0.0.0.0:10025"
 addr_submission = "0.0.0.0:10587"
 addr_submissions = "0.0.0.0:10465"
@@ -11,10 +10,10 @@ addr_submissions = "0.0.0.0:10465"
 file = "./tmp/var/log/vsmtp/vsmtp.log"
 
 [log.level]
-default = "trace"
-receiver = "trace"
+default = "warn"
+receiver = "info"
 resolver = "warn"
-rules = "warn"
+rules = "trace"
 
 [rules]
 dir = "./config/rules"
@@ -35,7 +34,6 @@ fullchain = "{capath}/fullchain.{domain}.pem"
 private_key = "{capath}/rsa.{domain}.pem"
 
 [smtp]
-spool_dir = "./tmp/var/spool/vsmtp"
 rcpt_count_max = 25
 disable_ehlo = false
 
@@ -44,10 +42,13 @@ soft_count = 5
 hard_count = 10
 delay = "5000ms"
 
-[smtp.code]
+[reply_codes.codes]
 Code214 = "214 my custom help message\r\n"
 
-[delivery.queue]
+[delivery]
+spool_dir = "./tmp/var/spool/vsmtp"
+
+[delivery.queues]
 working = { capacity = 32 }
 deliver = { capacity = 32 }
 deferred = { retry_max = 10, cron_period = "10s" }

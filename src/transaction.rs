@@ -317,7 +317,7 @@ impl Transaction<'_> {
                     timestamp: now,
                     // TODO: find a way to handle SystemTime failure.
                     message_id: format!(
-                        "{}{}{}",
+                        "{}{}{}{}",
                         now.duration_since(std::time::SystemTime::UNIX_EPOCH)
                             .unwrap_or(std::time::Duration::ZERO)
                             .as_micros(),
@@ -325,10 +325,13 @@ impl Transaction<'_> {
                             .duration_since(std::time::SystemTime::UNIX_EPOCH)
                             .unwrap_or(std::time::Duration::ZERO)
                             .as_millis(),
+                        std::iter::repeat_with(fastrand::alphanumeric)
+                            .take(36)
+                            .collect::<String>(),
                         std::process::id()
                     ),
                     retry: 0,
-                    resolver: "smtp".to_string(),
+                    resolver: "default".to_string(),
                     skipped: self.rule_engine.skipped(),
                 });
 
@@ -402,9 +405,8 @@ impl Transaction<'_> {
             config
                 .smtp
                 .timeout_client
-                .as_ref()
-                .map(|map| map.get(state).map(|t| t.alias))
-                .flatten()
+                .get(state)
+                .map(|t| t.alias)
                 .unwrap_or_else(|| std::time::Duration::from_millis(TIMEOUT_DEFAULT))
         }
 

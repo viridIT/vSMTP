@@ -94,7 +94,7 @@ impl MailDirResolver {
 
 #[async_trait::async_trait]
 impl Resolver for MailDirResolver {
-    async fn deliver(&self, _: &ServerConfig, mail: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &ServerConfig, mail: &MailContext) -> anyhow::Result<()> {
         // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
         //       and https://en.wikipedia.org/wiki/Maildir
 

@@ -25,7 +25,7 @@ use std::collections::HashMap;
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
 pub async fn start(
-    resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
+    mut resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: std::sync::Arc<ServerConfig>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> anyhow::Result<()> {
@@ -33,13 +33,13 @@ pub async fn start(
         target: DELIVER,
         "vDeliver (deferred) booting, flushing queue.",
     );
-    flush_deferred_queue(&resolvers, &config).await?;
+    flush_deferred_queue(&mut resolvers, &config).await?;
 
     log::info!(
         target: DELIVER,
         "vDeliver (delivery) booting, flushing queue.",
     );
-    flush_deliver_queue(&resolvers, &config).await?;
+    flush_deliver_queue(&mut resolvers, &config).await?;
 
     let mut flush_deferred_interval = tokio::time::interval(
         config
@@ -55,7 +55,7 @@ pub async fn start(
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
                 handle_one_in_delivery_queue(
-                    &resolvers,
+                    &mut resolvers,
                     &std::path::PathBuf::from_iter([
                         Queue::Deliver.to_path(&config.delivery.spool_dir)?,
                         std::path::Path::new(&pm.message_id).to_path_buf(),
@@ -70,14 +70,14 @@ pub async fn start(
                     target: DELIVER,
                     "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
                 );
-                flush_deferred_queue(&resolvers, &config).await.unwrap();
+                flush_deferred_queue(&mut resolvers, &config).await.unwrap();
             }
         };
     }
 }
 
-async fn handle_one_in_delivery_queue(
-    resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
+pub(crate) async fn handle_one_in_delivery_queue(
+    resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
     path: &std::path::Path,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
@@ -97,7 +97,7 @@ async fn handle_one_in_delivery_queue(
     let mail: crate::model::mail::MailContext = serde_json::from_str(&raw)?;
 
     let resolver_name = &mail.metadata.as_ref().unwrap().resolver;
-    let resolver = match resolvers.get(resolver_name) {
+    let resolver = match resolvers.get_mut(resolver_name) {
         Some(resolver) => resolver,
         None => anyhow::bail!("resolver '{resolver_name}' not found"),
     };
@@ -146,7 +146,7 @@ async fn handle_one_in_delivery_queue(
 }
 
 async fn flush_deliver_queue(
-    resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
+    resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
@@ -159,7 +159,7 @@ async fn flush_deliver_queue(
 }
 
 async fn handle_one_in_deferred_queue(
-    resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
+    resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
     path: &std::path::Path,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
@@ -213,7 +213,7 @@ async fn handle_one_in_deferred_queue(
         );
     } else {
         let resolver_name = &mail.metadata.as_ref().unwrap().resolver;
-        let resolver = match resolvers.get(resolver_name) {
+        let resolver = match resolvers.get_mut(resolver_name) {
             Some(resolver) => resolver,
             None => anyhow::bail!("resolver '{resolver_name}' not found"),
         };
@@ -266,7 +266,7 @@ async fn handle_one_in_deferred_queue(
 }
 
 async fn flush_deferred_queue(
-    resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
+    resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deferred.to_path(&config.delivery.spool_dir)?)? {

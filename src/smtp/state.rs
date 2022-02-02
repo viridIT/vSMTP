@@ -14,17 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-#[derive(
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Copy,
-    Clone,
-    serde::Deserialize,
-    serde::Serialize,
-    enum_iterator::IntoEnumIterator,
-)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, enum_iterator::IntoEnumIterator)]
 pub enum StateSMTP {
     Connect,
     Helo,

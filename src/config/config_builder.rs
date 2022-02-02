@@ -2,8 +2,8 @@ use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
 use super::server_config::{
     Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerTlsConfig, QueueConfig, ServerConfig,
-    TlsSecurityLevel,
+    InnerSMTPErrorConfig, InnerServerConfig, InnerTlsConfig, ProtocolVersion,
+    ProtocolVersionRequirement, QueueConfig, ServerConfig, SniKey, TlsSecurityLevel,
 };
 
 #[derive(Clone)]
@@ -77,6 +77,15 @@ impl ConfigBuilder<WantsLogging> {
             },
         }
     }
+
+    pub fn without_log(self) -> ConfigBuilder<WantSMTPS> {
+        self.with_logging(
+            "./trash/log.log",
+            crate::collection! {
+                "default".to_string() => log::LevelFilter::Off
+            },
+        )
+    }
 }
 
 pub struct WantSMTPS {
@@ -85,22 +94,55 @@ pub struct WantSMTPS {
 }
 
 impl ConfigBuilder<WantSMTPS> {
-    pub fn with_smtps(self) -> ConfigBuilder<WantSMTP> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_smtps(
+        self,
+        security_level: TlsSecurityLevel,
+        protocol_version: ProtocolVersionRequirement,
+        capath: impl Into<String>,
+        preempt_cipherlist: bool,
+        fullchain: impl Into<String>,
+        private_key: impl Into<String>,
+        handshake_timeout: std::time::Duration,
+        sni_maps: Option<Vec<SniKey>>,
+    ) -> ConfigBuilder<WantSMTP> {
         ConfigBuilder::<WantSMTP> {
             state: WantSMTP {
                 parent: self.state,
                 smtps: Some(InnerTlsConfig {
-                    security_level: TlsSecurityLevel::May,
-                    protocol_version: todo!(),
-                    capath: todo!(),
-                    preempt_cipherlist: todo!(),
-                    fullchain: todo!(),
-                    private_key: todo!(),
-                    handshake_timeout: todo!(),
-                    sni_maps: todo!(),
+                    security_level,
+                    protocol_version,
+                    capath: Some(capath.into()),
+                    preempt_cipherlist,
+                    fullchain: Some(fullchain.into()),
+                    private_key: Some(private_key.into()),
+                    handshake_timeout,
+                    sni_maps,
                 }),
             },
         }
+    }
+
+    pub fn with_safe_default_smtps(
+        self,
+        security_level: TlsSecurityLevel,
+        fullchain: impl Into<String>,
+        private_key: impl Into<String>,
+        sni_maps: Option<Vec<SniKey>>,
+    ) -> ConfigBuilder<WantSMTP> {
+        self.with_smtps(
+            security_level,
+            ProtocolVersionRequirement(vec![
+                ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
+                ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
+            ]),
+            "./certs",
+            true,
+            fullchain,
+            private_key,
+            std::time::Duration::from_millis(100),
+            sni_maps,
+        )
     }
 
     pub fn without_smtps(self) -> ConfigBuilder<WantSMTP> {
@@ -133,12 +175,10 @@ impl ConfigBuilder<WantSMTP> {
                 parent: self.state,
                 smtp: InnerSMTPConfig {
                     disable_ehlo,
-                    timeout_client: Some(
-                        timeout_client
-                            .into_iter()
-                            .map(|(k, v)| (k, DurationAlias { alias: v }))
-                            .collect(),
-                    ),
+                    timeout_client: timeout_client
+                        .into_iter()
+                        .map(|(k, v)| (k, DurationAlias { alias: v }))
+                        .collect(),
                     error: InnerSMTPErrorConfig {
                         soft_count: error_soft_count,
                         hard_count: error_hard_count,
@@ -148,6 +188,17 @@ impl ConfigBuilder<WantSMTP> {
                 },
             },
         }
+    }
+
+    pub fn with_default_smtp(self) -> ConfigBuilder<WantsDelivery> {
+        self.with_smtp(
+            false,
+            crate::collection! {},
+            5,
+            10,
+            std::time::Duration::from_millis(1001),
+            1000,
+        )
     }
 }
 
@@ -254,13 +305,13 @@ mod tests {
 
     #[test]
     fn init() -> anyhow::Result<()> {
-        let config = ServerConfig::builder()
+        let _config = ServerConfig::builder()
             .with_server_default_port("test.server.com")
             .with_logging(
                 "./tmp/log",
                 std::collections::HashMap::<String, log::LevelFilter>::default(),
             )
-            .with_smtps()
+            .with_safe_default_smtps(TlsSecurityLevel::May, "dummy", "dummy", None)
             .with_smtp(
                 false,
                 std::collections::HashMap::<StateSMTP, std::time::Duration>::default(),
@@ -283,7 +334,7 @@ mod tests {
 
     #[test]
     fn init_no_smtps() -> anyhow::Result<()> {
-        let config = ServerConfig::builder()
+        let _config = ServerConfig::builder()
             .with_server_default_port("test.server.com")
             .with_logging(
                 "./tmp/log",

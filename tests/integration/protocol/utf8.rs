@@ -1,10 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::integration::protocol::get_test_config;
     use vsmtp::test_helpers::test_receiver;
     use vsmtp::{
         config::server_config::ServerConfig, model::mail::Body, model::mail::MailContext,
-        resolver::DataEndResolver, rules::address::Address, smtp::code::SMTPReplyCode,
+        resolver::Resolver, rules::address::Address,
     };
 
     macro_rules! test_lang {
@@ -12,12 +11,12 @@ mod tests {
             struct T;
 
             #[async_trait::async_trait]
-            impl DataEndResolver for T {
-                async fn on_data_end(
+            impl Resolver for T {
+                async fn deliver(
                     &mut self,
                     _: &ServerConfig,
                     ctx: &MailContext,
-                ) -> anyhow::Result<SMTPReplyCode> {
+                ) -> anyhow::Result<()> {
                     assert_eq!(ctx.envelop.helo, "foobar".to_string());
                     assert_eq!(ctx.envelop.mail_from.full(), "john@doe".to_string());
                     assert_eq!(
@@ -32,13 +31,13 @@ mod tests {
                         _ => false,
                     });
 
-                    Ok(SMTPReplyCode::Code250)
+                    Ok(())
                 }
             }
 
             assert!(test_receiver(
                 "127.0.0.1:0",
-                std::sync::Arc::new(tokio::sync::Mutex::new(T)),
+                T,
                 [
                     "HELO foobar\r\n",
                     "MAIL FROM:<john@doe>\r\n",
@@ -61,7 +60,17 @@ mod tests {
                 ]
                 .concat()
                 .as_bytes(),
-                get_test_config()
+                std::sync::Arc::new(
+                    ServerConfig::builder()
+                        .with_server_default_port("test.server.com")
+                        .without_log()
+                        .without_smtps()
+                        .with_default_smtp()
+                        .with_delivery("./tmp/delivery", vsmtp::collection! {})
+                        .with_rules("./tmp/nothing")
+                        .with_default_reply_codes()
+                        .build(),
+                )
             )
             .await
             .is_ok());

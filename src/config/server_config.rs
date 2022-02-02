@@ -14,15 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-// TODO: have a ConfigBuilder struct
 use serde_with::{serde_as, DisplayFromStr};
 
 use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
-
-// use super::{
-//     custom_code::{CustomSMTPCode, SMTPCode},
-//     default::DEFAULT_CONFIG,
-// };
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerServerConfig {
@@ -176,23 +170,10 @@ pub struct DurationAlias {
 pub struct InnerSMTPConfig {
     pub disable_ehlo: bool,
     #[serde(default)]
-    #[serde_as(as = "Option<std::collections::HashMap<DisplayFromStr, _>>")]
-    pub timeout_client: Option<std::collections::HashMap<StateSMTP, DurationAlias>>,
+    #[serde_as(as = "std::collections::HashMap<DisplayFromStr, _>")]
+    pub timeout_client: std::collections::HashMap<StateSMTP, DurationAlias>,
     pub error: InnerSMTPErrorConfig,
     pub rcpt_count_max: Option<usize>,
-}
-
-impl InnerSMTPConfig {
-    /*
-        pub fn get_code(&self) -> &CustomSMTPCode {
-            match self.code.as_ref() {
-                None | Some(SMTPCode::Raw(_)) => {
-                    panic!("@get_code must be called after a valid conversion from to raw")
-                }
-                Some(SMTPCode::Serialized(code)) => code.as_ref(),
-            }
-        }
-    */
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -215,7 +196,10 @@ pub struct InnerDeliveryConfig {
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
+// #[serde_as]
 pub struct Codes {
+    #[serde(default)]
+    // #[serde_as(as = "std::collections::HashMap<DisplayFromStr, _>")]
     pub codes: std::collections::HashMap<SMTPReplyCode, String>,
 }
 
@@ -275,33 +259,6 @@ pub struct ServerConfig {
     pub smtp: InnerSMTPConfig,
     pub delivery: InnerDeliveryConfig,
     pub rules: InnerRulesConfig,
+    #[serde(flatten)]
     pub reply_codes: Codes,
 }
-
-/*
-impl ServerConfig {
-    pub fn prepare(&mut self) -> &Self {
-        self.prepare_inner(false)
-    }
-
-    pub fn prepare_default(&mut self) -> &Self {
-        self.prepare_inner(true)
-    }
-
-    fn prepare_inner(&mut self, prepare_for_default: bool) -> &Self {
-        self.smtp.code =
-            Some(match &self.smtp.code {
-                Some(SMTPCode::Raw(raw)) => SMTPCode::Serialized(Box::new(
-                    CustomSMTPCode::from_raw(raw, self, prepare_for_default),
-                )),
-                None => SMTPCode::Serialized(Box::new(CustomSMTPCode::from_raw(
-                    &std::collections::HashMap::<_, _>::new(),
-                    self,
-                    prepare_for_default,
-                ))),
-                Some(SMTPCode::Serialized(c)) => SMTPCode::Serialized(c.clone()),
-            });
-        self
-    }
-}
-*/

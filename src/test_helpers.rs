@@ -15,9 +15,16 @@
  *
 **/
 use crate::{
-    config::server_config::ServerConfig, connection::Connection, io_service::IoService,
-    model::mail::MailContext, processes::ProcessMessage, resolver::DataEndResolver,
-    server::ServerVSMTP, smtp::code::SMTPReplyCode,
+    config::server_config::ServerConfig,
+    connection::Connection,
+    io_service::IoService,
+    model::mail::MailContext,
+    processes::{
+        delivery::handle_one_in_delivery_queue, mime::handle_one_in_working_queue, ProcessMessage,
+    },
+    queue::Queue,
+    resolver::Resolver,
+    server::ServerVSMTP,
 };
 
 pub struct Mock<'a> {
@@ -53,36 +60,71 @@ impl std::io::Read for Mock<'_> {
 pub struct DefaultResolverTest;
 
 #[async_trait::async_trait]
-impl DataEndResolver for DefaultResolverTest {
-    async fn on_data_end(
-        &mut self,
-        _: &ServerConfig,
-        _: &MailContext,
-    ) -> anyhow::Result<SMTPReplyCode> {
-        Ok(SMTPReplyCode::Code250)
+impl Resolver for DefaultResolverTest {
+    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+        Ok(())
     }
 }
 
 // TODO: should be a macro instead of a function.
-pub async fn test_receiver<T: DataEndResolver>(
+//       also we should use a ReceiverTestParameters struct
+//       because their could be a lot of parameters to tweak for tests.
+//       (the connection kind for example)
+/// this function mocks all of the server's processes.
+pub async fn test_receiver<T>(
     address: &str,
-    _: std::sync::Arc<tokio::sync::Mutex<T>>,
+    resolver: T,
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<ServerConfig>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<()>
+where
+    T: Resolver + Send + Sync + 'static,
+{
     let mut written_data = Vec::new();
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
     let mut conn = Connection::<Mock<'_>>::from_plain(
         crate::connection::Kind::Opportunistic,
         address.parse().unwrap(),
-        config,
+        config.clone(),
         &mut io,
     )?;
 
-    let (working_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
-    let (delivery_sender, _receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+    let (working_sender, mut working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+    let (delivery_sender, mut delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+
+    let config_deliver = config.clone();
+    let deliver_handle = tokio::spawn(async move {
+        let mut resolvers =
+            std::collections::HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
+        resolvers.insert("default".to_string(), Box::new(resolver));
+
+        while let Some(pm) = delivery_receiver.recv().await {
+            handle_one_in_delivery_queue(
+                &mut resolvers,
+                &std::path::PathBuf::from_iter([
+                    Queue::Deliver
+                        .to_path(&config_deliver.delivery.spool_dir)
+                        .unwrap(),
+                    std::path::Path::new(&pm.message_id).to_path_buf(),
+                ]),
+                &config_deliver,
+            )
+            .await
+            .expect("delivery process failed");
+        }
+    });
+
+    let config_mime = config.clone();
+    let from_mime = delivery_sender.clone();
+    let mime_handle = tokio::spawn(async move {
+        while let Some(pm) = working_receiver.recv().await {
+            handle_one_in_working_queue(pm, &config_mime, &from_mime)
+                .await
+                .expect("mime process failed");
+        }
+    });
 
     ServerVSMTP::handle_connection::<Mock<'_>>(
         &mut conn,
@@ -93,9 +135,15 @@ pub async fn test_receiver<T: DataEndResolver>(
     .await?;
     std::io::Write::flush(&mut conn.io_stream.inner)?;
 
+    mime_handle.await.unwrap();
+    deliver_handle.await.unwrap();
+
+    // NOTE: could it be a good idea to remove the queue when all tests are done ?
+
     assert_eq!(
         std::str::from_utf8(&written_data),
         std::str::from_utf8(&expected_output.to_vec())
     );
+
     Ok(())
 }

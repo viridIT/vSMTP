@@ -10,7 +10,6 @@ mod test {
             "127.0.0.1:0",
             DefaultResolverTest,
             "./src/rules/tests/rules/actions/r_lookup.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO foobar\r\n", "MAIL FROM: <example@localhost>\r\n"]
                 .concat()
@@ -33,7 +32,6 @@ mod test {
             "0.0.0.0:0",
             DefaultResolverTest,
             "./src/rules/tests/rules/actions/r_lookup.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO foobar\r\n", "MAIL FROM: <example@invalid.com>\r\n"]
                 .concat()

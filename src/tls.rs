@@ -50,7 +50,7 @@ pub fn get_rustls_config(
                     rustls::sign::CertifiedKey {
                         cert: match get_cert_from_file(
                             &sni.fullchain
-                                .replace("{capath}", &capath)
+                                .replace("{capath}", capath)
                                 .replace("{domain}", &sni.domain),
                         ) {
                             Ok(cert) => cert,
@@ -61,7 +61,7 @@ pub fn get_rustls_config(
                         },
                         key: match get_signing_key_from_file(
                             &sni.private_key
-                                .replace("{capath}", &capath)
+                                .replace("{capath}", capath)
                                 .replace("{domain}", &sni.domain),
                         ) {
                             Ok(key) => key,
@@ -121,8 +121,8 @@ pub fn get_rustls_config(
                     Some((
                         match get_cert_from_file(
                             &fullchain
-                                .replace("{capath}", &capath)
-                                .replace("{domain}", &server_domain),
+                                .replace("{capath}", capath)
+                                .replace("{domain}", server_domain),
                         ) {
                             Ok(cert) => cert,
                             Err(e) => {
@@ -132,8 +132,8 @@ pub fn get_rustls_config(
                         },
                         match get_signing_key_from_file(
                             &private_key
-                                .replace("{capath}", &capath)
-                                .replace("{domain}", &server_domain),
+                                .replace("{capath}", capath)
+                                .replace("{domain}", server_domain),
                         ) {
                             Ok(key) => key,
                             Err(e) => {

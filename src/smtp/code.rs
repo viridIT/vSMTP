@@ -45,11 +45,13 @@
     Eq,
     PartialEq,
     Hash,
+    Copy,
     Clone,
     enum_iterator::IntoEnumIterator,
-    serde::Deserialize,
-    serde::Serialize,
+    serde:: Serialize,
+    serde:: Deserialize,
 )]
+#[serde(untagged)]
 pub enum SMTPReplyCode {
     /// system status, or system help reply
     // Code211,
@@ -148,6 +150,53 @@ impl SMTPReplyCode {
             | SMTPReplyCode::Code554tls => true,
             //
             _ => unimplemented!(),
+        }
+    }
+}
+
+impl std::fmt::Display for SMTPReplyCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            SMTPReplyCode::Code214 => todo!(),
+            SMTPReplyCode::Code220 => todo!(),
+            SMTPReplyCode::Code221 => todo!(),
+            SMTPReplyCode::Code250 => todo!(),
+            SMTPReplyCode::Code250PlainEsmtp => todo!(),
+            SMTPReplyCode::Code250SecuredEsmtp => todo!(),
+            SMTPReplyCode::Code354 => todo!(),
+            SMTPReplyCode::Code451 => todo!(),
+            SMTPReplyCode::Code451Timeout => todo!(),
+            SMTPReplyCode::Code451TooManyError => todo!(),
+            SMTPReplyCode::Code452 => todo!(),
+            SMTPReplyCode::Code452TooManyRecipients => todo!(),
+            SMTPReplyCode::Code454 => todo!(),
+            SMTPReplyCode::Code500 => todo!(),
+            SMTPReplyCode::Code501 => todo!(),
+            SMTPReplyCode::Code502unimplemented => todo!(),
+            SMTPReplyCode::Code503 => todo!(),
+            SMTPReplyCode::Code504 => todo!(),
+            SMTPReplyCode::Code530 => todo!(),
+            SMTPReplyCode::Code554 => todo!(),
+            SMTPReplyCode::Code554tls => todo!(),
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct SMTPReplyCodeFromStrError;
+
+impl std::fmt::Display for SMTPReplyCodeFromStrError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("SMTPReplyCodeFromStrError")
+    }
+}
+
+impl std::str::FromStr for SMTPReplyCode {
+    type Err = SMTPReplyCodeFromStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            _ => Err(SMTPReplyCodeFromStrError),
         }
     }
 }

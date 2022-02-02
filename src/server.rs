@@ -23,7 +23,7 @@ use crate::{
     model::mail::MailContext,
     processes::ProcessMessage,
     queue::Queue,
-    resolver::Resolver,
+    resolver::{smtp_resolver::SMTPResolver, Resolver},
     smtp::code::SMTPReplyCode,
     tls::get_rustls_config,
     transaction::Transaction,
@@ -50,8 +50,11 @@ impl ServerVSMTP {
                 .create(spool_dir)?;
         }
 
+        let mut resolvers = HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
+        resolvers.insert("default".to_string(), Box::new(SMTPResolver));
+
         Ok(Self {
-            resolvers: HashMap::new(),
+            resolvers,
             listener: tokio::net::TcpListener::bind(&config.server.addr).await?,
             listener_submission: tokio::net::TcpListener::bind(&config.server.addr_submission)
                 .await?,

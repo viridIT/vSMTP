@@ -10,7 +10,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/valid_helo.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO viridit.com\r\n"].concat().as_bytes(),
             ["220 test.server.com Service ready\r\n", "250 Ok\r\n"]
@@ -24,7 +23,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/valid_helo.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO ibm.com\r\n"].concat().as_bytes(),
             [
@@ -44,7 +42,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/regex_helo.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO viridit.eu\r\n"].concat().as_bytes(),
             ["220 test.server.com Service ready\r\n", "250 Ok\r\n"]
@@ -58,7 +55,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/regex_helo.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO viridit.com\r\n"].concat().as_bytes(),
             [
@@ -75,7 +71,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO viridit.fr\r\n"].concat().as_bytes(),
             ["220 test.server.com Service ready\r\n", "250 Ok\r\n"]
@@ -89,7 +84,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO green.foo\r\n"].concat().as_bytes(),
             [
@@ -106,7 +100,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/helo/file_helo.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO foo.com\r\n"].concat().as_bytes(),
             ["220 test.server.com Service ready\r\n", "250 Ok\r\n"]

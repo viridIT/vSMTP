@@ -3,9 +3,8 @@ pub mod test {
     use crate::{
         config::server_config::ServerConfig,
         model::mail::{Body, MailContext},
-        resolver::DataEndResolver,
+        resolver::Resolver,
         rules::{address::Address, tests::helpers::run_integration_engine_test},
-        smtp::code::SMTPReplyCode,
         test_helpers::DefaultResolverTest,
     };
 
@@ -15,7 +14,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO foobar\r\n", "MAIL FROM:<johndoe@test.com>\r\n",]
                 .concat()
@@ -35,7 +33,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO foobar\r\n", "MAIL FROM:<unknown@test.com>\r\n",]
                 .concat()
@@ -58,7 +55,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO foobar\r\n", "MAIL FROM:<johndoe@viridit.com>\r\n",]
                 .concat()
@@ -78,7 +74,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO foobar\r\n", "MAIL FROM:<user@unknown.com>\r\n",]
                 .concat()
@@ -101,7 +96,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             ["HELO foobar\r\n", "MAIL FROM:<customer@company.com>\r\n",]
                 .concat()
@@ -121,7 +115,6 @@ pub mod test {
             "127.0.0.1:0",
             DefaultResolverTest {},
             "./src/rules/tests/rules/mail/mail.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             [
                 "HELO foobar\r\n",
@@ -144,15 +137,8 @@ pub mod test {
     struct TestRewritten;
 
     #[async_trait::async_trait]
-    impl DataEndResolver for TestRewritten {
-        async fn on_data_end(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-        ) -> anyhow::Result<SMTPReplyCode> {
-            println!("{:?}", ctx.envelop.rcpt);
-            println!("{:?}", ctx.envelop.mail_from);
-
+    impl Resolver for TestRewritten {
+        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
             // envelop should have been rewritten.
             assert!(ctx
                 .envelop
@@ -173,7 +159,7 @@ pub mod test {
                 false
             });
 
-            Ok(SMTPReplyCode::Code250)
+            Ok(())
         }
     }
 
@@ -183,7 +169,6 @@ pub mod test {
             "127.0.0.1:0",
             TestRewritten {},
             "./src/rules/tests/rules/mail/rw_mail.vsl",
-            "./src/rules/tests/configs/default.config.toml",
             users::mock::MockUsers::with_current_uid(1),
             [
                 "HELO foobar\r\n",
