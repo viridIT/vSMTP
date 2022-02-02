@@ -14,7 +14,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Copy,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    enum_iterator::IntoEnumIterator,
+)]
 pub enum StateSMTP {
     Connect,
     Helo,
@@ -39,11 +49,12 @@ impl std::fmt::Display for StateSMTP {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct StateSMTPFromStrError;
 
 impl std::fmt::Display for StateSMTPFromStrError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str("SourceFromStrError")
+        f.write_str("StateSMTPFromStrError")
     }
 }
 
@@ -55,9 +66,61 @@ impl std::str::FromStr for StateSMTP {
             "Connect" => Ok(StateSMTP::Connect),
             "Helo" => Ok(StateSMTP::Helo),
             "MailFrom" => Ok(StateSMTP::MailFrom),
+            "NegotiationTLS" => Ok(StateSMTP::NegotiationTLS),
             "RcptTo" => Ok(StateSMTP::RcptTo),
             "Data" => Ok(StateSMTP::Data),
+            "Stop" => Ok(StateSMTP::Stop),
             _ => Err(StateSMTPFromStrError),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::StateSMTP;
+
+    #[test]
+    fn error() {
+        match StateSMTP::from_str("foo") {
+            Ok(_) => panic!("should be an Err"),
+            Err(e) => assert_eq!(format!("{}", e), "StateSMTPFromStrError"),
+        }
+    }
+
+    #[test]
+    fn to_str() {
+        assert_eq!(format!("{}", StateSMTP::Connect), "Connect");
+        assert_eq!(format!("{}", StateSMTP::Helo), "Helo");
+        assert_eq!(format!("{}", StateSMTP::MailFrom), "MailFrom");
+        assert_eq!(format!("{}", StateSMTP::RcptTo), "RcptTo");
+        assert_eq!(format!("{}", StateSMTP::Data), "Data");
+        assert_eq!(format!("{}", StateSMTP::NegotiationTLS), "NegotiationTLS");
+        assert_eq!(format!("{}", StateSMTP::Stop), "Stop");
+    }
+
+    #[test]
+    fn from_str() {
+        assert_eq!(StateSMTP::from_str("Connect"), Ok(StateSMTP::Connect));
+        assert_eq!(StateSMTP::from_str("Helo"), Ok(StateSMTP::Helo));
+        assert_eq!(StateSMTP::from_str("MailFrom"), Ok(StateSMTP::MailFrom));
+        assert_eq!(StateSMTP::from_str("RcptTo"), Ok(StateSMTP::RcptTo));
+        assert_eq!(StateSMTP::from_str("Data"), Ok(StateSMTP::Data));
+        assert_eq!(
+            StateSMTP::from_str("NegotiationTLS"),
+            Ok(StateSMTP::NegotiationTLS)
+        );
+        assert_eq!(StateSMTP::from_str("Stop"), Ok(StateSMTP::Stop));
+    }
+
+    #[test]
+    fn same() {
+        for s in <StateSMTP as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+            match StateSMTP::from_str(&format!("{}", s)) {
+                Ok(c) => assert_eq!(c, s),
+                Err(e) => panic!("{}", e),
+            }
         }
     }
 }
