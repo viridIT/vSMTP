@@ -42,14 +42,13 @@ pub(super) mod vsl {
         rules::address::Address,
     };
 
-    #[rhai_fn(name = "__SHELL")]
-    // Result<std::process::Output, Box<EvalAltResult>>
-    pub fn shell(command: &str) -> std::process::Output {
+    #[rhai_fn(name = "__SHELL", return_raw)]
+    pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {
         std::process::Command::new("sh")
             .arg("-c")
             .arg(command)
             .output()
-            .unwrap()
+            .map_err(|e| e.to_string().into())
     }
 
     /// enqueue a block operation on the queue.
