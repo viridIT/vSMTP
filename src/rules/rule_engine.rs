@@ -89,7 +89,7 @@ impl<'a> RuleEngine<'a> {
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
-            .push("spool_dir", config.smtp.spool_dir.clone());
+            .push("spool_dir", config.delivery.spool_dir.clone());
 
         Self { scope, skip: None }
     }

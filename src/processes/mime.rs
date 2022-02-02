@@ -41,7 +41,7 @@ pub async fn start(
             process_message.message_id,
         );
 
-        let working_queue = Queue::Working.to_path(config.smtp.spool_dir.clone())?;
+        let working_queue = Queue::Working.to_path(config.delivery.spool_dir.clone())?;
         let file_to_process = working_queue.join(&process_message.message_id);
 
         log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);

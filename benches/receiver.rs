@@ -27,9 +27,8 @@ impl DataEndResolver for DefaultResolverTest {
 }
 
 fn get_test_config() -> std::sync::Arc<ServerConfig> {
-    let mut c: ServerConfig =
+    let c: ServerConfig =
         toml::from_str(include_str!("bench.config.toml")).expect("cannot parse config from toml");
-    c.prepare();
     std::sync::Arc::new(c)
 }
 

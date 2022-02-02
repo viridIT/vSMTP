@@ -1,4 +1,4 @@
-use crate::config::{default::DEFAULT_CONFIG, server_config::ServerConfig};
+use crate::config::server_config::InnerTlsConfig;
 
 fn get_signing_key_from_file(
     rsa_path: &str,
@@ -34,18 +34,15 @@ fn get_cert_from_file(fullchain_path: &str) -> std::io::Result<Vec<rustls::Certi
     })
 }
 
-pub fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::ServerConfig> {
-    let capath_if_missing_from_both = String::default();
-    let capath = config
-        .tls
-        .capath
-        .as_ref()
-        .or_else(|| DEFAULT_CONFIG.tls.capath.as_ref())
-        .unwrap_or(&capath_if_missing_from_both);
+pub fn get_rustls_config(
+    server_domain: &str,
+    config: &InnerTlsConfig,
+) -> std::sync::Arc<rustls::ServerConfig> {
+    let capath = config.capath.as_ref().unwrap();
 
     let mut sni_resolver = rustls::server::ResolvesServerCertUsingSni::new();
 
-    if let Some(x) = config.tls.sni_maps.as_ref() {
+    if let Some(x) = config.sni_maps.as_ref() {
         x.iter()
             .filter_map(|sni| {
                 Some((
@@ -53,7 +50,7 @@ pub fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::Server
                     rustls::sign::CertifiedKey {
                         cert: match get_cert_from_file(
                             &sni.fullchain
-                                .replace("{capath}", capath)
+                                .replace("{capath}", &capath)
                                 .replace("{domain}", &sni.domain),
                         ) {
                             Ok(cert) => cert,
@@ -64,7 +61,7 @@ pub fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::Server
                         },
                         key: match get_signing_key_from_file(
                             &sni.private_key
-                                .replace("{capath}", capath)
+                                .replace("{capath}", &capath)
                                 .replace("{domain}", &sni.domain),
                         ) {
                             Ok(key) => key,
@@ -112,24 +109,20 @@ pub fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::Server
         .with_cert_resolver(std::sync::Arc::new(CertResolver {
             sni_resolver,
             cert: config
-                .tls
                 .fullchain
                 .as_ref()
-                .or_else(|| DEFAULT_CONFIG.tls.fullchain.as_ref())
                 .and_then(|fullchain| {
                     config
-                        .tls
                         .private_key
                         .as_ref()
-                        .or_else(|| DEFAULT_CONFIG.tls.private_key.as_ref())
                         .map(|private_key| (fullchain, private_key))
                 })
                 .and_then(|(fullchain, private_key)| {
                     Some((
                         match get_cert_from_file(
                             &fullchain
-                                .replace("{capath}", capath)
-                                .replace("{domain}", &config.domain),
+                                .replace("{capath}", &capath)
+                                .replace("{domain}", &server_domain),
                         ) {
                             Ok(cert) => cert,
                             Err(e) => {
@@ -139,8 +132,8 @@ pub fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::Server
                         },
                         match get_signing_key_from_file(
                             &private_key
-                                .replace("{capath}", capath)
-                                .replace("{domain}", &config.domain),
+                                .replace("{capath}", &capath)
+                                .replace("{domain}", &server_domain),
                         ) {
                             Ok(key) => key,
                             Err(e) => {
@@ -161,7 +154,7 @@ pub fn get_rustls_config(config: &ServerConfig) -> std::sync::Arc<rustls::Server
                 }),
         }));
 
-    out.ignore_client_order = config.tls.preempt_cipherlist;
+    out.ignore_client_order = config.preempt_cipherlist;
 
     struct TlsLogger;
     impl rustls::KeyLog for TlsLogger {

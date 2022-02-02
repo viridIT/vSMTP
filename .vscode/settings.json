@@ -30,6 +30,7 @@
         "Rset",
         "rustls",
         "setuid",
+        "SMTPS",
         "SMTPUTF",
         "STARTTLS",
         "unencrypted",

@@ -72,7 +72,7 @@ pub mod helpers {
             &std::fs::read_to_string(config_path).expect("failed to read config from file"),
         )
         .unwrap();
-        config.prepare();
+        // config.prepare();
 
         // init logs once.
         INIT.call_once(|| {

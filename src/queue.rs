@@ -59,7 +59,7 @@ impl Queue {
             None => anyhow::bail!("mail metadata not found"),
         };
 
-        let to_deliver = self.to_path(&config.smtp.spool_dir)?.join(message_id);
+        let to_deliver = self.to_path(&config.delivery.spool_dir)?.join(message_id);
 
         // TODO: should loop if a file name is conflicting.
         let mut file = std::fs::OpenOptions::new()

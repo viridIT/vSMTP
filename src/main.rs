@@ -34,11 +34,10 @@ async fn main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
     println!("Loading with configuration: '{}'", args.config);
 
-    let mut config: ServerConfig =
+    let config: std::sync::Arc<ServerConfig> = std::sync::Arc::new(
         toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
-            .expect("cannot parse config from toml");
-    config.prepare();
-    let config = std::sync::Arc::new(config);
+            .expect("cannot parse config from toml"),
+    );
 
     log4rs::init_config(get_logger_config(&config)?)?;
 

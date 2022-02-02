@@ -81,13 +81,11 @@ where
             let soft_error = self.config.smtp.error.soft_count;
 
             if hard_error != -1 && self.error_count >= hard_error as u64 {
-                let mut response_begin =
-                    self.config.smtp.get_code().get(&reply_to_send).to_string();
+                let mut response_begin = self.config.reply_codes.get(&reply_to_send).to_string();
                 response_begin.replace_range(3..4, "-");
                 response_begin.push_str(
                     self.config
-                        .smtp
-                        .get_code()
+                        .reply_codes
                         .get(&SMTPReplyCode::Code451TooManyError),
                 );
                 std::io::Write::write_all(&mut self.io_stream, response_begin.as_bytes())?;
@@ -97,7 +95,7 @@ where
 
             std::io::Write::write_all(
                 &mut self.io_stream,
-                self.config.smtp.get_code().get(&reply_to_send).as_bytes(),
+                self.config.reply_codes.get(&reply_to_send).as_bytes(),
             )?;
 
             if soft_error != -1 && self.error_count >= soft_error as u64 {
@@ -106,10 +104,9 @@ where
         } else {
             std::io::Write::write_all(
                 &mut self.io_stream,
-                self.config.smtp.get_code().get(&reply_to_send).as_bytes(),
-            )?;
+                self.config.reply_codes.get(&reply_to_send).as_bytes(),
+            )?
         }
-
         Ok(())
     }
 

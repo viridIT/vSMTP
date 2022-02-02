@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    config::server_config::{ServerConfig, TlsSecurityLevel},
+    config::server_config::{InnerTlsConfig, ServerConfig, TlsSecurityLevel},
     connection::Connection,
     io_service::IoService,
     model::mail::MailContext,
@@ -41,7 +41,8 @@ pub struct ServerVSMTP {
 impl ServerVSMTP {
     pub async fn new(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<Self> {
         let spool_dir =
-            <std::path::PathBuf as std::str::FromStr>::from_str(&config.smtp.spool_dir).unwrap();
+            <std::path::PathBuf as std::str::FromStr>::from_str(&config.delivery.spool_dir)
+                .unwrap();
 
         if !spool_dir.exists() {
             std::fs::DirBuilder::new()
@@ -56,11 +57,13 @@ impl ServerVSMTP {
                 .await?,
             listener_submissions: tokio::net::TcpListener::bind(&config.server.addr_submissions)
                 .await?,
-            tls_config: if config.tls.security_level == TlsSecurityLevel::None {
-                None
-            } else {
-                Some(get_rustls_config(&config))
-            },
+            tls_config: config.tls.as_ref().and_then(|smtps| {
+                if smtps.security_level == TlsSecurityLevel::None {
+                    None
+                } else {
+                    Some(get_rustls_config(&config.server.domain, smtps))
+                }
+            }),
             config,
         })
     }
@@ -91,7 +94,7 @@ impl ServerVSMTP {
         let delivery_buffer_size = self
             .config
             .delivery
-            .queue
+            .queues
             .get("delivery")
             .map(|q| q.capacity)
             .flatten()
@@ -103,7 +106,7 @@ impl ServerVSMTP {
         let working_buffer_size = self
             .config
             .delivery
-            .queue
+            .queues
             .get("working")
             .map(|q| q.capacity)
             .flatten()
@@ -212,10 +215,9 @@ impl ServerVSMTP {
 
     fn is_version_requirement_satisfied(
         conn: &rustls::ServerConnection,
-        config: &ServerConfig,
+        config: &InnerTlsConfig,
     ) -> bool {
         let protocol_version_requirement = config
-            .tls
             .sni_maps
             .as_ref()
             .and_then(|map| {
@@ -229,7 +231,7 @@ impl ServerVSMTP {
                 None
             })
             .and_then(|i| i.protocol_version.as_ref())
-            .unwrap_or(&config.tls.protocol_version);
+            .unwrap_or(&config.protocol_version);
 
         conn.protocol_version()
             .map(|protocol_version| {
@@ -354,13 +356,15 @@ impl ServerVSMTP {
     where
         S: std::io::Read + std::io::Write,
     {
+        let smtps_config = conn.config.tls.as_ref().unwrap();
+
         let mut tls_conn = rustls::ServerConnection::new(tls_config.unwrap()).unwrap();
         let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
         let mut io_tls_stream = IoService::new(&mut tls_stream);
 
         Connection::<IoService<'_, S>>::complete_tls_handshake(
             &mut io_tls_stream,
-            &conn.config.tls.handshake_timeout,
+            &smtps_config.handshake_timeout,
         )?;
 
         let mut secured_conn = Connection {
@@ -377,10 +381,8 @@ impl ServerVSMTP {
         // FIXME: the rejection of the client because of the SSL/TLS protocol
         // version is done after the handshake...
 
-        if !Self::is_version_requirement_satisfied(
-            secured_conn.io_stream.inner.conn,
-            &secured_conn.config,
-        ) {
+        if !Self::is_version_requirement_satisfied(secured_conn.io_stream.inner.conn, smtps_config)
+        {
             log::error!("requirement not satisfied");
             // TODO: send error 500 ?
             return Ok(());

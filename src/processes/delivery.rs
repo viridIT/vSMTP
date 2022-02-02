@@ -44,7 +44,7 @@ pub async fn start(
     let mut flush_deferred_interval = tokio::time::interval(
         config
             .delivery
-            .queue
+            .queues
             .get("deferred")
             .map(|q| q.cron_period)
             .flatten()
@@ -57,7 +57,7 @@ pub async fn start(
                 handle_one_in_delivery_queue(
                     &resolvers,
                     &std::path::PathBuf::from_iter([
-                        Queue::Deliver.to_path(&config.smtp.spool_dir)?,
+                        Queue::Deliver.to_path(&config.delivery.spool_dir)?,
                         std::path::Path::new(&pm.message_id).to_path_buf(),
                     ]),
                     &config,
@@ -129,7 +129,7 @@ async fn handle_one_in_delivery_queue(
             std::fs::rename(
                 path,
                 std::path::PathBuf::from_iter([
-                    Queue::Deferred.to_path(&config.smtp.spool_dir)?,
+                    Queue::Deferred.to_path(&config.delivery.spool_dir)?,
                     std::path::Path::new(&message_id).to_path_buf(),
                 ]),
             )?;
@@ -149,7 +149,7 @@ async fn flush_deliver_queue(
     resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deliver.to_path(&config.smtp.spool_dir)?)? {
+    for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
         handle_one_in_delivery_queue(resolvers, &path?.path(), config)
             .await
             .unwrap();
@@ -180,7 +180,7 @@ async fn handle_one_in_deferred_queue(
 
     let max_retry_deferred = config
         .delivery
-        .queue
+        .queues
         .get("deferred")
         .map(|q| q.retry_max)
         .flatten()
@@ -201,7 +201,7 @@ async fn handle_one_in_deferred_queue(
         std::fs::rename(
             path,
             std::path::PathBuf::from_iter([
-                Queue::Dead.to_path(&config.smtp.spool_dir)?,
+                Queue::Dead.to_path(&config.delivery.spool_dir)?,
                 std::path::Path::new(&message_id).to_path_buf(),
             ]),
         )?;
@@ -269,7 +269,7 @@ async fn flush_deferred_queue(
     resolvers: &HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deferred.to_path(&config.smtp.spool_dir)?)? {
+    for path in std::fs::read_dir(Queue::Deferred.to_path(&config.delivery.spool_dir)?)? {
         handle_one_in_deferred_queue(resolvers, &path?.path(), config)
             .await
             .unwrap();
