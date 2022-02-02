@@ -315,7 +315,7 @@ impl Transaction<'_> {
                     timestamp: now,
                     // TODO: find a way to handle SystemTime failure.
                     message_id: format!(
-                        "{}{}{}",
+                        "{}{}{}{}",
                         now.duration_since(std::time::SystemTime::UNIX_EPOCH)
                             .unwrap_or(std::time::Duration::ZERO)
                             .as_micros(),
@@ -323,6 +323,9 @@ impl Transaction<'_> {
                             .duration_since(std::time::SystemTime::UNIX_EPOCH)
                             .unwrap_or(std::time::Duration::ZERO)
                             .as_millis(),
+                        std::iter::repeat_with(fastrand::alphanumeric)
+                            .take(36)
+                            .collect::<String>(),
                         std::process::id()
                     ),
                     retry: 0,

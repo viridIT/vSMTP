@@ -34,6 +34,7 @@ regex = "1.5.4"
 iprange = "0.6.6"
 ipnet = "2.3.1"
 chrono = "0.4.19"
+fastrand = "1.4"
 
 rhai = { version = "1.4.0", features = ["unchecked", "sync"] }
 
