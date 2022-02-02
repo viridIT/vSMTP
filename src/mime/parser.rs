@@ -529,6 +529,7 @@ fn get_boundary_type(line: &str, boundary: &str) -> Option<BoundaryType> {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -577,7 +578,7 @@ mod test {
             },
             r#"x-mozilla-status: 0001
 x-mozilla-status2: 01000000
-x-mozilla-keys: 
+x-mozilla-keys:
 fcc: imap://tabis%40localhost.com@localhost.com/sent
 x-identity-key: id3
 x-account-key: account4
@@ -597,3 +598,4 @@ je ne suis qu'un contenu de texte."#
         );
     }
 }
+*/

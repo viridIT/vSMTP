@@ -8,6 +8,7 @@ const MAIL_PER_THREAD: u64 = 1000;
 
 #[ignore = "too heavy"]
 #[tokio::test]
+#[cfg(false)]
 async fn test_dos() {
     match fork::fork().expect("failed to fork process") {
         fork::Fork::Parent(_) => {
