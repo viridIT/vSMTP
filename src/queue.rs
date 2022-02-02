@@ -1,5 +1,3 @@
-use crate::config::{log_channel::RECEIVER, server_config::ServerConfig};
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -16,6 +14,9 @@ use crate::config::{log_channel::RECEIVER, server_config::ServerConfig};
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use anyhow::Context;
+
+use crate::config::{log_channel::RECEIVER, server_config::ServerConfig};
 
 /// identifiers for all mail queues.
 pub enum Queue {
@@ -65,7 +66,14 @@ impl Queue {
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
-            .open(&to_deliver)?;
+            .open(&to_deliver)
+            .with_context(|| {
+                format!(
+                    "failed to open file in {} queue at {:?}",
+                    self.as_str(),
+                    to_deliver,
+                )
+            })?;
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 

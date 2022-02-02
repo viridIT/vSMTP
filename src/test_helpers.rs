@@ -112,7 +112,7 @@ where
                 &config_deliver,
             )
             .await
-            .unwrap();
+            .expect("delivery process failed");
         }
     });
 
@@ -122,7 +122,7 @@ where
         while let Some(pm) = working_receiver.recv().await {
             handle_one_in_working_queue(pm, &config_mime, &from_mime)
                 .await
-                .unwrap();
+                .expect("mime process failed");
         }
     });
 
