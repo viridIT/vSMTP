@@ -19,7 +19,9 @@ use crate::{
     connection::Connection,
     io_service::IoService,
     model::mail::MailContext,
-    processes::{delivery::handle_one_in_delivery_queue, ProcessMessage},
+    processes::{
+        delivery::handle_one_in_delivery_queue, mime::handle_one_in_working_queue, ProcessMessage,
+    },
     queue::Queue,
     resolver::Resolver,
     server::ServerVSMTP,
@@ -65,6 +67,10 @@ impl Resolver for DefaultResolverTest {
 }
 
 // TODO: should be a macro instead of a function.
+//       also we should use a ReceiverTestParameters struct
+//       because their could be a lot of parameters to tweak for tests.
+//       (the connection kind for example)
+/// this function mocks all of the server's processes.
 pub async fn test_receiver<T>(
     address: &str,
     resolver: T,
@@ -78,10 +84,14 @@ where
     let mut written_data = Vec::new();
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn =
-        Connection::<Mock<'_>>::from_plain(address.parse().unwrap(), config.clone(), &mut io)?;
+    let mut conn = Connection::<Mock<'_>>::from_plain(
+        crate::connection::Kind::Opportunistic,
+        address.parse().unwrap(),
+        config.clone(),
+        &mut io,
+    )?;
 
-    let (working_sender, working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+    let (working_sender, mut working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, mut delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
     let config_deliver = config.clone();
@@ -107,15 +117,19 @@ where
     });
 
     let config_mime = config.clone();
+    let from_mime = delivery_sender.clone();
     let mime_handle = tokio::spawn(async move {
-        let result =
-            crate::processes::mime::start(&config_mime, working_receiver, delivery_sender).await;
-        log::error!("v_mime ended unexpectedly '{:?}'", result);
+        while let Some(pm) = working_receiver.recv().await {
+            handle_one_in_working_queue(pm, &config_mime, &from_mime)
+                .await
+                .unwrap();
+        }
     });
 
     ServerVSMTP::handle_connection::<Mock<'_>>(
         &mut conn,
         std::sync::Arc::new(working_sender),
+        std::sync::Arc::new(delivery_sender),
         None,
     )
     .await?;
@@ -123,6 +137,8 @@ where
 
     mime_handle.await.unwrap();
     deliver_handle.await.unwrap();
+
+    // NOTE: could it be a good idea to remove the queue when all tests are done ?
 
     assert_eq!(
         std::str::from_utf8(&written_data),

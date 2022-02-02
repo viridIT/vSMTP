@@ -38,7 +38,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
     /// accepts the current stage value, skips all rules in the stage.
     Accept,
@@ -134,13 +134,12 @@ impl<'a> RuleEngine<'a> {
             .context
             .eval_ast_with_scope::<Status>(&mut self.scope, &acquire_engine().ast);
 
-        // FIXME: clarify this comment.
-        // rules are cleared after evaluation, this way,
-        // scoped variables that are changed by rhai's context
-        // can be injected back into fresh new rules.
+        // rules are cleared after each evaluation. This way,
+        // scoped variables that are changed by previous rules
+        // can be re-injected back into the script.
         self.scope.set_value("__rules", Array::new());
 
-        log::debug!(target: RULES, "[{}] done.", stage);
+        log::debug!(target: RULES, "[{}] evaluated.", stage);
 
         match result {
             Ok(status) => {
@@ -160,7 +159,7 @@ impl<'a> RuleEngine<'a> {
             Err(error) => {
                 log::error!(
                     target: RULES,
-                    "the rule engine skipped a rule in the '{}' stage because it could not evaluate it: \n\t{}",
+                    "the rule engine skipped stage '{}' because it failed to evaluate a rule:\n\t{}",
                     stage, error
                 );
                 Status::Continue
@@ -238,6 +237,10 @@ impl<'a> RuleEngine<'a> {
             .push("rcpt", Address::default())
             .push("rcpts", HashSet::<Address>::new())
             .push("data", Mail::default());
+    }
+
+    pub fn skipped(&self) -> Option<Status> {
+        self.skip
     }
 }
 

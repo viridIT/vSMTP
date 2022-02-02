@@ -27,6 +27,8 @@ use super::{
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct InnerServerConfig {
     pub addr: std::net::SocketAddr,
+    pub addr_submission: std::net::SocketAddr,
+    pub addr_submissions: std::net::SocketAddr,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

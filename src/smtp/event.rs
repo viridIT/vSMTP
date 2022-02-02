@@ -43,9 +43,9 @@ impl std::str::FromStr for MimeBodyType {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Event {
     /// Used to identify the SMTP client to the SMTP server.
-    /// Syntax = `"HELO" SP Domain CRLF`
+    /// Syntax = `"HELO" SP ( Domain / address-literal ) CRLF`
     HeloCmd(String),
-    /// Used to identify the SMTP client to the SMTP server.
+    /// Used to identify the SMTP client to the SMTP server and request smtp extensions.
     /// Syntax = `"EHLO" SP ( Domain / address-literal ) CRLF`
     EhloCmd(String),
     /// This command is used to initiate a mail transaction in which the mail
@@ -142,10 +142,12 @@ impl Event {
     ///
     /// assert_eq!(Event::parse_cmd("HELO foobar"), Ok(Event::HeloCmd("foobar".to_string())));
     /// assert_eq!(Event::parse_cmd("hElO   ibm.com  "), Ok(Event::HeloCmd("ibm.com".to_string())));
+    /// assert_eq!(Event::parse_cmd("HELO [127.0.0.1]"), Ok(Event::HeloCmd("127.0.0.1".to_string())));
     /// assert_eq!(Event::parse_cmd("hElO  not\\a.valid\"domain"), Err(SMTPReplyCode::Code501));
     /// assert_eq!(Event::parse_cmd("hElO  "), Err(SMTPReplyCode::Code501));
     /// assert_eq!(Event::parse_cmd("   hElO  valid_domain"), Err(SMTPReplyCode::Code501));
     /// assert_eq!(Event::parse_cmd("HELO one two"), Err(SMTPReplyCode::Code501));
+    /// assert_eq!(Event::parse_cmd("HELO 0.0.0.0"), Err(SMTPReplyCode::Code501));
     /// ```
     ///
     /// Ehlo Command
@@ -167,6 +169,7 @@ impl Event {
     /// assert_eq!(Event::parse_cmd("EHLO  "), Err(SMTPReplyCode::Code501));
     /// assert_eq!(Event::parse_cmd("   EHLO  valid_domain"), Err(SMTPReplyCode::Code501));
     /// assert_eq!(Event::parse_cmd("EHLO one two"), Err(SMTPReplyCode::Code501));
+    /// assert_eq!(Event::parse_cmd("EHLO 0.0.0.0"), Err(SMTPReplyCode::Code501));
     /// ```
     ///
     /// Mail from Command
@@ -419,38 +422,30 @@ impl Event {
         }
     }
 
-    fn parse_arg_helo(args: &[&str]) -> Result<Event, SMTPReplyCode> {
+    fn parse_domain_or_address_literal(args: &[&str]) -> anyhow::Result<String> {
         match args {
-            [domain] => match addr::parse_domain_name(domain) {
-                Ok(domain) => Ok(Event::HeloCmd(domain.to_string())),
-                Err(_) => Err(SMTPReplyCode::Code501),
-            },
-            _ => Err(SMTPReplyCode::Code501),
+            [ip] if ip.starts_with('[') && ip.ends_with(']') => Ok(ip[1..ip.len() - 1]
+                .parse::<std::net::IpAddr>()
+                .map_err(|e| anyhow::anyhow!(e))?
+                .to_string()),
+            [domain] => Ok(addr::parse_domain_name(domain)
+                .map_err(|e| anyhow::anyhow!(e.input().to_string()))?
+                .to_string()),
+            _ => anyhow::bail!("no domain or ip found in arguments"),
+        }
+    }
+
+    fn parse_arg_helo(args: &[&str]) -> Result<Event, SMTPReplyCode> {
+        match Event::parse_domain_or_address_literal(args) {
+            Ok(out) => Ok(Event::HeloCmd(out)),
+            Err(_) => Err(SMTPReplyCode::Code501),
         }
     }
 
     fn parse_arg_ehlo(args: &[&str]) -> Result<Event, SMTPReplyCode> {
-        match args {
-            [domain_or_address_literal] => {
-                match addr::parse_domain_name(domain_or_address_literal) {
-                    Ok(domain) => Ok(Event::EhloCmd(domain.to_string())),
-                    // TODO: improve that see https://datatracker.ietf.org/doc/html/rfc5321#section-4.1.3
-                    // addr::email::Host::parse
-                    Err(_)
-                        if domain_or_address_literal.starts_with('[')
-                            && domain_or_address_literal.ends_with(']') =>
-                    {
-                        match domain_or_address_literal[1..domain_or_address_literal.len() - 1]
-                            .parse::<std::net::IpAddr>()
-                        {
-                            Ok(address) => Ok(Event::EhloCmd(address.to_string())),
-                            Err(_) => Err(SMTPReplyCode::Code501),
-                        }
-                    }
-                    _ => Err(SMTPReplyCode::Code501),
-                }
-            }
-            _ => Err(SMTPReplyCode::Code501),
+        match Event::parse_domain_or_address_literal(args) {
+            Ok(out) => Ok(Event::EhloCmd(out)),
+            Err(_) => Err(SMTPReplyCode::Code501),
         }
     }
 

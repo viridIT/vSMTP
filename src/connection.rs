@@ -20,10 +20,21 @@ use crate::{
     smtp::code::SMTPReplyCode,
 };
 
+#[derive(Debug, Copy, Clone)]
+pub enum Kind {
+    // connection may use STARTTLS
+    Opportunistic,
+    // Opportunistic and enforced security (auth)
+    Submission,
+    // within TLS
+    Tunneled,
+}
+
 pub struct Connection<'stream, S>
 where
     S: std::io::Read + std::io::Write,
 {
+    pub kind: Kind,
     pub timestamp: std::time::SystemTime,
     pub is_alive: bool,
     pub config: std::sync::Arc<crate::config::server_config::ServerConfig>,
@@ -38,11 +49,13 @@ where
     S: std::io::Read + std::io::Write,
 {
     pub fn from_plain<'a>(
+        kind: Kind,
         client_addr: std::net::SocketAddr,
         config: std::sync::Arc<ServerConfig>,
         io_stream: &'a mut IoService<'a, S>,
     ) -> std::io::Result<Connection<'a, S>> {
         Ok(Connection {
+            kind,
             timestamp: std::time::SystemTime::now(),
             is_alive: true,
             config,
