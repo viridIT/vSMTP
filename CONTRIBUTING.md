@@ -57,4 +57,4 @@ vSMTP project and viridIT teams adheres to the principles described in the
 [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/1/4/code-of-conduct/).
 This is the minimum behavior expected from all contributors. Instances of
 violations of the Code of Conduct can be reported by contacting the project team
-at [moderation@viridit.com](mailto:moderation@tokio.rs).
+at [moderation@viridit.com](mailto:moderation@viridit.com).
