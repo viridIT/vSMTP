@@ -6,7 +6,7 @@ use super::server_config::{
     ProtocolVersionRequirement, QueueConfig, ServerConfig, SniKey, TlsSecurityLevel,
 };
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct ConfigBuilder<State> {
     pub(crate) state: State,
 }
@@ -26,7 +26,7 @@ impl ServerConfig {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct WantsServer(pub(crate) ());
 
 impl ConfigBuilder<WantsServer> {
@@ -64,9 +64,10 @@ impl ConfigBuilder<WantsServer> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+// #[serde(deny_unknown_fields)]
 pub struct WantsLogging {
-    #[serde(flatten)]
-    #[allow(dead_code)]
+    #[serde(skip)]
+    #[allow(unused)]
     pub(crate) parent: WantsServer,
     pub(crate) server: InnerServerConfig,
 }
@@ -99,6 +100,7 @@ impl ConfigBuilder<WantsLogging> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+// #[serde(deny_unknown_fields)]
 pub struct WantSMTPS {
     #[serde(flatten)]
     pub(crate) parent: WantsLogging,
@@ -168,6 +170,7 @@ impl ConfigBuilder<WantSMTPS> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+// #[serde(deny_unknown_fields)]
 pub struct WantSMTP {
     #[serde(flatten)]
     pub(crate) parent: WantSMTPS,
@@ -210,16 +213,18 @@ impl ConfigBuilder<WantSMTP> {
             crate::collection! {},
             5,
             10,
-            std::time::Duration::from_millis(1001),
+            std::time::Duration::from_millis(1000),
             1000,
         )
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+// #[serde(deny_unknown_fields)]
 pub struct WantsDelivery {
     #[serde(flatten)]
     pub(crate) parent: WantSMTP,
+    #[serde(default)]
     pub(crate) smtp: InnerSMTPConfig,
 }
 
@@ -242,6 +247,7 @@ impl ConfigBuilder<WantsDelivery> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+// #[serde(deny_unknown_fields)]
 pub struct WantsRules {
     #[serde(flatten)]
     pub(crate) parent: WantsDelivery,
@@ -262,6 +268,7 @@ impl ConfigBuilder<WantsRules> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+// #[serde(deny_unknown_fields)]
 pub struct WantsReplyCodes {
     #[serde(flatten)]
     pub(crate) parent: WantsRules,
@@ -287,9 +294,11 @@ impl ConfigBuilder<WantsReplyCodes> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+// #[serde(deny_unknown_fields)]
 pub struct WantsBuild {
     #[serde(flatten)]
     pub(crate) parent: WantsReplyCodes,
+    #[serde(default)]
     pub(crate) reply_codes: Codes,
 }
 
@@ -392,5 +401,106 @@ mod tests {
         // config.
 
         Ok(())
+    }
+
+    #[test]
+    fn from_toml_template_simple() {
+        assert_eq!(
+            ServerConfig::from_toml(include_str!("template/simple.toml")).unwrap(),
+            ServerConfig::builder()
+                .with_server_default_port("testserver.com")
+                .with_logging(
+                    "/var/log/vsmtp/vsmtp.log",
+                    crate::collection! {
+                        "default".to_string() => log::LevelFilter::Warn
+                    },
+                )
+                .without_smtps()
+                .with_default_smtp()
+                .with_delivery(
+                    "/var/spool/vsmtp",
+                    crate::collection! {
+                        "working".to_string() => QueueConfig {
+                            capacity: Some(32),
+                            retry_max: None,
+                            cron_period: None
+                        },
+                        "deliver".to_string() => QueueConfig {
+                            capacity: Some(32),
+                            retry_max: None,
+                            cron_period: None
+                        },
+                        "deferred".to_string() => QueueConfig {
+                            capacity: None,
+                            retry_max: Some(10),
+                            cron_period: Some(std::time::Duration::from_secs(10))
+                        },
+                    },
+                )
+                .with_rules("/etc/vsmtp/rules")
+                .with_default_reply_codes()
+                .build()
+        );
+    }
+
+    #[test]
+    fn from_toml_template_smtps() {
+        assert_eq!(
+            ServerConfig::from_toml(include_str!("template/smtps.toml")).unwrap(),
+            ServerConfig::builder()
+                .with_server(
+                    "testserver.com",
+                    "0.0.0.0:25".parse().expect("valid address"),
+                    "0.0.0.0:587".parse().expect("valid address"),
+                    "0.0.0.0:465".parse().expect("valid address"),
+                )
+                .with_logging(
+                    "/var/log/vsmtp/vsmtp.log",
+                    crate::collection! {
+                        "default".to_string() => log::LevelFilter::Warn
+                    },
+                )
+                .with_smtps(
+                    TlsSecurityLevel::May,
+                    ProtocolVersionRequirement(vec![ProtocolVersion(
+                        rustls::ProtocolVersion::TLSv1_3
+                    )]),
+                    "./config/certs",
+                    true,
+                    "{capath}/certificate.crt",
+                    "{capath}/privateKey.key",
+                    std::time::Duration::from_millis(100),
+                    Some(vec![SniKey {
+                        domain: "testserver.com".to_string(),
+                        private_key: "{capath}/rsa.{domain}.pem".to_string(),
+                        fullchain: "{capath}/fullchain.{domain}.pem".to_string(),
+                        protocol_version: None
+                    }]),
+                )
+                .with_default_smtp()
+                .with_delivery(
+                    "./tmp/var/spool/vsmtp",
+                    crate::collection! {
+                        "working".to_string() => QueueConfig {
+                            capacity: Some(32),
+                            retry_max: None,
+                            cron_period: None
+                        },
+                        "deliver".to_string() => QueueConfig {
+                            capacity: Some(32),
+                            retry_max: None,
+                            cron_period: None
+                        },
+                        "deferred".to_string() => QueueConfig {
+                            capacity: None,
+                            retry_max: Some(10),
+                            cron_period: Some(std::time::Duration::from_secs(10))
+                        },
+                    },
+                )
+                .with_rules("./config/rules")
+                .with_default_reply_codes()
+                .build()
+        );
     }
 }

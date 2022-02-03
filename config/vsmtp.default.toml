@@ -2,6 +2,8 @@
 ### Default values used by vSMTP server
 ### This is documentation only : any changes will be ignored
 
+### This file is obsolete, and will be removed in newer version
+
 domain = "mydomain.com"
 
 [server]

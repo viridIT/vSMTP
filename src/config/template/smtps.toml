@@ -1,17 +1,14 @@
 [server]
 domain = "testserver.com"
-addr = "0.0.0.0:10025"
-addr_submission = "0.0.0.0:10587"
-addr_submissions = "0.0.0.0:10465"
+addr = "0.0.0.0:25"
+addr_submission = "0.0.0.0:587"
+addr_submissions = "0.0.0.0:465"
 
 [logs]
-file = "./tmp/var/log/vsmtp/vsmtp.log"
+file = "/var/log/vsmtp/vsmtp.log"
 
 [logs.level]
 default = "warn"
-receiver = "info"
-resolver = "warn"
-rules = "warn"
 
 [rules]
 dir = "./config/rules"
@@ -32,17 +29,13 @@ fullchain = "{capath}/fullchain.{domain}.pem"
 private_key = "{capath}/rsa.{domain}.pem"
 
 [smtp]
-rcpt_count_max = 25
+rcpt_count_max = 1000
 disable_ehlo = false
 
 [smtp.error]
 soft_count = 5
 hard_count = 10
-delay = "5000ms"
-
-[reply_codes]
-Code214 = "214 my custom help message\r\n"
-Code220 = "220 {domain} ESMTP Service ready\r\n"
+delay = "1000ms"
 
 [delivery]
 spool_dir = "./tmp/var/spool/vsmtp"
