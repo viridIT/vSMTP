@@ -186,9 +186,7 @@ impl Transaction<'_> {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
-                    _ if self.mail.envelop.rcpt.len()
-                        >= conn.config.smtp.rcpt_count_max.unwrap_or(usize::MAX) =>
-                    {
+                    _ if self.mail.envelop.rcpt.len() >= conn.config.smtp.rcpt_count_max => {
                         ProcessedEvent::ReplyChangeState(
                             StateSMTP::RcptTo,
                             SMTPReplyCode::Code452TooManyRecipients,

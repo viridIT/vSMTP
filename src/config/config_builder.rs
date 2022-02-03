@@ -17,8 +17,16 @@ impl ServerConfig {
             state: WantsServer(()),
         }
     }
+
+    pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
+        Ok(ConfigBuilder::<WantsBuild> {
+            state: toml::from_str::<WantsBuild>(data)?,
+        }
+        .build())
+    }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsServer(pub(crate) ());
 
 impl ConfigBuilder<WantsServer> {
@@ -55,7 +63,9 @@ impl ConfigBuilder<WantsServer> {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsLogging {
+    #[serde(flatten)]
     #[allow(dead_code)]
     pub(crate) parent: WantsServer,
     pub(crate) server: InnerServerConfig,
@@ -88,7 +98,9 @@ impl ConfigBuilder<WantsLogging> {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantSMTPS {
+    #[serde(flatten)]
     pub(crate) parent: WantsLogging,
     pub(crate) logs: InnerLogConfig,
 }
@@ -155,7 +167,9 @@ impl ConfigBuilder<WantSMTPS> {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantSMTP {
+    #[serde(flatten)]
     pub(crate) parent: WantSMTPS,
     pub(crate) smtps: Option<InnerTlsConfig>,
 }
@@ -184,7 +198,7 @@ impl ConfigBuilder<WantSMTP> {
                         hard_count: error_hard_count,
                         delay: error_delay,
                     },
-                    rcpt_count_max: Some(rcpt_count_max),
+                    rcpt_count_max,
                 },
             },
         }
@@ -202,7 +216,9 @@ impl ConfigBuilder<WantSMTP> {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsDelivery {
+    #[serde(flatten)]
     pub(crate) parent: WantSMTP,
     pub(crate) smtp: InnerSMTPConfig,
 }
@@ -225,7 +241,9 @@ impl ConfigBuilder<WantsDelivery> {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsRules {
+    #[serde(flatten)]
     pub(crate) parent: WantsDelivery,
     pub(crate) delivery: InnerDeliveryConfig,
 }
@@ -243,7 +261,9 @@ impl ConfigBuilder<WantsRules> {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsReplyCodes {
+    #[serde(flatten)]
     pub(crate) parent: WantsRules,
     pub(crate) rules: InnerRulesConfig,
 }
@@ -251,22 +271,8 @@ pub struct WantsReplyCodes {
 impl ConfigBuilder<WantsReplyCodes> {
     pub fn with_reply_codes(
         self,
-        mut reply_codes: std::collections::HashMap<SMTPReplyCode, String>,
+        reply_codes: std::collections::HashMap<SMTPReplyCode, String>,
     ) -> ConfigBuilder<WantsBuild> {
-        let server_domain = &self.state.parent.parent.parent.parent.parent.server.domain;
-        let default_values = Codes::default();
-
-        for i in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
-            reply_codes.insert(
-                i.clone(),
-                match reply_codes.get(&i) {
-                    Some(v) => v,
-                    None => default_values.get(&i),
-                }
-                .replace("{domain}", server_domain),
-            );
-        }
-
         ConfigBuilder::<WantsBuild> {
             state: WantsBuild {
                 parent: self.state,
@@ -280,13 +286,40 @@ impl ConfigBuilder<WantsReplyCodes> {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsBuild {
+    #[serde(flatten)]
     pub(crate) parent: WantsReplyCodes,
     pub(crate) reply_codes: Codes,
 }
 
 impl ConfigBuilder<WantsBuild> {
     pub fn build(self) -> ServerConfig {
+        let server_domain = &self
+            .state
+            .parent
+            .parent
+            .parent
+            .parent
+            .parent
+            .parent
+            .server
+            .domain;
+        let default_values = Codes::default();
+
+        let mut reply_codes = self.state.reply_codes.codes;
+
+        for i in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+            reply_codes.insert(
+                i,
+                match reply_codes.get(&i) {
+                    Some(v) => v,
+                    None => default_values.get(&i),
+                }
+                .replace("{domain}", server_domain),
+            );
+        }
+
         ServerConfig {
             server: self.state.parent.parent.parent.parent.parent.parent.server,
             log: self.state.parent.parent.parent.parent.parent.logs,
@@ -294,7 +327,7 @@ impl ConfigBuilder<WantsBuild> {
             smtp: self.state.parent.parent.parent.smtp,
             delivery: self.state.parent.parent.delivery,
             rules: self.state.parent.rules,
-            reply_codes: self.state.reply_codes,
+            reply_codes: Codes { codes: reply_codes },
         }
     }
 }
@@ -328,7 +361,6 @@ mod tests {
             .with_default_reply_codes()
             .build();
 
-        // config.
         Ok(())
     }
 

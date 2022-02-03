@@ -52,6 +52,8 @@
     serde:: Deserialize,
 )]
 #[serde(untagged)]
+#[serde(into = "String")]
+#[serde(try_from = "String")]
 pub enum SMTPReplyCode {
     /// system status, or system help reply
     // Code211,
@@ -157,28 +159,34 @@ impl SMTPReplyCode {
 impl std::fmt::Display for SMTPReplyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            SMTPReplyCode::Code214 => todo!(),
-            SMTPReplyCode::Code220 => todo!(),
-            SMTPReplyCode::Code221 => todo!(),
-            SMTPReplyCode::Code250 => todo!(),
-            SMTPReplyCode::Code250PlainEsmtp => todo!(),
-            SMTPReplyCode::Code250SecuredEsmtp => todo!(),
-            SMTPReplyCode::Code354 => todo!(),
-            SMTPReplyCode::Code451 => todo!(),
-            SMTPReplyCode::Code451Timeout => todo!(),
-            SMTPReplyCode::Code451TooManyError => todo!(),
-            SMTPReplyCode::Code452 => todo!(),
-            SMTPReplyCode::Code452TooManyRecipients => todo!(),
-            SMTPReplyCode::Code454 => todo!(),
-            SMTPReplyCode::Code500 => todo!(),
-            SMTPReplyCode::Code501 => todo!(),
-            SMTPReplyCode::Code502unimplemented => todo!(),
-            SMTPReplyCode::Code503 => todo!(),
-            SMTPReplyCode::Code504 => todo!(),
-            SMTPReplyCode::Code530 => todo!(),
-            SMTPReplyCode::Code554 => todo!(),
-            SMTPReplyCode::Code554tls => todo!(),
+            SMTPReplyCode::Code214 => "Code214",
+            SMTPReplyCode::Code220 => "Code220",
+            SMTPReplyCode::Code221 => "Code221",
+            SMTPReplyCode::Code250 => "Code250",
+            SMTPReplyCode::Code250PlainEsmtp => "Code250PlainEsmtp",
+            SMTPReplyCode::Code250SecuredEsmtp => "Code250SecuredEsmtp",
+            SMTPReplyCode::Code354 => "Code354",
+            SMTPReplyCode::Code451 => "Code451",
+            SMTPReplyCode::Code451Timeout => "Code451Timeout",
+            SMTPReplyCode::Code451TooManyError => "Code451TooManyError",
+            SMTPReplyCode::Code452 => "Code452",
+            SMTPReplyCode::Code452TooManyRecipients => "Code452TooManyRecipients",
+            SMTPReplyCode::Code454 => "Code454",
+            SMTPReplyCode::Code500 => "Code500",
+            SMTPReplyCode::Code501 => "Code501",
+            SMTPReplyCode::Code502unimplemented => "Code502unimplemented",
+            SMTPReplyCode::Code503 => "Code503",
+            SMTPReplyCode::Code504 => "Code504",
+            SMTPReplyCode::Code530 => "Code530",
+            SMTPReplyCode::Code554 => "Code554",
+            SMTPReplyCode::Code554tls => "Code554tls",
         })
+    }
+}
+
+impl From<SMTPReplyCode> for String {
+    fn from(code: SMTPReplyCode) -> Self {
+        format!("{}", code)
     }
 }
 
@@ -196,7 +204,36 @@ impl std::str::FromStr for SMTPReplyCode {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            "Code214" => Ok(SMTPReplyCode::Code214),
+            "Code220" => Ok(SMTPReplyCode::Code220),
+            "Code221" => Ok(SMTPReplyCode::Code221),
+            "Code250" => Ok(SMTPReplyCode::Code250),
+            "Code250PlainEsmtp" => Ok(SMTPReplyCode::Code250PlainEsmtp),
+            "Code250SecuredEsmtp" => Ok(SMTPReplyCode::Code250SecuredEsmtp),
+            "Code354" => Ok(SMTPReplyCode::Code354),
+            "Code451" => Ok(SMTPReplyCode::Code451),
+            "Code451Timeout" => Ok(SMTPReplyCode::Code451Timeout),
+            "Code451TooManyError" => Ok(SMTPReplyCode::Code451TooManyError),
+            "Code452" => Ok(SMTPReplyCode::Code452),
+            "Code452TooManyRecipients" => Ok(SMTPReplyCode::Code452TooManyRecipients),
+            "Code454" => Ok(SMTPReplyCode::Code454),
+            "Code500" => Ok(SMTPReplyCode::Code500),
+            "Code501" => Ok(SMTPReplyCode::Code501),
+            "Code502unimplemented" => Ok(SMTPReplyCode::Code502unimplemented),
+            "Code503" => Ok(SMTPReplyCode::Code503),
+            "Code504" => Ok(SMTPReplyCode::Code504),
+            "Code530" => Ok(SMTPReplyCode::Code530),
+            "Code554" => Ok(SMTPReplyCode::Code554),
+            "Code554tls" => Ok(SMTPReplyCode::Code554tls),
             _ => Err(SMTPReplyCodeFromStrError),
         }
+    }
+}
+
+impl TryFrom<String> for SMTPReplyCode {
+    type Error = SMTPReplyCodeFromStrError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        <SMTPReplyCode as std::str::FromStr>::from_str(&value)
     }
 }

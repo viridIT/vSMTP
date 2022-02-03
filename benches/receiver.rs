@@ -23,9 +23,17 @@ impl Resolver for DefaultResolverTest {
 }
 
 fn get_test_config() -> std::sync::Arc<ServerConfig> {
-    let c: ServerConfig =
-        toml::from_str(include_str!("bench.config.toml")).expect("cannot parse config from toml");
-    std::sync::Arc::new(c)
+    std::sync::Arc::new(
+        ServerConfig::builder()
+            .with_server_default_port("bench.server.com")
+            .without_log()
+            .without_smtps()
+            .with_default_smtp()
+            .with_delivery("./tmp/bench", vsmtp::collection! {})
+            .with_rules("./tmp/no_rules")
+            .with_default_reply_codes()
+            .build(),
+    )
 }
 
 fn make_bench<R>(

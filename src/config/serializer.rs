@@ -25,6 +25,112 @@ impl std::str::FromStr for ProtocolVersion {
     }
 }
 
+impl std::fmt::Display for ProtocolVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self.0 {
+            rustls::ProtocolVersion::SSLv2 => "SSLv2",
+            rustls::ProtocolVersion::SSLv3 => "SSLv3",
+            rustls::ProtocolVersion::TLSv1_0 => "SSLv1.0",
+            rustls::ProtocolVersion::TLSv1_1 => "SSLv1.1",
+            rustls::ProtocolVersion::TLSv1_2 => "SSLv1.2",
+            rustls::ProtocolVersion::TLSv1_3 => "SSLv1.3",
+            rustls::ProtocolVersion::Unknown(_) => todo!(),
+        })
+    }
+}
+
+impl serde::Serialize for ProtocolVersion {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&format!("{}", self))
+    }
+}
+
+/// ```
+/// use vsmtp::config::server_config::ProtocolVersion;
+/// use vsmtp::config::server_config::ProtocolVersionRequirement;
+///
+/// #[derive(Debug, serde::Deserialize)]
+/// struct S {
+///     v: ProtocolVersionRequirement,
+/// }
+///
+/// let s = toml::from_str::<S>("v = \"SSLv2\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv2)]);
+/// let s = toml::from_str::<S>("v = \"0x0200\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv2)]);
+///
+/// let s = toml::from_str::<S>("v = \"SSLv3\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv3)]);
+/// let s = toml::from_str::<S>("v = \"0x0300\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv3)]);
+///
+/// let s = toml::from_str::<S>("v = \"TLSv1.0\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_0)]);
+/// let s = toml::from_str::<S>("v = \"0x0301\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_0)]);
+///
+/// let s = toml::from_str::<S>("v = \"TLSv1.1\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_1)]);
+/// let s = toml::from_str::<S>("v = \"0x0302\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_1)]);
+///
+/// let s = toml::from_str::<S>("v = \"TLSv1.2\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_2)]);
+/// let s = toml::from_str::<S>("v = \"0x0303\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_2)]);
+///
+/// let s = toml::from_str::<S>("v = \"TLSv1.3\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_3)]);
+/// let s = toml::from_str::<S>("v = \"0x0304\"").unwrap();
+/// assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_3)]);
+/// ```
+///
+/// ```
+/// use vsmtp::config::server_config::ProtocolVersion;
+/// use vsmtp::config::server_config::ProtocolVersionRequirement;
+///
+/// #[derive(Debug, serde::Deserialize)]
+/// struct S {
+///     v: ProtocolVersionRequirement,
+/// }
+///
+/// let s = toml::from_str::<S>("v = [\"TLSv1.1\", \"TLSv1.2\", \"TLSv1.3\"]").unwrap();
+/// assert_eq!(s.v.0, vec![
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
+/// ]);
+/// ```
+///
+/// ```
+/// use vsmtp::config::server_config::ProtocolVersion;
+/// use vsmtp::config::server_config::ProtocolVersionRequirement;
+///
+/// #[derive(Debug, serde::Deserialize)]
+/// struct S {
+///     v: ProtocolVersionRequirement,
+/// }
+///
+/// let s = toml::from_str::<S>("v = \"^TLSv1.1\"").unwrap();
+/// assert_eq!(s.v.0, vec![
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
+/// ]);
+///
+/// let s = toml::from_str::<S>("v = \">=SSLv3\"").unwrap();
+/// assert_eq!(s.v.0, vec![
+///     ProtocolVersion(rustls::ProtocolVersion::SSLv3),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_0),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
+///     ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
+/// ]);
+///
+/// ```
 impl<'de> serde::Deserialize<'de> for ProtocolVersionRequirement {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

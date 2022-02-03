@@ -6,14 +6,14 @@ addr = "0.0.0.0:10025"
 addr_submission = "0.0.0.0:10587"
 addr_submissions = "0.0.0.0:10465"
 
-[log]
+[logs]
 file = "./tmp/var/log/vsmtp/vsmtp.log"
 
-[log.level]
+[logs.level]
 default = "warn"
 receiver = "info"
 resolver = "warn"
-rules = "trace"
+rules = "warn"
 
 [rules]
 dir = "./config/rules"
@@ -42,8 +42,9 @@ soft_count = 5
 hard_count = 10
 delay = "5000ms"
 
-[reply_codes.codes]
+[reply_codes]
 Code214 = "214 my custom help message\r\n"
+Code220 = "220 {domain} Service ready\r\n"
 
 [delivery]
 spool_dir = "./tmp/var/spool/vsmtp"

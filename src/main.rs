@@ -34,10 +34,9 @@ async fn main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
     println!("Loading with configuration: '{}'", args.config);
 
-    let config: std::sync::Arc<ServerConfig> = std::sync::Arc::new(
-        toml::from_str(&std::fs::read_to_string(args.config).expect("cannot read file"))
-            .expect("cannot parse config from toml"),
-    );
+    let config = std::sync::Arc::new(ServerConfig::from_toml(
+        &std::fs::read_to_string(&args.config).expect("cannot read file"),
+    )?);
 
     log4rs::init_config(get_logger_config(&config)?)?;
 
