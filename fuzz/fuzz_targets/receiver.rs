@@ -2,23 +2,34 @@
 use libfuzzer_sys::fuzz_target;
 use vsmtp::{
     config::server_config::ServerConfig,
-    connection::Connection,
+    connection::{Connection, Kind},
     io_service::IoService,
     server::ServerVSMTP,
     test_helpers::{DefaultResolverTest, Mock},
 };
 
 fuzz_target!(|data: &[u8]| {
-    let mut config: ServerConfig =
-        toml::from_str(include_str!("fuzz.config.toml")).expect("cannot parse config from toml");
-    config.prepare();
+    let mut config = std::sync::Arc::new(
+        ServerConfig::builder()
+            .with_server_default_port("fuzz.server.com")
+            .without_log()
+            .without_smtps()
+            .with_default_smtp()
+            .with_delivery("./tmp/fuzz/", vsmtp::collection! {})
+            .with_rules("./tmp/no_rules")
+            .with_default_reply_codes()
+            .build(),
+    );
+
+    config.smtp.error.soft_count = -1;
 
     let mut written_data = Vec::new();
     let mut mock = Mock::new(data.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
     let mut conn = Connection::<Mock<'_>>::from_plain(
+        Kind::Opportunistic,
         "0.0.0.0:0".parse().unwrap(),
-        std::sync::Arc::new(config),
+        config,
         &mut io,
     )
     .unwrap();

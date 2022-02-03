@@ -211,7 +211,6 @@ mod tests {
                 .concat()
                 .as_bytes(),
             [
-                // FIXME:
                 "220 test.server.com Service ready\r\n",
                 "250-test.server.com\r\n",
                 "250-8BITMIME\r\n",
@@ -289,7 +288,6 @@ mod tests {
             DefaultResolverTest,
             ["HELP\r\n"].concat().as_bytes(),
             [
-                // FIXME:
                 "220 test.server.com Service ready\r\n",
                 "214 joining us https://viridit.com/support\r\n",
             ]
@@ -389,7 +387,6 @@ mod tests {
             DefaultResolverTest,
             ["EHLO postmaster\r\n"].concat().as_bytes(),
             [
-                // FIXME:
                 "220 test.server.com Service ready\r\n",
                 "502 Command not implemented\r\n",
             ]
