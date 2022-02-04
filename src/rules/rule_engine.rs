@@ -68,7 +68,7 @@ impl<'a> RuleEngine<'a> {
     pub(crate) fn new(config: &crate::config::server_config::ServerConfig) -> Self {
         let mut scope = Scope::new();
         scope
-            // stage variables.
+            // stage specific variables.
             .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
             .push("port", 0)
             .push("helo", "")
@@ -76,16 +76,16 @@ impl<'a> RuleEngine<'a> {
             .push("rcpt", Address::default())
             .push("rcpts", HashSet::<Address>::new())
             .push("data", Mail::default())
+            // data available in every stage.
+            .push("date", "")
+            .push("time", "")
+            .push("connection_timestamp", std::time::SystemTime::now())
+            .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
             .push("__OPERATION_QUEUE", OperationQueue::default())
             .push("__stage", "")
             .push("__rules", Array::new())
             .push("__init", false)
-            // useful data.
-            .push("date", "")
-            .push("time", "")
-            .push("connection_timestamp", std::time::SystemTime::now())
-            .push("metadata", None::<MessageMetadata>)
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
