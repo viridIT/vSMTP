@@ -459,13 +459,13 @@ impl<U: Users> RhaiEngine<U> {
                 1 => Ok(Some("$ident$".into())),
                 // when the rule will be executed ...
                 2 => match symbols[1].as_str() {
-                    "connect" | "helo" | "mail" | "rcpt" | "preq" | "postq" => {
+                    "connect" | "helo" | "mail" | "rcpt" | "preq" | "postq" | "delivery" => {
                         Ok(Some("$string$".into()))
                     }
                     entry => Err(ParseError(
                         Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
                             entry.into(),
-                            format!("Improper rule stage '{}'. Must be connect, helo, mail, rcpt, preq or postq.", entry),
+                            format!("Improper rule stage '{}'. Must be connect, helo, mail, rcpt, preq, postq or delivery.", entry),
                         ))),
                         Position::NONE,
                     )),

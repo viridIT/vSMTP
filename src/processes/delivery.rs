@@ -17,8 +17,10 @@ use super::ProcessMessage;
 **/
 use crate::{
     config::{log_channel::DELIVER, server_config::ServerConfig},
+    model::mail::Body,
     queue::Queue,
     resolver::Resolver,
+    rules::rule_engine::{RuleEngine, Status},
 };
 use std::collections::HashMap;
 
@@ -54,7 +56,7 @@ pub async fn start(
     loop {
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
-                handle_one_in_delivery_queue(
+                            handle_one_in_delivery_queue(
                     &mut resolvers,
                     &std::path::PathBuf::from_iter([
                         Queue::Deliver.to_path(&config.delivery.spool_dir)?,
@@ -94,53 +96,93 @@ pub(crate) async fn handle_one_in_delivery_queue(
     let mut raw = String::with_capacity(file.metadata().unwrap().len() as usize);
     std::io::Read::read_to_string(&mut file, &mut raw)?;
 
-    let mail: crate::model::mail::MailContext = serde_json::from_str(&raw)?;
+    let mut ctx: crate::model::mail::MailContext = serde_json::from_str(&raw)?;
 
-    let resolver_name = &mail.metadata.as_ref().unwrap().resolver;
-    let resolver = match resolvers.get_mut(resolver_name) {
-        Some(resolver) => resolver,
-        None => anyhow::bail!("resolver '{resolver_name}' not found"),
+    let mut rule_engine = RuleEngine::new(config);
+
+    // TODO: add connection and email data.
+    rule_engine
+        .add_data("helo", ctx.envelop.helo.clone())
+        .add_data("mail", ctx.envelop.mail_from.clone())
+        .add_data("rcpts", ctx.envelop.rcpt.clone())
+        // .add_data("data", ctx.body)
+        .add_data("metadata", ctx.metadata.clone());
+
+    match rule_engine.run_when("delivery") {
+        Status::Deny => Queue::Dead.write_to_queue(config, &ctx)?,
+        Status::Block => Queue::Quarantine.write_to_queue(config, &ctx)?,
+        _ => {
+            match rule_engine.get_scoped_envelop() {
+                Some((envelop, metadata, mail)) => {
+                    ctx.envelop = envelop;
+                    ctx.metadata = metadata;
+                    ctx.body = Body::Parsed(mail.into());
+                }
+                _ => anyhow::bail!(
+                    "one of the email context variables could not be found in rhai's context."
+                ),
+            };
+
+            match &ctx.metadata {
+                // quietly skipping delivery processes when there is no resolver.
+                // (in case of a quarantine for example)
+                Some(metadata) if metadata.resolver == "none" => {
+                    log::warn!(
+                        target: DELIVER,
+                        "delivery skipped due to NO_DELIVERY action call."
+                    );
+                    return Ok(());
+                }
+                _ => {}
+            };
+
+            let resolver_name = &ctx.metadata.as_ref().unwrap().resolver;
+            let resolver = match resolvers.get_mut(resolver_name) {
+                Some(resolver) => resolver,
+                None => anyhow::bail!("resolver '{resolver_name}' not found"),
+            };
+
+            match resolver.deliver(config, &ctx).await {
+                Ok(_) => {
+                    log::trace!(
+                        target: DELIVER,
+                        "vDeliver (delivery) '{}' SEND successfully.",
+                        message_id
+                    );
+
+                    std::fs::remove_file(&path)?;
+
+                    log::info!(
+                        target: DELIVER,
+                        "vDeliver (delivery) '{}' REMOVED successfully.",
+                        message_id
+                    );
+                }
+                Err(error) => {
+                    log::warn!(
+                        target: DELIVER,
+                        "vDeliver (delivery) '{}' SEND FAILED, reason: '{}'",
+                        message_id,
+                        error
+                    );
+
+                    std::fs::rename(
+                        path,
+                        std::path::PathBuf::from_iter([
+                            Queue::Deferred.to_path(&config.delivery.spool_dir)?,
+                            std::path::Path::new(&message_id).to_path_buf(),
+                        ]),
+                    )?;
+
+                    log::info!(
+                        target: DELIVER,
+                        "vDeliver (delivery) '{}' MOVED delivery => deferred.",
+                        message_id
+                    );
+                }
+            }
+        }
     };
-
-    match resolver.deliver(config, &mail).await {
-        Ok(_) => {
-            log::trace!(
-                target: DELIVER,
-                "vDeliver (delivery) '{}' SEND successfully.",
-                message_id
-            );
-
-            std::fs::remove_file(&path)?;
-
-            log::info!(
-                target: DELIVER,
-                "vDeliver (delivery) '{}' REMOVED successfully.",
-                message_id
-            );
-        }
-        Err(error) => {
-            log::warn!(
-                target: DELIVER,
-                "vDeliver (delivery) '{}' SEND FAILED, reason: '{}'",
-                message_id,
-                error
-            );
-
-            std::fs::rename(
-                path,
-                std::path::PathBuf::from_iter([
-                    Queue::Deferred.to_path(&config.delivery.spool_dir)?,
-                    std::path::Path::new(&message_id).to_path_buf(),
-                ]),
-            )?;
-
-            log::info!(
-                target: DELIVER,
-                "vDeliver (delivery) '{}' MOVED delivery => deferred.",
-                message_id
-            );
-        }
-    }
 
     Ok(())
 }
