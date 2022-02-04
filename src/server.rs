@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    config::server_config::{ServerConfig, TlsSecurityLevel},
+    config::server_config::ServerConfig,
     processes::ProcessMessage,
     receiver::{
         connection::{Connection, ConnectionKind},
@@ -59,13 +59,10 @@ impl ServerVSMTP {
                 .await?,
             listener_submissions: tokio::net::TcpListener::bind(&config.server.addr_submissions)
                 .await?,
-            tls_config: config.tls.as_ref().and_then(|smtps| {
-                if smtps.security_level == TlsSecurityLevel::None {
-                    None
-                } else {
-                    Some(get_rustls_config(&config.server.domain, smtps))
-                }
-            }),
+            tls_config: config
+                .tls
+                .as_ref()
+                .map(|smtps| get_rustls_config(&config.server.domain, smtps)),
             config,
         })
     }
@@ -212,5 +209,58 @@ impl ServerVSMTP {
                 })
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::server_config::TlsSecurityLevel;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn init_server_valid() {
+        // NOTE: using debug port + 1 in case of a debug server running elsewhere
+        let (addr, addr_submission, addr_submissions) = (
+            "0.0.0.0:10026".parse().expect("valid address"),
+            "0.0.0.0:10588".parse().expect("valid address"),
+            "0.0.0.0:10466".parse().expect("valid address"),
+        );
+
+        let config = ServerConfig::builder()
+            .with_server("test.server.com", addr, addr_submission, addr_submissions)
+            .without_log()
+            .without_smtps()
+            .with_default_smtp()
+            .with_delivery("./tmp/trash", crate::collection! {})
+            .with_rules("./tmp/no_rules")
+            .with_default_reply_codes()
+            .build();
+
+        let s = ServerVSMTP::new(std::sync::Arc::new(config)).await.unwrap();
+        assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
+    }
+
+    #[tokio::test]
+    async fn init_server_secured_valid() {
+        // NOTE: using debug port + 1 in case of a debug server running elsewhere
+        let (addr, addr_submission, addr_submissions) = (
+            "0.0.0.0:10026".parse().expect("valid address"),
+            "0.0.0.0:10588".parse().expect("valid address"),
+            "0.0.0.0:10466".parse().expect("valid address"),
+        );
+
+        let config = ServerConfig::builder()
+            .with_server("test.server.com", addr, addr_submission, addr_submissions)
+            .without_log()
+            .with_safe_default_smtps(TlsSecurityLevel::May, "fullchain", "private_key", None)
+            .with_default_smtp()
+            .with_delivery("./tmp/trash", crate::collection! {})
+            .with_rules("./tmp/no_rules")
+            .with_default_reply_codes()
+            .build();
+
+        let s = ServerVSMTP::new(std::sync::Arc::new(config)).await.unwrap();
+        assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
     }
 }

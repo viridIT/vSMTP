@@ -21,10 +21,7 @@ fn send_mail_plain() {
         .port(MTA_PORT_PLAIN)
         .build();
 
-    match lettre::Transport::send(&mailer, &email) {
-        Ok(_) => println!("Email sent successfully!"),
-        Err(e) => panic!("Could not send email: {:?}", e),
-    }
+    lettre::Transport::send(&mailer, &email).unwrap();
 }
 
 #[test]
@@ -42,10 +39,7 @@ fn send_mail_starttls() {
         .port(MTA_PORT_PLAIN)
         .build();
 
-    match lettre::Transport::send(&mailer, &email) {
-        Ok(_) => println!("Email sent successfully!"),
-        Err(e) => panic!("Could not send email: {:?}", e),
-    }
+    lettre::Transport::send(&mailer, &email).unwrap();
 }
 
 #[test]
@@ -63,8 +57,5 @@ fn send_mail_tunneled_tls() {
         .port(MTA_PORT_SUBMISSIONS)
         .build();
 
-    match lettre::Transport::send(&mailer, &email) {
-        Ok(_) => println!("Email sent successfully!"),
-        Err(e) => panic!("Could not send email: {:?}", e),
-    }
+    lettre::Transport::send(&mailer, &email).unwrap();
 }

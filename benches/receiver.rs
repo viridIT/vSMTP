@@ -6,10 +6,10 @@ use criterion::{
 use vsmtp::{
     config::server_config::ServerConfig,
     mime::mail::BodyType,
-    model::mail::{Body, MailContext},
     receiver::test_helpers::test_receiver,
     resolver::Resolver,
     rules::address::Address,
+    smtp::mail::{Body, MailContext},
 };
 
 #[derive(Clone)]

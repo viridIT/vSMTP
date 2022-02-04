@@ -38,7 +38,6 @@ pub struct InnerLogConfig {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum TlsSecurityLevel {
-    None,
     May,
     Encrypt,
 }

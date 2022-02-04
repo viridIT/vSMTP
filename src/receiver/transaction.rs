@@ -141,16 +141,12 @@ impl Transaction<'_> {
                 }
             }
 
-            (StateSMTP::Helo, Event::StartTls) => {
-                match conn.config.tls.as_ref().map(|smtps| smtps.security_level) {
-                    None | Some(TlsSecurityLevel::None) => {
-                        ProcessedEvent::Reply(SMTPReplyCode::Code454)
-                    }
-                    _ => ProcessedEvent::ReplyChangeState(
-                        StateSMTP::NegotiationTLS,
-                        SMTPReplyCode::Code220,
-                    ),
-                }
+            (StateSMTP::Helo, Event::StartTls) if conn.config.tls.is_none() => {
+                ProcessedEvent::Reply(SMTPReplyCode::Code454)
+            }
+
+            (StateSMTP::Helo, Event::StartTls) if conn.config.tls.is_some() => {
+                ProcessedEvent::ReplyChangeState(StateSMTP::NegotiationTLS, SMTPReplyCode::Code220)
             }
 
             (StateSMTP::Helo, Event::MailCmd(_, _))

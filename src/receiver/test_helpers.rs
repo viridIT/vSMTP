@@ -29,21 +29,22 @@ use crate::{
     smtp::mail::MailContext,
 };
 
-pub struct Mock<'a> {
-    read_cursor: std::io::Cursor<Vec<u8>>,
+// std::io::Cursor<Vec<u8>>
+pub struct Mock<'a, T: std::io::Write + std::io::Read> {
+    read_cursor: T,
     write_cursor: std::io::Cursor<&'a mut Vec<u8>>,
 }
 
-impl<'a> Mock<'a> {
-    pub fn new(read: Vec<u8>, write: &'a mut Vec<u8>) -> Self {
+impl<'a, T: std::io::Write + std::io::Read> Mock<'a, T> {
+    pub fn new(read: T, write: &'a mut Vec<u8>) -> Self {
         Self {
-            read_cursor: std::io::Cursor::new(read),
+            read_cursor: read,
             write_cursor: std::io::Cursor::new(write),
         }
     }
 }
 
-impl std::io::Write for Mock<'_> {
+impl<T: std::io::Write + std::io::Read> std::io::Write for Mock<'_, T> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.write_cursor.write(buf)
     }
@@ -53,7 +54,7 @@ impl std::io::Write for Mock<'_> {
     }
 }
 
-impl std::io::Read for Mock<'_> {
+impl<T: std::io::Write + std::io::Read> std::io::Read for Mock<'_, T> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.read_cursor.read(buf)
     }
@@ -84,9 +85,9 @@ where
     T: Resolver + Send + Sync + 'static,
 {
     let mut written_data = Vec::new();
-    let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
+    let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = Connection::<Mock<'_>>::from_plain(
+    let mut conn = Connection::from_plain(
         ConnectionKind::Opportunistic,
         address.parse().unwrap(),
         config.clone(),
@@ -128,7 +129,7 @@ where
         }
     });
 
-    handle_connection::<Mock<'_>>(
+    handle_connection(
         &mut conn,
         std::sync::Arc::new(working_sender),
         std::sync::Arc::new(delivery_sender),
