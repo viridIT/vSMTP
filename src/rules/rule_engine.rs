@@ -17,12 +17,12 @@
 use crate::config::log_channel::RULES;
 use crate::config::server_config::ServerConfig;
 use crate::mime::mail::{BodyType, Mail};
-use crate::model::envelop::Envelop;
-use crate::model::mail::{MailContext, MessageMetadata};
 use crate::queue::Queue;
 use crate::rules::address::Address;
 use crate::rules::obj::Object;
 use crate::rules::operation_queue::{Operation, OperationQueue};
+use crate::smtp::envelop::Envelop;
+use crate::smtp::mail::{MailContext, MessageMetadata};
 
 use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Scope, AST};
 use rhai::{plugin::*, ParseError, ParseErrorType};

@@ -16,7 +16,10 @@
 **/
 use anyhow::Context;
 
-use crate::config::{log_channel::RECEIVER, server_config::ServerConfig};
+use crate::{
+    config::{log_channel::RECEIVER, server_config::ServerConfig},
+    smtp::mail::MailContext,
+};
 
 /// identifiers for all mail queues.
 pub enum Queue {
@@ -49,11 +52,7 @@ impl Queue {
         Ok(dir)
     }
 
-    pub fn write_to_queue(
-        &self,
-        config: &ServerConfig,
-        ctx: &crate::model::mail::MailContext,
-    ) -> anyhow::Result<()> {
+    pub fn write_to_queue(&self, config: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         let message_id = match ctx.metadata.as_ref() {
             Some(metadata) => &metadata.message_id,
             None => anyhow::bail!("mail metadata not found"),

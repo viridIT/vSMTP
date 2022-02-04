@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -19,9 +17,9 @@ use anyhow::Context;
 use crate::{
     config::{log_channel::DELIVER, server_config::ServerConfig},
     mime::parser::MailMimeParser,
-    model::mail::Body,
     queue::Queue,
     rules::rule_engine::{RuleEngine, Status},
+    smtp::mail::{Body, MailContext},
 };
 
 use super::ProcessMessage;
@@ -58,8 +56,7 @@ pub(crate) async fn handle_one_in_working_queue(
 
     log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
-    let mut ctx: crate::model::mail::MailContext =
-        serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
+    let mut ctx: MailContext = serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
     let parsed_email = match &ctx.body {
         Body::Parsed(parsed_email) => parsed_email.clone(),
@@ -112,8 +109,10 @@ pub(crate) async fn handle_one_in_working_queue(
                 })
                 .await?;
 
-            std::fs::remove_file(&file_to_process)
-                .context("failed to remove a file from the working queue")?;
+            anyhow::Context::context(
+                std::fs::remove_file(&file_to_process),
+                "failed to remove a file from the working queue",
+            )?;
 
             log::debug!(
                 target: DELIVER,

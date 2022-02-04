@@ -16,8 +16,8 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
-    model::mail::{Body, MailContext, MessageMetadata},
     rules::{address::Address, rule_engine::user_exists},
+    smtp::mail::{Body, MailContext, MessageMetadata},
 };
 
 use super::Resolver;

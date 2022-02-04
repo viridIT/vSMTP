@@ -19,19 +19,22 @@ use crate::{
         log_channel::{RECEIVER, RULES},
         server_config::{ServerConfig, TlsSecurityLevel},
     },
-    connection::Connection,
-    io_service::ReadError,
     mime::parser::MailMimeParser,
-    model::{
-        envelop::Envelop,
-        mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
-    },
+    receiver::io_service::ReadError,
     rules::{
         address::Address,
         rule_engine::{RuleEngine, Status},
     },
-    smtp::{code::SMTPReplyCode, event::Event, state::StateSMTP},
+    smtp::{
+        code::SMTPReplyCode,
+        envelop::Envelop,
+        event::Event,
+        mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
+        state::StateSMTP,
+    },
 };
+
+use super::connection::Connection;
 
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 

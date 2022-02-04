@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod test {
     use crate::{
-        rules::tests::helpers::run_integration_engine_test, test_helpers::DefaultResolverTest,
+        receiver::test_helpers::DefaultResolverTest,
+        rules::tests::helpers::run_integration_engine_test,
     };
 
     #[tokio::test]

@@ -16,15 +16,17 @@
 **/
 use crate::{
     config::server_config::ServerConfig,
-    connection::Connection,
-    io_service::IoService,
-    model::mail::MailContext,
     processes::{
         delivery::handle_one_in_delivery_queue, mime::handle_one_in_working_queue, ProcessMessage,
     },
     queue::Queue,
+    receiver::{
+        connection::{Connection, ConnectionKind},
+        handle_connection,
+        io_service::IoService,
+    },
     resolver::Resolver,
-    server::ServerVSMTP,
+    smtp::mail::MailContext,
 };
 
 pub struct Mock<'a> {
@@ -85,7 +87,7 @@ where
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
     let mut conn = Connection::<Mock<'_>>::from_plain(
-        crate::connection::Kind::Opportunistic,
+        ConnectionKind::Opportunistic,
         address.parse().unwrap(),
         config.clone(),
         &mut io,
@@ -126,7 +128,7 @@ where
         }
     });
 
-    ServerVSMTP::handle_connection::<Mock<'_>>(
+    handle_connection::<Mock<'_>>(
         &mut conn,
         std::sync::Arc::new(working_sender),
         std::sync::Arc::new(delivery_sender),

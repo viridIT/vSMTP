@@ -15,7 +15,9 @@
  *
 **/
 pub mod code;
+pub mod envelop;
 pub mod event;
+pub mod mail;
 pub mod state;
 
 #[cfg(test)]

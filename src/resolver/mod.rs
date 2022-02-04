@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{config::server_config::ServerConfig, model::mail::MailContext};
+use crate::{config::server_config::ServerConfig, smtp::mail::MailContext};
 
 pub mod maildir_resolver;
 pub mod mbox_resolver;

@@ -1,4 +1,3 @@
-use super::ProcessMessage;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -14,11 +13,13 @@ use super::ProcessMessage;
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+ **/
+use super::ProcessMessage;
 use crate::{
     config::{log_channel::DELIVER, server_config::ServerConfig},
     queue::Queue,
     resolver::Resolver,
+    smtp::mail::MailContext,
 };
 use std::collections::HashMap;
 
@@ -94,7 +95,7 @@ pub(crate) async fn handle_one_in_delivery_queue(
     let mut raw = String::with_capacity(file.metadata().unwrap().len() as usize);
     std::io::Read::read_to_string(&mut file, &mut raw)?;
 
-    let mail: crate::model::mail::MailContext = serde_json::from_str(&raw)?;
+    let mail: MailContext = serde_json::from_str(&raw)?;
 
     let resolver_name = &mail.metadata.as_ref().unwrap().resolver;
     let resolver = match resolvers.get_mut(resolver_name) {
@@ -176,7 +177,7 @@ async fn handle_one_in_deferred_queue(
     let mut raw = String::with_capacity(file.metadata().unwrap().len() as usize);
     std::io::Read::read_to_string(&mut file, &mut raw)?;
 
-    let mut mail: crate::model::mail::MailContext = serde_json::from_str(&raw)?;
+    let mut mail: MailContext = serde_json::from_str(&raw)?;
 
     let max_retry_deferred = config
         .delivery

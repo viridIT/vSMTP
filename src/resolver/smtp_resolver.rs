@@ -1,4 +1,6 @@
 use crate::config::server_config::ServerConfig;
+use crate::smtp::mail::Body;
+use crate::smtp::mail::MailContext;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -15,8 +17,6 @@ use crate::config::server_config::ServerConfig;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::model::mail::{Body, MailContext};
-
 use anyhow::Context;
 use lettre::{SmtpTransport, Transport};
 use trust_dns_resolver::config::*;

@@ -2,10 +2,10 @@
 pub mod test {
     use crate::{
         config::server_config::ServerConfig,
-        model::mail::{Body, MailContext},
+        receiver::test_helpers::DefaultResolverTest,
         resolver::Resolver,
         rules::{address::Address, tests::helpers::run_integration_engine_test},
-        test_helpers::DefaultResolverTest,
+        smtp::mail::{Body, MailContext},
     };
 
     #[tokio::test]

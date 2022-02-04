@@ -14,8 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::model::{envelop::Envelop, mail::MailContext};
-
 use crate::rules::{
     obj::Object,
     operation_queue::{Operation, OperationQueue},
@@ -38,8 +36,11 @@ pub(super) mod vsl {
     use crate::{
         config::log_channel::RULES,
         mime::mail::Mail,
-        model::mail::{Body, MessageMetadata},
         rules::address::Address,
+        smtp::{
+            envelop::Envelop,
+            mail::{Body, MailContext, MessageMetadata},
+        },
     };
 
     #[rhai_fn(name = "__SHELL", return_raw)]

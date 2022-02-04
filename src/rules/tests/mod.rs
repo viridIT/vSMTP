@@ -12,9 +12,9 @@ pub mod helpers {
     use crate::{
         collection,
         config::{get_logger_config, server_config::ServerConfig},
+        receiver::test_helpers::test_receiver,
         resolver::Resolver,
         rules::rule_engine::{RhaiEngine, Status, DEFAULT_SCOPE, RHAI_ENGINE},
-        test_helpers::test_receiver,
     };
     use std::{panic, sync::Once};
 
