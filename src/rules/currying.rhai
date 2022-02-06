@@ -17,29 +17,24 @@
 
 let vsl = #{
 
+    // execute a shell command and return an Output object.
     SHELL: |command| { __SHELL(command) },
 
     // checks if the object matches the connection data.
-    IS_CONNECT: |object| {
-        __is_connect(connect, object)
-    },
+    IS_CONNECT: |object| __is_connect(ctx.client_addr, object),
 
-    // checks if the object matches the HELO command content.
-    IS_HELO: |object| {
-        __is_helo(helo, object)
-    },
+        // checks if the object matches the HELO command content.
+    IS_HELO: |object| __is_helo(ctx.envelop.helo, object),
 
     // checks if the object matches the MAIL FROM command content.
-    IS_MAIL: |object| {
-        __is_mail(mail, object)
-    },
+    IS_MAIL: |object| __is_mail(ctx.envelop.mail, object),
 
     // checks if the object matches one of the recipients
     // given by the current RCPT TO command.
-    IS_RCPT: |object| __is_rcpt(rcpt, object),
+    IS_RCPT: |object| __is_rcpt(ctx.envelop.rcpts.last(), object),
 
     // checks if the object matches one of the recipients.
-    CONTAINS_RCPT: |object| __contains_rcpt(rcpts, object),
+    CONTAINS_RCPT: |object| __contains_rcpt(ctx.envelop.rcpts, object),
 
     // checks whether the specified user exists on the system.
     USER_EXISTS: |object| __user_exists(object),
@@ -112,7 +107,7 @@ let vsl = #{
 
     // write the current evenlop and mail content to a file in json format.
     DUMP: |path| {
-        __DUMP(helo, mail, rcpts, data, metadata, path);
+        __DUMP(ctx, path);
     },
 
     // write a mail to the an user defiened quarantine folder.
@@ -136,7 +131,7 @@ let vsl = #{
     },
 
     LOOKUP_MAIL_FROM: || {
-        __LOOKUP_MAIL_FROM(connect, port, mail.domain)
+        __LOOKUP_MAIL_FROM(ctx.client_addr, mail.domain)
     },
 
     // set delivery resolver type.

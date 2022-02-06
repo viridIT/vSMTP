@@ -18,7 +18,7 @@ use crate::config::log_channel::RULES;
 use crate::config::server_config::ServerConfig;
 use crate::mime::mail::{BodyType, Mail};
 use crate::model::envelop::Envelop;
-use crate::model::mail::{MailContext, MessageMetadata};
+use crate::model::mail::{Body, MailContext, MessageMetadata};
 use crate::queue::Queue;
 use crate::rules::address::Address;
 use crate::rules::obj::Object;
@@ -28,7 +28,7 @@ use rhai::{exported_module, Array, Engine, EvalAltResult, LexError, Map, Scope, 
 use rhai::{plugin::*, ParseError, ParseErrorType};
 use users::Users;
 
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Mutex;
 use std::{
     collections::{BTreeMap, HashSet},
@@ -60,6 +60,7 @@ pub enum Status {
 
 pub struct RuleEngine<'a> {
     scope: Scope<'a>,
+    ctx: Arc<MailContext>,
     skip: Option<Status>,
 }
 
@@ -67,15 +68,23 @@ impl<'a> RuleEngine<'a> {
     /// creates a new rule engine with an empty scope.
     pub(crate) fn new(config: &crate::config::server_config::ServerConfig) -> Self {
         let mut scope = Scope::new();
+        let ctx = Arc::new(MailContext {
+            client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
+            envelop: Envelop::default(),
+            body: Body::Raw(String::default()),
+            metadata: None,
+        });
+
         scope
             // stage specific variables.
-            .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
-            .push("port", 0)
-            .push("helo", "")
-            .push("mail", Address::default())
-            .push("rcpt", Address::default())
-            .push("rcpts", HashSet::<Address>::new())
-            .push("data", Mail::default())
+            .push("ctx", ctx.clone())
+            // .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+            // .push("port", 0)
+            // .push("helo", "")
+            // .push("mail", Address::default())
+            // .push("rcpt", Address::default())
+            // .push("rcpts", HashSet::<Address>::new())
+            // .push("data", Mail::default())
             // data available in every stage.
             .push("date", "")
             .push("time", "")
@@ -91,7 +100,11 @@ impl<'a> RuleEngine<'a> {
             .push("logs_file", config.log.file.clone())
             .push("spool_dir", config.delivery.spool_dir.clone());
 
-        Self { scope, skip: None }
+        Self {
+            scope,
+            ctx,
+            skip: None,
+        }
     }
 
     /// add data to the scope of the engine.
@@ -215,22 +228,14 @@ impl<'a> RuleEngine<'a> {
         Ok(())
     }
 
-    /// fetch the whole envelop (possibly) mutated by the user's rules.
-    pub(crate) fn get_scoped_envelop(&self) -> Option<(Envelop, Option<MessageMetadata>, Mail)> {
-        Some((
-            Envelop {
-                helo: self.scope.get_value::<String>("helo")?,
-                mail_from: self.scope.get_value::<Address>("mail")?,
-                rcpt: self.scope.get_value::<HashSet<Address>>("rcpts")?,
-            },
-            self.scope
-                .get_value::<Option<MessageMetadata>>("metadata")?,
-            self.scope.get_value::<Mail>("data")?,
-        ))
+    /// fetch the email context (possibly) mutated by the user's rules.
+    pub(crate) fn get_context(&mut self) -> Arc<MailContext> {
+        self.ctx.clone()
     }
 
     /// clears mail_from, metadata, rcpt, rcpts & data values from the scope.
     pub(crate) fn reset(&mut self) {
+        todo!("unnecessary");
         self.scope
             .push("mail", Address::default())
             .push("metadata", None::<MessageMetadata>)
@@ -283,6 +288,10 @@ impl<U: Users> RhaiEngine<U> {
         .register_get_result("stdout", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stdout).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
         .register_get_result("stderr", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stderr).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
         .register_get_result("status", |output: &mut std::process::Output| Ok(output.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| "a SHELL process have been terminated by a signal".into())? as i64))
+
+        .register_type::<SocketAddr>()
+        .register_fn("to_string", SocketAddr::to_string)
+        .register_fn("to_debug", SocketAddr::to_string)
 
         .register_type::<Address>()
         .register_result_fn("new_address", <Address>::rhai_wrapper)
@@ -747,13 +756,22 @@ lazy_static::lazy_static! {
         let mut scope = Scope::new();
         scope
         // stage variables.
-        .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
-        .push("port", 0)
-        .push("helo", "")
-        .push("mail", Address::default())
-        .push("rcpt", Address::default())
-        .push("rcpts", HashSet::<Address>::new())
-        .push("data", Mail::default())
+        .push("ctx",
+            Arc::new(MailContext {
+                client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
+                envelop: Envelop::default(),
+                body: Body::Raw(String::default()),
+                metadata: None,
+            }),
+        )
+
+        // .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+        // .push("port", 0)
+        // .push("helo", "")
+        // .push("mail", Address::default())
+        // .push("rcpt", Address::default())
+        // .push("rcpts", HashSet::<Address>::new())
+        // .push("data", Mail::default())
 
         // rule engine's internals.
         .push("__OPERATION_QUEUE", OperationQueue::default())
@@ -765,7 +783,7 @@ lazy_static::lazy_static! {
         .push("date", "")
         .push("time", "")
         .push("connection_timestamp", std::time::SystemTime::now())
-        .push("metadata", None::<MessageMetadata>)
+        // .push("metadata", None::<MessageMetadata>)
 
         // configuration variables.
         .push("addr", Vec::<String>::new())

@@ -61,36 +61,18 @@ pub(crate) async fn handle_one_in_working_queue(
     let mut ctx: crate::model::mail::MailContext =
         serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
-    let parsed_email = match &ctx.body {
-        Body::Parsed(parsed_email) => parsed_email.clone(),
-        Body::Raw(raw) => Box::new(MailMimeParser::default().parse(raw.as_bytes())?),
-    };
+    if let Body::Raw(raw) = &ctx.body {
+        ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
+    }
 
     let mut rule_engine = RuleEngine::new(config);
-
-    // TODO: add connection data.
-    rule_engine
-        .add_data("helo", ctx.envelop.helo.clone())
-        .add_data("mail", ctx.envelop.mail_from.clone())
-        .add_data("rcpts", ctx.envelop.rcpt.clone())
-        .add_data("data", *parsed_email)
-        .add_data("metadata", ctx.metadata.clone());
+    rule_engine.add_data("ctx", ctx);
 
     match rule_engine.run_when("postq") {
-        Status::Deny => Queue::Dead.write_to_queue(config, &ctx)?,
-        Status::Block => Queue::Quarantine.write_to_queue(config, &ctx)?,
+        Status::Deny => Queue::Dead.write_to_queue(config, &rule_engine.get_context())?,
+        Status::Block => Queue::Quarantine.write_to_queue(config, &rule_engine.get_context())?,
         _ => {
-            match rule_engine.get_scoped_envelop() {
-                Some((envelop, metadata, mail)) => {
-                    ctx.envelop = envelop;
-                    ctx.metadata = metadata;
-                    ctx.body = Body::Parsed(mail.into());
-                }
-                _ => anyhow::bail!(
-                    "one of the email context variables could not be found in rhai's context."
-                ),
-            };
-
+            let ctx = rule_engine.get_context();
             match &ctx.metadata {
                 // quietly skipping delivery processes when there is no resolver.
                 // (in case of a quarantine for example)

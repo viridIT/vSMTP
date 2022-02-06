@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::model::{envelop::Envelop, mail::MailContext};
+use crate::model::mail::MailContext;
 
 use crate::rules::{
     obj::Object,
@@ -35,12 +35,7 @@ use std::net::ToSocketAddrs;
 pub(super) mod vsl {
     use std::collections::HashSet;
 
-    use crate::{
-        config::log_channel::RULES,
-        mime::mail::Mail,
-        model::mail::{Body, MessageMetadata},
-        rules::address::Address,
-    };
+    use crate::{config::log_channel::RULES, mime::mail::Mail, rules::address::Address};
 
     #[rhai_fn(name = "__SHELL", return_raw)]
     pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {
@@ -179,14 +174,7 @@ pub(super) mod vsl {
     /// for example, dumping during the rcpt stage will leave the data
     /// field empty.
     #[rhai_fn(name = "__DUMP", return_raw)]
-    pub fn dump(
-        helo: &str,
-        mail: Address,
-        rcpt: HashSet<Address>,
-        data: Mail,
-        metadata: Option<MessageMetadata>,
-        path: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
+    pub fn dump(ctx: &mut MailContext, path: &str) -> Result<(), Box<EvalAltResult>> {
         if let Err(error) = std::fs::create_dir_all(path) {
             return Err(format!("could not write email to '{:?}': {}", path, error).into());
         }
@@ -195,7 +183,7 @@ pub(super) mod vsl {
             // Error is of type Infallible, we can unwrap.
             let mut path = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
             path.push(
-                metadata
+                ctx.metadata
                     .as_ref()
                     .ok_or_else::<Box<EvalAltResult>, _>(|| {
                         "could not dump email, metadata has not been received yet.".into()
@@ -210,16 +198,6 @@ pub(super) mod vsl {
             Err(error) => {
                 return Err(format!("could not write email to '{:?}': {}", path, error).into())
             }
-        };
-
-        let ctx = MailContext {
-            envelop: Envelop {
-                helo: helo.to_string(),
-                mail_from: mail,
-                rcpt,
-            },
-            body: Body::Parsed(data.into()),
-            metadata,
         };
 
         std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
@@ -304,22 +282,19 @@ pub(super) mod vsl {
     }
 
     /// checks if the object exists and check if it matches against the connect value.
-    pub fn __is_connect(connect: &mut std::net::IpAddr, object: &str) -> bool {
+    pub fn __is_connect(connect: &mut std::net::SocketAddr, object: &str) -> bool {
         match acquire_engine().objects.read().unwrap().get(object) {
-            Some(object) => internal_is_connect(connect, object),
-            None => match <std::net::Ipv4Addr as std::str::FromStr>::from_str(object) {
-                Ok(ip) => ip == *connect,
-                Err(_) => match <std::net::Ipv6Addr as std::str::FromStr>::from_str(object) {
-                    Ok(ip) => ip == *connect,
-                    Err(_) => {
-                        log::error!(
-                            target: RULES,
-                            "tried to convert '{}' to ipv4 because it is not a object, but conversion failed.",
-                            object
-                        );
-                        false
-                    }
-                },
+            Some(object) => internal_is_connect(&connect.ip(), object),
+            None => match <std::net::IpAddr as std::str::FromStr>::from_str(object) {
+                Ok(ip) => ip == connect.ip(),
+                Err(_) => {
+                    log::error!(
+                        target: RULES,
+                        "tried to convert '{}' to an ip because it is not a object, but conversion failed.",
+                        object
+                    );
+                    false
+                }
             },
         }
     }
@@ -373,23 +348,17 @@ pub(super) mod vsl {
 // FIXME: find a way to hide the following function to the parent scope.
 /// checks recursively if the current connect value is matching the object's value.
 pub(super) fn internal_is_connect(connect: &std::net::IpAddr, object: &Object) -> bool {
-    match object {
-        Object::Ip4(ip) => *ip == *connect,
-        Object::Ip6(ip) => *ip == *connect,
-        Object::Rg4(range) => match connect {
-            std::net::IpAddr::V4(ip4) => range.contains(ip4),
-            _ => false,
-        },
-        Object::Rg6(range) => match connect {
-            std::net::IpAddr::V6(ip6) => range.contains(ip6),
-            _ => false,
-        },
+    match (&connect, object) {
+        (std::net::IpAddr::V4(connect), Object::Ip4(ip)) => *ip == *connect,
+        (std::net::IpAddr::V6(connect), Object::Ip6(ip)) => *ip == *connect,
+        (std::net::IpAddr::V4(connect), Object::Rg4(range)) => range.contains(connect),
+        (std::net::IpAddr::V6(connect), Object::Rg6(range)) => range.contains(connect),
         // NOTE: is there a way to get a &str instead of a String here ?
-        Object::Regex(re) => re.is_match(connect.to_string().as_str()),
-        Object::File(content) => content
+        (connect, Object::Regex(re)) => re.is_match(connect.to_string().as_str()),
+        (connect, Object::File(content)) => content
             .iter()
             .any(|object| internal_is_connect(connect, object)),
-        Object::Group(group) => group
+        (connect, Object::Group(group)) => group
             .iter()
             .any(|object| internal_is_connect(connect, object)),
         _ => false,
