@@ -15,6 +15,7 @@
  *
 **/
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use crate::{
     config::server_config::{InnerTlsConfig, ServerConfig, TlsSecurityLevel},
@@ -24,6 +25,7 @@ use crate::{
     processes::ProcessMessage,
     queue::Queue,
     resolver::{smtp_resolver::SMTPResolver, Resolver},
+    rules::rule_engine::RuleEngine,
     smtp::code::SMTPReplyCode,
     tls::get_rustls_config,
     transaction::Transaction,
@@ -118,21 +120,35 @@ impl ServerVSMTP {
         let (working_sender, working_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
+        let rule_engine = Arc::new(RwLock::new(RuleEngine::new(
+            self.config.rules.dir.as_str(),
+        )?));
+
+        let re_delivery = rule_engine.clone();
         let config_deliver = self.config.clone();
         let resolvers = std::mem::take(&mut self.resolvers);
         tokio::spawn(async move {
-            let result =
-                crate::processes::delivery::start(resolvers, config_deliver, delivery_receiver)
-                    .await;
+            let result = crate::processes::delivery::start(
+                config_deliver,
+                re_delivery,
+                resolvers,
+                delivery_receiver,
+            )
+            .await;
             log::error!("v_deliver ended unexpectedly '{:?}'", result);
         });
 
+        let re_mime = rule_engine.clone();
         let config_mime = self.config.clone();
         let mime_delivery_sender = delivery_sender.clone();
         tokio::spawn(async move {
-            let result =
-                crate::processes::mime::start(&config_mime, working_receiver, mime_delivery_sender)
-                    .await;
+            let result = crate::processes::mime::start(
+                &config_mime,
+                re_mime,
+                working_receiver,
+                mime_delivery_sender,
+            )
+            .await;
             log::error!("v_mime ended unexpectedly '{:?}'", result);
         });
 
@@ -162,6 +178,7 @@ impl ServerVSMTP {
 
             let working_sender = working_sender.clone();
             let delivery_sender = delivery_sender.clone();
+            let re_smtp = rule_engine.clone();
 
             tokio::spawn(async move {
                 let begin = std::time::SystemTime::now();
@@ -180,6 +197,7 @@ impl ServerVSMTP {
                     | crate::connection::Kind::Submission => {
                         Self::handle_connection::<std::net::TcpStream>(
                             &mut conn,
+                            re_smtp,
                             working_sender,
                             delivery_sender,
                             tls_config,
@@ -189,6 +207,7 @@ impl ServerVSMTP {
                     crate::connection::Kind::Tunneled => {
                         Self::handle_connection_secured(
                             &mut conn,
+                            re_smtp,
                             working_sender,
                             delivery_sender,
                             tls_config,
@@ -306,6 +325,7 @@ impl ServerVSMTP {
 
     pub async fn handle_connection<S>(
         conn: &mut Connection<'_, S>,
+        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -318,7 +338,7 @@ impl ServerVSMTP {
         conn.send_code(SMTPReplyCode::Code220)?;
 
         while conn.is_alive {
-            match Transaction::receive(conn, &helo_domain).await? {
+            match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
                 crate::transaction::TransactionResult::Nothing => {}
                 crate::transaction::TransactionResult::Mail(mail) => {
                     Self::on_mail(
@@ -338,6 +358,7 @@ impl ServerVSMTP {
                 crate::transaction::TransactionResult::TlsUpgrade => {
                     return Self::handle_connection_secured(
                         conn,
+                        rule_engine.clone(),
                         working_sender.clone(),
                         delivery_sender.clone(),
                         tls_config.clone(),
@@ -352,6 +373,7 @@ impl ServerVSMTP {
 
     pub async fn handle_connection_secured<S>(
         conn: &mut Connection<'_, S>,
+        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -398,7 +420,8 @@ impl ServerVSMTP {
         let mut helo_domain = None;
 
         while secured_conn.is_alive {
-            match Transaction::receive(&mut secured_conn, &helo_domain).await? {
+            let rule_engine = rule_engine.clone();
+            match Transaction::receive(&mut secured_conn, &helo_domain, rule_engine).await? {
                 crate::transaction::TransactionResult::Nothing => {}
                 crate::transaction::TransactionResult::Mail(mail) => {
                     Self::on_mail(

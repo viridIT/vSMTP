@@ -101,18 +101,18 @@ where
         resolvers.insert("default".to_string(), Box::new(resolver));
 
         while let Some(pm) = delivery_receiver.recv().await {
-            handle_one_in_delivery_queue(
-                &mut resolvers,
-                &std::path::PathBuf::from_iter([
-                    Queue::Deliver
-                        .to_path(&config_deliver.delivery.spool_dir)
-                        .unwrap(),
-                    std::path::Path::new(&pm.message_id).to_path_buf(),
-                ]),
-                &config_deliver,
-            )
-            .await
-            .expect("delivery process failed");
+            // handle_one_in_delivery_queue(
+            //     &mut resolvers,
+            //     &std::path::PathBuf::from_iter([
+            //         Queue::Deliver
+            //             .to_path(&config_deliver.delivery.spool_dir)
+            //             .unwrap(),
+            //         std::path::Path::new(&pm.message_id).to_path_buf(),
+            //     ]),
+            //     &config_deliver,
+            // )
+            // .await
+            // .expect("delivery process failed");
         }
     });
 
@@ -120,19 +120,19 @@ where
     let from_mime = delivery_sender.clone();
     let mime_handle = tokio::spawn(async move {
         while let Some(pm) = working_receiver.recv().await {
-            handle_one_in_working_queue(pm, &config_mime, &from_mime)
-                .await
-                .expect("mime process failed");
+            // handle_one_in_working_queue(pm, &config_mime, &from_mime)
+            //     .await
+            //     .expect("mime process failed");
         }
     });
 
-    ServerVSMTP::handle_connection::<Mock<'_>>(
-        &mut conn,
-        std::sync::Arc::new(working_sender),
-        std::sync::Arc::new(delivery_sender),
-        None,
-    )
-    .await?;
+    // ServerVSMTP::handle_connection::<Mock<'_>>(
+    //     &mut conn,
+    //     std::sync::Arc::new(working_sender),
+    //     std::sync::Arc::new(delivery_sender),
+    //     None,
+    // )
+    // .await?;
     std::io::Write::flush(&mut conn.io_stream.inner)?;
 
     mime_handle.await.unwrap();

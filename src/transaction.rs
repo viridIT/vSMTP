@@ -27,7 +27,7 @@ use crate::{
     },
     rules::{
         address::Address,
-        rule_engine::{RuleEngine, Status},
+        rule_engine::{RuleEngine, RuleState, Status},
     },
     smtp::{code::SMTPReplyCode, event::Event, state::StateSMTP},
 };
@@ -36,7 +36,8 @@ const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
 pub struct Transaction<'re> {
     state: StateSMTP,
-    rule_engine: RuleEngine<'re>,
+    rule_state: RuleState<'re>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 }
 
 pub enum TransactionResult {
@@ -85,13 +86,15 @@ impl Transaction<'_> {
             (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Code214),
 
             (_, Event::RsetCmd) => {
-                let ctx = self.rule_engine.get_context();
+                {
+                    let ctx = self.rule_state.get_context();
+                    let mut ctx = ctx.write().unwrap();
+                    ctx.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
+                    ctx.envelop.rcpt.clear();
+                    ctx.envelop.mail_from = Address::default();
+                }
 
-                ctx.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
-                ctx.envelop.rcpt.clear();
-                ctx.envelop.mail_from = Address::default();
-
-                self.rule_engine.reset();
+                self.rule_state.reset();
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
             }
@@ -107,7 +110,12 @@ impl Transaction<'_> {
             (_, Event::HeloCmd(helo)) => {
                 self.set_helo(helo);
 
-                match self.rule_engine.run_when("helo") {
+                match self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "helo")
+                {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
@@ -122,7 +130,12 @@ impl Transaction<'_> {
             (_, Event::EhloCmd(helo)) => {
                 self.set_helo(helo);
 
-                match self.rule_engine.run_when("helo") {
+                match self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "helo")
+                {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
@@ -161,7 +174,12 @@ impl Transaction<'_> {
                 // TODO: store in envelop _body_bit_mime
                 self.set_mail_from(mail_from, conn);
 
-                match self.rule_engine.run_when("mail") {
+                match self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "mail")
+                {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
@@ -175,12 +193,25 @@ impl Transaction<'_> {
             (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
                 self.set_rcpt_to(rcpt_to);
 
-                let ctx = self.rule_engine.get_context();
-                match self.rule_engine.run_when("rcpt") {
+                match self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "rcpt")
+                {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
-                    _ if ctx.envelop.rcpt.len() >= conn.config.smtp.rcpt_count_max => {
+                    _ if self
+                        .rule_state
+                        .get_context()
+                        .read()
+                        .unwrap()
+                        .envelop
+                        .rcpt
+                        .len()
+                        >= conn.config.smtp.rcpt_count_max =>
+                    {
                         ProcessedEvent::ReplyChangeState(
                             StateSMTP::RcptTo,
                             SMTPReplyCode::Code452TooManyRecipients,
@@ -197,8 +228,8 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
-                let ctx = self.rule_engine.get_context();
-                if let Body::Raw(body) = &mut ctx.body {
+                let ctx = self.rule_state.get_context();
+                if let Body::Raw(body) = &mut ctx.write().unwrap().body {
                     body.push_str(&line);
                     body.push('\n');
                 }
@@ -206,16 +237,23 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                if let Status::Block | Status::Deny = self.rule_engine.run_when("preq") {
+                if let Status::Block | Status::Deny = self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "preq")
+                {
                     return ProcessedEvent::ReplyChangeState(
                         StateSMTP::Stop,
                         SMTPReplyCode::Code554,
                     );
                 }
 
-                let ctx = self.rule_engine.get_context();
+                let ctx = self.rule_state.get_context();
+                let mut ctx = ctx.write().unwrap();
+
                 // executing all registered extensive operations.
-                if let Err(error) = self.rule_engine.execute_operation_queue(&conn.config, &ctx) {
+                if let Err(error) = self.rule_state.execute_operation_queue(&conn.config, &ctx) {
                     log::error!(
                         target: RULES,
                         "failed to empty the operation queue: '{}'",
@@ -230,7 +268,7 @@ impl Transaction<'_> {
                 //  - return ProcessedEvent::CompletedMimeSkipped
                 //  - set body to Body::ParsingFailed or Body::ParsingSkipped.
                 if let Some(metadata) = &mut ctx.metadata {
-                    metadata.skipped = self.rule_engine.skipped();
+                    metadata.skipped = self.rule_state.skipped();
                 }
 
                 let mut output = MailContext {
@@ -251,16 +289,17 @@ impl Transaction<'_> {
 
 impl Transaction<'_> {
     fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
-        self.rule_engine.add_data("connect", conn.client_addr.ip());
-        self.rule_engine.add_data("port", conn.client_addr.port());
-        self.rule_engine
+        self.rule_state.add_data("connect", conn.client_addr.ip());
+        self.rule_state.add_data("port", conn.client_addr.port());
+        self.rule_state
             .add_data("connection_timestamp", conn.timestamp);
     }
 
     fn set_helo(&mut self, helo: String) {
-        self.rule_engine.reset();
+        self.rule_state.reset();
 
-        let ctx = self.rule_engine.get_context();
+        let ctx = self.rule_state.get_context();
+        let mut ctx = ctx.write().unwrap();
         ctx.envelop = Envelop {
             helo,
             mail_from: Address::default(),
@@ -277,8 +316,10 @@ impl Transaction<'_> {
         match Address::new(&mail_from) {
             Err(_) => (),
             Ok(mail_from) => {
-                let ctx = self.rule_engine.get_context();
                 let now = std::time::SystemTime::now();
+
+                let ctx = self.rule_state.get_context();
+                let mut ctx = ctx.write().unwrap();
                 ctx.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 ctx.envelop.rcpt.clear();
                 ctx.envelop.mail_from = mail_from;
@@ -301,7 +342,7 @@ impl Transaction<'_> {
                     ),
                     retry: 0,
                     resolver: "default".to_string(),
-                    skipped: self.rule_engine.skipped(),
+                    skipped: self.rule_state.skipped(),
                 });
 
                 log::trace!(target: RECEIVER, "envelop=\"{:?}\"", ctx.envelop,);
@@ -313,8 +354,10 @@ impl Transaction<'_> {
         match Address::new(&rcpt_to) {
             Err(_) => (),
             Ok(rcpt_to) => {
-                let ctx = self.rule_engine.get_context();
-                (*ctx).envelop.rcpt.insert(rcpt_to);
+                let ctx = self.rule_state.get_context();
+                let mut ctx = ctx.write().unwrap();
+                ctx.envelop.rcpt.insert(rcpt_to);
+
                 log::trace!(target: RECEIVER, "envelop=\"{:?}\"", ctx.envelop,);
             }
         }
@@ -325,6 +368,7 @@ impl Transaction<'_> {
     pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write>(
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
+        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     ) -> anyhow::Result<TransactionResult> {
         let mut transaction = Transaction {
             state: if helo_domain.is_none() {
@@ -332,7 +376,8 @@ impl Transaction<'_> {
             } else {
                 StateSMTP::Helo
             },
-            rule_engine: RuleEngine::new(conn.config.as_ref()),
+            rule_state: RuleState::new(conn.config.as_ref()),
+            rule_engine,
         };
 
         transaction.set_connect(conn);
@@ -341,7 +386,12 @@ impl Transaction<'_> {
             transaction.set_helo(helo)
         }
 
-        if let Status::Deny = transaction.rule_engine.run_when("connect") {
+        if let Status::Deny = transaction
+            .rule_engine
+            .read()
+            .unwrap()
+            .run_when(&mut transaction.rule_state, "connect")
+        {
             anyhow::bail!(
                 "connection at '{}' has been denied when connecting.",
                 conn.client_addr

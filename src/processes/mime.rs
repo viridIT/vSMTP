@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2021 viridIT SAS
@@ -20,30 +18,35 @@ use crate::{
     config::{log_channel::DELIVER, server_config::ServerConfig},
     mime::parser::MailMimeParser,
     model::mail::Body,
+    processes::ProcessMessage,
     queue::Queue,
-    rules::rule_engine::{RuleEngine, Status},
+    rules::rule_engine::{RuleEngine, RuleState, Status},
 };
 
-use super::ProcessMessage;
+use anyhow::Context;
 
 /// process that treats incoming email offline with the postq stage.
 pub async fn start(
     config: &ServerConfig,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
     loop {
         if let Some(pm) = working_receiver.recv().await {
-            handle_one_in_working_queue(pm, config, &delivery_sender)
-                .await
-                .unwrap();
+            if let Err(err) =
+                handle_one_in_working_queue(config, &rule_engine, pm, &delivery_sender).await
+            {
+                log::error!("{}", err);
+            }
         }
     }
 }
 
 pub(crate) async fn handle_one_in_working_queue(
-    process_message: ProcessMessage,
     config: &ServerConfig,
+    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    process_message: ProcessMessage,
     delivery_sender: &tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
     log::debug!(
@@ -65,28 +68,32 @@ pub(crate) async fn handle_one_in_working_queue(
         ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
     }
 
-    let mut rule_engine = RuleEngine::new(config);
-    rule_engine.add_data("ctx", ctx);
+    let mut state = RuleState::new(config);
+    state.add_data("ctx", ctx);
+    let result = rule_engine.read().unwrap().run_when(&mut state, "postq");
 
-    match rule_engine.run_when("postq") {
-        Status::Deny => Queue::Dead.write_to_queue(config, &rule_engine.get_context())?,
-        Status::Block => Queue::Quarantine.write_to_queue(config, &rule_engine.get_context())?,
+    match result {
+        Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
+        Status::Block => Queue::Quarantine.write_to_queue(config, &state.get_context().read().unwrap())?,
         _ => {
-            let ctx = rule_engine.get_context();
-            match &ctx.metadata {
-                // quietly skipping delivery processes when there is no resolver.
-                // (in case of a quarantine for example)
-                Some(metadata) if metadata.resolver == "none" => {
-                    log::warn!(
-                        target: DELIVER,
-                        "delivery skipped due to NO_DELIVERY action call."
-                    );
-                    return Ok(());
-                }
-                _ => {}
-            };
+            {
+                let ctx = state.get_context();
+                let ctx = ctx.read().unwrap();
+                match &ctx.metadata {
+                    // quietly skipping delivery processes when there is no resolver.
+                    // (in case of a quarantine for example)
+                    Some(metadata) if metadata.resolver == "none" => {
+                        log::warn!(
+                            target: DELIVER,
+                            "delivery skipped due to NO_DELIVERY action call."
+                        );
+                        return Ok(());
+                    }
+                    _ => {}
+                };
 
-            Queue::Deliver.write_to_queue(config, &ctx)?;
+                Queue::Deliver.write_to_queue(config, &ctx)?;
+            }
 
             delivery_sender
                 .send(ProcessMessage {

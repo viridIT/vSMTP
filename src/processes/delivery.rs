@@ -19,15 +19,16 @@ use crate::{
     config::{log_channel::DELIVER, server_config::ServerConfig},
     queue::Queue,
     resolver::Resolver,
-    rules::rule_engine::{RuleEngine, Status},
+    rules::rule_engine::{RuleEngine, RuleState, Status},
 };
 use std::collections::HashMap;
 
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
 pub async fn start(
-    mut resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: std::sync::Arc<ServerConfig>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    mut resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> anyhow::Result<()> {
     log::info!(
@@ -40,7 +41,7 @@ pub async fn start(
         target: DELIVER,
         "vDeliver (delivery) booting, flushing queue.",
     );
-    flush_deliver_queue(&mut resolvers, &config).await?;
+    flush_deliver_queue(&config, &rule_engine, &mut resolvers).await?;
 
     let mut flush_deferred_interval = tokio::time::interval(
         config
@@ -56,12 +57,13 @@ pub async fn start(
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
                             if let Err(error) = handle_one_in_delivery_queue(
-                    &mut resolvers,
-                    &std::path::PathBuf::from_iter([
-                        Queue::Deliver.to_path(&config.delivery.spool_dir)?,
-                        std::path::Path::new(&pm.message_id).to_path_buf(),
-                    ]),
-                    &config,
+                                &config,
+                                &std::path::PathBuf::from_iter([
+                                    Queue::Deliver.to_path(&config.delivery.spool_dir)?,
+                                    std::path::Path::new(&pm.message_id).to_path_buf(),
+                                ]),
+                                &rule_engine,
+                                &mut resolvers,
                 )
                 .await {
                     log::error!(target: DELIVER, "{error}");
@@ -79,9 +81,10 @@ pub async fn start(
 }
 
 pub(crate) async fn handle_one_in_delivery_queue(
-    resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
-    path: &std::path::Path,
     config: &ServerConfig,
+    path: &std::path::Path,
+    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
 ) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
 
@@ -98,14 +101,17 @@ pub(crate) async fn handle_one_in_delivery_queue(
 
     let ctx: crate::model::mail::MailContext = serde_json::from_str(&raw)?;
 
-    let mut rule_engine = RuleEngine::new(config);
-    rule_engine.add_data("ctx", ctx);
+    let mut state = RuleState::new(config);
+    state.add_data("ctx", ctx);
+    let result = rule_engine.read().unwrap().run_when(&mut state, "delivery");
 
-    match rule_engine.run_when("delivery") {
-        Status::Deny => Queue::Dead.write_to_queue(config, &rule_engine.get_context())?,
-        Status::Block => Queue::Quarantine.write_to_queue(config, &rule_engine.get_context())?,
+    match result {
+        Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
+        Status::Block => {
+            Queue::Quarantine.write_to_queue(config, &state.get_context().read().unwrap())?
+        }
         _ => {
-            let ctx = rule_engine.get_context();
+            let ctx = state.get_context().read().unwrap().clone();
             match &ctx.metadata {
                 // quietly skipping delivery processes when there is no resolver.
                 // (in case of a quarantine for example)
@@ -171,11 +177,12 @@ pub(crate) async fn handle_one_in_delivery_queue(
 }
 
 async fn flush_deliver_queue(
-    resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
     config: &ServerConfig,
+    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
-        handle_one_in_delivery_queue(resolvers, &path?.path(), config).await?
+        handle_one_in_delivery_queue(config, &path?.path(), rule_engine, resolvers).await?
     }
 
     Ok(())

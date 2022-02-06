@@ -40,10 +40,10 @@ async fn main() -> anyhow::Result<()> {
 
     log4rs::init_config(get_logger_config(&config)?)?;
 
-    rule_engine::init(Box::leak(config.rules.dir.clone().into_boxed_str())).map_err(|error| {
-        log::error!("could not initialize the rule engine: {}", error);
-        error
-    })?;
+    // rule_engine::init(Box::leak(config.rules.dir.clone().into_boxed_str())).map_err(|error| {
+    //     log::error!("could not initialize the rule engine: {}", error);
+    //     error
+    // })?;
 
     let mut server = ServerVSMTP::new(config.clone())
         .await
