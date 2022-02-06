@@ -64,8 +64,8 @@ For any question related to commercial, licensing, etc. you can [contact us] on 
 
 ## Roadmap
 
-vSMTP is currently under development. The current versions "0.7.x" focus on the
-SMTP connection and state machine. You can find more information about the
+vSMTP is currently under development. The current versions "0.8.x" focus on the
+delivery process and on the post queue filtering. You can find more information about the
 project agenda in the
 [ROADMAP](https://github.com/viridIT/vSMTP/blob/main/ROADMAP.md).
 
