@@ -7,7 +7,7 @@ For the enhanced edition roadmap, please feel free to contact us at
 
 ## Release 0.7.x
 
-Available in December 2021, this release focuses on:
+Available from December 2021, this release focuses on:
 
 - Handling network connections, including TLS support.
 - SMTP compliancy (RFC 5321/5322).
@@ -29,7 +29,7 @@ About filtering functionalities :
 
 ## Release 0.8.x
 
-Available in mid January 2022, the main features are:
+Available from mid January 2022, the main features are:
 
 - The delivery process and the related queues for local and remote mails.
 - The Post-queue filtering.
@@ -43,7 +43,7 @@ About filtering functionalities :
 
 ## Release 0.9.x
 
-These releases will focus on the vSMTP policy server and on performances.
+Available on mid February these releases will focus on the vSMTP policy server and on performances.
 
 The vSMTP Policy Server (vPS) is a module dedicated to integrating of
 third-party software. Thanks to its logic engine it can manage complex filtering
@@ -58,4 +58,4 @@ It can be called at any stage of a SMTP transaction via the rule engine.
 ## Production release
 
 Depending on versions 0.7+ fixes and user feedbacks, the production version is
-expected for Q2/2022.
+expected for end of Q2/2022.
