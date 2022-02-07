@@ -18,7 +18,7 @@ use crate::config::log_channel::RULES;
 use crate::config::server_config::ServerConfig;
 use crate::mime::mail::{BodyType, Mail};
 use crate::model::envelop::Envelop;
-use crate::model::mail::{Body, MailContext, MessageMetadata};
+use crate::model::mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY};
 use crate::queue::Queue;
 use crate::rules::address::Address;
 use crate::rules::obj::Object;
@@ -116,14 +116,6 @@ impl<'a> RuleState<'a> {
         self
     }
 
-    /// fetch data from the scope, cloning the variable in the process.
-    pub(crate) fn get_data<T>(&mut self, name: &'a str) -> Option<T>
-    where
-        T: Clone + Send + Sync + 'static,
-    {
-        self.scope.get_value(name)
-    }
-
     /// empty the operation queue and executing all operations stored.
     pub(crate) fn execute_operation_queue(
         &mut self,
@@ -177,15 +169,13 @@ impl<'a> RuleState<'a> {
         self.ctx.clone()
     }
 
-    /// clears mail_from, metadata, rcpt, rcpts & data values from the scope.
+    /// clears the state of the rules.
     pub(crate) fn reset(&mut self) {
-        todo!("unnecessary");
-        // self.scope
-        //     .push("mail", Address::default())
-        //     .push("metadata", None::<MessageMetadata>)
-        //     .push("rcpt", Address::default())
-        //     .push("rcpts", HashSet::<Address>::new())
-        //     .push("data", Mail::default());
+        let mut ctx = self.ctx.write().unwrap();
+
+        ctx.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
+        ctx.envelop = Envelop::default();
+        ctx.metadata = None;
     }
 
     pub fn skipped(&self) -> Option<Status> {
