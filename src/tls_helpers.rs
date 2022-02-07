@@ -50,12 +50,7 @@ pub(crate) fn get_cert_from_file(fullchain_path: &str) -> anyhow::Result<Vec<rus
     })?)
 }
 
-pub fn get_rustls_config(
-    server_domain: &str,
-    config: &InnerSmtpsConfig,
-) -> anyhow::Result<rustls::ServerConfig> {
-    let capath = config.capath.as_ref().unwrap();
-
+pub fn get_rustls_config(config: &InnerSmtpsConfig) -> anyhow::Result<rustls::ServerConfig> {
     let mut sni_resolver = rustls::server::ResolvesServerCertUsingSni::new();
 
     if let Some(x) = config.sni_maps.as_ref() {
@@ -64,16 +59,8 @@ pub fn get_rustls_config(
                 Ok((
                     sni.domain.clone(),
                     rustls::sign::CertifiedKey {
-                        cert: get_cert_from_file(
-                            &sni.fullchain
-                                .replace("{capath}", capath)
-                                .replace("{domain}", &sni.domain),
-                        )?,
-                        key: get_signing_key_from_file(
-                            &sni.private_key
-                                .replace("{capath}", capath)
-                                .replace("{domain}", &sni.domain),
-                        )?,
+                        cert: get_cert_from_file(&sni.fullchain)?,
+                        key: get_signing_key_from_file(&sni.private_key)?,
                         // TODO:
                         ocsp: None,
                         sct_list: None,
@@ -117,18 +104,8 @@ pub fn get_rustls_config(
         .with_cert_resolver(std::sync::Arc::new(CertResolver {
             sni_resolver,
             cert: Some(std::sync::Arc::new(rustls::sign::CertifiedKey {
-                cert: get_cert_from_file(
-                    &config
-                        .fullchain
-                        .replace("{capath}", capath)
-                        .replace("{domain}", server_domain),
-                )?,
-                key: get_signing_key_from_file(
-                    &config
-                        .private_key
-                        .replace("{capath}", capath)
-                        .replace("{domain}", server_domain),
-                )?,
+                cert: get_cert_from_file(&config.fullchain)?,
+                key: get_signing_key_from_file(&config.private_key)?,
                 // TODO:
                 ocsp: None,
                 sct_list: None,

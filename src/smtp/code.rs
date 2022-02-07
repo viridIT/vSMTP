@@ -237,3 +237,25 @@ impl TryFrom<String> for SMTPReplyCode {
         <SMTPReplyCode as std::str::FromStr>::from_str(&value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::SMTPReplyCode;
+
+    #[test]
+    fn error() {
+        assert_eq!(
+            format!("{}", SMTPReplyCode::from_str("foo").unwrap_err()),
+            "SMTPReplyCodeFromStrError"
+        );
+    }
+
+    #[test]
+    fn same() {
+        for s in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+            assert_eq!(SMTPReplyCode::from_str(&format!("{}", s)).unwrap(), s);
+        }
+    }
+}

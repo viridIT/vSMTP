@@ -142,7 +142,7 @@ impl ConfigBuilder<WantSMTPS> {
                 smtps: Some(InnerSmtpsConfig {
                     security_level,
                     protocol_version,
-                    capath: Some(capath.into()),
+                    capath: capath.into(),
                     preempt_cipherlist,
                     fullchain: fullchain.into(),
                     private_key: private_key.into(),
@@ -319,7 +319,7 @@ pub struct WantsBuild {
 }
 
 impl ConfigBuilder<WantsBuild> {
-    pub fn build(self) -> ServerConfig {
+    pub fn build(mut self) -> ServerConfig {
         let server_domain = &self
             .state
             .parent
@@ -344,6 +344,25 @@ impl ConfigBuilder<WantsBuild> {
                 .replace("{domain}", server_domain),
             );
         }
+
+        if let Some(smtps) = &mut self.state.parent.parent.parent.parent.smtps {
+            if let Some(sni_maps) = &mut smtps.sni_maps {
+                for i in sni_maps.iter_mut() {
+                    *i = SniKey {
+                        fullchain: i
+                            .fullchain
+                            .replace("{domain}", &i.domain)
+                            .replace("{capath}", &smtps.capath),
+                        private_key: i
+                            .private_key
+                            .replace("{domain}", &i.domain)
+                            .replace("{capath}", &smtps.capath),
+                        domain: i.domain.clone(),
+                        protocol_version: i.protocol_version.clone(),
+                    }
+                }
+            }
+        };
 
         ServerConfig {
             server: self.state.parent.parent.parent.parent.parent.parent.server,

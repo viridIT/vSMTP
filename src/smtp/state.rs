@@ -100,10 +100,10 @@ mod tests {
 
     #[test]
     fn error() {
-        match StateSMTP::from_str("foo") {
-            Ok(_) => panic!("should be an Err"),
-            Err(e) => assert_eq!(format!("{}", e), "StateSMTPFromStrError"),
-        }
+        assert_eq!(
+            format!("{}", StateSMTP::from_str("foo").unwrap_err()),
+            "StateSMTPFromStrError"
+        );
     }
 
     #[test]
@@ -134,10 +134,7 @@ mod tests {
     #[test]
     fn same() {
         for s in <StateSMTP as enum_iterator::IntoEnumIterator>::into_enum_iter() {
-            match StateSMTP::from_str(&format!("{}", s)) {
-                Ok(c) => assert_eq!(c, s),
-                Err(e) => panic!("{}", e),
-            }
+            assert_eq!(StateSMTP::from_str(&format!("{}", s)).unwrap(), s);
         }
     }
 }

@@ -29,7 +29,6 @@ use crate::{
     smtp::mail::MailContext,
 };
 
-// std::io::Cursor<Vec<u8>>
 pub struct Mock<'a, T: std::io::Write + std::io::Read> {
     read_cursor: T,
     write_cursor: std::io::Cursor<&'a mut Vec<u8>>,

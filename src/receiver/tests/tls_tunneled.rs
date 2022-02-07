@@ -15,49 +15,34 @@
  *
 **/
 use crate::{
-    config::server_config::{ServerConfig, TlsSecurityLevel},
+    config::server_config::{ServerConfig, SniKey, TlsSecurityLevel},
     processes::ProcessMessage,
     receiver::{connection::ConnectionKind, io_service::IoService},
     server::ServerVSMTP,
-    tls::{get_cert_from_file, get_rustls_config},
+    tls_helpers::{get_cert_from_file, get_rustls_config},
 };
 
-// TODO: wrap this in a macro ..?
+const SERVER_CERT: &str = "./src/receiver/tests/certs/certificate.crt";
 
-// TODO: add several test case with @input , @expected_output
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
-async fn simple() -> anyhow::Result<()> {
-    let socket_server = tokio::net::TcpListener::bind("0.0.0.0:20465").await?;
-
-    let server = tokio::spawn(async move {
-        let server_config = std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_server_default_port("testserver.com")
-                .without_log()
-                .with_safe_default_smtps(
-                    TlsSecurityLevel::Encrypt,
-                    "./src/receiver/tests/certs/certificate.crt",
-                    "./src/receiver/tests/certs/privateKey.key",
-                    crate::collection! {},
-                )
-                .with_default_smtp()
-                .with_delivery("./tmp/trash", crate::collection! {})
-                .with_rules("./tmp/no_rules")
-                .with_default_reply_codes()
-                .build(),
-        );
-
-        let tls_config = get_rustls_config(
-            &server_config.server.domain,
-            server_config.smtps.as_ref().unwrap(),
-        )
+// using sockets on 2 thread to make the handshake concurrently
+async fn test_tls_tunneled(
+    server_name: &str,
+    server_config: std::sync::Arc<ServerConfig>,
+    smtp_input: &'static [&str],
+    expected_output: &'static [&str],
+    port: u32,
+) -> anyhow::Result<()> {
+    let socket_server = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
+        .await
         .unwrap();
 
-        let (client_stream, client_addr) = socket_server.accept().await.unwrap();
+    let (working_sender, _working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+    let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
-        let (working_sender, _) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
-        let (delivery_sender, _) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
+    let server = tokio::spawn(async move {
+        let tls_config = get_rustls_config(server_config.smtps.as_ref().unwrap()).unwrap();
+
+        let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
         ServerVSMTP::run_session(
             client_stream,
@@ -73,7 +58,7 @@ async fn simple() -> anyhow::Result<()> {
     });
 
     let mut root_store = rustls::RootCertStore::empty();
-    for i in &get_cert_from_file("./src/receiver/tests/certs/certificate.crt").unwrap() {
+    for i in &get_cert_from_file(SERVER_CERT).unwrap() {
         root_store.add(i).unwrap();
     }
 
@@ -82,26 +67,21 @@ async fn simple() -> anyhow::Result<()> {
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
-    let mut conn = rustls::ClientConnection::new(
-        std::sync::Arc::new(config),
-        "testserver.com".try_into().unwrap(),
-    )
-    .unwrap();
+    let mut conn =
+        rustls::ClientConnection::new(std::sync::Arc::new(config), server_name.try_into().unwrap())
+            .unwrap();
 
     let client = tokio::spawn(async move {
-        let mut client = std::net::TcpStream::connect("0.0.0.0:20465").unwrap();
+        let mut client = std::net::TcpStream::connect(format!("0.0.0.0:{port}")).unwrap();
         let mut tls = rustls::Stream::new(&mut conn, &mut client);
         let mut io = IoService::new(&mut tls);
         std::io::Write::flush(&mut io).unwrap();
 
-        let expected_output = vec![
-            "220 testserver.com Service ready",
-            "250 Ok",
-            "221 Service closing transmission channel",
-        ];
-        let mut input = vec!["NOOP\r\n", "QUIT\r\n"].into_iter();
+        // TODO: assert on negotiated cipher ... ?
+
         let mut output = vec![];
 
+        let mut input = smtp_input.to_vec().into_iter();
         loop {
             match io.get_next_line_async().await {
                 Ok(res) => {
@@ -111,7 +91,7 @@ async fn simple() -> anyhow::Result<()> {
                         None => break,
                     }
                 }
-                Err(_) => todo!(),
+                Err(e) => println!("{:?}", e),
             }
         }
 
@@ -124,4 +104,86 @@ async fn simple() -> anyhow::Result<()> {
     server.unwrap();
 
     Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+async fn simple() -> anyhow::Result<()> {
+    test_tls_tunneled(
+        "testserver.com",
+        std::sync::Arc::new(
+            ServerConfig::builder()
+                .with_server_default_port("testserver.com")
+                .without_log()
+                .with_safe_default_smtps(
+                    TlsSecurityLevel::Encrypt,
+                    SERVER_CERT,
+                    "./src/receiver/tests/certs/privateKey.key",
+                    None,
+                )
+                .with_default_smtp()
+                .with_delivery("./tmp/trash", crate::collection! {})
+                .with_rules("./tmp/no_rules")
+                .with_default_reply_codes()
+                .build(),
+        ),
+        &[
+            "NOOP\r\n",
+            "HELO client.com\r\n",
+            "MAIL FROM:<foo@bar>\r\n",
+            "RCPT TO:<bar@foo>\r\n",
+            "DATA\r\n",
+            ".\r\n",
+            "QUIT\r\n",
+        ],
+        &[
+            "220 testserver.com Service ready",
+            "250 Ok",
+            "250 Ok",
+            "250 Ok",
+            "250 Ok",
+            "354 Start mail input; end with <CRLF>.<CRLF>",
+            "250 Ok",
+            "221 Service closing transmission channel",
+        ],
+        20466,
+    )
+    .await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+async fn sni() -> anyhow::Result<()> {
+    test_tls_tunneled(
+        "second.testserver.com",
+        std::sync::Arc::new(
+            ServerConfig::builder()
+                .with_server_default_port("testserver.com")
+                .without_log()
+                .with_safe_default_smtps(
+                    TlsSecurityLevel::Encrypt,
+                    SERVER_CERT,
+                    "./src/receiver/tests/certs/privateKey.key",
+                    Some(vec![SniKey {
+                        domain: "second.testserver.com".to_string(),
+                        fullchain: "./src/receiver/tests/certs/sni/second.certificate.crt"
+                            .to_string(),
+                        private_key: "./src/receiver/tests/certs/sni/second.privateKey.key"
+                            .to_string(),
+                        protocol_version: None,
+                    }]),
+                )
+                .with_default_smtp()
+                .with_delivery("./tmp/trash", crate::collection! {})
+                .with_rules("./tmp/no_rules")
+                .with_default_reply_codes()
+                .build(),
+        ),
+        &["NOOP\r\n", "QUIT\r\n"],
+        &[
+            "220 testserver.com Service ready",
+            "250 Ok",
+            "221 Service closing transmission channel",
+        ],
+        20467,
+    )
+    .await
 }

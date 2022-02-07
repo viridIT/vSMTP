@@ -61,7 +61,7 @@ pub struct ProtocolVersionRequirement(pub Vec<ProtocolVersion>);
 pub struct InnerSmtpsConfig {
     pub security_level: TlsSecurityLevel,
     pub protocol_version: ProtocolVersionRequirement,
-    pub capath: Option<String>,
+    pub capath: String,
     pub preempt_cipherlist: bool,
     pub fullchain: String,
     pub private_key: String,

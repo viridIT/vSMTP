@@ -15,6 +15,7 @@
  *
 **/
 
+#[derive(Debug)]
 pub enum ReadError {
     Eof,
     Blocking,

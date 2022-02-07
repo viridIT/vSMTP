@@ -14,8 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use std::collections::HashMap;
-
 use crate::{
     config::server_config::ServerConfig,
     processes::ProcessMessage,
@@ -25,11 +23,11 @@ use crate::{
         io_service::IoService,
     },
     resolver::{smtp_resolver::SMTPResolver, Resolver},
-    tls::get_rustls_config,
+    tls_helpers::get_rustls_config,
 };
 
 pub struct ServerVSMTP {
-    resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
+    resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
     listener: tokio::net::TcpListener,
     listener_submission: tokio::net::TcpListener,
     listener_submissions: tokio::net::TcpListener,
@@ -49,7 +47,8 @@ impl ServerVSMTP {
                 .create(spool_dir)?;
         }
 
-        let mut resolvers = HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
+        let mut resolvers =
+            std::collections::HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
         resolvers.insert("default".to_string(), Box::new(SMTPResolver));
 
         Ok(Self {
@@ -60,10 +59,7 @@ impl ServerVSMTP {
             listener_submissions: tokio::net::TcpListener::bind(&config.server.addr_submissions)
                 .await?,
             tls_config: if let Some(smtps) = &config.smtps {
-                Some(std::sync::Arc::new(get_rustls_config(
-                    &config.server.domain,
-                    smtps,
-                )?))
+                Some(std::sync::Arc::new(get_rustls_config(smtps)?))
             } else {
                 None
             },
@@ -176,7 +172,6 @@ impl ServerVSMTP {
         delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     ) -> anyhow::Result<()> {
         let mut stream = stream.into_std()?;
-        stream.set_nonblocking(true)?;
 
         let begin = std::time::SystemTime::now();
         log::warn!("Handling client: {}", client_addr);

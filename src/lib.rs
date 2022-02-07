@@ -23,7 +23,7 @@ pub mod resolver;
 pub mod rules;
 pub mod server;
 pub mod smtp;
-pub mod tls;
+pub mod tls_helpers;
 
 #[macro_export]
 macro_rules! collection {
