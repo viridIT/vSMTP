@@ -75,6 +75,13 @@ register and visit our
 [community forums](https://www.viridit.com/community-forum). You can also open a
 GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).
 
+## Roadmap
+
+vSMTP is currently under development. The current versions "0.8.x" focus on the
+delivery process and on the post queue filtering. You can find more information about the
+project agenda in the
+[ROADMAP](https://github.com/viridIT/vSMTP/blob/main/ROADMAP.md).
+
 ## Commercial
 
 For any question related to commercial, licensing, etc. you can [contact us] on our website.
