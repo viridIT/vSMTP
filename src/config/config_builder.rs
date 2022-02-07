@@ -2,7 +2,7 @@ use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
 use super::server_config::{
     Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerTlsConfig, ProtocolVersion,
+    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, ProtocolVersion,
     ProtocolVersionRequirement, QueueConfig, ServerConfig, SniKey, TlsSecurityLevel,
 };
 
@@ -123,13 +123,13 @@ impl ConfigBuilder<WantSMTPS> {
         ConfigBuilder::<WantSMTP> {
             state: WantSMTP {
                 parent: self.state,
-                smtps: Some(InnerTlsConfig {
+                smtps: Some(InnerSmtpsConfig {
                     security_level,
                     protocol_version,
                     capath: Some(capath.into()),
                     preempt_cipherlist,
-                    fullchain: Some(fullchain.into()),
-                    private_key: Some(private_key.into()),
+                    fullchain: fullchain.into(),
+                    private_key: private_key.into(),
                     handshake_timeout,
                     sni_maps,
                 }),
@@ -174,7 +174,7 @@ impl ConfigBuilder<WantSMTPS> {
 pub struct WantSMTP {
     #[serde(flatten)]
     pub(crate) parent: WantSMTPS,
-    pub(crate) smtps: Option<InnerTlsConfig>,
+    pub(crate) smtps: Option<InnerSmtpsConfig>,
 }
 
 impl ConfigBuilder<WantSMTP> {
@@ -332,7 +332,7 @@ impl ConfigBuilder<WantsBuild> {
         ServerConfig {
             server: self.state.parent.parent.parent.parent.parent.parent.server,
             log: self.state.parent.parent.parent.parent.parent.logs,
-            tls: self.state.parent.parent.parent.parent.smtps,
+            smtps: self.state.parent.parent.parent.parent.smtps,
             smtp: self.state.parent.parent.parent.smtp,
             delivery: self.state.parent.parent.delivery,
             rules: self.state.parent.rules,

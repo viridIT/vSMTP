@@ -75,7 +75,7 @@ where
                 buf.set_filled(i);
                 std::task::Poll::Ready(Ok(()))
             }
-            _ => todo!(),
+            Err(e) => std::task::Poll::Ready(Err(e)),
         }
     }
 }

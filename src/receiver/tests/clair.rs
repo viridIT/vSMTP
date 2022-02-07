@@ -187,7 +187,7 @@ async fn test_receiver_7() {
         .concat()
         .as_bytes(),
         ServerConfig {
-            tls: InnerTlsConfig {
+            tls: InnerSmtpsConfig {
                 security_level: TlsSecurityLevel::Encrypt,
                 ..get_test_config().tls
             },

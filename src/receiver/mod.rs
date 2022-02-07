@@ -1,5 +1,5 @@
 use crate::{
-    config::server_config::InnerTlsConfig,
+    config::server_config::InnerSmtpsConfig,
     processes::ProcessMessage,
     queue::Queue,
     smtp::{code::SMTPReplyCode, mail::MailContext},
@@ -23,7 +23,7 @@ pub mod test_helpers;
 
 fn is_version_requirement_satisfied(
     conn: &rustls::ServerConnection,
-    config: &InnerTlsConfig,
+    config: &InnerSmtpsConfig,
 ) -> bool {
     let protocol_version_requirement = config
         .sni_maps
@@ -164,7 +164,7 @@ pub async fn handle_connection_secured<S>(
 where
     S: std::io::Read + std::io::Write,
 {
-    let smtps_config = conn.config.tls.as_ref().unwrap();
+    let smtps_config = conn.config.smtps.as_ref().unwrap();
 
     let mut tls_conn = rustls::ServerConnection::new(tls_config.unwrap()).unwrap();
     let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
@@ -173,7 +173,8 @@ where
     Connection::<IoService<'_, S>>::complete_tls_handshake(
         &mut io_tls_stream,
         &smtps_config.handshake_timeout,
-    )?;
+    )
+    .unwrap();
 
     let mut secured_conn = Connection {
         kind: conn.kind,

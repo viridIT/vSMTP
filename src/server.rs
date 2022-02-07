@@ -59,10 +59,14 @@ impl ServerVSMTP {
                 .await?,
             listener_submissions: tokio::net::TcpListener::bind(&config.server.addr_submissions)
                 .await?,
-            tls_config: config
-                .tls
-                .as_ref()
-                .map(|smtps| get_rustls_config(&config.server.domain, smtps)),
+            tls_config: if let Some(smtps) = &config.smtps {
+                Some(std::sync::Arc::new(get_rustls_config(
+                    &config.server.domain,
+                    smtps,
+                )?))
+            } else {
+                None
+            },
             config,
         })
     }
@@ -150,65 +154,72 @@ impl ServerVSMTP {
 
             log::warn!("Connection from: {:?}, {}", kind, client_addr);
 
-            let mut stream = stream.into_std()?;
-            stream.set_nonblocking(true)?;
-
-            let config = self.config.clone();
-            let tls_config = self.tls_config.clone();
-
-            let working_sender = working_sender.clone();
-            let delivery_sender = delivery_sender.clone();
-
-            tokio::spawn(async move {
-                let begin = std::time::SystemTime::now();
-                log::warn!("Handling client: {}", client_addr);
-
-                let mut io_plain = IoService::new(&mut stream);
-
-                let mut conn = Connection::<std::net::TcpStream>::from_plain(
-                    kind,
-                    client_addr,
-                    config.clone(),
-                    &mut io_plain,
-                )?;
-                match conn.kind {
-                    ConnectionKind::Opportunistic | ConnectionKind::Submission => {
-                        handle_connection::<std::net::TcpStream>(
-                            &mut conn,
-                            working_sender,
-                            delivery_sender,
-                            tls_config,
-                        )
-                        .await
-                    }
-                    ConnectionKind::Tunneled => {
-                        handle_connection_secured(
-                            &mut conn,
-                            working_sender,
-                            delivery_sender,
-                            tls_config,
-                        )
-                        .await
-                    }
-                }
-                .map(|_| {
-                    log::warn!(
-                        "{{ elapsed: {:?} }} Connection {} closed cleanly",
-                        begin.elapsed(),
-                        client_addr,
-                    );
-                })
-                .map_err(|error| {
-                    log::error!(
-                        "{{ elapsed: {:?} }} Connection {} closed with an error {}",
-                        begin.elapsed(),
-                        client_addr,
-                        error,
-                    );
-                    error
-                })
-            });
+            tokio::spawn(Self::run_session(
+                stream,
+                client_addr,
+                kind,
+                self.config.clone(),
+                self.tls_config.clone(),
+                working_sender.clone(),
+                delivery_sender.clone(),
+            ));
         }
+    }
+
+    pub(crate) async fn run_session(
+        stream: tokio::net::TcpStream,
+        client_addr: std::net::SocketAddr,
+        kind: ConnectionKind,
+        config: std::sync::Arc<ServerConfig>,
+        tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+        delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+    ) -> anyhow::Result<()> {
+        let mut stream = stream.into_std()?;
+        stream.set_nonblocking(true)?;
+
+        let begin = std::time::SystemTime::now();
+        log::warn!("Handling client: {}", client_addr);
+
+        let mut io_plain = IoService::new(&mut stream);
+
+        let mut conn = Connection::<std::net::TcpStream>::from_plain(
+            kind,
+            client_addr,
+            config.clone(),
+            &mut io_plain,
+        )?;
+        match conn.kind {
+            ConnectionKind::Opportunistic | ConnectionKind::Submission => {
+                handle_connection::<std::net::TcpStream>(
+                    &mut conn,
+                    working_sender,
+                    delivery_sender,
+                    tls_config,
+                )
+                .await
+            }
+            ConnectionKind::Tunneled => {
+                handle_connection_secured(&mut conn, working_sender, delivery_sender, tls_config)
+                    .await
+            }
+        }
+        .map(|_| {
+            log::warn!(
+                "{{ elapsed: {:?} }} Connection {} closed cleanly",
+                begin.elapsed(),
+                client_addr,
+            );
+        })
+        .map_err(|error| {
+            log::error!(
+                "{{ elapsed: {:?} }} Connection {} closed with an error {}",
+                begin.elapsed(),
+                client_addr,
+                error,
+            );
+            error
+        })
     }
 }
 
@@ -253,7 +264,12 @@ mod tests {
         let config = ServerConfig::builder()
             .with_server("test.server.com", addr, addr_submission, addr_submissions)
             .without_log()
-            .with_safe_default_smtps(TlsSecurityLevel::May, "fullchain", "private_key", None)
+            .with_safe_default_smtps(
+                TlsSecurityLevel::May,
+                "./src/receiver/tests/certs/certificate.crt",
+                "./src/receiver/tests/certs/privateKey.key",
+                None,
+            )
             .with_default_smtp()
             .with_delivery("./tmp/trash", crate::collection! {})
             .with_rules("./tmp/no_rules")

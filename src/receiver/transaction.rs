@@ -141,17 +141,17 @@ impl Transaction<'_> {
                 }
             }
 
-            (StateSMTP::Helo, Event::StartTls) if conn.config.tls.is_none() => {
+            (StateSMTP::Helo, Event::StartTls) if conn.config.smtps.is_none() => {
                 ProcessedEvent::Reply(SMTPReplyCode::Code454)
             }
 
-            (StateSMTP::Helo, Event::StartTls) if conn.config.tls.is_some() => {
+            (StateSMTP::Helo, Event::StartTls) if conn.config.smtps.is_some() => {
                 ProcessedEvent::ReplyChangeState(StateSMTP::NegotiationTLS, SMTPReplyCode::Code220)
             }
 
             (StateSMTP::Helo, Event::MailCmd(_, _))
                 if !conn.is_secured
-                    && conn.config.tls.as_ref().map(|smtps| smtps.security_level)
+                    && conn.config.smtps.as_ref().map(|smtps| smtps.security_level)
                         == Some(TlsSecurityLevel::Encrypt) =>
             {
                 ProcessedEvent::Reply(SMTPReplyCode::Code530)
