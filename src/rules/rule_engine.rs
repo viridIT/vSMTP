@@ -214,17 +214,28 @@ impl RuleEngine {
         let shared_obj = objects.clone();
 
         // register the vsl global module.
-        // let api_mod = exported_module!(crate::rules::actions::vsl);
+        let api_mod = exported_module!(crate::rules::actions::vsl);
         engine
-        // .register_global_module(api_mod.into())
+        .register_global_module(api_mod.into())
+
+        // NEW API -------------------------
+
+        .register_get_result("client_addr", |this: &mut Arc<RwLock<MailContext>>| Ok(this.read().map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.client_addr))
+        .register_get_result("helo", |this: &mut Arc<RwLock<MailContext>>| Ok(this.read().map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.envelop.helo.clone()))
+        .register_get_result("mail_from", |this: &mut Arc<RwLock<MailContext>>| Ok(this.read().map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.envelop.mail_from.clone()))
+        .register_get_result("rcpt", |this: &mut Arc<RwLock<MailContext>>| Ok(this.read().map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.envelop.rcpt.clone()))
+        .register_result_fn("to_string", |this: &mut Arc<RwLock<MailContext>>| Ok(format!("{:?}", this.read().map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?)))
+        .register_result_fn("to_debug", |this: &mut Arc<RwLock<MailContext>>| Ok(format!("{:#?}", this.read().map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?)))
+
+        .register_type::<SocketAddr>()
+        .register_fn("to_string", |this: &mut SocketAddr| this.to_string())
+        .register_fn("to_debug", |this: &mut SocketAddr| format!("{this:?}"))
+
+        // ---------------------------------
 
         .register_get_result("stdout", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stdout).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
         .register_get_result("stderr", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stderr).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
         .register_get_result("status", |output: &mut std::process::Output| Ok(output.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| "a SHELL process have been terminated by a signal".into())? as i64))
-
-        .register_type::<SocketAddr>()
-        .register_fn("to_string", SocketAddr::to_string)
-        .register_fn("to_debug", SocketAddr::to_string)
 
         .register_type::<Address>()
         .register_result_fn("new_address", <Address>::rhai_wrapper)
@@ -639,10 +650,9 @@ impl RuleEngine {
         // can be re-injected back into the script.
         state.scope.set_value("__rules", Array::new());
 
-        log::debug!(target: RULES, "[{}] evaluated.", stage);
-
         match result {
             Ok(status) => {
+                log::debug!(target: RULES, "[{}] evaluated.", stage);
                 log::trace!(target: RULES, "[{}] result: {:?}.", stage, status);
 
                 if let Status::Block | Status::Faccept = status {
