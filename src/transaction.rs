@@ -289,8 +289,10 @@ impl Transaction<'_> {
 
 impl Transaction<'_> {
     fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
-        self.rule_state.add_data("connect", conn.client_addr.ip());
-        self.rule_state.add_data("port", conn.client_addr.port());
+        let ctx = self.rule_state.get_context();
+        let mut ctx = ctx.write().unwrap();
+        ctx.client_addr = conn.client_addr;
+
         self.rule_state
             .add_data("connection_timestamp", conn.timestamp);
     }
