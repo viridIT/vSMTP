@@ -19,7 +19,7 @@ use rhai::plugin::*;
 // exported methods are used in rhai context, so we allow dead code.
 #[allow(dead_code)]
 #[export_module]
-pub(super) mod vsl {
+pub mod actions {
 
     use crate::{config::log_channel::RULES, rules::rule_engine::Status, smtp::mail::MailContext};
     use std::sync::{Arc, RwLock};

@@ -14,9 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-pub mod address;
-pub mod modules;
-mod obj;
-mod operation_queue;
-pub mod rule_engine;
-pub mod tests;
+use rhai::plugin::*;
+#[allow(dead_code)]
+#[export_module]
+pub mod types {}
