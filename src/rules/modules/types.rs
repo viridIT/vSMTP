@@ -19,7 +19,10 @@ use rhai::plugin::*;
 #[export_module]
 pub mod types {
 
+    use crate::rules::address::Address;
     use crate::rules::modules::EngineResult;
+
+    // std::process::Output
 
     #[rhai_fn(get = "stdout", return_raw)]
     pub fn stdout(this: &mut std::process::Output) -> EngineResult<String> {
@@ -40,5 +43,58 @@ pub mod types {
         Ok(this.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| {
             "a SHELL process have been terminated by a signal".into()
         })? as i64)
+    }
+
+    // std::time::SystemTime
+
+    #[rhai_fn(name = "to_string", return_raw)]
+    pub fn time_to_string(this: &mut std::time::SystemTime) -> EngineResult<String> {
+        Ok(format!(
+            "{}",
+            this.duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                .as_secs()
+        ))
+    }
+
+    #[rhai_fn(name = "to_debug", return_raw)]
+    pub fn time_to_debug(this: &mut std::time::SystemTime) -> EngineResult<String> {
+        Ok(format!(
+            "{:?}",
+            this.duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+        ))
+    }
+
+    // rules::address::Address
+
+    #[rhai_fn(return_raw)]
+    pub fn new_address(addr: &str) -> EngineResult<Address> {
+        Address::new(addr).map_err(|error| error.to_string().into())
+    }
+
+    #[rhai_fn(name = "to_string")]
+    pub fn address_to_string(this: &mut Address) -> String {
+        this.full().to_string()
+    }
+
+    #[rhai_fn(name = "to_debug")]
+    pub fn address_to_debug(this: &mut Address) -> String {
+        format!("{this:?}")
+    }
+
+    #[rhai_fn(get = "full")]
+    pub fn full(this: &mut Address) -> String {
+        this.full().to_string()
+    }
+
+    #[rhai_fn(get = "local_part")]
+    pub fn local_part(this: &mut Address) -> String {
+        this.local_part().to_string()
+    }
+
+    #[rhai_fn(get = "domain")]
+    pub fn domain(this: &mut Address) -> String {
+        this.domain().to_string()
     }
 }

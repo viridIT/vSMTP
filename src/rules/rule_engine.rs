@@ -231,13 +231,6 @@ pub struct RuleEngine {
     pub(super) context: Engine,
     /// the ast, built from the user's .vsl files.
     pub(super) ast: AST,
-    // ? use SmartString<LazyCompact> ? What about long object names ?
-    // objects parsed from rhai's context.
-    // they are accessible from rust function registered into the engine.
-    //
-    // FIXME: remove RwLock, objects are immutable.
-    // pub(super) objects: Arc<RwLock<BTreeMap<String, Object>>>,
-
     // system user cache, used for retrieving user information. (used in vsl.USER_EXISTS for example)
     // pub(super) users: Mutex<U>,
 }
@@ -315,94 +308,6 @@ impl RuleEngine {
         .register_global_module(exported_module!(crate::rules::modules::types::types).into())
         .register_global_module(exported_module!(crate::rules::modules::email::email).into())
 
-        // .register_type::<Address>()
-        // .register_result_fn("new_address", <Address>::rhai_wrapper)
-        // .register_fn("to_string", |addr: &mut Address| addr.full().to_string())
-        // .register_fn("to_debug", |addr: &mut Address| format!("{:?}", addr))
-        // .register_fn("to_string", |addr: &mut IpAddr| addr.to_string())
-        // .register_fn("to_debug", |addr: &mut IpAddr| format!("{:?}", addr))
-
-        // // local_part + "@" + domain = full.
-        // .register_get("full", |addr: &mut Address| addr.full().to_string())
-        // .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
-        // .register_get("domain", |addr: &mut Address| addr.domain().to_string())
-
-        // // metadata of the email.
-        // .register_type::<Option<MessageMetadata>>()
-        // .register_get_result("timestamp", |metadata: &mut Option<MessageMetadata>| match metadata {
-        //     Some(metadata) => Ok(metadata.timestamp),
-        //     None => Err("metadata are not available in the current stage".into())
-        // })
-        // .register_get_result("message_id", |metadata: &mut Option<MessageMetadata>| match metadata {
-        //     Some(metadata) => Ok(metadata.message_id.clone()),
-        //     None => Err("metadata are not available in the current stage".into())
-        // })
-        // .register_get_result("retry", |metadata: &mut Option<MessageMetadata>| match metadata {
-        //     Some(metadata) => Ok(metadata.retry as u64),
-        //     None => Err("metadata are not available in the current stage".into())
-        // })
-        // .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
-        // .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
-        // .register_set_result("resolver", |metadata: &mut Option<MessageMetadata>, resolver: String| match metadata {
-        //     Some(metadata) => {
-        //         metadata.resolver = resolver;
-        //         Ok(())
-        //     },
-        //     None => Err("metadata are not available in the current stage".into())
-        // })
-
-        // // exposed structure used to read & rewrite the incoming email's content.
-        // .register_type::<Mail>()
-        // .register_get("headers", |mail: &mut Mail| mail.headers.clone())
-        // .register_get("body", |mail: &mut Mail| mail.body.clone())
-        // .register_result_fn  ("rewrite_from", |mail: &mut Mail, value: &str| {
-        //     if mail.body == BodyType::Undefined {
-        //         Err("failed to execute 'RW_MAIL': body is undefined".into())
-        //     } else {
-        //         mail.rewrite_from(value);
-        //         Ok(())
-        //     }
-        // })
-        // .register_result_fn  ("rewrite_rcpt", |mail: &mut Mail, old: &str, new: &str| {
-        //     if mail.body == BodyType::Undefined {
-        //         Err("failed to execute 'RW_RCPT': body is undefined".into())
-        //     } else {
-        //         mail.rewrite_rcpt(old, new);
-        //         Ok(())
-        //     }
-        // })
-        // .register_result_fn  ("add_rcpt", |mail: &mut Mail, new: &str| {
-        //     if mail.body == BodyType::Undefined {
-        //         Err("failed to execute 'ADD_RCPT': body is undefined".into())
-        //     } else {
-        //         mail.add_rcpt(new);
-        //         Ok(())
-        //     }
-        // })
-        // .register_result_fn  ("delete_rcpt", |mail: &mut Mail, old: &str| {
-        //     if mail.body == BodyType::Undefined {
-        //         Err("failed to execute 'DEL_RCPT': body is undefined".into())
-        //     } else {
-        //         mail.delete_rcpt(old);
-        //         Ok(())
-        //     }
-        // })
-
-        // // the operation queue is used to defer actions.
-        // .register_type::<OperationQueue>()
-
-        // // time display.
-        // .register_type::<std::time::SystemTime>()
-        // .register_fn("to_string", |time: &mut std::time::SystemTime| format!("{}",
-        //     time.duration_since(std::time::SystemTime::UNIX_EPOCH)
-        //         .unwrap_or(std::time::Duration::ZERO)
-        //         .as_secs()
-        // ))
-        // .register_fn("to_debug", |time: &mut std::time::SystemTime| format!("{:?}",
-        //     time.duration_since(std::time::SystemTime::UNIX_EPOCH)
-        //     .unwrap_or(std::time::Duration::ZERO)
-        //     .as_secs()
-        // ))
 
         // // adding an Address hash set as a custom type.
         // // used to easily manipulate the rcpt container.

@@ -65,6 +65,67 @@ pub mod email {
             .clone())
     }
 
+    // // metadata of the email.
+    // .register_type::<Option<MessageMetadata>>()
+    // .register_get_result("timestamp", |metadata: &mut Option<MessageMetadata>| match metadata {
+    //     Some(metadata) => Ok(metadata.timestamp),
+    //     None => Err("metadata are not available in the current stage".into())
+    // })
+    // .register_get_result("message_id", |metadata: &mut Option<MessageMetadata>| match metadata {
+    //     Some(metadata) => Ok(metadata.message_id.clone()),
+    //     None => Err("metadata are not available in the current stage".into())
+    // })
+    // .register_get_result("retry", |metadata: &mut Option<MessageMetadata>| match metadata {
+    //     Some(metadata) => Ok(metadata.retry as u64),
+    //     None => Err("metadata are not available in the current stage".into())
+    // })
+    // .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
+    // .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
+    // .register_set_result("resolver", |metadata: &mut Option<MessageMetadata>, resolver: String| match metadata {
+    //     Some(metadata) => {
+    //         metadata.resolver = resolver;
+    //         Ok(())
+    //     },
+    //     None => Err("metadata are not available in the current stage".into())
+    // })
+
+    // // exposed structure used to read & rewrite the incoming email's content.
+    // .register_type::<Mail>()
+    // .register_get("headers", |mail: &mut Mail| mail.headers.clone())
+    // .register_get("body", |mail: &mut Mail| mail.body.clone())
+    // .register_result_fn  ("rewrite_from", |mail: &mut Mail, value: &str| {
+    //     if mail.body == BodyType::Undefined {
+    //         Err("failed to execute 'RW_MAIL': body is undefined".into())
+    //     } else {
+    //         mail.rewrite_from(value);
+    //         Ok(())
+    //     }
+    // })
+    // .register_result_fn  ("rewrite_rcpt", |mail: &mut Mail, old: &str, new: &str| {
+    //     if mail.body == BodyType::Undefined {
+    //         Err("failed to execute 'RW_RCPT': body is undefined".into())
+    //     } else {
+    //         mail.rewrite_rcpt(old, new);
+    //         Ok(())
+    //     }
+    // })
+    // .register_result_fn  ("add_rcpt", |mail: &mut Mail, new: &str| {
+    //     if mail.body == BodyType::Undefined {
+    //         Err("failed to execute 'ADD_RCPT': body is undefined".into())
+    //     } else {
+    //         mail.add_rcpt(new);
+    //         Ok(())
+    //     }
+    // })
+    // .register_result_fn  ("delete_rcpt", |mail: &mut Mail, old: &str| {
+    //     if mail.body == BodyType::Undefined {
+    //         Err("failed to execute 'DEL_RCPT': body is undefined".into())
+    //     } else {
+    //         mail.delete_rcpt(old);
+    //         Ok(())
+    //     }
+    // })
+
     #[rhai_fn(return_raw)]
     pub fn to_string(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
         Ok(format!(
