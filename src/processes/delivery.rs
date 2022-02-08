@@ -102,8 +102,7 @@ pub(crate) async fn handle_one_in_delivery_queue(
 
     let ctx: MailContext = serde_json::from_str(&raw)?;
 
-    let mut state = RuleState::new(config);
-    state.add_data("ctx", ctx);
+    let mut state = RuleState::with_context(config, ctx);
     let result = rule_engine.read().unwrap().run_when(&mut state, "delivery");
 
     match result {

@@ -107,6 +107,45 @@ impl<'a> RuleState<'a> {
         }
     }
 
+    pub(crate) fn with_context(
+        config: &crate::config::server_config::ServerConfig,
+        ctx: MailContext,
+    ) -> Self {
+        let mut scope = Scope::new();
+        let ctx = Arc::new(RwLock::new(ctx));
+
+        scope
+            // stage specific variables.
+            .push("ctx", ctx.clone())
+            // .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+            // .push("port", 0)
+            // .push("helo", "")
+            // .push("mail", Address::default())
+            // .push("rcpt", Address::default())
+            // .push("rcpts", HashSet::<Address>::new())
+            // .push("data", Mail::default())
+            // data available in every stage.
+            .push("date", "")
+            .push("time", "")
+            .push("connection_timestamp", std::time::SystemTime::now())
+            .push("metadata", None::<MessageMetadata>)
+            // rule engine's internals.
+            .push("__OPERATION_QUEUE", OperationQueue::default())
+            .push("__stage", "")
+            .push("__rules", Array::new())
+            .push("__init", false)
+            // configuration variables.
+            .push("addr", config.server.addr)
+            .push("logs_file", config.log.file.clone())
+            .push("spool_dir", config.delivery.spool_dir.clone());
+
+        Self {
+            scope,
+            ctx,
+            skip: None,
+        }
+    }
+
     /// add data to the scope of the engine.
     pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T) -> &mut Self
     where

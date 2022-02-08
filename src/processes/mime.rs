@@ -65,8 +65,7 @@ pub(crate) async fn handle_one_in_working_queue(
         ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
     }
 
-    let mut state = RuleState::new(config);
-    state.add_data("ctx", ctx);
+    let mut state = RuleState::with_context(config, ctx);
     let result = rule_engine.read().unwrap().run_when(&mut state, "postq");
 
     match result {
