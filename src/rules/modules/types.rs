@@ -97,4 +97,79 @@ pub mod types {
     pub fn domain(this: &mut Address) -> String {
         this.domain().to_string()
     }
+
+    // // adding an Address hash set as a custom type.
+    // // used to easily manipulate the rcpt container.
+    // .register_iterator::<HashSet<Address>>()
+    // .register_iterator::<Vec<String>>()
+    // .register_fn("insert", <HashSet<Address>>::insert)
+    // // extract all users / domains from the rcpt set.
+    // .register_get("local_part", |set: &mut HashSet<Address>| -> Vec<String> {
+    //     set.iter().map(|addr| addr.local_part().to_string()).collect()
+    // })
+    // .register_get("domain", |set: &mut HashSet<Address>| -> Vec<String> {
+    //     set.iter().map(|addr| addr.domain().to_string()).collect()
+    // })
+
+    // // added an overload to insert an address using a string.
+    // .register_result_fn("insert", |set: &mut HashSet::<Address>, value: String| {
+    //     match Address::new(&value) {
+    //         Ok(addr) => {
+    //             set.insert(addr);
+    //             Ok(())
+    //         },
+    //         Err(error) =>
+    //             Err(format!(
+    //                 "failed to insert address in set: {}",
+    //                 error
+    //             )
+    //             .into()),
+    //     }
+    // })
+
+    // // need to overload remove because the address isn't passed by ref in rhai.
+    // .register_fn("remove", |set: &mut HashSet::<Address>, addr: Address| {
+    //     set.remove(&addr);
+    // })
+
+    // // added an overload to remove an address using a string.
+    // .register_result_fn("remove", |set: &mut HashSet::<Address>, value: String| {
+    //     match Address::new(&value) {
+    //         Ok(addr) => {
+    //             set.remove(&addr);
+    //             Ok(())
+    //         },
+    //         Err(error) => Err(format!(
+    //             "failed to remove address from set: {}",
+    //             error
+    //         )
+    //         .into()),
+    //     }
+    // })
+
+    // // added an overload to replace an address using a string.
+    // .register_result_fn("replace", |set: &mut HashSet::<Address>, to_replace: String, value: String| {
+    //     let to_replace = match Address::new(&to_replace) {
+    //         Ok(addr) => addr,
+    //         Err(error) => return Err(format!(
+    //             "failed to replace address from set: {}",
+    //             error
+    //         )
+    //         .into()),
+    //     };
+
+    //     if set.contains(&to_replace) {
+    //         set.remove(&to_replace);
+    //         match Address::new(&value) {
+    //             Ok(addr) => set.insert(addr),
+    //             Err(error) => return Err(format!(
+    //                 "failed to replace address from set: {}",
+    //                 error
+    //             )
+    //             .into()),
+    //         };
+    //     }
+
+    //     Ok(())
+    // })
 }
