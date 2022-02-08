@@ -344,8 +344,18 @@ impl ConfigBuilder<WantsBuild> {
                 .replace("{domain}", server_domain),
             );
         }
+        self.state.reply_codes.codes = reply_codes;
 
         if let Some(smtps) = &mut self.state.parent.parent.parent.parent.smtps {
+            smtps.fullchain = smtps
+                .fullchain
+                .replace("{capath}", &smtps.capath)
+                .replace("{domain}", server_domain);
+            smtps.private_key = smtps
+                .private_key
+                .replace("{capath}", &smtps.capath)
+                .replace("{domain}", server_domain);
+
             if let Some(sni_maps) = &mut smtps.sni_maps {
                 for i in sni_maps.iter_mut() {
                     *i = SniKey {
@@ -371,7 +381,7 @@ impl ConfigBuilder<WantsBuild> {
             smtp: self.state.parent.parent.parent.smtp,
             delivery: self.state.parent.parent.delivery,
             rules: self.state.parent.rules,
-            reply_codes: Codes { codes: reply_codes },
+            reply_codes: self.state.reply_codes,
         }
     }
 }

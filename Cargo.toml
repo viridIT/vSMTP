@@ -61,6 +61,8 @@ tokio = { version = "1.15.0", features = [
 # inactive since Oct. 2020
 users = "0.11"
 
+diff = "0.1.12"
+
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }
 fork = "0.1.18"
