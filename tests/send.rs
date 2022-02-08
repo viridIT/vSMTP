@@ -1,3 +1,19 @@
+/**
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+**/
 const MTA_PORT_PLAIN: u16 = 10025;
 // NOTE: todo submission port too (plain with auth)
 const MTA_PORT_SUBMISSIONS: u16 = 10465;
@@ -21,10 +37,7 @@ fn send_mail_plain() {
         .port(MTA_PORT_PLAIN)
         .build();
 
-    match lettre::Transport::send(&mailer, &email) {
-        Ok(_) => println!("Email sent successfully!"),
-        Err(e) => panic!("Could not send email: {:?}", e),
-    }
+    lettre::Transport::send(&mailer, &email).unwrap();
 }
 
 #[test]
@@ -42,10 +55,7 @@ fn send_mail_starttls() {
         .port(MTA_PORT_PLAIN)
         .build();
 
-    match lettre::Transport::send(&mailer, &email) {
-        Ok(_) => println!("Email sent successfully!"),
-        Err(e) => panic!("Could not send email: {:?}", e),
-    }
+    lettre::Transport::send(&mailer, &email).unwrap();
 }
 
 #[test]
@@ -63,8 +73,5 @@ fn send_mail_tunneled_tls() {
         .port(MTA_PORT_SUBMISSIONS)
         .build();
 
-    match lettre::Transport::send(&mailer, &email) {
-        Ok(_) => println!("Email sent successfully!"),
-        Err(e) => panic!("Could not send email: {:?}", e),
-    }
+    lettre::Transport::send(&mailer, &email).unwrap();
 }

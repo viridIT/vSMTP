@@ -2,11 +2,13 @@
 use libfuzzer_sys::fuzz_target;
 use vsmtp::{
     config::server_config::ServerConfig,
-    connection::{Connection, Kind},
-    io_service::IoService,
     processes::ProcessMessage,
-    server::ServerVSMTP,
-    test_helpers::Mock,
+    receiver::{
+        connection::{Connection, ConnectionKind},
+        handle_connection,
+        io_service::IoService,
+        test_helpers::Mock,
+    },
 };
 
 fuzz_target!(|data: &[u8]| {
@@ -27,7 +29,7 @@ fuzz_target!(|data: &[u8]| {
     let mut mock = Mock::new(data.to_vec(), &mut written_data);
     let mut io = IoService::new(&mut mock);
     let mut conn = Connection::<Mock<'_>>::from_plain(
-        Kind::Opportunistic,
+        ConnectionKind::Opportunistic,
         "0.0.0.0:0".parse().unwrap(),
         config,
         &mut io,
@@ -41,7 +43,7 @@ fuzz_target!(|data: &[u8]| {
         Ok(r) => r,
         Err(_) => todo!(),
     }
-    .block_on(ServerVSMTP::handle_connection(
+    .block_on(handle_connection(
         &mut conn,
         std::sync::Arc::new(working_sender),
         std::sync::Arc::new(delivery_sender),

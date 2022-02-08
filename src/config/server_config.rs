@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -38,7 +38,6 @@ pub struct InnerLogConfig {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum TlsSecurityLevel {
-    None,
     May,
     Encrypt,
 }
@@ -59,13 +58,13 @@ pub struct ProtocolVersion(pub rustls::ProtocolVersion);
 pub struct ProtocolVersionRequirement(pub Vec<ProtocolVersion>);
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub struct InnerTlsConfig {
+pub struct InnerSmtpsConfig {
     pub security_level: TlsSecurityLevel,
     pub protocol_version: ProtocolVersionRequirement,
-    pub capath: Option<String>,
+    pub capath: String,
     pub preempt_cipherlist: bool,
-    pub fullchain: Option<String>,
-    pub private_key: Option<String>,
+    pub fullchain: String,
+    pub private_key: String,
     #[serde(with = "humantime_serde")]
     pub handshake_timeout: std::time::Duration,
     pub sni_maps: Option<Vec<SniKey>>,
@@ -126,7 +125,7 @@ pub struct Codes {
 pub struct ServerConfig {
     pub server: InnerServerConfig,
     pub log: InnerLogConfig,
-    pub tls: Option<InnerTlsConfig>,
+    pub smtps: Option<InnerSmtpsConfig>,
     pub smtp: InnerSMTPConfig,
     pub delivery: InnerDeliveryConfig,
     pub rules: InnerRulesConfig,

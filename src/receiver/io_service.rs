@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -15,6 +15,7 @@
  *
 **/
 
+#[derive(Debug)]
 pub enum ReadError {
     Eof,
     Blocking,
@@ -75,7 +76,7 @@ where
                 buf.set_filled(i);
                 std::task::Poll::Ready(Ok(()))
             }
-            _ => todo!(),
+            Err(e) => std::task::Poll::Ready(Err(e)),
         }
     }
 }

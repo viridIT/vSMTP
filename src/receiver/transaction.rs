@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -19,18 +19,21 @@ use crate::{
         log_channel::{RECEIVER, RULES},
         server_config::{ServerConfig, TlsSecurityLevel},
     },
-    connection::Connection,
-    io_service::ReadError,
-    model::{
-        envelop::Envelop,
-        mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
-    },
+    receiver::io_service::ReadError,
     rules::{
         address::Address,
         rule_engine::{RuleEngine, RuleState, Status},
     },
-    smtp::{code::SMTPReplyCode, event::Event, state::StateSMTP},
+    smtp::{
+        code::SMTPReplyCode,
+        envelop::Envelop,
+        event::Event,
+        mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
+        state::StateSMTP,
+    },
 };
+
+use super::connection::Connection;
 
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
@@ -150,21 +153,17 @@ impl Transaction<'_> {
                 }
             }
 
-            (StateSMTP::Helo, Event::StartTls) => {
-                match conn.config.tls.as_ref().map(|smtps| smtps.security_level) {
-                    None | Some(TlsSecurityLevel::None) => {
-                        ProcessedEvent::Reply(SMTPReplyCode::Code454)
-                    }
-                    _ => ProcessedEvent::ReplyChangeState(
-                        StateSMTP::NegotiationTLS,
-                        SMTPReplyCode::Code220,
-                    ),
-                }
+            (StateSMTP::Helo, Event::StartTls) if conn.config.smtps.is_none() => {
+                ProcessedEvent::Reply(SMTPReplyCode::Code454)
+            }
+
+            (StateSMTP::Helo, Event::StartTls) if conn.config.smtps.is_some() => {
+                ProcessedEvent::ReplyChangeState(StateSMTP::NegotiationTLS, SMTPReplyCode::Code220)
             }
 
             (StateSMTP::Helo, Event::MailCmd(_, _))
                 if !conn.is_secured
-                    && conn.config.tls.as_ref().map(|smtps| smtps.security_level)
+                    && conn.config.smtps.as_ref().map(|smtps| smtps.security_level)
                         == Some(TlsSecurityLevel::Encrypt) =>
             {
                 ProcessedEvent::Reply(SMTPReplyCode::Code530)

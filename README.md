@@ -13,9 +13,28 @@
     <img src="https://img.shields.io/badge/visit-website-green"
       alt="website" />
   </a>
-    <a href="https://www.gnu.org/licenses/gpl-3.0">
+  <a href="https://vsmtp.rs">
+    <img src="https://img.shields.io/badge/read-book-yellowgreen"
+      alt="documentation" />
+  </a>
+  <a href="https://www.gnu.org/licenses/gpl-3.0">
     <img src="https://img.shields.io/badge/License-GPLv3-blue.svg"
       alt="License GPLv3" />
+  </a>
+</div>
+
+<div align="center">
+  <a href="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml">
+    <img src="https://github.com/viridIT/vSMTP/actions/workflows/ci.yaml/badge.svg"
+      alt="CI" />
+  </a>
+  <a href="https://app.codecov.io/gh/viridIT/vSMTP">
+    <img src="https://img.shields.io:/codecov/c/gh/viridIT/vSMTP?logo=codecov"
+      alt="coverage" />
+  </a>
+  <a href="https://deps.rs/repo/github/viridIT/vSMTP">
+    <img src="https://deps.rs/repo/github/viridIT/vSMTP/status.svg"
+      alt="dependency status" />
   </a>
 </div>
 
@@ -46,26 +65,28 @@ Because it is secured, faster and greener.
 
 ## Documentation
 
-About the code and related issues, please check the
-[project Wiki](https://github.com/viridIT/vSMTP/wiki) and use the GitHub issue
+For documentation please consult the [vBook], the online reference and user guide for vSMTP.
+
+[vBook]: https://vsmtp.rs/
+
+About the code and related issues, please use the GitHub issue
 tracker. To stay tuned, ask questions and get in-depth answers feel free to
 register and visit our
 [community forums](https://www.viridit.com/community-forum). You can also open a
-GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).\
-For documentation, user guide, etc. please consult
-[GitHub wiki](https://github.com/viridIT/vSMTP/wiki).
-
-## Commercial
-
-For any question related to commercial, licensing, etc. you can join us at
-<https://www.viridit.com/contact>.
+GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).
 
 ## Roadmap
 
-vSMTP is currently under development. The current versions "0.7.x" focus on the
-SMTP connection and state machine. You can find more information about the
+vSMTP is currently under development. The current versions "0.8.x" focus on the
+delivery process and on the post queue filtering. You can find more information about the
 project agenda in the
 [ROADMAP](https://github.com/viridIT/vSMTP/blob/main/ROADMAP.md).
+
+## Commercial
+
+For any question related to commercial, licensing, etc. you can [contact us] on our website.
+
+[contact us]: https://www.viridit.com/contact
 
 ## License
 

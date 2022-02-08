@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{config::server_config::ServerConfig, model::mail::MailContext};
+use crate::{config::server_config::ServerConfig, smtp::mail::MailContext};
 
 pub mod maildir_resolver;
 pub mod mbox_resolver;

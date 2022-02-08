@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -15,19 +15,15 @@
  *
  **/
 pub mod config;
-pub mod connection;
-pub mod io_service;
 pub mod mime;
-pub mod model;
 pub mod processes;
 pub mod queue;
+pub mod receiver;
 pub mod resolver;
 pub mod rules;
 pub mod server;
 pub mod smtp;
-pub mod test_helpers;
-pub mod tls;
-pub mod transaction;
+pub mod tls_helpers;
 
 #[macro_export]
 macro_rules! collection {

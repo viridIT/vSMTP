@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -17,13 +17,11 @@
 use crate::{
     config::{log_channel::DELIVER, server_config::ServerConfig},
     mime::parser::MailMimeParser,
-    model::mail::Body,
     processes::ProcessMessage,
     queue::Queue,
     rules::rule_engine::{RuleEngine, RuleState, Status},
+    smtp::mail::{Body, MailContext},
 };
-
-use anyhow::Context;
 
 /// process that treats incoming email offline with the postq stage.
 pub async fn start(
@@ -61,8 +59,7 @@ pub(crate) async fn handle_one_in_working_queue(
 
     log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
-    let mut ctx: crate::model::mail::MailContext =
-        serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
+    let mut ctx: MailContext = serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
 
     if let Body::Raw(raw) = &ctx.body {
         ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
@@ -103,8 +100,10 @@ pub(crate) async fn handle_one_in_working_queue(
                 })
                 .await?;
 
-            std::fs::remove_file(&file_to_process)
-                .context("failed to remove a file from the working queue")?;
+            anyhow::Context::context(
+                std::fs::remove_file(&file_to_process),
+                "failed to remove a file from the working queue",
+            )?;
 
             log::debug!(
                 target: DELIVER,

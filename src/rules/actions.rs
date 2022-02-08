@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -14,28 +14,26 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::model::mail::MailContext;
-
-use crate::rules::{
-    obj::Object,
-    operation_queue::{Operation, OperationQueue},
-    rule_engine::{user_exists, Status},
-};
-
-use lettre::{Message, SmtpTransport, Transport};
-use rhai::plugin::*;
-
 use super::address::Address;
-
-use std::net::ToSocketAddrs;
+use rhai::plugin::*;
 
 // exported methods are used in rhai context, so we allow dead code.
 #[allow(dead_code)]
 #[export_module]
 pub(super) mod vsl {
-    use std::collections::HashSet;
+    use lettre::{Message, SmtpTransport, Transport};
 
-    use crate::{config::log_channel::RULES, mime::mail::Mail, rules::address::Address};
+    use crate::{
+        config::log_channel::RULES,
+        mime::mail::Mail,
+        rules::{address::Address, rule_engine::Status},
+        smtp::{
+            envelop::Envelop,
+            mail::{Body, MailContext, MessageMetadata},
+        },
+    };
+    use std::collections::HashSet;
+    use std::net::ToSocketAddrs;
 
     // #[rhai_fn(name = "__SHELL", return_raw)]
     // pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {

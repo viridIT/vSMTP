@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -16,8 +16,8 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
-    model::mail::{Body, MailContext, MessageMetadata},
     rules::{address::Address, rule_engine::user_exists},
+    smtp::mail::{Body, MailContext, MessageMetadata},
 };
 
 use super::Resolver;

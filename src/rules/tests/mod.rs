@@ -1,20 +1,36 @@
-// mod actions;
-// mod connect;
-// mod helo;
-// mod mail;
-// mod object_parsing;
-// mod r_lookup;
-// mod rcpt;
-// mod users;
+/**
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+**/
+mod actions;
+mod connect;
+mod helo;
+mod mail;
+mod object_parsing;
+mod r_lookup;
+mod rcpt;
+mod users;
 
 // #[cfg(test)]
 // pub mod helpers {
 //     use crate::{
 //         collection,
 //         config::{get_logger_config, server_config::ServerConfig},
+//         receiver::test_helpers::test_receiver,
 //         resolver::Resolver,
 //         rules::rule_engine::{RhaiEngine, Status, DEFAULT_SCOPE, RHAI_ENGINE},
-//         test_helpers::test_receiver,
 //     };
 //     use std::{panic, sync::Once};
 

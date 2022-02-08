@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -235,5 +235,27 @@ impl TryFrom<String> for SMTPReplyCode {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         <SMTPReplyCode as std::str::FromStr>::from_str(&value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::SMTPReplyCode;
+
+    #[test]
+    fn error() {
+        assert_eq!(
+            format!("{}", SMTPReplyCode::from_str("foo").unwrap_err()),
+            "SMTPReplyCodeFromStrError"
+        );
+    }
+
+    #[test]
+    fn same() {
+        for s in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+            assert_eq!(SMTPReplyCode::from_str(&format!("{}", s)).unwrap(), s);
+        }
     }
 }

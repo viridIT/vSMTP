@@ -1,6 +1,6 @@
 /**
  * vSMTP mail transfer agent
- * Copyright (C) 2021 viridIT SAS
+ * Copyright (C) 2022 viridIT SAS
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -16,12 +16,13 @@
 **/
 use crate::{
     config::{log_channel::RECEIVER, server_config::ServerConfig},
-    io_service::{IoService, ReadError},
     smtp::code::SMTPReplyCode,
 };
 
+use super::io_service::{IoService, ReadError};
+
 #[derive(Debug, Copy, Clone)]
-pub enum Kind {
+pub enum ConnectionKind {
     // connection may use STARTTLS
     Opportunistic,
     // Opportunistic and enforced security (auth)
@@ -34,7 +35,7 @@ pub struct Connection<'stream, S>
 where
     S: std::io::Read + std::io::Write,
 {
-    pub kind: Kind,
+    pub kind: ConnectionKind,
     pub timestamp: std::time::SystemTime,
     pub is_alive: bool,
     pub config: std::sync::Arc<crate::config::server_config::ServerConfig>,
@@ -49,7 +50,7 @@ where
     S: std::io::Read + std::io::Write,
 {
     pub fn from_plain<'a>(
-        kind: Kind,
+        kind: ConnectionKind,
         client_addr: std::net::SocketAddr,
         config: std::sync::Arc<ServerConfig>,
         io_stream: &'a mut IoService<'a, S>,

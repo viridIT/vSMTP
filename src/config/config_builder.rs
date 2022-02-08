@@ -1,8 +1,24 @@
+/**
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+**/
 use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
 use super::server_config::{
     Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerTlsConfig, ProtocolVersion,
+    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, ProtocolVersion,
     ProtocolVersionRequirement, QueueConfig, ServerConfig, SniKey, TlsSecurityLevel,
 };
 
@@ -123,13 +139,13 @@ impl ConfigBuilder<WantSMTPS> {
         ConfigBuilder::<WantSMTP> {
             state: WantSMTP {
                 parent: self.state,
-                smtps: Some(InnerTlsConfig {
+                smtps: Some(InnerSmtpsConfig {
                     security_level,
                     protocol_version,
-                    capath: Some(capath.into()),
+                    capath: capath.into(),
                     preempt_cipherlist,
-                    fullchain: Some(fullchain.into()),
-                    private_key: Some(private_key.into()),
+                    fullchain: fullchain.into(),
+                    private_key: private_key.into(),
                     handshake_timeout,
                     sni_maps,
                 }),
@@ -174,7 +190,7 @@ impl ConfigBuilder<WantSMTPS> {
 pub struct WantSMTP {
     #[serde(flatten)]
     pub(crate) parent: WantSMTPS,
-    pub(crate) smtps: Option<InnerTlsConfig>,
+    pub(crate) smtps: Option<InnerSmtpsConfig>,
 }
 
 impl ConfigBuilder<WantSMTP> {
@@ -303,7 +319,7 @@ pub struct WantsBuild {
 }
 
 impl ConfigBuilder<WantsBuild> {
-    pub fn build(self) -> ServerConfig {
+    pub fn build(mut self) -> ServerConfig {
         let server_domain = &self
             .state
             .parent
@@ -329,10 +345,29 @@ impl ConfigBuilder<WantsBuild> {
             );
         }
 
+        if let Some(smtps) = &mut self.state.parent.parent.parent.parent.smtps {
+            if let Some(sni_maps) = &mut smtps.sni_maps {
+                for i in sni_maps.iter_mut() {
+                    *i = SniKey {
+                        fullchain: i
+                            .fullchain
+                            .replace("{domain}", &i.domain)
+                            .replace("{capath}", &smtps.capath),
+                        private_key: i
+                            .private_key
+                            .replace("{domain}", &i.domain)
+                            .replace("{capath}", &smtps.capath),
+                        domain: i.domain.clone(),
+                        protocol_version: i.protocol_version.clone(),
+                    }
+                }
+            }
+        };
+
         ServerConfig {
             server: self.state.parent.parent.parent.parent.parent.parent.server,
             log: self.state.parent.parent.parent.parent.parent.logs,
-            tls: self.state.parent.parent.parent.parent.smtps,
+            smtps: self.state.parent.parent.parent.parent.smtps,
             smtp: self.state.parent.parent.parent.smtp,
             delivery: self.state.parent.parent.delivery,
             rules: self.state.parent.rules,
