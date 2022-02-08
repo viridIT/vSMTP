@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -59,8 +61,10 @@ pub fn get_rustls_config(config: &InnerSmtpsConfig) -> anyhow::Result<rustls::Se
                 Ok((
                     sni.domain.clone(),
                     rustls::sign::CertifiedKey {
-                        cert: get_cert_from_file(&sni.fullchain)?,
-                        key: get_signing_key_from_file(&sni.private_key)?,
+                        cert: get_cert_from_file(&sni.fullchain)
+                            .context("failed to get certificate")?,
+                        key: get_signing_key_from_file(&sni.private_key)
+                            .context("failed to get private key")?,
                         // TODO:
                         ocsp: None,
                         sct_list: None,
@@ -99,13 +103,14 @@ pub fn get_rustls_config(config: &InnerSmtpsConfig) -> anyhow::Result<rustls::Se
         .with_kx_groups(&rustls::ALL_KX_GROUPS)
         // FIXME:
         .with_protocol_versions(rustls::ALL_VERSIONS)
-        .expect("inconsistent cipher-suites/versions specified")
+        .context("inconsistent cipher-suites/versions specified")?
         .with_client_cert_verifier(rustls::server::NoClientAuth::new())
         .with_cert_resolver(std::sync::Arc::new(CertResolver {
             sni_resolver,
             cert: Some(std::sync::Arc::new(rustls::sign::CertifiedKey {
-                cert: get_cert_from_file(&config.fullchain)?,
-                key: get_signing_key_from_file(&config.private_key)?,
+                cert: get_cert_from_file(&config.fullchain).context("failed to get certificate")?,
+                key: get_signing_key_from_file(&config.private_key)
+                    .context("failed to get private key")?,
                 // TODO:
                 ocsp: None,
                 sct_list: None,
