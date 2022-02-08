@@ -14,26 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use super::address::Address;
 use rhai::plugin::*;
 
 // exported methods are used in rhai context, so we allow dead code.
 #[allow(dead_code)]
 #[export_module]
 pub(super) mod vsl {
-    use lettre::{Message, SmtpTransport, Transport};
 
-    use crate::{
-        config::log_channel::RULES,
-        mime::mail::Mail,
-        rules::{address::Address, rule_engine::Status},
-        smtp::{
-            envelop::Envelop,
-            mail::{Body, MailContext, MessageMetadata},
-        },
-    };
-    use std::collections::HashSet;
-    use std::net::ToSocketAddrs;
+    use crate::{config::log_channel::RULES, rules::rule_engine::Status, smtp::mail::MailContext};
+    use std::sync::{Arc, RwLock};
 
     // #[rhai_fn(name = "__SHELL", return_raw)]
     // pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {
@@ -62,27 +51,27 @@ pub(super) mod vsl {
     //     ))
     // }
 
-    #[rhai_fn(name = "__FACCEPT")]
+    #[rhai_fn(name = "FACCEPT")]
     pub fn faccept() -> Status {
         Status::Faccept
     }
 
-    #[rhai_fn(name = "__ACCEPT")]
+    #[rhai_fn(name = "ACCEPT")]
     pub fn accept() -> Status {
         Status::Accept
     }
 
-    #[rhai_fn(name = "__CONTINUE")]
+    #[rhai_fn(name = "CONTINUE")]
     pub fn ct() -> Status {
         Status::Continue
     }
 
-    #[rhai_fn(name = "__DENY")]
+    #[rhai_fn(name = "DENY")]
     pub fn deny() -> Status {
         Status::Deny
     }
 
-    #[rhai_fn(name = "__BLOCK")]
+    #[rhai_fn(name = "BLOCK")]
     pub fn block() -> Status {
         Status::Block
     }
@@ -279,23 +268,35 @@ pub(super) mod vsl {
         !(*in1 == in2)
     }
 
-    //     /// checks if the object exists and check if it matches against the connect value.
-    //     pub fn __is_connect(connect: &mut std::net::SocketAddr, object: &str) -> bool {
-    //         match acquire_engine().objects.read().unwrap().get(object) {
-    //             Some(object) => internal_is_connect(&connect.ip(), object),
-    //             None => match <std::net::IpAddr as std::str::FromStr>::from_str(object) {
-    //                 Ok(ip) => ip == connect.ip(),
-    //                 Err(_) => {
-    //                     log::error!(
-    //                         target: RULES,
-    //                         "tried to convert '{}' to an ip because it is not a object, but conversion failed.",
-    //                         object
-    //                     );
-    //                     false
-    //                 }
-    //             },
-    //         }
-    //     }
+    /// checks if the object exists and check if it matches against the connect value.
+    pub fn is_connect(ctx: &mut Arc<RwLock<MailContext>>, ip: &str) -> bool {
+        match <std::net::IpAddr as std::str::FromStr>::from_str(ip) {
+            Ok(ip) => ip == ctx.read().unwrap().client_addr.ip(),
+            Err(_) => {
+                log::error!(
+                    target: RULES,
+                    "tried to convert '{}' to an ip but conversion failed.",
+                    ip
+                );
+                false
+            }
+        }
+
+        // match acquire_engine().objects.read().unwrap().get(object) {
+        //     Some(object) => internal_is_connect(&connect.ip(), object),
+        //     None => match <std::net::IpAddr as std::str::FromStr>::from_str(object) {
+        //         Ok(ip) => ip == connect.ip(),
+        //         Err(_) => {
+        //             log::error!(
+        //                     target: RULES,
+        //                     "tried to convert '{}' to an ip because it is not a object, but conversion failed.",
+        //                     object
+        //                 );
+        //             false
+        //         }
+        //     },
+        // }
+    }
 
     //     // TODO: the following functions could be refactored as one.
     //     /// checks if the object exists and check if it matches against the helo value.

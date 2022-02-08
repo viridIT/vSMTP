@@ -249,8 +249,8 @@ impl RuleEngine {
     /// create an engine from a script encoded in raw bytes.
     pub fn from_bytes(src: &[u8]) -> anyhow::Result<Self> {
         let mut engine = Engine::new();
-        let objects = Arc::new(RwLock::new(BTreeMap::new()));
-        let shared_obj = objects.clone();
+        // let objects = Arc::new(RwLock::new(BTreeMap::new()));
+        // let shared_obj = objects.clone();
 
         // register the vsl global module.
         let api_mod = exported_module!(crate::rules::actions::vsl);
@@ -272,173 +272,173 @@ impl RuleEngine {
 
         // ---------------------------------
 
-        .register_get_result("stdout", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stdout).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
-        .register_get_result("stderr", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stderr).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
-        .register_get_result("status", |output: &mut std::process::Output| Ok(output.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| "a SHELL process have been terminated by a signal".into())? as i64))
+        // .register_get_result("stdout", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stdout).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
+        // .register_get_result("stderr", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stderr).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
+        // .register_get_result("status", |output: &mut std::process::Output| Ok(output.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| "a SHELL process have been terminated by a signal".into())? as i64))
 
-        .register_type::<Address>()
-        .register_result_fn("new_address", <Address>::rhai_wrapper)
-        .register_fn("to_string", |addr: &mut Address| addr.full().to_string())
-        .register_fn("to_debug", |addr: &mut Address| format!("{:?}", addr))
-        .register_fn("to_string", |addr: &mut IpAddr| addr.to_string())
-        .register_fn("to_debug", |addr: &mut IpAddr| format!("{:?}", addr))
+        // .register_type::<Address>()
+        // .register_result_fn("new_address", <Address>::rhai_wrapper)
+        // .register_fn("to_string", |addr: &mut Address| addr.full().to_string())
+        // .register_fn("to_debug", |addr: &mut Address| format!("{:?}", addr))
+        // .register_fn("to_string", |addr: &mut IpAddr| addr.to_string())
+        // .register_fn("to_debug", |addr: &mut IpAddr| format!("{:?}", addr))
 
-        // local_part + "@" + domain = full.
-        .register_get("full", |addr: &mut Address| addr.full().to_string())
-        .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
-        .register_get("domain", |addr: &mut Address| addr.domain().to_string())
+        // // local_part + "@" + domain = full.
+        // .register_get("full", |addr: &mut Address| addr.full().to_string())
+        // .register_get("local_part", |addr: &mut Address| addr.local_part().to_string())
+        // .register_get("domain", |addr: &mut Address| addr.domain().to_string())
 
-        // metadata of the email.
-        .register_type::<Option<MessageMetadata>>()
-        .register_get_result("timestamp", |metadata: &mut Option<MessageMetadata>| match metadata {
-            Some(metadata) => Ok(metadata.timestamp),
-            None => Err("metadata are not available in the current stage".into())
-        })
-        .register_get_result("message_id", |metadata: &mut Option<MessageMetadata>| match metadata {
-            Some(metadata) => Ok(metadata.message_id.clone()),
-            None => Err("metadata are not available in the current stage".into())
-        })
-        .register_get_result("retry", |metadata: &mut Option<MessageMetadata>| match metadata {
-            Some(metadata) => Ok(metadata.retry as u64),
-            None => Err("metadata are not available in the current stage".into())
-        })
-        .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
-        .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
-        .register_set_result("resolver", |metadata: &mut Option<MessageMetadata>, resolver: String| match metadata {
-            Some(metadata) => {
-                metadata.resolver = resolver;
-                Ok(())
-            },
-            None => Err("metadata are not available in the current stage".into())
-        })
+        // // metadata of the email.
+        // .register_type::<Option<MessageMetadata>>()
+        // .register_get_result("timestamp", |metadata: &mut Option<MessageMetadata>| match metadata {
+        //     Some(metadata) => Ok(metadata.timestamp),
+        //     None => Err("metadata are not available in the current stage".into())
+        // })
+        // .register_get_result("message_id", |metadata: &mut Option<MessageMetadata>| match metadata {
+        //     Some(metadata) => Ok(metadata.message_id.clone()),
+        //     None => Err("metadata are not available in the current stage".into())
+        // })
+        // .register_get_result("retry", |metadata: &mut Option<MessageMetadata>| match metadata {
+        //     Some(metadata) => Ok(metadata.retry as u64),
+        //     None => Err("metadata are not available in the current stage".into())
+        // })
+        // .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
+        // .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
+        // .register_set_result("resolver", |metadata: &mut Option<MessageMetadata>, resolver: String| match metadata {
+        //     Some(metadata) => {
+        //         metadata.resolver = resolver;
+        //         Ok(())
+        //     },
+        //     None => Err("metadata are not available in the current stage".into())
+        // })
 
-        // exposed structure used to read & rewrite the incoming email's content.
-        .register_type::<Mail>()
-        .register_get("headers", |mail: &mut Mail| mail.headers.clone())
-        .register_get("body", |mail: &mut Mail| mail.body.clone())
-        .register_result_fn  ("rewrite_from", |mail: &mut Mail, value: &str| {
-            if mail.body == BodyType::Undefined {
-                Err("failed to execute 'RW_MAIL': body is undefined".into())
-            } else {
-                mail.rewrite_from(value);
-                Ok(())
-            }
-        })
-        .register_result_fn  ("rewrite_rcpt", |mail: &mut Mail, old: &str, new: &str| {
-            if mail.body == BodyType::Undefined {
-                Err("failed to execute 'RW_RCPT': body is undefined".into())
-            } else {
-                mail.rewrite_rcpt(old, new);
-                Ok(())
-            }
-        })
-        .register_result_fn  ("add_rcpt", |mail: &mut Mail, new: &str| {
-            if mail.body == BodyType::Undefined {
-                Err("failed to execute 'ADD_RCPT': body is undefined".into())
-            } else {
-                mail.add_rcpt(new);
-                Ok(())
-            }
-        })
-        .register_result_fn  ("delete_rcpt", |mail: &mut Mail, old: &str| {
-            if mail.body == BodyType::Undefined {
-                Err("failed to execute 'DEL_RCPT': body is undefined".into())
-            } else {
-                mail.delete_rcpt(old);
-                Ok(())
-            }
-        })
+        // // exposed structure used to read & rewrite the incoming email's content.
+        // .register_type::<Mail>()
+        // .register_get("headers", |mail: &mut Mail| mail.headers.clone())
+        // .register_get("body", |mail: &mut Mail| mail.body.clone())
+        // .register_result_fn  ("rewrite_from", |mail: &mut Mail, value: &str| {
+        //     if mail.body == BodyType::Undefined {
+        //         Err("failed to execute 'RW_MAIL': body is undefined".into())
+        //     } else {
+        //         mail.rewrite_from(value);
+        //         Ok(())
+        //     }
+        // })
+        // .register_result_fn  ("rewrite_rcpt", |mail: &mut Mail, old: &str, new: &str| {
+        //     if mail.body == BodyType::Undefined {
+        //         Err("failed to execute 'RW_RCPT': body is undefined".into())
+        //     } else {
+        //         mail.rewrite_rcpt(old, new);
+        //         Ok(())
+        //     }
+        // })
+        // .register_result_fn  ("add_rcpt", |mail: &mut Mail, new: &str| {
+        //     if mail.body == BodyType::Undefined {
+        //         Err("failed to execute 'ADD_RCPT': body is undefined".into())
+        //     } else {
+        //         mail.add_rcpt(new);
+        //         Ok(())
+        //     }
+        // })
+        // .register_result_fn  ("delete_rcpt", |mail: &mut Mail, old: &str| {
+        //     if mail.body == BodyType::Undefined {
+        //         Err("failed to execute 'DEL_RCPT': body is undefined".into())
+        //     } else {
+        //         mail.delete_rcpt(old);
+        //         Ok(())
+        //     }
+        // })
 
-        // the operation queue is used to defer actions.
-        .register_type::<OperationQueue>()
+        // // the operation queue is used to defer actions.
+        // .register_type::<OperationQueue>()
 
-        // time display.
-        .register_type::<std::time::SystemTime>()
-        .register_fn("to_string", |time: &mut std::time::SystemTime| format!("{}",
-            time.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap_or(std::time::Duration::ZERO)
-                .as_secs()
-        ))
-        .register_fn("to_debug", |time: &mut std::time::SystemTime| format!("{:?}",
-            time.duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .unwrap_or(std::time::Duration::ZERO)
-            .as_secs()
-        ))
+        // // time display.
+        // .register_type::<std::time::SystemTime>()
+        // .register_fn("to_string", |time: &mut std::time::SystemTime| format!("{}",
+        //     time.duration_since(std::time::SystemTime::UNIX_EPOCH)
+        //         .unwrap_or(std::time::Duration::ZERO)
+        //         .as_secs()
+        // ))
+        // .register_fn("to_debug", |time: &mut std::time::SystemTime| format!("{:?}",
+        //     time.duration_since(std::time::SystemTime::UNIX_EPOCH)
+        //     .unwrap_or(std::time::Duration::ZERO)
+        //     .as_secs()
+        // ))
 
-        // adding an Address hash set as a custom type.
-        // used to easily manipulate the rcpt container.
-        .register_iterator::<HashSet<Address>>()
-        .register_iterator::<Vec<String>>()
-        .register_fn("insert", <HashSet<Address>>::insert)
-        // extract all users / domains from the rcpt set.
-        .register_get("local_part", |set: &mut HashSet<Address>| -> Vec<String> {
-            set.iter().map(|addr| addr.local_part().to_string()).collect()
-        })
-        .register_get("domain", |set: &mut HashSet<Address>| -> Vec<String> {
-            set.iter().map(|addr| addr.domain().to_string()).collect()
-        })
+        // // adding an Address hash set as a custom type.
+        // // used to easily manipulate the rcpt container.
+        // .register_iterator::<HashSet<Address>>()
+        // .register_iterator::<Vec<String>>()
+        // .register_fn("insert", <HashSet<Address>>::insert)
+        // // extract all users / domains from the rcpt set.
+        // .register_get("local_part", |set: &mut HashSet<Address>| -> Vec<String> {
+        //     set.iter().map(|addr| addr.local_part().to_string()).collect()
+        // })
+        // .register_get("domain", |set: &mut HashSet<Address>| -> Vec<String> {
+        //     set.iter().map(|addr| addr.domain().to_string()).collect()
+        // })
 
-        // added an overload to insert an address using a string.
-        .register_result_fn("insert", |set: &mut HashSet::<Address>, value: String| {
-            match Address::new(&value) {
-                Ok(addr) => {
-                    set.insert(addr);
-                    Ok(())
-                },
-                Err(error) =>
-                    Err(format!(
-                        "failed to insert address in set: {}",
-                        error
-                    )
-                    .into()),
-            }
-        })
+        // // added an overload to insert an address using a string.
+        // .register_result_fn("insert", |set: &mut HashSet::<Address>, value: String| {
+        //     match Address::new(&value) {
+        //         Ok(addr) => {
+        //             set.insert(addr);
+        //             Ok(())
+        //         },
+        //         Err(error) =>
+        //             Err(format!(
+        //                 "failed to insert address in set: {}",
+        //                 error
+        //             )
+        //             .into()),
+        //     }
+        // })
 
-        // need to overload remove because the address isn't passed by ref in rhai.
-        .register_fn("remove", |set: &mut HashSet::<Address>, addr: Address| {
-            set.remove(&addr);
-        })
+        // // need to overload remove because the address isn't passed by ref in rhai.
+        // .register_fn("remove", |set: &mut HashSet::<Address>, addr: Address| {
+        //     set.remove(&addr);
+        // })
 
-        // added an overload to remove an address using a string.
-        .register_result_fn("remove", |set: &mut HashSet::<Address>, value: String| {
-            match Address::new(&value) {
-                Ok(addr) => {
-                    set.remove(&addr);
-                    Ok(())
-                },
-                Err(error) => Err(format!(
-                    "failed to remove address from set: {}",
-                    error
-                )
-                .into()),
-            }
-        })
+        // // added an overload to remove an address using a string.
+        // .register_result_fn("remove", |set: &mut HashSet::<Address>, value: String| {
+        //     match Address::new(&value) {
+        //         Ok(addr) => {
+        //             set.remove(&addr);
+        //             Ok(())
+        //         },
+        //         Err(error) => Err(format!(
+        //             "failed to remove address from set: {}",
+        //             error
+        //         )
+        //         .into()),
+        //     }
+        // })
 
-        // added an overload to replace an address using a string.
-        .register_result_fn("replace", |set: &mut HashSet::<Address>, to_replace: String, value: String| {
-            let to_replace = match Address::new(&to_replace) {
-                Ok(addr) => addr,
-                Err(error) => return Err(format!(
-                    "failed to replace address from set: {}",
-                    error
-                )
-                .into()),
-            };
+        // // added an overload to replace an address using a string.
+        // .register_result_fn("replace", |set: &mut HashSet::<Address>, to_replace: String, value: String| {
+        //     let to_replace = match Address::new(&to_replace) {
+        //         Ok(addr) => addr,
+        //         Err(error) => return Err(format!(
+        //             "failed to replace address from set: {}",
+        //             error
+        //         )
+        //         .into()),
+        //     };
 
-            if set.contains(&to_replace) {
-                set.remove(&to_replace);
-                match Address::new(&value) {
-                    Ok(addr) => set.insert(addr),
-                    Err(error) => return Err(format!(
-                        "failed to replace address from set: {}",
-                        error
-                    )
-                    .into()),
-                };
-            }
+        //     if set.contains(&to_replace) {
+        //         set.remove(&to_replace);
+        //         match Address::new(&value) {
+        //             Ok(addr) => set.insert(addr),
+        //             Err(error) => return Err(format!(
+        //                 "failed to replace address from set: {}",
+        //                 error
+        //             )
+        //             .into()),
+        //         };
+        //     }
 
-            Ok(())
-        })
+        //     Ok(())
+        // })
 
         // eval is not authorized.
         .disable_symbol("eval")
@@ -504,146 +504,140 @@ impl RuleEngine {
                 // the rule body is pushed in __rules global so no need to introduce it to the scope.
                 Ok(Dynamic::UNIT)
             },
-        )
-
-        // `obj $type$ $name$ #{}` container syntax.
-        .register_custom_syntax_raw(
-            "obj",
-            |symbols, look_ahead| match symbols.len() {
-                // obj ...
-                1 => Ok(Some("$ident$".into())),
-                // the type of the object ...
-                2 => match symbols[1].as_str() {
-                    "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "val" | "regex" | "grp" => Ok(Some("$string$".into())),
-                    "file" => Ok(Some("$symbol$".into())),
-                    entry => Err(ParseError(
-                        Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
-                            entry.into(),
-                            format!("Improper object type. '{}'.", entry),
-                        ))),
-                        Position::NONE,
-                    )),
-                },
-                // name of the object or ':' symbol for files ...
-                3 => match symbols[2].as_str() {
-                    ":" => Ok(Some("$ident$".into())),
-                    _ => Ok(Some("$expr$".into())),
-                }
-                // file content type or info block / value of object, we are done parsing.
-                4 => match symbols[3].as_str() {
-                    // NOTE: could it be possible to add a "file" content type ?
-                    "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "val" | "regex" => Ok(Some("$string$".into())),
-                    _ =>  Ok(None),
-                }
-                // object name for a file.
-                5 => Ok(Some("$expr$".into())),
-                // done parsing file expression.
-                6 => Ok(None),
-                _ => Err(ParseError(
-                    Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
-                        format!(
-                            "Improper object declaration: keyword '{}' unknown.",
-                            look_ahead
-                        ),
-                    ))),
-                    Position::NONE,
-                )),
-            },
-            true,
-            move |context, input| {
-                let var_type = input[0].get_string_value().unwrap().to_string();
-                let var_name: String;
-
-                // FIXME: refactor this expression.
-                // file type as a special syntax (file:type),
-                // so we need a different method to parse it.
-                let object = match var_type.as_str() {
-                    "file" => {
-
-                        let content_type = input[2].get_string_value().unwrap();
-                        var_name = input[3].get_literal_value::<ImmutableString>().unwrap().to_string();
-                        let object = context.eval_expression_tree(&input[4])?;
-
-                        // the object syntax can use a map or an inline string.
-                        if object.is::<Map>() {
-                            let mut object: Map = object.cast();
-                            object.insert("type".into(), Dynamic::from(var_type.clone()));
-                            object.insert("content_type".into(), Dynamic::from(content_type.to_string()));
-                            object
-                        } else if object.is::<String>() {
-                            let mut map = Map::new();
-                            map.insert("type".into(), Dynamic::from(var_type.clone()));
-                            map.insert("content_type".into(), Dynamic::from(content_type.to_string()));
-                            map.insert("value".into(), object);
-                            map
-                        } else {
-                            return Err(EvalAltResult::ErrorMismatchDataType(
-                                "".to_string(),
-                                "The 'vars' keyword is not followed by a map or a string".to_string(),
-                                Position::NONE,
-                            )
-                            .into());
-                        }
-                    },
-
-                    // generic type, we can parse it easily.
-                    _ => {
-                        var_name = input[1].get_literal_value::<ImmutableString>().unwrap().to_string();
-                        let object = context.eval_expression_tree(&input[2])?;
-
-                        if object.is::<Map>() {
-                            let mut object: Map = object.cast();
-                            object.insert("type".into(), Dynamic::from(var_type.clone()));
-                            object
-                        } else if object.is::<String>() || object.is::<Array>() {
-                            let mut map = Map::new();
-                            map.insert("type".into(), Dynamic::from(var_type.clone()));
-                            map.insert("value".into(), object);
-                            map
-                        } else {
-                            return Err(EvalAltResult::ErrorMismatchDataType(
-                                "Map | String".to_string(),
-                                object.type_name().to_string(),
-                                Position::NONE,
-                            )
-                            .into());
-                        }
-                    }
-                };
-
-                // we inject objects only once in Rust's scope.
-                if let Some(false) = context.scope_mut().get_value::<bool>("__init") {
-                    match Object::from(&object) {
-                        // write is called once at initialization, no need to check the result.
-                        Ok(rust_var) => shared_obj.write()
-                            .unwrap()
-                            .insert(var_name.clone(), rust_var),
-                        Err(error) => panic!("object '{}' could not be parsed as a '{}' object: {}", var_name, var_type, error),
-                    };
-                }
-
-                // FIXME: there is no way to tell if the parent scope of the object
-                //        is a group or the global scope, so we have to inject the variable
-                //        two times, one in the case of the global scope and one
-                //        in the case of the parent being a group.
-                context
-                    .scope_mut()
-                    .push(var_name, object.clone());
-
-                // the object is returned in case of groups.
-                Ok(object.into())
-            },
         );
 
-        let mut script = Vec::with_capacity(100);
+        // `obj $type$ $name$ #{}` container syntax.
+        // .register_custom_syntax_raw(
+        //     "obj",
+        //     |symbols, look_ahead| match symbols.len() {
+        //         // obj ...
+        //         1 => Ok(Some("$ident$".into())),
+        //         // the type of the object ...
+        //         2 => match symbols[1].as_str() {
+        //             "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "val" | "regex" | "grp" => Ok(Some("$string$".into())),
+        //             "file" => Ok(Some("$symbol$".into())),
+        //             entry => Err(ParseError(
+        //                 Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
+        //                     entry.into(),
+        //                     format!("Improper object type. '{}'.", entry),
+        //                 ))),
+        //                 Position::NONE,
+        //             )),
+        //         },
+        //         // name of the object or ':' symbol for files ...
+        //         3 => match symbols[2].as_str() {
+        //             ":" => Ok(Some("$ident$".into())),
+        //             _ => Ok(Some("$expr$".into())),
+        //         }
+        //         // file content type or info block / value of object, we are done parsing.
+        //         4 => match symbols[3].as_str() {
+        //             // NOTE: could it be possible to add a "file" content type ?
+        //             "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "val" | "regex" => Ok(Some("$string$".into())),
+        //             _ =>  Ok(None),
+        //         }
+        //         // object name for a file.
+        //         5 => Ok(Some("$expr$".into())),
+        //         // done parsing file expression.
+        //         6 => Ok(None),
+        //         _ => Err(ParseError(
+        //             Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
+        //                 format!(
+        //                     "Improper object declaration: keyword '{}' unknown.",
+        //                     look_ahead
+        //                 ),
+        //             ))),
+        //             Position::NONE,
+        //         )),
+        //     },
+        //     true,
+        //     move |context, input| {
+        //         let var_type = input[0].get_string_value().unwrap().to_string();
+        //         let var_name: String;
 
-        // loading scripts that will curry function that needs special
-        // variables from stages (helo, rcpt etc ...) and that will
-        // execute the rule engine stage logic.
-        script.extend(include_bytes!("./currying.rhai"));
-        script.extend(src);
+        //         // FIXME: refactor this expression.
+        //         // file type as a special syntax (file:type),
+        //         // so we need a different method to parse it.
+        //         let object = match var_type.as_str() {
+        //             "file" => {
+
+        //                 let content_type = input[2].get_string_value().unwrap();
+        //                 var_name = input[3].get_literal_value::<ImmutableString>().unwrap().to_string();
+        //                 let object = context.eval_expression_tree(&input[4])?;
+
+        //                 // the object syntax can use a map or an inline string.
+        //                 if object.is::<Map>() {
+        //                     let mut object: Map = object.cast();
+        //                     object.insert("type".into(), Dynamic::from(var_type.clone()));
+        //                     object.insert("content_type".into(), Dynamic::from(content_type.to_string()));
+        //                     object
+        //                 } else if object.is::<String>() {
+        //                     let mut map = Map::new();
+        //                     map.insert("type".into(), Dynamic::from(var_type.clone()));
+        //                     map.insert("content_type".into(), Dynamic::from(content_type.to_string()));
+        //                     map.insert("value".into(), object);
+        //                     map
+        //                 } else {
+        //                     return Err(EvalAltResult::ErrorMismatchDataType(
+        //                         "".to_string(),
+        //                         "The 'vars' keyword is not followed by a map or a string".to_string(),
+        //                         Position::NONE,
+        //                     )
+        //                     .into());
+        //                 }
+        //             },
+
+        //             // generic type, we can parse it easily.
+        //             _ => {
+        //                 var_name = input[1].get_literal_value::<ImmutableString>().unwrap().to_string();
+        //                 let object = context.eval_expression_tree(&input[2])?;
+
+        //                 if object.is::<Map>() {
+        //                     let mut object: Map = object.cast();
+        //                     object.insert("type".into(), Dynamic::from(var_type.clone()));
+        //                     object
+        //                 } else if object.is::<String>() || object.is::<Array>() {
+        //                     let mut map = Map::new();
+        //                     map.insert("type".into(), Dynamic::from(var_type.clone()));
+        //                     map.insert("value".into(), object);
+        //                     map
+        //                 } else {
+        //                     return Err(EvalAltResult::ErrorMismatchDataType(
+        //                         "Map | String".to_string(),
+        //                         object.type_name().to_string(),
+        //                         Position::NONE,
+        //                     )
+        //                     .into());
+        //                 }
+        //             }
+        //         };
+
+        //         // we inject objects only once in Rust's scope.
+        //         if let Some(false) = context.scope_mut().get_value::<bool>("__init") {
+        //             match Object::from(&object) {
+        //                 // write is called once at initialization, no need to check the result.
+        //                 Ok(rust_var) => shared_obj.write()
+        //                     .unwrap()
+        //                     .insert(var_name.clone(), rust_var),
+        //                 Err(error) => panic!("object '{}' could not be parsed as a '{}' object: {}", var_name, var_type, error),
+        //             };
+        //         }
+
+        //         // FIXME: there is no way to tell if the parent scope of the object
+        //         //        is a group or the global scope, so we have to inject the variable
+        //         //        two times, one in the case of the global scope and one
+        //         //        in the case of the parent being a group.
+        //         context
+        //             .scope_mut()
+        //             .push(var_name, object.clone());
+
+        //         // the object is returned in case of groups.
+        //         Ok(object.into())
+        //     },
+        // );
+
+        // TODO: transform rule_executor.rhai into a module or rust entrypoint.
+        let mut script = Vec::from(src);
         script.extend(include_bytes!("./rule_executor.rhai"));
-
         let script = std::str::from_utf8(&script)?;
 
         log::debug!(target: RULES, "compiling rhai script ...");

@@ -15,7 +15,7 @@
  *
 **/
 
-let status = __CONTINUE();
+let status = CONTINUE();
 
 for r in __rules {
     if r.when == __stage {
@@ -24,7 +24,7 @@ for r in __rules {
             false => r.on_failure(),
         };
 
-        if status != __CONTINUE() {
+        if status != CONTINUE() {
             return status;
         }
     }
