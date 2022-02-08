@@ -22,7 +22,6 @@ use rhai::plugin::*;
 pub mod actions {
 
     use crate::{config::log_channel::RULES, rules::rule_engine::Status, smtp::mail::MailContext};
-    use std::sync::{Arc, RwLock};
 
     // #[rhai_fn(name = "__SHELL", return_raw)]
     // pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {

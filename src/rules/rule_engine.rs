@@ -260,15 +260,6 @@ impl RuleEngine {
         .register_global_module(exported_module!(crate::rules::modules::types::types).into())
         .register_global_module(exported_module!(crate::rules::modules::email::email).into())
 
-
-        // .register_get_result("stdout", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stdout).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
-        // .register_get_result("stderr", |output: &mut std::process::Output| Ok(std::str::from_utf8(&output.stderr).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?.to_string()))
-        // .register_get_result("status", |output: &mut std::process::Output| Ok(output.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| "a SHELL process have been terminated by a signal".into())? as i64))
-
-        // .register_type::<SocketAddr>()
-        // .register_fn("to_string", |this: &mut SocketAddr| this.to_string())
-        // .register_fn("to_debug", |this: &mut SocketAddr| format!("{this:?}"))
-
         // .register_type::<Address>()
         // .register_result_fn("new_address", <Address>::rhai_wrapper)
         // .register_fn("to_string", |addr: &mut Address| addr.full().to_string())

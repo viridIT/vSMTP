@@ -19,13 +19,14 @@ use rhai::plugin::*;
 #[export_module]
 pub mod email {
 
-    use crate::{config::log_channel::RULES, rules::address::Address, smtp::mail::MailContext};
+    use crate::{
+        config::log_channel::RULES, rules::address::Address, rules::modules::EngineResult,
+        smtp::mail::MailContext,
+    };
     use std::sync::{Arc, RwLock};
 
     #[rhai_fn(get = "client_addr", return_raw)]
-    pub fn client_addr(
-        this: &mut Arc<RwLock<MailContext>>,
-    ) -> Result<std::net::SocketAddr, Box<EvalAltResult>> {
+    pub fn client_addr(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<std::net::SocketAddr> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -33,7 +34,7 @@ pub mod email {
     }
 
     #[rhai_fn(get = "helo", return_raw)]
-    pub fn helo(this: &mut Arc<RwLock<MailContext>>) -> Result<String, Box<EvalAltResult>> {
+    pub fn helo(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -43,7 +44,7 @@ pub mod email {
     }
 
     #[rhai_fn(get = "mail_from", return_raw)]
-    pub fn mail_from(this: &mut Arc<RwLock<MailContext>>) -> Result<Address, Box<EvalAltResult>> {
+    pub fn mail_from(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<Address> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -55,7 +56,7 @@ pub mod email {
     #[rhai_fn(get = "rcpt", return_raw)]
     pub fn rcpt(
         this: &mut Arc<RwLock<MailContext>>,
-    ) -> Result<std::collections::HashSet<Address>, Box<EvalAltResult>> {
+    ) -> EngineResult<std::collections::HashSet<Address>> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -65,7 +66,7 @@ pub mod email {
     }
 
     #[rhai_fn(return_raw)]
-    pub fn to_string(this: &mut Arc<RwLock<MailContext>>) -> Result<String, Box<EvalAltResult>> {
+    pub fn to_string(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
         Ok(format!(
             "{:?}",
             this.read()
@@ -74,7 +75,7 @@ pub mod email {
     }
 
     #[rhai_fn(return_raw)]
-    pub fn to_debug(this: &mut Arc<RwLock<MailContext>>) -> Result<String, Box<EvalAltResult>> {
+    pub fn to_debug(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
         Ok(format!(
             "{:#?}",
             this.read()
@@ -83,16 +84,22 @@ pub mod email {
     }
 
     /// checks if the object exists and check if it matches against the connect value.
-    pub fn is_connect(ctx: &mut Arc<RwLock<MailContext>>, ip: &str) -> bool {
+    #[rhai_fn(return_raw)]
+    pub fn is_connect(ctx: &mut Arc<RwLock<MailContext>>, ip: &str) -> EngineResult<bool> {
         match <std::net::IpAddr as std::str::FromStr>::from_str(ip) {
-            Ok(ip) => ip == ctx.read().unwrap().client_addr.ip(),
+            Ok(ip) => Ok(ip
+                == ctx
+                    .read()
+                    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                    .client_addr
+                    .ip()),
             Err(_) => {
                 log::error!(
                     target: RULES,
                     "tried to convert '{}' to an ip but conversion failed.",
                     ip
                 );
-                false
+                Ok(false)
             }
         }
 
@@ -157,10 +164,7 @@ pub mod email {
     //     }
 
     #[rhai_fn(return_raw)]
-    pub fn use_resolver(
-        this: &mut Arc<RwLock<MailContext>>,
-        resolver: String,
-    ) -> Result<(), Box<EvalAltResult>> {
+    pub fn use_resolver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .metadata
