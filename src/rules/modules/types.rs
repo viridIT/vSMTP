@@ -19,22 +19,24 @@ use rhai::plugin::*;
 #[export_module]
 pub mod types {
 
+    use crate::rules::modules::EngineResult;
+
     #[rhai_fn(get = "stdout", return_raw)]
-    pub fn stdout(this: &mut std::process::Output) -> Result<String, Box<EvalAltResult>> {
+    pub fn stdout(this: &mut std::process::Output) -> EngineResult<String> {
         Ok(std::str::from_utf8(&this.stdout)
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .to_string())
     }
 
     #[rhai_fn(get = "stderr", return_raw)]
-    pub fn stderr(this: &mut std::process::Output) -> Result<String, Box<EvalAltResult>> {
+    pub fn stderr(this: &mut std::process::Output) -> EngineResult<String> {
         Ok(std::str::from_utf8(&this.stderr)
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .to_string())
     }
 
     #[rhai_fn(get = "code", return_raw)]
-    pub fn code(this: &mut std::process::Output) -> Result<i64, Box<EvalAltResult>> {
+    pub fn code(this: &mut std::process::Output) -> EngineResult<i64> {
         Ok(this.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| {
             "a SHELL process have been terminated by a signal".into()
         })? as i64)

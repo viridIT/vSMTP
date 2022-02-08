@@ -24,12 +24,14 @@ use crate::rules::operation_queue::{Operation, OperationQueue};
 use crate::smtp::envelop::Envelop;
 use crate::smtp::mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY};
 
+use anyhow::Context;
 use rhai::{
     exported_module, plugin::*, Array, Engine, EvalAltResult, LexError, Map, ParseError,
     ParseErrorType, Scope, AST,
 };
 use users::Users;
 
+use std::fs::DirEntry;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::RwLockWriteGuard;
 use std::{
@@ -80,13 +82,6 @@ impl<'a> RuleState<'a> {
         scope
             // stage specific variables.
             .push("ctx", ctx.clone())
-            // .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
-            // .push("port", 0)
-            // .push("helo", "")
-            // .push("mail", Address::default())
-            // .push("rcpt", Address::default())
-            // .push("rcpts", HashSet::<Address>::new())
-            // .push("data", Mail::default())
             // data available in every stage.
             .push("date", "")
             .push("time", "")
@@ -248,8 +243,68 @@ pub struct RuleEngine {
 }
 
 impl RuleEngine {
-    /// create an engine from a script encoded in raw bytes.
-    pub fn from_bytes(src: &[u8]) -> anyhow::Result<Self> {
+    /// runs all rules from a stage using the current transaction state.
+    pub(crate) fn run_when(&self, state: &mut RuleState, stage: &str) -> Status {
+        if let Some(status) = state.skip {
+            return status;
+        }
+
+        log::debug!(target: RULES, "[{}] evaluating rules.", stage);
+
+        // updating the internal __stage variable, so that the rhai context
+        // knows what rules to execute.
+        state.scope.set_value("__stage", stage.to_string());
+
+        // injecting date and time variables.
+        let now = chrono::Local::now();
+        state
+            .scope
+            .set_value("date", now.date().format("%Y/%m/%d").to_string());
+        state
+            .scope
+            .set_value("time", now.time().format("%H:%M:%S").to_string());
+
+        let result = self
+            .context
+            .eval_ast_with_scope::<Status>(&mut state.scope, &self.ast);
+
+        // rules are cleared after each evaluation. This way,
+        // scoped variables that are changed by previous rules
+        // can be re-injected back into the script.
+        state.scope.set_value("__rules", Array::new());
+
+        match result {
+            Ok(status) => {
+                log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
+
+                if let Status::Block | Status::Faccept = status {
+                    log::trace!(
+                        target: RULES,
+                        "[{}] the rule engine will skip all rules because of the previous result.",
+                        stage
+                    );
+                    state.skip = Some(status);
+                }
+
+                status
+            }
+            Err(error) => {
+                log::error!(
+                    target: RULES,
+                    "the rule engine skipped stage '{}' because it failed to evaluate a rule:\n\t{}",
+                    stage, error
+                );
+                Status::Continue
+            }
+        }
+    }
+
+    /// creates a new instance of the rule engine, reading all files in
+    /// src_path parameter.
+    pub fn new<S>(script_path: S) -> anyhow::Result<Self>
+    where
+        S: AsRef<str>,
+    {
         let mut engine = Engine::new();
         // let objects = Arc::new(RwLock::new(BTreeMap::new()));
         // let shared_obj = objects.clone();
@@ -466,27 +521,11 @@ impl RuleEngine {
                 let name = input[1].get_literal_value::<ImmutableString>().unwrap();
                 let map = &input[2];
 
-                // we parse the rule only if needs to be executed now.
-                if let Some(stage) = context.scope().get_value::<String>("__stage") {
-                    if stage != when {
-                        return Ok(Dynamic::UNIT);
-                    }
-                }
-
                 let mut rule: Map = context.eval_expression_tree(map)?.cast();
                 rule.insert("name".into(), Dynamic::from(name));
                 rule.insert("when".into(), Dynamic::from(when));
 
-                // TODO: rules are re-cloned every call, to optimize.
-                if let Some(mut rules) = context.scope_mut().get_value::<Array>("__rules") {
-                    rules.push(Dynamic::from(rule));
-                    context
-                    .scope_mut()
-                    .push_dynamic("__rules", Dynamic::from(rules));
-                }
-
-                // the rule body is pushed in __rules global so no need to introduce it to the scope.
-                Ok(Dynamic::UNIT)
+                Ok(rule.into())
             },
         );
 
@@ -619,15 +658,79 @@ impl RuleEngine {
         //     },
         // );
 
-        // TODO: transform rule_executor.rhai into a module or rust entrypoint.
-        let mut script = Vec::from(src);
-        script.extend(include_bytes!("./rule_executor.rhai"));
-        let script = std::str::from_utf8(&script)?;
-
         log::debug!(target: RULES, "compiling rhai script ...");
-        log::trace!(target: RULES, "sources:\n{}", script);
 
-        let ast = engine.compile(script)?;
+        // compiling and registering the rule executor as a global module.
+        let executor = engine
+            .compile(include_str!("rule_executor.rhai"))
+            .context("failed to compile rule executor")?;
+
+        engine.register_global_module(
+            Module::eval_ast_as_new(Scope::new(), &executor, &engine)
+                .context("failed load rule executor")?
+                .into(),
+        );
+
+        // walking the rule directory and compiling each script.
+        fn load_modules(dir: &Path, engine: &mut Engine) -> anyhow::Result<()> {
+            if dir.is_dir() {
+                for entry in dir.read_dir()? {
+                    let entry = entry?;
+                    let path = entry.path();
+                    if path.is_dir() {
+                        load_modules(&path, engine)?;
+                    } else if path.extension().map(|e| e == "vsl").unwrap_or(false)
+                        && path.file_stem().map(|e| e != "main").unwrap_or(false)
+                    {
+                        let ast = engine.compile_file(entry.path())?;
+                        engine.register_global_module(
+                            Module::eval_ast_as_new(Scope::new(), &ast, engine)
+                                .with_context(|| {
+                                    format!("failed load '{:?}' script", entry.file_name())
+                                })?
+                                .into(),
+                        );
+                    }
+                }
+            }
+            Ok(())
+        }
+
+        load_modules(Path::new(script_path.as_ref()), &mut engine)?;
+
+        let main_path = std::path::PathBuf::from_iter([script_path.as_ref(), "main.vsl"]);
+
+        let mut scope = Scope::new();
+        scope
+            // stage specific variables.
+            .push(
+                "ctx",
+                Arc::new(RwLock::new(MailContext {
+                    client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
+                    envelop: Envelop::default(),
+                    body: Body::Raw(String::default()),
+                    metadata: None,
+                })),
+            )
+            // data available in every stage.
+            .push("date", "")
+            .push("time", "")
+            .push("connection_timestamp", std::time::SystemTime::now())
+            .push("metadata", None::<MessageMetadata>)
+            // rule engine's internals.
+            .push("__OPERATION_QUEUE", OperationQueue::default())
+            .push("__stage", "")
+            .push("__rules", Array::new())
+            .push("__init", false)
+            // configuration variables.
+            .push("addr", "")
+            .push("logs_file", "")
+            .push("spool_dir", "");
+
+        // compiling main script.
+        let ast = engine
+            .compile_file_with_scope(&scope, main_path)
+            .context("failed to load main.vsl")?;
 
         log::debug!(target: RULES, "done.");
 
@@ -636,239 +739,10 @@ impl RuleEngine {
             ast,
         })
     }
-
-    /// runs all rules from a stage using the current transaction state.
-    pub(crate) fn run_when(&self, state: &mut RuleState, stage: &str) -> Status {
-        if let Some(status) = state.skip {
-            return status;
-        }
-
-        log::debug!(target: RULES, "[{}] evaluating rules.", stage);
-
-        // updating the internal __stage variable, so that the rhai context
-        // knows what rules to execute.
-        state.scope.set_value("__stage", stage.to_string());
-
-        // injecting date and time variables.
-        let now = chrono::Local::now();
-        state
-            .scope
-            .set_value("date", now.date().format("%Y/%m/%d").to_string());
-        state
-            .scope
-            .set_value("time", now.time().format("%H:%M:%S").to_string());
-
-        let result = self
-            .context
-            .eval_ast_with_scope::<Status>(&mut state.scope, &self.ast);
-
-        // rules are cleared after each evaluation. This way,
-        // scoped variables that are changed by previous rules
-        // can be re-injected back into the script.
-        state.scope.set_value("__rules", Array::new());
-
-        match result {
-            Ok(status) => {
-                log::debug!(target: RULES, "[{}] evaluated.", stage);
-                log::trace!(target: RULES, "[{}] result: {:?}.", stage, status);
-
-                if let Status::Block | Status::Faccept = status {
-                    log::trace!(
-                        target: RULES,
-                        "[{}] the rule engine will skip all rules because of the previous result.",
-                        stage
-                    );
-                    state.skip = Some(status);
-                }
-
-                status
-            }
-            Err(error) => {
-                log::error!(
-                    target: RULES,
-                    "the rule engine skipped stage '{}' because it failed to evaluate a rule:\n\t{}",
-                    stage, error
-                );
-                Status::Continue
-            }
-        }
-    }
-
-    /// creates a new instance of the rule engine, reading all files in
-    /// src_path parameter.
-    pub fn new<S>(src_path: S) -> anyhow::Result<Self>
-    where
-        S: AsRef<str>,
-    {
-        // load all sources from file.
-        // this function is declared here since it isn't needed anywhere else.
-        fn load_sources(path: &Path) -> std::io::Result<Vec<String>> {
-            let mut buffer = vec![];
-
-            if path.is_file() {
-                match path.extension() {
-                    Some(extension) if extension == "vsl" => {
-                        buffer.push(format!("{}\n", std::fs::read_to_string(path)?))
-                    }
-                    _ => {}
-                };
-            } else if path.is_dir() {
-                for entry in std::fs::read_dir(path)? {
-                    let dir = entry?;
-                    buffer.extend(load_sources(&dir.path())?);
-                }
-            }
-
-            Ok(buffer)
-        }
-
-        RuleEngine::from_bytes(
-            load_sources(Path::new(src_path.as_ref()))?
-                .concat()
-                .as_bytes(),
-        )
-    }
 }
-// lazy_static::lazy_static! {
-//     /// a scope that initialize all needed variables by default.
-//     pub(crate) static ref DEFAULT_SCOPE: Scope<'static> = {
-//         let mut scope = Scope::new();
-//         scope
-//         // stage variables.
-//         .push("ctx",
-//             Arc::new(MailContext {
-//                 client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
-//                 envelop: Envelop::default(),
-//                 body: Body::Raw(String::default()),
-//                 metadata: None,
-//             }),
-//         )
-
-//         // .push("connect", IpAddr::V4(Ipv4Addr::UNSPECIFIED))
-//         // .push("port", 0)
-//         // .push("helo", "")
-//         // .push("mail", Address::default())
-//         // .push("rcpt", Address::default())
-//         // .push("rcpts", HashSet::<Address>::new())
-//         // .push("data", Mail::default())
-
-//         // rule engine's internals.
-//         .push("__OPERATION_QUEUE", OperationQueue::default())
-//         .push("__stage", "")
-//         .push("__rules", Array::new())
-//         .push("__init", false)
-
-//         // useful data.
-//         .push("date", "")
-//         .push("time", "")
-//         .push("connection_timestamp", std::time::SystemTime::now())
-//         // .push("metadata", None::<MessageMetadata>)
-
-//         // configuration variables.
-//         .push("addr", Vec::<String>::new())
-//         .push("logs_file", "")
-//         .push("spool_dir", "");
-
-//         scope
-//     };
-// }
-
-// #[cfg(not(test))]
-// lazy_static::lazy_static! {
-//     // ! FIXME: this could be slow, locks seems to happen in the engine.
-//     // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
-//     /// the rhai engine static that gets initialized once.
-//     /// it is used internally to evaluate user's scripts with a different
-//     /// scope for each connection.
-//     pub(super) static ref RHAI_ENGINE: RuleEngine<users::UsersCache> = {
-//         match RuleEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
-//             Ok(engine) => engine,
-//             Err(_) => {
-//                 panic!("rules::rule_engine::init() should be called before using the engine.");
-//             }
-//         }
-//     };
-// }
-
-// #[cfg(test)]
-// lazy_static::lazy_static! {
-//     // ! FIXME: this could be slow, locks seems to happen in the engine.
-//     // ! this could be a solution: https://rhai.rs/book/patterns/parallel.html
-//     /// the rhai engine static that gets initialized once.
-//     /// it is used internally to evaluate user's scripts with a different
-//     /// scope for each connection.
-//     pub(super) static ref RHAI_ENGINE: RwLock<RuleEngine<users::mock::MockUsers>> = {
-//         match RuleEngine::<users::mock::MockUsers>::new(unsafe { RULES_PATH }, users::mock::MockUsers::with_current_uid(1)) {
-//             Ok(engine) => RwLock::new(engine),
-//             Err(error) => {
-//                 panic!("could not initialize the rule engine: {error}");
-//             }
-//         }
-//     };
-// }
-
-// static mut RULES_PATH: &str = "./config/rules";
-// static INIT_RULES_PATH: std::sync::Once = std::sync::Once::new();
-
-/// initialize the default rule path.
-/// this is mainly used for test purposes, and does not
-/// need to be used most of the time.
-// pub fn set_rules_path(src: &'static str) {
-//     INIT_RULES_PATH.call_once(|| unsafe {
-//         RULES_PATH = src;
-//     })
-// }
-
-/// initialize the rule engine.
-/// this function checks your given scripts and parses all necessary items.
-///
-/// not calling this method when initializing your server could lead to
-/// undetected configuration errors and a slow process for the first connection.
-// #[cfg(not(test))]
-// pub fn init(src: &'static str) -> anyhow::Result<()> {
-//     set_rules_path(src);
-
-//     // creating a temporary engine to try construction.
-//     match RuleEngine::<users::UsersCache>::new(unsafe { RULES_PATH }) {
-//         Ok(engine) => engine,
-//         Err(error) => anyhow::bail!(error),
-//     };
-
-//     acquire_engine()
-//         .context
-//         .eval_ast_with_scope::<Status>(&mut DEFAULT_SCOPE.clone(), &acquire_engine().ast)?;
-
-//     log::debug!(
-//         target: RULES,
-//         "{} objects found.",
-//         acquire_engine().objects.read().unwrap().len()
-//     );
-//     log::trace!(
-//         target: RULES,
-//         "{:#?}",
-//         acquire_engine().objects.read().unwrap()
-//     );
-
-//     Ok(())
-// }
-
-// #[cfg(not(test))]
-// /// acquire a ref of the engine for production code.
-// pub(super) fn acquire_engine() -> &'static RuleEngine<users::UsersCache> {
-//     &RHAI_ENGINE
-// }
-
-// #[cfg(test)]
-// /// mock the acquiring of the engine for test code,
-// /// because the test Rhai Engine is locked behind a mutex.
-// pub fn acquire_engine() -> std::sync::RwLockReadGuard<'static, RuleEngine<users::mock::MockUsers>> {
-//     RHAI_ENGINE
-//         .read()
-//         .expect("engine mutex couldn't be locked for tests")
-// }
 
 /// use the user cache to check if a user exists on the system.
-pub(crate) fn user_exists(name: &str) -> bool {
+pub(crate) fn user_exists(_name: &str) -> bool {
     // match acquire_engine().users.lock() {
     //     Ok(users) => users.get_user_by_name(name).is_some(),
     //     Err(error) => {
@@ -880,7 +754,7 @@ pub(crate) fn user_exists(name: &str) -> bool {
 }
 
 /// using the engine's instance, try to get a specific user.
-pub(crate) fn get_user_by_name(name: &str) -> Option<Arc<users::User>> {
+pub(crate) fn get_user_by_name(_name: &str) -> Option<Arc<users::User>> {
     // match acquire_engine().users.lock() {
     //     Ok(users) => users.get_user_by_name(name),
     //     Err(error) => {
