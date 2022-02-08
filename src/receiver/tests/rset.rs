@@ -25,7 +25,7 @@ use crate::{
 fn get_regular_config() -> std::sync::Arc<ServerConfig> {
     std::sync::Arc::new(
         ServerConfig::builder()
-            .with_server_default_port("test.server.com")
+            .with_rfc_port("test.server.com")
             .without_log()
             .without_smtps()
             .with_default_smtp()

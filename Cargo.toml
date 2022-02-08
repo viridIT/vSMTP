@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp"
-version = "0.8.5"
+version = "0.8.6"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -16,40 +16,46 @@ publish = false
 log = "0.4.14"
 log4rs = { version = "1.0.0" }
 
-clap = { version = "3.0.4", features = ["derive"] }
+clap = { version = "3.0.14", features = ["derive"] }
 
-libc = "0.2.112"
-socket2 = "0.4.2"
-anyhow = "1.0"
+# inactive since Oct. 2020
+users = "0.11"
+libc = "0.2.117"
 
-serde = { version = "1.0.133", features = ["derive"] }
-serde_derive = "1.0.133"
-serde_with = { version = "1.11.0", features = ["macros"] }
-serde_json = "1.0.74"
-toml = "0.5.8"
-humantime = "2.1.0"
+anyhow = "1.0.53"
+
+serde = { version = "1.0.136", features = ["derive"] }
+serde_derive = "1.0.136"
+serde_with = { version = "1.12.0", features = ["macros"] }
 humantime-serde = "1.0.1"
-addr = { version = "0.15.2" }
+
+serde_json = "1.0.78"
+toml = "0.5.8"
+
+humantime = "2.1.0"
+
+addr = { version = "0.15.3" }
 regex = "1.5.4"
-iprange = "0.6.6"
+iprange = "0.6.7"
 ipnet = "2.3.1"
 chrono = "0.4.19"
-fastrand = "1.4"
 
-rhai = { version = "1.4.0", features = ["unchecked", "sync"] }
+rhai = { version = "1.4.1", features = ["unchecked", "sync"] }
 
 # the 0.10 release is more stable than the 0.9 and enable async support.
 lettre = { version = "0.10.0-rc.4", features = ["tracing"] }
-trust-dns-resolver = "0.20.3"
+trust-dns-resolver = "0.20.4"
 
 async-trait = "0.1.52"
-lazy_static = "1.4"
+lazy_static = "1.4.0"
 enum-iterator = "0.7.0"
+diff = "0.1.12"
+fastrand = "1.7.0"
 
 rustls = { version = "0.20.2", features = ["tls12", "logging"] }
-rustls-pemfile = "0.2.1"
+rustls-pemfile = "0.3.0"
 
-tokio = { version = "1.15.0", features = [
+tokio = { version = "1.16.1", features = [
     "macros",
     "time",
     "sync",
@@ -57,11 +63,6 @@ tokio = { version = "1.15.0", features = [
     "io-util",
     "rt-multi-thread",
 ] }
-
-# inactive since Oct. 2020
-users = "0.11"
-
-diff = "0.1.12"
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }

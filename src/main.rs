@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
             let loaded_config = serde_json::to_string_pretty(&config.as_ref())?;
             let default_config = serde_json::to_string_pretty(
                 &ServerConfig::builder()
-                    .with_server_default_port(&config.server.domain)
+                    .with_rfc_port(&config.server.domain)
                     .without_log()
                     // TODO: default
                     .without_smtps()
@@ -91,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
         error
     })?;
 
-    let mut server = ServerVSMTP::new(config.clone())
+    let mut server = ServerVSMTP::new(config)
         .await
         .expect("Failed to create the server");
     log::warn!("Listening on: {:?}", server.addr());

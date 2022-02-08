@@ -13,7 +13,7 @@ use vsmtp::{
 
 fuzz_target!(|data: &[u8]| {
     let mut config = ServerConfig::builder()
-        .with_server_default_port("fuzz.server.com")
+        .with_rfc_port("fuzz.server.com")
         .without_log()
         .without_smtps()
         .with_default_smtp()
