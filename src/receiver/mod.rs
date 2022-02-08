@@ -18,6 +18,7 @@ use crate::{
     config::server_config::InnerSmtpsConfig,
     processes::ProcessMessage,
     queue::Queue,
+    rules::rule_engine::RuleEngine,
     smtp::{code::SMTPReplyCode, mail::MailContext},
 };
 
@@ -26,6 +27,8 @@ use self::{
     io_service::IoService,
     transaction::{Transaction, TransactionResult},
 };
+
+use std::sync::{Arc, RwLock};
 
 pub mod connection;
 pub mod io_service;
@@ -127,55 +130,58 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
 
 pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
+    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    rule_engine: Arc<RwLock<RuleEngine>>,
     working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
 ) -> anyhow::Result<()>
 where
     S: std::io::Read + std::io::Write,
 {
-    // let mut helo_domain = None;
+    let mut helo_domain = None;
 
     conn.send_code(SMTPReplyCode::Code220)?;
 
-    // while conn.is_alive {
-    //     match Transaction::receive(conn, &helo_domain).await? {
-    //         TransactionResult::Nothing => {}
-    //         TransactionResult::Mail(mail) => {
-    //             on_mail(
-    //                 conn,
-    //                 mail,
-    //                 &mut helo_domain,
-    //                 working_sender.clone(),
-    //                 delivery_sender.clone(),
-    //             )
-    //             .await?;
-    //         }
-    //         TransactionResult::TlsUpgrade if tls_config.is_none() => {
-    //             conn.send_code(SMTPReplyCode::Code454)?;
-    //             conn.send_code(SMTPReplyCode::Code221)?;
-    //             return Ok(());
-    //         }
-    //         TransactionResult::TlsUpgrade => {
-    //             return handle_connection_secured(
-    //                 conn,
-    //                 working_sender.clone(),
-    //                 delivery_sender.clone(),
-    //                 tls_config.clone(),
-    //             )
-    //             .await;
-    //         }
-    //     }
-    // }
+    while conn.is_alive {
+        match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
+            TransactionResult::Nothing => {}
+            TransactionResult::Mail(mail) => {
+                on_mail(
+                    conn,
+                    mail,
+                    &mut helo_domain,
+                    working_sender.clone(),
+                    delivery_sender.clone(),
+                )
+                .await?;
+            }
+            TransactionResult::TlsUpgrade if tls_config.is_none() => {
+                conn.send_code(SMTPReplyCode::Code454)?;
+                conn.send_code(SMTPReplyCode::Code221)?;
+                return Ok(());
+            }
+            TransactionResult::TlsUpgrade => {
+                return handle_connection_secured(
+                    conn,
+                    tls_config.clone(),
+                    rule_engine,
+                    working_sender.clone(),
+                    delivery_sender.clone(),
+                )
+                .await;
+            }
+        }
+    }
 
     Ok(())
 }
 
 pub async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
+    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    rule_engine: Arc<RwLock<RuleEngine>>,
     working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
 ) -> anyhow::Result<()>
 where
     S: std::io::Read + std::io::Write,
@@ -216,23 +222,23 @@ where
         secured_conn.send_code(SMTPReplyCode::Code220)?;
     }
 
-    // let mut helo_domain = None;
+    let mut helo_domain = None;
 
-    // while secured_conn.is_alive {
-    //     match Transaction::receive(&mut secured_conn, &helo_domain).await? {
-    //         TransactionResult::Nothing => {}
-    //         TransactionResult::Mail(mail) => {
-    //             on_mail(
-    //                 &mut secured_conn,
-    //                 mail,
-    //                 &mut helo_domain,
-    //                 working_sender.clone(),
-    //                 delivery_sender.clone(),
-    //             )
-    //             .await?;
-    //         }
-    //         TransactionResult::TlsUpgrade => todo!(),
-    //     }
-    // }
+    while secured_conn.is_alive {
+        match Transaction::receive(&mut secured_conn, &helo_domain, rule_engine.clone()).await? {
+            TransactionResult::Nothing => {}
+            TransactionResult::Mail(mail) => {
+                on_mail(
+                    &mut secured_conn,
+                    mail,
+                    &mut helo_domain,
+                    working_sender.clone(),
+                    delivery_sender.clone(),
+                )
+                .await?;
+            }
+            TransactionResult::TlsUpgrade => todo!(),
+        }
+    }
     Ok(())
 }

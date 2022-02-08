@@ -16,8 +16,6 @@
 **/
 use std::sync::{Arc, RwLock};
 
-use anyhow::Context;
-
 use crate::{
     config::server_config::ServerConfig,
     processes::ProcessMessage,
@@ -169,24 +167,28 @@ impl ServerVSMTP {
 
             log::warn!("Connection from: {:?}, {}", kind, client_addr);
 
+            let re_smtp = rule_engine.clone();
             tokio::spawn(Self::run_session(
                 stream,
                 client_addr,
                 kind,
                 self.config.clone(),
                 self.tls_config.clone(),
+                re_smtp,
                 working_sender.clone(),
                 delivery_sender.clone(),
             ));
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn run_session(
         stream: tokio::net::TcpStream,
         client_addr: std::net::SocketAddr,
         kind: ConnectionKind,
         config: std::sync::Arc<ServerConfig>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+        rule_engine: Arc<RwLock<RuleEngine>>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     ) -> anyhow::Result<()> {
@@ -207,15 +209,22 @@ impl ServerVSMTP {
             ConnectionKind::Opportunistic | ConnectionKind::Submission => {
                 handle_connection::<std::net::TcpStream>(
                     &mut conn,
+                    tls_config,
+                    rule_engine,
                     working_sender,
                     delivery_sender,
-                    tls_config,
                 )
                 .await
             }
             ConnectionKind::Tunneled => {
-                handle_connection_secured(&mut conn, working_sender, delivery_sender, tls_config)
-                    .await
+                handle_connection_secured(
+                    &mut conn,
+                    tls_config,
+                    rule_engine,
+                    working_sender,
+                    delivery_sender,
+                )
+                .await
             }
         }
         .map(|_| {

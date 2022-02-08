@@ -288,9 +288,7 @@ impl Transaction<'_> {
 
 impl Transaction<'_> {
     fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
-        let ctx = self.rule_state.get_context();
-        let mut ctx = ctx.write().unwrap();
-        ctx.client_addr = conn.client_addr;
+        self.rule_state.get_context().write().unwrap().client_addr = conn.client_addr;
 
         self.rule_state
             .add_data("connection_timestamp", conn.timestamp);
@@ -299,15 +297,11 @@ impl Transaction<'_> {
     fn set_helo(&mut self, helo: String) {
         self.rule_state.reset();
 
-        let ctx = self.rule_state.get_context();
-        let mut ctx = ctx.write().unwrap();
-        ctx.envelop = Envelop {
+        self.rule_state.get_context().write().unwrap().envelop = Envelop {
             helo,
             mail_from: Address::default(),
             rcpt: std::collections::HashSet::default(),
         };
-
-        log::trace!(target: RECEIVER, "envelop=\"{:?}\"", ctx.envelop);
     }
 
     fn set_mail_from<S>(&mut self, mail_from: String, conn: &Connection<'_, S>)
@@ -355,11 +349,13 @@ impl Transaction<'_> {
         match Address::new(&rcpt_to) {
             Err(_) => (),
             Ok(rcpt_to) => {
-                let ctx = self.rule_state.get_context();
-                let mut ctx = ctx.write().unwrap();
-                ctx.envelop.rcpt.insert(rcpt_to);
-
-                log::trace!(target: RECEIVER, "envelop=\"{:?}\"", ctx.envelop,);
+                self.rule_state
+                    .get_context()
+                    .write()
+                    .unwrap()
+                    .envelop
+                    .rcpt
+                    .insert(rcpt_to);
             }
         }
     }
