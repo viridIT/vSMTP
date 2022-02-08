@@ -41,10 +41,10 @@ let vsl = #{
 
     // returns a state that will influence vsmtp's state machine, if returned by
     // a on_success or on_failure rule callback.
-    ACCEPT:   || __ACCEPT(),
-    FACCEPT:  || __FACCEPT(),
-    CONTINUE: || __CONTINUE(),
-    DENY:     || __DENY(),
+    // ACCEPT:   || __ACCEPT(),
+    // FACCEPT:  || __FACCEPT(),
+    // CONTINUE: || __CONTINUE(),
+    // DENY:     || __DENY(),
 
     // logs a message to stdout.
     // LOG_OUT: |message| {
