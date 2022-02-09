@@ -223,7 +223,7 @@ pub mod email {
     //         }
     //     }
 
-    /// write the raw email to a specified file.
+    /// write the current email to a specified file.
     #[rhai_fn(return_raw)]
     pub fn write(
         this: &mut Arc<RwLock<MailContext>>,
@@ -259,11 +259,7 @@ pub mod email {
         }
     }
 
-    /// dumps the content of the current connection in a json file.
-    /// if some data is missing because of the current stage, it will
-    /// be blank in the json representation.
-    /// for example, dumping during the rcpt stage will leave the data
-    /// field empty.
+    /// write the content of the current email in a json file.
     #[rhai_fn(return_raw)]
     pub fn dump(this: &mut Arc<RwLock<MailContext>>, path: &str) -> Result<(), Box<EvalAltResult>> {
         match std::fs::OpenOptions::new()
@@ -286,6 +282,36 @@ pub mod email {
         }
     }
 
+    // TODO: unfinished, queue parameter should point to a folder specified in toml config.
+    /// dump the current email into a quarantine queue, skipping delivery.
+    #[rhai_fn(return_raw)]
+    pub fn quarantine(
+        this: &mut Arc<RwLock<MailContext>>,
+        queue: &str,
+    ) -> Result<(), Box<EvalAltResult>> {
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(queue)
+        {
+            Ok(mut file) => {
+                disable_delivery(this)?;
+
+                file.write_all(
+                    serde_json::to_string_pretty(&*this.write().map_err::<Box<EvalAltResult>, _>(
+                        |err| format!("failed to dump email: {err:?}").into(),
+                    )?)
+                    .map_err::<Box<EvalAltResult>, _>(|err| {
+                        format!("failed to dump email: {err:?}").into()
+                    })?
+                    .as_bytes(),
+                )
+                .map_err(|err| format!("failed to dump email: {err:?}").into())
+            }
+            Err(err) => Err(format!("failed to dump email: {err:?}").into()),
+        }
+    }
+
     #[rhai_fn(return_raw)]
     pub fn use_resolver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
         this.write()
@@ -298,6 +324,11 @@ pub mod email {
             .resolver = resolver;
 
         Ok(())
+    }
+
+    #[rhai_fn(return_raw)]
+    pub fn disable_delivery(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<()> {
+        use_resolver(this, "none".to_string())
     }
 }
 

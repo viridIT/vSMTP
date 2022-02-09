@@ -16,7 +16,6 @@
 **/
 use rhai::plugin::*;
 
-// exported methods are used in rhai context, so we allow dead code.
 #[allow(dead_code)]
 #[export_module]
 pub mod actions {
@@ -119,7 +118,8 @@ pub mod actions {
         log(message, "stderr")
     }
 
-    /// sends a mail, the body can be formatted using html.
+    // TODO: not yet functional, the relayer cannot connect to servers.
+    /// send a mail from a template.
     #[rhai_fn(name = "MAIL", return_raw)]
     pub fn mail(
         from: &str,
@@ -153,10 +153,6 @@ pub mod actions {
                 .map_err::<Box<EvalAltResult>, _>(|err| {
                     format!("MAIL action failed: {err:?}").into()
                 })?
-                .credentials(lettre::transport::smtp::authentication::Credentials::new(
-                    "tab.rysak70@gmail.com".to_string(),
-                    "PJo2MXhzseBhdw4xiHxy7&ykFW6Q^Zq!&ZHSv%7T5nhXQGTqXa".to_string(),
-                ))
                 .build(),
             &envelop,
             email.as_bytes(),
