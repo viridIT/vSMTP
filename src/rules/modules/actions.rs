@@ -107,47 +107,17 @@ pub mod actions {
         }
     }
 
-    /// logs a message to stdout, stderr or a file.
+    /// logs a message to stdout.
     #[rhai_fn(name = "LOG_OUT", return_raw)]
     pub fn log_out(message: &str) -> Result<(), Box<EvalAltResult>> {
         log(message, "stdout")
     }
 
-    /// logs a message to stdout, stderr or a file.
+    /// logs a message to stderr.
     #[rhai_fn(name = "LOG_ERR", return_raw)]
     pub fn log_err(message: &str) -> Result<(), Box<EvalAltResult>> {
         log(message, "stderr")
     }
-
-    // // NOTE: this function needs to be curried to access data,
-    // //       could it be added to the operation queue ?
-    // /// write the email to a specified file.
-    // #[rhai_fn(name = "__WRITE", return_raw)]
-    // pub fn write_mail(data: Mail, path: &str) -> Result<(), Box<EvalAltResult>> {
-    //     if data.headers.is_empty() {
-    //         return Err("the WRITE action can only be called after or in the 'preq' stage.".into());
-    //     }
-
-    //     // from_str is infallible, we can unwrap.
-    //     let path = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
-
-    //     match std::fs::OpenOptions::new()
-    //         .create(true)
-    //         .append(true)
-    //         .open(&path)
-    //     {
-    //         Ok(mut file) => {
-    //             let (headers, body) = data.to_raw();
-    //             std::io::Write::write_all(&mut file, format!("{}\n{}", headers, body).as_bytes())
-    //                 .map_err(|_| format!("could not write email to '{:?}'.", path).into())
-    //         }
-    //         Err(error) => Err(format!(
-    //             "'{:?}' is not a valid path to write the email to: {:#?}",
-    //             path, error
-    //         )
-    //         .into()),
-    //     }
-    // }
 
     // /// dumps the content of the current connection in a json file.
     // /// if some data is missing because of the current stage, it will

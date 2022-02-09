@@ -21,8 +21,9 @@ pub mod email {
 
     use crate::{
         config::log_channel::RULES, rules::address::Address, rules::modules::types::types::Rcpt,
-        rules::modules::EngineResult, smtp::mail::MailContext,
+        rules::modules::EngineResult, smtp::mail::Body, smtp::mail::MailContext,
     };
+    use std::io::Write;
     use std::sync::{Arc, RwLock};
 
     #[rhai_fn(get = "client_addr", return_raw)]
@@ -221,6 +222,37 @@ pub mod email {
     //             _ => internal_user_exists(&Object::Var(object.to_string())),
     //         }
     //     }
+
+    /// write the raw email to a specified file.
+    #[rhai_fn(return_raw)]
+    pub fn write(
+        this: &mut Arc<RwLock<MailContext>>,
+        path: &str,
+    ) -> Result<(), Box<EvalAltResult>> {
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        {
+            Ok(file) => {
+                let mut writer = std::io::LineWriter::new(file);
+
+                match &this
+                    .read()
+                    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                    .body
+                {
+                    Body::Raw(raw) => writer.write_all(raw.as_bytes()),
+                    Body::Parsed(email) => {
+                        let (body, headers) = email.to_raw();
+                        writer.write_all(format!("{}\n{}", headers, body).as_bytes())
+                    }
+                }
+            }
+            .map_err(|err| format!("failed to write email: {err:?}").into()),
+            Err(err) => Err(format!("failed to write email: {err:?}").into()),
+        }
+    }
 
     #[rhai_fn(return_raw)]
     pub fn use_resolver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
