@@ -264,36 +264,27 @@ pub mod email {
     /// be blank in the json representation.
     /// for example, dumping during the rcpt stage will leave the data
     /// field empty.
-    // #[rhai_fn(name = "__DUMP", return_raw)]
-    // pub fn dump(ctx: &mut MailContext, path: &str) -> Result<(), Box<EvalAltResult>> {
-    //     if let Err(error) = std::fs::create_dir_all(path) {
-    //         return Err(format!("could not write email to '{:?}': {}", path, error).into());
-    //     }
-
-    //     let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
-    //         // Error is of type Infallible, we can unwrap.
-    //         let mut path = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
-    //         path.push(
-    //             ctx.metadata
-    //                 .as_ref()
-    //                 .ok_or_else::<Box<EvalAltResult>, _>(|| {
-    //                     "could not dump email, metadata has not been received yet.".into()
-    //                 })?
-    //                 .message_id
-    //                 .clone(),
-    //         );
-    //         path.set_extension("json");
-    //         path
-    //     }) {
-    //         Ok(file) => file,
-    //         Err(error) => {
-    //             return Err(format!("could not write email to '{:?}': {}", path, error).into())
-    //         }
-    //     };
-
-    //     std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
-    //         .map_err(|error| format!("could not write email to '{:?}': {}", path, error).into())
-    // }
+    #[rhai_fn(return_raw)]
+    pub fn dump(this: &mut Arc<RwLock<MailContext>>, path: &str) -> Result<(), Box<EvalAltResult>> {
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        {
+            Ok(mut file) => file
+                .write_all(
+                    serde_json::to_string_pretty(&*this.read().map_err::<Box<EvalAltResult>, _>(
+                        |err| format!("failed to dump email: {err:?}").into(),
+                    )?)
+                    .map_err::<Box<EvalAltResult>, _>(|err| {
+                        format!("failed to dump email: {err:?}").into()
+                    })?
+                    .as_bytes(),
+                )
+                .map_err(|err| format!("failed to dump email: {err:?}").into()),
+            Err(err) => Err(format!("failed to dump email: {err:?}").into()),
+        }
+    }
 
     #[rhai_fn(return_raw)]
     pub fn use_resolver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
