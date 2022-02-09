@@ -20,8 +20,8 @@ use rhai::plugin::*;
 pub mod email {
 
     use crate::{
-        config::log_channel::RULES, rules::address::Address, rules::modules::EngineResult,
-        smtp::mail::MailContext,
+        config::log_channel::RULES, rules::address::Address, rules::modules::types::types::Rcpt,
+        rules::modules::EngineResult, smtp::mail::MailContext,
     };
     use std::sync::{Arc, RwLock};
 
@@ -54,9 +54,7 @@ pub mod email {
     }
 
     #[rhai_fn(get = "rcpt", return_raw)]
-    pub fn rcpt(
-        this: &mut Arc<RwLock<MailContext>>,
-    ) -> EngineResult<std::collections::HashSet<Address>> {
+    pub fn rcpt(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<Rcpt> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?

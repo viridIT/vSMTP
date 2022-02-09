@@ -19,9 +19,7 @@ use rhai::plugin::*;
 #[export_module]
 pub mod types {
 
-    use crate::rules::address::Address;
-    use crate::rules::modules::EngineResult;
-    use crate::rules::obj::Object;
+    use crate::rules::{address::Address, modules::EngineResult, obj::Object};
 
     // shell service output (std::process::Output).
 
@@ -111,39 +109,38 @@ pub mod types {
         format!("{:#?}", **this)
     }
 
-    // rcpt container (std::collections::HashSet<Address>)
+    // rcpt container.
+    pub type Rcpt = std::collections::HashSet<Address>;
 
     #[rhai_fn(get = "local_parts")]
-    pub fn hash_set_local_parts(this: &mut std::collections::HashSet<Address>) -> Vec<String> {
+    pub fn rcpt_local_parts(this: &mut Rcpt) -> Vec<String> {
         this.iter()
             .map(|addr| addr.local_part().to_string())
             .collect()
     }
 
     #[rhai_fn(get = "domains")]
-    pub fn hash_set_domains(this: &mut std::collections::HashSet<Address>) -> Vec<String> {
+    pub fn rcpt_domains(this: &mut Rcpt) -> Vec<String> {
         this.iter().map(|addr| addr.domain().to_string()).collect()
     }
 
     #[rhai_fn(name = "to_string")]
-    pub fn hash_set_to_string(this: &mut std::collections::HashSet<Address>) -> String {
+    pub fn rcpt_to_string(this: &mut Rcpt) -> String {
         format!("{this:?}")
     }
 
     #[rhai_fn(name = "to_debug")]
-    pub fn hash_set_to_debug(this: &mut std::collections::HashSet<Address>) -> String {
+    pub fn rcpt_to_debug(this: &mut Rcpt) -> String {
         format!("{this:#?}")
     }
 
-    // local & domain containers (Vec<String>).
-
     #[rhai_fn(name = "to_string")]
-    pub fn vec_to_string(this: &mut Vec<String>) -> String {
+    pub fn strings_to_string(this: &mut Vec<String>) -> String {
         format!("{this:?}")
     }
 
     #[rhai_fn(name = "to_debug")]
-    pub fn vec_to_debug(this: &mut Vec<String>) -> String {
+    pub fn strings_to_debug(this: &mut Vec<String>) -> String {
         format!("{this:#?}")
     }
 }

@@ -456,7 +456,11 @@ impl RuleEngine {
 
                 Ok(Dynamic::from(obj_ptr))
             },
-        );
+        )
+
+        // NOTE: is their a way to defined iterators directly in modules ?
+        .register_iterator::<crate::rules::modules::types::types::Rcpt>()
+        .register_iterator::<Vec<String>>();
 
         log::debug!(target: RULES, "compiling rhai script ...");
 
