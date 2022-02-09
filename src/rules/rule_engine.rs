@@ -515,27 +515,3 @@ impl RuleEngine {
         })
     }
 }
-
-/// use the user cache to check if a user exists on the system.
-pub(crate) fn user_exists(_name: &str) -> bool {
-    // match acquire_engine().users.lock() {
-    //     Ok(users) => users.get_user_by_name(name).is_some(),
-    //     Err(error) => {
-    //         log::error!("FATAL: {}", error);
-    //         false
-    //     }
-    // }
-    false
-}
-
-/// using the engine's instance, try to get a specific user.
-pub(crate) fn get_user_by_name(_name: &str) -> Option<Arc<users::User>> {
-    // match acquire_engine().users.lock() {
-    //     Ok(users) => users.get_user_by_name(name),
-    //     Err(error) => {
-    //         log::error!("FATAL: {}", error);
-    //         None
-    //     }
-    // }
-    None
-}

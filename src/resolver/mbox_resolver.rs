@@ -31,7 +31,8 @@ pub struct MBoxResolver;
 impl Resolver for MBoxResolver {
     async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         for rcpt in ctx.envelop.rcpt.iter() {
-            match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
+            // FIXME: use UsersCache.
+            match users::get_user_by_name(rcpt.local_part()) {
                 Some(user) => {
                     let timestamp: chrono::DateTime<chrono::offset::Utc> = ctx
                         .metadata

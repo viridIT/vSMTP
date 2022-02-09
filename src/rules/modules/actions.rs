@@ -168,6 +168,13 @@ pub mod actions {
         }
     }
 
+    // TODO: use UsersCache to optimize user lookup.
+    /// use the user cache to check if a user exists on the system.
+    #[rhai_fn(name = "USER_EXISTS")]
+    pub(crate) fn user_exists(name: &str) -> bool {
+        users::get_user_by_name(name).is_some()
+    }
+
     // #[rhai_fn(name = "__LOOKUP_MAIL_FROM", return_raw)]
     // /// check the client's ip matches against the hostname passed has parameter.
     // /// this can be used, for example, to check if MAIL FROM's value

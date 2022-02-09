@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
-    rules::{address::Address, rule_engine::user_exists},
+    rules::address::Address,
     smtp::mail::{Body, MailContext, MessageMetadata},
 };
 
@@ -27,7 +27,7 @@ pub struct MailDirResolver;
 
 impl MailDirResolver {
     // getting user's home directory using getpwuid.
-    fn get_maildir_path(user: &std::sync::Arc<users::User>) -> anyhow::Result<std::path::PathBuf> {
+    fn get_maildir_path(user: &users::User) -> anyhow::Result<std::path::PathBuf> {
         let passwd = unsafe { libc::getpwuid(user.uid()) };
         if !passwd.is_null() && !unsafe { *passwd }.pw_dir.is_null() {
             unsafe { std::ffi::CStr::from_ptr((*passwd).pw_dir) }
@@ -49,7 +49,8 @@ impl MailDirResolver {
         metadata: &MessageMetadata,
         content: &str,
     ) -> anyhow::Result<()> {
-        match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
+        // FIXME: use UsersCache.
+        match users::get_user_by_name(rcpt.local_part()) {
             Some(user) => {
                 let mut maildir = Self::get_maildir_path(&user)?;
 
@@ -104,7 +105,7 @@ impl Resolver for MailDirResolver {
             .envelop
             .rcpt
             .iter()
-            .filter(|i| !user_exists(i.local_part()))
+            .filter(|i| users::get_user_by_name(i.local_part()).is_some())
             .collect::<Vec<_>>();
 
         if !not_local_users.is_empty() {
