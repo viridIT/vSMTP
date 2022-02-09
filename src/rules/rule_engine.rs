@@ -441,12 +441,19 @@ impl RuleEngine {
                     }
                 };
 
-                // pushing object in scope, preventing a "let _" statement.
+                // TODO: parse objects types here.
+
+                // NOTE: parsed variable should be shared here and NOT CLONED.
+                //       needs investigation.
+                let ptr = Dynamic::from(object).into_shared();
+
+                // pushing object in scope, preventing a "let _" statement,
+                // and returning a reference to the object in case of a parent group.
                 context
                     .scope_mut()
-                    .push(var_name, object);
+                    .push(var_name, ptr.clone());
 
-                Ok(Dynamic::UNIT)
+                Ok(ptr)
             },
         );
 
