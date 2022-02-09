@@ -28,7 +28,7 @@ use std::{
 
 use super::address::Address;
 
-/// Objects are rust's representation of rule engine variables.
+/// Objects are rust's representation of rule engine Striables.
 /// multiple types are supported.
 #[derive(Debug)]
 pub enum Object {
@@ -50,8 +50,8 @@ pub enum Object {
     File(Vec<Object>),
     /// a group of objects declared inline.
     Group(Vec<std::sync::Arc<Object>>),
-    /// a generic variable.
-    Var(String),
+    /// a simple string.
+    Str(String),
 }
 
 impl Object {
@@ -119,7 +119,7 @@ impl Object {
                 Ok(Object::Address(Address::new(&value)?))
             }
 
-            "val" => Ok(Object::Var(Object::value::<S, String>(map, "value")?)),
+            "str" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
 
             "regex" => Ok(Object::Regex(Regex::from_str(
                 &Object::value::<S, String>(map, "value")?,
@@ -142,7 +142,7 @@ impl Object {
                                 Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                             },
                             "addr" => content.push(Object::Address(Address::new(&line)?)),
-                            "val" => content.push(Object::Var(line)),
+                            "val" => content.push(Object::Str(line)),
                             "regex" => content.push(Object::Regex(Regex::from_str(&line)?)),
                             _ => {}
                         },
@@ -191,7 +191,7 @@ impl ToString for Object {
             Object::Regex(regex) => regex.to_string(),
             Object::File(file) => format!("{file:?}"),
             Object::Group(grp) => format!("{grp:?}"),
-            Object::Var(string) => string.clone(),
+            Object::Str(string) => string.clone(),
         }
     }
 }
