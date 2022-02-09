@@ -17,12 +17,13 @@
 use crate::config::log_channel::RULES;
 use crate::config::server_config::ServerConfig;
 use crate::queue::Queue;
+use crate::rules::obj::Object;
 use crate::rules::operation_queue::{Operation, OperationQueue};
 use crate::smtp::envelop::Envelop;
 use crate::smtp::mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY};
 
 use anyhow::Context;
-use rhai::module_resolvers::{FileModuleResolver, StaticModuleResolver};
+use rhai::module_resolvers::FileModuleResolver;
 use rhai::{
     exported_module, plugin::*, Array, Engine, LexError, Map, ParseError, ParseErrorType, Scope,
     AST,
@@ -398,11 +399,13 @@ impl RuleEngine {
                         if object.is::<Map>() {
                             let mut object: Map = object.cast();
                             object.insert("type".into(), Dynamic::from(var_type.clone()));
+                            object.insert("name".into(), Dynamic::from(var_name.clone()));
                             object.insert("content_type".into(), Dynamic::from(content_type.to_string()));
                             object
                         } else if object.is::<String>() {
                             let mut map = Map::new();
                             map.insert("type".into(), Dynamic::from(var_type.clone()));
+                            map.insert("name".into(), Dynamic::from(var_name.clone()));
                             map.insert("content_type".into(), Dynamic::from(content_type.to_string()));
                             map.insert("value".into(), object);
                             map
@@ -424,10 +427,12 @@ impl RuleEngine {
                         if object.is::<Map>() {
                             let mut object: Map = object.cast();
                             object.insert("type".into(), Dynamic::from(var_type.clone()));
+                            object.insert("name".into(), Dynamic::from(var_name.clone()));
                             object
                         } else if object.is::<String>() || object.is::<Array>() {
                             let mut map = Map::new();
                             map.insert("type".into(), Dynamic::from(var_type.clone()));
+                            map.insert("name".into(), Dynamic::from(var_name.clone()));
                             map.insert("value".into(), object);
                             map
                         } else {
@@ -441,19 +446,15 @@ impl RuleEngine {
                     }
                 };
 
-                // TODO: parse objects types here.
-
-                // NOTE: parsed variable should be shared here and NOT CLONED.
-                //       needs investigation.
-                let ptr = Dynamic::from(object).into_shared();
+                let obj_ptr = Arc::new(Object::from(&object).map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?);
 
                 // pushing object in scope, preventing a "let _" statement,
                 // and returning a reference to the object in case of a parent group.
                 context
                     .scope_mut()
-                    .push(var_name, ptr.clone());
+                    .push(var_name, obj_ptr.clone());
 
-                Ok(ptr)
+                Ok(Dynamic::from(obj_ptr))
             },
         );
 

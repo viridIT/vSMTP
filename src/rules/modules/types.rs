@@ -21,6 +21,7 @@ pub mod types {
 
     use crate::rules::address::Address;
     use crate::rules::modules::EngineResult;
+    use crate::rules::obj::Object;
 
     // std::process::Output
 
@@ -96,6 +97,18 @@ pub mod types {
     #[rhai_fn(get = "domain")]
     pub fn domain(this: &mut Address) -> String {
         this.domain().to_string()
+    }
+
+    // std::sync::Arc<Object>
+
+    #[rhai_fn(name = "to_string")]
+    pub fn object_to_string(this: &mut std::sync::Arc<Object>) -> String {
+        this.to_string()
+    }
+
+    #[rhai_fn(name = "to_debug")]
+    pub fn object_to_debug(this: &mut std::sync::Arc<Object>) -> String {
+        format!("{:#?}", **this)
     }
 
     // // adding an Address hash set as a custom type.
