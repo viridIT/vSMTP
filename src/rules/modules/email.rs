@@ -242,6 +242,11 @@ pub mod email {
                     .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
                     .body
                 {
+                    Body::Empty => {
+                        return Err(
+                            "failed to write email: the body has not been received yet.".into()
+                        )
+                    }
                     Body::Raw(raw) => writer.write_all(raw.as_bytes()),
                     Body::Parsed(email) => {
                         let (body, headers) = email.to_raw();
@@ -253,6 +258,42 @@ pub mod email {
             Err(err) => Err(format!("failed to write email: {err:?}").into()),
         }
     }
+
+    /// dumps the content of the current connection in a json file.
+    /// if some data is missing because of the current stage, it will
+    /// be blank in the json representation.
+    /// for example, dumping during the rcpt stage will leave the data
+    /// field empty.
+    // #[rhai_fn(name = "__DUMP", return_raw)]
+    // pub fn dump(ctx: &mut MailContext, path: &str) -> Result<(), Box<EvalAltResult>> {
+    //     if let Err(error) = std::fs::create_dir_all(path) {
+    //         return Err(format!("could not write email to '{:?}': {}", path, error).into());
+    //     }
+
+    //     let mut file = match std::fs::OpenOptions::new().write(true).create(true).open({
+    //         // Error is of type Infallible, we can unwrap.
+    //         let mut path = <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap();
+    //         path.push(
+    //             ctx.metadata
+    //                 .as_ref()
+    //                 .ok_or_else::<Box<EvalAltResult>, _>(|| {
+    //                     "could not dump email, metadata has not been received yet.".into()
+    //                 })?
+    //                 .message_id
+    //                 .clone(),
+    //         );
+    //         path.set_extension("json");
+    //         path
+    //     }) {
+    //         Ok(file) => file,
+    //         Err(error) => {
+    //             return Err(format!("could not write email to '{:?}': {}", path, error).into())
+    //         }
+    //     };
+
+    //     std::io::Write::write_all(&mut file, serde_json::to_string(&ctx).unwrap().as_bytes())
+    //         .map_err(|error| format!("could not write email to '{:?}': {}", path, error).into())
+    // }
 
     #[rhai_fn(return_raw)]
     pub fn use_resolver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {

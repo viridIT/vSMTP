@@ -92,7 +92,7 @@ impl Transaction<'_> {
                 {
                     let ctx = self.rule_state.get_context();
                     let mut ctx = ctx.write().unwrap();
-                    ctx.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
+                    ctx.body = Body::Empty;
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = Address::default();
                 }
@@ -223,6 +223,8 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
+                self.rule_state.get_context().write().unwrap().body =
+                    Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 ProcessedEvent::ReplyChangeState(StateSMTP::Data, SMTPReplyCode::Code354)
             }
 
@@ -273,7 +275,7 @@ impl Transaction<'_> {
                 let mut output = MailContext {
                     client_addr: ctx.client_addr,
                     envelop: Envelop::default(),
-                    body: Body::Raw(String::default()),
+                    body: Body::Empty,
                     metadata: None,
                 };
 
@@ -315,7 +317,7 @@ impl Transaction<'_> {
 
                 let ctx = self.rule_state.get_context();
                 let mut ctx = ctx.write().unwrap();
-                ctx.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
+                ctx.body = Body::Empty;
                 ctx.envelop.rcpt.clear();
                 ctx.envelop.mail_from = mail_from;
                 ctx.metadata = Some(MessageMetadata {

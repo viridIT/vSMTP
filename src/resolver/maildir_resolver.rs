@@ -122,6 +122,9 @@ impl Resolver for MailDirResolver {
                 log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
                 match &mail.body {
+                    Body::Empty => {
+                        anyhow::bail!("failed to write email using maildir: body is empty")
+                    }
                     Body::Raw(content) => {
                         Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), content)
                             .map_err(|error| {
@@ -133,7 +136,23 @@ impl Resolver for MailDirResolver {
                                 error
                             })?
                     }
-                    _ => todo!(),
+                    Body::Parsed(email) => {
+                        let (headers, body) = email.to_raw();
+
+                        Self::write_to_maildir(
+                            rcpt,
+                            mail.metadata.as_ref().unwrap(),
+                            format!("{headers}\n{body}").as_str(),
+                        )
+                        .map_err(|error| {
+                            log::error!(
+                                target: RESOLVER,
+                                "Couldn't write email to inbox: {:?}",
+                                error
+                            );
+                            error
+                        })?
+                    }
                 }
             }
             Ok(())

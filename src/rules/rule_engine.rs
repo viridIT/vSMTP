@@ -20,7 +20,7 @@ use crate::queue::Queue;
 use crate::rules::obj::Object;
 use crate::rules::operation_queue::{Operation, OperationQueue};
 use crate::smtp::envelop::Envelop;
-use crate::smtp::mail::{Body, MailContext, MessageMetadata, MAIL_CAPACITY};
+use crate::smtp::mail::{Body, MailContext, MessageMetadata};
 
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
@@ -69,7 +69,7 @@ impl<'a> RuleState<'a> {
         let ctx = Arc::new(RwLock::new(MailContext {
             client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
             envelop: Envelop::default(),
-            body: Body::Raw(String::default()),
+            body: Body::Empty,
             metadata: None,
         }));
 
@@ -192,7 +192,7 @@ impl<'a> RuleState<'a> {
     pub(crate) fn reset(&mut self) {
         let mut ctx = self.ctx.write().unwrap();
 
-        ctx.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
+        ctx.body = Body::Empty;
         ctx.envelop = Envelop::default();
         ctx.metadata = None;
     }
@@ -485,7 +485,7 @@ impl RuleEngine {
                 Arc::new(RwLock::new(MailContext {
                     client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
                     envelop: Envelop::default(),
-                    body: Body::Raw(String::default()),
+                    body: Body::Empty,
                     metadata: None,
                 })),
             )

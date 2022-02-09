@@ -66,10 +66,11 @@ impl Resolver for SMTPResolver {
                             .build();
 
                         let result = match &ctx.body {
+                            Body::Empty => anyhow::bail!("failed to send email: body is empty"),
+                            Body::Raw(raw) => mailer.send_raw(&envelop, raw.as_bytes()),
                             Body::Parsed(mail) => {
                                 mailer.send_raw(&envelop, mail.to_raw().1.as_bytes())
                             }
-                            Body::Raw(raw) => mailer.send_raw(&envelop, raw.as_bytes()),
                         };
 
                         match result {

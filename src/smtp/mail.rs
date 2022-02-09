@@ -49,6 +49,7 @@ impl Default for MessageMetadata {
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Body {
+    Empty,
     Raw(String),
     Parsed(Box<crate::mime::mail::Mail>),
 }

@@ -42,6 +42,9 @@ impl Resolver for MBoxResolver {
                     let timestamp = timestamp.format("%c");
 
                     let content = match &ctx.body {
+                        Body::Empty => {
+                            anyhow::bail!("failed to write email using mbox: body is empty")
+                        }
                         Body::Raw(raw) => {
                             format!("From {} {timestamp}\n{raw}\n", ctx.envelop.mail_from)
                         }
