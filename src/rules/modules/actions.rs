@@ -75,54 +75,49 @@ pub mod actions {
         Status::Block
     }
 
-    // /// logs a message to stdout, stderr or a file.
-    // #[rhai_fn(name = "__LOG", return_raw)]
-    // pub fn log(message: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
-    //     match path {
-    //         "stdout" => {
-    //             println!("{}", message);
-    //             Ok(())
-    //         }
-    //         "stderr" => {
-    //             eprintln!("{}", message);
-    //             Ok(())
-    //         }
-    //         _ => {
-    //             // the only writer on "objects" is called and unlocked
-    //             // at the start of the server, we can unwrap here.
-    //             let path = match acquire_engine().objects.read().unwrap().get(path) {
-    //                 // from_str is infallible, we can unwrap.
-    //                 Some(Object::Var(p)) => {
-    //                     <std::path::PathBuf as std::str::FromStr>::from_str(p.as_str()).unwrap()
-    //                 }
-    //                 _ => <std::path::PathBuf as std::str::FromStr>::from_str(path).unwrap(),
-    //             };
+    /// logs a message to stdout, stderr or a file.
+    #[rhai_fn(name = "LOG", return_raw)]
+    pub fn log(message: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
+        match path {
+            "stdout" => {
+                println!("{}", message);
+                Ok(())
+            }
+            "stderr" => {
+                eprintln!("{}", message);
+                Ok(())
+            }
+            _ => {
+                match std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                {
+                    Ok(file) => {
+                        let mut writer = std::io::LineWriter::new(file);
 
-    //             match std::fs::OpenOptions::new()
-    //                 .create(true)
-    //                 .append(true)
-    //                 .open(&path)
-    //             {
-    //                 Ok(file) => {
-    //                     let mut writer = std::io::LineWriter::new(file);
+                        std::io::Write::write_all(&mut writer, format!("{message}\n").as_bytes())
+                            .map_err::<Box<EvalAltResult>, _>(|err| {
+                                format!("LOG action error: {err:?}").into()
+                            })
+                    }
+                    Err(err) => Err(format!("LOG action error: {err:?}",).into()),
+                }
+            }
+        }
+    }
 
-    //                     std::io::Write::write_all(&mut writer, message.as_bytes()).map_err::<Box<
-    //                         EvalAltResult,
-    //                     >, _>(
-    //                         |_| format!("could not log to '{:?}'.", path).into(),
-    //                     )?;
-    //                     std::io::Write::write_all(&mut writer, b"\n")
-    //                         .map_err(|_| format!("could not log to '{:?}'.", path).into())
-    //                 }
-    //                 Err(error) => Err(format!(
-    //                     "'{:?}' is not a valid path to log to: {:#?}",
-    //                     path, error
-    //                 )
-    //                 .into()),
-    //             }
-    //         }
-    //     }
-    // }
+    /// logs a message to stdout, stderr or a file.
+    #[rhai_fn(name = "LOG_OUT", return_raw)]
+    pub fn log_out(message: &str) -> Result<(), Box<EvalAltResult>> {
+        log(message, "stdout")
+    }
+
+    /// logs a message to stdout, stderr or a file.
+    #[rhai_fn(name = "LOG_ERR", return_raw)]
+    pub fn log_err(message: &str) -> Result<(), Box<EvalAltResult>> {
+        log(message, "stderr")
+    }
 
     // // NOTE: this function needs to be curried to access data,
     // //       could it be added to the operation queue ?
