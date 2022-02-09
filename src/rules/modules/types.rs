@@ -23,7 +23,7 @@ pub mod types {
     use crate::rules::modules::EngineResult;
     use crate::rules::obj::Object;
 
-    // std::process::Output
+    // shell service output (std::process::Output).
 
     #[rhai_fn(get = "stdout", return_raw)]
     pub fn stdout(this: &mut std::process::Output) -> EngineResult<String> {
@@ -99,7 +99,7 @@ pub mod types {
         this.domain().to_string()
     }
 
-    // std::sync::Arc<Object>
+    // vsmtp's rule engine obj syntax (std::sync::Arc<Object>).
 
     #[rhai_fn(name = "to_string")]
     pub fn object_to_string(this: &mut std::sync::Arc<Object>) -> String {
@@ -111,78 +111,39 @@ pub mod types {
         format!("{:#?}", **this)
     }
 
-    // // adding an Address hash set as a custom type.
-    // // used to easily manipulate the rcpt container.
-    // .register_iterator::<HashSet<Address>>()
-    // .register_iterator::<Vec<String>>()
-    // .register_fn("insert", <HashSet<Address>>::insert)
-    // // extract all users / domains from the rcpt set.
-    // .register_get("local_part", |set: &mut HashSet<Address>| -> Vec<String> {
-    //     set.iter().map(|addr| addr.local_part().to_string()).collect()
-    // })
-    // .register_get("domain", |set: &mut HashSet<Address>| -> Vec<String> {
-    //     set.iter().map(|addr| addr.domain().to_string()).collect()
-    // })
+    // rcpt container (std::collections::HashSet<Address>)
 
-    // // added an overload to insert an address using a string.
-    // .register_result_fn("insert", |set: &mut HashSet::<Address>, value: String| {
-    //     match Address::new(&value) {
-    //         Ok(addr) => {
-    //             set.insert(addr);
-    //             Ok(())
-    //         },
-    //         Err(error) =>
-    //             Err(format!(
-    //                 "failed to insert address in set: {}",
-    //                 error
-    //             )
-    //             .into()),
-    //     }
-    // })
+    #[rhai_fn(get = "local_parts")]
+    pub fn hash_set_local_parts(this: &mut std::collections::HashSet<Address>) -> Vec<String> {
+        this.iter()
+            .map(|addr| addr.local_part().to_string())
+            .collect()
+    }
 
-    // // need to overload remove because the address isn't passed by ref in rhai.
-    // .register_fn("remove", |set: &mut HashSet::<Address>, addr: Address| {
-    //     set.remove(&addr);
-    // })
+    #[rhai_fn(get = "domains")]
+    pub fn hash_set_domains(this: &mut std::collections::HashSet<Address>) -> Vec<String> {
+        this.iter().map(|addr| addr.domain().to_string()).collect()
+    }
 
-    // // added an overload to remove an address using a string.
-    // .register_result_fn("remove", |set: &mut HashSet::<Address>, value: String| {
-    //     match Address::new(&value) {
-    //         Ok(addr) => {
-    //             set.remove(&addr);
-    //             Ok(())
-    //         },
-    //         Err(error) => Err(format!(
-    //             "failed to remove address from set: {}",
-    //             error
-    //         )
-    //         .into()),
-    //     }
-    // })
+    #[rhai_fn(name = "to_string")]
+    pub fn hash_set_to_string(this: &mut std::collections::HashSet<Address>) -> String {
+        format!("{this:?}")
+    }
 
-    // // added an overload to replace an address using a string.
-    // .register_result_fn("replace", |set: &mut HashSet::<Address>, to_replace: String, value: String| {
-    //     let to_replace = match Address::new(&to_replace) {
-    //         Ok(addr) => addr,
-    //         Err(error) => return Err(format!(
-    //             "failed to replace address from set: {}",
-    //             error
-    //         )
-    //         .into()),
-    //     };
+    #[rhai_fn(name = "to_debug")]
+    pub fn hash_set_to_debug(this: &mut std::collections::HashSet<Address>) -> String {
+        format!("{this:#?}")
+    }
 
-    //     if set.contains(&to_replace) {
-    //         set.remove(&to_replace);
-    //         match Address::new(&value) {
-    //             Ok(addr) => set.insert(addr),
-    //             Err(error) => return Err(format!(
-    //                 "failed to replace address from set: {}",
-    //                 error
-    //             )
-    //             .into()),
-    //         };
-    //     }
+    // local & domain containers (Vec<String>).
 
-    //     Ok(())
-    // })
+    #[rhai_fn(name = "to_string")]
+    pub fn vec_to_string(this: &mut Vec<String>) -> String {
+        format!("{this:?}")
+    }
+
+    #[rhai_fn(name = "to_debug")]
+    pub fn vec_to_debug(this: &mut Vec<String>) -> String {
+        format!("{this:#?}")
+    }
 }
