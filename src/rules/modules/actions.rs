@@ -21,7 +21,7 @@ use rhai::plugin::*;
 #[export_module]
 pub mod actions {
 
-    use crate::{config::log_channel::RULES, rules::rule_engine::Status, smtp::mail::MailContext};
+    use crate::rules::rule_engine::Status;
 
     // #[rhai_fn(name = "__SHELL", return_raw)]
     // pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {
@@ -119,38 +119,58 @@ pub mod actions {
         log(message, "stderr")
     }
 
-    // // NOTE: instead of filling the email using arguments, should we create a 'mail' object
-    // //       defined beforehand in the user's object files ?
-    // /// (WARNING: NOT YET FUNCTIONAL)
-    // /// sends a mail.
-    // /// the body can be formatted using html.
-    // #[rhai_fn(name = "__MAIL", return_raw)]
-    // pub fn send_mail(
-    //     from: &str,
-    //     to: &str,
-    //     subject: &str,
-    //     body: &str,
-    // ) -> Result<(), Box<EvalAltResult>> {
-    //     let email = Message::builder()
-    //         .from(from.parse().unwrap())
-    //         .to(to.parse().unwrap())
-    //         .subject(subject)
-    //         .body(String::from(body))
-    //         .unwrap();
+    /// sends a mail, the body can be formatted using html.
+    #[rhai_fn(name = "MAIL", return_raw)]
+    pub fn mail(
+        from: &str,
+        to: rhai::Array,
+        path: &str,
+        relay: &str,
+    ) -> Result<(), Box<EvalAltResult>> {
+        // TODO: email could be cached using an object. (obj mail "my_mail" "/path/to/mail")
+        let email = std::fs::read_to_string(path).map_err::<Box<EvalAltResult>, _>(|err| {
+            format!("MAIL action failed: {err:?}").into()
+        })?;
 
-    //     // TODO: replace unencrypted_localhost by a valid host.
-    //     // NOTE: unscripted_localhost is used for test purposes.
-    //     match SmtpTransport::unencrypted_localhost().send(&email) {
-    //         Ok(_) => Ok(()),
-    //         Err(error) => Err(EvalAltResult::ErrorInFunctionCall(
-    //             "MAIL".to_string(),
-    //             "__MAIL".to_string(),
-    //             format!("Couldn't send the email: {}", error).into(),
-    //             Position::NONE,
-    //         )
-    //         .into()),
-    //     }
-    // }
+        let envelop = lettre::address::Envelope::new(
+            Some(from.parse().map_err::<Box<EvalAltResult>, _>(|err| {
+                format!("MAIL action failed: {err:?}").into()
+            })?),
+            to.into_iter()
+                // NOTE: address that couldn't be converted will be silently dropped.
+                .flat_map(|rcpt| {
+                    rcpt.try_cast::<String>()
+                        .and_then(|s| s.parse::<lettre::Address>().map(Some).unwrap_or(None))
+                })
+                .collect(),
+        )
+        .map_err::<Box<EvalAltResult>, _>(|err| format!("MAIL action failed: {err:?}").into())?;
+
+        println!("sending email");
+
+        match lettre::Transport::send_raw(
+            &lettre::SmtpTransport::relay(relay)
+                .map_err::<Box<EvalAltResult>, _>(|err| {
+                    format!("MAIL action failed: {err:?}").into()
+                })?
+                .credentials(lettre::transport::smtp::authentication::Credentials::new(
+                    "tab.rysak70@gmail.com".to_string(),
+                    "PJo2MXhzseBhdw4xiHxy7&ykFW6Q^Zq!&ZHSv%7T5nhXQGTqXa".to_string(),
+                ))
+                .build(),
+            &envelop,
+            email.as_bytes(),
+        ) {
+            Ok(_) => {
+                println!("email has been sent");
+                Ok(())
+            }
+            Err(err) => {
+                println!("email not sent");
+                Err(format!("MAIL action failed: {err:?}").into())
+            }
+        }
+    }
 
     // #[rhai_fn(name = "__LOOKUP_MAIL_FROM", return_raw)]
     // /// check the client's ip matches against the hostname passed has parameter.
