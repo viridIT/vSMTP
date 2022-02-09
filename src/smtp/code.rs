@@ -42,6 +42,8 @@
 
 #[derive(
     Debug,
+    Ord,
+    PartialOrd,
     Eq,
     PartialEq,
     Hash,

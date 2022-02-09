@@ -41,7 +41,7 @@ impl Resolver for DefaultResolverTest {
 fn get_test_config() -> std::sync::Arc<ServerConfig> {
     std::sync::Arc::new(
         ServerConfig::builder()
-            .with_server_default_port("bench.server.com")
+            .with_rfc_port("bench.server.com")
             .without_log()
             .without_smtps()
             .with_default_smtp()

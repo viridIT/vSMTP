@@ -115,13 +115,27 @@ pub struct InnerDeliveryConfig {
     pub queues: std::collections::HashMap<String, QueueConfig>,
 }
 
+fn ordered_map<S>(
+    value: &std::collections::HashMap<SMTPReplyCode, String>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serde::Serialize::serialize(
+        &value.iter().collect::<std::collections::BTreeMap<_, _>>(),
+        serializer,
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(transparent)]
 pub struct Codes {
+    #[serde(serialize_with = "ordered_map")]
     pub codes: std::collections::HashMap<SMTPReplyCode, String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ServerConfig {
     pub server: InnerServerConfig,
     pub log: InnerLogConfig,

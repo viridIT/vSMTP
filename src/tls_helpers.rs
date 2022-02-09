@@ -27,9 +27,11 @@ fn get_signing_key_from_file(
     let private_keys_rsa = rustls_pemfile::read_one(&mut reader)?
         .into_iter()
         .map(|i| match i {
-            rustls_pemfile::Item::X509Certificate(i) => rustls::PrivateKey(i),
-            rustls_pemfile::Item::RSAKey(i) => rustls::PrivateKey(i),
-            rustls_pemfile::Item::PKCS8Key(i) => rustls::PrivateKey(i),
+            rustls_pemfile::Item::RSAKey(i)
+            | rustls_pemfile::Item::X509Certificate(i)
+            | rustls_pemfile::Item::PKCS8Key(i)
+            | rustls_pemfile::Item::ECKey(i) => rustls::PrivateKey(i),
+            _ => todo!(),
         })
         .collect::<Vec<_>>();
 
