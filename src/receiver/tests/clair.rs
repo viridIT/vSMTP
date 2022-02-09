@@ -24,7 +24,7 @@ use crate::{
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
-fn get_regular_config() -> ServerConfig {
+fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
         .with_rfc_port("test.server.com")
         .without_log()
@@ -83,7 +83,7 @@ async fn test_receiver_1() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -101,7 +101,7 @@ async fn test_receiver_2() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -119,7 +119,7 @@ async fn test_receiver_3() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -137,7 +137,7 @@ async fn test_receiver_4() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -158,7 +158,7 @@ async fn test_receiver_5() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -177,7 +177,7 @@ async fn test_receiver_6() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -216,7 +216,7 @@ async fn test_receiver_7() {
 */
 
 #[tokio::test]
-async fn test_receiver_8() {
+async fn test_receiver_8() -> anyhow::Result<()> {
     assert!(test_receiver(
         "127.0.0.1:0",
         DefaultResolverTest,
@@ -243,11 +243,13 @@ async fn test_receiver_8() {
                 .with_delivery("./tmp/delivery", crate::collection! {})
                 .with_rules("./tmp/nothing")
                 .with_default_reply_codes()
-                .build()
+                .build()?
         )
     )
     .await
     .is_ok());
+
+    Ok(())
 }
 
 #[tokio::test]
@@ -284,7 +286,7 @@ async fn test_receiver_9() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await;
 
@@ -295,7 +297,7 @@ async fn test_receiver_9() {
 }
 
 #[tokio::test]
-async fn test_receiver_10() {
+async fn test_receiver_10() -> anyhow::Result<()> {
     assert!(test_receiver(
         "127.0.0.1:0",
         DefaultResolverTest,
@@ -315,11 +317,12 @@ async fn test_receiver_10() {
                 .with_delivery("./tmp/delivery", crate::collection! {})
                 .with_rules("./tmp/nothing")
                 .with_default_reply_codes()
-                .build()
+                .build()?
         )
     )
     .await
     .is_ok());
+    Ok(())
 }
 
 #[tokio::test]
@@ -350,7 +353,7 @@ async fn test_receiver_11() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -384,7 +387,7 @@ async fn test_receiver_11_bis() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -392,7 +395,7 @@ async fn test_receiver_11_bis() {
 
 #[tokio::test]
 async fn test_receiver_12() {
-    let mut config = get_regular_config();
+    let mut config = get_regular_config().unwrap();
     config.smtp.disable_ehlo = true;
 
     assert!(test_receiver(
@@ -489,7 +492,7 @@ async fn test_receiver_13() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());
@@ -575,7 +578,7 @@ async fn test_receiver_14() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        std::sync::Arc::new(get_regular_config().unwrap()),
     )
     .await
     .is_ok());

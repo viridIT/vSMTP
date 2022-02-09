@@ -48,7 +48,8 @@ fn get_test_config() -> std::sync::Arc<ServerConfig> {
             .with_delivery("./tmp/bench", vsmtp::collection! {})
             .with_rules("./tmp/no_rules")
             .with_default_reply_codes()
-            .build(),
+            .build()
+            .unwrap(),
     )
 }
 

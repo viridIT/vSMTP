@@ -22,7 +22,6 @@ use super::server_config::{
     ProtocolVersionRequirement, QueueConfig, ServerConfig, SniKey, TlsSecurityLevel,
 };
 
-// #[derive(Clone)]
 pub struct ConfigBuilder<State> {
     pub(crate) state: State,
 }
@@ -35,10 +34,10 @@ impl ServerConfig {
     }
 
     pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
-        Ok(ConfigBuilder::<WantsBuild> {
+        ConfigBuilder::<WantsBuild> {
             state: toml::from_str::<WantsBuild>(data)?,
         }
-        .build())
+        .build()
     }
 }
 
@@ -97,7 +96,7 @@ pub struct WantsLogging {
 impl ConfigBuilder<WantsLogging> {
     pub fn with_logging(
         self,
-        file: impl Into<String>,
+        file: impl Into<std::path::PathBuf>,
         level: std::collections::HashMap<String, log::LevelFilter>,
     ) -> ConfigBuilder<WantSMTPS> {
         ConfigBuilder::<WantSMTPS> {
@@ -135,10 +134,10 @@ impl ConfigBuilder<WantSMTPS> {
         self,
         security_level: TlsSecurityLevel,
         protocol_version: ProtocolVersionRequirement,
-        capath: impl Into<String>,
+        capath: impl Into<std::path::PathBuf>,
         preempt_cipherlist: bool,
-        fullchain: impl Into<String>,
-        private_key: impl Into<String>,
+        fullchain: impl Into<std::path::PathBuf>,
+        private_key: impl Into<std::path::PathBuf>,
         handshake_timeout: std::time::Duration,
         sni_maps: Option<Vec<SniKey>>,
     ) -> ConfigBuilder<WantSMTP> {
@@ -162,8 +161,8 @@ impl ConfigBuilder<WantSMTPS> {
     pub fn with_safe_default_smtps(
         self,
         security_level: TlsSecurityLevel,
-        fullchain: impl Into<String>,
-        private_key: impl Into<String>,
+        fullchain: impl Into<std::path::PathBuf>,
+        private_key: impl Into<std::path::PathBuf>,
         sni_maps: Option<Vec<SniKey>>,
     ) -> ConfigBuilder<WantSMTP> {
         self.with_smtps(
@@ -325,7 +324,17 @@ pub struct WantsBuild {
 }
 
 impl ConfigBuilder<WantsBuild> {
-    pub fn build(mut self) -> ServerConfig {
+    pub fn build(mut self) -> anyhow::Result<ServerConfig> {
+        let log_file = &self.state.parent.parent.parent.parent.parent.logs.file;
+
+        let log_folder_white_list = ["/tmp", "/var/log/vsmtp", " /var/tmp", "./"];
+        if log_folder_white_list
+            .iter()
+            .all(|i| !log_file.starts_with(i))
+        {
+            anyhow::bail!("path provided is not whitelisted: '{:?}'", log_file);
+        }
+
         let server_domain = &self
             .state
             .parent
@@ -355,24 +364,36 @@ impl ConfigBuilder<WantsBuild> {
         if let Some(smtps) = &mut self.state.parent.parent.parent.parent.smtps {
             smtps.fullchain = smtps
                 .fullchain
-                .replace("{capath}", &smtps.capath)
-                .replace("{domain}", server_domain);
+                .to_str()
+                .unwrap()
+                .replace("{capath}", smtps.capath.to_str().unwrap())
+                .replace("{domain}", server_domain)
+                .into();
             smtps.private_key = smtps
                 .private_key
-                .replace("{capath}", &smtps.capath)
-                .replace("{domain}", server_domain);
+                .to_str()
+                .unwrap()
+                .replace("{capath}", smtps.capath.to_str().unwrap())
+                .replace("{domain}", server_domain)
+                .into();
 
             if let Some(sni_maps) = &mut smtps.sni_maps {
                 for i in sni_maps.iter_mut() {
                     *i = SniKey {
                         fullchain: i
                             .fullchain
+                            .to_str()
+                            .unwrap()
                             .replace("{domain}", &i.domain)
-                            .replace("{capath}", &smtps.capath),
+                            .replace("{capath}", smtps.capath.to_str().unwrap())
+                            .into(),
                         private_key: i
                             .private_key
+                            .to_str()
+                            .unwrap()
                             .replace("{domain}", &i.domain)
-                            .replace("{capath}", &smtps.capath),
+                            .replace("{capath}", smtps.capath.to_str().unwrap())
+                            .into(),
                         domain: i.domain.clone(),
                         protocol_version: i.protocol_version.clone(),
                     }
@@ -380,7 +401,7 @@ impl ConfigBuilder<WantsBuild> {
             }
         };
 
-        ServerConfig {
+        Ok(ServerConfig {
             server: self.state.parent.parent.parent.parent.parent.parent.server,
             log: self.state.parent.parent.parent.parent.parent.logs,
             smtps: self.state.parent.parent.parent.parent.smtps,
@@ -388,7 +409,7 @@ impl ConfigBuilder<WantsBuild> {
             delivery: self.state.parent.parent.delivery,
             rules: self.state.parent.rules,
             reply_codes: self.state.reply_codes,
-        }
+        })
     }
 }
 
@@ -448,14 +469,11 @@ mod tests {
             .with_rules("/tmp/re")
             .with_default_reply_codes()
             .build();
-
-        // config.
-
         Ok(())
     }
 
     #[test]
-    fn from_toml_template_simple() {
+    fn from_toml_template_simple() -> anyhow::Result<()> {
         assert_eq!(
             ServerConfig::from_toml(include_str!("template/simple.toml")).unwrap(),
             ServerConfig::builder()
@@ -491,11 +509,13 @@ mod tests {
                 .with_rules("/etc/vsmtp/rules")
                 .with_default_reply_codes()
                 .build()
+                .unwrap()
         );
+        Ok(())
     }
 
     #[test]
-    fn from_toml_template_smtps() {
+    fn from_toml_template_smtps() -> anyhow::Result<()> {
         assert_eq!(
             ServerConfig::from_toml(include_str!("template/smtps.toml")).unwrap(),
             ServerConfig::builder()
@@ -523,8 +543,8 @@ mod tests {
                     std::time::Duration::from_millis(100),
                     Some(vec![SniKey {
                         domain: "testserver.com".to_string(),
-                        private_key: "{capath}/rsa.{domain}.pem".to_string(),
-                        fullchain: "{capath}/fullchain.{domain}.pem".to_string(),
+                        private_key: "{capath}/rsa.{domain}.pem".into(),
+                        fullchain: "{capath}/fullchain.{domain}.pem".into(),
                         protocol_version: None
                     }]),
                 )
@@ -552,6 +572,8 @@ mod tests {
                 .with_rules("./config/rules")
                 .with_default_reply_codes()
                 .build()
+                .unwrap()
         );
+        Ok(())
     }
 }

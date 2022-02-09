@@ -32,7 +32,7 @@ pub struct InnerServerConfig {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct InnerLogConfig {
     #[serde(default = "InnerLogConfig::default_file")]
-    pub file: String,
+    pub file: std::path::PathBuf,
     pub level: std::collections::HashMap<String, log::LevelFilter>,
 }
 
@@ -45,8 +45,8 @@ pub enum TlsSecurityLevel {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct SniKey {
     pub domain: String,
-    pub private_key: String,
-    pub fullchain: String,
+    pub private_key: std::path::PathBuf,
+    pub fullchain: std::path::PathBuf,
     pub protocol_version: Option<ProtocolVersionRequirement>,
 }
 
@@ -61,10 +61,10 @@ pub struct ProtocolVersionRequirement(pub Vec<ProtocolVersion>);
 pub struct InnerSmtpsConfig {
     pub security_level: TlsSecurityLevel,
     pub protocol_version: ProtocolVersionRequirement,
-    pub capath: String,
+    pub capath: std::path::PathBuf,
     pub preempt_cipherlist: bool,
-    pub fullchain: String,
-    pub private_key: String,
+    pub fullchain: std::path::PathBuf,
+    pub private_key: std::path::PathBuf,
     #[serde(with = "humantime_serde")]
     pub handshake_timeout: std::time::Duration,
     pub sni_maps: Option<Vec<SniKey>>,
@@ -115,23 +115,10 @@ pub struct InnerDeliveryConfig {
     pub queues: std::collections::HashMap<String, QueueConfig>,
 }
 
-fn ordered_map<S>(
-    value: &std::collections::HashMap<SMTPReplyCode, String>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serde::Serialize::serialize(
-        &value.iter().collect::<std::collections::BTreeMap<_, _>>(),
-        serializer,
-    )
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(transparent)]
 pub struct Codes {
-    #[serde(serialize_with = "ordered_map")]
+    #[serde(serialize_with = "crate::config::serializer::ordered_map")]
     pub codes: std::collections::HashMap<SMTPReplyCode, String>,
 }
 

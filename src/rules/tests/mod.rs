@@ -98,7 +98,7 @@ pub mod helpers {
             .with_delivery("./tests/generated/spool/", collection! {})
             .with_rules(src_path)
             .with_default_reply_codes()
-            .build();
+            .build()?;
 
         // init logs once.
         INIT.call_once(|| {

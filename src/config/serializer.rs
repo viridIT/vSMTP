@@ -1,3 +1,5 @@
+use crate::smtp::code::SMTPReplyCode;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -15,6 +17,19 @@
  *
 **/
 use super::server_config::{ProtocolVersion, ProtocolVersionRequirement};
+
+pub(super) fn ordered_map<S>(
+    value: &std::collections::HashMap<SMTPReplyCode, String>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serde::Serialize::serialize(
+        &value.iter().collect::<std::collections::BTreeMap<_, _>>(),
+        serializer,
+    )
+}
 
 const ALL_PROTOCOL_VERSION: [ProtocolVersion; 6] = [
     ProtocolVersion(rustls::ProtocolVersion::SSLv2),

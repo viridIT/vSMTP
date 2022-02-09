@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
                     // TODO: default
                     .with_rules("/etc/vsmtp/rules")
                     .with_default_reply_codes()
-                    .build(),
+                    .build()?,
             )?;
             for diff in diff::lines(&default_config, &loaded_config) {
                 match diff {

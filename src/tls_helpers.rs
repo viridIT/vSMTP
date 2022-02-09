@@ -17,7 +17,7 @@
 use crate::config::server_config::InnerSmtpsConfig;
 
 fn get_signing_key_from_file(
-    rsa_path: &str,
+    rsa_path: &std::path::Path,
 ) -> anyhow::Result<std::sync::Arc<dyn rustls::sign::SigningKey>> {
     let rsa_file = std::fs::File::open(&rsa_path)?;
     let mut reader = std::io::BufReader::new(rsa_file);
@@ -41,7 +41,9 @@ fn get_signing_key_from_file(
     }
 }
 
-pub(crate) fn get_cert_from_file(fullchain_path: &str) -> anyhow::Result<Vec<rustls::Certificate>> {
+pub(crate) fn get_cert_from_file(
+    fullchain_path: &std::path::Path,
+) -> anyhow::Result<Vec<rustls::Certificate>> {
     let fullchain_file = std::fs::File::open(&fullchain_path)?;
     let mut reader = std::io::BufReader::new(fullchain_file);
     Ok(rustls_pemfile::certs(&mut reader).map(|certs| {
