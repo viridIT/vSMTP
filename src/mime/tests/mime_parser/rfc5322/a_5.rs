@@ -1,0 +1,54 @@
+use crate::mime::{
+    mail::{BodyType, Mail},
+    parser::MailMimeParser,
+};
+
+// FIXME: this one is not passing :
+// issue for escape parenthesis in comment :
+// `hello(foo \) bar) world` => `hello world`
+
+#[test]
+#[ignore]
+fn white_space_and_comments() {
+    assert_eq!(
+        MailMimeParser::default()
+            .parse(include_str!("../../mail/rfc5322/A.5.eml").as_bytes())
+            .unwrap(),
+        Mail {
+            headers: vec![
+                ("from", "Pete <pete@silly.test>"),
+                (
+                    "to",
+                    concat!(
+                        "A Group",
+                        "     :Chris Jones <c@public.example>,",
+                        "         joe@example.org,",
+                        "  John <jdoe@one.test> ; ",
+                    )
+                ),
+                ("cc", "Hidden recipients  :  ;"),
+                (
+                    "date",
+                    concat!(
+                        "Thu,",
+                        "      13",
+                        "        Feb",
+                        "          1969",
+                        "      23:32",
+                        "               -0330 "
+                    )
+                ),
+                ("message-id", "<testabcd.1234@silly.test>"),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<Vec<_>>(),
+            body: BodyType::Regular(
+                vec!["Testing."]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<_>()
+            )
+        }
+    );
+}

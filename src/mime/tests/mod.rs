@@ -18,6 +18,8 @@
 pub mod mime_parser {
     use crate::mime::parser::MailMimeParser;
 
+    mod rfc5322;
+
     #[allow(non_snake_case)]
     mod allen_p__discussion_threads__1;
 
