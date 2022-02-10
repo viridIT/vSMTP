@@ -111,7 +111,7 @@ pub struct QueueConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct InnerDeliveryConfig {
-    pub spool_dir: String,
+    pub spool_dir: std::path::PathBuf,
     pub queues: std::collections::HashMap<String, QueueConfig>,
 }
 

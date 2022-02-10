@@ -37,14 +37,10 @@ pub struct ServerVSMTP {
 
 impl ServerVSMTP {
     pub async fn new(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<Self> {
-        let spool_dir =
-            <std::path::PathBuf as std::str::FromStr>::from_str(&config.delivery.spool_dir)
-                .unwrap();
-
-        if !spool_dir.exists() {
+        if !config.delivery.spool_dir.exists() {
             std::fs::DirBuilder::new()
                 .recursive(true)
-                .create(spool_dir)?;
+                .create(&config.delivery.spool_dir)?;
         }
 
         let mut resolvers =
