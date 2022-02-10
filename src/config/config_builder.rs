@@ -85,7 +85,6 @@ impl ConfigBuilder<WantsServer> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-// #[serde(deny_unknown_fields)]
 pub struct WantsLogging {
     #[serde(skip)]
     #[allow(unused)]
@@ -121,7 +120,6 @@ impl ConfigBuilder<WantsLogging> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-// #[serde(deny_unknown_fields)]
 pub struct WantSMTPS {
     #[serde(flatten)]
     pub(crate) parent: WantsLogging,
@@ -191,7 +189,6 @@ impl ConfigBuilder<WantSMTPS> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-// #[serde(deny_unknown_fields)]
 pub struct WantSMTP {
     #[serde(flatten)]
     pub(crate) parent: WantSMTPS,
@@ -241,7 +238,6 @@ impl ConfigBuilder<WantSMTP> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-// #[serde(deny_unknown_fields)]
 pub struct WantsDelivery {
     #[serde(flatten)]
     pub(crate) parent: WantSMTP,
@@ -268,7 +264,6 @@ impl ConfigBuilder<WantsDelivery> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-// #[serde(deny_unknown_fields)]
 pub struct WantsRules {
     #[serde(flatten)]
     pub(crate) parent: WantsDelivery,
@@ -289,7 +284,6 @@ impl ConfigBuilder<WantsRules> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-// #[serde(deny_unknown_fields)]
 pub struct WantsReplyCodes {
     #[serde(flatten)]
     pub(crate) parent: WantsRules,
@@ -315,7 +309,6 @@ impl ConfigBuilder<WantsReplyCodes> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-// #[serde(deny_unknown_fields)]
 pub struct WantsBuild {
     #[serde(flatten)]
     pub(crate) parent: WantsReplyCodes,
