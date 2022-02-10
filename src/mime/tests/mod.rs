@@ -58,14 +58,17 @@ pub mod mime_parser {
                     .open("tmp/generated/output.txt")
                     .unwrap();
 
-                let mail = std::fs::read_to_string(entry.path()).map_err(|e| {
-                    std::io::Write::write(
-                        &mut output,
-                        format!("reading failed: '{:?}' error: '{}'\n", entry.path(), e).as_bytes(),
-                    )
+                let mail = std::fs::read_to_string(entry.path())
+                    .map_err(|e| {
+                        std::io::Write::write(
+                            &mut output,
+                            format!("reading failed: '{:?}' error: '{}'\n", entry.path(), e)
+                                .as_bytes(),
+                        )
+                        .unwrap();
+                        e
+                    })
                     .unwrap();
-                    e
-                })?;
 
                 MailMimeParser::default()
                     .parse(mail.as_bytes())

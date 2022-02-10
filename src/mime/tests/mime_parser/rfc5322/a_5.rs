@@ -3,12 +3,7 @@ use crate::mime::{
     parser::MailMimeParser,
 };
 
-// FIXME: this one is not passing :
-// issue for escape parenthesis in comment :
-// `hello(foo \) bar) world` => `hello world`
-
 #[test]
-#[ignore]
 fn white_space_and_comments() {
     assert_eq!(
         MailMimeParser::default()
