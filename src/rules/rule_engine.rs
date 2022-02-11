@@ -56,6 +56,53 @@ pub enum Status {
     Block,
 }
 
+pub enum RuleEngineError {
+    ParsingObjectFailure,
+    ParsingRuleFailure,
+    ParsingActionFailure,
+}
+
+impl From<RuleEngineError> for Box<EvalAltResult> {
+    fn from(error: RuleEngineError) -> Self {
+        match error {
+            RuleEngineError::ParsingObjectFailure => r#"
+failed to parse an object.
+    use the extended syntax:
+
+    obj "type" "name" #{
+        value: ...,
+    };
+
+    or use the inline syntax:
+
+    obj "type" "name" "value";
+                "#
+            .into(),
+
+            RuleEngineError::ParsingRuleFailure => r#"
+failed to parse a rule.
+    use the following syntax:
+
+    rule "name" #{
+        condition: || { ... }, # must be a boolean result.
+        on_success: || { ... }, # must return a status. (CONTINUE, ACCEPT ...)
+        on_failure: || { ... }, # same as above.
+    };
+            "#
+            .into(),
+            RuleEngineError::ParsingActionFailure => r#"
+failed to parse an action.
+    use the following syntax:
+
+    action "name" || {
+        ... # your code to execute. (LOG, QUARANTINE ...)
+    };
+        "#
+            .into(),
+        }
+    }
+}
+
 pub struct RuleState<'a> {
     scope: Scope<'a>,
     ctx: Arc<RwLock<MailContext>>,
@@ -314,7 +361,11 @@ impl RuleEngine {
                     let name = input[0].get_literal_value::<ImmutableString>().unwrap();
                     let map = &input[1];
 
-                    let mut rule: Map = context.eval_expression_tree(map)?.cast();
+                    let mut rule: Map = context
+                        .eval_expression_tree(map)?
+                        .try_cast()
+                        .ok_or(RuleEngineError::ParsingRuleFailure)?;
+
                     rule.insert("name".into(), Dynamic::from(name));
                     rule.insert("type".into(), Dynamic::from("rule"));
 
@@ -346,7 +397,11 @@ impl RuleEngine {
                     let name = input[0].get_literal_value::<ImmutableString>().unwrap();
                     let expr = &input[1];
 
-                    let ptr: rhai::FnPtr = context.eval_expression_tree(expr)?.cast();
+                    let ptr: rhai::FnPtr = context
+                        .eval_expression_tree(expr)?
+                        .try_cast()
+                        .ok_or(RuleEngineError::ParsingActionFailure)?;
+
                     let action = Map::from_iter([
                         ("name".into(), Dynamic::from(name)),
                         ("type".into(), Dynamic::from("action")),
@@ -421,7 +476,9 @@ impl RuleEngine {
 
                             // the object syntax can use a map or an inline string.
                             if object.is::<Map>() {
-                                let mut object: Map = object.cast();
+                                let mut object: Map = object
+                                    .try_cast()
+                                    .ok_or(RuleEngineError::ParsingObjectFailure)?;
                                 object.insert("type".into(), Dynamic::from(var_type.clone()));
                                 object.insert("name".into(), Dynamic::from(var_name.clone()));
                                 object.insert(
@@ -458,7 +515,9 @@ impl RuleEngine {
                             let object = context.eval_expression_tree(&input[2])?;
 
                             if object.is::<Map>() {
-                                let mut object: Map = object.cast();
+                                let mut object: Map = object
+                                    .try_cast()
+                                    .ok_or(RuleEngineError::ParsingObjectFailure)?;
                                 object.insert("type".into(), Dynamic::from(var_type.clone()));
                                 object.insert("name".into(), Dynamic::from(var_name.clone()));
                                 object
