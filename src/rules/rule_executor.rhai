@@ -23,10 +23,13 @@ fn register_rules(rules, stage) {
     }
 
     for r in rules[stage] {
-        let status = switch r.condition() {
-            true => r.on_success(),
-            false => r.on_failure(),
-        };
+        switch r.type {
+            "rule" => status = switch r.condition() {
+                true => r.on_success(),
+                false => r.on_failure(),
+            },
+            "action" => r.execute(),
+        }
 
         if status != CONTINUE() {
             return status;

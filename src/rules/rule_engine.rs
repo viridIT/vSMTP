@@ -289,7 +289,7 @@ impl RuleEngine {
             .register_global_module(exported_module!(crate::rules::modules::types::types).into())
             .register_global_module(exported_module!(crate::rules::modules::email::email).into())
             .disable_symbol("eval")
-            // `rule $name$ #{expr}` container syntax.
+            // `rule $name$ #{expr}` syntax.
             .register_custom_syntax_raw(
                 "rule",
                 |symbols, look_ahead| match symbols.len() {
@@ -316,8 +316,44 @@ impl RuleEngine {
 
                     let mut rule: Map = context.eval_expression_tree(map)?.cast();
                     rule.insert("name".into(), Dynamic::from(name));
+                    rule.insert("type".into(), Dynamic::from("rule"));
 
                     Ok(rule.into())
+                },
+            )
+            // `action $name$ #{expr}` syntax.
+            .register_custom_syntax_raw(
+                "action",
+                |symbols, look_ahead| match symbols.len() {
+                    // action keyword ...
+                    1 => Ok(Some("$string$".into())),
+                    // name of the action ...
+                    2 => Ok(Some("$expr$".into())),
+                    // scope, we are done parsing.
+                    3 => Ok(None),
+                    _ => Err(ParseError(
+                        Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
+                            format!(
+                                "Improper rule declaration: keyword '{}' unknown.",
+                                look_ahead
+                            ),
+                        ))),
+                        Position::NONE,
+                    )),
+                },
+                true,
+                move |context, input| {
+                    let name = input[0].get_literal_value::<ImmutableString>().unwrap();
+                    let expr = &input[1];
+
+                    let ptr: rhai::FnPtr = context.eval_expression_tree(expr)?.cast();
+                    let action = Map::from_iter([
+                        ("name".into(), Dynamic::from(name)),
+                        ("type".into(), Dynamic::from("action")),
+                        ("execute".into(), Dynamic::from(ptr)),
+                    ]);
+
+                    Ok(action.into())
                 },
             )
             // `obj $type[:file_type]$ $name$ #{}` container syntax.
