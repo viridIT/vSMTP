@@ -18,16 +18,18 @@
 fn register_rules(rules, stage) {
     let status = CONTINUE();
 
-    for r in rules {
-        if r.when == stage {
-            let status = switch r.condition() {
-                true => r.on_success(),
-                false => r.on_failure(),
-            };
+    if !rules.contains(stage) {
+        return status;
+    }
 
-            if status != CONTINUE() {
-                return status;
-            }
+    for r in rules[stage] {
+        let status = switch r.condition() {
+            true => r.on_success(),
+            false => r.on_failure(),
+        };
+
+        if status != CONTINUE() {
+            return status;
         }
     }
 

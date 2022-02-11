@@ -244,11 +244,6 @@ impl RuleEngine {
             .context
             .eval_ast_with_scope::<Status>(&mut state.scope, &self.ast);
 
-        // rules are cleared after each evaluation. This way,
-        // scoped variables that are changed by previous rules
-        // can be re-injected back into the script.
-        state.scope.set_value("__rules", Array::new());
-
         match result {
             Ok(status) => {
                 log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
@@ -284,183 +279,185 @@ impl RuleEngine {
         let mut engine = Engine::new();
 
         engine
-        .set_module_resolver(FileModuleResolver::new_with_path_and_extension(script_path.as_ref(), "vsl"))
-        .register_global_module(exported_module!(crate::rules::modules::actions::actions).into())
-        .register_global_module(exported_module!(crate::rules::modules::types::types).into())
-        .register_global_module(exported_module!(crate::rules::modules::email::email).into())
-        .disable_symbol("eval")
-
-        // `rule $when$ $name$ #{expr}` container syntax.
-        .register_custom_syntax_raw(
-            "rule",
-            |symbols, look_ahead| match symbols.len() {
-                // rule keyword ...
-                1 => Ok(Some("$ident$".into())),
-                // when the rule will be executed ...
-                2 => match symbols[1].as_str() {
-                    "connect" | "helo" | "mail" | "rcpt" | "preq" | "postq" | "delivery" => {
-                        Ok(Some("$string$".into()))
-                    }
-                    entry => Err(ParseError(
-                        Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
-                            entry.into(),
-                            format!("Improper rule stage '{}'. Must be connect, helo, mail, rcpt, preq, postq or delivery.", entry),
+            .set_module_resolver(FileModuleResolver::new_with_path_and_extension(
+                script_path.as_ref(),
+                "vsl",
+            ))
+            .register_global_module(
+                exported_module!(crate::rules::modules::actions::actions).into(),
+            )
+            .register_global_module(exported_module!(crate::rules::modules::types::types).into())
+            .register_global_module(exported_module!(crate::rules::modules::email::email).into())
+            .disable_symbol("eval")
+            // `rule $name$ #{expr}` container syntax.
+            .register_custom_syntax_raw(
+                "rule",
+                |symbols, look_ahead| match symbols.len() {
+                    // rule keyword ...
+                    1 => Ok(Some("$string$".into())),
+                    // name of the rule ...
+                    2 => Ok(Some("$expr$".into())),
+                    // map, we are done parsing.
+                    3 => Ok(None),
+                    _ => Err(ParseError(
+                        Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
+                            format!(
+                                "Improper rule declaration: keyword '{}' unknown.",
+                                look_ahead
+                            ),
                         ))),
                         Position::NONE,
                     )),
                 },
-                // name of the rule ...
-                3 => Ok(Some("$expr$".into())),
-                // map, we are done parsing.
-                4 => Ok(None),
-                _ => Err(ParseError(
-                    Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
-                        format!(
-                            "Improper rule declaration: keyword '{}' unknown.",
-                            look_ahead
-                        ),
-                    ))),
-                    Position::NONE,
-                )),
-            },
-            true,
-            move |context, input| {
-                let when = input[0].get_string_value().unwrap().to_string();
-                let name = input[1].get_literal_value::<ImmutableString>().unwrap();
-                let map = &input[2];
+                true,
+                move |context, input| {
+                    let name = input[0].get_literal_value::<ImmutableString>().unwrap();
+                    let map = &input[1];
 
-                let mut rule: Map = context.eval_expression_tree(map)?.cast();
-                rule.insert("name".into(), Dynamic::from(name));
-                rule.insert("when".into(), Dynamic::from(when));
+                    let mut rule: Map = context.eval_expression_tree(map)?.cast();
+                    rule.insert("name".into(), Dynamic::from(name));
 
-                Ok(rule.into())
-            },
-        )
-
-        // `obj $type$ $name$ #{}` container syntax.
-        .register_custom_syntax_raw(
-            "obj",
-            |symbols, look_ahead| match symbols.len() {
-                // obj ...
-                1 => Ok(Some("$ident$".into())),
-                // the type of the object ...
-                2 => match symbols[1].as_str() {
-                    "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "str" | "regex" | "grp" => Ok(Some("$string$".into())),
-                    "file" => Ok(Some("$symbol$".into())),
-                    entry => Err(ParseError(
-                        Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
-                            entry.into(),
-                            format!("Improper object type. '{}'.", entry),
-                        ))),
-                        Position::NONE,
-                    )),
+                    Ok(rule.into())
                 },
-                // name of the object or ':' symbol for files ...
-                3 => match symbols[2].as_str() {
-                    ":" => Ok(Some("$ident$".into())),
-                    _ => Ok(Some("$expr$".into())),
-                }
-                // file content type or info block / value of object, we are done parsing.
-                4 => match symbols[3].as_str() {
-                    // NOTE: could it be possible to add a "file" content type ?
-                    "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "str" | "regex" => Ok(Some("$string$".into())),
-                    _ =>  Ok(None),
-                }
-                // object name for a file.
-                5 => Ok(Some("$expr$".into())),
-                // done parsing file expression.
-                6 => Ok(None),
-                _ => Err(ParseError(
-                    Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
-                        format!(
-                            "Improper object declaration: keyword '{}' unknown.",
-                            look_ahead
-                        ),
-                    ))),
-                    Position::NONE,
-                )),
-            },
-            true,
-            move |context, input| {
-                let var_type = input[0].get_string_value().unwrap().to_string();
-                let var_name: String;
-
-                // FIXME: refactor this expression.
-                // file type as a special syntax (file:type),
-                // so we need a different method to parse it.
-                let object = match var_type.as_str() {
-                    "file" => {
-
-                        let content_type = input[2].get_string_value().unwrap();
-                        var_name = input[3].get_literal_value::<ImmutableString>().unwrap().to_string();
-                        let object = context.eval_expression_tree(&input[4])?;
-
-                        // the object syntax can use a map or an inline string.
-                        if object.is::<Map>() {
-                            let mut object: Map = object.cast();
-                            object.insert("type".into(), Dynamic::from(var_type.clone()));
-                            object.insert("name".into(), Dynamic::from(var_name.clone()));
-                            object.insert("content_type".into(), Dynamic::from(content_type.to_string()));
-                            object
-                        } else if object.is::<String>() {
-                            let mut map = Map::new();
-                            map.insert("type".into(), Dynamic::from(var_type.clone()));
-                            map.insert("name".into(), Dynamic::from(var_name.clone()));
-                            map.insert("content_type".into(), Dynamic::from(content_type.to_string()));
-                            map.insert("value".into(), object);
-                            map
-                        } else {
-                            return Err(EvalAltResult::ErrorMismatchDataType(
-                                "Map | String".to_string(),
-                                object.type_name().to_string(),
-                                Position::NONE,
-                            )
-                            .into());
-                        }
+            )
+            // `obj $type[:file_type]$ $name$ #{}` container syntax.
+            .register_custom_syntax_raw(
+                "obj",
+                |symbols, look_ahead| match symbols.len() {
+                    // obj ...
+                    1 => Ok(Some("$ident$".into())),
+                    // the type of the object ...
+                    2 => match symbols[1].as_str() {
+                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "str" | "regex"
+                        | "grp" => Ok(Some("$string$".into())),
+                        "file" => Ok(Some("$symbol$".into())),
+                        entry => Err(ParseError(
+                            Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
+                                entry.into(),
+                                format!("Improper object type. '{}'.", entry),
+                            ))),
+                            Position::NONE,
+                        )),
                     },
-
-                    // generic type, we can parse it easily.
-                    _ => {
-                        var_name = input[1].get_literal_value::<ImmutableString>().unwrap().to_string();
-                        let object = context.eval_expression_tree(&input[2])?;
-
-                        if object.is::<Map>() {
-                            let mut object: Map = object.cast();
-                            object.insert("type".into(), Dynamic::from(var_type.clone()));
-                            object.insert("name".into(), Dynamic::from(var_name.clone()));
-                            object
-                        } else if object.is::<String>() || object.is::<Array>() {
-                            let mut map = Map::new();
-                            map.insert("type".into(), Dynamic::from(var_type.clone()));
-                            map.insert("name".into(), Dynamic::from(var_name.clone()));
-                            map.insert("value".into(), object);
-                            map
-                        } else {
-                            return Err(EvalAltResult::ErrorMismatchDataType(
-                                "Map | String".to_string(),
-                                object.type_name().to_string(),
-                                Position::NONE,
-                            )
-                            .into());
+                    // name of the object or ':' symbol for files ...
+                    3 => match symbols[2].as_str() {
+                        ":" => Ok(Some("$ident$".into())),
+                        _ => Ok(Some("$expr$".into())),
+                    },
+                    // file content type or info block / value of object, we are done parsing.
+                    4 => match symbols[3].as_str() {
+                        // NOTE: could it be possible to add a "file" content type ?
+                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "str" | "regex" => {
+                            Ok(Some("$string$".into()))
                         }
-                    }
-                };
+                        _ => Ok(None),
+                    },
+                    // object name for a file.
+                    5 => Ok(Some("$expr$".into())),
+                    // done parsing file expression.
+                    6 => Ok(None),
+                    _ => Err(ParseError(
+                        Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
+                            format!(
+                                "Improper object declaration: keyword '{}' unknown.",
+                                look_ahead
+                            ),
+                        ))),
+                        Position::NONE,
+                    )),
+                },
+                true,
+                move |context, input| {
+                    let var_type = input[0].get_string_value().unwrap().to_string();
+                    let var_name: String;
 
-                let obj_ptr = Arc::new(Object::from(&object).map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?);
+                    // FIXME: refactor this expression.
+                    // file type as a special syntax (file:type),
+                    // so we need a different method to parse it.
+                    let object = match var_type.as_str() {
+                        "file" => {
+                            let content_type = input[2].get_string_value().unwrap();
+                            var_name = input[3]
+                                .get_literal_value::<ImmutableString>()
+                                .unwrap()
+                                .to_string();
+                            let object = context.eval_expression_tree(&input[4])?;
 
-                // pushing object in scope, preventing a "let _" statement,
-                // and returning a reference to the object in case of a parent group.
-                context
-                    .scope_mut()
-                    .push(var_name, obj_ptr.clone());
+                            // the object syntax can use a map or an inline string.
+                            if object.is::<Map>() {
+                                let mut object: Map = object.cast();
+                                object.insert("type".into(), Dynamic::from(var_type.clone()));
+                                object.insert("name".into(), Dynamic::from(var_name.clone()));
+                                object.insert(
+                                    "content_type".into(),
+                                    Dynamic::from(content_type.to_string()),
+                                );
+                                object
+                            } else if object.is::<String>() {
+                                let mut map = Map::new();
+                                map.insert("type".into(), Dynamic::from(var_type.clone()));
+                                map.insert("name".into(), Dynamic::from(var_name.clone()));
+                                map.insert(
+                                    "content_type".into(),
+                                    Dynamic::from(content_type.to_string()),
+                                );
+                                map.insert("value".into(), object);
+                                map
+                            } else {
+                                return Err(EvalAltResult::ErrorMismatchDataType(
+                                    "Map | String".to_string(),
+                                    object.type_name().to_string(),
+                                    Position::NONE,
+                                )
+                                .into());
+                            }
+                        }
 
-                Ok(Dynamic::from(obj_ptr))
-            },
-        )
+                        // generic type, we can parse it easily.
+                        _ => {
+                            var_name = input[1]
+                                .get_literal_value::<ImmutableString>()
+                                .unwrap()
+                                .to_string();
+                            let object = context.eval_expression_tree(&input[2])?;
 
-        // NOTE: is their a way to defined iterators directly in modules ?
-        .register_iterator::<crate::rules::modules::types::types::Rcpt>()
-        .register_iterator::<Vec<String>>();
+                            if object.is::<Map>() {
+                                let mut object: Map = object.cast();
+                                object.insert("type".into(), Dynamic::from(var_type.clone()));
+                                object.insert("name".into(), Dynamic::from(var_name.clone()));
+                                object
+                            } else if object.is::<String>() || object.is::<Array>() {
+                                let mut map = Map::new();
+                                map.insert("type".into(), Dynamic::from(var_type.clone()));
+                                map.insert("name".into(), Dynamic::from(var_name.clone()));
+                                map.insert("value".into(), object);
+                                map
+                            } else {
+                                return Err(EvalAltResult::ErrorMismatchDataType(
+                                    "Map | String".to_string(),
+                                    object.type_name().to_string(),
+                                    Position::NONE,
+                                )
+                                .into());
+                            }
+                        }
+                    };
+
+                    let obj_ptr = Arc::new(
+                        Object::from(&object)
+                            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
+                    );
+
+                    // pushing object in scope, preventing a "let _" statement,
+                    // and returning a reference to the object in case of a parent group.
+                    context.scope_mut().push(var_name, obj_ptr.clone());
+
+                    Ok(Dynamic::from(obj_ptr))
+                },
+            )
+            // NOTE: is their a way to defined iterators directly in modules ?
+            .register_iterator::<crate::rules::modules::types::types::Rcpt>()
+            .register_iterator::<Vec<String>>();
 
         log::debug!(target: RULES, "compiling rhai script ...");
 
