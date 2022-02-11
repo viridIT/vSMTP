@@ -23,6 +23,8 @@ pub mod mime_parser {
     #[allow(non_snake_case)]
     mod allen_p__discussion_threads__1;
 
+    mod mime1;
+
     fn visit_dirs(
         dir: &std::path::Path,
         cb: &dyn Fn(&std::fs::DirEntry) -> std::io::Result<()>,
