@@ -52,6 +52,7 @@ impl ConfigBuilder<WantsServer> {
         addr: std::net::SocketAddr,
         addr_submission: std::net::SocketAddr,
         addr_submissions: std::net::SocketAddr,
+        thread_count: usize,
     ) -> ConfigBuilder<WantsLogging> {
         ConfigBuilder::<WantsLogging> {
             state: WantsLogging {
@@ -61,26 +62,37 @@ impl ConfigBuilder<WantsServer> {
                     addr,
                     addr_submission,
                     addr_submissions,
+                    thread_count,
                 },
             },
         }
     }
 
-    pub fn with_rfc_port(self, domain: impl Into<String>) -> ConfigBuilder<WantsLogging> {
+    pub fn with_rfc_port(
+        self,
+        domain: impl Into<String>,
+        thread_count: Option<usize>,
+    ) -> ConfigBuilder<WantsLogging> {
         self.with_server(
             domain,
             "0.0.0.0:25".parse().expect("valid address"),
             "0.0.0.0:587".parse().expect("valid address"),
             "0.0.0.0:465".parse().expect("valid address"),
+            thread_count.unwrap_or_else(num_cpus::get),
         )
     }
 
-    pub fn with_debug_port(self, domain: impl Into<String>) -> ConfigBuilder<WantsLogging> {
+    pub fn with_debug_port(
+        self,
+        domain: impl Into<String>,
+        thread_count: Option<usize>,
+    ) -> ConfigBuilder<WantsLogging> {
         self.with_server(
             domain,
             "0.0.0.0:10025".parse().expect("valid address"),
             "0.0.0.0:10587".parse().expect("valid address"),
             "0.0.0.0:10465".parse().expect("valid address"),
+            thread_count.unwrap_or_else(num_cpus::get),
         )
     }
 }
@@ -399,7 +411,7 @@ mod tests {
     #[test]
     fn init() -> anyhow::Result<()> {
         let _config = ServerConfig::builder()
-            .with_rfc_port("test.server.com")
+            .with_rfc_port("test.server.com", None)
             .with_logging(
                 "./tmp/log",
                 std::collections::HashMap::<String, log::LevelFilter>::default(),
@@ -427,7 +439,7 @@ mod tests {
     #[test]
     fn init_no_smtps() -> anyhow::Result<()> {
         let _config = ServerConfig::builder()
-            .with_rfc_port("test.server.com")
+            .with_rfc_port("test.server.com", None)
             .with_logging(
                 "./tmp/log",
                 std::collections::HashMap::<String, log::LevelFilter>::default(),
@@ -459,7 +471,7 @@ mod tests {
         assert_eq!(
             ServerConfig::from_toml(include_str!("template/simple.toml")).unwrap(),
             ServerConfig::builder()
-                .with_rfc_port("testserver.com")
+                .with_rfc_port("testserver.com", None)
                 .with_logging(
                     "/var/log/vsmtp/vsmtp.log",
                     crate::collection! {
@@ -504,6 +516,7 @@ mod tests {
                     "0.0.0.0:25".parse().expect("valid address"),
                     "0.0.0.0:587".parse().expect("valid address"),
                     "0.0.0.0:465".parse().expect("valid address"),
+                    num_cpus::get(),
                 )
                 .with_logging(
                     "/var/log/vsmtp/vsmtp.log",
