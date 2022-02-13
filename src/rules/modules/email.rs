@@ -64,6 +64,68 @@ pub mod email {
             .clone())
     }
 
+    #[rhai_fn(return_raw)]
+    pub fn rewrite_rcpt(
+        this: &mut Arc<RwLock<MailContext>>,
+        index: String,
+        addr: String,
+    ) -> EngineResult<()> {
+        let index = Address::new(&index).map_err::<Box<EvalAltResult>, _>(|_| {
+            format!(
+                "could not rewrite address '{}' because it is not valid address",
+                index,
+            )
+            .into()
+        })?;
+
+        let addr = Address::new(&addr).map_err::<Box<EvalAltResult>, _>(|_| {
+            format!(
+                "could not rewrite address '{}' with '{}' because it is not valid address",
+                index, addr,
+            )
+            .into()
+        })?;
+
+        let rcpt = &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt;
+
+        rcpt.remove(&index);
+        rcpt.insert(addr);
+
+        Ok(())
+    }
+
+    #[rhai_fn(return_raw)]
+    pub fn add_rcpt(this: &mut Arc<RwLock<MailContext>>, s: String) -> EngineResult<()> {
+        let new_addr = Address::new(&s)
+            .map_err(|_| format!("{} could not be converted to a valid rcpt address", s))?;
+
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(new_addr);
+
+        Ok(())
+    }
+
+    #[rhai_fn(return_raw)]
+    pub fn remove_rcpt(this: Arc<RwLock<MailContext>>, s: String) -> EngineResult<()> {
+        let addr = Address::new(&s)
+            .map_err(|_| format!("{} could not be converted to a valid rcpt address", s))?;
+
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .remove(&addr);
+
+        Ok(())
+    }
+
     #[rhai_fn(get = "timestamp", return_raw)]
     pub fn timestamp(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<std::time::SystemTime> {
         Ok(this
