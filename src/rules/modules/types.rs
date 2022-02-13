@@ -19,7 +19,23 @@ use rhai::plugin::*;
 #[export_module]
 pub mod types {
 
-    use crate::rules::{address::Address, modules::EngineResult, obj::Object};
+    use crate::rules::{address::Address, modules::EngineResult, obj::Object, rule_engine::Status};
+
+    // rules & actions
+    #[rhai_fn(get = "type")]
+    pub fn procedure_type(this: &mut std::sync::Arc<rhai::Map>) -> String {
+        this.get("type").unwrap().clone_cast()
+    }
+
+    #[rhai_fn(get = "default_status")]
+    pub fn rule_default_status(this: &mut std::sync::Arc<rhai::Map>) -> Status {
+        this.get("default_status").unwrap().clone_cast()
+    }
+
+    #[rhai_fn(get = "evaluate")]
+    pub fn procedure_evaluation(this: &mut std::sync::Arc<rhai::Map>) -> rhai::FnPtr {
+        this.get("evaluate").unwrap().clone_cast()
+    }
 
     // shell service output (std::process::Output).
 
@@ -63,6 +79,18 @@ pub mod types {
             this.duration_since(std::time::SystemTime::UNIX_EPOCH)
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
         ))
+    }
+
+    // std::net::SocketAddr
+
+    #[rhai_fn(name = "to_string")]
+    pub fn socket_to_string(this: &mut std::net::SocketAddr) -> String {
+        this.to_string()
+    }
+
+    #[rhai_fn(name = "to_debug")]
+    pub fn socket_to_debug(this: &mut std::net::SocketAddr) -> String {
+        format!("{this:?}")
     }
 
     // rules::address::Address

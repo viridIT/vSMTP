@@ -15,27 +15,32 @@
  *
 **/
 
-fn register_rules(rules, stage) {
+// functions are pure, this is why the executor is
+// wrapped in one. this function needs to capture
+// "stage" & "rules" variables to work properly.
+fn run_rules() {
     let status = CONTINUE();
 
-    if !rules.contains(stage) {
-        return status;
+    if rules.contains(stage) {
+        for r in rules[stage] {
+            let result = r.evaluate.call();
+
+            switch r.type {
+                "rule" => {
+                    if result.type_of() != "vsmtp::rules::rule_engine::Status" {
+                        status = r.default_status;
+                    } else {
+                        status = result;
+                    }
+                }
+                _ => {}
+            }
+
+            if status != CONTINUE() {
+                return status;
+            }
+        }
     }
 
-    for r in rules[stage] {
-        switch r.type {
-            "rule" => status = switch r.condition() {
-                true => r.on_success(),
-                false => r.on_failure(),
-            },
-            "action" => r.execute(),
-        }
-
-        if status != CONTINUE() {
-            return status;
-        }
-    }
-
-    // in this case, status == CONTINUE, default is used.
     status
 }

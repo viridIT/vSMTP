@@ -30,11 +30,7 @@ use rhai::{
 };
 
 use std::net::{IpAddr, SocketAddr};
-use std::{
-    net::Ipv4Addr,
-    str::FromStr,
-    sync::{Arc, RwLock},
-};
+use std::{net::Ipv4Addr, str::FromStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
@@ -56,16 +52,19 @@ pub enum Status {
     Block,
 }
 
+#[derive(Debug)]
 pub enum RuleEngineError {
-    ParsingObjectFailure,
-    ParsingRuleFailure,
-    ParsingActionFailure,
+    ParsingObject,
+    ParsingRule,
+    ParsingAction,
+    ParsingStage,
 }
 
-impl From<RuleEngineError> for Box<EvalAltResult> {
-    fn from(error: RuleEngineError) -> Self {
-        match error {
-            RuleEngineError::ParsingObjectFailure => r#"
+impl RuleEngineError {
+    fn as_str(&self) -> &'static str {
+        match self {
+            RuleEngineError::ParsingObject => {
+                r#"
 failed to parse an object.
     use the extended syntax:
 
@@ -76,10 +75,11 @@ failed to parse an object.
     or use the inline syntax:
 
     obj "type" "name" "value";
-                "#
-            .into(),
+"#
+            }
 
-            RuleEngineError::ParsingRuleFailure => r#"
+            RuleEngineError::ParsingRule => {
+                r#"
 failed to parse a rule.
     use the following syntax:
 
@@ -88,24 +88,58 @@ failed to parse a rule.
         on_success: || { ... }, # must return a status. (CONTINUE, ACCEPT ...)
         on_failure: || { ... }, # same as above.
     };
-            "#
-            .into(),
-            RuleEngineError::ParsingActionFailure => r#"
+"#
+            }
+
+            RuleEngineError::ParsingAction => {
+                r#"
 failed to parse an action.
     use the following syntax:
 
     action "name" || {
         ... # your code to execute. (LOG, QUARANTINE ...)
     };
-        "#
-            .into(),
+"#
+            }
+
+            RuleEngineError::ParsingStage => {
+                r#"
+failed to parse a stage.
+
+    declare stages this way:
+
+    #{
+        preq: [
+            ... rules
+            ... action
+        ],
+
+        delivery: [
+            ...
+        ]
+    }"#
+            }
         }
+    }
+}
+
+impl std::fmt::Display for RuleEngineError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::error::Error for RuleEngineError {}
+
+impl From<RuleEngineError> for Box<EvalAltResult> {
+    fn from(err: RuleEngineError) -> Self {
+        err.as_str().into()
     }
 }
 
 pub struct RuleState<'a> {
     scope: Scope<'a>,
-    ctx: Arc<RwLock<MailContext>>,
+    ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
     skip: Option<Status>,
 }
 
@@ -113,7 +147,7 @@ impl<'a> RuleState<'a> {
     /// creates a new rule engine with an empty scope.
     pub(crate) fn new(config: &crate::config::server_config::ServerConfig) -> Self {
         let mut scope = Scope::new();
-        let ctx = Arc::new(RwLock::new(MailContext {
+        let ctx = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
             client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
             envelop: Envelop::default(),
             body: Body::Empty,
@@ -130,7 +164,7 @@ impl<'a> RuleState<'a> {
             .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
             .push("__OPERATION_QUEUE", OperationQueue::default())
-            .push("__stage", "")
+            .push("stage", "")
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
@@ -148,7 +182,7 @@ impl<'a> RuleState<'a> {
         ctx: MailContext,
     ) -> Self {
         let mut scope = Scope::new();
-        let ctx = Arc::new(RwLock::new(ctx));
+        let ctx = std::sync::Arc::new(std::sync::RwLock::new(ctx));
 
         scope
             // stage specific variables.
@@ -160,7 +194,6 @@ impl<'a> RuleState<'a> {
             .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
             .push("__OPERATION_QUEUE", OperationQueue::default())
-            .push("__stage", "")
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
@@ -231,7 +264,7 @@ impl<'a> RuleState<'a> {
     }
 
     /// fetch the email context (possibly) mutated by the user's rules.
-    pub(crate) fn get_context(&mut self) -> Arc<RwLock<MailContext>> {
+    pub(crate) fn get_context(&mut self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
         self.ctx.clone()
     }
 
@@ -272,45 +305,40 @@ impl RuleEngine {
             return status;
         }
 
-        log::debug!(target: RULES, "[{}] evaluating rules.", stage);
-
-        // updating the internal __stage variable, so that the rhai context
-        // knows what rules to execute.
-        state.scope.set_value("__stage", stage.to_string());
-
-        // injecting date and time variables.
         let now = chrono::Local::now();
         state
             .scope
-            .set_value("date", now.date().format("%Y/%m/%d").to_string());
-        state
-            .scope
+            .set_value("stage", stage.to_string())
+            .set_value("date", now.date().format("%Y/%m/%d").to_string())
             .set_value("time", now.time().format("%H:%M:%S").to_string());
 
-        let result = self
+        match self
             .context
-            .eval_ast_with_scope::<Status>(&mut state.scope, &self.ast);
-
-        match result {
+            .eval_ast_with_scope::<Status>(&mut state.scope, &self.ast)
+        {
             Ok(status) => {
                 log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
 
-                if let Status::Block | Status::Faccept = status {
-                    log::trace!(
-                        target: RULES,
-                        "[{}] the rule engine will skip all rules because of the previous result.",
-                        stage
-                    );
-                    state.skip = Some(status);
+                match status {
+                    Status::Block | Status::Faccept | Status::Deny => {
+                        log::trace!(
+                            target: RULES,
+                            "[{}] the rule engine will skip all rules because of the previous result.",
+                            stage
+                        );
+                        state.skip = Some(status);
+                        status
+                    }
+                    _ => Status::Continue,
                 }
-
-                status
             }
             Err(error) => {
                 log::error!(
                     target: RULES,
-                    "the rule engine skipped stage '{}' because it failed to evaluate a rule:\n\t{}",
-                    stage, error
+                    "the rule engine skipped stage '{}' because it failed to evaluate '{}':\n\t{}",
+                    "unknown",
+                    stage,
+                    error
                 );
                 Status::Continue
             }
@@ -330,9 +358,7 @@ impl RuleEngine {
                 script_path.as_ref(),
                 "vsl",
             ))
-            .register_global_module(
-                exported_module!(crate::rules::modules::actions::actions).into(),
-            )
+            .register_global_module(exported_module!(crate::rules::modules::actions::actions).into())
             .register_global_module(exported_module!(crate::rules::modules::types::types).into())
             .register_global_module(exported_module!(crate::rules::modules::email::email).into())
             .disable_symbol("eval")
@@ -359,17 +385,61 @@ impl RuleEngine {
                 true,
                 move |context, input| {
                     let name = input[0].get_literal_value::<ImmutableString>().unwrap();
-                    let map = &input[1];
+                    let expr = context.eval_expression_tree(&input[1])?;
 
-                    let mut rule: Map = context
-                        .eval_expression_tree(map)?
-                        .try_cast()
-                        .ok_or(RuleEngineError::ParsingRuleFailure)?;
+                    let rule_ptr = std::sync::Arc::new(Map::from_iter(
+                        [
+                            ("name".into(), Dynamic::from(name.clone())),
+                            ("type".into(), "rule".into()),
+                        ]
+                        .into_iter()
+                        .chain(if expr.is::<Map>() {
+                            let mut properties = expr.cast::<Map>();
 
-                    rule.insert("name".into(), Dynamic::from(name));
-                    rule.insert("type".into(), Dynamic::from("rule"));
+                            if properties
+                                .get("evaluate")
+                                .filter(|f| f.is::<rhai::FnPtr>())
+                                .is_none()
+                            {
+                                return Err(format!(
+                                    "'evaluate' function is missing from '{}' rule",
+                                    name
+                                )
+                                .into());
+                            }
 
-                    Ok(rule.into())
+                            if properties
+                                .get("default_status")
+                                .filter(|f| f.is::<Status>())
+                                .is_none()
+                            {
+                                properties.insert(
+                                    "default_status".into(),
+                                    Dynamic::from(Status::Continue),
+                                );
+                            }
+
+                            properties.into_iter()
+                        } else if expr.is::<rhai::FnPtr>() {
+                            Map::from_iter([
+                                ("default_status".into(), Dynamic::from(Status::Continue)),
+                                ("evaluate".into(), expr.cast::<rhai::FnPtr>().into()),
+                            ])
+                            .into_iter()
+                        } else {
+                            return Err(format!(
+                                "a rule must be a map (#{{}}) or an anonymous function (|| {{}}){}",
+                                RuleEngineError::ParsingRule.as_str()
+                            )
+                            .into());
+                        }),
+                    ));
+
+                    // pushing rule in scope, preventing a "let _" statement,
+                    // and returning a reference to the rule in case of an export.
+                    context.scope_mut().push(name, rule_ptr.clone());
+
+                    Ok(Dynamic::from(rule_ptr))
                 },
             )
             // `action $name$ #{expr}` syntax.
@@ -385,7 +455,7 @@ impl RuleEngine {
                     _ => Err(ParseError(
                         Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
                             format!(
-                                "Improper rule declaration: keyword '{}' unknown.",
+                                "Improper action declaration: keyword '{}' unknown.",
                                 look_ahead
                             ),
                         ))),
@@ -395,21 +465,50 @@ impl RuleEngine {
                 true,
                 move |context, input| {
                     let name = input[0].get_literal_value::<ImmutableString>().unwrap();
-                    let expr = &input[1];
+                    let expr = context.eval_expression_tree(&input[1])?;
 
-                    let ptr: rhai::FnPtr = context
-                        .eval_expression_tree(expr)?
-                        .try_cast()
-                        .ok_or(RuleEngineError::ParsingActionFailure)?;
+                    let action_ptr = std::sync::Arc::new(Map::from_iter(
+                        [
+                            ("name".into(), Dynamic::from(name.clone())),
+                            ("type".into(), "action".into()),
+                        ]
+                        .into_iter()
+                        .chain(if expr.is::<Map>() {
+                            let properties = expr.cast::<Map>();
 
-                    let action = Map::from_iter([
-                        ("name".into(), Dynamic::from(name)),
-                        ("type".into(), Dynamic::from("action")),
-                        ("execute".into(), Dynamic::from(ptr)),
-                    ]);
+                            if properties
+                                .get("evaluate")
+                                .filter(|f| f.is::<rhai::FnPtr>())
+                                .is_none()
+                            {
+                                return Err(format!(
+                                    "'evaluate' function is missing from '{}' action",
+                                    name
+                                )
+                                .into());
+                            }
 
-                    Ok(action.into())
-                },
+                            properties.into_iter()
+                        } else if expr.is::<rhai::FnPtr>() {
+                            Map::from_iter([
+                                ("evaluate".into(), expr.cast::<rhai::FnPtr>().into()),
+                            ])
+                            .into_iter()
+                        } else {
+                            return Err(format!(
+                                "an action must be a map (#{{}}) or an anonymous function (|| {{}}){}",
+                                RuleEngineError::ParsingAction.as_str()
+                            )
+                            .into());
+                        }),
+                    ));
+
+                    // pushing rule in scope, preventing a "let _" statement,
+                    // and returning a reference to the rule in case of an export.
+                    context.scope_mut().push(name, action_ptr.clone());
+
+                    Ok(Dynamic::from(action_ptr))
+                 },
             )
             // `obj $type[:file_type]$ $name$ #{}` container syntax.
             .register_custom_syntax_raw(
@@ -476,9 +575,8 @@ impl RuleEngine {
 
                             // the object syntax can use a map or an inline string.
                             if object.is::<Map>() {
-                                let mut object: Map = object
-                                    .try_cast()
-                                    .ok_or(RuleEngineError::ParsingObjectFailure)?;
+                                let mut object: Map =
+                                    object.try_cast().ok_or(RuleEngineError::ParsingObject)?;
                                 object.insert("type".into(), Dynamic::from(var_type.clone()));
                                 object.insert("name".into(), Dynamic::from(var_name.clone()));
                                 object.insert(
@@ -515,9 +613,8 @@ impl RuleEngine {
                             let object = context.eval_expression_tree(&input[2])?;
 
                             if object.is::<Map>() {
-                                let mut object: Map = object
-                                    .try_cast()
-                                    .ok_or(RuleEngineError::ParsingObjectFailure)?;
+                                let mut object: Map =
+                                    object.try_cast().ok_or(RuleEngineError::ParsingObject)?;
                                 object.insert("type".into(), Dynamic::from(var_type.clone()));
                                 object.insert("name".into(), Dynamic::from(var_name.clone()));
                                 object
@@ -538,7 +635,7 @@ impl RuleEngine {
                         }
                     };
 
-                    let obj_ptr = Arc::new(
+                    let obj_ptr = std::sync::Arc::new(
                         Object::from(&object)
                             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
                     );
@@ -554,17 +651,20 @@ impl RuleEngine {
             .register_iterator::<crate::rules::modules::types::types::Rcpt>()
             .register_iterator::<Vec<String>>();
 
-        log::debug!(target: RULES, "compiling rhai script ...");
+        log::debug!(target: RULES, "compiling rhai scripts ...");
 
-        // compiling and registering the rule executor as a global module.
-        let executor = engine
+        let ast = engine
             .compile(include_str!("rule_executor.rhai"))
-            .context("failed to compile rule executor")?;
+            .context("failed to load the rule executor")?;
 
         engine.register_global_module(
-            Module::eval_ast_as_new(Scope::new(), &executor, &engine)
-                .context("failed load rule executor")?
-                .into(),
+            Module::eval_ast_as_new(
+                Scope::from_iter([("stage".to_string(), "none".into())]),
+                &ast,
+                &engine,
+            )
+            .context("failed to evaluate main.vsl")?
+            .into(),
         );
 
         let main_path = std::path::PathBuf::from_iter([script_path.as_ref(), "main.vsl"]);
@@ -574,7 +674,7 @@ impl RuleEngine {
             // stage specific variables.
             .push(
                 "ctx",
-                Arc::new(RwLock::new(MailContext {
+                std::sync::Arc::new(std::sync::RwLock::new(MailContext {
                     client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
                     envelop: Envelop::default(),
                     body: Body::Empty,
@@ -588,16 +688,18 @@ impl RuleEngine {
             .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
             .push("__OPERATION_QUEUE", OperationQueue::default())
-            .push("__stage", "")
             // configuration variables.
-            .push("addr", "")
+            .push(
+                "addr",
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
+            )
             .push("logs_file", "")
             .push("spool_dir", "");
 
         // compiling main script.
         let ast = engine
             .compile_into_self_contained(&scope, std::fs::read_to_string(main_path)?)
-            .context("failed to load main.vsl")?;
+            .context("failed to compile main.vsl")?;
 
         log::debug!(target: RULES, "done.");
 

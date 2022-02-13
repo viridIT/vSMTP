@@ -19,7 +19,6 @@ use vsmtp::config::server_config::ServerConfig;
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::mbox_resolver::MBoxResolver;
 use vsmtp::resolver::smtp_resolver::SMTPResolver;
-use vsmtp::rules::rule_engine;
 use vsmtp::server::ServerVSMTP;
 
 #[derive(clap::Parser, Debug)]

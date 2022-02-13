@@ -46,7 +46,7 @@ mod test {
 
         run_engine_test("./src/rules/tests/rules/users/users.vsl", users, || {
             // let mut scope = rule_engine::DEFAULT_SCOPE.clone();
-            // scope.push("__stage", "connect");
+            // scope.push("stage", "connect");
 
             // let engine = rule_engine::acquire_engine();
 

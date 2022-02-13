@@ -4,4 +4,4 @@ pub mod actions;
 pub mod email;
 pub mod types;
 
-type EngineResult<T> = Result<T, Box<EvalAltResult>>;
+pub type EngineResult<T> = Result<T, Box<EvalAltResult>>;
