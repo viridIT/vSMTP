@@ -64,29 +64,46 @@ pub mod email {
             .clone())
     }
 
-    // // metadata of the email.
-    // .register_type::<Option<MessageMetadata>>()
-    // .register_get_result("timestamp", |metadata: &mut Option<MessageMetadata>| match metadata {
-    //     Some(metadata) => Ok(metadata.timestamp),
-    //     None => Err("metadata are not available in the current stage".into())
-    // })
-    // .register_get_result("message_id", |metadata: &mut Option<MessageMetadata>| match metadata {
-    //     Some(metadata) => Ok(metadata.message_id.clone()),
-    //     None => Err("metadata are not available in the current stage".into())
-    // })
-    // .register_get_result("retry", |metadata: &mut Option<MessageMetadata>| match metadata {
-    //     Some(metadata) => Ok(metadata.retry as u64),
-    //     None => Err("metadata are not available in the current stage".into())
-    // })
-    // .register_fn("to_string", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
-    // .register_fn("to_debug", |metadata: &mut Option<MessageMetadata>| format!("{:?}", metadata))
-    // .register_set_result("resolver", |metadata: &mut Option<MessageMetadata>, resolver: String| match metadata {
-    //     Some(metadata) => {
-    //         metadata.resolver = resolver;
-    //         Ok(())
-    //     },
-    //     None => Err("metadata are not available in the current stage".into())
-    // })
+    #[rhai_fn(get = "timestamp", return_raw)]
+    pub fn timestamp(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<std::time::SystemTime> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .metadata
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "metadata are not available in this stage".into()
+            })?
+            .timestamp)
+    }
+
+    #[rhai_fn(get = "message_id", return_raw)]
+    pub fn message_id(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .metadata
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "metadata are not available in this stage".into()
+            })?
+            .message_id
+            .clone())
+    }
+
+    #[rhai_fn(get = "retry", return_raw)]
+    pub fn retry(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<u64> {
+        this.read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .metadata
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "metadata are not available in this stage".into()
+            })?
+            .retry
+            .try_into()
+            .map_err::<Box<EvalAltResult>, _>(|e: std::num::TryFromIntError| e.to_string().into())
+    }
 
     // // exposed structure used to read & rewrite the incoming email's content.
     // .register_type::<Mail>()
