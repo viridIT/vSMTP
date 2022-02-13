@@ -21,22 +21,6 @@ pub mod types {
 
     use crate::rules::{address::Address, modules::EngineResult, obj::Object, rule_engine::Status};
 
-    // rules & actions
-    #[rhai_fn(get = "type")]
-    pub fn procedure_type(this: &mut std::sync::Arc<rhai::Map>) -> String {
-        this.get("type").unwrap().clone_cast()
-    }
-
-    #[rhai_fn(get = "default_status")]
-    pub fn rule_default_status(this: &mut std::sync::Arc<rhai::Map>) -> Status {
-        this.get("default_status").unwrap().clone_cast()
-    }
-
-    #[rhai_fn(get = "evaluate")]
-    pub fn procedure_evaluation(this: &mut std::sync::Arc<rhai::Map>) -> rhai::FnPtr {
-        this.get("evaluate").unwrap().clone_cast()
-    }
-
     // shell service output (std::process::Output).
 
     #[rhai_fn(get = "stdout", return_raw)]

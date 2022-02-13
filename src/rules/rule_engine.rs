@@ -387,7 +387,7 @@ impl RuleEngine {
                     let name = input[0].get_literal_value::<ImmutableString>().unwrap();
                     let expr = context.eval_expression_tree(&input[1])?;
 
-                    let rule_ptr = std::sync::Arc::new(Map::from_iter(
+                    Ok(Dynamic::from(Map::from_iter(
                         [
                             ("name".into(), Dynamic::from(name.clone())),
                             ("type".into(), "rule".into()),
@@ -423,7 +423,7 @@ impl RuleEngine {
                         } else if expr.is::<rhai::FnPtr>() {
                             Map::from_iter([
                                 ("default_status".into(), Dynamic::from(Status::Continue)),
-                                ("evaluate".into(), expr.cast::<rhai::FnPtr>().into()),
+                                ("evaluate".into(), expr),
                             ])
                             .into_iter()
                         } else {
@@ -433,13 +433,7 @@ impl RuleEngine {
                             )
                             .into());
                         }),
-                    ));
-
-                    // pushing rule in scope, preventing a "let _" statement,
-                    // and returning a reference to the rule in case of an export.
-                    context.scope_mut().push(name, rule_ptr.clone());
-
-                    Ok(Dynamic::from(rule_ptr))
+                    )))
                 },
             )
             // `action $name$ #{expr}` syntax.
@@ -450,7 +444,7 @@ impl RuleEngine {
                     1 => Ok(Some("$string$".into())),
                     // name of the action ...
                     2 => Ok(Some("$expr$".into())),
-                    // scope, we are done parsing.
+                    // block, we are done parsing.
                     3 => Ok(None),
                     _ => Err(ParseError(
                         Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
@@ -467,7 +461,7 @@ impl RuleEngine {
                     let name = input[0].get_literal_value::<ImmutableString>().unwrap();
                     let expr = context.eval_expression_tree(&input[1])?;
 
-                    let action_ptr = std::sync::Arc::new(Map::from_iter(
+                    Ok(Dynamic::from(Map::from_iter(
                         [
                             ("name".into(), Dynamic::from(name.clone())),
                             ("type".into(), "action".into()),
@@ -491,7 +485,7 @@ impl RuleEngine {
                             properties.into_iter()
                         } else if expr.is::<rhai::FnPtr>() {
                             Map::from_iter([
-                                ("evaluate".into(), expr.cast::<rhai::FnPtr>().into()),
+                                ("evaluate".into(), expr),
                             ])
                             .into_iter()
                         } else {
@@ -501,13 +495,7 @@ impl RuleEngine {
                             )
                             .into());
                         }),
-                    ));
-
-                    // pushing rule in scope, preventing a "let _" statement,
-                    // and returning a reference to the rule in case of an export.
-                    context.scope_mut().push(name, action_ptr.clone());
-
-                    Ok(Dynamic::from(action_ptr))
+                    )))
                  },
             )
             // `obj $type[:file_type]$ $name$ #{}` container syntax.
@@ -663,7 +651,7 @@ impl RuleEngine {
                 &ast,
                 &engine,
             )
-            .context("failed to evaluate main.vsl")?
+            .context("failed to register the rule executor")?
             .into(),
         );
 
