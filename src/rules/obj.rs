@@ -30,7 +30,7 @@ use super::address::Address;
 
 /// Objects are rust's representation of rule engine Striables.
 /// multiple types are supported.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Object {
     /// ip v4 address. (a.b.c.d)
     Ip4(Ipv4Addr),
@@ -50,8 +50,28 @@ pub enum Object {
     File(Vec<Object>),
     /// a group of objects declared inline.
     Group(Vec<std::sync::Arc<Object>>),
+    /// a user.
+    LocalPart(String),
     /// a simple string.
     Str(String),
+}
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Ip4(l0), Self::Ip4(r0)) => l0 == r0,
+            (Self::Ip6(l0), Self::Ip6(r0)) => l0 == r0,
+            (Self::Rg4(l0), Self::Rg4(r0)) => l0 == r0,
+            (Self::Rg6(l0), Self::Rg6(r0)) => l0 == r0,
+            (Self::Address(l0), Self::Address(r0)) => l0 == r0,
+            (Self::Fqdn(l0), Self::Fqdn(r0)) => l0 == r0,
+            (Self::File(l0), Self::File(r0)) => l0 == r0,
+            (Self::Group(l0), Self::Group(r0)) => l0 == r0,
+            (Self::LocalPart(l0), Self::LocalPart(r0)) => l0 == r0,
+            (Self::Str(l0), Self::Str(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
 }
 
 impl Object {
@@ -118,6 +138,8 @@ impl Object {
                 let value = Object::value::<S, String>(map, "value")?;
                 Ok(Object::Address(Address::new(&value)?))
             }
+
+            "ident" => Ok(Object::LocalPart(Object::value::<S, String>(map, "value")?)),
 
             "str" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
 
@@ -191,6 +213,7 @@ impl ToString for Object {
             Object::Regex(regex) => regex.to_string(),
             Object::File(file) => format!("{file:?}"),
             Object::Group(grp) => format!("{grp:?}"),
+            Object::LocalPart(string) => string.clone(),
             Object::Str(string) => string.clone(),
         }
     }

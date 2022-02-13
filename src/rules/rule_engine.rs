@@ -362,6 +362,17 @@ impl RuleEngine {
             .register_global_module(exported_module!(crate::rules::modules::types::types).into())
             .register_global_module(exported_module!(crate::rules::modules::email::email).into())
             .disable_symbol("eval")
+
+            .on_parse_token(|token, _, _| {
+                match token {
+                    // remap 'is' operator to '==', it's easier than creating a new operator.
+                    // NOTE: warning => "is" is a reserved keyword in rhai's tokens, maybe change to "eq" ?
+                    rhai::Token::Reserved(s) if &*s == "is" => rhai::Token::EqualsTo,
+                    rhai::Token::Identifier(s) if &*s == "not" => rhai::Token::NotEqualsTo,
+                    // Pass through all other tokens unchanged
+                    _ => token
+                }
+            })
             // `rule $name$ #{expr}` syntax.
             .register_custom_syntax_raw(
                 "rule",
@@ -506,7 +517,7 @@ impl RuleEngine {
                     1 => Ok(Some("$ident$".into())),
                     // the type of the object ...
                     2 => match symbols[1].as_str() {
-                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "str" | "regex"
+                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "ident" | "str" | "regex"
                         | "grp" => Ok(Some("$string$".into())),
                         "file" => Ok(Some("$symbol$".into())),
                         entry => Err(ParseError(
@@ -636,8 +647,8 @@ impl RuleEngine {
                 },
             )
             // NOTE: is their a way to defined iterators directly in modules ?
-            .register_iterator::<crate::rules::modules::types::types::Rcpt>()
-            .register_iterator::<Vec<String>>();
+            .register_iterator::<crate::rules::modules::types::Rcpt>()
+            .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
         log::debug!(target: RULES, "compiling rhai scripts ...");
 
