@@ -17,8 +17,9 @@
 
 // functions are pure, this is why the executor is
 // wrapped in one. this function needs to capture
-// "stage" & "rules" variables to work properly.
-fn run_rules() {
+// the "stage" variable to work properly.
+// use it like this: run_rules!(rules)
+fn run_rules(rules) {
     let status = CONTINUE();
 
     if rules.contains(stage) {
