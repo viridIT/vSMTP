@@ -26,7 +26,7 @@ pub mod email {
     use std::io::Write;
     use std::sync::{Arc, RwLock};
 
-    #[rhai_fn(get = "client_addr", return_raw)]
+    #[rhai_fn(global, get = "client_addr", return_raw)]
     pub fn client_addr(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<std::net::SocketAddr> {
         Ok(this
             .read()
@@ -34,7 +34,7 @@ pub mod email {
             .client_addr)
     }
 
-    #[rhai_fn(get = "helo", return_raw)]
+    #[rhai_fn(global, get = "helo", return_raw)]
     pub fn helo(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
         Ok(this
             .read()
@@ -44,7 +44,7 @@ pub mod email {
             .clone())
     }
 
-    #[rhai_fn(get = "mail_from", return_raw)]
+    #[rhai_fn(global, get = "mail_from", return_raw)]
     pub fn mail_from(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<Address> {
         Ok(this
             .read()
@@ -54,7 +54,7 @@ pub mod email {
             .clone())
     }
 
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn rewrite_mail_from(
         this: &mut Arc<RwLock<MailContext>>,
         addr: String,
@@ -75,7 +75,7 @@ pub mod email {
         Ok(())
     }
 
-    #[rhai_fn(get = "rcpt", return_raw)]
+    #[rhai_fn(global, get = "rcpt", return_raw)]
     pub fn rcpt(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<Rcpt> {
         Ok(this
             .read()
@@ -85,7 +85,7 @@ pub mod email {
             .clone())
     }
 
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn rewrite_rcpt(
         this: &mut Arc<RwLock<MailContext>>,
         index: String,
@@ -119,7 +119,7 @@ pub mod email {
         Ok(())
     }
 
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn add_rcpt(this: &mut Arc<RwLock<MailContext>>, s: String) -> EngineResult<()> {
         let new_addr = Address::new(&s)
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", s))?;
@@ -133,7 +133,7 @@ pub mod email {
         Ok(())
     }
 
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn remove_rcpt(this: Arc<RwLock<MailContext>>, s: String) -> EngineResult<()> {
         let addr = Address::new(&s)
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", s))?;
@@ -147,7 +147,7 @@ pub mod email {
         Ok(())
     }
 
-    #[rhai_fn(get = "timestamp", return_raw)]
+    #[rhai_fn(global, get = "timestamp", return_raw)]
     pub fn timestamp(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<std::time::SystemTime> {
         Ok(this
             .read()
@@ -160,7 +160,7 @@ pub mod email {
             .timestamp)
     }
 
-    #[rhai_fn(get = "message_id", return_raw)]
+    #[rhai_fn(global, get = "message_id", return_raw)]
     pub fn message_id(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
         Ok(this
             .read()
@@ -174,7 +174,7 @@ pub mod email {
             .clone())
     }
 
-    #[rhai_fn(get = "retry", return_raw)]
+    #[rhai_fn(global, get = "retry", return_raw)]
     pub fn retry(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<u64> {
         this.read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -188,7 +188,7 @@ pub mod email {
             .map_err::<Box<EvalAltResult>, _>(|e: std::num::TryFromIntError| e.to_string().into())
     }
 
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn to_string(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
         Ok(format!(
             "{:?}",
@@ -197,7 +197,7 @@ pub mod email {
         ))
     }
 
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn to_debug(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
         Ok(format!(
             "{:#?}",
@@ -206,29 +206,8 @@ pub mod email {
         ))
     }
 
-    /// checks if the object exists and check if it matches against the connect value.
-    #[rhai_fn(return_raw)]
-    pub fn is_connect(ctx: &mut Arc<RwLock<MailContext>>, ip: &str) -> EngineResult<bool> {
-        match <std::net::IpAddr as std::str::FromStr>::from_str(ip) {
-            Ok(ip) => Ok(ip
-                == ctx
-                    .read()
-                    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-                    .client_addr
-                    .ip()),
-            Err(_) => {
-                log::error!(
-                    target: RULES,
-                    "tried to convert '{}' to an ip but conversion failed.",
-                    ip
-                );
-                Ok(false)
-            }
-        }
-    }
-
     /// write the current email to a specified file.
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn write(
         this: &mut Arc<RwLock<MailContext>>,
         path: &str,
@@ -264,7 +243,7 @@ pub mod email {
     }
 
     /// write the content of the current email in a json file.
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn dump(this: &mut Arc<RwLock<MailContext>>, path: &str) -> Result<(), Box<EvalAltResult>> {
         match std::fs::OpenOptions::new()
             .create(true)
@@ -288,7 +267,7 @@ pub mod email {
 
     // TODO: unfinished, queue parameter should point to a folder specified in toml config.
     /// dump the current email into a quarantine queue, skipping delivery.
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn quarantine(
         this: &mut Arc<RwLock<MailContext>>,
         queue: &str,
@@ -316,7 +295,7 @@ pub mod email {
         }
     }
 
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn use_resolver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -330,7 +309,7 @@ pub mod email {
         Ok(())
     }
 
-    #[rhai_fn(return_raw)]
+    #[rhai_fn(global, return_raw)]
     pub fn disable_delivery(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<()> {
         use_resolver(this, "none".to_string())
     }

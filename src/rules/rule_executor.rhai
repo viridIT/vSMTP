@@ -20,7 +20,7 @@
 // the "stage" variable to work properly.
 // use it like this: run_rules!(rules)
 fn run_rules(rules) {
-    let status = CONTINUE();
+    let status = vsl::next();
 
     if rules.contains(stage) {
         for r in rules[stage] {
@@ -37,7 +37,7 @@ fn run_rules(rules) {
                 _ => {}
             }
 
-            if status != CONTINUE() {
+            if status != vsl::next() {
                 return status;
             }
         }

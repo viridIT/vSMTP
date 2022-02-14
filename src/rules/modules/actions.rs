@@ -49,33 +49,28 @@ pub mod actions {
     //     ))
     // }
 
-    #[rhai_fn(name = "FACCEPT")]
     pub fn faccept() -> Status {
         Status::Faccept
     }
 
-    #[rhai_fn(name = "ACCEPT")]
     pub fn accept() -> Status {
         Status::Accept
     }
 
-    #[rhai_fn(name = "CONTINUE")]
-    pub fn ct() -> Status {
+    pub fn next() -> Status {
         Status::Continue
     }
 
-    #[rhai_fn(name = "DENY")]
     pub fn deny() -> Status {
         Status::Deny
     }
 
-    #[rhai_fn(name = "BLOCK")]
     pub fn block() -> Status {
         Status::Block
     }
 
     /// logs a message to stdout, stderr or a file.
-    #[rhai_fn(name = "LOG", return_raw)]
+    #[rhai_fn(return_raw)]
     pub fn log(message: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
         match path {
             "stdout" => {
@@ -107,21 +102,21 @@ pub mod actions {
     }
 
     /// logs a message to stdout.
-    #[rhai_fn(name = "LOG_OUT", return_raw)]
+    #[rhai_fn(return_raw)]
     pub fn log_out(message: &str) -> Result<(), Box<EvalAltResult>> {
         log(message, "stdout")
     }
 
     /// logs a message to stderr.
-    #[rhai_fn(name = "LOG_ERR", return_raw)]
+    #[rhai_fn(return_raw)]
     pub fn log_err(message: &str) -> Result<(), Box<EvalAltResult>> {
         log(message, "stderr")
     }
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.
-    #[rhai_fn(name = "MAIL", return_raw)]
-    pub fn mail(
+    #[rhai_fn(return_raw)]
+    pub fn send_mail(
         from: &str,
         to: rhai::Array,
         path: &str,
@@ -170,7 +165,6 @@ pub mod actions {
 
     // TODO: use UsersCache to optimize user lookup.
     /// use the user cache to check if a user exists on the system.
-    #[rhai_fn(name = "USER_EXISTS")]
     pub(crate) fn user_exists(name: &str) -> bool {
         users::get_user_by_name(name).is_some()
     }
@@ -208,14 +202,4 @@ pub mod actions {
     //         })?
     //         .any(|socket| socket.ip() == connect))
     // }
-
-    #[rhai_fn(name = "==")]
-    pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
-        *in1 == in2
-    }
-
-    #[rhai_fn(name = "!=")]
-    pub fn neq_status_operator(in1: &mut Status, in2: Status) -> bool {
-        !(*in1 == in2)
-    }
 }

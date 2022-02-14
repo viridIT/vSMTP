@@ -353,14 +353,17 @@ impl RuleEngine {
     {
         let mut engine = Engine::new();
 
+        let mut module: Module = exported_module!(crate::rules::modules::actions::actions);
+        module
+            .combine(exported_module!(crate::rules::modules::types::types))
+            .combine(exported_module!(crate::rules::modules::email::email));
+
         engine
             .set_module_resolver(FileModuleResolver::new_with_path_and_extension(
                 script_path.as_ref(),
                 "vsl",
             ))
-            .register_global_module(exported_module!(crate::rules::modules::actions::actions).into())
-            .register_global_module(exported_module!(crate::rules::modules::types::types).into())
-            .register_global_module(exported_module!(crate::rules::modules::email::email).into())
+            .register_static_module("vsl", module.into())
             .disable_symbol("eval")
 
             .on_parse_token(|token, _, _| {
@@ -699,6 +702,8 @@ impl RuleEngine {
         let ast = engine
             .compile_into_self_contained(&scope, std::fs::read_to_string(main_path)?)
             .context("failed to compile main.vsl")?;
+
+        println!("{:#?}", engine);
 
         log::debug!(target: RULES, "done.");
 
