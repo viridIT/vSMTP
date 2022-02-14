@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{
-        log_channel::{RECEIVER, RULES},
+        log_channel::RECEIVER,
         server_config::{ServerConfig, TlsSecurityLevel},
     },
     receiver::io_service::ReadError,
@@ -253,14 +253,6 @@ impl Transaction<'_> {
                 let ctx = self.rule_state.get_context();
                 let mut ctx = ctx.write().unwrap();
 
-                // executing all registered extensive operations.
-                if let Err(error) = self.rule_state.execute_operation_queue(&conn.config, &ctx) {
-                    log::error!(
-                        target: RULES,
-                        "failed to empty the operation queue: '{}'",
-                        error
-                    );
-                }
                 // TODO: find a better way to propagate force accept.
                 // the "skipped" field is updated by the rule engine internal state,
                 // which does result in hard to read code, but it was the fastest way

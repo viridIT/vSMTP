@@ -15,10 +15,7 @@
  *
  **/
 use crate::config::log_channel::RULES;
-use crate::config::server_config::ServerConfig;
-use crate::queue::Queue;
 use crate::rules::obj::Object;
-use crate::rules::operation_queue::{Operation, OperationQueue};
 use crate::smtp::envelop::Envelop;
 use crate::smtp::mail::{Body, MailContext, MessageMetadata};
 
@@ -29,8 +26,8 @@ use rhai::{
     AST,
 };
 
+use std::net::Ipv4Addr;
 use std::net::{IpAddr, SocketAddr};
-use std::{net::Ipv4Addr, str::FromStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
@@ -163,7 +160,6 @@ impl<'a> RuleState<'a> {
             .push("connection_timestamp", std::time::SystemTime::now())
             .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
-            .push("__OPERATION_QUEUE", OperationQueue::default())
             .push("stage", "")
             // configuration variables.
             .push("addr", config.server.addr)
@@ -193,7 +189,7 @@ impl<'a> RuleState<'a> {
             .push("connection_timestamp", std::time::SystemTime::now())
             .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
-            .push("__OPERATION_QUEUE", OperationQueue::default())
+            .push("stage", "")
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
@@ -213,54 +209,6 @@ impl<'a> RuleState<'a> {
     {
         self.scope.set_or_push(name, data);
         self
-    }
-
-    /// empty the operation queue and executing all operations stored.
-    pub(crate) fn execute_operation_queue(
-        &mut self,
-        config: &ServerConfig,
-        ctx: &MailContext,
-    ) -> anyhow::Result<()> {
-        for op in self
-            .scope
-            .get_value::<OperationQueue>("__OPERATION_QUEUE")
-            .ok_or_else::<rhai::EvalAltResult, _>(|| {
-                rhai::ParseErrorType::MissingSymbol("__OPERATION_QUEUE".to_string()).into()
-            })?
-            .into_iter()
-        {
-            log::debug!(target: RULES, "executing deferred operation: {:?}", op);
-            match op {
-                Operation::Block(path) => {
-                    let mut path = std::path::PathBuf::from_str(&path)?;
-                    let message_id = &ctx.metadata.as_ref().unwrap().message_id;
-                    std::fs::create_dir_all(&path)?;
-
-                    path.push(message_id);
-                    path.set_extension("json");
-
-                    let mut file = std::fs::OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .open(path)?;
-
-                    std::io::Write::write_all(&mut file, serde_json::to_string(&ctx)?.as_bytes())?;
-                    log::warn!(target: RULES, "'{message_id}' email blocked.");
-                }
-                Operation::Quarantine { reason } => {
-                    log::warn!(
-                        target: RULES,
-                        "'{}' email quarantined: {reason}.",
-                        &ctx.metadata.as_ref().unwrap().message_id
-                    );
-
-                    Queue::Quarantine.write_to_queue(config, ctx)?
-                }
-                Operation::MutateHeader(_, _) => todo!("MutateHeader operation not implemented"),
-            }
-        }
-
-        Ok(())
     }
 
     /// fetch the email context (possibly) mutated by the user's rules.
@@ -689,7 +637,7 @@ impl RuleEngine {
             .push("connection_timestamp", std::time::SystemTime::now())
             .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
-            .push("__OPERATION_QUEUE", OperationQueue::default())
+            .push("stage", "")
             // configuration variables.
             .push(
                 "addr",

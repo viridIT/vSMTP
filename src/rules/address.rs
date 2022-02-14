@@ -74,11 +74,6 @@ impl std::fmt::Display for Address {
 }
 
 impl Address {
-    /// a wrapper to create the address from rhai's context.
-    pub(crate) fn rhai_wrapper(addr: &str) -> Result<Self, Box<rhai::EvalAltResult>> {
-        Self::new(addr).map_err(|error| error.to_string().into())
-    }
-
     pub fn new(addr: &str) -> Result<Self, AddressParsingError> {
         match addr::parse_email_address(addr) {
             Ok(addr) => Ok(Self {
