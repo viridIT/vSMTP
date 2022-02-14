@@ -22,8 +22,8 @@ use vsmtp::{
 };
 
 const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
-const CLIENT_THREAD_COUNT: u64 = 100;
-const MAIL_PER_THREAD: u64 = 5;
+const CLIENT_THREAD_COUNT: u64 = 10;
+const MAIL_PER_THREAD: u64 = 100;
 
 fn get_mail() -> lettre::Message {
     lettre::Message::builder()
