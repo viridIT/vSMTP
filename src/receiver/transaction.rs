@@ -93,11 +93,10 @@ impl Transaction<'_> {
                     let ctx = self.rule_state.get_context();
                     let mut ctx = ctx.write().unwrap();
                     ctx.body = Body::Empty;
+                    ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = Address::default();
                 }
-
-                self.rule_state.reset();
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
             }
@@ -289,9 +288,12 @@ impl Transaction<'_> {
     }
 
     fn set_helo(&mut self, helo: String) {
-        self.rule_state.reset();
+        let ctx = self.rule_state.get_context();
+        let mut ctx = ctx.write().unwrap();
 
-        self.rule_state.get_context().write().unwrap().envelop = Envelop {
+        ctx.body = Body::Empty;
+        ctx.metadata = None;
+        ctx.envelop = Envelop {
             helo,
             mail_from: Address::default(),
             rcpt: std::collections::HashSet::default(),

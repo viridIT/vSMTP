@@ -216,15 +216,6 @@ impl<'a> RuleState<'a> {
         self.ctx.clone()
     }
 
-    /// clears the state of the rules.
-    pub(crate) fn reset(&mut self) {
-        let mut ctx = self.ctx.write().unwrap();
-
-        ctx.body = Body::Empty;
-        ctx.envelop = Envelop::default();
-        ctx.metadata = None;
-    }
-
     pub fn skipped(&self) -> Option<Status> {
         self.skip
     }
