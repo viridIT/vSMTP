@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -26,6 +28,7 @@ use crate::{
         io_service::IoService,
     },
     resolver::Resolver,
+    rules::rule_engine::RuleEngine,
     smtp::mail::MailContext,
 };
 
@@ -91,54 +94,67 @@ where
         address.parse().unwrap(),
         config.clone(),
         &mut io,
-    )?;
+    )
+    .context("failed to initialize connection")?;
+
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+        RuleEngine::new(config.rules.dir.as_str()).context("failed to initialize the engine")?,
+    ));
 
     let (working_sender, mut working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, mut delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
+    let re_delivery = rule_engine.clone();
     let config_deliver = config.clone();
-    let deliver_handle = tokio::spawn(async move {
+
+    let delivery_handle = tokio::spawn(async move {
         let mut resolvers =
             std::collections::HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
         resolvers.insert("default".to_string(), Box::new(resolver));
 
         while let Some(pm) = delivery_receiver.recv().await {
-            // handle_one_in_delivery_queue(
-            //     &mut resolvers,
-            //     &std::path::PathBuf::from_iter([
-            //         Queue::Deliver
-            //             .to_path(&config_deliver.delivery.spool_dir)
-            //             .unwrap(),
-            //         std::path::Path::new(&pm.message_id).to_path_buf(),
-            //     ]),
-            //     &config_deliver,
-            // )
-            // .await
-            // .expect("delivery process failed");
+            handle_one_in_delivery_queue(
+                &config_deliver,
+                &std::path::PathBuf::from_iter([
+                    Queue::Deliver
+                        .to_path(&config_deliver.delivery.spool_dir)
+                        .unwrap(),
+                    std::path::Path::new(&pm.message_id).to_path_buf(),
+                ]),
+                &re_delivery,
+                &mut resolvers,
+            )
+            .await
+            .expect("delivery process failed");
         }
     });
 
+    let re_mime = rule_engine.clone();
     let config_mime = config.clone();
-    let from_mime = delivery_sender.clone();
+    let mime_delivery_sender = delivery_sender.clone();
     let mime_handle = tokio::spawn(async move {
         while let Some(pm) = working_receiver.recv().await {
-            // handle_one_in_working_queue(pm, &config_mime, &from_mime)
-            //     .await
-            //     .expect("mime process failed");
+            handle_one_in_working_queue(&config_mime, &re_mime, pm, &mime_delivery_sender)
+                .await
+                .expect("mime process failed");
         }
     });
 
-    // handle_connection(
-    //     &mut conn,
-    //     std::sync::Arc::new(working_sender),
-    //     std::sync::Arc::new(delivery_sender),
-    //     None,
-    // )
-    // .await?;
+    let working_sender = std::sync::Arc::new(working_sender);
+    let delivery_sender = std::sync::Arc::new(delivery_sender);
+
+    handle_connection(
+        &mut conn,
+        None,
+        rule_engine,
+        working_sender,
+        delivery_sender,
+    )
+    .await?;
     std::io::Write::flush(&mut conn.io_stream.inner)?;
 
+    delivery_handle.await.unwrap();
     mime_handle.await.unwrap();
-    deliver_handle.await.unwrap();
 
     // NOTE: could it be a good idea to remove the queue when all tests are done ?
 

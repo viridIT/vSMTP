@@ -648,7 +648,10 @@ impl RuleEngine {
 
         // compiling main script.
         let ast = engine
-            .compile_into_self_contained(&scope, std::fs::read_to_string(main_path)?)
+            .compile_into_self_contained(
+                &scope,
+                std::fs::read_to_string(main_path).unwrap_or_default(),
+            )
             .context("failed to compile main.vsl")?;
 
         log::debug!(target: RULES, "done.");

@@ -18,6 +18,7 @@ use crate::{
     config::server_config::{ServerConfig, SniKey, TlsSecurityLevel},
     processes::ProcessMessage,
     receiver::{connection::ConnectionKind, io_service::IoService},
+    rules::rule_engine::RuleEngine,
     server::ServerVSMTP,
     tls_helpers::{get_cert_from_file, get_rustls_config},
 };
@@ -39,6 +40,10 @@ async fn test_tls_tunneled(
     let (working_sender, _working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
+        server_config.rules.dir.as_str(),
+    )?));
+
     let server = tokio::spawn(async move {
         let tls_config = get_rustls_config(server_config.smtps.as_ref().unwrap()).unwrap();
 
@@ -50,6 +55,7 @@ async fn test_tls_tunneled(
             ConnectionKind::Tunneled,
             server_config,
             Some(std::sync::Arc::new(tls_config)),
+            rule_engine,
             std::sync::Arc::new(working_sender),
             std::sync::Arc::new(delivery_sender),
         )
