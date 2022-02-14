@@ -27,6 +27,8 @@ pub struct InnerServerConfig {
     pub addr_submission: std::net::SocketAddr,
     #[serde(default = "InnerServerConfig::default_addr_submissions")]
     pub addr_submissions: std::net::SocketAddr,
+    #[serde(default = "num_cpus::get")]
+    pub thread_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

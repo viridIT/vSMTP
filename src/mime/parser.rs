@@ -386,22 +386,31 @@ impl MailMimeParser {
 }
 
 /// See https://datatracker.ietf.org/doc/html/rfc5322#page-11
-fn remove_comments(line: &str) -> String {
-    line.chars()
-        .into_iter()
-        .scan(0, move |depth, elem| {
-            if elem == '(' {
-                *depth += 1;
-                return Some(None);
-            } else if elem == ')' {
-                *depth -= (*depth > 0) as i32;
-                return Some(None);
+fn remove_comments(line: &str) -> anyhow::Result<String> {
+    let (depth, is_escaped, output) = line.chars().into_iter().fold(
+        (0, false, String::with_capacity(line.len())),
+        |(depth, is_escaped, mut output), elem| {
+            if !is_escaped {
+                if elem == '(' {
+                    return (depth + 1, false, output);
+                } else if elem == ')' {
+                    return (depth - (depth > 0) as i32, false, output);
+                }
             }
 
-            Some(if *depth == 0 { Some(elem) } else { None })
-        })
-        .flatten()
-        .collect()
+            if depth == 0 {
+                output.push(elem);
+            }
+
+            (depth, elem == '\\', output)
+        },
+    );
+
+    if depth != 0 || is_escaped {
+        anyhow::bail!("something went wrong")
+    } else {
+        Ok(output)
+    }
 }
 
 /// read the current line or folded content and extracts a header if there is any.
@@ -450,7 +459,8 @@ pub fn read_header(content: &mut &[&str]) -> Option<(String, String)> {
                         .collect::<Vec<&str>>()
                         .join("")
                 )),
-            ),
+            )
+            .unwrap(),
         )),
         _ => None,
     }

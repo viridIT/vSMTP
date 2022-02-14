@@ -50,7 +50,7 @@ impl std::fmt::Display for ProtocolVersion {
             rustls::ProtocolVersion::TLSv1_1 => "SSLv1.1",
             rustls::ProtocolVersion::TLSv1_2 => "SSLv1.2",
             rustls::ProtocolVersion::TLSv1_3 => "SSLv1.3",
-            rustls::ProtocolVersion::Unknown(_) => todo!(),
+            _ => todo!(),
         })
     }
 }

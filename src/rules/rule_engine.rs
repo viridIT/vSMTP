@@ -703,8 +703,6 @@ impl RuleEngine {
             .compile_into_self_contained(&scope, std::fs::read_to_string(main_path)?)
             .context("failed to compile main.vsl")?;
 
-        println!("{:#?}", engine);
-
         log::debug!(target: RULES, "done.");
 
         Ok(Self {

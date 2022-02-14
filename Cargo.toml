@@ -52,7 +52,7 @@ enum-iterator = "0.7.0"
 diff = "0.1.12"
 fastrand = "1.7.0"
 
-rustls = { version = "0.20.2", features = ["tls12", "logging"] }
+rustls = { version = "0.20.3", features = ["tls12", "logging"] }
 rustls-pemfile = "0.3.0"
 
 tokio = { version = "1.16.1", features = [
@@ -63,6 +63,8 @@ tokio = { version = "1.16.1", features = [
     "io-util",
     "rt-multi-thread",
 ] }
+
+num_cpus = "1.13.1"
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }

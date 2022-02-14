@@ -18,8 +18,12 @@
 pub mod mime_parser {
     use crate::mime::parser::MailMimeParser;
 
+    mod rfc5322;
+
     #[allow(non_snake_case)]
     mod allen_p__discussion_threads__1;
+
+    mod mime1;
 
     fn visit_dirs(
         dir: &std::path::Path,
@@ -56,14 +60,17 @@ pub mod mime_parser {
                     .open("tmp/generated/output.txt")
                     .unwrap();
 
-                let mail = std::fs::read_to_string(entry.path()).map_err(|e| {
-                    std::io::Write::write(
-                        &mut output,
-                        format!("reading failed: '{:?}' error: '{}'\n", entry.path(), e).as_bytes(),
-                    )
+                let mail = std::fs::read_to_string(entry.path())
+                    .map_err(|e| {
+                        std::io::Write::write(
+                            &mut output,
+                            format!("reading failed: '{:?}' error: '{}'\n", entry.path(), e)
+                                .as_bytes(),
+                        )
+                        .unwrap();
+                        e
+                    })
                     .unwrap();
-                    e
-                })?;
 
                 MailMimeParser::default()
                     .parse(mail.as_bytes())

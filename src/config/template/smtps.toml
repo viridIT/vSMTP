@@ -3,6 +3,7 @@ domain = "testserver.com"
 addr = "0.0.0.0:25"
 addr_submission = "0.0.0.0:587"
 addr_submissions = "0.0.0.0:465"
+thread_count = 8
 
 [logs]
 file = "/var/log/vsmtp/vsmtp.log"
