@@ -21,6 +21,7 @@
         "libmilter",
         "maildir",
         "nonblocking",
+        "opentelemetry",
         "pemfile",
         "PKCS8",
         "postq",
