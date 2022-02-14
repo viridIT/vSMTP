@@ -16,36 +16,22 @@
 **/
 #[cfg(test)]
 pub mod test {
-    use crate::{
-        receiver::test_helpers::DefaultResolverTest,
-        rules::tests::helpers::run_integration_engine_test,
+    use crate::rules::{
+        rule_engine::{RuleEngine, Status},
+        tests::get_default_state,
     };
 
     #[tokio::test]
     async fn test_valid_connect_rules() {
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/connect/valid_connect.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            b"",
-            b"220 test.server.com Service ready\r\n",
-        )
-        .await
-        .is_ok());
-    }
+        let re =
+            RuleEngine::new("./src/rules/tests/rules/connect").expect("couldn't build rule engine");
+        let mut state = get_default_state();
 
-    #[tokio::test]
-    async fn test_invalid_connect_rules() {
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/connect/invalid_connect.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            b"",
-            b"",
-        )
-        .await
-        .is_err());
+        // ctx.client_addr is 0.0.0.0 by default.
+        state.get_context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
+        assert_eq!(re.run_when(&mut state, "connect"), Status::Continue);
+
+        state.get_context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
+        assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
     }
 }
