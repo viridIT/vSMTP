@@ -88,7 +88,7 @@ pub mod helpers {
         T: Resolver + Send + Sync + 'static,
     {
         let config = ServerConfig::builder()
-            .with_rfc_port("test.server.com")
+            .with_rfc_port("test.server.com", None)
             .with_logging(
                 "./tests/generated/output.log",
                 collection! {"default".to_string() => log::LevelFilter::Error},

@@ -230,7 +230,13 @@ mod tests {
         );
 
         let config = ServerConfig::builder()
-            .with_server("test.server.com", addr, addr_submission, addr_submissions)
+            .with_server(
+                "test.server.com",
+                addr,
+                addr_submission,
+                addr_submissions,
+                num_cpus::get(),
+            )
             .without_log()
             .without_smtps()
             .with_default_smtp()
@@ -254,7 +260,13 @@ mod tests {
         );
 
         let config = ServerConfig::builder()
-            .with_server("test.server.com", addr, addr_submission, addr_submissions)
+            .with_server(
+                "test.server.com",
+                addr,
+                addr_submission,
+                addr_submissions,
+                num_cpus::get(),
+            )
             .without_log()
             .with_safe_default_smtps(
                 TlsSecurityLevel::May,

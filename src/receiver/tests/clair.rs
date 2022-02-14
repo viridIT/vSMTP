@@ -26,7 +26,7 @@ use crate::{
 
 fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
-        .with_rfc_port("test.server.com")
+        .with_rfc_port("test.server.com", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()
@@ -236,7 +236,7 @@ async fn test_receiver_8() -> anyhow::Result<()> {
         .as_bytes(),
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_rfc_port("test.server.com")
+                .with_rfc_port("test.server.com", None)
                 .without_log()
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
                 .with_default_smtp()
@@ -310,7 +310,7 @@ async fn test_receiver_10() -> anyhow::Result<()> {
         .as_bytes(),
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_rfc_port("test.server.com")
+                .with_rfc_port("test.server.com", None)
                 .without_log()
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
                 .with_default_smtp()

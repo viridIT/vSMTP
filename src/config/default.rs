@@ -27,6 +27,7 @@ impl Default for InnerServerConfig {
             addr: "0.0.0.0:25".parse().expect("valid address"),
             addr_submission: "0.0.0.0:587".parse().expect("valid address"),
             addr_submissions: "0.0.0.0:465".parse().expect("valid address"),
+            thread_count: num_cpus::get(),
         }
     }
 }

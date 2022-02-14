@@ -74,7 +74,7 @@ macro_rules! test_lang {
             .as_bytes(),
             std::sync::Arc::new(
                 ServerConfig::builder()
-                    .with_rfc_port("test.server.com")
+                    .with_rfc_port("test.server.com", None)
                     .without_log()
                     .without_smtps()
                     .with_default_smtp()

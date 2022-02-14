@@ -22,9 +22,9 @@ use crate::{
     smtp::mail::{Body, MailContext},
 };
 
-fn get_regular_config() -> anyhow::Result<ServerConfig> {
+fn get_regular_config() -> ServerConfig {
     ServerConfig::builder()
-        .with_rfc_port("test.server.com")
+        .with_rfc_port("test.server.com", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()
@@ -32,6 +32,7 @@ fn get_regular_config() -> anyhow::Result<ServerConfig> {
         .with_rules("./tmp/nothing")
         .with_default_reply_codes()
         .build()
+        .unwrap()
 }
 
 #[tokio::test]
@@ -81,7 +82,7 @@ async fn test_receiver_rset_1() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap())
+        std::sync::Arc::new(get_regular_config())
     )
     .await
     .is_ok());
@@ -109,7 +110,7 @@ async fn test_receiver_rset_2() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap())
+        std::sync::Arc::new(get_regular_config())
     )
     .await
     .is_ok());
@@ -139,7 +140,7 @@ async fn test_receiver_rset_3() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap())
+        std::sync::Arc::new(get_regular_config())
     )
     .await
     .is_ok());
@@ -191,7 +192,7 @@ async fn test_receiver_rset_4() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap())
+        std::sync::Arc::new(get_regular_config())
     )
     .await
     .is_ok());
@@ -241,7 +242,7 @@ async fn test_receiver_rset_5() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap())
+        std::sync::Arc::new(get_regular_config())
     )
     .await
     .is_ok());
@@ -302,7 +303,7 @@ async fn test_receiver_rset_6() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap())
+        std::sync::Arc::new(get_regular_config())
     )
     .await
     .is_ok());
