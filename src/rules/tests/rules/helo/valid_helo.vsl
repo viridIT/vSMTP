@@ -1,7 +1,0 @@
-obj fqdn "viridit" "viridit.com";
-
-rule helo "test_helo" #{
-  condition: || vsl.IS_HELO("viridit"),
-  on_success: vsl.ACCEPT,
-  on_failure: vsl.DENY,
-};

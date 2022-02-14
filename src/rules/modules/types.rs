@@ -36,6 +36,11 @@ pub mod types {
         !(*in1 == in2)
     }
 
+    #[rhai_fn(global)]
+    pub fn to_string(status: &mut Status) -> String {
+        format!("{:?}", status)
+    }
+
     // shell service output (std::process::Output).
 
     #[rhai_fn(global, get = "stdout", return_raw)]
@@ -194,11 +199,21 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "==")]
-    pub fn object_is_object(
+    pub fn object_is_self(
         this: &mut std::sync::Arc<Object>,
         other: std::sync::Arc<Object>,
     ) -> bool {
         **this == *other
+    }
+
+    #[rhai_fn(global, name = "==", return_raw)]
+    pub fn object_is_string(this: &mut std::sync::Arc<Object>, s: String) -> EngineResult<bool> {
+        internal_string_is_object(&s, this)
+    }
+
+    #[rhai_fn(global, name = "==", return_raw)]
+    pub fn string_is_object(this: &str, other: std::sync::Arc<Object>) -> EngineResult<bool> {
+        internal_string_is_object(this, &other)
     }
 
     #[rhai_fn(global, name = "contains", return_raw)]

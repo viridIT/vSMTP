@@ -18,11 +18,11 @@
 pub mod test {
     use crate::rules::{
         rule_engine::{RuleEngine, Status},
-        tests::get_default_state,
+        tests::helpers::get_default_state,
     };
 
     #[tokio::test]
-    async fn test_valid_connect_rules() {
+    async fn test_connect_rules() {
         let re =
             RuleEngine::new("./src/rules/tests/rules/connect").expect("couldn't build rule engine");
         let mut state = get_default_state();

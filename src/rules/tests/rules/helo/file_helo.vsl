@@ -1,7 +1,0 @@
-obj file:fqdn "domains" "./src/rules/tests/rules/helo/helo.txt";
-
-rule helo "test_file_helo" #{
-  condition: || vsl.IS_HELO("domains"),
-  on_success: vsl.ACCEPT,
-  on_failure: vsl.DENY,
-};

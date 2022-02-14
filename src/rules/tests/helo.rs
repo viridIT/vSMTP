@@ -16,114 +16,20 @@
 **/
 #[cfg(test)]
 pub mod test {
-    use crate::{
-        receiver::test_helpers::DefaultResolverTest,
-        rules::tests::helpers::run_integration_engine_test,
+    use crate::rules::{
+        rule_engine::{RuleEngine, Status},
+        tests::helpers::get_default_state,
     };
 
     #[tokio::test]
-    async fn test_valid_helo() {
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/helo/valid_helo.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            ["HELO viridit.com\r\n"].concat().as_bytes(),
-            ["220 test.server.com Service ready\r\n", "250 Ok\r\n"]
-                .concat()
-                .as_bytes(),
-        )
-        .await
-        .is_ok());
+    async fn test_helo_rules() {
+        let re =
+            RuleEngine::new("./src/rules/tests/rules/helo").expect("couldn't build rule engine");
 
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/helo/valid_helo.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            ["HELO ibm.com\r\n"].concat().as_bytes(),
-            [
-                "220 test.server.com Service ready\r\n",
-                "554 permanent problems with the remote server\r\n",
-            ]
-            .concat()
-            .as_bytes(),
-        )
-        .await
-        .is_ok());
-    }
+        let mut state = get_default_state();
+        state.get_context().write().unwrap().envelop.helo = "viridit.com".to_string();
 
-    #[tokio::test]
-    async fn test_types_helo() {
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/helo/regex_helo.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            ["HELO viridit.eu\r\n"].concat().as_bytes(),
-            ["220 test.server.com Service ready\r\n", "250 Ok\r\n"]
-                .concat()
-                .as_bytes(),
-        )
-        .await
-        .is_ok());
-
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/helo/regex_helo.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            ["HELO viridit.com\r\n"].concat().as_bytes(),
-            [
-                "220 test.server.com Service ready\r\n",
-                "554 permanent problems with the remote server\r\n",
-            ]
-            .concat()
-            .as_bytes(),
-        )
-        .await
-        .is_ok());
-
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/helo/file_helo.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            ["HELO viridit.fr\r\n"].concat().as_bytes(),
-            ["220 test.server.com Service ready\r\n", "250 Ok\r\n"]
-                .concat()
-                .as_bytes(),
-        )
-        .await
-        .is_ok());
-
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/helo/file_helo.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            ["HELO green.foo\r\n"].concat().as_bytes(),
-            [
-                "220 test.server.com Service ready\r\n",
-                "554 permanent problems with the remote server\r\n",
-            ]
-            .concat()
-            .as_bytes(),
-        )
-        .await
-        .is_ok());
-
-        assert!(run_integration_engine_test(
-            "127.0.0.1:0",
-            DefaultResolverTest {},
-            "./src/rules/tests/rules/helo/file_helo.vsl",
-            users::mock::MockUsers::with_current_uid(1),
-            ["HELO foo.com\r\n"].concat().as_bytes(),
-            ["220 test.server.com Service ready\r\n", "250 Ok\r\n"]
-                .concat()
-                .as_bytes(),
-        )
-        .await
-        .is_ok());
+        assert_eq!(re.run_when(&mut state, "connect"), Status::Continue);
+        assert_eq!(re.run_when(&mut state, "helo"), Status::Continue);
     }
 }

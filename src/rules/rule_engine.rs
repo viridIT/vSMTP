@@ -268,7 +268,7 @@ impl RuleEngine {
                         state.skip = Some(status);
                         status
                     }
-                    _ => Status::Continue,
+                    s => s,
                 }
             }
             Err(error) => {
@@ -478,7 +478,7 @@ impl RuleEngine {
                     // file content type or info block / value of object, we are done parsing.
                     4 => match symbols[3].as_str() {
                         // NOTE: could it be possible to add a "file" content type ?
-                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "str" | "regex" => {
+                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "ident" | "str" | "regex" => {
                             Ok(Some("$string$".into()))
                         }
                         _ => Ok(None),
@@ -641,7 +641,15 @@ impl RuleEngine {
         let ast = engine
             .compile_into_self_contained(
                 &scope,
-                std::fs::read_to_string(main_path).unwrap_or_default(),
+                std::fs::read_to_string(&main_path).unwrap_or_else(|err| {
+                    log::warn!(
+                        target: RULES,
+                        "No main.vsl file found at '{:?}', no rules will be processed. {}",
+                        main_path,
+                        err
+                    );
+                    String::default()
+                }),
             )
             .context("failed to compile main.vsl")?;
 
