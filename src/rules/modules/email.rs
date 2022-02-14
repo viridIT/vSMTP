@@ -54,6 +54,27 @@ pub mod email {
             .clone())
     }
 
+    #[rhai_fn(return_raw)]
+    pub fn rewrite_mail_from(
+        this: &mut Arc<RwLock<MailContext>>,
+        addr: String,
+    ) -> EngineResult<()> {
+        let addr = Address::new(&addr).map_err::<Box<EvalAltResult>, _>(|_| {
+            format!(
+                "could not rewrite mail_from with '{}' because it is not valid address",
+                addr,
+            )
+            .into()
+        })?;
+
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .mail_from = addr;
+
+        Ok(())
+    }
+
     #[rhai_fn(get = "rcpt", return_raw)]
     pub fn rcpt(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<Rcpt> {
         Ok(this
@@ -166,43 +187,6 @@ pub mod email {
             .try_into()
             .map_err::<Box<EvalAltResult>, _>(|e: std::num::TryFromIntError| e.to_string().into())
     }
-
-    // // exposed structure used to read & rewrite the incoming email's content.
-    // .register_type::<Mail>()
-    // .register_get("headers", |mail: &mut Mail| mail.headers.clone())
-    // .register_get("body", |mail: &mut Mail| mail.body.clone())
-    // .register_result_fn  ("rewrite_from", |mail: &mut Mail, value: &str| {
-    //     if mail.body == BodyType::Undefined {
-    //         Err("failed to execute 'RW_MAIL': body is undefined".into())
-    //     } else {
-    //         mail.rewrite_from(value);
-    //         Ok(())
-    //     }
-    // })
-    // .register_result_fn  ("rewrite_rcpt", |mail: &mut Mail, old: &str, new: &str| {
-    //     if mail.body == BodyType::Undefined {
-    //         Err("failed to execute 'RW_RCPT': body is undefined".into())
-    //     } else {
-    //         mail.rewrite_rcpt(old, new);
-    //         Ok(())
-    //     }
-    // })
-    // .register_result_fn  ("add_rcpt", |mail: &mut Mail, new: &str| {
-    //     if mail.body == BodyType::Undefined {
-    //         Err("failed to execute 'ADD_RCPT': body is undefined".into())
-    //     } else {
-    //         mail.add_rcpt(new);
-    //         Ok(())
-    //     }
-    // })
-    // .register_result_fn  ("delete_rcpt", |mail: &mut Mail, old: &str| {
-    //     if mail.body == BodyType::Undefined {
-    //         Err("failed to execute 'DEL_RCPT': body is undefined".into())
-    //     } else {
-    //         mail.delete_rcpt(old);
-    //         Ok(())
-    //     }
-    // })
 
     #[rhai_fn(return_raw)]
     pub fn to_string(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
