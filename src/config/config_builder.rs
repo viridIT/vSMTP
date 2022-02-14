@@ -318,28 +318,6 @@ pub struct WantsBuild {
 
 impl ConfigBuilder<WantsBuild> {
     pub fn build(mut self) -> anyhow::Result<ServerConfig> {
-        let spool_dir_white_list = ["/tmp", "/home", "/var/spool", " /var/tmp", "./"];
-        let log_folder_white_list = ["/tmp", "/home", "/var/log", " /var/tmp", "./"];
-
-        {
-            let log_file = &self.state.parent.parent.parent.parent.parent.logs.file;
-            if log_folder_white_list
-                .iter()
-                .all(|i| !log_file.starts_with(i))
-            {
-                anyhow::bail!("path provided is not whitelisted: '{:?}'", log_file);
-            }
-        }
-        {
-            let spool_dir = &self.state.parent.parent.delivery.spool_dir;
-            if spool_dir_white_list
-                .iter()
-                .all(|i| !spool_dir.starts_with(i))
-            {
-                anyhow::bail!("path provided is not whitelisted: '{:?}'", spool_dir);
-            }
-        }
-
         let server_domain = &self
             .state
             .parent
