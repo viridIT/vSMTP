@@ -19,6 +19,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct InnerServerConfig {
     pub domain: String,
     #[serde(default = "InnerServerConfig::default_addr")]
@@ -32,9 +33,10 @@ pub struct InnerServerConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct InnerLogConfig {
     #[serde(default = "InnerLogConfig::default_file")]
-    pub file: String,
+    pub file: std::path::PathBuf,
     pub level: std::collections::HashMap<String, log::LevelFilter>,
 }
 
@@ -45,10 +47,11 @@ pub enum TlsSecurityLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SniKey {
     pub domain: String,
-    pub private_key: String,
-    pub fullchain: String,
+    pub private_key: std::path::PathBuf,
+    pub fullchain: std::path::PathBuf,
     pub protocol_version: Option<ProtocolVersionRequirement>,
 }
 
@@ -60,19 +63,21 @@ pub struct ProtocolVersion(pub rustls::ProtocolVersion);
 pub struct ProtocolVersionRequirement(pub Vec<ProtocolVersion>);
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct InnerSmtpsConfig {
     pub security_level: TlsSecurityLevel,
     pub protocol_version: ProtocolVersionRequirement,
-    pub capath: String,
+    pub capath: std::path::PathBuf,
     pub preempt_cipherlist: bool,
-    pub fullchain: String,
-    pub private_key: String,
+    pub fullchain: std::path::PathBuf,
+    pub private_key: std::path::PathBuf,
     #[serde(with = "humantime_serde")]
     pub handshake_timeout: std::time::Duration,
     pub sni_maps: Option<Vec<SniKey>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct InnerSMTPErrorConfig {
     pub soft_count: i64,
     pub hard_count: i64,
@@ -82,6 +87,7 @@ pub struct InnerSMTPErrorConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(transparent)]
+#[serde(deny_unknown_fields)]
 pub struct DurationAlias {
     #[serde(with = "humantime_serde")]
     pub alias: std::time::Duration,
@@ -89,6 +95,7 @@ pub struct DurationAlias {
 
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct InnerSMTPConfig {
     pub disable_ehlo: bool,
     #[serde(default)]
@@ -99,11 +106,13 @@ pub struct InnerSMTPConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct InnerRulesConfig {
     pub dir: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct QueueConfig {
     pub capacity: Option<usize>,
     pub retry_max: Option<usize>,
@@ -112,32 +121,22 @@ pub struct QueueConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct InnerDeliveryConfig {
-    pub spool_dir: String,
+    pub spool_dir: std::path::PathBuf,
     pub queues: std::collections::HashMap<String, QueueConfig>,
 }
 
-fn ordered_map<S>(
-    value: &std::collections::HashMap<SMTPReplyCode, String>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serde::Serialize::serialize(
-        &value.iter().collect::<std::collections::BTreeMap<_, _>>(),
-        serializer,
-    )
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 #[serde(transparent)]
 pub struct Codes {
-    #[serde(serialize_with = "ordered_map")]
+    #[serde(serialize_with = "crate::config::serializer::ordered_map")]
     pub codes: std::collections::HashMap<SMTPReplyCode, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ServerConfig {
     pub server: InnerServerConfig,
     pub log: InnerLogConfig,

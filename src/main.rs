@@ -109,7 +109,8 @@ fn main() -> anyhow::Result<()> {
                         // TODO: default
                         .with_rules("/etc/vsmtp/rules")
                         .with_default_reply_codes()
-                        .build(),
+                        .build()
+                        .unwrap(),
                 )?;
                 for diff in diff::lines(&default_config, &loaded_config) {
                     match diff {
@@ -126,6 +127,12 @@ fn main() -> anyhow::Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(config.server.thread_count)
         .enable_all()
+        .on_thread_start(|| {
+            println!("thread started");
+        })
+        .on_thread_stop(|| {
+            println!("thread stopping");
+        })
         .build()?
         .block_on(server_main(std::sync::Arc::new(config)))
 }

@@ -64,7 +64,7 @@ async fn test_tls_tunneled(
     });
 
     let mut root_store = rustls::RootCertStore::empty();
-    for i in &get_cert_from_file(SERVER_CERT).unwrap() {
+    for i in &get_cert_from_file(&std::path::PathBuf::from(SERVER_CERT)).unwrap() {
         root_store.add(i).unwrap();
     }
 
@@ -130,7 +130,7 @@ async fn simple() -> anyhow::Result<()> {
                 .with_delivery("./tmp/trash", crate::collection! {})
                 .with_rules("./tmp/no_rules")
                 .with_default_reply_codes()
-                .build(),
+                .build()?,
         ),
         &[
             "NOOP\r\n",
@@ -170,10 +170,8 @@ async fn sni() -> anyhow::Result<()> {
                     "./src/receiver/tests/certs/privateKey.key",
                     Some(vec![SniKey {
                         domain: "second.testserver.com".to_string(),
-                        fullchain: "./src/receiver/tests/certs/sni/second.certificate.crt"
-                            .to_string(),
-                        private_key: "./src/receiver/tests/certs/sni/second.privateKey.key"
-                            .to_string(),
+                        fullchain: "./src/receiver/tests/certs/sni/second.certificate.crt".into(),
+                        private_key: "./src/receiver/tests/certs/sni/second.privateKey.key".into(),
                         protocol_version: None,
                     }]),
                 )
@@ -181,7 +179,7 @@ async fn sni() -> anyhow::Result<()> {
                 .with_delivery("./tmp/trash", crate::collection! {})
                 .with_rules("./tmp/no_rules")
                 .with_default_reply_codes()
-                .build(),
+                .build()?,
         ),
         &["NOOP\r\n", "QUIT\r\n"],
         &[

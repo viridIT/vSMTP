@@ -49,14 +49,14 @@ impl InnerServerConfig {
 impl Default for InnerLogConfig {
     fn default() -> Self {
         Self {
-            file: "/var/log/vsmtp/vsmtp.log".to_string(),
+            file: "/var/log/vsmtp/vsmtp.log".into(),
             level: Default::default(),
         }
     }
 }
 
 impl InnerLogConfig {
-    pub(crate) fn default_file() -> String {
+    pub(crate) fn default_file() -> std::path::PathBuf {
         InnerLogConfig::default().file
     }
 }

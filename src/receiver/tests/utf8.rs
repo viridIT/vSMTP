@@ -81,7 +81,7 @@ macro_rules! test_lang {
                     .with_delivery("./tmp/delivery", crate::collection! {})
                     .with_rules("./tmp/nothing")
                     .with_default_reply_codes()
-                    .build(),
+                    .build()?,
             )
         )
         .await
@@ -90,21 +90,25 @@ macro_rules! test_lang {
 }
 
 #[tokio::test]
-async fn test_receiver_utf8_zh() {
+async fn test_receiver_utf8_zh() -> anyhow::Result<()> {
     test_lang!("mail/zh.txt");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_receiver_utf8_el() {
+async fn test_receiver_utf8_el() -> anyhow::Result<()> {
     test_lang!("mail/el.txt");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_receiver_utf8_ar() {
+async fn test_receiver_utf8_ar() -> anyhow::Result<()> {
     test_lang!("mail/ar.txt");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_receiver_utf8_ko() {
+async fn test_receiver_utf8_ko() -> anyhow::Result<()> {
     test_lang!("mail/ko.txt");
+    Ok(())
 }

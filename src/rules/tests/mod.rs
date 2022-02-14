@@ -34,7 +34,8 @@ pub mod helpers {
             .with_delivery("./tmp/delivery", crate::collection! {})
             .with_rules("./tmp/nothing")
             .with_default_reply_codes()
-            .build();
+            .build()
+            .expect("could not build the default rule state");
 
         RuleState::new(&config)
     }

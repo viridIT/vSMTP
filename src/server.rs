@@ -40,14 +40,10 @@ pub struct ServerVSMTP {
 
 impl ServerVSMTP {
     pub async fn new(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<Self> {
-        let spool_dir =
-            <std::path::PathBuf as std::str::FromStr>::from_str(&config.delivery.spool_dir)
-                .unwrap();
-
-        if !spool_dir.exists() {
+        if !config.delivery.spool_dir.exists() {
             std::fs::DirBuilder::new()
                 .recursive(true)
-                .create(spool_dir)?;
+                .create(&config.delivery.spool_dir)?;
         }
 
         let mut resolvers =
@@ -253,7 +249,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn init_server_valid() {
+    async fn init_server_valid() -> anyhow::Result<()> {
         // NOTE: using debug port + 1 in case of a debug server running elsewhere
         let (addr, addr_submission, addr_submissions) = (
             "0.0.0.0:10026".parse().expect("valid address"),
@@ -275,14 +271,15 @@ mod tests {
             .with_delivery("./tmp/trash", crate::collection! {})
             .with_rules("./tmp/no_rules")
             .with_default_reply_codes()
-            .build();
+            .build()?;
 
         let s = ServerVSMTP::new(std::sync::Arc::new(config)).await.unwrap();
         assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn init_server_secured_valid() {
+    async fn init_server_secured_valid() -> anyhow::Result<()> {
         // NOTE: using debug port + 1 in case of a debug server running elsewhere
         let (addr, addr_submission, addr_submissions) = (
             "0.0.0.0:10026".parse().expect("valid address"),
@@ -309,9 +306,10 @@ mod tests {
             .with_delivery("./tmp/trash", crate::collection! {})
             .with_rules("./tmp/no_rules")
             .with_default_reply_codes()
-            .build();
+            .build()?;
 
         let s = ServerVSMTP::new(std::sync::Arc::new(config)).await.unwrap();
         assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
+        Ok(())
     }
 }
