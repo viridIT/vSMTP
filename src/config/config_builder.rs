@@ -516,7 +516,7 @@ mod tests {
                     "0.0.0.0:25".parse().expect("valid address"),
                     "0.0.0.0:587".parse().expect("valid address"),
                     "0.0.0.0:465".parse().expect("valid address"),
-                    num_cpus::get(),
+                    8,
                 )
                 .with_logging(
                     "/var/log/vsmtp/vsmtp.log",

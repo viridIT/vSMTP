@@ -43,7 +43,7 @@ async fn server_main(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<()>
         .await
 }
 
-#[derive(clap::Parser, Debug)]
+#[derive(Debug, clap::Parser, PartialEq)]
 #[clap(about, version, author)]
 #[clap(global_setting(clap::AppSettings::UseLongFormatForHelpSubcommand))]
 struct Args {
@@ -54,12 +54,38 @@ struct Args {
     command: Option<Commands>,
 }
 
-#[derive(Debug, clap::Subcommand)]
+#[derive(Debug, clap::Subcommand, PartialEq)]
 enum Commands {
     /// Show the loaded config (as json)
     ConfigShow,
     /// Show the difference between the loaded config and the default one
     ConfigDiff,
+}
+
+mod tests {
+
+    #[test]
+    fn parse_arg() {
+        assert!(<crate::Args as clap::StructOpt>::try_parse_from(&[""]).is_err());
+
+        assert_eq!(
+            crate::Args {
+                command: Some(crate::Commands::ConfigShow),
+                config: "path".to_string()
+            },
+            <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-show"])
+                .unwrap()
+        );
+
+        assert_eq!(
+            crate::Args {
+                command: Some(crate::Commands::ConfigDiff),
+                config: "path".to_string()
+            },
+            <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-diff"])
+                .unwrap()
+        );
+    }
 }
 
 fn main() -> anyhow::Result<()> {
