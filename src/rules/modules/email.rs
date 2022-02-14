@@ -20,8 +20,8 @@ use rhai::plugin::*;
 pub mod email {
 
     use crate::{
-        config::log_channel::RULES, rules::address::Address, rules::modules::types::Rcpt,
-        rules::modules::EngineResult, smtp::mail::Body, smtp::mail::MailContext,
+        rules::address::Address, rules::modules::types::Rcpt, rules::modules::EngineResult,
+        smtp::mail::Body, smtp::mail::MailContext,
     };
     use std::io::Write;
     use std::sync::{Arc, RwLock};
