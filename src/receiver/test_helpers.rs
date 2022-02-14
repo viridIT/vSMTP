@@ -91,7 +91,8 @@ where
         address.parse().unwrap(),
         config.clone(),
         &mut io,
-    )?;
+    )
+    .unwrap();
 
     let (working_sender, mut working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, mut delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
