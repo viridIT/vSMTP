@@ -6,6 +6,7 @@ use crate::{
         io_service::IoService,
         test_helpers::{test_receiver, DefaultResolverTest},
     },
+    rules::rule_engine::RuleEngine,
     server::ServerVSMTP,
     tls_helpers::{get_cert_from_file, get_rustls_config},
 };
@@ -45,12 +46,21 @@ async fn test_starttls(
 
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
+        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+            anyhow::Context::context(
+                RuleEngine::new(server_config.rules.dir.as_str()),
+                "failed to initialize the engine",
+            )
+            .unwrap(),
+        ));
+
         ServerVSMTP::run_session(
             client_stream,
             client_addr,
             ConnectionKind::Opportunistic,
             server_config,
             Some(std::sync::Arc::new(tls_config)),
+            rule_engine,
             std::sync::Arc::new(working_sender),
             std::sync::Arc::new(delivery_sender),
         )

@@ -18,6 +18,7 @@ use crate::{
     config::server_config::InnerSmtpsConfig,
     processes::ProcessMessage,
     queue::Queue,
+    rules::rule_engine::RuleEngine,
     smtp::{code::SMTPReplyCode, mail::MailContext},
 };
 
@@ -26,6 +27,8 @@ use self::{
     io_service::IoService,
     transaction::{Transaction, TransactionResult},
 };
+
+use std::sync::{Arc, RwLock};
 
 pub mod connection;
 pub mod io_service;
@@ -127,9 +130,10 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
 
 pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
+    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    rule_engine: Arc<RwLock<RuleEngine>>,
     working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
 ) -> anyhow::Result<()>
 where
     S: std::io::Read + std::io::Write,
@@ -139,7 +143,7 @@ where
     conn.send_code(SMTPReplyCode::Code220)?;
 
     while conn.is_alive {
-        match Transaction::receive(conn, &helo_domain).await? {
+        match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
                 on_mail(
@@ -159,9 +163,10 @@ where
             TransactionResult::TlsUpgrade => {
                 return handle_connection_secured(
                     conn,
+                    tls_config.clone(),
+                    rule_engine,
                     working_sender.clone(),
                     delivery_sender.clone(),
-                    tls_config.clone(),
                 )
                 .await;
             }
@@ -173,9 +178,10 @@ where
 
 pub async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
+    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    rule_engine: Arc<RwLock<RuleEngine>>,
     working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-    tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
 ) -> anyhow::Result<()>
 where
     S: std::io::Read + std::io::Write,
@@ -219,7 +225,7 @@ where
     let mut helo_domain = None;
 
     while secured_conn.is_alive {
-        match Transaction::receive(&mut secured_conn, &helo_domain).await? {
+        match Transaction::receive(&mut secured_conn, &helo_domain, rule_engine.clone()).await? {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
                 on_mail(

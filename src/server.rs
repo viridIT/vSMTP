@@ -14,6 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use std::sync::{Arc, RwLock};
+
 use crate::{
     config::server_config::ServerConfig,
     processes::ProcessMessage,
@@ -23,6 +25,7 @@ use crate::{
         io_service::IoService,
     },
     resolver::{smtp_resolver::SMTPResolver, Resolver},
+    rules::rule_engine::RuleEngine,
     tls_helpers::get_rustls_config,
 };
 
@@ -110,21 +113,35 @@ impl ServerVSMTP {
         let (working_sender, working_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
+        let rule_engine = Arc::new(RwLock::new(RuleEngine::new(
+            self.config.rules.dir.as_str(),
+        )?));
+
+        let re_delivery = rule_engine.clone();
         let config_deliver = self.config.clone();
         let resolvers = std::mem::take(&mut self.resolvers);
         tokio::spawn(async move {
-            let result =
-                crate::processes::delivery::start(resolvers, config_deliver, delivery_receiver)
-                    .await;
+            let result = crate::processes::delivery::start(
+                config_deliver,
+                re_delivery,
+                resolvers,
+                delivery_receiver,
+            )
+            .await;
             log::error!("v_deliver ended unexpectedly '{:?}'", result);
         });
 
+        let re_mime = rule_engine.clone();
         let config_mime = self.config.clone();
         let mime_delivery_sender = delivery_sender.clone();
         tokio::spawn(async move {
-            let result =
-                crate::processes::mime::start(&config_mime, working_receiver, mime_delivery_sender)
-                    .await;
+            let result = crate::processes::mime::start(
+                &config_mime,
+                re_mime,
+                working_receiver,
+                mime_delivery_sender,
+            )
+            .await;
             log::error!("v_mime ended unexpectedly '{:?}'", result);
         });
 
@@ -146,24 +163,28 @@ impl ServerVSMTP {
 
             log::warn!("Connection from: {:?}, {}", kind, client_addr);
 
+            let re_smtp = rule_engine.clone();
             tokio::spawn(Self::run_session(
                 stream,
                 client_addr,
                 kind,
                 self.config.clone(),
                 self.tls_config.clone(),
+                re_smtp,
                 working_sender.clone(),
                 delivery_sender.clone(),
             ));
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn run_session(
         stream: tokio::net::TcpStream,
         client_addr: std::net::SocketAddr,
         kind: ConnectionKind,
         config: std::sync::Arc<ServerConfig>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+        rule_engine: Arc<RwLock<RuleEngine>>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     ) -> anyhow::Result<()> {
@@ -184,15 +205,22 @@ impl ServerVSMTP {
             ConnectionKind::Opportunistic | ConnectionKind::Submission => {
                 handle_connection::<std::net::TcpStream>(
                     &mut conn,
+                    tls_config,
+                    rule_engine,
                     working_sender,
                     delivery_sender,
-                    tls_config,
                 )
                 .await
             }
             ConnectionKind::Tunneled => {
-                handle_connection_secured(&mut conn, working_sender, delivery_sender, tls_config)
-                    .await
+                handle_connection_secured(
+                    &mut conn,
+                    tls_config,
+                    rule_engine,
+                    working_sender,
+                    delivery_sender,
+                )
+                .await
             }
         }
         .map(|_| {

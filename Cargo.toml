@@ -40,7 +40,7 @@ iprange = "0.6.7"
 ipnet = "2.3.1"
 chrono = "0.4.19"
 
-rhai = { version = "1.4.1", features = ["unchecked", "sync"] }
+rhai = { version = "1.4.1", features = ["unchecked", "sync", "internals"] }
 
 # the 0.10 release is more stable than the 0.9 and enable async support.
 lettre = { version = "0.10.0-rc.4", features = ["tracing"] }

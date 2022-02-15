@@ -16,14 +16,13 @@
 **/
 use crate::{
     config::{
-        log_channel::{RECEIVER, RULES},
+        log_channel::RECEIVER,
         server_config::{ServerConfig, TlsSecurityLevel},
     },
-    mime::parser::MailMimeParser,
     receiver::io_service::ReadError,
     rules::{
         address::Address,
-        rule_engine::{RuleEngine, Status},
+        rule_engine::{RuleEngine, RuleState, Status},
     },
     smtp::{
         code::SMTPReplyCode,
@@ -40,8 +39,8 @@ const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
 pub struct Transaction<'re> {
     state: StateSMTP,
-    mail: MailContext,
-    rule_engine: RuleEngine<'re>,
+    rule_state: RuleState<'re>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 }
 
 pub enum TransactionResult {
@@ -90,10 +89,14 @@ impl Transaction<'_> {
             (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Code214),
 
             (_, Event::RsetCmd) => {
-                self.mail.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
-                self.mail.envelop.rcpt.clear();
-                self.mail.envelop.mail_from = Address::default();
-                self.rule_engine.reset();
+                {
+                    let ctx = self.rule_state.get_context();
+                    let mut ctx = ctx.write().unwrap();
+                    ctx.body = Body::Empty;
+                    ctx.metadata = None;
+                    ctx.envelop.rcpt.clear();
+                    ctx.envelop.mail_from = Address::default();
+                }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
             }
@@ -108,9 +111,13 @@ impl Transaction<'_> {
 
             (_, Event::HeloCmd(helo)) => {
                 self.set_helo(helo);
-                log::trace!(target: RECEIVER, "envelop=\"{:?}\"", self.mail.envelop,);
 
-                match self.rule_engine.run_when("helo") {
+                match self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "helo")
+                {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
@@ -124,9 +131,13 @@ impl Transaction<'_> {
 
             (_, Event::EhloCmd(helo)) => {
                 self.set_helo(helo);
-                log::trace!(target: RECEIVER, "envelop=\"{:?}\"", self.mail.envelop,);
 
-                match self.rule_engine.run_when("helo") {
+                match self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "helo")
+                {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
@@ -159,13 +170,14 @@ impl Transaction<'_> {
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {
                 // TODO: store in envelop _body_bit_mime
-
-                self.mail.body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 self.set_mail_from(mail_from, conn);
 
-                log::trace!(target: RECEIVER, "envelop=\"{:?}\"", self.mail.envelop,);
-
-                match self.rule_engine.run_when("mail") {
+                match self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "mail")
+                {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
@@ -179,13 +191,25 @@ impl Transaction<'_> {
             (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
                 self.set_rcpt_to(rcpt_to);
 
-                log::trace!(target: RECEIVER, "envelop=\"{:?}\"", self.mail.envelop,);
-
-                match self.rule_engine.run_when("rcpt") {
+                match self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "rcpt")
+                {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
                     }
-                    _ if self.mail.envelop.rcpt.len() >= conn.config.smtp.rcpt_count_max => {
+                    _ if self
+                        .rule_state
+                        .get_context()
+                        .read()
+                        .unwrap()
+                        .envelop
+                        .rcpt
+                        .len()
+                        >= conn.config.smtp.rcpt_count_max =>
+                    {
                         ProcessedEvent::ReplyChangeState(
                             StateSMTP::RcptTo,
                             SMTPReplyCode::Code452TooManyRecipients,
@@ -198,11 +222,14 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
+                self.rule_state.get_context().write().unwrap().body =
+                    Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 ProcessedEvent::ReplyChangeState(StateSMTP::Data, SMTPReplyCode::Code354)
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
-                if let Body::Raw(body) = &mut self.mail.body {
+                let ctx = self.rule_state.get_context();
+                if let Body::Raw(body) = &mut ctx.write().unwrap().body {
                     body.push_str(&line);
                     body.push('\n');
                 }
@@ -210,68 +237,43 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                let parsed = MailMimeParser::default()
-                    .parse(match &self.mail.body {
-                        Body::Raw(raw) => raw.as_bytes(),
-                        _ => unreachable!("the email cannot be parsed before the DataEnd command"),
-                    })
-                    // TODO: handle parsing errors instead of going default.
-                    .unwrap_or_default();
-
-                self.rule_engine.add_data("data", parsed);
-
-                if let Status::Block | Status::Deny = self.rule_engine.run_when("preq") {
+                if let Status::Block | Status::Deny = self
+                    .rule_engine
+                    .read()
+                    .unwrap()
+                    .run_when(&mut self.rule_state, "preq")
+                {
                     return ProcessedEvent::ReplyChangeState(
                         StateSMTP::Stop,
                         SMTPReplyCode::Code554,
                     );
                 }
 
-                // executing all registered extensive operations.
-                if let Err(error) = self
-                    .rule_engine
-                    .execute_operation_queue(&conn.config, &self.mail)
-                {
-                    log::error!(
-                        target: RULES,
-                        "failed to empty the operation queue: '{}'",
-                        error
-                    );
+                let ctx = self.rule_state.get_context();
+                let mut ctx = ctx.write().unwrap();
+
+                // TODO: find a better way to propagate force accept.
+                // the "skipped" field is updated by the rule engine internal state,
+                // which does result in hard to read code, but it was the fastest way
+                // to propagate the force accept to the server.
+                // Alternatives:
+                //  - return ProcessedEvent::CompletedMimeSkipped
+                //  - set body to Body::ParsingFailed or Body::ParsingSkipped.
+                if let Some(metadata) = &mut ctx.metadata {
+                    metadata.skipped = self.rule_state.skipped();
                 }
 
-                // getting the server's envelop that could have mutated in the
-                // rule engine.
-                match self.rule_engine.get_scoped_envelop() {
-                    Some((envelop, metadata, mail)) => {
-                        self.mail.envelop = envelop;
-                        self.mail.metadata = metadata;
-                        self.mail.body = Body::Parsed(mail.into());
+                let mut output = MailContext {
+                    client_addr: ctx.client_addr,
+                    envelop: Envelop::default(),
+                    body: Body::Empty,
+                    metadata: None,
+                };
 
-                        // TODO: find a better way to propagate force accept.
-                        // the "skipped" field is updated by the rule engine internal state,
-                        // which does result in hard to read code, but it was the fastest way
-                        // to propagate the force accept to the server.
-                        // Alternatives:
-                        //  - return ProcessedEvent::CompletedMimeSkipped
-                        //  - set body to Body::ParsingFailed or Body::ParsingSkipped.
-                        if let Some(metadata) = &mut self.mail.metadata {
-                            metadata.skipped = self.rule_engine.skipped();
-                        }
+                std::mem::swap(&mut *ctx, &mut output);
 
-                        let mut output = MailContext {
-                            envelop: Envelop::default(),
-                            body: Body::Raw(String::default()),
-                            metadata: None,
-                        };
-
-                        std::mem::swap(&mut self.mail, &mut output);
-
-                        ProcessedEvent::TransactionCompleted(Box::new(output))
-                    }
-                    _ => ProcessedEvent::Reply(SMTPReplyCode::Code451),
-                }
+                ProcessedEvent::TransactionCompleted(Box::new(output))
             }
-
             _ => ProcessedEvent::Reply(SMTPReplyCode::Code503),
         }
     }
@@ -279,22 +281,23 @@ impl Transaction<'_> {
 
 impl Transaction<'_> {
     fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
-        self.rule_engine.add_data("connect", conn.client_addr.ip());
-        self.rule_engine.add_data("port", conn.client_addr.port());
-        self.rule_engine
+        self.rule_state.get_context().write().unwrap().client_addr = conn.client_addr;
+
+        self.rule_state
             .add_data("connection_timestamp", conn.timestamp);
     }
 
     fn set_helo(&mut self, helo: String) {
-        self.mail.envelop = Envelop {
+        let ctx = self.rule_state.get_context();
+        let mut ctx = ctx.write().unwrap();
+
+        ctx.body = Body::Empty;
+        ctx.metadata = None;
+        ctx.envelop = Envelop {
             helo,
             mail_from: Address::default(),
             rcpt: std::collections::HashSet::default(),
         };
-        self.rule_engine.reset();
-
-        self.rule_engine
-            .add_data("helo", self.mail.envelop.helo.clone());
     }
 
     fn set_mail_from<S>(&mut self, mail_from: String, conn: &Connection<'_, S>)
@@ -304,13 +307,14 @@ impl Transaction<'_> {
         match Address::new(&mail_from) {
             Err(_) => (),
             Ok(mail_from) => {
-                self.mail.envelop.mail_from = mail_from;
-                self.mail.envelop.rcpt.clear();
-                self.rule_engine.reset();
-
                 let now = std::time::SystemTime::now();
 
-                self.mail.metadata = Some(MessageMetadata {
+                let ctx = self.rule_state.get_context();
+                let mut ctx = ctx.write().unwrap();
+                ctx.body = Body::Empty;
+                ctx.envelop.rcpt.clear();
+                ctx.envelop.mail_from = mail_from;
+                ctx.metadata = Some(MessageMetadata {
                     timestamp: now,
                     // TODO: find a way to handle SystemTime failure.
                     message_id: format!(
@@ -329,35 +333,25 @@ impl Transaction<'_> {
                     ),
                     retry: 0,
                     resolver: "default".to_string(),
-                    skipped: self.rule_engine.skipped(),
+                    skipped: self.rule_state.skipped(),
                 });
 
-                self.rule_engine
-                    .add_data("mail", self.mail.envelop.mail_from.clone());
-                self.rule_engine
-                    .add_data("metadata", self.mail.metadata.clone());
+                log::trace!(target: RECEIVER, "envelop=\"{:?}\"", ctx.envelop,);
             }
         }
     }
 
-    // FIXME: too many clones.
     fn set_rcpt_to(&mut self, rcpt_to: String) {
         match Address::new(&rcpt_to) {
             Err(_) => (),
             Ok(rcpt_to) => {
-                self.rule_engine.add_data("rcpt", rcpt_to.clone());
-
-                match self
-                    .rule_engine
-                    .get_data::<std::collections::HashSet<Address>>("rcpts")
-                {
-                    Some(mut rcpts) => {
-                        rcpts.insert(rcpt_to);
-                        self.mail.envelop.rcpt = rcpts.clone();
-                        self.rule_engine.add_data("rcpts", rcpts.clone());
-                    }
-                    None => unreachable!("rcpts is injected by the default scope"),
-                };
+                self.rule_state
+                    .get_context()
+                    .write()
+                    .unwrap()
+                    .envelop
+                    .rcpt
+                    .insert(rcpt_to);
             }
         }
     }
@@ -367,6 +361,7 @@ impl Transaction<'_> {
     pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write>(
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
+        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     ) -> anyhow::Result<TransactionResult> {
         let mut transaction = Transaction {
             state: if helo_domain.is_none() {
@@ -374,12 +369,8 @@ impl Transaction<'_> {
             } else {
                 StateSMTP::Helo
             },
-            mail: MailContext {
-                envelop: Envelop::default(),
-                body: Body::Raw(String::with_capacity(MAIL_CAPACITY)),
-                metadata: None,
-            },
-            rule_engine: RuleEngine::new(conn.config.as_ref()),
+            rule_state: RuleState::new(conn.config.as_ref()),
+            rule_engine,
         };
 
         transaction.set_connect(conn);
@@ -388,7 +379,12 @@ impl Transaction<'_> {
             transaction.set_helo(helo)
         }
 
-        if let Status::Deny = transaction.rule_engine.run_when("connect") {
+        if let Status::Deny = transaction
+            .rule_engine
+            .read()
+            .unwrap()
+            .run_when(&mut transaction.rule_state, "connect")
+        {
             anyhow::bail!(
                 "connection at '{}' has been denied when connecting.",
                 conn.client_addr

@@ -17,134 +17,129 @@
 
 let vsl = #{
 
-    SHELL: |command| { __SHELL(command) },
+    // execute a shell command and return an Output object.
+    // SHELL: |command| { __SHELL(command) },
 
-    // checks if the object matches the connection data.
-    IS_CONNECT: |object| {
-        __is_connect(connect, object)
-    },
+    // // checks if the object matches the connection data.
+    // IS_CONNECT: |object| __is_connect(ctx.client_addr, object),
 
-    // checks if the object matches the HELO command content.
-    IS_HELO: |object| {
-        __is_helo(helo, object)
-    },
+    //     // checks if the object matches the HELO command content.
+    // IS_HELO: |object| __is_helo(ctx.envelop.helo, object),
 
-    // checks if the object matches the MAIL FROM command content.
-    IS_MAIL: |object| {
-        __is_mail(mail, object)
-    },
+    // // checks if the object matches the MAIL FROM command content.
+    // IS_MAIL: |object| __is_mail(ctx.envelop.mail, object),
 
-    // checks if the object matches one of the recipients
-    // given by the current RCPT TO command.
-    IS_RCPT: |object| __is_rcpt(rcpt, object),
+    // // checks if the object matches one of the recipients
+    // // given by the current RCPT TO command.
+    // IS_RCPT: |object| __is_rcpt(ctx.envelop.rcpts.last(), object),
 
-    // checks if the object matches one of the recipients.
-    CONTAINS_RCPT: |object| __contains_rcpt(rcpts, object),
+    // // checks if the object matches one of the recipients.
+    // CONTAINS_RCPT: |object| __contains_rcpt(ctx.envelop.rcpts, object),
 
-    // checks whether the specified user exists on the system.
-    USER_EXISTS: |object| __user_exists(object),
+    // // checks whether the specified user exists on the system.
+    // USER_EXISTS: |object| __user_exists(object),
 
     // returns a state that will influence vsmtp's state machine, if returned by
     // a on_success or on_failure rule callback.
-    ACCEPT:   || __ACCEPT(),
-    FACCEPT:  || __FACCEPT(),
-    CONTINUE: || __CONTINUE(),
-    DENY:     || __DENY(),
+    // ACCEPT:   || __ACCEPT(),
+    // FACCEPT:  || __FACCEPT(),
+    // CONTINUE: || __CONTINUE(),
+    // DENY:     || __DENY(),
 
     // logs a message to stdout.
-    LOG_OUT: |message| {
-        __LOG(message, "stdout");
-    },
+    // LOG_OUT: |message| {
+    //     __LOG(message, "stdout");
+    // },
 
-    // logs a message to stderr.
-    LOG_ERR: |message| {
-        __LOG(message, "stderr");
-    },
+    // // logs a message to stderr.
+    // LOG_ERR: |message| {
+    //     __LOG(message, "stderr");
+    // },
 
-    // logs a message to a file.
-    LOG: |message, path| {
-        __LOG(message, path);
-    },
+    // // logs a message to a file.
+    // LOG: |message, path| {
+    //     __LOG(message, path);
+    // },
 
-    // change the content of the HELO command.
-    RW_HELO: |value| {
-        helo = value;
-    },
+    // // change the content of the HELO command.
+    // RW_HELO: |value| {
+    //     helo = value;
+    // },
 
-    // change the content of the MAIL FROM command.
-    RW_MAIL: |address| {
-        // string interpolation used to parse from a String or an Address.
-        let address = address.to_string();
+    // // change the content of the MAIL FROM command.
+    // RW_MAIL: |address| {
+    //     // string interpolation used to parse from a String or an Address.
+    //     let address = address.to_string();
 
-        mail = new_address(address);
-        data.rewrite_from(address);
-    },
+    //     mail = new_address(address);
+    //     data.rewrite_from(address);
+    // },
 
-    // change one of the recipient specified by the RCPT TO command.
-    RW_RCPT: |old_addr, new_addr| {
-        let old_addr = `${old_addr}`;
-        let new_addr = `${new_addr}`;
+    // // change one of the recipient specified by the RCPT TO command.
+    // RW_RCPT: |old_addr, new_addr| {
+    //     let old_addr = `${old_addr}`;
+    //     let new_addr = `${new_addr}`;
 
-        rcpts.replace(old_addr, new_addr);
-        data.rewrite_rcpt(old_addr, new_addr);
-    },
+    //     rcpts.replace(old_addr, new_addr);
+    //     data.rewrite_rcpt(old_addr, new_addr);
+    // },
 
-    // add a recipient to the list.
-    ADD_RCPT: |new_addr| {
-        let new_addr = `${new_addr}`;
+    // // add a recipient to the list.
+    // ADD_RCPT: |new_addr| {
+    //     let new_addr = `${new_addr}`;
 
-        rcpts.insert(new_address(new_addr));
-        data.add_rcpt(new_addr);
-    },
+    //     rcpts.insert(new_address(new_addr));
+    //     data.add_rcpt(new_addr);
+    // },
 
-    // remove a recipient from the list.
-    DEL_RCPT: |to_remove| {
-        let to_remove = `${to_remove}`;
+    // // remove a recipient from the list.
+    // DEL_RCPT: |to_remove| {
+    //     let to_remove = `${to_remove}`;
 
-        rcpts.remove(to_remove);
-        data.delete_rcpt(to_remove);
-    },
+    //     rcpts.remove(to_remove);
+    //     data.delete_rcpt(to_remove);
+    // },
 
-    // write the current mail to a file.
-    WRITE: |path| {
-        __WRITE(data, path);
-    },
+    // // write the current mail to a file.
+    // WRITE: |path| {
+    //     __WRITE(data, path);
+    // },
 
-    // write the current evenlop and mail content to a file in json format.
-    DUMP: |path| {
-        __DUMP(helo, mail, rcpts, data, metadata, path);
-    },
+    // // write the current evenlop and mail content to a file in json format.
+    // DUMP: |path| {
+    //     __DUMP(ctx, path);
+    // },
 
-    // write a mail to the an user defiened quarantine folder.
-    // the BLOCK action is defered in the operation queue and is executed
-    // after the preq stage.
-    BLOCK: |path| {
-        __OPERATION_QUEUE.op_block(path);
-        __BLOCK()
-    },
+    // // write a mail to the an user defiened quarantine folder.
+    // // the BLOCK action is defered in the operation queue and is executed
+    // // after the preq stage.
+    // BLOCK: |path| {
+    //     __OPERATION_QUEUE.op_block(path);
+    //     __BLOCK()
+    // },
 
-    // put the email in the quarantine queue.
-    // autmaticaly calls NO_DELIVERY.
-    QUARANTINE: |reason| {
-        __OPERATION_QUEUE.op_quarantine(reason);
-        metadata.resolver = "none";
-    },
+    // // put the email in the quarantine queue.
+    // // autmaticaly calls NO_DELIVERY.
+    // QUARANTINE: |reason| {
+    //     __OPERATION_QUEUE.op_quarantine(reason);
+    //     metadata.resolver = "none";
+    // },
 
-    // send a mail.
-    MAIL: |from, to, subject, body| {
-        __MAIL(from, to, subject, body);
-    },
+    // // send a mail.
+    // MAIL: |from, to, subject, body| {
+    //     __MAIL(from, to, subject, body);
+    // },
 
-    LOOKUP_MAIL_FROM: || {
-        __LOOKUP_MAIL_FROM(connect, port, mail.domain)
-    },
+    // LOOKUP_MAIL_FROM: || {
+    //     __LOOKUP_MAIL_FROM(ctx.client_addr, mail.domain)
+    // },
 
-    // set delivery resolver type.
-    USE_DEFAULT: || metadata.resolver = "default",
-    USE_SMTP: || metadata.resolver = "smtp",
-    USE_MAILDIR: || metadata.resolver = "maildir",
-    USE_MBOX: || metadata.resolver = "mbox",
+    // // set delivery resolver type.
+    // USE_DEFAULT: || metadata.resolver = "default",
+    // USE_SMTP: || metadata.resolver = "smtp",
+    // USE_MAILDIR: || metadata.resolver = "maildir",
+    // USE_MBOX: || metadata.resolver = "mbox",
 
-    // prevent the system from delivering the email.
-    NO_DELIVERY: || metadata.resolver = "none",
+    // // prevent the system from delivering the email.
+    // NO_DELIVERY: || metadata.resolver = "none",
 };

@@ -17,7 +17,7 @@
 use ipnet::{Ipv4Net, Ipv6Net};
 use iprange::IpRange;
 use regex::Regex;
-use rhai::{Array, Map};
+use rhai::{Array, Dynamic};
 
 use std::{
     fs,
@@ -28,10 +28,10 @@ use std::{
 
 use super::address::Address;
 
-/// Objects are rust's representation of rule engine variables.
+/// Objects are rust's representation of rule engine Striables.
 /// multiple types are supported.
-#[derive(Debug)]
-pub(super) enum Object {
+#[derive(Debug, Clone)]
+pub enum Object {
     /// ip v4 address. (a.b.c.d)
     Ip4(Ipv4Addr),
     /// ip v6 address. (x:x:x:x:x:x:x:x)
@@ -49,53 +49,85 @@ pub(super) enum Object {
     /// the content of a file.
     File(Vec<Object>),
     /// a group of objects declared inline.
-    Group(Vec<Object>),
-    /// a generic variable.
-    Var(String),
+    Group(Vec<std::sync::Arc<Object>>),
+    /// a user.
+    LocalPart(String),
+    /// a simple string.
+    Str(String),
+}
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Ip4(l0), Self::Ip4(r0)) => l0 == r0,
+            (Self::Ip6(l0), Self::Ip6(r0)) => l0 == r0,
+            (Self::Rg4(l0), Self::Rg4(r0)) => l0 == r0,
+            (Self::Rg6(l0), Self::Rg6(r0)) => l0 == r0,
+            (Self::Address(l0), Self::Address(r0)) => l0 == r0,
+            (Self::Fqdn(l0), Self::Fqdn(r0)) => l0 == r0,
+            (Self::File(l0), Self::File(r0)) => l0 == r0,
+            (Self::Group(l0), Self::Group(r0)) => l0 == r0,
+            (Self::LocalPart(l0), Self::LocalPart(r0)) => l0 == r0,
+            (Self::Str(l0), Self::Str(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
 }
 
 impl Object {
-    // NOTE: what does the 'static lifetime implies here ?
     /// get a specific value from a rhai map and convert it to a specific type.
     /// returns an error if the cast failed.
-    pub(crate) fn value<T: 'static + Clone>(map: &Map, key: &str) -> anyhow::Result<T> {
-        match map.get(key) {
+    pub(crate) fn value<S, T>(
+        map: &std::collections::BTreeMap<S, Dynamic>,
+        key: &str,
+    ) -> anyhow::Result<T>
+    where
+        S: FromStr + std::cmp::Ord,
+        T: Clone + 'static,
+    {
+        match map.get(
+            &S::from_str(key)
+                .map_err(|_| anyhow::anyhow!("failed to get {key} key from an object"))?,
+        ) {
             Some(value) => value.clone().try_cast::<T>().ok_or_else(|| {
                 anyhow::anyhow!("{} is not of type {}.", key, std::any::type_name::<T>())
             }),
-            None => anyhow::bail!("{} not found.", key),
+            None => anyhow::bail!("'{}' key not found in object.", key),
         }
     }
 
     /// create an object from a raw rhai Map data structure.
     /// this map must have the "value" and "type" keys to be parsed
     /// successfully.
-    pub(crate) fn from(map: &Map) -> anyhow::Result<Self> {
-        let t = Object::value::<String>(map, "type")?;
+    pub(crate) fn from<S>(map: &std::collections::BTreeMap<S, Dynamic>) -> anyhow::Result<Self>
+    where
+        S: std::fmt::Debug + FromStr + std::cmp::Ord + 'static,
+    {
+        let t = Object::value::<S, String>(map, "type")?;
 
         match t.as_str() {
-            "ip4" => Ok(Object::Ip4(Ipv4Addr::from_str(&Object::value::<String>(
-                map, "value",
-            )?)?)),
+            "ip4" => Ok(Object::Ip4(Ipv4Addr::from_str(
+                &Object::value::<S, String>(map, "value")?,
+            )?)),
 
-            "ip6" => Ok(Object::Ip6(Ipv6Addr::from_str(&Object::value::<String>(
-                map, "value",
-            )?)?)),
+            "ip6" => Ok(Object::Ip6(Ipv6Addr::from_str(
+                &Object::value::<S, String>(map, "value")?,
+            )?)),
 
             "rg4" => Ok(Object::Rg4(
-                [Object::value::<String>(map, "value")?.parse::<Ipv4Net>()?]
+                [Object::value::<S, String>(map, "value")?.parse::<Ipv4Net>()?]
                     .into_iter()
                     .collect(),
             )),
 
             "rg6" => Ok(Object::Rg6(
-                [Object::value::<String>(map, "value")?.parse::<Ipv6Net>()?]
+                [Object::value::<S, String>(map, "value")?.parse::<Ipv6Net>()?]
                     .into_iter()
                     .collect(),
             )),
 
             "fqdn" => {
-                let value = Object::value::<String>(map, "value")?;
+                let value = Object::value::<S, String>(map, "value")?;
                 match addr::parse_domain_name(&value) {
                     Ok(domain) => Ok(Object::Fqdn(domain.to_string())),
                     Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
@@ -103,20 +135,22 @@ impl Object {
             }
 
             "addr" => {
-                let value = Object::value::<String>(map, "value")?;
+                let value = Object::value::<S, String>(map, "value")?;
                 Ok(Object::Address(Address::new(&value)?))
             }
 
-            "val" => Ok(Object::Var(Object::value::<String>(map, "value")?)),
+            "ident" => Ok(Object::LocalPart(Object::value::<S, String>(map, "value")?)),
 
-            "regex" => Ok(Object::Regex(Regex::from_str(&Object::value::<String>(
-                map, "value",
-            )?)?)),
+            "str" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
+
+            "regex" => Ok(Object::Regex(Regex::from_str(
+                &Object::value::<S, String>(map, "value")?,
+            )?)),
 
             // the file object as an extra "content_type" parameter.
             "file" => {
-                let value = Object::value::<String>(map, "value")?;
-                let content_type = Object::value::<String>(map, "content_type")?;
+                let value = Object::value::<S, String>(map, "value")?;
+                let content_type = Object::value::<S, String>(map, "content_type")?;
                 let reader = BufReader::new(fs::File::open(&value)?);
                 let mut content = Vec::with_capacity(20);
 
@@ -130,7 +164,7 @@ impl Object {
                                 Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                             },
                             "addr" => content.push(Object::Address(Address::new(&line)?)),
-                            "val" => content.push(Object::Var(line)),
+                            "val" => content.push(Object::Str(line)),
                             "regex" => content.push(Object::Regex(Regex::from_str(&line)?)),
                             _ => {}
                         },
@@ -143,23 +177,44 @@ impl Object {
 
             "grp" => {
                 let mut group = vec![];
-                let elements = Object::value::<Array>(map, "value")?;
+                let elements = Object::value::<S, Array>(map, "value")?;
+                let name = Object::value::<S, String>(map, "name")?;
 
                 for element in elements.iter() {
-                    match element.is::<Map>() {
-                        true => group.push(Object::from(&element.clone_cast::<Map>())?),
-                        false => {
-                            let name = Object::value::<String>(map, "name")
-                                .unwrap_or_else(|_| "unknown variable".to_string());
-                            anyhow::bail!("'{name}' needs to be a map to be defined as a group.")
-                        }
-                    };
+                    group.push(
+                        element
+                            .clone()
+                            .try_cast::<std::sync::Arc<Object>>()
+                            .ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "an element inside the {name} group is not an object"
+                                )
+                            })?,
+                    );
                 }
 
                 Ok(Object::Group(group))
             }
 
             _ => anyhow::bail!("'{}' is an unknown object type.", t),
+        }
+    }
+}
+
+impl ToString for Object {
+    fn to_string(&self) -> String {
+        match self {
+            Object::Ip4(ip) => ip.to_string(),
+            Object::Ip6(ip) => ip.to_string(),
+            Object::Rg4(range) => format!("{:?}", range),
+            Object::Rg6(range) => format!("{:?}", range),
+            Object::Address(addr) => addr.to_string(),
+            Object::Fqdn(fqdn) => fqdn.clone(),
+            Object::Regex(regex) => regex.to_string(),
+            Object::File(file) => format!("{file:?}"),
+            Object::Group(grp) => format!("{grp:?}"),
+            Object::LocalPart(string) => string.clone(),
+            Object::Str(string) => string.clone(),
         }
     }
 }

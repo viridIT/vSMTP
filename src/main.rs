@@ -19,16 +19,10 @@ use vsmtp::config::server_config::ServerConfig;
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::mbox_resolver::MBoxResolver;
 use vsmtp::resolver::smtp_resolver::SMTPResolver;
-use vsmtp::rules::rule_engine;
 use vsmtp::server::ServerVSMTP;
 
 async fn server_main(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<()> {
     log4rs::init_config(get_logger_config(&config)?)?;
-
-    rule_engine::init(Box::leak(config.rules.dir.clone().into_boxed_str())).map_err(|error| {
-        log::error!("could not initialize the rule engine: {}", error);
-        error
-    })?;
 
     let mut server = ServerVSMTP::new(config)
         .await

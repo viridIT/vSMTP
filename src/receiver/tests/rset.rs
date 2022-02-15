@@ -49,7 +49,7 @@ async fn reset_helo() {
                 std::collections::HashSet::from([Address::new("b@c").unwrap()])
             );
             assert!(match &ctx.body {
-                Body::Parsed(body) => body.headers.is_empty(),
+                Body::Parsed(body) => body.headers.len() == 2,
                 _ => false,
             });
 
@@ -66,6 +66,8 @@ async fn reset_helo() {
             "MAIL FROM:<a@b>\r\n",
             "RCPT TO:<b@c>\r\n",
             "DATA\r\n",
+            "from: a b <a@b>\r\n",
+            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
             "mail content wow\r\n",
             ".\r\n"
         ]
@@ -249,7 +251,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
                 ])
             );
             assert!(match &ctx.body {
-                Body::Parsed(body) => body.headers.is_empty(),
+                Body::Parsed(body) => body.headers.len() == 2,
                 _ => false,
             });
 
@@ -269,6 +271,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
             "RCPT TO:<toto2@bar>\r\n",
             "RCPT TO:<toto3@bar>\r\n",
             "DATA\r\n",
+            "from: foo2 foo <foo2@foo>\r\n",
+            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
             ".\r\n"
         ]
         .concat()

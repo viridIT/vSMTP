@@ -1,0 +1,31 @@
+obj ident "john" "johndoe";
+obj fqdn "viridit" "viridit.com";
+obj addr "someone" "staff@viridit.com";
+
+obj grp "staff" [
+  john,
+  obj addr "green" "green@personal.eu",
+  obj addr "steven" "steven@personal.fr",
+  obj addr "staff" "staff@viridit.com",
+  obj addr "ruben" "ruben@email.ru",
+];
+
+run_rules!(
+  #{
+    mail: [
+      rule "test_ident" || if ctx.mail_from not john && john not ctx.mail_from { vsl::next() } else { vsl::deny() },
+      rule "test_fqdn" || if ctx.mail_from is viridit { vsl::next() } else { vsl::deny() },
+      rule "test_addr" || if ctx.mail_from is someone { vsl::next() } else { vsl::deny() },
+      rule "test_grp" || if ctx.mail_from in staff { vsl::next() } else { vsl::deny() },
+
+      rule "test_rewrite" || {
+        if ctx.mail_from in staff {
+          ctx.rewrite_mail_from("no-reply@viridit.com");
+          vsl::accept()
+        } else {
+          vsl::deny()
+        }
+      },
+    ],
+  }
+)

@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -39,20 +41,22 @@ impl Default for MessageMetadata {
             timestamp: std::time::SystemTime::now(),
             message_id: Default::default(),
             retry: Default::default(),
-            resolver: "".to_string(),
+            resolver: "default".to_string(),
             skipped: None,
         }
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Body {
+    Empty,
     Raw(String),
     Parsed(Box<crate::mime::mail::Mail>),
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
+    pub client_addr: SocketAddr,
     pub envelop: super::envelop::Envelop,
     pub body: Body,
     pub metadata: Option<MessageMetadata>,

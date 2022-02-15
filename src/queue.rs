@@ -55,7 +55,10 @@ impl Queue {
     pub fn write_to_queue(&self, config: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         let message_id = match ctx.metadata.as_ref() {
             Some(metadata) => &metadata.message_id,
-            None => anyhow::bail!("mail metadata not found"),
+            None => anyhow::bail!(
+                "could not write to {} queue: mail metadata not found",
+                self.as_str()
+            ),
         };
 
         let to_deliver = self.to_path(&config.delivery.spool_dir)?.join(message_id);
