@@ -46,7 +46,7 @@ pub enum Object {
     /// a group of objects declared inline.
     Group(Vec<std::sync::Arc<Object>>),
     /// a user.
-    LocalPart(String),
+    Identifier(String),
     /// a simple string.
     Str(String),
 }
@@ -62,7 +62,7 @@ impl PartialEq for Object {
             (Self::Fqdn(l0), Self::Fqdn(r0)) => l0 == r0,
             (Self::File(l0), Self::File(r0)) => l0 == r0,
             (Self::Group(l0), Self::Group(r0)) => l0 == r0,
-            (Self::LocalPart(l0), Self::LocalPart(r0)) => l0 == r0,
+            (Self::Identifier(l0), Self::Identifier(r0)) => l0 == r0,
             (Self::Str(l0), Self::Str(r0)) => l0 == r0,
             _ => false,
         }
@@ -136,7 +136,7 @@ impl Object {
                 Ok(Object::Address(Address::new(&value)?))
             }
 
-            "ident" => Ok(Object::LocalPart(Object::value::<S, String>(map, "value")?)),
+            "ident" => Ok(Object::Identifier(Object::value::<S, String>(map, "value")?)),
 
             "str" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
 
@@ -213,7 +213,7 @@ impl ToString for Object {
             Object::Regex(regex) => regex.to_string(),
             Object::File(file) => format!("{file:?}"),
             Object::Group(grp) => format!("{grp:?}"),
-            Object::LocalPart(string) => string.clone(),
+            Object::Identifier(string) => string.clone(),
             Object::Str(string) => string.clone(),
         }
     }

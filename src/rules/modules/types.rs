@@ -262,7 +262,7 @@ pub mod types {
     #[rhai_fn(global, get = "local_parts")]
     pub fn rcpt_local_parts(this: &mut Rcpt) -> Vec<std::sync::Arc<Object>> {
         this.iter()
-            .map(|addr| std::sync::Arc::new(Object::LocalPart(addr.local_part().to_string())))
+            .map(|addr| std::sync::Arc::new(Object::Identifier(addr.local_part().to_string())))
             .collect()
     }
 
@@ -309,7 +309,7 @@ pub fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<boo
         Object::Address(addr) => this == addr.full(),
         Object::Fqdn(fqdn) => this == fqdn,
         Object::Regex(re) => re.is_match(this),
-        Object::LocalPart(s) => this == s,
+        Object::Identifier(s) => this == s,
         Object::Str(s) => this == s,
         _ => {
             return Err(format!(
@@ -347,7 +347,7 @@ pub fn internal_address_is_object(this: &Address, other: &Object) -> EngineResul
         Object::Group(grp) => grp
             .iter()
             .any(|obj| internal_address_is_object(this, obj).unwrap_or(false)),
-        Object::LocalPart(s) => this.local_part() == s,
+        Object::Identifier(s) => this.local_part() == s,
         Object::Str(s) => this.full() == s,
         _ => {
             return Err(format!(
@@ -400,7 +400,7 @@ pub fn internal_object_in_rcpt(this: &Rcpt, other: &Object) -> EngineResult<bool
         Object::Group(grp) => grp
             .iter()
             .any(|obj| internal_object_in_rcpt(this, obj).unwrap_or(false)),
-        Object::LocalPart(s) => this.iter().any(|rcpt| rcpt.local_part() == s),
+        Object::Identifier(s) => this.iter().any(|rcpt| rcpt.local_part() == s),
         Object::Str(s) => this.iter().any(|rcpt| rcpt.full() == s),
         _ => {
             return Err(format!(
