@@ -17,6 +17,12 @@ rules = "warn"
 [rules]
 dir = "./config/rules"
 
+[[rules.services]]
+name = "foo"
+type = "shell"
+timeout = "10s"
+command = "foo"
+
 [smtps]
 security_level = "May"
 capath = "./config/certs"

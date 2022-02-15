@@ -1,0 +1,5 @@
+run_rules!(#{
+    connect: [
+        action "action_name" || print("action body"),
+    ],
+})

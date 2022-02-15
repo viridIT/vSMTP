@@ -106,9 +106,22 @@ pub struct InnerSMTPConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", deny_unknown_fields)]
+pub enum Service {
+    #[serde(rename = "shell")]
+    UnixShell {
+        name: String,
+        command: String,
+        #[serde(with = "humantime_serde")]
+        timeout: std::time::Duration,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InnerRulesConfig {
     pub dir: String,
+    pub services: Vec<Service>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

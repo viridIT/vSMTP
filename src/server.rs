@@ -241,7 +241,7 @@ mod tests {
             .without_smtps()
             .with_default_smtp()
             .with_delivery("./tmp/trash", crate::collection! {})
-            .with_rules("./tmp/no_rules")
+            .with_rules("./tmp/no_rules", vec![])
             .with_default_reply_codes()
             .build()?;
 
@@ -276,7 +276,7 @@ mod tests {
             )
             .with_default_smtp()
             .with_delivery("./tmp/trash", crate::collection! {})
-            .with_rules("./tmp/no_rules")
+            .with_rules("./tmp/no_rules", vec![])
             .with_default_reply_codes()
             .build()?;
 

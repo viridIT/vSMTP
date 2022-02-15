@@ -96,7 +96,7 @@ pub mod helpers {
             .without_smtps()
             .with_default_smtp()
             .with_delivery("./tests/generated/spool/", collection! {})
-            .with_rules(src_path)
+            .with_rules(src_path, vec![])
             .with_default_reply_codes()
             .build()?;
 
