@@ -14,11 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use ipnet::{Ipv4Net, Ipv6Net};
-use iprange::IpRange;
-use regex::Regex;
-use rhai::{Array, Dynamic};
-
 use std::{
     fs,
     io::{BufRead, BufReader},
@@ -28,7 +23,7 @@ use std::{
 
 use super::address::Address;
 
-/// Objects are rust's representation of rule engine Striables.
+/// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
 #[derive(Debug, Clone)]
 pub enum Object {
@@ -37,15 +32,15 @@ pub enum Object {
     /// ip v6 address. (x:x:x:x:x:x:x:x)
     Ip6(Ipv6Addr),
     /// an ip v4 range. (a.b.c.d/range)
-    Rg4(IpRange<Ipv4Net>),
+    Rg4(iprange::IpRange<ipnet::Ipv4Net>),
     /// an ip v6 range. (x:x:x:x:x:x:x:x/range)
-    Rg6(IpRange<Ipv6Net>),
+    Rg6(iprange::IpRange<ipnet::Ipv6Net>),
     /// an email address (jones@foo.com)
     Address(Address),
     /// a valid fully qualified domain name (foo.com)
     Fqdn(String),
     /// a regex (^[a-z0-9.]+@foo.com$)
-    Regex(Regex),
+    Regex(regex::Regex),
     /// the content of a file.
     File(Vec<Object>),
     /// a group of objects declared inline.
@@ -78,7 +73,7 @@ impl Object {
     /// get a specific value from a rhai map and convert it to a specific type.
     /// returns an error if the cast failed.
     pub(crate) fn value<S, T>(
-        map: &std::collections::BTreeMap<S, Dynamic>,
+        map: &std::collections::BTreeMap<S, rhai::Dynamic>,
         key: &str,
     ) -> anyhow::Result<T>
     where
@@ -99,7 +94,9 @@ impl Object {
     /// create an object from a raw rhai Map data structure.
     /// this map must have the "value" and "type" keys to be parsed
     /// successfully.
-    pub(crate) fn from<S>(map: &std::collections::BTreeMap<S, Dynamic>) -> anyhow::Result<Self>
+    pub(crate) fn from<S>(
+        map: &std::collections::BTreeMap<S, rhai::Dynamic>,
+    ) -> anyhow::Result<Self>
     where
         S: std::fmt::Debug + FromStr + std::cmp::Ord + 'static,
     {
@@ -115,13 +112,13 @@ impl Object {
             )?)),
 
             "rg4" => Ok(Object::Rg4(
-                [Object::value::<S, String>(map, "value")?.parse::<Ipv4Net>()?]
+                [Object::value::<S, String>(map, "value")?.parse::<ipnet::Ipv4Net>()?]
                     .into_iter()
                     .collect(),
             )),
 
             "rg6" => Ok(Object::Rg6(
-                [Object::value::<S, String>(map, "value")?.parse::<Ipv6Net>()?]
+                [Object::value::<S, String>(map, "value")?.parse::<ipnet::Ipv6Net>()?]
                     .into_iter()
                     .collect(),
             )),
@@ -143,9 +140,12 @@ impl Object {
 
             "str" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
 
-            "regex" => Ok(Object::Regex(Regex::from_str(
-                &Object::value::<S, String>(map, "value")?,
-            )?)),
+            "regex" => Ok(Object::Regex(regex::Regex::from_str(&Object::value::<
+                S,
+                String,
+            >(
+                map, "value"
+            )?)?)),
 
             // the file object as an extra "content_type" parameter.
             "file" => {
@@ -165,7 +165,7 @@ impl Object {
                             },
                             "addr" => content.push(Object::Address(Address::new(&line)?)),
                             "val" => content.push(Object::Str(line)),
-                            "regex" => content.push(Object::Regex(Regex::from_str(&line)?)),
+                            "regex" => content.push(Object::Regex(regex::Regex::from_str(&line)?)),
                             _ => {}
                         },
                         Err(error) => log::error!("couldn't read line in '{}': {}", value, error),
@@ -177,7 +177,7 @@ impl Object {
 
             "grp" => {
                 let mut group = vec![];
-                let elements = Object::value::<S, Array>(map, "value")?;
+                let elements = Object::value::<S, rhai::Array>(map, "value")?;
                 let name = Object::value::<S, String>(map, "name")?;
 
                 for element in elements.iter() {
