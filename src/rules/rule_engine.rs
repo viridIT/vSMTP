@@ -17,7 +17,7 @@
 use crate::config::log_channel::RULES;
 use crate::rules::obj::Object;
 use crate::smtp::envelop::Envelop;
-use crate::smtp::mail::{Body, MailContext, MessageMetadata};
+use crate::smtp::mail::{Body, MailContext};
 
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
@@ -158,7 +158,6 @@ impl<'a> RuleState<'a> {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
             .push("stage", "")
             // configuration variables.
@@ -187,7 +186,6 @@ impl<'a> RuleState<'a> {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
             .push("stage", "")
             // configuration variables.
@@ -626,7 +624,6 @@ impl RuleEngine {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            .push("metadata", None::<MessageMetadata>)
             // rule engine's internals.
             .push("stage", "")
             // configuration variables.
