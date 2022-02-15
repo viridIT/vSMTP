@@ -183,122 +183,9 @@ async fn test_receiver_6() {
     .is_ok());
 }
 
-// FIXME: what if tls_config == None && TlsSecurityLevel != None
-/*
 #[tokio::test]
-async fn test_receiver_7() {
-    assert!(test_receiver(
-        ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
-            .concat()
-            .as_bytes(),
-        [
-            "220 test.server.com Service ready\r\n",
-            "250-test.server.com\r\n",
-            "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250 STARTTLS\r\n",
-            "454 TLS not available due to temporary reason\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        ServerConfig {
-            tls: InnerSmtpsConfig {
-                security_level: TlsSecurityLevel::Encrypt,
-                ..get_test_config().tls
-            },
-            ..get_test_config()
-        },
-    )
-    .await
-    .is_ok());
-}
-*/
-
-#[tokio::test]
-async fn test_receiver_8() -> anyhow::Result<()> {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
-            .concat()
-            .as_bytes(),
-        [
-            "220 test.server.com Service ready\r\n",
-            "250-test.server.com\r\n",
-            "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250 STARTTLS\r\n",
-            "530 Must issue a STARTTLS command first\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_rfc_port("test.server.com", None)
-                .without_log()
-                .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
-                .with_default_smtp()
-                .with_delivery("./tmp/delivery", crate::collection! {})
-                .with_rules("./tmp/nothing", vec![])
-                .with_default_reply_codes()
-                .build()?
-        )
-    )
-    .await
-    .is_ok());
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_receiver_9() {
-    let before_test = std::time::Instant::now();
-    let res = test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        [
-            "RCPT TO:<bar@foo>\r\n",
-            "MAIL FROM: <foo@bar>\r\n",
-            "EHLO\r\n",
-            "NOOP\r\n",
-            "azeai\r\n",
-            "STARTTLS\r\n",
-            "MAIL FROM:<john@doe>\r\n",
-            "EHLO\r\n",
-            "EHLO\r\n",
-            "HELP\r\n",
-            "aieari\r\n",
-            "not a valid smtp command\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        [
-            "220 test.server.com Service ready\r\n",
-            "503 Bad sequence of commands\r\n",
-            "503 Bad sequence of commands\r\n",
-            "501 Syntax error in parameters or arguments\r\n",
-            "250 Ok\r\n",
-            "501 Syntax error in parameters or arguments\r\n",
-            "503 Bad sequence of commands\r\n",
-            "503 Bad sequence of commands\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
-    )
-    .await;
-
-    assert!(res.is_err());
-
-    // (hard_error - soft_error) * error_delay
-    assert!(before_test.elapsed().as_millis() >= 5 * 100);
-}
-
-#[tokio::test]
-async fn test_receiver_10() -> anyhow::Result<()> {
-    assert!(test_receiver(
+async fn test_receiver_10() {
+    match test_receiver(
         "127.0.0.1:0",
         DefaultResolverTest,
         ["HELP\r\n"].concat().as_bytes(),
@@ -317,12 +204,17 @@ async fn test_receiver_10() -> anyhow::Result<()> {
                 .with_delivery("./tmp/delivery", crate::collection! {})
                 .with_rules("./tmp/nothing", vec![])
                 .with_default_reply_codes()
-                .build()?
-        )
+                .build()
+                .expect("could not build the server config"),
+        ),
     )
     .await
-    .is_ok());
-    Ok(())
+    {
+        Ok(_) => {}
+        Err(err) => {
+            panic!("{}", err)
+        }
+    };
 }
 
 #[tokio::test]
@@ -432,7 +324,7 @@ async fn test_receiver_13() {
                         std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                     );
                     assert!(match &ctx.body {
-                        Body::Parsed(body) => body.headers.is_empty(),
+                        Body::Parsed(body) => body.headers.len() == 2,
                         _ => false,
                     });
                     assert!(ctx.metadata.is_some());
@@ -445,7 +337,7 @@ async fn test_receiver_13() {
                         std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
                     );
                     assert!(match &ctx.body {
-                        Body::Parsed(body) => body.headers.is_empty(),
+                        Body::Parsed(body) => body.headers.len() == 2,
                         _ => false,
                     });
                 }
@@ -466,11 +358,15 @@ async fn test_receiver_13() {
             "MAIL FROM:<john@doe>\r\n",
             "RCPT TO:<aa@bb>\r\n",
             "DATA\r\n",
+            "from: john doe <john@doe>\r\n",
+            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
             "mail one\r\n",
             ".\r\n",
             "MAIL FROM:<john2@doe>\r\n",
             "RCPT TO:<aa2@bb>\r\n",
             "DATA\r\n",
+            "from: john2 doe <john2@doe>\r\n",
+            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
             "mail two\r\n",
             ".\r\n",
             "QUIT\r\n",
@@ -516,7 +412,7 @@ async fn test_receiver_14() {
                         std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                     );
                     assert!(match &ctx.body {
-                        Body::Parsed(body) => body.headers.is_empty(),
+                        Body::Parsed(body) => body.headers.len() == 2,
                         _ => false,
                     });
                 }
@@ -528,7 +424,7 @@ async fn test_receiver_14() {
                         std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
                     );
                     assert!(match &ctx.body {
-                        Body::Parsed(body) => body.headers.is_empty(),
+                        Body::Parsed(body) => body.headers.len() == 2,
                         _ => false,
                     });
                     assert!(ctx.metadata.is_some());
@@ -550,12 +446,16 @@ async fn test_receiver_14() {
             "MAIL FROM:<john@doe>\r\n",
             "RCPT TO:<aa@bb>\r\n",
             "DATA\r\n",
+            "from: john doe <john@doe>\r\n",
+            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
             "mail one\r\n",
             ".\r\n",
             "HELO foobar2\r\n",
             "MAIL FROM:<john2@doe>\r\n",
             "RCPT TO:<aa2@bb>\r\n",
             "DATA\r\n",
+            "from: john2 doe <john2@doe>\r\n",
+            "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
             "mail two\r\n",
             ".\r\n",
             "QUIT\r\n",

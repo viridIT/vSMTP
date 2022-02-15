@@ -31,7 +31,8 @@ pub struct MBoxResolver;
 impl Resolver for MBoxResolver {
     async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         for rcpt in ctx.envelop.rcpt.iter() {
-            match crate::rules::rule_engine::get_user_by_name(rcpt.local_part()) {
+            // FIXME: use UsersCache.
+            match users::get_user_by_name(rcpt.local_part()) {
                 Some(user) => {
                     let timestamp: chrono::DateTime<chrono::offset::Utc> = ctx
                         .metadata
@@ -42,6 +43,9 @@ impl Resolver for MBoxResolver {
                     let timestamp = timestamp.format("%c");
 
                     let content = match &ctx.body {
+                        Body::Empty => {
+                            anyhow::bail!("failed to write email using mbox: body is empty")
+                        }
                         Body::Raw(raw) => {
                             format!("From {} {timestamp}\n{raw}\n", ctx.envelop.mail_from)
                         }

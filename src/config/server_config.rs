@@ -114,6 +114,7 @@ pub enum Service {
         command: String,
         #[serde(with = "humantime_serde")]
         timeout: std::time::Duration,
+        args: Option<String>,
     },
 }
 

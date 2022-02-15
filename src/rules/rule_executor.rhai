@@ -15,20 +15,33 @@
  *
 **/
 
-let status = __CONTINUE();
+// functions are pure, this is why the executor is
+// wrapped in one. this function needs to capture
+// the "stage" variable to work properly.
+// use it like this: run_rules!(rules)
+fn run_rules(rules) {
+    let status = vsl::next();
 
-for r in __rules {
-    if r.when == __stage {
-        let status = switch r.condition() {
-            true => r.on_success(),
-            false => r.on_failure(),
-        };
+    if rules.contains(stage) {
+        for r in rules[stage] {
+            let result = r.evaluate.call();
 
-        if status != __CONTINUE() {
-            return status;
+            switch r.type {
+                "rule" => {
+                    if result.type_of() != "vsmtp::rules::rule_engine::Status" {
+                        status = r.default_status;
+                    } else {
+                        status = result;
+                    }
+                }
+                _ => {}
+            }
+
+            if status != vsl::next() {
+                return status;
+            }
         }
     }
-}
 
-// in this case, status == CONTINUE, default is used.
-status
+    status
+}

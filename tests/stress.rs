@@ -16,7 +16,6 @@
 **/
 use vsmtp::{
     config::{get_logger_config, server_config::ServerConfig},
-    rules::rule_engine,
     server::ServerVSMTP,
     smtp::mail::MailContext,
 };
@@ -115,13 +114,6 @@ async fn stress() {
         .unwrap();
 
     log4rs::init_config(get_logger_config(&config).unwrap()).unwrap();
-
-    rule_engine::init(Box::leak(config.rules.dir.clone().into_boxed_str()))
-        .map_err(|error| {
-            log::error!("could not initialize the rule engine: {}", error);
-            error
-        })
-        .unwrap();
 
     let mut server = ServerVSMTP::new(std::sync::Arc::new(config))
         .await

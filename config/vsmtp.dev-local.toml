@@ -18,10 +18,11 @@ rules = "warn"
 dir = "./config/rules"
 
 [[rules.services]]
-name = "foo"
+name = "dummy_service"
 type = "shell"
 timeout = "10s"
-command = "foo"
+command = "echo"
+args = "hello"
 
 [smtps]
 security_level = "May"

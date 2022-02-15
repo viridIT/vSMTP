@@ -16,5 +16,6 @@
 **/
 mod clair;
 mod rset;
+mod starttls;
 mod tls_tunneled;
 mod utf8;

@@ -1,5 +1,8 @@
 run_rules!(#{
     connect: [
-        action "action_name" || print("action body"),
+        action "dummy_action" || {
+            let result = vsl::run_service("dummy_service");
+            print(`${result}`);
+        }
     ],
 })

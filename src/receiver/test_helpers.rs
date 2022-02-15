@@ -26,6 +26,7 @@ use crate::{
         io_service::IoService,
     },
     resolver::Resolver,
+    rules::rule_engine::RuleEngine,
     smtp::mail::MailContext,
 };
 
@@ -86,59 +87,79 @@ where
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = Connection::from_plain(
-        ConnectionKind::Opportunistic,
-        address.parse().unwrap(),
-        config.clone(),
-        &mut io,
-    )?;
+    let mut conn = anyhow::Context::context(
+        Connection::from_plain(
+            ConnectionKind::Opportunistic,
+            address.parse().unwrap(),
+            config.clone(),
+            &mut io,
+        ),
+        "failed to initialize connection",
+    )
+    .unwrap();
+
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+        anyhow::Context::context(
+            RuleEngine::new(config.rules.dir.as_str()),
+            "failed to initialize the engine",
+        )
+        .unwrap(),
+    ));
 
     let (working_sender, mut working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, mut delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
+    let re_delivery = rule_engine.clone();
     let config_deliver = config.clone();
-    let deliver_handle = tokio::spawn(async move {
+
+    let delivery_handle = tokio::spawn(async move {
         let mut resolvers =
             std::collections::HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
         resolvers.insert("default".to_string(), Box::new(resolver));
 
         while let Some(pm) = delivery_receiver.recv().await {
             handle_one_in_delivery_queue(
-                &mut resolvers,
+                &config_deliver,
                 &std::path::PathBuf::from_iter([
                     Queue::Deliver
                         .to_path(&config_deliver.delivery.spool_dir)
                         .unwrap(),
                     std::path::Path::new(&pm.message_id).to_path_buf(),
                 ]),
-                &config_deliver,
+                &re_delivery,
+                &mut resolvers,
             )
             .await
             .expect("delivery process failed");
         }
     });
 
+    let re_mime = rule_engine.clone();
     let config_mime = config.clone();
-    let from_mime = delivery_sender.clone();
+    let mime_delivery_sender = delivery_sender.clone();
     let mime_handle = tokio::spawn(async move {
         while let Some(pm) = working_receiver.recv().await {
-            handle_one_in_working_queue(pm, &config_mime, &from_mime)
+            handle_one_in_working_queue(&config_mime, &re_mime, pm, &mime_delivery_sender)
                 .await
                 .expect("mime process failed");
         }
     });
 
+    let working_sender = std::sync::Arc::new(working_sender);
+    let delivery_sender = std::sync::Arc::new(delivery_sender);
+
     handle_connection(
         &mut conn,
-        std::sync::Arc::new(working_sender),
-        std::sync::Arc::new(delivery_sender),
         None,
+        rule_engine,
+        working_sender,
+        delivery_sender,
     )
     .await?;
     std::io::Write::flush(&mut conn.io_stream.inner)?;
 
+    delivery_handle.await.unwrap();
     mime_handle.await.unwrap();
-    deliver_handle.await.unwrap();
 
     // NOTE: could it be a good idea to remove the queue when all tests are done ?
 
