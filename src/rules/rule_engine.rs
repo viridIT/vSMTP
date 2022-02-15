@@ -269,16 +269,38 @@ impl RuleEngine {
                     s => s,
                 }
             }
-            Err(error) => {
-                log::error!(
-                    target: RULES,
-                    "the rule engine skipped stage '{}' because it failed to evaluate '{}':\n\t{}",
-                    "unknown",
-                    stage,
-                    error
-                );
-                Status::Continue
-            }
+            Err(error) => match *error {
+                EvalAltResult::ErrorInFunctionCall(_, _, error, _) => {
+                    if let EvalAltResult::ErrorRuntime(error, _) = *error {
+                        if let Some(error) = error.try_cast::<rhai::Map>() {
+                            let rule = error
+                                .get("rule")
+                                .map(|d| d.to_string())
+                                .unwrap_or_else(|| "unknown rule".to_string());
+                            let error = error.get("message").map(|d| d.to_string())
+                            .unwrap_or_else(|| "unexpected error, this is a bug. Please report it on our github page.".to_string());
+
+                            log::error!(
+                                target: RULES,
+                                "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
+                                stage,
+                                rule,
+                                error
+                            );
+                        };
+                    }
+                    Status::Continue
+                }
+                _ => {
+                    log::error!(
+                        target: RULES,
+                        "the rule engine skipped stage '{}':\n\t{:?}",
+                        stage,
+                        error
+                    );
+                    Status::Continue
+                }
+            },
         }
     }
 

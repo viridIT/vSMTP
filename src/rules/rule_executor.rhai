@@ -24,21 +24,31 @@ fn run_rules(rules) {
 
     if rules.contains(stage) {
         for r in rules[stage] {
-            let result = r.evaluate.call();
+            try {
+                let result = r.evaluate.call();
 
-            switch r.type {
-                "rule" => {
-                    if result.type_of() != "vsmtp::rules::rule_engine::Status" {
-                        status = r.default_status;
-                    } else {
-                        status = result;
+                switch r.type {
+                    "rule" => {
+                        if result.type_of() != "vsmtp::rules::rule_engine::Status" {
+                            status = r.default_status;
+                        } else {
+                            status = result;
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
-            }
 
-            if status != vsl::next() {
-                return status;
+                if status != vsl::next() {
+                    return status;
+                }
+            } catch (err) {
+                switch err.error {
+                    "ErrorInFunctionCall" => {
+                        err.set("rule", r.name);
+                        throw err;
+                    }
+                    _ => { throw; }
+                }
             }
         }
     }

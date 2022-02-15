@@ -24,6 +24,19 @@ pub mod test {
 
     #[tokio::test]
     async fn test_rcpt_rules() {
+        {
+            let mut config = crate::receiver::test_helpers::get_regular_config().unwrap();
+            config
+                .log
+                .level
+                .insert("rules".into(), log::LevelFilter::Trace);
+            config
+                .log
+                .level
+                .insert("mail_parser".into(), log::LevelFilter::Trace);
+            log4rs::init_config(crate::config::get_logger_config(&config).unwrap()).unwrap();
+        }
+
         let re =
             RuleEngine::new("./src/rules/tests/rules/rcpt").expect("couldn't build rule engine");
 
