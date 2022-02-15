@@ -136,7 +136,9 @@ impl Object {
                 Ok(Object::Address(Address::new(&value)?))
             }
 
-            "ident" => Ok(Object::Identifier(Object::value::<S, String>(map, "value")?)),
+            "ident" => Ok(Object::Identifier(Object::value::<S, String>(
+                map, "value",
+            )?)),
 
             "str" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
 
