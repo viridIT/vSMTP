@@ -22,33 +22,6 @@ pub mod actions {
 
     use crate::rules::rule_engine::Status;
 
-    // #[rhai_fn(name = "__SHELL", return_raw)]
-    // pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {
-    //     std::process::Command::new("sh")
-    //         .arg("-c")
-    //         .arg(command)
-    //         .output()
-    //         .map_err(|e| e.to_string().into())
-    // }
-
-    // /// enqueue a block operation on the queue.
-    // pub fn op_block(queue: &mut OperationQueue, path: &str) {
-    //     queue.enqueue(Operation::Block(path.to_string()))
-    // }
-
-    // /// enqueue a quarantine operation on the queue.
-    // pub fn op_quarantine(queue: &mut OperationQueue, reason: String) {
-    //     queue.enqueue(Operation::Quarantine { reason })
-    // }
-
-    // /// enqueue a header mutation operation on the queue.
-    // pub fn op_mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
-    //     queue.enqueue(Operation::MutateHeader(
-    //         header.to_string(),
-    //         value.to_string(),
-    //     ))
-    // }
-
     pub fn faccept() -> Status {
         Status::Faccept
     }
