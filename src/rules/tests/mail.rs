@@ -16,22 +16,54 @@
 **/
 #[cfg(test)]
 pub mod test {
-    use crate::rules::{
-        address::Address,
-        rule_engine::{RuleEngine, Status},
-        tests::helpers::get_default_state,
+    use crate::{
+        mime::parser::MailMimeParser,
+        rules::{
+            address::Address,
+            rule_engine::{RuleEngine, Status},
+            tests::helpers::get_default_state,
+        },
+        smtp::mail::Body,
     };
 
     #[tokio::test]
     async fn test_mail_from_rules() {
+        {
+            let mut config = crate::receiver::test_helpers::get_regular_config().unwrap();
+            config
+                .log
+                .level
+                .insert("rules".into(), log::LevelFilter::Trace);
+            config
+                .log
+                .level
+                .insert("mail_parser".into(), log::LevelFilter::Trace);
+            log4rs::init_config(crate::config::get_logger_config(&config).unwrap()).unwrap();
+        }
+
         let re =
             RuleEngine::new("./src/rules/tests/rules/mail").expect("couldn't build rule engine");
 
         let mut state = get_default_state();
-        state.get_context().write().unwrap().envelop.mail_from =
-            Address::new("staff@viridit.com").unwrap();
+        {
+            let email = state.get_context();
+            let mut email = email.write().unwrap();
+
+            email.envelop.mail_from = Address::new("staff@viridit.com").unwrap();
+            email.body = Body::Parsed(Box::new(
+                MailMimeParser::default()
+                    .parse(
+                        br#"From: staff <staff@viridit.com>
+Date: Fri, 21 Nov 1997 10:01:10 -0600
+
+This is a reply to your hello."#,
+                    )
+                    .unwrap(),
+            ));
+        }
 
         assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
+        assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
         assert_eq!(
             state.get_context().read().unwrap().envelop.mail_from.full(),
             "no-reply@viridit.com"

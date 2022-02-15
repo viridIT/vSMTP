@@ -165,3 +165,15 @@ where
 
     Ok(())
 }
+
+pub fn get_regular_config() -> anyhow::Result<ServerConfig> {
+    ServerConfig::builder()
+        .with_rfc_port("test.server.com", None)
+        .without_log()
+        .without_smtps()
+        .with_default_smtp()
+        .with_delivery("./tmp/delivery", crate::collection! {})
+        .with_rules("./tmp/nothing")
+        .with_default_reply_codes()
+        .build()
+}

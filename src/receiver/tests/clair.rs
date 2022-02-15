@@ -16,25 +16,13 @@
 **/
 use crate::{
     config::server_config::{ServerConfig, TlsSecurityLevel},
-    receiver::test_helpers::{test_receiver, DefaultResolverTest},
+    receiver::test_helpers::{get_regular_config, test_receiver, DefaultResolverTest},
     resolver::Resolver,
     rules::address::Address,
     smtp::mail::{Body, MailContext},
 };
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
-
-fn get_regular_config() -> anyhow::Result<ServerConfig> {
-    ServerConfig::builder()
-        .with_rfc_port("test.server.com", None)
-        .without_log()
-        .without_smtps()
-        .with_default_smtp()
-        .with_delivery("./tmp/delivery", crate::collection! {})
-        .with_rules("./tmp/nothing")
-        .with_default_reply_codes()
-        .build()
-}
 
 #[tokio::test]
 async fn test_receiver_1() {
