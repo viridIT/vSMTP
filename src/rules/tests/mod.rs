@@ -18,6 +18,7 @@ mod connect;
 mod helo;
 mod mail;
 mod rcpt;
+mod types;
 
 #[cfg(test)]
 pub mod helpers {

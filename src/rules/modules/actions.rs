@@ -31,15 +31,11 @@ pub mod actions {
     }
 
     pub fn next() -> Status {
-        Status::Continue
+        Status::Next
     }
 
     pub fn deny() -> Status {
         Status::Deny
-    }
-
-    pub fn block() -> Status {
-        Status::Block
     }
 
     /// logs a message to stdout, stderr or a file.

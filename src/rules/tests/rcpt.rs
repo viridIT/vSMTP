@@ -26,8 +26,8 @@ pub mod test {
         smtp::mail::Body,
     };
 
-    #[tokio::test]
-    async fn test_rcpt_rules() {
+    #[test]
+    fn test_rcpt_rules() {
         crate::receiver::test_helpers::logs::setup_logs();
 
         let re =
@@ -57,7 +57,7 @@ This is a reply to your hello."#,
         }
 
         assert_eq!(re.run_when(&mut state, "rcpt"), Status::Accept);
-        assert_eq!(re.run_when(&mut state, "postq"), Status::Continue);
+        assert_eq!(re.run_when(&mut state, "postq"), Status::Next);
         assert_eq!(
             state.get_context().read().unwrap().envelop.rcpt,
             std::collections::HashSet::from_iter([

@@ -26,8 +26,8 @@ pub mod test {
         smtp::mail::Body,
     };
 
-    #[tokio::test]
-    async fn test_mail_from_rules() {
+    #[test]
+    fn test_mail_from_rules() {
         crate::receiver::test_helpers::logs::setup_logs();
 
         let re =

@@ -41,6 +41,11 @@ pub mod types {
         format!("{:?}", status)
     }
 
+    #[rhai_fn(global)]
+    pub fn to_debug(status: &mut Status) -> String {
+        format!("{:?}", status)
+    }
+
     // shell service output (std::process::Output).
 
     #[rhai_fn(global, get = "stdout", return_raw)]

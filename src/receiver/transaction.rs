@@ -237,7 +237,7 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                if let Status::Block | Status::Deny = self
+                if let Status::Deny = self
                     .rule_engine
                     .read()
                     .unwrap()

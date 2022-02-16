@@ -35,18 +35,13 @@ pub enum Status {
     Accept,
 
     /// continue to the next rule / stage.
-    Continue,
+    Next,
 
     /// immediately stops the transaction and send an error code.
     Deny,
 
     /// ignore all future rules for the current transaction.
     Faccept,
-
-    /// wait for the email before stopping the transaction and sending an error code,
-    /// skips all future rules to fill the envelop and mail data as fast as possible.
-    /// also stores the email data in an user defined quarantine directory.
-    Block,
 }
 
 #[derive(Debug)]
@@ -257,7 +252,7 @@ impl RuleEngine {
                 log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
 
                 match status {
-                    Status::Block | Status::Faccept | Status::Deny => {
+                    Status::Faccept | Status::Deny => {
                         log::trace!(
                             target: RULES,
                             "[{}] the rule engine will skip all rules because of the previous result.",
@@ -289,7 +284,7 @@ impl RuleEngine {
                             );
                         };
                     }
-                    Status::Continue
+                    Status::Next
                 }
                 _ => {
                     log::error!(
@@ -298,7 +293,7 @@ impl RuleEngine {
                         stage,
                         error
                     );
-                    Status::Continue
+                    Status::Next
                 }
             },
         }
@@ -388,14 +383,14 @@ impl RuleEngine {
                             {
                                 properties.insert(
                                     "default_status".into(),
-                                    Dynamic::from(Status::Continue),
+                                    Dynamic::from(Status::Next),
                                 );
                             }
 
                             properties.into_iter()
                         } else if expr.is::<rhai::FnPtr>() {
                             Map::from_iter([
-                                ("default_status".into(), Dynamic::from(Status::Continue)),
+                                ("default_status".into(), Dynamic::from(Status::Next)),
                                 ("evaluate".into(), expr),
                             ])
                             .into_iter()
