@@ -132,13 +132,13 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "==")]
-    pub fn address_is_self(this: &mut Address, other: Address) -> bool {
-        *this == other
+    pub fn address_is_string(this: &mut Address, other: String) -> bool {
+        this.full() == other
     }
 
     #[rhai_fn(global, name = "==")]
-    pub fn address_is_string(this: &mut Address, other: String) -> bool {
-        this.full() == other
+    pub fn address_is_self(this: &mut Address, other: Address) -> bool {
+        *this == other
     }
 
     // NOTE: should a mismatched object fail or just return false ?
@@ -148,6 +148,14 @@ pub mod types {
         other: std::sync::Arc<Object>,
     ) -> EngineResult<bool> {
         internal_address_is_object(this, &other)
+    }
+
+    #[rhai_fn(global, name = "==", return_raw)]
+    pub fn object_is_address(
+        this: &mut std::sync::Arc<Object>,
+        addr: Address,
+    ) -> EngineResult<bool> {
+        internal_address_is_object(&addr, this)
     }
 
     #[rhai_fn(global, name = "!=")]
@@ -323,12 +331,6 @@ pub fn internal_address_is_object(this: &Address, other: &Object) -> EngineResul
         Object::Address(addr) => this == addr,
         Object::Fqdn(fqdn) => this.domain() == fqdn,
         Object::Regex(re) => re.is_match(this.full()),
-        Object::File(file) => file
-            .iter()
-            .any(|obj| internal_address_is_object(this, obj).unwrap_or(false)),
-        Object::Group(grp) => grp
-            .iter()
-            .any(|obj| internal_address_is_object(this, obj).unwrap_or(false)),
         Object::Identifier(s) => this.local_part() == s,
         Object::Str(s) => this.full() == s,
         _ => {
@@ -392,27 +394,4 @@ pub fn internal_object_in_rcpt(this: &Rcpt, other: &Object) -> EngineResult<bool
             .into())
         }
     })
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_status() {
-        assert!(types::eq_status_operator(&mut Status::Next, Status::Next));
-        assert!(!types::neq_status_operator(&mut Status::Next, Status::Next));
-
-        assert_eq!(types::to_string(&mut Status::Next), "next".to_string());
-        assert_eq!(types::to_string(&mut Status::Accept), "accept".to_string());
-        assert_eq!(
-            types::to_string(&mut Status::Faccept),
-            "faccept".to_string()
-        );
-        assert_eq!(types::to_string(&mut Status::Deny), "deny".to_string());
-        assert_eq!(types::to_debug(&mut Status::Next), "next".to_string());
-        assert_eq!(types::to_debug(&mut Status::Accept), "accept".to_string());
-        assert_eq!(types::to_debug(&mut Status::Faccept), "faccept".to_string());
-        assert_eq!(types::to_debug(&mut Status::Deny), "deny".to_string());
-    }
 }

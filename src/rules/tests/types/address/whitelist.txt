@@ -1,0 +1,3 @@
+foo@bar.net
+nested@address.com
+john@doe.com

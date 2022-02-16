@@ -3,13 +3,11 @@ run_rules!(
         connect: [
             rule "test_status" || {
                 if vsl::next() is vsl::next()
-                && vsl::accept() is vsl::accept()
-                && vsl::faccept() is vsl::faccept()
-                && vsl::deny() is vsl::deny()
+                && vsl::next() == vsl::next()
 
                 && vsl::next() not vsl::accept()
-                && vsl::next() not vsl::faccept()
-                && vsl::next() not vsl::deny()
+                && vsl::next() != vsl::accept()
+
                 && vsl::next().to_string() == "next"
                 && vsl::next().to_debug() == "next" {
                     vsl::accept()

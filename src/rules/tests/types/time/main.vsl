@@ -1,0 +1,17 @@
+run_rules!(
+    #{
+        connect: [
+            rule "test_time" || {
+                if custom_time.to_string() != "0" {
+                    return vsl::deny()
+                }
+
+                if custom_time.to_debug() != "0ns" {
+                    return vsl::deny()
+                }
+
+                vsl::accept()
+            }
+        ]
+    }
+)
