@@ -1,4 +1,4 @@
-run_when!(
+run_rules!(
     #{
         connect: [
             rule "test_status" || {
@@ -9,9 +9,9 @@ run_when!(
 
                 && vsl::next() not vsl::accept()
                 && vsl::next() not vsl::faccept()
-                && vsl::next() not vsl::deny() {
-                    print(vsl::next().to_string());
-                    print(vsl::next().to_debug());
+                && vsl::next() not vsl::deny()
+                && vsl::next().to_string() == "next"
+                && vsl::next().to_debug() == "next" {
                     vsl::accept()
                 } else {
                     vsl::deny()

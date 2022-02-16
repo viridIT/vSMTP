@@ -38,12 +38,12 @@ pub mod types {
 
     #[rhai_fn(global)]
     pub fn to_string(status: &mut Status) -> String {
-        format!("{:?}", status)
+        format!("{}", status)
     }
 
     #[rhai_fn(global)]
     pub fn to_debug(status: &mut Status) -> String {
-        format!("{:?}", status)
+        format!("{}", status)
     }
 
     // shell service output (std::process::Output).
