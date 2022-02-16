@@ -46,29 +46,6 @@ pub mod types {
         format!("{}", status)
     }
 
-    // shell service output (std::process::Output).
-
-    #[rhai_fn(global, get = "stdout", return_raw)]
-    pub fn stdout(this: &mut std::process::Output) -> EngineResult<String> {
-        Ok(std::str::from_utf8(&this.stdout)
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .to_string())
-    }
-
-    #[rhai_fn(global, get = "stderr", return_raw)]
-    pub fn stderr(this: &mut std::process::Output) -> EngineResult<String> {
-        Ok(std::str::from_utf8(&this.stderr)
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .to_string())
-    }
-
-    #[rhai_fn(global, get = "code", return_raw)]
-    pub fn code(this: &mut std::process::Output) -> EngineResult<i64> {
-        Ok(this.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| {
-            "a SHELL process have been terminated by a signal".into()
-        })? as i64)
-    }
-
     // std::time::SystemTime
 
     #[rhai_fn(global, name = "to_string", return_raw)]
@@ -415,4 +392,27 @@ pub fn internal_object_in_rcpt(this: &Rcpt, other: &Object) -> EngineResult<bool
             .into())
         }
     })
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_status() {
+        assert!(types::eq_status_operator(&mut Status::Next, Status::Next));
+        assert!(!types::neq_status_operator(&mut Status::Next, Status::Next));
+
+        assert_eq!(types::to_string(&mut Status::Next), "next".to_string());
+        assert_eq!(types::to_string(&mut Status::Accept), "accept".to_string());
+        assert_eq!(
+            types::to_string(&mut Status::Faccept),
+            "faccept".to_string()
+        );
+        assert_eq!(types::to_string(&mut Status::Deny), "deny".to_string());
+        assert_eq!(types::to_debug(&mut Status::Next), "next".to_string());
+        assert_eq!(types::to_debug(&mut Status::Accept), "accept".to_string());
+        assert_eq!(types::to_debug(&mut Status::Faccept), "faccept".to_string());
+        assert_eq!(types::to_debug(&mut Status::Deny), "deny".to_string());
+    }
 }
