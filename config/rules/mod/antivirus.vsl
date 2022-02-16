@@ -1,0 +1,6 @@
+fn has_virus(services, ctx) {
+    let result = services.run("clamscan", ctx);
+    debug(`${result}`);
+
+    result.has_code && result.code == 0
+}

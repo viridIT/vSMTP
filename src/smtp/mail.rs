@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,7 +14,8 @@ use std::net::SocketAddr;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::rules::rule_engine::Status;
+use super::envelop::Envelop;
+use crate::{mime::mail::Mail, rules::rule_engine::Status};
 
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
@@ -51,13 +50,13 @@ impl Default for MessageMetadata {
 pub enum Body {
     Empty,
     Raw(String),
-    Parsed(Box<crate::mime::mail::Mail>),
+    Parsed(Box<Mail>),
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
-    pub client_addr: SocketAddr,
-    pub envelop: super::envelop::Envelop,
+    pub client_addr: std::net::SocketAddr,
+    pub envelop: Envelop,
     pub body: Body,
     pub metadata: Option<MessageMetadata>,
 }

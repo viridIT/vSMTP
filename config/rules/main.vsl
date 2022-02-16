@@ -1,17 +1,11 @@
+import "mod/antivirus" as antivirus;
+
 run_rules!(#{
-    connect: [
-        action "dummy_action" || {
-            let result = services.run("dummy_service");
-            print(`${result}`);
-            debug(`${result}`);
-
-            if result.has_code && result.code == 0 {
-                print("success");
+    preq: [
+        action "antivirus" || {
+            if antivirus::has_virus(services, ctx) {
+                // quarantine and log and blacklist ?
             }
-
-            let result2 = services.run("timing_out");
-            print(`${result2}`);
-            debug(`${result2}`);
         }
-    ],
+    ]
 })

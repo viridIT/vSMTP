@@ -22,7 +22,8 @@ pub mod actions {
 
     use crate::{
         config::server_config::Service,
-        rules::{rule_engine::Status, service_result::ServiceResult},
+        rules::{rule_engine::Status, service::ServiceResult},
+        smtp::mail::MailContext,
     };
 
     // #[rhai_fn(name = "__SHELL", return_raw)]
@@ -210,47 +211,17 @@ pub mod actions {
     pub fn run(
         services: &mut std::sync::Arc<Vec<Service>>,
         service_name: &str,
+        ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> Result<ServiceResult, Box<EvalAltResult>> {
-        // TODO: do we want ? ExitStatus or Output ? see Child::wait_with_output
-
-        // TODO: CommandExt / uid/gid
-
-        let service = services
+        services
             .iter()
             .find(|s| match s {
                 Service::UnixShell { name, .. } => name == service_name,
             })
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
                 format!("No service in config named: '{service_name}'").into()
-            })?;
-
-        match service {
-            Service::UnixShell {
-                command,
-                timeout,
-                args,
-                ..
-            } => {
-                let mut child = std::process::Command::new(command);
-                if let Some(args) = args {
-                    for i in args.split_whitespace() {
-                        child.arg(i);
-                    }
-                }
-
-                let mut child = child.spawn().map_err::<Box<EvalAltResult>, _>(|err| {
-                    format!("UnixShell process failed to spawn: {err:?}").into()
-                })?;
-
-                let status = wait_timeout::ChildExt::wait_timeout(&mut child, *timeout)
-                    .map_err(|e| format!("unexpected error: '{e}'"))?
-                    .unwrap_or_else(|| {
-                        child.kill().expect("child has already exited");
-                        child.wait().expect("command wasn't running")
-                    });
-
-                Ok(ServiceResult::new(status))
-            }
-        }
+            })?
+            .run(ctx)
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
     }
 }

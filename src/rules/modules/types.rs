@@ -18,7 +18,7 @@ use rhai::plugin::*;
 
 use crate::rules::{
     address::Address, modules::EngineResult, obj::Object, rule_engine::Status,
-    service_result::ServiceResult,
+    service::ServiceResult,
 };
 
 pub type Rcpt = std::collections::HashSet<Address>;

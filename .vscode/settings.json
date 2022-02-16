@@ -58,5 +58,8 @@
             "cursor": "pointer",
         }
     ],
-    "rust-analyzer.checkOnSave.command": "clippy"
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "files.associations": {
+        "*.vsl": "rhai"
+    }
 }
