@@ -18,16 +18,16 @@ impl ServiceResult {
         self.get_code().is_some()
     }
 
-    pub fn get_code(&self) -> Option<i32> {
-        self.status.code()
+    pub fn get_code(&self) -> Option<i64> {
+        self.status.code().map(|i| i as i64)
     }
 
     pub fn has_signal(&self) -> bool {
         self.get_signal().is_some()
     }
 
-    pub fn get_signal(&self) -> Option<i32> {
-        std::os::unix::prelude::ExitStatusExt::signal(&self.status)
+    pub fn get_signal(&self) -> Option<i64> {
+        std::os::unix::prelude::ExitStatusExt::signal(&self.status).map(|i| i as i64)
     }
 }
 

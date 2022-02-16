@@ -27,16 +27,6 @@ pub type Rcpt = std::collections::HashSet<Address>;
 #[export_module]
 pub mod types {
 
-    #[rhai_fn(global, name = "==")]
-    pub fn eq_i32_i64(i1: i32, i2: i64) -> bool {
-        i1 as i64 == i2
-    }
-
-    #[rhai_fn(global, name = "==")]
-    pub fn eq_i64_i32(i1: i64, i2: i32) -> bool {
-        i1 == i2 as i64
-    }
-
     // Status
 
     #[rhai_fn(global, name = "==")]
@@ -79,14 +69,14 @@ pub mod types {
     }
     */
 
-    #[rhai_fn(global, name = "to_debug", return_raw)]
-    pub fn service_result_to_debug(this: &mut ServiceResult) -> EngineResult<String> {
-        Ok(format!("{:?}", this))
+    #[rhai_fn(global, name = "to_debug")]
+    pub fn service_result_to_debug(this: &mut ServiceResult) -> String {
+        format!("{:?}", this)
     }
 
-    #[rhai_fn(global, name = "to_string", return_raw)]
-    pub fn service_result_to_string(this: &mut ServiceResult) -> EngineResult<String> {
-        Ok(format!("{}", this))
+    #[rhai_fn(global, name = "to_string")]
+    pub fn service_result_to_string(this: &mut ServiceResult) -> String {
+        format!("{}", this)
     }
 
     #[rhai_fn(global, get = "has_code")]
@@ -95,7 +85,7 @@ pub mod types {
     }
 
     #[rhai_fn(global, get = "code", return_raw)]
-    pub fn service_result_get_code(this: &mut ServiceResult) -> EngineResult<i32> {
+    pub fn service_result_get_code(this: &mut ServiceResult) -> EngineResult<i64> {
         this.get_code().ok_or_else(|| {
             "service result has been terminated by a signal"
                 .to_string()
@@ -109,7 +99,7 @@ pub mod types {
     }
 
     #[rhai_fn(global, get = "signal", return_raw)]
-    pub fn service_result_get_signal(this: &mut ServiceResult) -> EngineResult<i32> {
+    pub fn service_result_get_signal(this: &mut ServiceResult) -> EngineResult<i64> {
         this.get_signal()
             .ok_or_else(|| "service result has status code".to_string().into())
     }

@@ -37,6 +37,7 @@ pub struct InnerServerConfig {
 pub struct InnerLogConfig {
     #[serde(default = "InnerLogConfig::default_file")]
     pub file: std::path::PathBuf,
+    #[serde(default)]
     pub level: std::collections::HashMap<String, log::LevelFilter>,
 }
 
