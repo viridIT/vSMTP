@@ -96,8 +96,11 @@ pub mod types {
 
     #[rhai_fn(global, get = "code", return_raw)]
     pub fn service_result_get_code(this: &mut ServiceResult) -> EngineResult<i32> {
-        this.get_code()
-            .ok_or(format!("service result has been terminated by a signal").into())
+        this.get_code().ok_or_else(|| {
+            "service result has been terminated by a signal"
+                .to_string()
+                .into()
+        })
     }
 
     #[rhai_fn(global, get = "has_signal")]
@@ -108,7 +111,7 @@ pub mod types {
     #[rhai_fn(global, get = "signal", return_raw)]
     pub fn service_result_get_signal(this: &mut ServiceResult) -> EngineResult<i32> {
         this.get_signal()
-            .ok_or(format!("service result has status code").into())
+            .ok_or_else(|| "service result has status code".to_string().into())
     }
 
     // std::time::SystemTime
