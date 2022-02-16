@@ -39,7 +39,6 @@ async fn server_main(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<()>
 
 #[derive(Debug, clap::Parser, PartialEq)]
 #[clap(about, version, author)]
-#[clap(global_setting(clap::AppSettings::UseLongFormatForHelpSubcommand))]
 struct Args {
     #[clap(short, long)]
     config: String,
