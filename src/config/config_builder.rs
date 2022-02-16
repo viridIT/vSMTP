@@ -48,6 +48,7 @@ impl ConfigBuilder<WantsServer> {
     pub fn with_server(
         self,
         domain: impl Into<String>,
+        vsmtp_user: impl Into<String>,
         addr: std::net::SocketAddr,
         addr_submission: std::net::SocketAddr,
         addr_submissions: std::net::SocketAddr,
@@ -62,6 +63,7 @@ impl ConfigBuilder<WantsServer> {
                     addr_submission,
                     addr_submissions,
                     thread_count,
+                    vsmtp_user: vsmtp_user.into(),
                 },
             },
         }
@@ -70,10 +72,12 @@ impl ConfigBuilder<WantsServer> {
     pub fn with_rfc_port(
         self,
         domain: impl Into<String>,
+        vsmtp_user: impl Into<String>,
         thread_count: Option<usize>,
     ) -> ConfigBuilder<WantsLogging> {
         self.with_server(
             domain,
+            vsmtp_user,
             "0.0.0.0:25".parse().expect("valid address"),
             "0.0.0.0:587".parse().expect("valid address"),
             "0.0.0.0:465".parse().expect("valid address"),
@@ -84,10 +88,12 @@ impl ConfigBuilder<WantsServer> {
     pub fn with_debug_port(
         self,
         domain: impl Into<String>,
+        vsmtp_user: impl Into<String>,
         thread_count: Option<usize>,
     ) -> ConfigBuilder<WantsLogging> {
         self.with_server(
             domain,
+            vsmtp_user,
             "0.0.0.0:10025".parse().expect("valid address"),
             "0.0.0.0:10587".parse().expect("valid address"),
             "0.0.0.0:10465".parse().expect("valid address"),

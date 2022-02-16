@@ -24,7 +24,7 @@ use crate::{
 
 fn get_regular_config() -> ServerConfig {
     ServerConfig::builder()
-        .with_rfc_port("test.server.com", None)
+        .with_rfc_port("test.server.com", "foo", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()

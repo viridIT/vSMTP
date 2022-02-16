@@ -66,6 +66,7 @@ tokio = { version = "1.16.1", features = [
 
 num_cpus = "1.13.1"
 wait-timeout = "0.2.0"
+fork = "0.1.18"
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }

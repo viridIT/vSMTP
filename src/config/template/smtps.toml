@@ -1,5 +1,6 @@
 [server]
 domain = "testserver.com"
+vsmtp_user = "vsmtp"
 addr = "0.0.0.0:25"
 addr_submission = "0.0.0.0:587"
 addr_submissions = "0.0.0.0:465"

@@ -27,7 +27,7 @@ pub mod helpers {
 
     pub(super) fn get_default_state() -> RuleState<'static> {
         let config = ServerConfig::builder()
-            .with_rfc_port("test.server.com", None)
+            .with_rfc_port("test.server.com", "foo", None)
             .without_log()
             .without_smtps()
             .with_default_smtp()

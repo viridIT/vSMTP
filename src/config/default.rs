@@ -24,6 +24,7 @@ impl Default for InnerServerConfig {
     fn default() -> Self {
         Self {
             domain: Default::default(),
+            vsmtp_user: Default::default(),
             addr: "0.0.0.0:25".parse().expect("valid address"),
             addr_submission: "0.0.0.0:587".parse().expect("valid address"),
             addr_submissions: "0.0.0.0:465".parse().expect("valid address"),

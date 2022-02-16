@@ -21,22 +21,6 @@ use vsmtp::resolver::mbox_resolver::MBoxResolver;
 use vsmtp::resolver::smtp_resolver::SMTPResolver;
 use vsmtp::server::ServerVSMTP;
 
-async fn server_main(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<()> {
-    log4rs::init_config(get_logger_config(&config)?)?;
-
-    let mut server = ServerVSMTP::new(config)
-        .await
-        .expect("Failed to create the server");
-    log::warn!("Listening on: {:?}", server.addr());
-
-    server
-        .with_resolver("maildir", MailDirResolver::default())
-        .with_resolver("smtp", SMTPResolver::default())
-        .with_resolver("mbox", MBoxResolver::default())
-        .listen_and_serve()
-        .await
-}
-
 #[derive(Debug, clap::Parser, PartialEq)]
 #[clap(about, version, author)]
 struct Args {
@@ -98,7 +82,7 @@ fn main() -> anyhow::Result<()> {
                 let loaded_config = serde_json::to_string_pretty(&config)?;
                 let default_config = serde_json::to_string_pretty(
                     &ServerConfig::builder()
-                        .with_rfc_port(&config.server.domain, None)
+                        .with_rfc_port(&config.server.domain, "vsmtp", None)
                         .without_log()
                         // TODO: default
                         .without_smtps()
@@ -123,15 +107,48 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(config.server.thread_count)
-        .enable_all()
-        // .on_thread_start(|| {
-        //     println!("thread started");
-        // })
-        // .on_thread_stop(|| {
-        //     println!("thread stopping");
-        // })
-        .build()?
-        .block_on(server_main(std::sync::Arc::new(config)))
+    log4rs::init_config(get_logger_config(&config)?)?;
+
+    let user = match users::get_user_by_name(&config.server.vsmtp_user) {
+        Some(user) => user,
+        None => anyhow::bail!("user not found: '{}'", config.server.vsmtp_user),
+    };
+
+    let sockets = (
+        std::net::TcpListener::bind(config.server.addr)?,
+        std::net::TcpListener::bind(config.server.addr_submission)?,
+        std::net::TcpListener::bind(config.server.addr_submissions)?,
+    );
+
+    match fork::fork() {
+        Ok(fork::Fork::Child) => {
+            // TODO: get errors
+            println!("{}", unsafe { libc::setuid(user.uid()) });
+            println!("{}", unsafe { libc::setgid(user.primary_group_id()) });
+
+            tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(config.server.thread_count)
+                .enable_all()
+                // .on_thread_start(|| { println!("thread started"); })
+                // .on_thread_stop(|| { println!("thread stopping"); })
+                .build()?
+                .block_on(async move {
+                    let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)
+                        .expect("Failed to create the server");
+                    log::warn!("Listening on: {:?}", server.addr());
+
+                    server
+                        .with_resolver("maildir", MailDirResolver::default())
+                        .with_resolver("smtp", SMTPResolver::default())
+                        .with_resolver("mbox", MBoxResolver::default())
+                        .listen_and_serve()
+                        .await
+                })
+        }
+        Ok(fork::Fork::Parent(child)) => {
+            println!("vsmtp is running on process: {}", child);
+            Ok(())
+        }
+        Err(_) => anyhow::bail!("Creating process vsmtp failed"),
+    }
 }

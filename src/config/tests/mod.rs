@@ -8,7 +8,7 @@ use super::server_config::{QueueConfig, ServerConfig, Service, TlsSecurityLevel}
 #[test]
 fn init() -> anyhow::Result<()> {
     let _config = ServerConfig::builder()
-        .with_rfc_port("test.server.com", None)
+        .with_rfc_port("test.server.com", "root", None)
         .with_logging(
             "./tmp/log",
             std::collections::HashMap::<String, log::LevelFilter>::default(),
@@ -36,7 +36,7 @@ fn init() -> anyhow::Result<()> {
 #[test]
 fn init_no_smtps() -> anyhow::Result<()> {
     let _config = ServerConfig::builder()
-        .with_rfc_port("test.server.com", None)
+        .with_rfc_port("test.server.com", "root", None)
         .with_logging(
             "./tmp/log",
             std::collections::HashMap::<String, log::LevelFilter>::default(),
@@ -65,7 +65,7 @@ fn from_toml_template_simple() -> anyhow::Result<()> {
     assert_eq!(
         ServerConfig::from_toml(include_str!("../template/simple.toml")).unwrap(),
         ServerConfig::builder()
-            .with_rfc_port("testserver.com", None)
+            .with_rfc_port("testserver.com", "vsmtp", None)
             .with_logging(
                 "/var/log/vsmtp/vsmtp.log",
                 crate::collection! {
@@ -109,6 +109,7 @@ fn from_toml_template_smtps() -> anyhow::Result<()> {
         ServerConfig::builder()
             .with_server(
                 "testserver.com",
+                "vsmtp",
                 "0.0.0.0:25".parse().expect("valid address"),
                 "0.0.0.0:587".parse().expect("valid address"),
                 "0.0.0.0:465".parse().expect("valid address"),
@@ -169,7 +170,7 @@ fn from_toml_template_services() -> anyhow::Result<()> {
     assert_eq!(
         ServerConfig::from_toml(include_str!("../template/services.toml")).unwrap(),
         ServerConfig::builder()
-            .with_rfc_port("testserver.com", None)
+            .with_rfc_port("testserver.com", "vsmtp", None)
             .with_logging(
                 "/var/log/vsmtp/vsmtp.log",
                 crate::collection! {
