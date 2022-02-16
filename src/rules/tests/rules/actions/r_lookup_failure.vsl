@@ -1,5 +1,0 @@
-rule helo "test_rlookup_failure" #{
-  condition: || vsl.R_LOOKUP("1.1.1.1", 1000) == "my.domain",
-  on_success: vsl.ACCEPT,
-  on_failure: vsl.DENY,
-};
