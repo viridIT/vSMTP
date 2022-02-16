@@ -47,6 +47,7 @@ impl Service {
                 timeout,
                 command,
                 args,
+                user,
                 ..
             } => {
                 // TODO: CommandExt / uid/gid
@@ -63,6 +64,18 @@ impl Service {
                                 Body::Parsed(_) => todo!(),
                             },
                         ));
+                    }
+                }
+
+                if let Some(name) = user {
+                    if let Some(user) = users::get_user_by_name(&name) {
+                        std::os::unix::prelude::CommandExt::uid(&mut child, user.uid());
+                        std::os::unix::prelude::CommandExt::gid(
+                            &mut child,
+                            user.primary_group_id(),
+                        );
+                    } else {
+                        anyhow::bail!("UnixShell user not found: {name:?}")
                     }
                 }
 

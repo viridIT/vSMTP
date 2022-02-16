@@ -215,6 +215,7 @@ fn from_toml_template_services() -> anyhow::Result<()> {
                     command: "echo".to_string(),
                     timeout: std::time::Duration::from_millis(500),
                     args: Some("hello".to_string()),
+                    user: None,
                 }],
             )
             .with_reply_codes(crate::collection! {
