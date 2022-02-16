@@ -23,6 +23,8 @@ pub mod test {
 
     #[tokio::test]
     async fn test_helo_rules() {
+        crate::receiver::test_helpers::logs::setup_logs();
+
         let re =
             RuleEngine::new("./src/rules/tests/rules/helo").expect("couldn't build rule engine");
 

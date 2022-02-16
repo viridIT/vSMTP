@@ -4,15 +4,15 @@ obj val "user3" "smith";
 
 #{
   connect: [
-    rule "check_all_users" || {
-      condition: || vsl.USER_EXISTS("user1") && vsl.USER_EXISTS("user2") && vsl.USER_EXISTS("user3"),
-      if vsl::user_exists(user1.value)
-      && vsl::user_exists(user2.value)
-      && vsl::user_exists(user3.value) {
-        vsl::accept()
-      } else {
-        vsl::deny()
-      }
-    },
+    // rule "check_all_users" || {
+    //   condition: || vsl.USER_EXISTS("user1") && vsl.USER_EXISTS("user2") && vsl.USER_EXISTS("user3"),
+    //   if vsl::user_exists(user1.value)
+    //   && vsl::user_exists(user2.value)
+    //   && vsl::user_exists(user3.value) {
+    //     vsl::accept()
+    //   } else {
+    //     vsl::deny()
+    //   }
+    // },
   ]
 }

@@ -177,3 +177,26 @@ pub fn get_regular_config() -> anyhow::Result<ServerConfig> {
         .with_default_reply_codes()
         .build()
 }
+
+#[cfg(test)]
+pub mod logs {
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    pub fn setup_logs() {
+        INIT.call_once(|| {
+            let mut config = crate::receiver::test_helpers::get_regular_config()
+                .expect("failed to create config for logs");
+            config
+                .log
+                .level
+                .insert("default".into(), log::LevelFilter::Warn);
+
+            log4rs::init_config(
+                crate::config::get_logger_config(&config).expect("failed to init logs"),
+            )
+            .expect("failed to init logs");
+        });
+    }
+}
