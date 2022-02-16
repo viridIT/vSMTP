@@ -93,15 +93,21 @@ pub struct DurationAlias {
     pub alias: std::time::Duration,
 }
 
+fn default_rcpt_count_max() -> usize {
+    1000
+}
+
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InnerSMTPConfig {
+    #[serde(default)]
     pub disable_ehlo: bool,
     #[serde(default)]
     #[serde_as(as = "std::collections::HashMap<DisplayFromStr, _>")]
     pub timeout_client: std::collections::HashMap<StateSMTP, DurationAlias>,
     pub error: InnerSMTPErrorConfig,
+    #[serde(default = "default_rcpt_count_max")]
     pub rcpt_count_max: usize,
 }
 
@@ -111,9 +117,9 @@ pub enum Service {
     #[serde(rename = "shell")]
     UnixShell {
         name: String,
-        command: String,
         #[serde(with = "humantime_serde")]
         timeout: std::time::Duration,
+        command: String,
         args: Option<String>,
     },
 }
@@ -122,6 +128,7 @@ pub enum Service {
 #[serde(deny_unknown_fields)]
 pub struct InnerRulesConfig {
     pub dir: String,
+    #[serde(default)]
     pub services: Vec<Service>,
 }
 
@@ -138,6 +145,7 @@ pub struct QueueConfig {
 #[serde(deny_unknown_fields)]
 pub struct InnerDeliveryConfig {
     pub spool_dir: std::path::PathBuf,
+    #[serde(serialize_with = "crate::config::serializer::ordered_map")]
     pub queues: std::collections::HashMap<String, QueueConfig>,
 }
 

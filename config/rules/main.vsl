@@ -1,8 +1,17 @@
 run_rules!(#{
     connect: [
         action "dummy_action" || {
-            let result = vsl::run_service("dummy_service");
+            let result = services.run("dummy_service");
             print(`${result}`);
+            debug(`${result}`);
+
+            if result.has_code && result.code == 0 {
+                print("success");
+            }
+
+            let result2 = services.run("timing_out");
+            print(`${result2}`);
+            debug(`${result2}`);
         }
     ],
 })

@@ -1,5 +1,3 @@
-use crate::smtp::code::SMTPReplyCode;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -18,12 +16,14 @@ use crate::smtp::code::SMTPReplyCode;
 **/
 use super::server_config::{ProtocolVersion, ProtocolVersionRequirement};
 
-pub(super) fn ordered_map<S>(
-    value: &std::collections::HashMap<SMTPReplyCode, String>,
+pub(super) fn ordered_map<K, V, S>(
+    value: &std::collections::HashMap<K, V>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
+    K: std::cmp::Ord + serde::Serialize,
+    V: serde::Serialize,
 {
     serde::Serialize::serialize(
         &value.iter().collect::<std::collections::BTreeMap<_, _>>(),

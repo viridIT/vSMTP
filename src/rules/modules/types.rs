@@ -16,13 +16,26 @@
 **/
 use rhai::plugin::*;
 
-use crate::rules::{address::Address, modules::EngineResult, obj::Object, rule_engine::Status};
+use crate::rules::{
+    address::Address, modules::EngineResult, obj::Object, rule_engine::Status,
+    service_result::ServiceResult,
+};
 
 pub type Rcpt = std::collections::HashSet<Address>;
 
 #[allow(dead_code)]
 #[export_module]
 pub mod types {
+
+    #[rhai_fn(global, name = "==")]
+    pub fn eq_i32_i64(i1: i32, i2: i64) -> bool {
+        i1 as i64 == i2
+    }
+
+    #[rhai_fn(global, name = "==")]
+    pub fn eq_i64_i32(i1: i64, i2: i32) -> bool {
+        i1 == i2 as i64
+    }
 
     // Status
 
@@ -43,6 +56,7 @@ pub mod types {
 
     // shell service output (std::process::Output).
 
+    /*
     #[rhai_fn(global, get = "stdout", return_raw)]
     pub fn stdout(this: &mut std::process::Output) -> EngineResult<String> {
         Ok(std::str::from_utf8(&this.stdout)
@@ -62,6 +76,39 @@ pub mod types {
         Ok(this.status.code().ok_or_else::<Box<EvalAltResult>, _>(|| {
             "a SHELL process have been terminated by a signal".into()
         })? as i64)
+    }
+    */
+
+    #[rhai_fn(global, name = "to_debug", return_raw)]
+    pub fn service_result_to_debug(this: &mut ServiceResult) -> EngineResult<String> {
+        Ok(format!("{:?}", this))
+    }
+
+    #[rhai_fn(global, name = "to_string", return_raw)]
+    pub fn service_result_to_string(this: &mut ServiceResult) -> EngineResult<String> {
+        Ok(format!("{}", this))
+    }
+
+    #[rhai_fn(global, get = "has_code")]
+    pub fn service_result_has_code(this: &mut ServiceResult) -> bool {
+        this.has_code()
+    }
+
+    #[rhai_fn(global, get = "code", return_raw)]
+    pub fn service_result_get_code(this: &mut ServiceResult) -> EngineResult<i32> {
+        this.get_code()
+            .ok_or(format!("service result has been terminated by a signal").into())
+    }
+
+    #[rhai_fn(global, get = "has_signal")]
+    pub fn service_result_has_signal(this: &mut ServiceResult) -> bool {
+        this.has_signal()
+    }
+
+    #[rhai_fn(global, get = "signal", return_raw)]
+    pub fn service_result_get_signal(this: &mut ServiceResult) -> EngineResult<i32> {
+        this.get_signal()
+            .ok_or(format!("service result has status code").into())
     }
 
     // std::time::SystemTime

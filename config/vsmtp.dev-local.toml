@@ -24,6 +24,12 @@ timeout = "10s"
 command = "echo"
 args = "hello"
 
+[[rules.services]]
+name = "timing_out"
+type = "shell"
+timeout = "10s"
+command = "./config/rules/service/loop_echo.sh"
+
 [smtps]
 security_level = "May"
 capath = "./config/certs"

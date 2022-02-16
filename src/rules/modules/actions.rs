@@ -20,7 +20,10 @@ use rhai::plugin::*;
 #[export_module]
 pub mod actions {
 
-    use crate::{config::server_config::Service, rules::rule_engine::Status};
+    use crate::{
+        config::server_config::Service,
+        rules::{rule_engine::Status, service_result::ServiceResult},
+    };
 
     // #[rhai_fn(name = "__SHELL", return_raw)]
     // pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {
@@ -203,18 +206,23 @@ pub mod actions {
     //         .any(|socket| socket.ip() == connect))
     // }
 
-    #[rhai_fn(return_raw)]
-    pub fn run_service(service_name: &str) -> Result<std::process::ExitStatus, Box<EvalAltResult>> {
-        // TODO: get the service from config.rules.services where service_name == name
-        // TODO: handle all error
+    #[rhai_fn(global, return_raw)]
+    pub fn run(
+        services: &mut std::sync::Arc<Vec<Service>>,
+        service_name: &str,
+    ) -> Result<ServiceResult, Box<EvalAltResult>> {
         // TODO: do we want ? ExitStatus or Output ? see Child::wait_with_output
 
-        let service = Service::UnixShell {
-            name: "dummy_service".to_string(),
-            command: "./config/rules/service/ls.sh".to_string(),
-            timeout: std::time::Duration::from_secs(1),
-            args: None,
-        };
+        // TODO: CommandExt / uid/gid
+
+        let service = services
+            .iter()
+            .find(|s| match s {
+                Service::UnixShell { name, .. } => name == service_name,
+            })
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                format!("No service in config named: '{service_name}'").into()
+            })?;
 
         match service {
             Service::UnixShell {
@@ -234,14 +242,14 @@ pub mod actions {
                     format!("UnixShell process failed to spawn: {err:?}").into()
                 })?;
 
-                let status_code = wait_timeout::ChildExt::wait_timeout(&mut child, timeout)
-                    .unwrap()
+                let status = wait_timeout::ChildExt::wait_timeout(&mut child, *timeout)
+                    .map_err(|e| format!("unexpected error: '{e}'"))?
                     .unwrap_or_else(|| {
-                        child.kill().unwrap();
-                        child.wait().unwrap()
+                        child.kill().expect("child has already exited");
+                        child.wait().expect("command wasn't running")
                     });
 
-                Ok(status_code)
+                Ok(ServiceResult::new(status))
             }
         }
     }
