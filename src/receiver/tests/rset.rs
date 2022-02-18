@@ -29,14 +29,14 @@ fn get_regular_config() -> ServerConfig {
         .without_smtps()
         .with_default_smtp()
         .with_delivery("./tmp/delivery", crate::collection! {})
-        .with_rules("./tmp/nothing")
+        .with_rules("./tmp/nothing", vec![])
         .with_default_reply_codes()
         .build()
         .unwrap()
 }
 
 #[tokio::test]
-async fn test_receiver_rset_1() {
+async fn reset_helo() {
     struct T;
 
     #[async_trait::async_trait]
@@ -91,7 +91,7 @@ async fn test_receiver_rset_1() {
 }
 
 #[tokio::test]
-async fn test_receiver_rset_2() {
+async fn reset_mail_from_error() {
     assert!(test_receiver(
         "127.0.0.1:0",
         DefaultResolverTest,
@@ -119,7 +119,7 @@ async fn test_receiver_rset_2() {
 }
 
 #[tokio::test]
-async fn test_receiver_rset_3() {
+async fn reset_mail_ok() {
     assert!(test_receiver(
         "127.0.0.1:0",
         DefaultResolverTest,
@@ -149,7 +149,7 @@ async fn test_receiver_rset_3() {
 }
 
 #[tokio::test]
-async fn test_receiver_rset_4() {
+async fn reset_rcpt_to_ok() {
     struct T;
 
     #[async_trait::async_trait]
@@ -180,6 +180,8 @@ async fn test_receiver_rset_4() {
             "HELO foo2\r\n",
             "MAIL FROM:<d@e>\r\n",
             "RCPT TO:<b@c>\r\n",
+            "DATA\r\n",
+            ".\r\n",
         ]
         .concat()
         .as_bytes(),
@@ -191,6 +193,8 @@ async fn test_receiver_rset_4() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
+            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+            "250 Ok\r\n"
         ]
         .concat()
         .as_bytes(),
@@ -201,30 +205,10 @@ async fn test_receiver_rset_4() {
 }
 
 #[tokio::test]
-async fn test_receiver_rset_5() {
-    struct T;
-
-    #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "foo");
-            assert_eq!(ctx.envelop.mail_from.full(), "foo@foo");
-            assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::new("toto@bar").unwrap()])
-            );
-            assert!(match &ctx.body {
-                Body::Parsed(body) => body.headers.is_empty(),
-                _ => false,
-            });
-
-            Ok(())
-        }
-    }
-
+async fn reset_rcpt_to_error() {
     assert!(test_receiver(
         "127.0.0.1:0",
-        T,
+        DefaultResolverTest,
         [
             "HELO foo\r\n",
             "MAIL FROM:<foo@foo>\r\n",
@@ -251,7 +235,7 @@ async fn test_receiver_rset_5() {
 }
 
 #[tokio::test]
-async fn test_receiver_rset_6() {
+async fn reset_rcpt_to_multiple_rcpt() {
     struct T;
 
     #[async_trait::async_trait]

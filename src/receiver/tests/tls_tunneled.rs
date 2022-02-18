@@ -128,9 +128,10 @@ async fn simple() -> anyhow::Result<()> {
                 )
                 .with_default_smtp()
                 .with_delivery("./tmp/trash", crate::collection! {})
-                .with_rules("./tmp/no_rules")
+                .with_rules("./tmp/no_rules", vec![])
                 .with_default_reply_codes()
-                .build()?,
+                .build()
+                .unwrap(),
         ),
         &[
             "NOOP\r\n",
@@ -177,9 +178,10 @@ async fn sni() -> anyhow::Result<()> {
                 )
                 .with_default_smtp()
                 .with_delivery("./tmp/trash", crate::collection! {})
-                .with_rules("./tmp/no_rules")
+                .with_rules("./tmp/no_rules", vec![])
                 .with_default_reply_codes()
-                .build()?,
+                .build()
+                .unwrap(),
         ),
         &["NOOP\r\n", "QUIT\r\n"],
         &[

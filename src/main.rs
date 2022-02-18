@@ -39,7 +39,6 @@ async fn server_main(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<()>
 
 #[derive(Debug, clap::Parser, PartialEq)]
 #[clap(about, version, author)]
-#[clap(global_setting(clap::AppSettings::UseLongFormatForHelpSubcommand))]
 struct Args {
     #[clap(short, long)]
     config: String,
@@ -107,7 +106,7 @@ fn main() -> anyhow::Result<()> {
                         // TODO: default
                         .with_delivery("/var/spool/vsmtp", vsmtp::collection! {})
                         // TODO: default
-                        .with_rules("/etc/vsmtp/rules")
+                        .with_rules("/etc/vsmtp/rules", vec![])
                         .with_default_reply_codes()
                         .build()
                         .unwrap(),
@@ -127,12 +126,12 @@ fn main() -> anyhow::Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(config.server.thread_count)
         .enable_all()
-        .on_thread_start(|| {
-            println!("thread started");
-        })
-        .on_thread_stop(|| {
-            println!("thread stopping");
-        })
+        // .on_thread_start(|| {
+        //     println!("thread started");
+        // })
+        // .on_thread_stop(|| {
+        //     println!("thread stopping");
+        // })
         .build()?
         .block_on(server_main(std::sync::Arc::new(config)))
 }

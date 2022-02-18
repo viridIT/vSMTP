@@ -15,6 +15,8 @@
  *
  **/
 use crate::config::log_channel::RULES;
+use crate::config::server_config::Service;
+use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
 use crate::smtp::envelop::Envelop;
 use crate::smtp::mail::{Body, MailContext};
@@ -61,91 +63,6 @@ impl std::fmt::Display for Status {
     }
 }
 
-#[derive(Debug)]
-pub enum RuleEngineError {
-    ParsingObject,
-    ParsingRule,
-    ParsingAction,
-    ParsingStage,
-}
-
-impl RuleEngineError {
-    fn as_str(&self) -> &'static str {
-        match self {
-            RuleEngineError::ParsingObject => {
-                r#"
-failed to parse an object.
-    use the extended syntax:
-
-    obj "type" "name" #{
-        value: ...,
-    };
-
-    or use the inline syntax:
-
-    obj "type" "name" "value";
-"#
-            }
-
-            RuleEngineError::ParsingRule => {
-                r#"
-failed to parse a rule.
-    use the following syntax:
-
-    rule "name" #{
-        condition: || { ... }, # must be a boolean result.
-        on_success: || { ... }, # must return a status. (CONTINUE, ACCEPT ...)
-        on_failure: || { ... }, # same as above.
-    };
-"#
-            }
-
-            RuleEngineError::ParsingAction => {
-                r#"
-failed to parse an action.
-    use the following syntax:
-
-    action "name" || {
-        ... # your code to execute. (LOG, QUARANTINE ...)
-    };
-"#
-            }
-
-            RuleEngineError::ParsingStage => {
-                r#"
-failed to parse a stage.
-
-    declare stages this way:
-
-    #{
-        preq: [
-            ... rules
-            ... action
-        ],
-
-        delivery: [
-            ...
-        ]
-    }"#
-            }
-        }
-    }
-}
-
-impl std::fmt::Display for RuleEngineError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
-impl std::error::Error for RuleEngineError {}
-
-impl From<RuleEngineError> for Box<EvalAltResult> {
-    fn from(err: RuleEngineError) -> Self {
-        err.as_str().into()
-    }
-}
-
 pub struct RuleState<'a> {
     scope: Scope<'a>,
     ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -175,7 +92,11 @@ impl<'a> RuleState<'a> {
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
-            .push("spool_dir", config.delivery.spool_dir.clone());
+            .push("spool_dir", config.delivery.spool_dir.clone())
+            .push(
+                "services",
+                std::sync::Arc::new(config.rules.services.clone()),
+            );
 
         Self {
             scope,
@@ -203,7 +124,11 @@ impl<'a> RuleState<'a> {
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
-            .push("spool_dir", config.delivery.spool_dir.clone());
+            .push("spool_dir", config.delivery.spool_dir.clone())
+            .push(
+                "services",
+                std::sync::Arc::new(config.rules.services.clone()),
+            );
 
         Self {
             scope,
@@ -414,7 +339,7 @@ impl RuleEngine {
                         } else {
                             return Err(format!(
                                 "a rule must be a map (#{{}}) or an anonymous function (|| {{}}){}",
-                                RuleEngineError::ParsingRule.as_str()
+                                RuleEngineError::Rule.as_str()
                             )
                             .into());
                         }),
@@ -476,7 +401,7 @@ impl RuleEngine {
                         } else {
                             return Err(format!(
                                 "an action must be a map (#{{}}) or an anonymous function (|| {{}}){}",
-                                RuleEngineError::ParsingAction.as_str()
+                                RuleEngineError::Action.as_str()
                             )
                             .into());
                         }),
@@ -549,7 +474,7 @@ impl RuleEngine {
                             // the object syntax can use a map or an inline string.
                             if object.is::<Map>() {
                                 let mut object: Map =
-                                    object.try_cast().ok_or(RuleEngineError::ParsingObject)?;
+                                    object.try_cast().ok_or(RuleEngineError::Object)?;
                                 object.insert("type".into(), Dynamic::from(var_type.clone()));
                                 object.insert("name".into(), Dynamic::from(var_name.clone()));
                                 object.insert(
@@ -587,7 +512,7 @@ impl RuleEngine {
 
                             if object.is::<Map>() {
                                 let mut object: Map =
-                                    object.try_cast().ok_or(RuleEngineError::ParsingObject)?;
+                                    object.try_cast().ok_or(RuleEngineError::Object)?;
                                 object.insert("type".into(), Dynamic::from(var_type.clone()));
                                 object.insert("name".into(), Dynamic::from(var_name.clone()));
                                 object
@@ -666,7 +591,8 @@ impl RuleEngine {
                 SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
             )
             .push("logs_file", "")
-            .push("spool_dir", "");
+            .push("spool_dir", "")
+            .push("services", std::sync::Arc::new(Vec::<Service>::new()));
 
         // compiling main script.
         let ast = engine

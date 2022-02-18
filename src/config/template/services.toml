@@ -1,0 +1,36 @@
+[server]
+domain = "testserver.com"
+
+[logs.level]
+default = "warn"
+
+[rules]
+dir = "/etc/vsmtp/rules"
+
+[[rules.services]]
+name = "echo_hello"
+type = "shell"
+timeout = "500ms"
+command = "echo"
+args = "hello"
+
+[smtp.timeout_client]
+Helo = "100ms"
+Data = "200ms"
+
+[smtp.error]
+soft_count = 5
+hard_count = 10
+delay = "1000ms"
+
+[delivery]
+spool_dir = "/var/spool/vsmtp"
+
+[delivery.queues]
+working = { capacity = 32 }
+deliver = { capacity = 32 }
+deferred = { retry_max = 10, cron_period = "10s" }
+
+[reply_codes]
+Code214 = "214 my custom help message\r\n"
+Code220 = "220 {domain} ESMTP Service ready\r\n"

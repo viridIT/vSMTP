@@ -15,7 +15,10 @@
  *
 **/
 pub mod address;
+mod error;
 pub mod modules;
 mod obj;
 pub mod rule_engine;
-pub mod tests;
+mod service;
+#[cfg(test)]
+mod tests;

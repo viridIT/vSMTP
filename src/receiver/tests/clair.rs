@@ -171,119 +171,6 @@ async fn test_receiver_6() {
     .is_ok());
 }
 
-// FIXME: what if tls_config == None && TlsSecurityLevel != None
-/*
-#[tokio::test]
-async fn test_receiver_7() {
-    assert!(test_receiver(
-        ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
-            .concat()
-            .as_bytes(),
-        [
-            "220 test.server.com Service ready\r\n",
-            "250-test.server.com\r\n",
-            "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250 STARTTLS\r\n",
-            "454 TLS not available due to temporary reason\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        ServerConfig {
-            tls: InnerSmtpsConfig {
-                security_level: TlsSecurityLevel::Encrypt,
-                ..get_test_config().tls
-            },
-            ..get_test_config()
-        },
-    )
-    .await
-    .is_ok());
-}
-*/
-
-#[tokio::test]
-async fn test_receiver_8() -> anyhow::Result<()> {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
-            .concat()
-            .as_bytes(),
-        [
-            "220 test.server.com Service ready\r\n",
-            "250-test.server.com\r\n",
-            "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250 STARTTLS\r\n",
-            "530 Must issue a STARTTLS command first\r\n",
-            "221 Service closing transmission channel\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_rfc_port("test.server.com", None)
-                .without_log()
-                .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
-                .with_default_smtp()
-                .with_delivery("./tmp/delivery", crate::collection! {})
-                .with_rules("./tmp/nothing")
-                .with_default_reply_codes()
-                .build()?
-        )
-    )
-    .await
-    .is_ok());
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_receiver_9() {
-    let before_test = std::time::Instant::now();
-    let res = test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        [
-            "RCPT TO:<bar@foo>\r\n",
-            "MAIL FROM: <foo@bar>\r\n",
-            "EHLO\r\n",
-            "NOOP\r\n",
-            "azeai\r\n",
-            "STARTTLS\r\n",
-            "MAIL FROM:<john@doe>\r\n",
-            "EHLO\r\n",
-            "EHLO\r\n",
-            "HELP\r\n",
-            "aieari\r\n",
-            "not a valid smtp command\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        [
-            "220 test.server.com Service ready\r\n",
-            "503 Bad sequence of commands\r\n",
-            "503 Bad sequence of commands\r\n",
-            "501 Syntax error in parameters or arguments\r\n",
-            "250 Ok\r\n",
-            "501 Syntax error in parameters or arguments\r\n",
-            "503 Bad sequence of commands\r\n",
-            "503 Bad sequence of commands\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
-    )
-    .await;
-
-    assert!(res.is_err());
-
-    // (hard_error - soft_error) * error_delay
-    assert!(before_test.elapsed().as_millis() >= 5 * 100);
-}
-
 #[tokio::test]
 async fn test_receiver_10() {
     match test_receiver(
@@ -303,7 +190,7 @@ async fn test_receiver_10() {
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
                 .with_default_smtp()
                 .with_delivery("./tmp/delivery", crate::collection! {})
-                .with_rules("./tmp/nothing")
+                .with_rules("./tmp/nothing", vec![])
                 .with_default_reply_codes()
                 .build()
                 .expect("could not build the server config"),

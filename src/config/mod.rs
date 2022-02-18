@@ -19,6 +19,9 @@ pub mod default;
 mod serializer;
 pub mod server_config;
 
+#[cfg(test)]
+mod tests;
+
 pub mod log_channel {
     pub const RECEIVER: &str = "receiver";
     pub const RESOLVER: &str = "resolver";

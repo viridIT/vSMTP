@@ -17,6 +17,13 @@ rules = "warn"
 [rules]
 dir = "./config/rules"
 
+[[rules.services]]
+name = "clamscan"
+type = "shell"
+timeout = "15s"
+command = "./config/rules/service/clamscan.sh"
+args = "{mail}"
+
 [smtps]
 security_level = "May"
 capath = "./config/certs"

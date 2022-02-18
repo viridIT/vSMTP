@@ -37,6 +37,7 @@ pub struct InnerServerConfig {
 pub struct InnerLogConfig {
     #[serde(default = "InnerLogConfig::default_file")]
     pub file: std::path::PathBuf,
+    #[serde(default)]
     pub level: std::collections::HashMap<String, log::LevelFilter>,
 }
 
@@ -93,22 +94,45 @@ pub struct DurationAlias {
     pub alias: std::time::Duration,
 }
 
+fn default_rcpt_count_max() -> usize {
+    1000
+}
+
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InnerSMTPConfig {
+    #[serde(default)]
     pub disable_ehlo: bool,
     #[serde(default)]
     #[serde_as(as = "std::collections::HashMap<DisplayFromStr, _>")]
     pub timeout_client: std::collections::HashMap<StateSMTP, DurationAlias>,
     pub error: InnerSMTPErrorConfig,
+    #[serde(default = "default_rcpt_count_max")]
     pub rcpt_count_max: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", deny_unknown_fields)]
+pub enum Service {
+    #[serde(rename = "shell")]
+    UnixShell {
+        name: String,
+        #[serde(with = "humantime_serde")]
+        timeout: std::time::Duration,
+        #[serde(default)]
+        user: Option<String>,
+        command: String,
+        args: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InnerRulesConfig {
     pub dir: String,
+    #[serde(default)]
+    pub services: Vec<Service>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -124,6 +148,7 @@ pub struct QueueConfig {
 #[serde(deny_unknown_fields)]
 pub struct InnerDeliveryConfig {
     pub spool_dir: std::path::PathBuf,
+    #[serde(serialize_with = "crate::config::serializer::ordered_map")]
     pub queues: std::collections::HashMap<String, QueueConfig>,
 }
 
