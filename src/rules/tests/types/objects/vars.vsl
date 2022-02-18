@@ -1,0 +1,31 @@
+obj ip4 "ip4" "127.0.0.1";
+obj ip6 "ip6" "0:0:0:0:0:0:0:1";
+obj rg4 "rg4" "127.0.0.1/32";
+obj rg6 "rg6" "0:0:0:0:0:0:0:1/32";
+obj addr "address" "local_part@domain.com";
+obj fqdn "fqdn" "domain.com";
+obj regex "regex" "^[a-z0-9.]+@domain.com$";
+obj ident "identifier" "local_part";
+obj str "str" "a string";
+
+obj file:addr "file" "./src/rules/tests/types/address/whitelist.txt";
+obj grp "group" [
+    ip4,
+    ip6,
+    address,
+    fqdn,
+    obj ip4 "nested_ip4" "0.0.0.0",
+    obj addr "nested_addr" "nested@addr.com",
+];
+
+export ip4,
+ip6,
+rg4,
+rg6,
+address,
+fqdn,
+regex,
+identifier,
+str,
+file,
+group;

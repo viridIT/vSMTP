@@ -60,4 +60,15 @@ pub mod test_types {
 
         assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
     }
+
+    #[test]
+    fn test_objects() {
+        crate::receiver::test_helpers::logs::setup_logs();
+
+        let re =
+            RuleEngine::new("./src/rules/tests/types/objects").expect("couldn't build rule engine");
+        let mut state = get_default_state();
+
+        assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
+    }
 }

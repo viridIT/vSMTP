@@ -31,7 +31,7 @@ obj addr "green" "green@bar.com";
 // obj addr "invalid" "abc/.com";
 
 // files object, format: `file:(content-type)`
-// content-type can be: ip4, ip6, fqdn, val, addr or regex.
+// content-type can be: ip4, ip6, rg4, rg6, fqdn, str, addr or regex.
 obj file:addr "whitelist" "./src/rules/tests/configs/whitelist.txt";
 
 // regex objects.

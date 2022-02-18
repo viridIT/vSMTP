@@ -36,7 +36,7 @@ run_rules!(
 
                 if my_address.to_string() is "my@address.fqdn"
                 && my_address.to_debug() is "Address { full: \"my@address.fqdn\", at_sign: 2 }"
-                && my_address.full is "my@address.fqdn"
+                && my_address is "my@address.fqdn"
                 && my_address.local_part is "my"
                 && my_address.domain is "address.fqdn"
 
@@ -99,7 +99,7 @@ run_rules!(
                     vsl::new_address("raw@address.net") in obj addr "in_addr" "impossible@test.com";
                     return vsl::deny();
                 } catch {}
-            
+
                 vsl::next()
             },
 

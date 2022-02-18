@@ -26,29 +26,29 @@ pub mod types {
 
     // Status
 
-    #[rhai_fn(global, name = "==")]
+    #[rhai_fn(global, name = "==", pure)]
     pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
         *in1 == in2
     }
 
-    #[rhai_fn(global, name = "!=")]
+    #[rhai_fn(global, name = "!=", pure)]
     pub fn neq_status_operator(in1: &mut Status, in2: Status) -> bool {
         !(*in1 == in2)
     }
 
-    #[rhai_fn(global)]
+    #[rhai_fn(global, pure)]
     pub fn to_string(status: &mut Status) -> String {
         format!("{}", status)
     }
 
-    #[rhai_fn(global)]
+    #[rhai_fn(global, pure)]
     pub fn to_debug(status: &mut Status) -> String {
         format!("{}", status)
     }
 
     // std::time::SystemTime
 
-    #[rhai_fn(global, name = "to_string", return_raw)]
+    #[rhai_fn(global, name = "to_string", return_raw, pure)]
     pub fn time_to_string(this: &mut std::time::SystemTime) -> EngineResult<String> {
         Ok(format!(
             "{}",
@@ -58,7 +58,7 @@ pub mod types {
         ))
     }
 
-    #[rhai_fn(global, name = "to_debug", return_raw)]
+    #[rhai_fn(global, name = "to_debug", return_raw, pure)]
     pub fn time_to_debug(this: &mut std::time::SystemTime) -> EngineResult<String> {
         Ok(format!(
             "{:?}",
@@ -69,32 +69,32 @@ pub mod types {
 
     // std::net::SocketAddr
 
-    #[rhai_fn(global, name = "to_string")]
+    #[rhai_fn(global, name = "to_string", pure)]
     pub fn socket_to_string(this: &mut std::net::SocketAddr) -> String {
         this.to_string()
     }
 
-    #[rhai_fn(global, name = "to_debug")]
+    #[rhai_fn(global, name = "to_debug", pure)]
     pub fn socket_to_debug(this: &mut std::net::SocketAddr) -> String {
         format!("{this:?}")
     }
 
-    #[rhai_fn(global, name = "==")]
+    #[rhai_fn(global, name = "==", pure)]
     pub fn socket_is_string(this: &mut std::net::SocketAddr, ip: String) -> bool {
         this.ip().to_string() == ip
     }
 
-    #[rhai_fn(global, name = "==")]
+    #[rhai_fn(global, name = "==", pure)]
     pub fn socket_is_self(this: &mut std::net::SocketAddr, ip: std::net::SocketAddr) -> bool {
         *this == ip
     }
 
-    #[rhai_fn(global, name = "!=")]
+    #[rhai_fn(global, name = "!=", pure)]
     pub fn socket_not_string(this: &mut std::net::SocketAddr, ip: String) -> bool {
         this.ip().to_string() != ip
     }
 
-    #[rhai_fn(global, name = "!=")]
+    #[rhai_fn(global, name = "!=", pure)]
     pub fn socket_not_self(this: &mut std::net::SocketAddr, ip: std::net::SocketAddr) -> bool {
         *this != ip
     }
@@ -106,43 +106,38 @@ pub mod types {
         Address::new(addr).map_err(|error| error.to_string().into())
     }
 
-    #[rhai_fn(global, name = "to_string")]
+    #[rhai_fn(global, name = "to_string", pure)]
     pub fn address_to_string(this: &mut Address) -> String {
         this.full().to_string()
     }
 
-    #[rhai_fn(global, name = "to_debug")]
+    #[rhai_fn(global, name = "to_debug", pure)]
     pub fn address_to_debug(this: &mut Address) -> String {
         format!("{this:?}")
     }
 
-    #[rhai_fn(global, get = "full")]
-    pub fn full(this: &mut Address) -> String {
-        this.full().to_string()
-    }
-
-    #[rhai_fn(global, get = "local_part")]
+    #[rhai_fn(global, get = "local_part", pure)]
     pub fn local_part(this: &mut Address) -> String {
         this.local_part().to_string()
     }
 
-    #[rhai_fn(global, get = "domain")]
+    #[rhai_fn(global, get = "domain", pure)]
     pub fn domain(this: &mut Address) -> String {
         this.domain().to_string()
     }
 
-    #[rhai_fn(global, name = "==")]
+    #[rhai_fn(global, name = "==", pure)]
     pub fn address_is_string(this: &mut Address, other: String) -> bool {
         this.full() == other
     }
 
-    #[rhai_fn(global, name = "==")]
+    #[rhai_fn(global, name = "==", pure)]
     pub fn address_is_self(this: &mut Address, other: Address) -> bool {
         *this == other
     }
 
     // NOTE: should a mismatched object fail or just return false ?
-    #[rhai_fn(global, name = "==", return_raw)]
+    #[rhai_fn(global, name = "==", return_raw, pure)]
     pub fn address_is_object(
         this: &mut Address,
         other: std::sync::Arc<Object>,
@@ -150,7 +145,7 @@ pub mod types {
         internal_address_is_object(this, &other)
     }
 
-    #[rhai_fn(global, name = "==", return_raw)]
+    #[rhai_fn(global, name = "==", return_raw, pure)]
     pub fn object_is_address(
         this: &mut std::sync::Arc<Object>,
         addr: Address,
@@ -158,17 +153,17 @@ pub mod types {
         internal_address_is_object(&addr, this)
     }
 
-    #[rhai_fn(global, name = "!=")]
+    #[rhai_fn(global, name = "!=", pure)]
     pub fn address_not_string(this: &mut Address, other: String) -> bool {
         this.full() != other
     }
 
-    #[rhai_fn(global, name = "!=")]
+    #[rhai_fn(global, name = "!=", pure)]
     pub fn address_not_self(this: &mut Address, other: Address) -> bool {
         *this != other
     }
 
-    #[rhai_fn(global, name = "!=", return_raw)]
+    #[rhai_fn(global, name = "!=", return_raw, pure)]
     pub fn address_not_object(
         this: &mut Address,
         other: std::sync::Arc<Object>,
@@ -178,17 +173,17 @@ pub mod types {
 
     // vsmtp's rule engine obj syntax (std::sync::Arc<Object>).
 
-    #[rhai_fn(global, name = "to_string")]
+    #[rhai_fn(global, name = "to_string", pure)]
     pub fn object_to_string(this: &mut std::sync::Arc<Object>) -> String {
         this.to_string()
     }
 
-    #[rhai_fn(global, name = "to_debug")]
+    #[rhai_fn(global, name = "to_debug", pure)]
     pub fn object_to_debug(this: &mut std::sync::Arc<Object>) -> String {
         format!("{:#?}", **this)
     }
 
-    #[rhai_fn(global, name = "==")]
+    #[rhai_fn(global, name = "==", pure)]
     pub fn object_is_self(
         this: &mut std::sync::Arc<Object>,
         other: std::sync::Arc<Object>,
@@ -196,7 +191,7 @@ pub mod types {
         **this == *other
     }
 
-    #[rhai_fn(global, name = "==", return_raw)]
+    #[rhai_fn(global, name = "==", return_raw, pure)]
     pub fn object_is_string(this: &mut std::sync::Arc<Object>, s: String) -> EngineResult<bool> {
         internal_string_is_object(&s, this)
     }
@@ -206,12 +201,12 @@ pub mod types {
         internal_string_is_object(this, &other)
     }
 
-    #[rhai_fn(global, name = "contains", return_raw)]
+    #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn string_in_object(this: &mut std::sync::Arc<Object>, s: String) -> EngineResult<bool> {
         internal_string_in_object(&s, this)
     }
 
-    #[rhai_fn(global, name = "contains", return_raw)]
+    #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn address_in_object(
         this: &mut std::sync::Arc<Object>,
         addr: Address,
@@ -219,7 +214,7 @@ pub mod types {
         internal_address_in_object(&addr, this)
     }
 
-    #[rhai_fn(global, name = "contains", return_raw)]
+    #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_object(
         this: &mut std::sync::Arc<Object>,
         other: std::sync::Arc<Object>,
@@ -229,17 +224,17 @@ pub mod types {
 
     // vsmtp's rule engine obj syntax container (Vec<std::sync::Arc<Object>>).
 
-    #[rhai_fn(global, name = "to_string")]
+    #[rhai_fn(global, name = "to_string", pure)]
     pub fn object_vec_to_string(this: &mut Vec<std::sync::Arc<Object>>) -> String {
         format!("{:?}", this)
     }
 
-    #[rhai_fn(global, name = "to_debug")]
+    #[rhai_fn(global, name = "to_debug", pure)]
     pub fn object_vec_to_debug(this: &mut Vec<std::sync::Arc<Object>>) -> String {
         format!("{:#?}", this)
     }
 
-    #[rhai_fn(global, name = "contains")]
+    #[rhai_fn(global, name = "contains", pure)]
     pub fn object_in_object_vec(
         this: &mut Vec<std::sync::Arc<Object>>,
         other: std::sync::Arc<Object>,
@@ -249,43 +244,43 @@ pub mod types {
 
     // rcpt container.
 
-    #[rhai_fn(global, get = "local_parts")]
+    #[rhai_fn(global, get = "local_parts", pure)]
     pub fn rcpt_local_parts(this: &mut Rcpt) -> Vec<std::sync::Arc<Object>> {
         this.iter()
             .map(|addr| std::sync::Arc::new(Object::Identifier(addr.local_part().to_string())))
             .collect()
     }
 
-    #[rhai_fn(global, get = "domains")]
+    #[rhai_fn(global, get = "domains", pure)]
     pub fn rcpt_domains(this: &mut Rcpt) -> Vec<std::sync::Arc<Object>> {
         this.iter()
             .map(|addr| std::sync::Arc::new(Object::Fqdn(addr.domain().to_string())))
             .collect()
     }
 
-    #[rhai_fn(global, name = "to_string")]
+    #[rhai_fn(global, name = "to_string", pure)]
     pub fn rcpt_to_string(this: &mut Rcpt) -> String {
         format!("{this:?}")
     }
 
-    #[rhai_fn(global, name = "to_debug")]
+    #[rhai_fn(global, name = "to_debug", pure)]
     pub fn rcpt_to_debug(this: &mut Rcpt) -> String {
         format!("{this:#?}")
     }
 
-    #[rhai_fn(global, name = "contains", return_raw)]
+    #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn string_in_rcpt(this: &mut Rcpt, s: String) -> EngineResult<bool> {
         let addr = Address::new(&s)
             .map_err::<Box<EvalAltResult>, _>(|_| format!("'{}' is not an address", s).into())?;
         Ok(this.contains(&addr))
     }
 
-    #[rhai_fn(global, name = "contains")]
+    #[rhai_fn(global, name = "contains", pure)]
     pub fn address_in_rcpt(this: &mut Rcpt, addr: Address) -> bool {
         this.contains(&addr)
     }
 
-    #[rhai_fn(global, name = "contains", return_raw)]
+    #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_rcpt(this: &mut Rcpt, other: std::sync::Arc<Object>) -> EngineResult<bool> {
         internal_object_in_rcpt(this, &other)
     }
