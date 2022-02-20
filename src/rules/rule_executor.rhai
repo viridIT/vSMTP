@@ -19,36 +19,39 @@
 // wrapped in one. this function needs to capture
 // the "stage" variable to work properly.
 // use it like this: run_rules!(rules)
-fn run_rules(rules) {
+fn run_rules(rules, stage) {
     let status = vsl::next();
 
     if rules.contains(stage) {
-        for r in rules[stage] {
+        for procedure in rules[stage] {
             try {
-                let result = r.evaluate.call();
+                let result = procedure.evaluate.call();
 
-                switch r.type {
+                switch procedure.type {
                     "rule" => {
-                        if result.type_of() != "vsmtp::rules::rule_engine::Status" {
-                            status = r.default_status;
-                        } else {
-                            status = result;
-                        }
-                    }
+                        switch result.type_of() {
+                            "vsmtp::rules::rule_engine::Status" => status = result,
+                            _ => {
+                                throw #{
+                                function: "run_rules",
+                                error: "ErrorInFunctionCall",
+                                message: "rules must return a status",
+                                line: 0,
+                                position: 0,
+                                source: "",
+                              };
+                            }
+                        };
+                    },
                     _ => {}
-                }
-
-                if status != vsl::next() {
-                    return status;
-                }
+                };
             } catch (err) {
-                switch err.error {
-                    "ErrorInFunctionCall" => {
-                        err.set("rule", r.name);
-                        throw err;
-                    }
-                    _ => { throw; }
-                }
+                err.set("rule", procedure.name);
+                throw err;
+            }
+
+            if status != vsl::next() {
+                return status;
             }
         }
     }
