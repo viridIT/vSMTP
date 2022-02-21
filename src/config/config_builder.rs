@@ -45,6 +45,7 @@ impl ServerConfig {
 pub struct WantsServer(pub(crate) ());
 
 impl ConfigBuilder<WantsServer> {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_server(
         self,
         domain: impl Into<String>,
