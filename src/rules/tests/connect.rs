@@ -14,24 +14,21 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-#[cfg(test)]
-pub mod test {
-    use crate::rules::{
-        rule_engine::{RuleEngine, Status},
-        tests::helpers::get_default_state,
-    };
+use crate::rules::{
+    rule_engine::{RuleEngine, Status},
+    tests::helpers::get_default_state,
+};
 
-    #[test]
-    fn test_connect_rules() {
-        let re =
-            RuleEngine::new("./src/rules/tests/rules/connect").expect("couldn't build rule engine");
-        let mut state = get_default_state();
+#[test]
+fn test_connect_rules() {
+    let re =
+        RuleEngine::new("./src/rules/tests/rules/connect").expect("couldn't build rule engine");
+    let mut state = get_default_state();
 
-        // ctx.client_addr is 0.0.0.0 by default.
-        state.get_context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
-        assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
+    // ctx.client_addr is 0.0.0.0 by default.
+    state.get_context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
+    assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
 
-        state.get_context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
-        assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
-    }
+    state.get_context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
+    assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
 }

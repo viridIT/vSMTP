@@ -1,28 +1,21 @@
-run_rules!(
-    #{
-        connect: [
-            rule "test_socket" || {
-                print(ctx.client_addr.to_string());
-                print(ctx.client_addr.to_debug());
-                if ctx.client_addr.to_string() is "0.0.0.0:0"
-                && ctx.client_addr.to_debug() is "0.0.0.0:0"
+#{
+    connect: [
+        rule "test_socket" || {
+            print(ctx.client_addr.to_string());
+            print(ctx.client_addr.to_debug());
+            if ctx.client_addr.to_string() is "0.0.0.0:0"
+            && ctx.client_addr.to_debug() is "0.0.0.0:0"
 
-                && ctx.client_addr is ctx.client_addr
-                && ctx.client_addr == ctx.client_addr
-                && ctx.client_addr not custom_socket
-                && ctx.client_addr != custom_socket
+            && ctx.client_addr is "0.0.0.0"
+            && ctx.client_addr == "0.0.0.0"
+            && ctx.client_addr not "127.0.0.1"
+            && ctx.client_addr != "127.0.0.1"
 
-                && ctx.client_addr is "0.0.0.0"
-                && ctx.client_addr == "0.0.0.0"
-                && ctx.client_addr not "127.0.0.1"
-                && ctx.client_addr != "127.0.0.1"
-
-                {
-                    vsl::accept()
-                } else {
-                    vsl::deny()
-                }
+            {
+                vsl::accept()
+            } else {
+                vsl::deny()
             }
-        ]
-    }
-)
+        }
+    ]
+}

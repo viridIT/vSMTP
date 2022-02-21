@@ -1,5 +1,3 @@
-
-run_rules!(
 #{
   connect: [
     rule "test_connect" || {
@@ -7,5 +5,4 @@ run_rules!(
       if ctx.client_addr is "127.0.0.1" { vsl::next() } else { vsl::deny() }
     }
   ],
-}  
-)
+}

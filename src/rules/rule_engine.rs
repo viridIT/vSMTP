@@ -609,7 +609,7 @@ impl RuleEngine {
                         main_path,
                         err
                     );
-                    String::default()
+                    "#{}".to_string()
                 }),
             )
             .context("failed to compile main.vsl")?;

@@ -14,24 +14,20 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-#[cfg(test)]
-pub mod test {
-    use crate::rules::{
-        rule_engine::{RuleEngine, Status},
-        tests::helpers::get_default_state,
-    };
+use crate::rules::{
+    rule_engine::{RuleEngine, Status},
+    tests::helpers::get_default_state,
+};
 
-    #[test]
-    fn test_helo_rules() {
-        crate::receiver::test_helpers::logs::setup_logs();
+#[test]
+fn test_helo_rules() {
+    crate::receiver::test_helpers::logs::setup_logs();
 
-        let re =
-            RuleEngine::new("./src/rules/tests/rules/helo").expect("couldn't build rule engine");
+    let re = RuleEngine::new("./src/rules/tests/rules/helo").expect("couldn't build rule engine");
 
-        let mut state = get_default_state();
-        state.get_context().write().unwrap().envelop.helo = "viridit.com".to_string();
+    let mut state = get_default_state();
+    state.get_context().write().unwrap().envelop.helo = "viridit.com".to_string();
 
-        assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
-        assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
-    }
+    assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
+    assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
 }

@@ -20,7 +20,6 @@ mod mail;
 mod rcpt;
 mod types;
 
-#[cfg(test)]
 pub mod helpers {
     use crate::config::server_config::ServerConfig;
 

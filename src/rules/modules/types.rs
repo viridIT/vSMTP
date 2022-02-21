@@ -122,19 +122,9 @@ pub mod types {
         this.ip().to_string() == ip
     }
 
-    #[rhai_fn(global, name = "==", pure)]
-    pub fn socket_is_self(this: &mut std::net::SocketAddr, ip: std::net::SocketAddr) -> bool {
-        *this == ip
-    }
-
     #[rhai_fn(global, name = "!=", pure)]
     pub fn socket_not_string(this: &mut std::net::SocketAddr, ip: String) -> bool {
         this.ip().to_string() != ip
-    }
-
-    #[rhai_fn(global, name = "!=", pure)]
-    pub fn socket_not_self(this: &mut std::net::SocketAddr, ip: std::net::SocketAddr) -> bool {
-        *this != ip
     }
 
     // rules::address::Address

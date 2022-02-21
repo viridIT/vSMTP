@@ -10,25 +10,23 @@ obj grp "staff" [
   obj addr "ruben" "ruben@email.ru",
 ];
 
-run_rules!(
-  #{
-    mail: [
-      rule "test_ident" || if ctx.mail_from not john && john not ctx.mail_from { vsl::next() } else { vsl::deny() },
-      rule "test_fqdn" || if ctx.mail_from is viridit { vsl::next() } else { vsl::deny() },
-      rule "test_addr" || if ctx.mail_from is someone { vsl::next() } else { vsl::deny() },
-      rule "test_grp" || if ctx.mail_from in staff { vsl::accept() } else { vsl::deny() },
-    ],
+#{
+  mail: [
+    rule "test_ident" || if ctx.mail_from not john && john not ctx.mail_from { vsl::next() } else { vsl::deny() },
+    rule "test_fqdn" || if ctx.mail_from is viridit { vsl::next() } else { vsl::deny() },
+    rule "test_addr" || if ctx.mail_from is someone { vsl::next() } else { vsl::deny() },
+    rule "test_grp" || if ctx.mail_from in staff { vsl::accept() } else { vsl::deny() },
+  ],
 
-    // rewrite is available when the email is parsed.
-    postq: [
-      rule "test_rewrite" || {
-        if ctx.mail_from in staff {
-          ctx.rewrite_mail_from("no-reply@viridit.com");
-          vsl::accept()
-        } else {
-          vsl::deny()
-        }
-      },
-    ],
-  }
-)
+  // rewrite is available when the email is parsed.
+  postq: [
+    rule "test_rewrite" || {
+      if ctx.mail_from in staff {
+        ctx.rewrite_mail_from("no-reply@viridit.com");
+        vsl::accept()
+      } else {
+        vsl::deny()
+      }
+    },
+  ],
+}

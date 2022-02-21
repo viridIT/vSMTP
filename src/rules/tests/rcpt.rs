@@ -14,57 +14,53 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-#[cfg(test)]
-pub mod test {
-    use crate::{
-        mime::parser::MailMimeParser,
-        rules::{
-            address::Address,
-            rule_engine::{RuleEngine, Status},
-            tests::helpers::get_default_state,
-        },
-        smtp::mail::Body,
-    };
+use crate::{
+    mime::parser::MailMimeParser,
+    rules::{
+        address::Address,
+        rule_engine::{RuleEngine, Status},
+        tests::helpers::get_default_state,
+    },
+    smtp::mail::Body,
+};
 
-    #[test]
-    fn test_rcpt_rules() {
-        crate::receiver::test_helpers::logs::setup_logs();
+#[test]
+fn test_rcpt_rules() {
+    crate::receiver::test_helpers::logs::setup_logs();
 
-        let re =
-            RuleEngine::new("./src/rules/tests/rules/rcpt").expect("couldn't build rule engine");
+    let re = RuleEngine::new("./src/rules/tests/rules/rcpt").expect("couldn't build rule engine");
 
-        let mut state = get_default_state();
-        {
-            let email = state.get_context();
-            let mut email = email.write().unwrap();
+    let mut state = get_default_state();
+    {
+        let email = state.get_context();
+        let mut email = email.write().unwrap();
 
-            email.envelop.rcpt = std::collections::HashSet::from_iter([
-                Address::new("johndoe@compagny.com").unwrap(),
-                Address::new("user@viridit.com").unwrap(),
-                Address::new("customer@company.com").unwrap(),
-            ]);
+        email.envelop.rcpt = std::collections::HashSet::from_iter([
+            Address::new("johndoe@compagny.com").unwrap(),
+            Address::new("user@viridit.com").unwrap(),
+            Address::new("customer@company.com").unwrap(),
+        ]);
 
-            email.body = Body::Parsed(Box::new(
-                MailMimeParser::default()
-                    .parse(
-                        br#"From: staff <staff@viridit.com>
+        email.body = Body::Parsed(Box::new(
+            MailMimeParser::default()
+                .parse(
+                    br#"From: staff <staff@viridit.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
 This is a reply to your hello."#,
-                    )
-                    .unwrap(),
-            ));
-        }
-
-        assert_eq!(re.run_when(&mut state, "rcpt"), Status::Accept);
-        assert_eq!(re.run_when(&mut state, "postq"), Status::Next);
-        assert_eq!(
-            state.get_context().read().unwrap().envelop.rcpt,
-            std::collections::HashSet::from_iter([
-                Address::new("johndoe@viridit.com").unwrap(),
-                Address::new("user@viridit.com").unwrap(),
-                Address::new("no-reply@viridit.com").unwrap(),
-            ])
-        );
+                )
+                .unwrap(),
+        ));
     }
+
+    assert_eq!(re.run_when(&mut state, "rcpt"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, "postq"), Status::Next);
+    assert_eq!(
+        state.get_context().read().unwrap().envelop.rcpt,
+        std::collections::HashSet::from_iter([
+            Address::new("johndoe@viridit.com").unwrap(),
+            Address::new("user@viridit.com").unwrap(),
+            Address::new("no-reply@viridit.com").unwrap(),
+        ])
+    );
 }
