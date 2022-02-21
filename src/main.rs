@@ -16,6 +16,7 @@
  **/
 use vsmtp::config::get_logger_config;
 use vsmtp::config::server_config::ServerConfig;
+use vsmtp::my_libc::{fork, setgid, setuid, Fork};
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::mbox_resolver::MBoxResolver;
 use vsmtp::resolver::smtp_resolver::SMTPResolver;
@@ -82,7 +83,7 @@ fn main() -> anyhow::Result<()> {
                 let loaded_config = serde_json::to_string_pretty(&config)?;
                 let default_config = serde_json::to_string_pretty(
                     &ServerConfig::builder()
-                        .with_rfc_port(&config.server.domain, "vsmtp", None)
+                        .with_rfc_port(&config.server.domain, "vsmtp", "vsmtp", None)
                         .without_log()
                         // TODO: default
                         .without_smtps()
@@ -109,22 +110,26 @@ fn main() -> anyhow::Result<()> {
 
     log4rs::init_config(get_logger_config(&config)?)?;
 
-    let user = match users::get_user_by_name(&config.server.vsmtp_user) {
-        Some(user) => user,
-        None => anyhow::bail!("user not found: '{}'", config.server.vsmtp_user),
-    };
+    let vsmtp_user = users::get_user_by_name(&config.server.vsmtp_user)
+        .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.vsmtp_user))?;
+
+    let vsmtp_group = users::get_group_by_name(&config.server.vsmtp_group)
+        .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", config.server.vsmtp_group))?;
+
+    fn socket_bind_anyhow(addr: std::net::SocketAddr) -> anyhow::Result<std::net::TcpListener> {
+        std::net::TcpListener::bind(addr).map_err(|e| anyhow::anyhow!("{e}: '{addr}'"))
+    }
 
     let sockets = (
-        std::net::TcpListener::bind(config.server.addr)?,
-        std::net::TcpListener::bind(config.server.addr_submission)?,
-        std::net::TcpListener::bind(config.server.addr_submissions)?,
+        socket_bind_anyhow(config.server.addr)?,
+        socket_bind_anyhow(config.server.addr_submission)?,
+        socket_bind_anyhow(config.server.addr_submissions)?,
     );
 
-    match fork::fork() {
-        Ok(fork::Fork::Child) => {
-            // TODO: get errors
-            println!("{}", unsafe { libc::setuid(user.uid()) });
-            println!("{}", unsafe { libc::setgid(user.primary_group_id()) });
+    match fork()? {
+        Fork::Child => {
+            setgid(vsmtp_group.gid())?;
+            setuid(vsmtp_user.uid())?;
 
             tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(config.server.thread_count)
@@ -145,10 +150,9 @@ fn main() -> anyhow::Result<()> {
                         .await
                 })
         }
-        Ok(fork::Fork::Parent(child)) => {
+        Fork::Parent(child) => {
             println!("vsmtp is running on process: {}", child);
             Ok(())
         }
-        Err(_) => anyhow::bail!("Creating process vsmtp failed"),
     }
 }

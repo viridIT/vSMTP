@@ -267,6 +267,7 @@ mod tests {
                 .with_server(
                     "test.server.com",
                     "foo",
+                    "foo",
                     addr,
                     addr_submission,
                     addr_submissions,
@@ -308,6 +309,7 @@ mod tests {
             ServerConfig::builder()
                 .with_server(
                     "test.server.com",
+                    "foo",
                     "foo",
                     addr,
                     addr_submission,

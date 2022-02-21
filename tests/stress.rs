@@ -97,6 +97,7 @@ async fn stress() {
         .with_server(
             "stress.server.com",
             "foo",
+            "foo",
             "0.0.0.0:10027".parse().expect("valid address"),
             "0.0.0.0:10589".parse().expect("valid address"),
             "0.0.0.0:10467".parse().expect("valid address"),

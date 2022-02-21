@@ -118,7 +118,7 @@ async fn simple() -> anyhow::Result<()> {
         "testserver.com",
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_rfc_port("testserver.com", "foo", None)
+                .with_rfc_port("testserver.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(
                     TlsSecurityLevel::Encrypt,
@@ -163,7 +163,7 @@ async fn sni() -> anyhow::Result<()> {
         "second.testserver.com",
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_rfc_port("testserver.com", "foo", None)
+                .with_rfc_port("testserver.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(
                     TlsSecurityLevel::Encrypt,

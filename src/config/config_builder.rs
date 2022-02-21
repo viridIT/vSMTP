@@ -49,6 +49,7 @@ impl ConfigBuilder<WantsServer> {
         self,
         domain: impl Into<String>,
         vsmtp_user: impl Into<String>,
+        vsmtp_group: impl Into<String>,
         addr: std::net::SocketAddr,
         addr_submission: std::net::SocketAddr,
         addr_submissions: std::net::SocketAddr,
@@ -64,6 +65,7 @@ impl ConfigBuilder<WantsServer> {
                     addr_submissions,
                     thread_count,
                     vsmtp_user: vsmtp_user.into(),
+                    vsmtp_group: vsmtp_group.into(),
                 },
             },
         }
@@ -73,11 +75,13 @@ impl ConfigBuilder<WantsServer> {
         self,
         domain: impl Into<String>,
         vsmtp_user: impl Into<String>,
+        vsmtp_group: impl Into<String>,
         thread_count: Option<usize>,
     ) -> ConfigBuilder<WantsLogging> {
         self.with_server(
             domain,
             vsmtp_user,
+            vsmtp_group,
             "0.0.0.0:25".parse().expect("valid address"),
             "0.0.0.0:587".parse().expect("valid address"),
             "0.0.0.0:465".parse().expect("valid address"),
@@ -89,11 +93,13 @@ impl ConfigBuilder<WantsServer> {
         self,
         domain: impl Into<String>,
         vsmtp_user: impl Into<String>,
+        vsmtp_group: impl Into<String>,
         thread_count: Option<usize>,
     ) -> ConfigBuilder<WantsLogging> {
         self.with_server(
             domain,
             vsmtp_user,
+            vsmtp_group,
             "0.0.0.0:10025".parse().expect("valid address"),
             "0.0.0.0:10587".parse().expect("valid address"),
             "0.0.0.0:10465".parse().expect("valid address"),
