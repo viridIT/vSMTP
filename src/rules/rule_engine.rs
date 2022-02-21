@@ -87,8 +87,6 @@ impl<'a> RuleState<'a> {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            // rule engine's internals.
-            .push("stage", "")
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
@@ -119,8 +117,6 @@ impl<'a> RuleState<'a> {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            // rule engine's internals.
-            .push("stage", "")
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
@@ -182,112 +178,90 @@ impl RuleEngine {
         let now = chrono::Local::now();
         state
             .scope
-            .set_value("stage", stage.to_string())
             .set_value("date", now.date().format("%Y/%m/%d").to_string())
             .set_value("time", now.time().format("%H:%M:%S").to_string());
 
-        match self
+        let rules = match self
             .context
             .eval_ast_with_scope::<rhai::Map>(&mut state.scope, &self.ast)
         {
-            Ok(rules) => {
-                match self.context.call_fn_raw(
-                    &mut state.scope,
-                    &self.ast,
-                    false,
-                    true,
-                    "run_rules",
-                    None,
-                    [rules.into(), stage.to_string().into()],
-                ) {
-                    Ok(status) => {
-                        println!("status returned: {}", status);
-                        return status.cast();
+            Ok(rules) => rules,
+            Err(error) => {
+                log::error!(
+                    target: RULES,
+                    "stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
+                    stage,
+                    error
+                );
+                return Status::Next;
+            }
+        };
+
+        match self.context.call_fn(
+            &mut state.scope,
+            &self.ast,
+            "run_rules",
+            (rules, stage.to_string()),
+        ) {
+            Ok(status) => {
+                log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
+
+                match status {
+                    Status::Faccept | Status::Deny => {
+                        log::debug!(
+                        target: RULES,
+                        "[{}] the rule engine will skip all rules because of the previous result.",
+                        stage
+                    );
+                        state.skip = Some(status);
+                        status
                     }
-                    Err(error) => {
-                        println!("error! {}", error);
-                    }
+                    s => s,
                 }
             }
             Err(error) => {
-                println!("couldn't evaluate rules: {}", error);
+                log::error!(target: RULES, "{}", self.parse_stage_error(error, stage));
+                Status::Next
             }
         }
+    }
 
-        Status::Next
+    fn parse_stage_error(&self, error: Box<EvalAltResult>, stage: &str) -> String {
+        match *error {
+            // NOTE: since all errors are caught and thrown in "run_rules", errors
+            //       are always wrapped in ErrorInFunctionCall.
+            EvalAltResult::ErrorInFunctionCall(_, _, mut error, _) => match *error {
+                EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
+                    let error = error.cast::<rhai::Map>();
+                    let rule = error
+                        .get("rule")
+                        .map(|d| d.to_string())
+                        .unwrap_or_else(|| "unknown rule".to_string());
+                    let error = error
+                        .get("message")
+                        .map(|d| d.to_string())
+                        .unwrap_or_else(|| "vsl internal unexpected error".to_string());
 
-        // match self
-        //     .context
-        //     .eval_ast_with_scope::<Status>(&mut state.scope, &self.ast)
-        // {
-        //     Ok(status) => {
-        //         log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
-
-        //         match status {
-        //             Status::Faccept | Status::Deny => {
-        //                 log::trace!(
-        //                     target: RULES,
-        //                     "[{}] the rule engine will skip all rules because of the previous result.",
-        //                     stage
-        //                 );
-        //                 state.skip = Some(status);
-        //                 status
-        //             }
-        //             s => s,
-        //         }
-        //     }
-        //     Err(error) => match *error {
-        //         // NOTE: not `ErrorRuntime` because errors are cached in `run_rules`
-        //         //       thus transformed into `ErrorInFunctionCall`.
-        //         EvalAltResult::ErrorInFunctionCall(
-        //             _,
-        //             _,
-        //             // the real error is hidden here.
-        //             // FIXME: use box destructuration when it is available in stable rust.
-        //             error_runtime,
-        //             _,
-        //         ) => {
-        //             match *error_runtime {
-        //                 EvalAltResult::ErrorRuntime(error, _) => {
-        //                     if let Some(error) = error.try_cast::<rhai::Map>() {
-        //                         let rule = error
-        //                             .get("rule")
-        //                             .map(|d| d.to_string())
-        //                             .unwrap_or_else(|| "unknown rule".to_string());
-        //                         let error = error.get("message").map(|d| d.to_string())
-        //                             .unwrap_or_else(|| "unexpected error, this is a bug. Please report it on our github page.".to_string());
-
-        //                         log::error!(
-        //                             target: RULES,
-        //                             "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
-        //                             stage,
-        //                             rule,
-        //                             error
-        //                         );
-        //                     };
-        //                 }
-        //                 _ => {
-        //                     log::error!(
-        //                         target: RULES,
-        //                         "the rule engine skipped stage '{}':\n\t{:?}",
-        //                         stage,
-        //                         error_runtime
-        //                     );
-        //                 }
-        //             };
-        //             Status::Next
-        //         }
-        //         _ => {
-        //             log::error!(
-        //                 target: RULES,
-        //                 "the rule engine skipped stage '{}':\n\t{:?}",
-        //                 stage,
-        //                 error
-        //             );
-        //             Status::Next
-        //         }
-        //     },
-        // }
+                    format!(
+                        "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
+                        stage, rule, error
+                    )
+                }
+                _ => {
+                    error.take_position();
+                    format!(
+                        "stage '{}' skipped => rule engine failed:\n\t{}",
+                        stage, error,
+                    )
+                }
+            },
+            _ => {
+                format!(
+                    "rule engine unexpected error in stage '{}':\n\t{:?}",
+                    stage, error
+                )
+            }
+        }
     }
 
     /// creates a new instance of the rule engine, reading all files in
@@ -606,8 +580,6 @@ impl RuleEngine {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            // rule engine's internals.
-            .push("stage", "")
             // configuration variables.
             .push(
                 "addr",
@@ -641,6 +613,10 @@ impl RuleEngine {
                 }),
             )
             .context("failed to compile main.vsl")?;
+
+        engine
+            .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
+            .context("failed to parse rules")?;
 
         log::debug!(target: RULES, "done.");
 
