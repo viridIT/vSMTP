@@ -114,7 +114,7 @@ pub mod actions {
 
     // TODO: use UsersCache to optimize user lookup.
     /// use the user cache to check if a user exists on the system.
-    pub(crate) fn user_exists(name: &str) -> bool {
+    pub(crate) fn user_exist(name: &str) -> bool {
         users::get_user_by_name(name).is_some()
     }
 

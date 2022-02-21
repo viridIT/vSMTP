@@ -28,3 +28,14 @@ fn test_logs() {
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
 }
+
+#[test]
+fn test_users() {
+    crate::receiver::test_helpers::logs::setup_logs();
+
+    let re =
+        RuleEngine::new("./src/rules/tests/actions/users").expect("couldn't build rule engine");
+    let mut state = get_default_state();
+
+    assert_eq!(re.run_when(&mut state, "delivery"), Status::Accept);
+}
