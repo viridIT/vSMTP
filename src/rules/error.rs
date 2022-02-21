@@ -47,7 +47,6 @@ impl RuleEngineError {
 
             RuleEngineError::Stage => {
                 r#"failed to parse a stage.
-
     declare stages this way:
 
     #{

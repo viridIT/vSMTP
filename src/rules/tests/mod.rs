@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-mod connect;
-mod helo;
-mod mail;
-mod rcpt;
+mod rules;
 mod types;
 
 pub mod helpers {
