@@ -18,4 +18,14 @@ obj grp "group" [
     obj addr "nested_addr" "nested@addr.com",
 ];
 
-export ip4, ip6, rg4, rg6, address, fqdn, regex, identifier, str, file, group;
+export ip4;
+export ip6;
+export rg4;
+export rg6;
+export address;
+export fqdn;
+export regex;
+export identifier;
+export str;
+export file;
+export group;
