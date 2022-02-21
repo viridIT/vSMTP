@@ -21,7 +21,7 @@ use rhai::plugin::*;
 pub mod actions {
 
     use crate::{
-        config::server_config::Service,
+        config::{log_channel::RULES, server_config::Service},
         rules::{rule_engine::Status, service::ServiceResult},
         smtp::mail::MailContext,
     };
@@ -42,48 +42,24 @@ pub mod actions {
         Status::Deny
     }
 
-    /// logs a message to stdout, stderr or a file.
-    #[rhai_fn(return_raw)]
-    pub fn log(message: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
-        match path {
-            "stdout" => {
-                println!("{}", message);
-                Ok(())
-            }
-            "stderr" => {
-                eprintln!("{}", message);
-                Ok(())
-            }
-            _ => {
-                match std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)
-                {
-                    Ok(file) => {
-                        let mut writer = std::io::LineWriter::new(file);
-
-                        std::io::Write::write_all(&mut writer, format!("{message}\n").as_bytes())
-                            .map_err::<Box<EvalAltResult>, _>(|err| {
-                                format!("LOG action error: {err:?}").into()
-                            })
-                    }
-                    Err(err) => Err(format!("LOG action error: {err:?}",).into()),
-                }
-            }
-        }
+    pub fn log_error(message: &str) {
+        log::error!(target: RULES, "{}", message);
     }
 
-    /// logs a message to stdout.
-    #[rhai_fn(return_raw)]
-    pub fn log_out(message: &str) -> Result<(), Box<EvalAltResult>> {
-        log(message, "stdout")
+    pub fn log_warn(message: &str) {
+        log::warn!(target: RULES, "{}", message);
     }
 
-    /// logs a message to stderr.
-    #[rhai_fn(return_raw)]
-    pub fn log_err(message: &str) -> Result<(), Box<EvalAltResult>> {
-        log(message, "stderr")
+    pub fn log_info(message: &str) {
+        log::info!(target: RULES, "{}", message);
+    }
+
+    pub fn log_debug(message: &str) {
+        log::debug!(target: RULES, "{}", message);
+    }
+
+    pub fn log_trace(message: &str) {
+        log::trace!(target: RULES, "{}", message);
     }
 
     // TODO: not yet functional, the relayer cannot connect to servers.

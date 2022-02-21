@@ -14,27 +14,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-mod actions;
-mod rules;
-mod types;
+use crate::rules::{
+    rule_engine::{RuleEngine, Status},
+    tests::helpers::get_default_state,
+};
 
-pub mod helpers {
-    use crate::config::server_config::ServerConfig;
+#[test]
+fn test_logs() {
+    crate::receiver::test_helpers::logs::setup_logs();
 
-    use crate::rules::rule_engine::RuleState;
+    let re = RuleEngine::new("./src/rules/tests/actions/logs").expect("couldn't build rule engine");
+    let mut state = get_default_state();
 
-    pub(super) fn get_default_state() -> RuleState<'static> {
-        let config = ServerConfig::builder()
-            .with_rfc_port("test.server.com", None)
-            .without_log()
-            .without_smtps()
-            .with_default_smtp()
-            .with_delivery("./tmp/delivery", crate::collection! {})
-            .with_rules("./tmp/nothing", vec![])
-            .with_default_reply_codes()
-            .build()
-            .expect("could not build the default rule state");
-
-        RuleState::new(&config)
-    }
+    assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
 }
