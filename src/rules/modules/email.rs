@@ -313,4 +313,30 @@ pub mod email {
     pub fn disable_delivery(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<()> {
         use_resolver(this, "none".to_string())
     }
+
+    /// add a header to the raw or parsed email contained in ctx.
+    #[rhai_fn(global, return_raw)]
+    pub fn add_header(
+        this: &mut Arc<RwLock<MailContext>>,
+        header: &str,
+        value: &str,
+    ) -> EngineResult<()> {
+        match &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+        {
+            Body::Empty => {
+                return Err(format!(
+                    "failed to add header '{}': the body has not been received yet.",
+                    header
+                )
+                .into())
+            }
+            Body::Raw(raw) => *raw = format!("{}: {}\n{}", header, value, raw),
+            Body::Parsed(email) => email.headers.push((header.to_string(), value.to_string())),
+        };
+
+        Ok(())
+    }
 }
