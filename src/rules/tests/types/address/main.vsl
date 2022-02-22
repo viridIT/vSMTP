@@ -1,16 +1,16 @@
-obj addr "address_obj" "add@obj.net";
-obj fqdn "fqdn_obj" "obj.net";
-obj regex "regex_obj" "^[a-z0-9.]+@obj.com$";
-obj file:addr "file_obj" "./src/rules/tests/types/address/whitelist.txt";
+object address "address_obj" "add@obj.net";
+object fqdn "fqdn_obj" "obj.net";
+object regex "regex_obj" "^[a-z0-9.]+@obj.com$";
+object file:address "file_obj" "./src/rules/tests/types/address/whitelist.txt";
 
-obj grp "group_obj" [
+object group "group_obj" [
     address_obj,
     regex_obj,
-    obj addr "nested_address" "nested@address.com",
+    object address "nested_address" "nested@address.com",
 ];
 
-obj ident "identifier_obj" "local_part";
-obj str "string_obj" "raw@address.net";
+object ident "identifier_obj" "local_part";
+object str "string_obj" "raw@address.net";
 
 #{
     connect: [
@@ -90,12 +90,12 @@ obj str "string_obj" "raw@address.net";
 
         rule "test_not_valid_comparison" || {
             try {
-                vsl::new_address("raw@address.net") is obj ip4 "ip" "127.0.0.1";
+                vsl::new_address("raw@address.net") is object ip4 "ip" "127.0.0.1";
                 return vsl::deny();
             } catch {}
 
             try {
-                vsl::new_address("raw@address.net") in obj addr "in_addr" "impossible@test.com";
+                vsl::new_address("raw@address.net") in object address "in_addr" "impossible@test.com";
                 return vsl::deny();
             } catch {}
 

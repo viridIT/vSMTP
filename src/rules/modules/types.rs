@@ -336,11 +336,11 @@ pub fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<boo
 
 pub fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<bool> {
     Ok(match &*other {
-        Object::Group(grp) => grp.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false)),
+        Object::Group(group) => group.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false)),
         Object::File(file) => file.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false)),
         _ => {
             return Err(format!(
-                "the 'in' operator can only be used with 'grp' and 'file' object types, you used the string {} with the object {}",
+                "the 'in' operator can only be used with 'group' and 'file' object types, you used the string {} with the object {}",
                 this,
                 other.to_string()
             )
@@ -368,11 +368,11 @@ pub fn internal_address_is_object(this: &Address, other: &Object) -> EngineResul
 
 pub fn internal_address_in_object(this: &Address, other: &Object) -> EngineResult<bool> {
     Ok(match &*other {
-        Object::Group(grp) => grp.iter().any(|obj| internal_address_is_object(this, obj).unwrap_or(false)),
+        Object::Group(group) => group.iter().any(|obj| internal_address_is_object(this, obj).unwrap_or(false)),
         Object::File(file) => file.iter().any(|obj| internal_address_is_object(this, obj).unwrap_or(false)),
         _ => {
             return Err(format!(
-                "the 'in' operator can only be used with 'grp' and 'file' object types, you used the address {} with the object {}",
+                "the 'in' operator can only be used with 'group' and 'file' object types, you used the address {} with the object {}",
                 this.full(),
                 other.to_string()
             )
@@ -383,11 +383,11 @@ pub fn internal_address_in_object(this: &Address, other: &Object) -> EngineResul
 
 pub fn internal_object_in_object(this: &Object, other: &Object) -> EngineResult<bool> {
     Ok(match &*other {
-        Object::Group(grp) => grp.iter().any(|obj| **obj == *this),
+        Object::Group(group) => group.iter().any(|obj| **obj == *this),
         Object::File(file) => file.iter().any(|obj| obj == this),
         _ => {
             return Err(format!(
-                "the 'in' operator can only be used with 'grp' and 'file' object types, you used the object {} to search in {}",
+                "the 'in' operator can only be used with 'group' and 'file' object types, you used the object {} to search in {}",
                 this.to_string(),
                 other.to_string()
             )
@@ -404,7 +404,7 @@ pub fn internal_object_in_rcpt(this: &Rcpt, other: &Object) -> EngineResult<bool
         Object::File(file) => file
             .iter()
             .any(|obj| internal_object_in_rcpt(this, obj).unwrap_or(false)),
-        Object::Group(grp) => grp
+        Object::Group(group) => group
             .iter()
             .any(|obj| internal_object_in_rcpt(this, obj).unwrap_or(false)),
         Object::Identifier(s) => this.iter().any(|rcpt| rcpt.local_part() == s),

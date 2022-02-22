@@ -1,6 +1,6 @@
-obj ident "john" "johndoe";
-obj fqdn "viridit" "viridit.com";
-obj addr "customer" "customer@company.com";
+object ident "john" "johndoe";
+object fqdn "viridit" "viridit.com";
+object address "customer" "customer@company.com";
 
 #{
   rcpt: [

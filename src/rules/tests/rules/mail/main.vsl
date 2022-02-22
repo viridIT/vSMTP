@@ -1,13 +1,13 @@
-obj ident "john" "johndoe";
-obj fqdn "viridit" "viridit.com";
-obj addr "someone" "staff@viridit.com";
+object ident "john" "johndoe";
+object fqdn "viridit" "viridit.com";
+object address "someone" "staff@viridit.com";
 
-obj grp "staff" [
+object group "staff" [
   john,
-  obj addr "green" "green@personal.eu",
-  obj addr "steven" "steven@personal.fr",
-  obj addr "staff" "staff@viridit.com",
-  obj addr "ruben" "ruben@email.ru",
+  object address "green" "green@personal.eu",
+  object address "steven" "steven@personal.fr",
+  object address "staff" "staff@viridit.com",
+  object address "ruben" "ruben@email.ru",
 ];
 
 #{
@@ -15,7 +15,7 @@ obj grp "staff" [
     rule "test_ident" || if ctx.mail_from not john && john not ctx.mail_from { vsl::next() } else { vsl::deny() },
     rule "test_fqdn" || if ctx.mail_from is viridit { vsl::next() } else { vsl::deny() },
     rule "test_addr" || if ctx.mail_from is someone { vsl::next() } else { vsl::deny() },
-    rule "test_grp" || if ctx.mail_from in staff { vsl::accept() } else { vsl::deny() },
+    rule "test_group" || if ctx.mail_from in staff { vsl::accept() } else { vsl::deny() },
   ],
 
   // rewrite is available when the email is parsed.

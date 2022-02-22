@@ -131,7 +131,7 @@ impl Object {
                 }
             }
 
-            "addr" => {
+            "address" => {
                 let value = Object::value::<S, String>(map, "value")?;
                 Ok(Object::Address(Address::new(&value)?))
             }
@@ -165,8 +165,9 @@ impl Object {
                                 Ok(domain) => content.push(Object::Fqdn(domain.to_string())),
                                 Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                             },
-                            "addr" => content.push(Object::Address(Address::new(&line)?)),
-                            "val" => content.push(Object::Str(line)),
+                            "address" => content.push(Object::Address(Address::new(&line)?)),
+                            "str" => content.push(Object::Str(line)),
+                            "ident" => content.push(Object::Identifier(line)),
                             "regex" => content.push(Object::Regex(regex::Regex::from_str(&line)?)),
                             _ => {}
                         },
@@ -177,7 +178,7 @@ impl Object {
                 Ok(Object::File(content))
             }
 
-            "grp" => {
+            "group" => {
                 let mut group = vec![];
                 let elements = Object::value::<S, rhai::Array>(map, "value")?;
                 let name = Object::value::<S, String>(map, "name")?;
@@ -214,7 +215,7 @@ impl ToString for Object {
             Object::Fqdn(fqdn) => fqdn.clone(),
             Object::Regex(regex) => regex.to_string(),
             Object::File(file) => format!("{file:?}"),
-            Object::Group(grp) => format!("{grp:?}"),
+            Object::Group(group) => format!("{group:?}"),
             Object::Identifier(string) => string.clone(),
             Object::Str(string) => string.clone(),
         }
