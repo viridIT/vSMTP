@@ -14,10 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::rules::{
-    address::Address,
-    rule_engine::{RuleEngine, Status},
-    tests::helpers::get_default_state,
+use crate::{
+    config::server_config::{ServerConfig, Service},
+    rules::{
+        address::Address,
+        rule_engine::{RuleEngine, RuleState, Status},
+        tests::helpers::get_default_state,
+    },
+    smtp::mail::Body,
 };
 
 #[test]
@@ -81,4 +85,38 @@ fn test_objects() {
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
+}
+
+#[test]
+fn test_services() {
+    crate::receiver::test_helpers::logs::setup_logs();
+
+    let re =
+        RuleEngine::new("./src/rules/tests/types/service").expect("couldn't build rule engine");
+
+    let config = ServerConfig::builder()
+        .with_rfc_port("test.server.com", None)
+        .without_log()
+        .without_smtps()
+        .with_default_smtp()
+        .with_delivery("./tmp/delivery", crate::collection! {})
+        .with_rules(
+            "./tmp/nothing",
+            vec![Service::UnixShell {
+                name: "shell".to_string(),
+                timeout: std::time::Duration::from_secs(2),
+                user: None,
+                command: "echo".to_string(),
+                args: Some("test".to_string()),
+            }],
+        )
+        .with_default_reply_codes()
+        .build()
+        .expect("could not build the default rule state");
+
+    let mut state = RuleState::new(&config);
+
+    state.get_context().write().unwrap().body = Body::Raw(String::default());
+
+    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
 }
