@@ -39,3 +39,15 @@ fn test_users() {
 
     assert_eq!(re.run_when(&mut state, "delivery"), Status::Accept);
 }
+
+#[test]
+fn test_send_mail() {
+    crate::receiver::test_helpers::logs::setup_logs();
+
+    let re =
+        RuleEngine::new("./src/rules/tests/actions/send_mail").expect("couldn't build rule engine");
+    let mut state = get_default_state();
+
+    // TODO: add test to send a valid email.
+    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+}

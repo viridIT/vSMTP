@@ -73,12 +73,12 @@ pub mod actions {
     ) -> Result<(), Box<EvalAltResult>> {
         // TODO: email could be cached using an object. (obj mail "my_mail" "/path/to/mail")
         let email = std::fs::read_to_string(path).map_err::<Box<EvalAltResult>, _>(|err| {
-            format!("MAIL action failed: {err:?}").into()
+            format!("vsl::send_mail failed, email path to send unavailable: {err:?}").into()
         })?;
 
         let envelop = lettre::address::Envelope::new(
             Some(from.parse().map_err::<Box<EvalAltResult>, _>(|err| {
-                format!("MAIL action failed: {err:?}").into()
+                format!("vsl::send_mail from parsing failed: {err:?}").into()
             })?),
             to.into_iter()
                 // NOTE: address that couldn't be converted will be silently dropped.
@@ -88,27 +88,21 @@ pub mod actions {
                 })
                 .collect(),
         )
-        .map_err::<Box<EvalAltResult>, _>(|err| format!("MAIL action failed: {err:?}").into())?;
-
-        println!("sending email");
+        .map_err::<Box<EvalAltResult>, _>(|err| {
+            format!("vsl::send_mail envelop parsing failed {err:?}").into()
+        })?;
 
         match lettre::Transport::send_raw(
             &lettre::SmtpTransport::relay(relay)
                 .map_err::<Box<EvalAltResult>, _>(|err| {
-                    format!("MAIL action failed: {err:?}").into()
+                    format!("vsl::send_mail failed to connect to relay: {err:?}").into()
                 })?
                 .build(),
             &envelop,
             email.as_bytes(),
         ) {
-            Ok(_) => {
-                println!("email has been sent");
-                Ok(())
-            }
-            Err(err) => {
-                println!("email not sent");
-                Err(format!("MAIL action failed: {err:?}").into())
-            }
+            Ok(_) => Ok(()),
+            Err(err) => Err(format!("vsl::send_mail failed to send: {err:?}").into()),
         }
     }
 
