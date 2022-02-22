@@ -15,6 +15,7 @@
  *
 **/
 mod actions;
+mod email;
 mod rules;
 mod types;
 

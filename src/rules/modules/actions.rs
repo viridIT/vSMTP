@@ -112,40 +112,6 @@ pub mod actions {
         users::get_user_by_name(name).is_some()
     }
 
-    // #[rhai_fn(name = "__LOOKUP_MAIL_FROM", return_raw)]
-    // /// check the client's ip matches against the hostname passed has parameter.
-    // /// this can be used, for example, to check if MAIL FROM's value
-    // /// is matching the connection, preventing relaying.
-    // pub fn lookup_mail_from(
-    //     // curried parameters.
-    //     connect: std::net::IpAddr,
-    //     port: u16,
-    //     // exposed parameter.
-    //     hostname: &str,
-    // ) -> Result<bool, Box<EvalAltResult>> {
-    //     if hostname.is_empty() {
-    //         return Err(
-    //             "the LOOKUP_MAIL_FROM action can only be called after or in the 'mail' stage."
-    //                 .into(),
-    //         );
-    //     }
-
-    //     let engine = acquire_engine();
-    //     let objects = engine.objects.read().unwrap();
-
-    //     let hostname = match objects.get(hostname) {
-    //         Some(Object::Fqdn(fqdn)) => fqdn.as_str(),
-    //         _ => hostname,
-    //     };
-
-    //     Ok(format!("{}:{}", hostname, port)
-    //         .to_socket_addrs()
-    //         .map_err::<Box<EvalAltResult>, _>(|error| {
-    //             format!("couldn't process dns lookup: {}", error).into()
-    //         })?
-    //         .any(|socket| socket.ip() == connect))
-    // }
-
     #[rhai_fn(global, return_raw)]
     pub fn run(
         services: &mut std::sync::Arc<Vec<Service>>,

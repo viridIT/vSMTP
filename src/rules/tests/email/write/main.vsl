@@ -1,0 +1,37 @@
+#{
+    mail: [
+        rule "fail_write_to_disk_wrong_path" || {
+            try {
+                vsl::write(ctx, "does/not/exists");
+            } catch (err) {
+                if "failed to write email" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "fail_write_to_disk" || {
+            try {
+                vsl::write(ctx, "./tests/generated/write_mail.txt");
+            } catch (err) {
+                if "failed to write email: the body has not been received yet" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+
+    preq: [
+        action "write_to_disk" || {
+            vsl::write(ctx, "./tests/generated/write_preq.txt");
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+
+    postq: [
+        action "write_to_disk" || {
+            vsl::write(ctx, "./tests/generated/write_postq.txt");
+        },
+
+        rule "trailing" || vsl::accept(),
+    ]
+}

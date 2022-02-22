@@ -1,0 +1,142 @@
+#{
+    connect: [
+        rule "fail_mail_from_rewrite" || {
+            try {
+                vsl::rewrite_mail_from(ctx, "impossible@torewrite.com");
+                return vsl::deny();
+            } catch (err) {
+                if "the email has not been received yet" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "fail_mail_from_rewrite_address_format" || {
+            try {
+                vsl::rewrite_mail_from(ctx, "invalid");
+                return vsl::deny();
+            } catch (err) {
+                if "could not rewrite mail_from with 'invalid' because it is not valid address" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "fail_rcpt_rewrite_first_address_format" || {
+            try {
+                vsl::rewrite_rcpt(ctx, "invalid", "valid@email.com");
+                return vsl::deny();
+            } catch (err) {
+                if "could not rewrite address 'invalid' because it is not valid address" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "fail_rcpt_rewrite_second_address_format" || {
+            try {
+                vsl::rewrite_rcpt(ctx, "valid@email.com", "invalid");
+                return vsl::deny();
+            } catch (err) {
+                if "could not rewrite address 'valid@email.com' with 'invalid' because it is not valid address" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "invalid_timestamp_metadata" || {
+            try {
+                print(ctx.timestamp);
+                return vsl::deny();
+            } catch (err) {
+                if "metadata are not available in this stage" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "invalid_message_id_metadata" || {
+            try {
+                print(ctx.message_id);
+                return vsl::deny();
+            } catch (err) {
+                if "metadata are not available in this stage" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "invalid_retry_metadata" || {
+            try {
+                print(ctx.retry);
+                return vsl::deny();
+            } catch (err) {
+                if "metadata are not available in this stage" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+
+    preq: [
+        rule "email_not_parsed" || {
+            try {
+                vsl::rewrite_mail_from(ctx, "impossible@torewrite.com");
+                return vsl::deny();
+            } catch (err) {
+                if "the email has not been parsed yet" in err { return vsl::next(); } else { return vsl::deny() }
+            }
+        },
+
+        rule "add_rcpt_email_not_parsed" || {
+            try {
+                vsl::add_rcpt(ctx, "impossible@toadd.com");
+                return vsl::deny();
+            } catch (err) {
+                if "the email has not been parsed yet" in err { return vsl::next(); } else { return vsl::deny() }
+            }
+        },
+
+        rule "remove_rcpt_email_not_parsed" || {
+            try {
+                vsl::remove_rcpt(ctx, "impossible@toremove.com");
+                return vsl::deny();
+            } catch (err) {
+                if "the email has not been parsed yet" in err { return vsl::next(); } else { return vsl::deny() }
+            }
+        },
+
+        rule "rewrite_rcpt_email_not_parsed" || {
+            try {
+                vsl::rewrite_rcpt(ctx, "impossible@torewrite.com", "impossible@torewrite.com");
+                return vsl::deny();
+            } catch (err) {
+                if "the email has not been parsed yet" in err { return vsl::next(); } else { return vsl::deny() }
+            }
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+
+    postq: [
+        action "print_client_data" || {
+            vsl::log_debug("email received.");
+            vsl::log_debug(`ip: ${ctx.client_addr}`);
+            vsl::log_debug(`helo: ${ctx.helo}`);
+            vsl::log_debug(`mail_from: ${ctx.mail_from}`);
+            vsl::log_debug(`metadata {\n  timestamp: ${ctx.timestamp}\n  message id: ${ctx.message_id}\n  retries: ${ctx.retry}\n}`);
+
+            vsl::log_trace(ctx.to_string());
+            vsl::log_trace(ctx.to_debug());
+        },
+
+        action "rewrite" || {
+            vsl::add_rcpt(ctx, "added@rcpt.com");
+            vsl::remove_rcpt(ctx, "rcpt@toremove.org");
+            vsl::rewrite_rcpt(ctx, "rcpt@torewrite.net", "new@rcpt.net");
+            vsl::rewrite_mail_from(ctx, "new@mailfrom.eu");
+        },
+
+        rule "check_rewrites" || {
+            if "added@rcpt.com" in ctx.rcpt
+            && !("rcpt@toremove.org" in ctx.rcpt)
+            && "new@rcpt.net" in ctx.rcpt
+            && !("rcpt@torewrite.net" in ctx.rcpt)
+            && ctx.mail_from is "new@mailfrom.eu" {
+                vsl::next()
+            } else {
+                vsl::deny()
+            }
+        },
+
+        rule "trailing" || vsl::accept(),
+    ]
+}
