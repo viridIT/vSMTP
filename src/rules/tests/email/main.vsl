@@ -117,8 +117,8 @@
             vsl::log_trace(ctx.to_string());
             vsl::log_trace(ctx.to_debug());
 
-            ctx.timestamp.to_string();
-            ctx.timestamp.to_debug();
+            print(ctx.timestamp.to_string());
+            print(ctx.timestamp.to_debug());
         },
 
         action "rewrite" || {
