@@ -10,7 +10,7 @@ object group "group_obj" [
 ];
 
 object ident "identifier_obj" "local_part";
-object str "string_obj" "raw@address.net";
+object string "string_obj" "raw@address.net";
 
 #{
     connect: [

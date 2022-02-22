@@ -6,7 +6,7 @@ object address "address" "local_part@domain.com";
 object fqdn "fqdn" "domain.com";
 object regex "regex" "^[a-z0-9.]+@domain.com$";
 object ident "identifier" "local_part";
-object str "str" "a string";
+object string "str" "a string";
 
 object file:address "file" "./src/rules/tests/types/address/whitelist.txt";
 object group "group" [

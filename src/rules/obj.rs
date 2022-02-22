@@ -140,7 +140,7 @@ impl Object {
                 map, "value",
             )?)),
 
-            "str" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
+            "string" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
 
             "regex" => Ok(Object::Regex(regex::Regex::from_str(&Object::value::<
                 S,
@@ -166,7 +166,7 @@ impl Object {
                                 Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                             },
                             "address" => content.push(Object::Address(Address::new(&line)?)),
-                            "str" => content.push(Object::Str(line)),
+                            "string" => content.push(Object::Str(line)),
                             "ident" => content.push(Object::Identifier(line)),
                             "regex" => content.push(Object::Regex(regex::Regex::from_str(&line)?)),
                             _ => {}

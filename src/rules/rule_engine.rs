@@ -427,7 +427,7 @@ impl RuleEngine {
                     1 => Ok(Some("$ident$".into())),
                     // the type of the object ...
                     2 => match symbols[1].as_str() {
-                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "str" | "regex"
+                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex"
                         | "group" => Ok(Some("$string$".into())),
                         "file" => Ok(Some("$symbol$".into())),
                         entry => Err(ParseError(
@@ -446,7 +446,7 @@ impl RuleEngine {
                     // file content type or info block / value of object, we are done parsing.
                     4 => match symbols[3].as_str() {
                         // NOTE: could it be possible to add a "file" content type ?
-                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "str" | "regex" => {
+                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex" => {
                             Ok(Some("$string$".into()))
                         }
                         _ => Ok(None),
