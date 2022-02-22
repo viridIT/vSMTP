@@ -22,6 +22,8 @@ use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 #[serde(deny_unknown_fields)]
 pub struct InnerServerConfig {
     pub domain: String,
+    pub vsmtp_user: String,
+    pub vsmtp_group: String,
     #[serde(default = "InnerServerConfig::default_addr")]
     pub addr: std::net::SocketAddr,
     #[serde(default = "InnerServerConfig::default_addr_submission")]

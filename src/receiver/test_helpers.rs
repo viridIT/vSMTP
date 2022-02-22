@@ -173,7 +173,7 @@ where
 
 pub fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
-        .with_rfc_port("test.server.com", None)
+        .with_rfc_port("test.server.com", "foo", "foo", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()

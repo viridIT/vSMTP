@@ -96,6 +96,8 @@ async fn stress() {
     let config = ServerConfig::builder()
         .with_server(
             "stress.server.com",
+            "foo",
+            "foo",
             "0.0.0.0:10027".parse().expect("valid address"),
             "0.0.0.0:10589".parse().expect("valid address"),
             "0.0.0.0:10467".parse().expect("valid address"),
@@ -115,8 +117,13 @@ async fn stress() {
 
     log4rs::init_config(get_logger_config(&config).unwrap()).unwrap();
 
-    let mut server = ServerVSMTP::new(std::sync::Arc::new(config))
-        .await
+    let sockets = (
+        std::net::TcpListener::bind(config.server.addr).unwrap(),
+        std::net::TcpListener::bind(config.server.addr_submission).unwrap(),
+        std::net::TcpListener::bind(config.server.addr_submissions).unwrap(),
+    );
+
+    let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)
         .expect("failed to initialize server");
 
     let tracer = opentelemetry_jaeger::new_pipeline()

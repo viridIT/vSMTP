@@ -39,7 +39,14 @@ pub struct ServerVSMTP {
 }
 
 impl ServerVSMTP {
-    pub async fn new(config: std::sync::Arc<ServerConfig>) -> anyhow::Result<Self> {
+    pub fn new(
+        config: std::sync::Arc<ServerConfig>,
+        sockets: (
+            std::net::TcpListener,
+            std::net::TcpListener,
+            std::net::TcpListener,
+        ),
+    ) -> anyhow::Result<Self> {
         if !config.delivery.spool_dir.exists() {
             std::fs::DirBuilder::new()
                 .recursive(true)
@@ -52,11 +59,9 @@ impl ServerVSMTP {
 
         Ok(Self {
             resolvers,
-            listener: tokio::net::TcpListener::bind(&config.server.addr).await?,
-            listener_submission: tokio::net::TcpListener::bind(&config.server.addr_submission)
-                .await?,
-            listener_submissions: tokio::net::TcpListener::bind(&config.server.addr_submissions)
-                .await?,
+            listener: tokio::net::TcpListener::from_std(sockets.0)?,
+            listener_submission: tokio::net::TcpListener::from_std(sockets.1)?,
+            listener_submissions: tokio::net::TcpListener::from_std(sockets.2)?,
             tls_config: if let Some(smtps) = &config.smtps {
                 Some(std::sync::Arc::new(get_rustls_config(smtps)?))
             } else {
@@ -257,23 +262,36 @@ mod tests {
             "0.0.0.0:10466".parse().expect("valid address"),
         );
 
-        let config = ServerConfig::builder()
-            .with_server(
-                "test.server.com",
-                addr,
-                addr_submission,
-                addr_submissions,
-                num_cpus::get(),
-            )
-            .without_log()
-            .without_smtps()
-            .with_default_smtp()
-            .with_delivery("./tmp/trash", crate::collection! {})
-            .with_rules("./tmp/no_rules", vec![])
-            .with_default_reply_codes()
-            .build()?;
+        let config = std::sync::Arc::new(
+            ServerConfig::builder()
+                .with_server(
+                    "test.server.com",
+                    "foo",
+                    "foo",
+                    addr,
+                    addr_submission,
+                    addr_submissions,
+                    num_cpus::get(),
+                )
+                .without_log()
+                .without_smtps()
+                .with_default_smtp()
+                .with_delivery("./tmp/trash", crate::collection! {})
+                .with_rules("./tmp/no_rules", vec![])
+                .with_default_reply_codes()
+                .build()
+                .unwrap(),
+        );
 
-        let s = ServerVSMTP::new(std::sync::Arc::new(config)).await.unwrap();
+        let s = ServerVSMTP::new(
+            config.clone(),
+            (
+                std::net::TcpListener::bind(config.server.addr)?,
+                std::net::TcpListener::bind(config.server.addr_submission)?,
+                std::net::TcpListener::bind(config.server.addr_submissions)?,
+            ),
+        )
+        .unwrap();
         assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
         Ok(())
     }
@@ -287,28 +305,41 @@ mod tests {
             "0.0.0.0:10466".parse().expect("valid address"),
         );
 
-        let config = ServerConfig::builder()
-            .with_server(
-                "test.server.com",
-                addr,
-                addr_submission,
-                addr_submissions,
-                num_cpus::get(),
-            )
-            .without_log()
-            .with_safe_default_smtps(
-                TlsSecurityLevel::May,
-                "./src/receiver/tests/certs/certificate.crt",
-                "./src/receiver/tests/certs/privateKey.key",
-                None,
-            )
-            .with_default_smtp()
-            .with_delivery("./tmp/trash", crate::collection! {})
-            .with_rules("./tmp/no_rules", vec![])
-            .with_default_reply_codes()
-            .build()?;
+        let config = std::sync::Arc::new(
+            ServerConfig::builder()
+                .with_server(
+                    "test.server.com",
+                    "foo",
+                    "foo",
+                    addr,
+                    addr_submission,
+                    addr_submissions,
+                    num_cpus::get(),
+                )
+                .without_log()
+                .with_safe_default_smtps(
+                    TlsSecurityLevel::May,
+                    "./src/receiver/tests/certs/certificate.crt",
+                    "./src/receiver/tests/certs/privateKey.key",
+                    None,
+                )
+                .with_default_smtp()
+                .with_delivery("./tmp/trash", crate::collection! {})
+                .with_rules("./tmp/no_rules", vec![])
+                .with_default_reply_codes()
+                .build()
+                .unwrap(),
+        );
 
-        let s = ServerVSMTP::new(std::sync::Arc::new(config)).await.unwrap();
+        let s = ServerVSMTP::new(
+            config.clone(),
+            (
+                std::net::TcpListener::bind(config.server.addr)?,
+                std::net::TcpListener::bind(config.server.addr_submission)?,
+                std::net::TcpListener::bind(config.server.addr_submissions)?,
+            ),
+        )
+        .unwrap();
         assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
         Ok(())
     }

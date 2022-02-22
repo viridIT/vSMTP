@@ -1,5 +1,7 @@
 [server]
 domain = "testserver.com"
+vsmtp_user = "vsmtp"
+vsmtp_group = "vsmtp"
 
 [logs.level]
 default = "warn"
