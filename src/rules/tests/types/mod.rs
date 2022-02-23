@@ -106,6 +106,7 @@ fn test_services() {
                 name: "shell".to_string(),
                 timeout: std::time::Duration::from_secs(2),
                 user: None,
+                group: None,
                 command: "echo".to_string(),
                 args: Some("test".to_string()),
             }],
