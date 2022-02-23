@@ -14,11 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use ipnet::{Ipv4Net, Ipv6Net};
-use iprange::IpRange;
-use regex::Regex;
-use rhai::{Array, Dynamic};
-
 use std::{
     fs,
     io::{BufRead, BufReader},
@@ -28,7 +23,7 @@ use std::{
 
 use super::address::Address;
 
-/// Objects are rust's representation of rule engine Striables.
+/// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
 #[derive(Debug, Clone)]
 pub enum Object {
@@ -37,21 +32,21 @@ pub enum Object {
     /// ip v6 address. (x:x:x:x:x:x:x:x)
     Ip6(Ipv6Addr),
     /// an ip v4 range. (a.b.c.d/range)
-    Rg4(IpRange<Ipv4Net>),
+    Rg4(iprange::IpRange<ipnet::Ipv4Net>),
     /// an ip v6 range. (x:x:x:x:x:x:x:x/range)
-    Rg6(IpRange<Ipv6Net>),
+    Rg6(iprange::IpRange<ipnet::Ipv6Net>),
     /// an email address (jones@foo.com)
     Address(Address),
     /// a valid fully qualified domain name (foo.com)
     Fqdn(String),
     /// a regex (^[a-z0-9.]+@foo.com$)
-    Regex(Regex),
+    Regex(regex::Regex),
     /// the content of a file.
     File(Vec<Object>),
     /// a group of objects declared inline.
     Group(Vec<std::sync::Arc<Object>>),
     /// a user.
-    LocalPart(String),
+    Identifier(String),
     /// a simple string.
     Str(String),
 }
@@ -67,7 +62,7 @@ impl PartialEq for Object {
             (Self::Fqdn(l0), Self::Fqdn(r0)) => l0 == r0,
             (Self::File(l0), Self::File(r0)) => l0 == r0,
             (Self::Group(l0), Self::Group(r0)) => l0 == r0,
-            (Self::LocalPart(l0), Self::LocalPart(r0)) => l0 == r0,
+            (Self::Identifier(l0), Self::Identifier(r0)) => l0 == r0,
             (Self::Str(l0), Self::Str(r0)) => l0 == r0,
             _ => false,
         }
@@ -78,7 +73,7 @@ impl Object {
     /// get a specific value from a rhai map and convert it to a specific type.
     /// returns an error if the cast failed.
     pub(crate) fn value<S, T>(
-        map: &std::collections::BTreeMap<S, Dynamic>,
+        map: &std::collections::BTreeMap<S, rhai::Dynamic>,
         key: &str,
     ) -> anyhow::Result<T>
     where
@@ -99,7 +94,9 @@ impl Object {
     /// create an object from a raw rhai Map data structure.
     /// this map must have the "value" and "type" keys to be parsed
     /// successfully.
-    pub(crate) fn from<S>(map: &std::collections::BTreeMap<S, Dynamic>) -> anyhow::Result<Self>
+    pub(crate) fn from<S>(
+        map: &std::collections::BTreeMap<S, rhai::Dynamic>,
+    ) -> anyhow::Result<Self>
     where
         S: std::fmt::Debug + FromStr + std::cmp::Ord + 'static,
     {
@@ -115,13 +112,13 @@ impl Object {
             )?)),
 
             "rg4" => Ok(Object::Rg4(
-                [Object::value::<S, String>(map, "value")?.parse::<Ipv4Net>()?]
+                [Object::value::<S, String>(map, "value")?.parse::<ipnet::Ipv4Net>()?]
                     .into_iter()
                     .collect(),
             )),
 
             "rg6" => Ok(Object::Rg6(
-                [Object::value::<S, String>(map, "value")?.parse::<Ipv6Net>()?]
+                [Object::value::<S, String>(map, "value")?.parse::<ipnet::Ipv6Net>()?]
                     .into_iter()
                     .collect(),
             )),
@@ -134,18 +131,23 @@ impl Object {
                 }
             }
 
-            "addr" => {
+            "address" => {
                 let value = Object::value::<S, String>(map, "value")?;
                 Ok(Object::Address(Address::new(&value)?))
             }
 
-            "ident" => Ok(Object::LocalPart(Object::value::<S, String>(map, "value")?)),
-
-            "str" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
-
-            "regex" => Ok(Object::Regex(Regex::from_str(
-                &Object::value::<S, String>(map, "value")?,
+            "ident" => Ok(Object::Identifier(Object::value::<S, String>(
+                map, "value",
             )?)),
+
+            "string" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
+
+            "regex" => Ok(Object::Regex(regex::Regex::from_str(&Object::value::<
+                S,
+                String,
+            >(
+                map, "value"
+            )?)?)),
 
             // the file object as an extra "content_type" parameter.
             "file" => {
@@ -163,9 +165,10 @@ impl Object {
                                 Ok(domain) => content.push(Object::Fqdn(domain.to_string())),
                                 Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                             },
-                            "addr" => content.push(Object::Address(Address::new(&line)?)),
-                            "val" => content.push(Object::Str(line)),
-                            "regex" => content.push(Object::Regex(Regex::from_str(&line)?)),
+                            "address" => content.push(Object::Address(Address::new(&line)?)),
+                            "string" => content.push(Object::Str(line)),
+                            "ident" => content.push(Object::Identifier(line)),
+                            "regex" => content.push(Object::Regex(regex::Regex::from_str(&line)?)),
                             _ => {}
                         },
                         Err(error) => log::error!("couldn't read line in '{}': {}", value, error),
@@ -175,9 +178,9 @@ impl Object {
                 Ok(Object::File(content))
             }
 
-            "grp" => {
+            "group" => {
                 let mut group = vec![];
-                let elements = Object::value::<S, Array>(map, "value")?;
+                let elements = Object::value::<S, rhai::Array>(map, "value")?;
                 let name = Object::value::<S, String>(map, "name")?;
 
                 for element in elements.iter() {
@@ -212,8 +215,8 @@ impl ToString for Object {
             Object::Fqdn(fqdn) => fqdn.clone(),
             Object::Regex(regex) => regex.to_string(),
             Object::File(file) => format!("{file:?}"),
-            Object::Group(grp) => format!("{grp:?}"),
-            Object::LocalPart(string) => string.clone(),
+            Object::Group(group) => format!("{group:?}"),
+            Object::Identifier(string) => string.clone(),
             Object::Str(string) => string.clone(),
         }
     }

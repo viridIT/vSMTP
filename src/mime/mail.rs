@@ -68,7 +68,7 @@ impl Mail {
         )
     }
 
-    pub fn rewrite_from(&mut self, value: &str) {
+    pub fn rewrite_mail_from(&mut self, value: &str) {
         self.headers
             .iter_mut()
             .find(|(header, _)| header == "from")
@@ -98,7 +98,7 @@ impl Mail {
             });
     }
 
-    pub fn delete_rcpt(&mut self, old: &str) {
+    pub fn remove_rcpt(&mut self, old: &str) {
         self.headers
             .iter_mut()
             .find(|(header, _)| header == "to")

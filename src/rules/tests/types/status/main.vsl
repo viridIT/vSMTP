@@ -1,0 +1,24 @@
+#{
+    connect: [
+        rule "test_status" || {
+            if vsl::next() is vsl::next()
+            && vsl::next() == vsl::next()
+
+            && vsl::next() not vsl::accept()
+            && vsl::next() != vsl::accept()
+
+            && vsl::next().to_string() == "next"
+            && vsl::next().to_debug() == "next" {
+
+                print(vsl::next());
+                print(vsl::accept());
+                print(vsl::faccept());
+                print(vsl::deny());
+
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ]
+}

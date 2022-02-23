@@ -1,0 +1,58 @@
+#{
+    connect: [
+        rule "file_not_found" || {
+            try {
+                vsl::send_mail("from", ["to"], "invalid.path", "relay");
+                return vsl::deny();
+            } catch (err) {
+                // test should continue here.
+                if "No such file or directory" in err {
+                    return vsl::next();
+                } else {
+                    return vsl::deny();
+                }
+            }
+        },
+
+        rule "invalid from" || {
+            try {
+                vsl::send_mail("", ["john@doe.net"], "./src/rules/tests/actions/send_mail/template.eml", "relay");
+                return vsl::deny();
+            } catch (err) {
+                if "MissingParts" in err {
+                    return vsl::next();
+                } else {
+                    return vsl::deny();
+                }
+            }
+        },
+
+        rule "invalid to" || {
+            try {
+                vsl::send_mail("john@doe.net", [], "./src/rules/tests/actions/send_mail/template.eml", "relay");
+                return vsl::deny();
+            } catch (err) {
+                if "MissingTo" in err {
+                    return vsl::next();
+                } else {
+                    return vsl::deny();
+                }
+            }
+        },
+
+        rule "invalid relay" || {
+            try {
+                vsl::send_mail("john@doe.net", ["green@foo.net"], "./src/rules/tests/actions/send_mail/template.eml", "relay");
+                return vsl::deny();
+            } catch (err) {
+                if "Temporary failure in name resolution" in err {
+                    return vsl::next();
+                } else {
+                    return vsl::deny();
+                }
+            }
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+}

@@ -1,33 +1,31 @@
-obj fqdn "viridit" "viridit.com";
-obj file:fqdn "domains" "./src/rules/tests/rules/helo/helo.txt";
-obj regex "com" "^[a-z0-9.]+.com$";
+object fqdn "viridit" "viridit.com";
+object file:fqdn "domains" "./src/rules/tests/rules/helo/helo.txt";
+object regex "com" "^[a-z0-9.]+.com$";
 
-run_rules!(
-  #{
-    helo: [
-      rule "test_fqdn" || {
-        if ctx.helo is viridit && viridit is ctx.helo {
-          vsl::next()
-        } else {
-          vsl::deny()
-        }
-      },
+#{
+  helo: [
+    rule "test_fqdn" || {
+      if ctx.helo is viridit && viridit is ctx.helo {
+        vsl::next()
+      } else {
+        vsl::deny()
+      }
+    },
 
-      rule "test_file" || {
-        if ctx.helo in domains {
-          vsl::next()
-        } else {
-          vsl::deny()
-        }
-      },
+    rule "test_file" || {
+      if ctx.helo in domains {
+        vsl::next()
+      } else {
+        vsl::deny()
+      }
+    },
 
-      rule "test_regex" || {
-        if ctx.helo is com {
-          vsl::next()
-        } else {
-          vsl::deny()
-        }
-      },
-    ]
-  }
-)
+    rule "test_regex" || {
+      if ctx.helo is com {
+        vsl::next()
+      } else {
+        vsl::deny()
+      }
+    },
+  ]
+}
