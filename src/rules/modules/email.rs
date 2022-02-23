@@ -342,6 +342,23 @@ pub mod email {
         use_resolver(this, "none".to_string())
     }
 
+    /// check if a given header exists in the top level headers.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn has_header(this: &mut Arc<RwLock<MailContext>>, header: &str) -> EngineResult<bool> {
+        Ok(
+            match &this
+                .read()
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                .body
+            {
+                Body::Empty => false,
+                // FIXME: header found could be in the body or mime headers.
+                Body::Raw(raw) => raw.contains(format!("{}: ", header).as_str()),
+                Body::Parsed(email) => email.headers.iter().any(|(name, _)| header == name),
+            },
+        )
+    }
+
     /// add a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw)]
     pub fn add_header(

@@ -52,6 +52,25 @@ fn test_email_bcc() {
 }
 
 #[test]
+fn test_email_add_header() {
+    crate::receiver::test_helpers::logs::setup_logs();
+
+    let re =
+        RuleEngine::new("./src/rules/tests/email/add_header").expect("couldn't build rule engine");
+    let mut state = get_default_state();
+
+    assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
+    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
+    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+        headers: vec![],
+        body: BodyType::Regular(vec![]),
+    }));
+    state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
+    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+}
+
+#[test]
 fn test_context_write() {
     crate::receiver::test_helpers::logs::setup_logs();
 
