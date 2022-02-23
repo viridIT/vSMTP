@@ -3,9 +3,6 @@ fn add_header_failure(ctx, header, value, error_desired) {
         vsl::add_header(ctx, header, value);
         return vsl::deny();
     } catch (err) {
-        print(`error_desired: ${error_desired}`);
-        print(`err: ${err}`);
-        print(`vsl::has_header(ctx, header): ${!vsl::has_header(ctx, header)}`);
         if error_desired in err && !vsl::has_header(ctx, header) { return vsl::next(); } else { return vsl::deny(); }
     }
 }
@@ -13,7 +10,6 @@ fn add_header_failure(ctx, header, value, error_desired) {
 fn add_header_success(ctx, header, value) {
     try {
         vsl::add_header(ctx, header, value);
-        print(`ctx: ${ctx.to_debug()}`);
         if vsl::has_header(ctx, header) { return vsl::next(); } else { return vsl::deny(); }
     } catch (err) {
         return vsl::deny();
