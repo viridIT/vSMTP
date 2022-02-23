@@ -1,5 +1,0 @@
-rule mail "test_lookup_mail_from" #{
-  condition: || vsl.LOOKUP_MAIL_FROM(),
-  on_success: vsl.CONTINUE,
-  on_failure: vsl.DENY,
-};

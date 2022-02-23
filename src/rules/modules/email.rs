@@ -67,12 +67,20 @@ pub mod email {
             .into()
         })?;
 
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .envelop
-            .mail_from = addr;
+        let mut email = this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        Ok(())
+        email.envelop.mail_from = addr.clone();
+
+        match &mut email.body {
+            Body::Empty => Err("failed to rewrite mail_from: the email has not been received yet. Use this method in postq or later.".into()),
+            Body::Raw(_) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Body::Parsed(body) => {
+                body.rewrite_mail_from(addr.full());
+                Ok(())
+            },
+        }
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw)]
@@ -107,16 +115,21 @@ pub mod email {
             .into()
         })?;
 
-        let rcpt = &mut this
+        let mut email = this
             .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .envelop
-            .rcpt;
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        rcpt.remove(&index);
-        rcpt.insert(addr);
+        email.envelop.rcpt.remove(&index);
+        email.envelop.rcpt.insert(addr.clone());
 
-        Ok(())
+        match &mut email.body {
+            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
+            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Body::Parsed(body) => {
+                body.rewrite_rcpt(index.full(), addr.full());
+                Ok(())
+            },
+        }
     }
 
     #[rhai_fn(global, return_raw)]
@@ -124,13 +137,20 @@ pub mod email {
         let new_addr = Address::new(&s)
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", s))?;
 
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .envelop
-            .rcpt
-            .insert(new_addr);
+        let mut email = this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        Ok(())
+        email.envelop.rcpt.insert(new_addr.clone());
+
+        match &mut email.body {
+            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
+            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Body::Parsed(body) => {
+                body.add_rcpt(new_addr.full());
+                Ok(())
+            },
+        }
     }
 
     #[rhai_fn(global, return_raw)]
@@ -138,13 +158,20 @@ pub mod email {
         let addr = Address::new(&s)
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", s))?;
 
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .envelop
-            .rcpt
-            .remove(&addr);
+        let mut email = this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        Ok(())
+        email.envelop.rcpt.remove(&addr);
+
+        match &mut email.body {
+            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
+            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Body::Parsed(body) => {
+                body.remove_rcpt(addr.full());
+                Ok(())
+            },
+        }
     }
 
     #[rhai_fn(global, get = "timestamp", return_raw)]

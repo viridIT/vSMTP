@@ -21,37 +21,10 @@ use rhai::plugin::*;
 pub mod actions {
 
     use crate::{
-        config::server_config::Service,
+        config::{log_channel::RULES, server_config::Service},
         rules::{rule_engine::Status, service::ServiceResult},
         smtp::mail::MailContext,
     };
-
-    // #[rhai_fn(name = "__SHELL", return_raw)]
-    // pub fn shell(command: &str) -> Result<std::process::Output, Box<EvalAltResult>> {
-    //     std::process::Command::new("sh")
-    //         .arg("-c")
-    //         .arg(command)
-    //         .output()
-    //         .map_err(|e| e.to_string().into())
-    // }
-
-    // /// enqueue a block operation on the queue.
-    // pub fn op_block(queue: &mut OperationQueue, path: &str) {
-    //     queue.enqueue(Operation::Block(path.to_string()))
-    // }
-
-    // /// enqueue a quarantine operation on the queue.
-    // pub fn op_quarantine(queue: &mut OperationQueue, reason: String) {
-    //     queue.enqueue(Operation::Quarantine { reason })
-    // }
-
-    // /// enqueue a header mutation operation on the queue.
-    // pub fn op_mutate_header(queue: &mut OperationQueue, header: &str, value: &str) {
-    //     queue.enqueue(Operation::MutateHeader(
-    //         header.to_string(),
-    //         value.to_string(),
-    //     ))
-    // }
 
     pub fn faccept() -> Status {
         Status::Faccept
@@ -62,59 +35,31 @@ pub mod actions {
     }
 
     pub fn next() -> Status {
-        Status::Continue
+        Status::Next
     }
 
     pub fn deny() -> Status {
         Status::Deny
     }
 
-    pub fn block() -> Status {
-        Status::Block
+    pub fn log_error(message: &str) {
+        log::error!(target: RULES, "{}", message);
     }
 
-    /// logs a message to stdout, stderr or a file.
-    #[rhai_fn(return_raw)]
-    pub fn log(message: &str, path: &str) -> Result<(), Box<EvalAltResult>> {
-        match path {
-            "stdout" => {
-                println!("{}", message);
-                Ok(())
-            }
-            "stderr" => {
-                eprintln!("{}", message);
-                Ok(())
-            }
-            _ => {
-                match std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)
-                {
-                    Ok(file) => {
-                        let mut writer = std::io::LineWriter::new(file);
-
-                        std::io::Write::write_all(&mut writer, format!("{message}\n").as_bytes())
-                            .map_err::<Box<EvalAltResult>, _>(|err| {
-                                format!("LOG action error: {err:?}").into()
-                            })
-                    }
-                    Err(err) => Err(format!("LOG action error: {err:?}",).into()),
-                }
-            }
-        }
+    pub fn log_warn(message: &str) {
+        log::warn!(target: RULES, "{}", message);
     }
 
-    /// logs a message to stdout.
-    #[rhai_fn(return_raw)]
-    pub fn log_out(message: &str) -> Result<(), Box<EvalAltResult>> {
-        log(message, "stdout")
+    pub fn log_info(message: &str) {
+        log::info!(target: RULES, "{}", message);
     }
 
-    /// logs a message to stderr.
-    #[rhai_fn(return_raw)]
-    pub fn log_err(message: &str) -> Result<(), Box<EvalAltResult>> {
-        log(message, "stderr")
+    pub fn log_debug(message: &str) {
+        log::debug!(target: RULES, "{}", message);
+    }
+
+    pub fn log_trace(message: &str) {
+        log::trace!(target: RULES, "{}", message);
     }
 
     // TODO: not yet functional, the relayer cannot connect to servers.
@@ -128,12 +73,12 @@ pub mod actions {
     ) -> Result<(), Box<EvalAltResult>> {
         // TODO: email could be cached using an object. (obj mail "my_mail" "/path/to/mail")
         let email = std::fs::read_to_string(path).map_err::<Box<EvalAltResult>, _>(|err| {
-            format!("MAIL action failed: {err:?}").into()
+            format!("vsl::send_mail failed, email path to send unavailable: {err:?}").into()
         })?;
 
         let envelop = lettre::address::Envelope::new(
             Some(from.parse().map_err::<Box<EvalAltResult>, _>(|err| {
-                format!("MAIL action failed: {err:?}").into()
+                format!("vsl::send_mail from parsing failed: {err:?}").into()
             })?),
             to.into_iter()
                 // NOTE: address that couldn't be converted will be silently dropped.
@@ -143,69 +88,29 @@ pub mod actions {
                 })
                 .collect(),
         )
-        .map_err::<Box<EvalAltResult>, _>(|err| format!("MAIL action failed: {err:?}").into())?;
-
-        println!("sending email");
+        .map_err::<Box<EvalAltResult>, _>(|err| {
+            format!("vsl::send_mail envelop parsing failed {err:?}").into()
+        })?;
 
         match lettre::Transport::send_raw(
             &lettre::SmtpTransport::relay(relay)
                 .map_err::<Box<EvalAltResult>, _>(|err| {
-                    format!("MAIL action failed: {err:?}").into()
+                    format!("vsl::send_mail failed to connect to relay: {err:?}").into()
                 })?
                 .build(),
             &envelop,
             email.as_bytes(),
         ) {
-            Ok(_) => {
-                println!("email has been sent");
-                Ok(())
-            }
-            Err(err) => {
-                println!("email not sent");
-                Err(format!("MAIL action failed: {err:?}").into())
-            }
+            Ok(_) => Ok(()),
+            Err(err) => Err(format!("vsl::send_mail failed to send: {err:?}").into()),
         }
     }
 
     // TODO: use UsersCache to optimize user lookup.
     /// use the user cache to check if a user exists on the system.
-    pub(crate) fn user_exists(name: &str) -> bool {
+    pub(crate) fn user_exist(name: &str) -> bool {
         users::get_user_by_name(name).is_some()
     }
-
-    // #[rhai_fn(name = "__LOOKUP_MAIL_FROM", return_raw)]
-    // /// check the client's ip matches against the hostname passed has parameter.
-    // /// this can be used, for example, to check if MAIL FROM's value
-    // /// is matching the connection, preventing relaying.
-    // pub fn lookup_mail_from(
-    //     // curried parameters.
-    //     connect: std::net::IpAddr,
-    //     port: u16,
-    //     // exposed parameter.
-    //     hostname: &str,
-    // ) -> Result<bool, Box<EvalAltResult>> {
-    //     if hostname.is_empty() {
-    //         return Err(
-    //             "the LOOKUP_MAIL_FROM action can only be called after or in the 'mail' stage."
-    //                 .into(),
-    //         );
-    //     }
-
-    //     let engine = acquire_engine();
-    //     let objects = engine.objects.read().unwrap();
-
-    //     let hostname = match objects.get(hostname) {
-    //         Some(Object::Fqdn(fqdn)) => fqdn.as_str(),
-    //         _ => hostname,
-    //     };
-
-    //     Ok(format!("{}:{}", hostname, port)
-    //         .to_socket_addrs()
-    //         .map_err::<Box<EvalAltResult>, _>(|error| {
-    //             format!("couldn't process dns lookup: {}", error).into()
-    //         })?
-    //         .any(|socket| socket.ip() == connect))
-    // }
 
     #[rhai_fn(global, return_raw)]
     pub fn run(

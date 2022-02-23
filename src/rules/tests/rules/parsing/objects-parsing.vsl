@@ -2,12 +2,12 @@
 // define objects to use in rules.
 
 // standard object declaration.
-obj ip4 "unspecified" #{
+object ip4 "unspecified" #{
   value: "0.0.0.0",
   color: "bbf3ab"
 };
 
-obj ip4 "localhost" #{
+object ip4 "localhost" #{
   value: "127.0.0.1",
   color: "bbf3ab",
   description: "the localhost ip address"
@@ -16,27 +16,27 @@ obj ip4 "localhost" #{
 // fully qualified domain name objects.
 // NOTE: objects can be declared in an inline manner.
 //       redefined objects are overwritten.
-obj fqdn "inline_fqdn" "viridit.com";
-obj fqdn "inline_fqdn" "xxx.com";
-// obj fqdn "invalid_fqdn" "foobar..com";
+object fqdn "inline_fqdn" "viridit.com";
+object fqdn "inline_fqdn" "xxx.com";
+// object fqdn "invalid_fqdn" "foobar..com";
 
 // variables, represent simple strings.
-obj val "user_dev" "gitdev";
-obj val "user_prod" "gitproduction";
-obj val "user_test" "gittest";
+object val "user_dev" "gitdev";
+object val "user_prod" "gitproduction";
+object val "user_test" "gittest";
 
 // email addresses.
-obj addr "jones" "jones@foo.com";
-obj addr "green" "green@bar.com";
-// obj addr "invalid" "abc/.com";
+object address "jones" "jones@foo.com";
+object address "green" "green@bar.com";
+// object address "invalid" "abc/.com";
 
 // files object, format: `file:(content-type)`
-// content-type can be: ip4, ip6, fqdn, val, addr or regex.
-obj file:addr "whitelist" "./src/rules/tests/configs/whitelist.txt";
+// content-type can be: ip4, ip6, rg4, rg6, fqdn, str, address or regex.
+object file:addr "whitelist" "./src/rules/tests/configs/whitelist.txt";
 
 // regex objects.
-obj regex "viridit_staff" "^[a-z0-9.]+@viridit.com$";
-obj regex "localhost_emails" "^[a-z0-9.]+@localhost$";
+object regex "viridit_staff" "^[a-z0-9.]+@viridit.com$";
+object regex "localhost_emails" "^[a-z0-9.]+@localhost$";
 
 // group objects, can store references to other objects,
 // or store fresh objects.
@@ -44,13 +44,13 @@ obj regex "localhost_emails" "^[a-z0-9.]+@localhost$";
 // when passed down into a check action, the whole group will
 // be tested. The test stops when one of the groups content
 // matches.
-obj grp "authorized_users" [
+object group "authorized_users" [
   whitelist,
-  obj ip4 "authorized_ip" "1.1.1.1",
+  object ip4 "authorized_ip" "1.1.1.1",
 ];
 
 // groups can be nested into other groups.
-obj grp "deep_group" [
-  obj regex "foo_emails" "^[a-z0-9.]+@foo.com$",
+object group "deep_group" [
+  object regex "foo_emails" "^[a-z0-9.]+@foo.com$",
   authorized_users,
 ];

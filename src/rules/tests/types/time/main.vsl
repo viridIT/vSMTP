@@ -1,0 +1,9 @@
+#{
+    connect: [
+        rule "test_time" || {
+            print(time.to_string());
+            print(time.to_debug());
+            vsl::accept()
+        }
+    ]
+}

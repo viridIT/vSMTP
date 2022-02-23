@@ -15,26 +15,34 @@
  *
 **/
 
-// functions are pure, this is why the executor is
-// wrapped in one. this function needs to capture
-// the "stage" variable to work properly.
-// use it like this: run_rules!(rules)
-fn run_rules(rules) {
+// runs rules for a given stage and returns
+// a status.
+fn run_rules(rules, stage) {
     let status = vsl::next();
 
-    if rules.contains(stage) {
-        for r in rules[stage] {
-            let result = r.evaluate.call();
+    if stage in rules {
+        for procedure in rules[stage] {
+            let result;
 
-            switch r.type {
-                "rule" => {
-                    if result.type_of() != "vsmtp::rules::rule_engine::Status" {
-                        status = r.default_status;
-                    } else {
-                        status = result;
-                    }
-                }
-                _ => {}
+            try {
+                result = procedure.evaluate.call();
+            } catch (err) {
+                err.set("rule", procedure.name);
+                result = err;
+            };
+
+            switch result.type_of() {
+                "vsmtp::rules::rule_engine::Status" => {
+                    switch procedure.type {
+                        "rule" => status = result,
+                        _ => {},
+                    };
+                },
+                "()" => switch procedure.type {
+                    "rule" => throw `the rule "${procedure.name}" must return a status`,
+                    _ => {}
+                },
+                _ => throw result,
             }
 
             if status != vsl::next() {

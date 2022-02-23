@@ -14,12 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-mod connect;
-mod helo;
-mod mail;
-mod rcpt;
+mod actions;
+mod email;
+mod rules;
+mod types;
 
-#[cfg(test)]
 pub mod helpers {
     use crate::config::server_config::ServerConfig;
 

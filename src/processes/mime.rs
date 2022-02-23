@@ -70,9 +70,9 @@ pub(crate) async fn handle_one_in_working_queue(
 
     match result {
         Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
-        Status::Block => {
-            Queue::Quarantine.write_to_queue(config, &state.get_context().read().unwrap())?
-        }
+        // Status::Block => {
+        //     Queue::Quarantine.write_to_queue(config, &state.get_context().read().unwrap())?
+        // }
         _ => {
             {
                 let ctx = state.get_context();

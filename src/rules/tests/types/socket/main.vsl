@@ -1,0 +1,21 @@
+#{
+    connect: [
+        rule "test_socket" || {
+            print(ctx.client_addr.to_string());
+            print(ctx.client_addr.to_debug());
+            if ctx.client_addr.to_string() is "0.0.0.0:0"
+            && ctx.client_addr.to_debug() is "0.0.0.0:0"
+
+            && ctx.client_addr is "0.0.0.0"
+            && ctx.client_addr == "0.0.0.0"
+            && ctx.client_addr not "127.0.0.1"
+            && ctx.client_addr != "127.0.0.1"
+
+            {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ]
+}

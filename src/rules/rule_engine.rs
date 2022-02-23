@@ -19,7 +19,7 @@ use crate::config::server_config::Service;
 use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
 use crate::smtp::envelop::Envelop;
-use crate::smtp::mail::{Body, MailContext, MessageMetadata};
+use crate::smtp::mail::{Body, MailContext};
 
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
@@ -37,18 +37,30 @@ pub enum Status {
     Accept,
 
     /// continue to the next rule / stage.
-    Continue,
+    Next,
 
     /// immediately stops the transaction and send an error code.
     Deny,
 
     /// ignore all future rules for the current transaction.
     Faccept,
+}
 
-    /// wait for the email before stopping the transaction and sending an error code,
-    /// skips all future rules to fill the envelop and mail data as fast as possible.
-    /// also stores the email data in an user defined quarantine directory.
-    Block,
+impl Status {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Status::Accept => "accept",
+            Status::Next => "next",
+            Status::Deny => "deny",
+            Status::Faccept => "faccept",
+        }
+    }
+}
+
+impl std::fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 pub struct RuleState<'a> {
@@ -75,9 +87,6 @@ impl<'a> RuleState<'a> {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            .push("metadata", None::<MessageMetadata>)
-            // rule engine's internals.
-            .push("stage", "")
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
@@ -108,9 +117,6 @@ impl<'a> RuleState<'a> {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            .push("metadata", None::<MessageMetadata>)
-            // rule engine's internals.
-            .push("stage", "")
             // configuration variables.
             .push("addr", config.server.addr)
             .push("logs_file", config.log.file.clone())
@@ -156,7 +162,7 @@ impl<'a> RuleState<'a> {
 pub struct RuleEngine {
     /// rhai's engine structure.
     pub(super) context: Engine,
-    /// the ast, built from the user's .vsl files.
+    /// ast built from the user's .vsl files.
     pub(super) ast: AST,
     // system user cache, used for retrieving user information. (used in vsl.USER_EXISTS for example)
     // pub(super) users: Mutex<U>,
@@ -172,24 +178,41 @@ impl RuleEngine {
         let now = chrono::Local::now();
         state
             .scope
-            .set_value("stage", stage.to_string())
             .set_value("date", now.date().format("%Y/%m/%d").to_string())
             .set_value("time", now.time().format("%H:%M:%S").to_string());
 
-        match self
+        let rules = match self
             .context
-            .eval_ast_with_scope::<Status>(&mut state.scope, &self.ast)
+            .eval_ast_with_scope::<rhai::Map>(&mut state.scope, &self.ast)
         {
+            Ok(rules) => rules,
+            Err(error) => {
+                log::error!(
+                    target: RULES,
+                    "stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
+                    stage,
+                    error
+                );
+                return Status::Next;
+            }
+        };
+
+        match self.context.call_fn(
+            &mut state.scope,
+            &self.ast,
+            "run_rules",
+            (rules, stage.to_string()),
+        ) {
             Ok(status) => {
                 log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
 
                 match status {
-                    Status::Block | Status::Faccept | Status::Deny => {
-                        log::trace!(
-                            target: RULES,
-                            "[{}] the rule engine will skip all rules because of the previous result.",
-                            stage
-                        );
+                    Status::Faccept | Status::Deny => {
+                        log::debug!(
+                        target: RULES,
+                        "[{}] the rule engine will skip all rules because of the previous result.",
+                        stage
+                    );
                         state.skip = Some(status);
                         status
                     }
@@ -197,14 +220,46 @@ impl RuleEngine {
                 }
             }
             Err(error) => {
-                log::error!(
-                    target: RULES,
-                    "the rule engine skipped stage '{}' because it failed to evaluate '{}':\n\t{}",
-                    "unknown",
-                    stage,
-                    error
-                );
-                Status::Continue
+                log::error!(target: RULES, "{}", self.parse_stage_error(error, stage));
+                Status::Next
+            }
+        }
+    }
+
+    fn parse_stage_error(&self, error: Box<EvalAltResult>, stage: &str) -> String {
+        match *error {
+            // NOTE: since all errors are caught and thrown in "run_rules", errors
+            //       are always wrapped in ErrorInFunctionCall.
+            EvalAltResult::ErrorInFunctionCall(_, _, mut error, _) => match *error {
+                EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
+                    let error = error.cast::<rhai::Map>();
+                    let rule = error
+                        .get("rule")
+                        .map(|d| d.to_string())
+                        .unwrap_or_else(|| "unknown rule".to_string());
+                    let error = error
+                        .get("message")
+                        .map(|d| d.to_string())
+                        .unwrap_or_else(|| "vsl internal unexpected error".to_string());
+
+                    format!(
+                        "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
+                        stage, rule, error
+                    )
+                }
+                _ => {
+                    error.take_position();
+                    format!(
+                        "stage '{}' skipped => rule engine failed:\n\t{}",
+                        stage, error,
+                    )
+                }
+            },
+            _ => {
+                format!(
+                    "rule engine unexpected error in stage '{}':\n\t{:?}",
+                    stage, error
+                )
             }
         }
     }
@@ -272,7 +327,7 @@ impl RuleEngine {
                         ]
                         .into_iter()
                         .chain(if expr.is::<Map>() {
-                            let mut properties = expr.cast::<Map>();
+                            let properties = expr.cast::<Map>();
 
                             if properties
                                 .get("evaluate")
@@ -286,21 +341,9 @@ impl RuleEngine {
                                 .into());
                             }
 
-                            if properties
-                                .get("default_status")
-                                .filter(|f| f.is::<Status>())
-                                .is_none()
-                            {
-                                properties.insert(
-                                    "default_status".into(),
-                                    Dynamic::from(Status::Continue),
-                                );
-                            }
-
                             properties.into_iter()
                         } else if expr.is::<rhai::FnPtr>() {
                             Map::from_iter([
-                                ("default_status".into(), Dynamic::from(Status::Continue)),
                                 ("evaluate".into(), expr),
                             ])
                             .into_iter()
@@ -378,14 +421,14 @@ impl RuleEngine {
             )
             // `obj $type[:file_type]$ $name$ #{}` container syntax.
             .register_custom_syntax_raw(
-                "obj",
+                "object",
                 |symbols, look_ahead| match symbols.len() {
                     // obj ...
                     1 => Ok(Some("$ident$".into())),
                     // the type of the object ...
                     2 => match symbols[1].as_str() {
-                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "ident" | "str" | "regex"
-                        | "grp" => Ok(Some("$string$".into())),
+                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex"
+                        | "group" => Ok(Some("$string$".into())),
                         "file" => Ok(Some("$symbol$".into())),
                         entry => Err(ParseError(
                             Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
@@ -403,7 +446,7 @@ impl RuleEngine {
                     // file content type or info block / value of object, we are done parsing.
                     4 => match symbols[3].as_str() {
                         // NOTE: could it be possible to add a "file" content type ?
-                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "addr" | "ident" | "str" | "regex" => {
+                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex" => {
                             Ok(Some("$string$".into()))
                         }
                         _ => Ok(None),
@@ -519,20 +562,6 @@ impl RuleEngine {
 
         log::debug!(target: RULES, "compiling rhai scripts ...");
 
-        let ast = engine
-            .compile(include_str!("rule_executor.rhai"))
-            .context("failed to load the rule executor")?;
-
-        engine.register_global_module(
-            Module::eval_ast_as_new(
-                Scope::from_iter([("stage".to_string(), "none".into())]),
-                &ast,
-                &engine,
-            )
-            .context("failed to register the rule executor")?
-            .into(),
-        );
-
         let main_path = std::path::PathBuf::from_iter([script_path.as_ref(), "main.vsl"]);
 
         let mut scope = Scope::new();
@@ -551,9 +580,6 @@ impl RuleEngine {
             .push("date", "")
             .push("time", "")
             .push("connection_timestamp", std::time::SystemTime::now())
-            .push("metadata", None::<MessageMetadata>)
-            // rule engine's internals.
-            .push("stage", "")
             // configuration variables.
             .push(
                 "addr",
@@ -563,9 +589,18 @@ impl RuleEngine {
             .push("spool_dir", "")
             .push("services", std::sync::Arc::new(Vec::<Service>::new()));
 
+        let mut ast = engine
+            // FIXME: use include_str in production.
+            .compile(
+                std::fs::read_to_string("./src/rules/rule_executor.rhai")
+                    .unwrap()
+                    .as_str(),
+            ) // include_str!("rule_executor.rhai"))
+            .context("failed to load the rule executor")?;
+
         // compiling main script.
-        let ast = engine
-            .compile_into_self_contained(
+        ast += engine
+            .compile_with_scope(
                 &scope,
                 std::fs::read_to_string(&main_path).unwrap_or_else(|err| {
                     log::warn!(
@@ -574,10 +609,14 @@ impl RuleEngine {
                         main_path,
                         err
                     );
-                    String::default()
+                    "#{}".to_string()
                 }),
             )
             .context("failed to compile main.vsl")?;
+
+        engine
+            .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
+            .context("failed to parse rules")?;
 
         log::debug!(target: RULES, "done.");
 
