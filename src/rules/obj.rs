@@ -187,7 +187,9 @@ impl Object {
                             .try_cast::<std::sync::Arc<Object>>()
                             .ok_or_else(|| {
                                 anyhow::anyhow!(
-                                    "an element inside the {name} group is not an object"
+                                    "the element '{:?}' inside the '{}' group is not an object",
+                                    element,
+                                    name
                                 )
                             })?,
                     );

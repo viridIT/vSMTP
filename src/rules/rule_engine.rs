@@ -508,7 +508,7 @@ impl RuleEngine {
 
                     // pushing object in scope, preventing a "let _" statement,
                     // and returning a reference to the object in case of a parent group.
-                    context.scope_mut().push(var_name, obj_ptr.clone());
+                    context.scope_mut().push_constant(var_name, obj_ptr.clone());
 
                     Ok(Dynamic::from(obj_ptr))
                 },

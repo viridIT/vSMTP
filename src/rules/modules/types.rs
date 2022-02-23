@@ -228,12 +228,12 @@ pub mod types {
 
     // vsmtp's rule engine obj syntax (std::sync::Arc<Object>).
 
-    #[rhai_fn(global, name = "to_string")]
+    #[rhai_fn(global, name = "to_string", pure)]
     pub fn object_to_string(this: &mut std::sync::Arc<Object>) -> String {
         this.to_string()
     }
 
-    #[rhai_fn(global, name = "to_debug")]
+    #[rhai_fn(global, name = "to_debug", pure)]
     pub fn object_to_debug(this: &mut std::sync::Arc<Object>) -> String {
         format!("{:#?}", **this)
     }
