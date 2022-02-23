@@ -124,6 +124,8 @@ pub enum Service {
         timeout: std::time::Duration,
         #[serde(default)]
         user: Option<String>,
+        #[serde(default)]
+        group: Option<String>,
         command: String,
         args: Option<String>,
     },

@@ -136,7 +136,7 @@ impl ConfigBuilder<WantsLogging> {
 
     pub fn without_log(self) -> ConfigBuilder<WantSMTPS> {
         self.with_logging(
-            "./trash/log.log",
+            "./tmp/trash/log.log",
             crate::collection! {
                 "default".to_string() => log::LevelFilter::Off
             },

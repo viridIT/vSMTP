@@ -212,13 +212,24 @@ fn from_toml_template_services() -> anyhow::Result<()> {
             )
             .with_rules(
                 "/etc/vsmtp/rules",
-                vec![Service::UnixShell {
-                    name: "echo_hello".to_string(),
-                    command: "echo".to_string(),
-                    timeout: std::time::Duration::from_millis(500),
-                    args: Some("hello".to_string()),
-                    user: None,
-                }],
+                vec![
+                    Service::UnixShell {
+                        name: "echo_hello".to_string(),
+                        command: "echo".to_string(),
+                        timeout: std::time::Duration::from_millis(500),
+                        args: Some("hello".to_string()),
+                        user: None,
+                        group: None
+                    },
+                    Service::UnixShell {
+                        name: "anti_spam".to_string(),
+                        command: "/usr/bin/anti_spam".to_string(),
+                        timeout: std::time::Duration::from_millis(1500),
+                        args: Some("hello".to_string()),
+                        user: Some("anti_spam".to_string()),
+                        group: Some("anti_spam".to_string())
+                    }
+                ],
             )
             .with_reply_codes(crate::collection! {
                 SMTPReplyCode::Code214 => "214 my custom help message\r\n".to_string(),
