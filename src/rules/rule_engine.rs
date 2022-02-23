@@ -590,12 +590,7 @@ impl RuleEngine {
             .push("services", std::sync::Arc::new(Vec::<Service>::new()));
 
         let mut ast = engine
-            // FIXME: use include_str in production.
-            .compile(
-                std::fs::read_to_string("./src/rules/rule_executor.rhai")
-                    .unwrap()
-                    .as_str(),
-            ) // include_str!("rule_executor.rhai"))
+            .compile(include_str!("rule_executor.rhai"))
             .context("failed to load the rule executor")?;
 
         // compiling main script.

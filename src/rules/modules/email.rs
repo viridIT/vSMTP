@@ -15,13 +15,14 @@
  *
 **/
 use rhai::plugin::*;
+
 #[allow(dead_code)]
 #[export_module]
 pub mod email {
 
     use crate::{
         rules::address::Address, rules::modules::types::Rcpt, rules::modules::EngineResult,
-        smtp::mail::Body, smtp::mail::MailContext,
+        rules::obj::Object, smtp::mail::Body, smtp::mail::MailContext,
     };
     use std::io::Write;
     use std::sync::{Arc, RwLock};
@@ -367,9 +368,8 @@ pub mod email {
         Ok(())
     }
 
-    //. push a recipient to the envelop, that will be invisible to all other recipients.
-    #[rhai_fn(global, return_raw)]
-    pub fn bcc(this: &mut Arc<RwLock<MailContext>>, bcc: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_str(this: &mut Arc<RwLock<MailContext>>, bcc: &str) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
@@ -379,6 +379,26 @@ pub mod email {
                     format!("{} could not be converted to a valid rcpt address", bcc)
                 })?,
             );
+
+        Ok(())
+    }
+
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_object(
+        this: &mut Arc<RwLock<MailContext>>,
+        bcc: std::sync::Arc<Object>,
+    ) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(match &*bcc {
+                Object::Address(addr) => addr.clone(),
+                Object::Str(string) => Address::new(string.as_str()).map_err(|_| {
+                    format!("{} could not be converted to a valid rcpt address", string)
+                })?,
+                other => return Err(format!("{:?} cant be converted to an address", other).into()),
+            });
 
         Ok(())
     }
