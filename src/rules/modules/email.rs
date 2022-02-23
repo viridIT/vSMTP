@@ -339,4 +339,20 @@ pub mod email {
 
         Ok(())
     }
+
+    //. push a recipient to the envelop, that will be invisible to all other recipients.
+    #[rhai_fn(global, return_raw)]
+    pub fn bcc(this: &mut Arc<RwLock<MailContext>>, bcc: &str) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(
+                Address::new(bcc).map_err(|_| {
+                    format!("{} could not be converted to a valid rcpt address", bcc)
+                })?,
+            );
+
+        Ok(())
+    }
 }
