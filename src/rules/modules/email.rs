@@ -368,21 +368,33 @@ pub mod email {
         Ok(())
     }
 
+    /// add a recipient to the list recipient using a raw string.
     #[rhai_fn(global, name = "bcc", return_raw)]
     pub fn bcc_str(this: &mut Arc<RwLock<MailContext>>, bcc: &str) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .insert(
-                Address::new(bcc).map_err(|_| {
-                    format!("{} could not be converted to a valid rcpt address", bcc)
-                })?,
-            );
+            .insert(Address::new(bcc).map_err(|_| {
+                format!("'{}' could not be converted to a valid rcpt address", bcc)
+            })?);
 
         Ok(())
     }
 
+    /// add a recipient to the list recipient using an address.
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_addr(this: &mut Arc<RwLock<MailContext>>, bcc: Address) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(bcc);
+
+        Ok(())
+    }
+
+    /// add a recipient to the list recipient using an object.
     #[rhai_fn(global, name = "bcc", return_raw)]
     pub fn bcc_object(
         this: &mut Arc<RwLock<MailContext>>,
@@ -395,9 +407,18 @@ pub mod email {
             .insert(match &*bcc {
                 Object::Address(addr) => addr.clone(),
                 Object::Str(string) => Address::new(string.as_str()).map_err(|_| {
-                    format!("{} could not be converted to a valid rcpt address", string)
+                    format!(
+                        "'{}' could not be converted to a valid rcpt address",
+                        string
+                    )
                 })?,
-                other => return Err(format!("{:?} cant be converted to an address", other).into()),
+                other => {
+                    return Err(format!(
+                        "'{}' could not be converted to a valid rcpt address",
+                        other.to_string()
+                    )
+                    .into())
+                }
             });
 
         Ok(())
