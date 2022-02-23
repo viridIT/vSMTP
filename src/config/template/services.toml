@@ -10,11 +10,20 @@ default = "warn"
 dir = "/etc/vsmtp/rules"
 
 [[rules.services]]
-name = "echo_hello"
 type = "shell"
+name = "echo_hello"
 timeout = "500ms"
 command = "echo"
 args = "hello"
+
+[[rules.services]]
+type = "shell"
+name = "anti_spam"
+timeout = "1500ms"
+command = "/usr/bin/anti_spam"
+args = "hello"
+user = "anti_spam"
+group = "anti_spam"
 
 [smtp.timeout_client]
 Helo = "100ms"

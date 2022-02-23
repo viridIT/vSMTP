@@ -48,6 +48,7 @@ impl Service {
                 command,
                 args,
                 user,
+                group,
                 ..
             } => {
                 let mut child = std::process::Command::new(command);
@@ -65,15 +66,18 @@ impl Service {
                     }
                 }
 
-                if let Some(name) = user {
-                    if let Some(user) = users::get_user_by_name(&name) {
+                if let Some(user_name) = user {
+                    if let Some(user) = users::get_user_by_name(&user_name) {
                         std::os::unix::prelude::CommandExt::uid(&mut child, user.uid());
-                        std::os::unix::prelude::CommandExt::gid(
-                            &mut child,
-                            user.primary_group_id(),
-                        );
                     } else {
-                        anyhow::bail!("UnixShell user not found: {name:?}")
+                        anyhow::bail!("UnixShell user not found: '{user_name}'")
+                    }
+                }
+                if let Some(group_name) = group {
+                    if let Some(group) = users::get_group_by_name(group_name) {
+                        std::os::unix::prelude::CommandExt::gid(&mut child, group.gid());
+                    } else {
+                        anyhow::bail!("UnixShell group not found: '{group_name}'")
                     }
                 }
 
