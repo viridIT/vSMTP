@@ -324,7 +324,7 @@ pub mod email {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn use_resolver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
+    pub fn deliver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .metadata
@@ -339,7 +339,7 @@ pub mod email {
 
     #[rhai_fn(global, return_raw)]
     pub fn disable_delivery(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<()> {
-        use_resolver(this, "none".to_string())
+        deliver(this, "none".to_string())
     }
 
     /// check if a given header exists in the top level headers.
