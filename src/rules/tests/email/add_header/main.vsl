@@ -14,7 +14,17 @@ import "add_header" as add;
     ],
 
     preq: [
-        rule "adding header to raw email" || add::add_header_success(ctx, "X-New-Header", "value of header"),
+        rule "adding header to raw email" || {
+            if add::add_header_success(ctx, "X-New-Header", "value of header") == vsl::next()
+            && add::add_header_success(ctx, "X-Another-Header", "value of another") == vsl::next()
+            && add::add_header_success(ctx, "From", "<john@doe.com>") == vsl::next()
+            && add::add_header_success(ctx, "To", "<green@foo.net>") == vsl::next()
+            {
+                vsl::next()
+            } else {
+                vsl::deny()
+            }
+        },
 
         rule "trailing" || vsl::accept(),
     ],

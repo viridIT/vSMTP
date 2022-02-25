@@ -352,8 +352,21 @@ pub mod email {
                 .body
             {
                 Body::Empty => false,
-                // FIXME: header found could be in the body or mime headers.
-                Body::Raw(raw) => raw.contains(format!("{}: ", header).as_str()),
+                Body::Raw(raw) => {
+                    let mut headers_end = 0;
+
+                    // getting headers from the raw email.
+                    for line in raw.lines() {
+                        let mut split = line.splitn(2, ':');
+                        match (split.next(), split.next()) {
+                            // adding one to the index because `\n` is striped using the Lines iterator.
+                            (Some(_), Some(_)) => headers_end += line.len() + 1,
+                            _ => break,
+                        }
+                    }
+
+                    raw[0..headers_end].contains(format!("{}: ", header).as_str())
+                }
                 Body::Parsed(email) => email.headers.iter().any(|(name, _)| header == name),
             },
         )
