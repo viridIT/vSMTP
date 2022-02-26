@@ -23,7 +23,8 @@ use crate::rules::{
 fn test_engine_errors() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/engine").expect("couldn't build rule engine");
+    let re =
+        RuleEngine::new("./src/rules/tests/engine".into()).expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);

@@ -51,7 +51,7 @@ pub mod actions {
             "error" => log::error!(target: URULES, "{}", message),
             unknown => log::warn!(
                 target: URULES,
-                "'{}' is not a valid log level. Original message: {}",
+                "'{}' is not a valid log level. Original message: '{}'",
                 unknown,
                 message
             ),

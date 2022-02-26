@@ -45,7 +45,8 @@ fn test_email_context() {
 fn test_email_bcc() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/email/bcc").expect("couldn't build rule engine");
+    let re =
+        RuleEngine::new("./src/rules/tests/email/bcc".into()).expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
@@ -55,8 +56,8 @@ fn test_email_bcc() {
 fn test_email_add_header() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/email/add_header").expect("couldn't build rule engine");
+    let re = RuleEngine::new("./src/rules/tests/email/add_header".into())
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
@@ -88,7 +89,8 @@ fn test_context_write() {
 fn test_context_dump() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/email/dump").expect("couldn't build rule engine");
+    let re =
+        RuleEngine::new("./src/rules/tests/email/dump".into()).expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
