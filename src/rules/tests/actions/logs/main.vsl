@@ -1,6 +1,6 @@
 #{
     connect: [
-        action "debug" || vsl::log_debug("executing procedures in connect stage."),
+        action "debug" || vsl::log("debug", "executing procedures in connect stage."),
 
         action "log_incoming" || {
             vsl::log("info", "incoming transaction.");

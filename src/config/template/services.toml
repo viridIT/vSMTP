@@ -8,6 +8,7 @@ default = "warn"
 
 [rules]
 dir = "/etc/vsmtp/rules"
+log = { file = "/var/log/vsmtp/custom_file.log", level = "trace", format = "{d} - {m}{n}" }
 
 [[rules.services]]
 type = "shell"

@@ -306,11 +306,7 @@ impl ConfigBuilder<WantsRules> {
                 parent: self.state,
                 rules: InnerRulesConfig {
                     dir: source_dir.into(),
-                    log: InnerUserLogConfig {
-                        file: std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp.log"]),
-                        level: log::LevelFilter::Warn,
-                        format: None,
-                    },
+                    log: InnerUserLogConfig::default(),
                     services,
                 },
             },
@@ -320,10 +316,10 @@ impl ConfigBuilder<WantsRules> {
     pub fn with_rules_and_logging(
         self,
         source_dir: impl Into<std::path::PathBuf>,
+        services: Vec<Service>,
         log_file: impl Into<std::path::PathBuf>,
         log_level: log::LevelFilter,
         log_format: Option<String>,
-        services: Vec<Service>,
     ) -> ConfigBuilder<WantsReplyCodes> {
         ConfigBuilder::<WantsReplyCodes> {
             state: WantsReplyCodes {
