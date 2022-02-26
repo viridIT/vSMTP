@@ -43,6 +43,15 @@ pub struct InnerLogConfig {
     pub level: std::collections::HashMap<String, log::LevelFilter>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InnerUserLogConfig {
+    pub file: std::path::PathBuf,
+    pub level: log::LevelFilter,
+    #[serde(default)]
+    pub format: Option<String>,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum TlsSecurityLevel {
     May,
@@ -134,7 +143,10 @@ pub enum Service {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InnerRulesConfig {
-    pub dir: String,
+    #[serde(default = "InnerRulesConfig::default_directory")]
+    pub dir: std::path::PathBuf,
+    #[serde(default)]
+    pub log: InnerUserLogConfig,
     #[serde(default)]
     pub services: Vec<Service>,
 }

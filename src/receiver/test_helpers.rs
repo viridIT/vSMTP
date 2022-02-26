@@ -100,7 +100,7 @@ where
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
         anyhow::Context::context(
-            RuleEngine::new(config.rules.dir.as_str()),
+            RuleEngine::new(config.rules.dir.clone()),
             "failed to initialize the engine",
         )
         .unwrap(),

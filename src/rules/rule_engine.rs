@@ -266,10 +266,7 @@ impl RuleEngine {
 
     /// creates a new instance of the rule engine, reading all files in
     /// src_path parameter.
-    pub fn new<S>(script_path: S) -> anyhow::Result<Self>
-    where
-        S: AsRef<str>,
-    {
+    pub fn new(script_path: std::path::PathBuf) -> anyhow::Result<Self> {
         let mut engine = Engine::new();
 
         let mut module: Module = exported_module!(crate::rules::modules::actions::actions);
@@ -279,7 +276,7 @@ impl RuleEngine {
 
         engine
             .set_module_resolver(FileModuleResolver::new_with_path_and_extension(
-                script_path.as_ref(),
+                &script_path,
                 "vsl",
             ))
             .register_static_module("vsl", module.into())
@@ -562,8 +559,6 @@ impl RuleEngine {
 
         log::debug!(target: RULES, "compiling rhai scripts ...");
 
-        let main_path = std::path::PathBuf::from_iter([script_path.as_ref(), "main.vsl"]);
-
         let mut scope = Scope::new();
         scope
             // stage specific variables.
@@ -593,6 +588,8 @@ impl RuleEngine {
             // FIXME: use include_str in production.
             .compile(include_str!("rule_executor.rhai"))
             .context("failed to load the rule executor")?;
+
+        let main_path = script_path.join("main.vsl");
 
         // compiling main script.
         ast += engine

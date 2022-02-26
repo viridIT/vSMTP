@@ -17,7 +17,8 @@
 use crate::smtp::code::SMTPReplyCode;
 
 use super::server_config::{
-    Codes, InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
+    Codes, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig,
+    InnerServerConfig, InnerUserLogConfig,
 };
 
 impl Default for InnerServerConfig {
@@ -51,7 +52,7 @@ impl InnerServerConfig {
 impl Default for InnerLogConfig {
     fn default() -> Self {
         Self {
-            file: "/var/log/vsmtp/vsmtp.log".into(),
+            file: std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "app.log"]),
             level: Default::default(),
         }
     }
@@ -60,6 +61,32 @@ impl Default for InnerLogConfig {
 impl InnerLogConfig {
     pub(crate) fn default_file() -> std::path::PathBuf {
         InnerLogConfig::default().file
+    }
+}
+
+impl Default for InnerUserLogConfig {
+    fn default() -> Self {
+        Self {
+            file: std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "rules.log"]),
+            level: log::LevelFilter::Warn,
+            format: None,
+        }
+    }
+}
+
+impl Default for InnerRulesConfig {
+    fn default() -> Self {
+        Self {
+            dir: std::path::PathBuf::from_iter(["/", "etc", "vsmtp", "rules"]),
+            log: Default::default(),
+            services: Default::default(),
+        }
+    }
+}
+
+impl InnerRulesConfig {
+    pub(crate) fn default_directory() -> std::path::PathBuf {
+        InnerRulesConfig::default().dir
     }
 }
 
