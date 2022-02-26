@@ -348,7 +348,7 @@ impl RuleEngine {
                             .into_iter()
                         } else {
                             return Err(format!(
-                                "a rule must be a map (#{{}}) or an anonymous function (|| {{}}){}",
+                                "a rule must be a map (#{{}}) or an anonymous function (|| {{}})\n{}",
                                 RuleEngineError::Rule.as_str()
                             )
                             .into());

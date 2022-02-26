@@ -23,10 +23,27 @@ use crate::rules::{
 fn test_engine_errors() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/engine".into()).expect("couldn't build rule engine");
+    let re = RuleEngine::new("./src/rules/tests/engine/error_handling".into())
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
     assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
+    assert_eq!(re.run_when(&mut state, "mail"), Status::Deny);
+}
+
+#[test]
+fn test_engine_rules_syntax() {
+    crate::receiver::test_helpers::logs::setup_logs();
+
+    let re = RuleEngine::new("./src/rules/tests/engine/syntax".into())
+        .expect("couldn't build rule engine");
+    let mut state = get_default_state();
+
+    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
+    assert_eq!(re.run_when(&mut state, "mail"), Status::Next);
+    assert_eq!(re.run_when(&mut state, "rcpt"), Status::Next);
+    assert_eq!(re.run_when(&mut state, "preq"), Status::Next);
+    assert_eq!(re.run_when(&mut state, "postq"), Status::Next);
 }

@@ -1,0 +1,3 @@
+object unknown "my_object";
+object file:addr {};
+object file "invalid_file";

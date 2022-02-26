@@ -13,8 +13,13 @@ impl RuleEngineError {
                 r#"failed to parse an object.
     use the extended syntax:
 
+    obj "type" "name" "value";
+
+    or
+
     obj "type" "name" #{
         value: ...,
+        ..., // any field are accepted using the extended syntax.
     };
 
     or use the inline syntax:
@@ -27,11 +32,10 @@ impl RuleEngineError {
                 r#"failed to parse a rule.
     use the following syntax:
 
-    rule "name" #{
-        condition: || { ... }, # must be a boolean result.
-        on_success: || { ... }, # must return a status. (CONTINUE, ACCEPT ...)
-        on_failure: || { ... }, # same as above.
-    };
+    rule "name" || {
+        ... // your code to execute.
+        vsl::next() // must end with a status. (next, accept, faccept ...)
+    },
 "#
             }
 
@@ -40,7 +44,7 @@ impl RuleEngineError {
     use the following syntax:
 
     action "name" || {
-        ... # your code to execute. (LOG, QUARANTINE ...)
+        ... // your code to execute.
     };
 "#
             }
@@ -51,8 +55,7 @@ impl RuleEngineError {
 
     #{
         preq: [
-            ... rules
-            ... action
+            ...  // rules & actions
         ],
 
         delivery: [
