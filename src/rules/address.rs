@@ -27,7 +27,7 @@ impl std::error::Error for AddressParsingError {}
 
 impl From<&str> for AddressParsingError {
     fn from(s: &str) -> Self {
-        Self { 0: s.to_string() }
+        Self(s.to_string())
     }
 }
 
