@@ -255,6 +255,8 @@ impl RuleEngine {
                     )
                 }
             },
+            // NOTE: all errors are caught in "run_rules", should this code be replaced
+            //       with `unreachable!` ?
             _ => {
                 format!(
                     "rule engine unexpected error in stage '{}':\n\t{:?}",
@@ -548,7 +550,7 @@ impl RuleEngine {
 
                     // pushing object in scope, preventing a "let _" statement,
                     // and returning a reference to the object in case of a parent group.
-                    context.scope_mut().push(var_name, obj_ptr.clone());
+                    context.scope_mut().push_constant(var_name, obj_ptr.clone());
 
                     Ok(Dynamic::from(obj_ptr))
                 },
@@ -585,7 +587,6 @@ impl RuleEngine {
             .push("services", std::sync::Arc::new(Vec::<Service>::new()));
 
         let mut ast = engine
-            // FIXME: use include_str in production.
             .compile(include_str!("rule_executor.rhai"))
             .context("failed to load the rule executor")?;
 

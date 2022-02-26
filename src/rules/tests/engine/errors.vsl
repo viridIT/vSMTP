@@ -1,0 +1,7 @@
+fn generic_error(ctx) {
+    print(ctx.timestamp);
+}
+
+fn throw_error() {
+    throw "this is an error throwned by the user";
+}

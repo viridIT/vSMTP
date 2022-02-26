@@ -42,6 +42,35 @@ fn test_email_context() {
 }
 
 #[test]
+fn test_email_bcc() {
+    crate::receiver::test_helpers::logs::setup_logs();
+
+    let re = RuleEngine::new("./src/rules/tests/email/bcc").expect("couldn't build rule engine");
+    let mut state = get_default_state();
+
+    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+}
+
+#[test]
+fn test_email_add_header() {
+    crate::receiver::test_helpers::logs::setup_logs();
+
+    let re =
+        RuleEngine::new("./src/rules/tests/email/add_header").expect("couldn't build rule engine");
+    let mut state = get_default_state();
+
+    assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
+    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
+    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+        headers: vec![],
+        body: BodyType::Regular(vec![]),
+    }));
+    state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
+    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+}
+
+#[test]
 fn test_context_write() {
     crate::receiver::test_helpers::logs::setup_logs();
 
@@ -52,5 +81,26 @@ fn test_context_write() {
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
     state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+}
+
+#[test]
+fn test_context_dump() {
+    crate::receiver::test_helpers::logs::setup_logs();
+
+    let re = RuleEngine::new("./src/rules/tests/email/dump").expect("couldn't build rule engine");
+    let mut state = get_default_state();
+
+    assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
+    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
+    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+        headers: vec![
+            ("From".to_string(), "john@doe.com".to_string()),
+            ("To".to_string(), "green@bar.net".to_string()),
+            ("X-Custom-Header".to_string(), "my header".to_string()),
+        ],
+        body: BodyType::Regular(vec!["this is an empty body".to_string()]),
+    }));
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
 }
