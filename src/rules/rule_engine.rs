@@ -255,6 +255,8 @@ impl RuleEngine {
                     )
                 }
             },
+            // NOTE: all errors are caught in "run_rules", should this code be replaced
+            //       with `unreachable!` ?
             _ => {
                 format!(
                     "rule engine unexpected error in stage '{}':\n\t{:?}",

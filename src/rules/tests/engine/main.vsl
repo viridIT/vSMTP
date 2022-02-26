@@ -1,0 +1,35 @@
+import "errors" as err;
+
+#{
+    connect: [
+        rule "short rule" || vsl::next(),
+        action "short action" || {},
+
+        rule "extended rule format" #{
+            evaluate: || {
+                vsl::next()
+            },
+            description: "an extended rule",
+            color: "#ffffff",
+        },
+
+        action "extended action format" #{
+            evaluate: || vsl::next(),
+            description: "an extended rule",
+            color: "#ffffff",
+        },
+
+        // `ctx.timestamp` isn't available in 'connect' stage.
+        rule "error parsing" || err::generic_error(ctx),
+
+        // previous rule should short circuit and return `next`.
+        rule "trailing" || vsl::deny(),
+    ],
+
+    helo: [
+        rule "user defined throw" || err::throw_error(),
+
+        // previous rule should short circuit and return `next`.
+        rule "trailing" || vsl::deny(),
+    ],
+}

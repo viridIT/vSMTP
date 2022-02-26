@@ -16,6 +16,7 @@
 **/
 mod actions;
 mod email;
+mod engine;
 mod rules;
 mod types;
 
