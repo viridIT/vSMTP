@@ -43,7 +43,12 @@ chrono = "0.4.19"
 rhai = { version = "1.4.1", features = ["unchecked", "sync", "internals"] }
 
 # the 0.10 release is more stable than the 0.9 and enable async support.
-lettre = { version = "0.10.0-rc.4", features = ["tracing"] }
+lettre = { version = "0.10.0-rc.4", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }
 trust-dns-resolver = "0.20.4"
 
 async-trait = "0.1.52"

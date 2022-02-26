@@ -21,8 +21,8 @@ use vsmtp::{
 };
 
 const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
-const CLIENT_THREAD_COUNT: u64 = 10;
-const MAIL_PER_THREAD: u64 = 100;
+const CLIENT_THREAD_COUNT: u64 = 1;
+const MAIL_PER_THREAD: u64 = 1;
 
 fn get_mail() -> lettre::Message {
     lettre::Message::builder()
@@ -34,51 +34,51 @@ fn get_mail() -> lettre::Message {
         .unwrap()
 }
 
-fn send_one_mail(mailer: &lettre::SmtpTransport) {
-    let email = get_mail();
+async fn send_one_mail(mailer: &lettre::AsyncSmtpTransport<lettre::Tokio1Executor>, mail_nb: u64) {
+    let tracer = opentelemetry::global::tracer("mail");
+    let span = opentelemetry::trace::Tracer::start(&tracer, format!("Sending: {mail_nb}"));
+    let cx =
+        <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
 
-    match lettre::Transport::send(mailer, &email) {
+    match opentelemetry::trace::FutureExt::with_context(
+        lettre::AsyncTransport::send(mailer, get_mail()),
+        cx,
+    )
+    .await
+    {
         Ok(_) => {}
-        Err(e) => panic!("{}", e),
+        Err(e) => panic!("error while sending {e}"),
     }
+    log::error!("here1");
 }
 
-async fn run_one_connection() {
-    let mailer = lettre::SmtpTransport::builder_dangerous("0.0.0.0")
+async fn run_one_connection(client_nb: u64) {
+    let tracer = opentelemetry::global::tracer("client");
+    let span = opentelemetry::trace::Tracer::start(&tracer, format!("Connecting: {client_nb}"));
+    let cx =
+        <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
+
+    let mailer = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous("0.0.0.0")
         .port(10027)
         .build();
 
     for i in 0..MAIL_PER_THREAD {
-        let tracer = opentelemetry::global::tracer("sender");
-
-        let span = opentelemetry::trace::Tracer::start(&tracer, format!("Sending: {}", i));
-        let _ =
-            <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(
-                span,
-            );
-        send_one_mail(&mailer);
+        opentelemetry::trace::FutureExt::with_context(send_one_mail(&mailer, i), cx.clone()).await;
     }
+    log::error!("here2");
 }
 
 async fn send_payload() {
-    let mut clients = vec![];
+    let tracer = opentelemetry::global::tracer("payload");
+    let span = opentelemetry::trace::Tracer::start(&tracer, "sending payload".to_string());
+    let cx =
+        <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
 
-    for client_id in 0..CLIENT_THREAD_COUNT {
-        let tracer = opentelemetry::global::tracer("client");
-        let span = opentelemetry::trace::Tracer::start(&tracer, format!("connect: {}", client_id));
-        let cx =
-            <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(
-                span,
-            );
-
-        clients.push(tokio::spawn(async move {
-            opentelemetry::trace::FutureExt::with_context(run_one_connection(), cx).await
-        }));
+    for client_nb in 0..CLIENT_THREAD_COUNT {
+        opentelemetry::trace::FutureExt::with_context(run_one_connection(client_nb), cx.clone())
+            .await;
     }
-
-    for i in clients {
-        i.await.unwrap();
-    }
+    log::error!("here3");
 }
 
 struct Nothing;
@@ -86,6 +86,7 @@ struct Nothing;
 #[async_trait::async_trait]
 impl vsmtp::resolver::Resolver for Nothing {
     async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+        log::error!("here");
         Ok(())
     }
 }
@@ -105,7 +106,7 @@ async fn stress() {
         )
         .with_logging(
             "./tests/generated/output.log",
-            vsmtp::collection! {"default".to_string() => log::LevelFilter::Error},
+            vsmtp::collection! {"default".to_string() => log::LevelFilter::Debug},
         )
         .without_smtps()
         .with_default_smtp()
@@ -126,6 +127,8 @@ async fn stress() {
     let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)
         .expect("failed to initialize server");
 
+    server.with_resolver("default", Nothing {});
+
     let tracer = opentelemetry_jaeger::new_pipeline()
         .with_service_name("vsmtp-stress")
         .install_batch(opentelemetry::runtime::Tokio)
@@ -135,21 +138,24 @@ async fn stress() {
     let cx =
         <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
 
-    let listen_and_serve = server
-        .with_resolver("default", Nothing {})
-        .listen_and_serve();
+    let server = tokio::spawn(async move {
+        tokio::time::timeout(SERVER_TIMEOUT, server.listen_and_serve()).await
+    });
+
+    let client = opentelemetry::trace::FutureExt::with_context(send_payload(), cx);
 
     tokio::select! {
-        server_finished = tokio::time::timeout(SERVER_TIMEOUT, listen_and_serve) => {
+        server_finished = server => {
             match server_finished {
                 Ok(Ok(_)) => unreachable!(),
                 Ok(Err(e)) => panic!("{}", e),
                 Err(_) => {}
             };
         },
-        _ = opentelemetry::trace::FutureExt::with_context(send_payload(), cx) => {
-            println!("all client done");
-        }
+        clients_finished = client => {
+            log::error!("all client done {:?}", clients_finished);
+        },
     }
+
     opentelemetry::global::shutdown_tracer_provider();
 }

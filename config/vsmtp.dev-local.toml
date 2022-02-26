@@ -4,8 +4,8 @@ addr = "0.0.0.0:10025"
 addr_submission = "0.0.0.0:10587"
 addr_submissions = "0.0.0.0:10465"
 thread_count = 10
-vsmtp_user = "vsmtp"
-vsmtp_group = "vsmtp"
+vsmtp_user = "lala"
+vsmtp_group = "lala"
 
 [logs]
 file = "./tmp/var/log/vsmtp/vsmtp.log"
