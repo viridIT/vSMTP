@@ -16,7 +16,7 @@ import "errors" as err;
         rule "trailing" || vsl::deny(),
     ],
 
-    main: [
+    mail: [
         rule "deny and skip" || vsl::deny(),
         rule "skipped" || vsl::accept(),
     ]

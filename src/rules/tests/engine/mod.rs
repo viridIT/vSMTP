@@ -30,6 +30,7 @@ fn test_engine_errors() {
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
     assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
     assert_eq!(re.run_when(&mut state, "mail"), Status::Deny);
+    assert_eq!(re.run_when(&mut state, "rcpt"), Status::Deny);
 }
 
 #[test]
