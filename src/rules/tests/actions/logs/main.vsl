@@ -3,13 +3,13 @@
         action "debug" || vsl::log_debug("executing procedures in connect stage."),
 
         action "log_incoming" || {
-            vsl::log_info("incoming transaction.");
-            vsl::log_trace(`[${date}/${time}] client=${ctx.client_addr}`);
+            vsl::log("info", "incoming transaction.");
+            vsl::log("trace", `[${date}/${time}] client=${ctx.client_addr}`);
         },
 
         rule "stop" || {
-            vsl::log_warn("running rule 'stop'.");
-            vsl::log_error("current connexion denied.");
+            vsl::log("warn", "running rule 'stop'.");
+            vsl::log("error", "current connexion denied.");
             vsl::deny()
         },
     ]
