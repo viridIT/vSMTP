@@ -138,8 +138,7 @@ fn main() -> anyhow::Result<()> {
                 // .on_thread_stop(|| { println!("thread stopping"); })
                 .build()?
                 .block_on(async move {
-                    let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)
-                        .expect("Failed to create the server");
+                    let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)?;
                     log::warn!("Listening on: {:?}", server.addr());
 
                     server
@@ -151,7 +150,7 @@ fn main() -> anyhow::Result<()> {
                 })
         }
         Fork::Parent(child) => {
-            println!("vsmtp is running on process: {}", child);
+            println!("vsmtp is running on process: {child}");
             Ok(())
         }
     }

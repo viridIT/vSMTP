@@ -19,8 +19,10 @@ use crate::config::server_config::InnerSmtpsConfig;
 fn get_signing_key_from_file(
     rsa_path: &std::path::Path,
 ) -> anyhow::Result<std::sync::Arc<dyn rustls::sign::SigningKey>> {
-    let rsa_file = std::fs::File::open(&rsa_path)?;
-    let mut reader = std::io::BufReader::new(rsa_file);
+    let mut reader = std::io::BufReader::new(
+        std::fs::File::open(&rsa_path)
+            .map_err(|e| anyhow::anyhow!("{e}: '{}'", rsa_path.display()))?,
+    );
 
     let private_keys_rsa = rustls_pemfile::read_one(&mut reader)?
         .into_iter()
@@ -35,109 +37,100 @@ fn get_signing_key_from_file(
 
     if let Some(key) = private_keys_rsa.first() {
         rustls::sign::any_supported_type(key)
-            .map_err(|_| anyhow::anyhow!("cannot parse signing key"))
+            .map_err(|_| anyhow::anyhow!("cannot parse signing key: '{}'", rsa_path.display()))
     } else {
-        anyhow::bail!("private key missing")
+        anyhow::bail!("private key missing in file: '{}'", rsa_path.display())
     }
 }
 
 pub(crate) fn get_cert_from_file(
     fullchain_path: &std::path::Path,
 ) -> anyhow::Result<Vec<rustls::Certificate>> {
-    let fullchain_file = std::fs::File::open(&fullchain_path)?;
-    let mut reader = std::io::BufReader::new(fullchain_file);
-    Ok(rustls_pemfile::certs(&mut reader).map(|certs| {
+    let mut reader = std::io::BufReader::new(
+        std::fs::File::open(&fullchain_path)
+            .map_err(|e| anyhow::anyhow!("{e}: '{}'", fullchain_path.display()))?,
+    );
+
+    match rustls_pemfile::certs(&mut reader).map(|certs| {
         certs
             .into_iter()
             .map(rustls::Certificate)
             .collect::<Vec<_>>()
-    })?)
+    })? {
+        empty if empty.is_empty() => Err(anyhow::anyhow!(
+            "Certificate file is empty: '{}'",
+            fullchain_path.display()
+        )),
+        otherwise => Ok(otherwise),
+    }
+}
+
+struct TlsLogger;
+impl rustls::KeyLog for TlsLogger {
+    fn log(&self, label: &str, client_random: &[u8], secret: &[u8]) {
+        log::trace!("{} {:?} {:?}", label, client_random, secret);
+    }
+}
+
+struct CertResolver {
+    sni_resolver: rustls::server::ResolvesServerCertUsingSni,
+    cert: Option<std::sync::Arc<rustls::sign::CertifiedKey>>,
+}
+
+impl rustls::server::ResolvesServerCert for CertResolver {
+    fn resolve(
+        &self,
+        client_hello: rustls::server::ClientHello,
+    ) -> Option<std::sync::Arc<rustls::sign::CertifiedKey>> {
+        self.sni_resolver
+            .resolve(client_hello)
+            .or_else(|| self.cert.clone())
+    }
 }
 
 pub fn get_rustls_config(config: &InnerSmtpsConfig) -> anyhow::Result<rustls::ServerConfig> {
-    let mut sni_resolver = rustls::server::ResolvesServerCertUsingSni::new();
-
-    if let Some(x) = config.sni_maps.as_ref() {
-        x.iter()
-            .map(|sni| {
-                Ok((
-                    sni.domain.clone(),
-                    rustls::sign::CertifiedKey {
-                        cert: anyhow::Context::context(
-                            get_cert_from_file(&sni.fullchain),
-                            "failed to get certificate",
-                        )?,
-                        key: anyhow::Context::context(
-                            get_signing_key_from_file(&sni.private_key),
-                            "failed to get private key",
-                        )?,
-                        // TODO:
-                        ocsp: None,
-                        sct_list: None,
-                    },
-                ))
-            })
-            // .filter(Result::is_ok)
-            .for_each(
-                |sni: anyhow::Result<(String, rustls::sign::CertifiedKey)>| match sni {
-                    Ok((domain, ck)) => sni_resolver
-                        .add(&domain, ck)
-                        .expect("Failed to add sni resolver"),
-                    Err(e) => log::error!("{}", e),
-                },
-            )
-    }
-
-    struct CertResolver {
-        sni_resolver: rustls::server::ResolvesServerCertUsingSni,
-        cert: Option<std::sync::Arc<rustls::sign::CertifiedKey>>,
-    }
-
-    impl rustls::server::ResolvesServerCert for CertResolver {
-        fn resolve(
-            &self,
-            client_hello: rustls::server::ClientHello,
-        ) -> Option<std::sync::Arc<rustls::sign::CertifiedKey>> {
-            self.sni_resolver
-                .resolve(client_hello)
-                .or_else(|| self.cert.clone())
-        }
-    }
-
-    let mut out = anyhow::Context::context(
-        rustls::ServerConfig::builder()
-            .with_cipher_suites(rustls::ALL_CIPHER_SUITES)
-            .with_kx_groups(&rustls::ALL_KX_GROUPS)
-            // FIXME:
-            .with_protocol_versions(rustls::ALL_VERSIONS),
-        "inconsistent cipher-suites/versions specified",
-    )?
-    .with_client_cert_verifier(rustls::server::NoClientAuth::new())
-    .with_cert_resolver(std::sync::Arc::new(CertResolver {
-        sni_resolver,
-        cert: Some(std::sync::Arc::new(rustls::sign::CertifiedKey {
-            cert: anyhow::Context::context(
-                get_cert_from_file(&config.fullchain),
-                "failed to get certificate",
-            )?,
-            key: anyhow::Context::context(
-                get_signing_key_from_file(&config.private_key),
-                "failed to get private key",
-            )?,
-            // TODO:
-            ocsp: None,
-            sct_list: None,
-        })),
-    }));
+    let mut out = rustls::ServerConfig::builder()
+        .with_cipher_suites(rustls::ALL_CIPHER_SUITES)
+        .with_kx_groups(&rustls::ALL_KX_GROUPS)
+        // FIXME:
+        .with_protocol_versions(rustls::ALL_VERSIONS)
+        .map_err(|e| anyhow::anyhow!("cannot initialize tls config: '{e}'"))?
+        .with_client_cert_verifier(rustls::server::NoClientAuth::new())
+        .with_cert_resolver(std::sync::Arc::new(CertResolver {
+            sni_resolver: config
+                .sni_maps
+                .as_ref()
+                .map(|x| {
+                    x.iter().fold(
+                        Ok(rustls::server::ResolvesServerCertUsingSni::new()),
+                        |sni_resolver, sni| {
+                            let mut sni_resolver = sni_resolver?;
+                            sni_resolver
+                                .add(
+                                    &sni.domain,
+                                    rustls::sign::CertifiedKey {
+                                        cert: get_cert_from_file(&sni.fullchain)?,
+                                        key: get_signing_key_from_file(&sni.private_key)?,
+                                        ocsp: None,
+                                        sct_list: None,
+                                    },
+                                )
+                                .map_err(|e| anyhow::anyhow!("cannot add sni to resolver: {e}"))?;
+                            Ok(sni_resolver)
+                        },
+                    )
+                })
+                .unwrap_or_else(|| anyhow::Ok(rustls::server::ResolvesServerCertUsingSni::new()))?,
+            cert: Some(std::sync::Arc::new(rustls::sign::CertifiedKey {
+                cert: get_cert_from_file(&config.fullchain)?,
+                key: get_signing_key_from_file(&config.private_key)?,
+                ocsp: None,
+                sct_list: None,
+            })),
+        }));
 
     out.ignore_client_order = config.preempt_cipherlist;
 
-    struct TlsLogger;
-    impl rustls::KeyLog for TlsLogger {
-        fn log(&self, label: &str, client_random: &[u8], secret: &[u8]) {
-            log::trace!("{} {:?} {:?}", label, client_random, secret);
-        }
-    }
     out.key_log = std::sync::Arc::new(TlsLogger {});
 
     Ok(out)
