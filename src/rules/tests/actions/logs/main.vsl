@@ -10,6 +10,7 @@
         rule "stop" || {
             vsl::log("warn", "running rule 'stop'.");
             vsl::log("error", "current connexion denied.");
+            vsl::log("unknown", "this will be emited as a warning.");
             vsl::deny()
         },
     ]

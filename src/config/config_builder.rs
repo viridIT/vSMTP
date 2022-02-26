@@ -306,7 +306,7 @@ impl ConfigBuilder<WantsRules> {
                 parent: self.state,
                 rules: InnerRulesConfig {
                     dir: source_dir.into(),
-                    log: InnerUserLogConfig::default(),
+                    logs: InnerUserLogConfig::default(),
                     services,
                 },
             },
@@ -326,7 +326,7 @@ impl ConfigBuilder<WantsRules> {
                 parent: self.state,
                 rules: InnerRulesConfig {
                     dir: source_dir.into(),
-                    log: InnerUserLogConfig {
+                    logs: InnerUserLogConfig {
                         file: log_file.into(),
                         level: log_level,
                         format: log_format,

@@ -78,7 +78,7 @@ impl Default for InnerRulesConfig {
     fn default() -> Self {
         Self {
             dir: std::path::PathBuf::from_iter(["/", "etc", "vsmtp", "rules"]),
-            log: Default::default(),
+            logs: Default::default(),
             services: Default::default(),
         }
     }

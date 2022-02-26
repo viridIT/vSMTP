@@ -25,7 +25,7 @@ mod tests;
 pub mod log_channel {
     pub const RECEIVER: &str = "receiver";
     pub const RESOLVER: &str = "resolver";
-    pub const SRULES: &str = "system_rules";
+    pub const SRULES: &str = "rules";
     pub const URULES: &str = "user_rules";
     pub const DELIVER: &str = "deliver";
 }
@@ -49,12 +49,12 @@ pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
             config
                 .rules
-                .log
+                .logs
                 .format
                 .as_ref()
                 .unwrap_or(&"{d} - {m}{n}".to_string()),
         )))
-        .build(config.rules.log.file.clone())?;
+        .build(config.rules.logs.file.clone())?;
 
     Config::builder()
         .appender(config::Appender::builder().build("stdout", Box::new(console)))
@@ -71,7 +71,7 @@ pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result
             config::Logger::builder()
                 .appender("user")
                 .additive(false)
-                .build("user_rules", config.rules.log.level),
+                .build(log_channel::URULES, config.rules.logs.level),
         )
         .build(
             config::Root::builder()

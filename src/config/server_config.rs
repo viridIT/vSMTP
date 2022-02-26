@@ -146,7 +146,7 @@ pub struct InnerRulesConfig {
     #[serde(default = "InnerRulesConfig::default_directory")]
     pub dir: std::path::PathBuf,
     #[serde(default)]
-    pub log: InnerUserLogConfig,
+    pub logs: InnerUserLogConfig,
     #[serde(default)]
     pub services: Vec<Service>,
 }
