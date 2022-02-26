@@ -21,7 +21,7 @@ use rhai::plugin::*;
 pub mod actions {
 
     use crate::{
-        config::{log_channel::USER, server_config::Service},
+        config::{log_channel::URULES, server_config::Service},
         rules::{rule_engine::Status, service::ServiceResult},
         smtp::mail::MailContext,
     };
@@ -44,13 +44,13 @@ pub mod actions {
 
     pub fn log(level: &str, message: &str) {
         match level {
-            "trace" => log::trace!(target: USER, "{}", message),
-            "debug" => log::debug!(target: USER, "{}", message),
-            "info" => log::info!(target: USER, "{}", message),
-            "warn" => log::warn!(target: USER, "{}", message),
-            "error" => log::error!(target: USER, "{}", message),
+            "trace" => log::trace!(target: URULES, "{}", message),
+            "debug" => log::debug!(target: URULES, "{}", message),
+            "info" => log::info!(target: URULES, "{}", message),
+            "warn" => log::warn!(target: URULES, "{}", message),
+            "error" => log::error!(target: URULES, "{}", message),
             unknown => log::warn!(
-                target: USER,
+                target: URULES,
                 "'{}' is not a valid log level. Original message: {}",
                 unknown,
                 message

@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
-use crate::config::log_channel::RULES;
+use crate::config::log_channel::SRULES;
 use crate::config::server_config::Service;
 use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
@@ -188,7 +188,7 @@ impl RuleEngine {
             Ok(rules) => rules,
             Err(error) => {
                 log::error!(
-                    target: RULES,
+                    target: SRULES,
                     "stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
                     stage,
                     error
@@ -204,12 +204,12 @@ impl RuleEngine {
             (rules, stage.to_string()),
         ) {
             Ok(status) => {
-                log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
+                log::debug!(target: SRULES, "[{}] evaluated => {:?}.", stage, status);
 
                 match status {
                     Status::Faccept | Status::Deny => {
                         log::debug!(
-                        target: RULES,
+                        target: SRULES,
                         "[{}] the rule engine will skip all rules because of the previous result.",
                         stage
                     );
@@ -220,7 +220,7 @@ impl RuleEngine {
                 }
             }
             Err(error) => {
-                log::error!(target: RULES, "{}", self.parse_stage_error(error, stage));
+                log::error!(target: SRULES, "{}", self.parse_stage_error(error, stage));
                 Status::Next
             }
         }
@@ -557,7 +557,7 @@ impl RuleEngine {
             .register_iterator::<crate::rules::modules::types::Rcpt>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
-        log::debug!(target: RULES, "compiling rhai scripts ...");
+        log::debug!(target: SRULES, "compiling rhai scripts ...");
 
         let mut scope = Scope::new();
         scope
@@ -597,7 +597,7 @@ impl RuleEngine {
                 &scope,
                 std::fs::read_to_string(&main_path).unwrap_or_else(|err| {
                     log::warn!(
-                        target: RULES,
+                        target: SRULES,
                         "No main.vsl file found at '{:?}', no rules will be processed. {}",
                         main_path,
                         err
@@ -611,7 +611,7 @@ impl RuleEngine {
             .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
             .context("failed to parse rules")?;
 
-        log::debug!(target: RULES, "done.");
+        log::debug!(target: SRULES, "done.");
 
         Ok(Self {
             context: engine,
