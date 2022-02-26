@@ -33,6 +33,13 @@ pub mod log_channel {
 pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result<log4rs::Config> {
     use log4rs::*;
 
+    if config.log.file == config.rules.logs.file {
+        anyhow::bail!(
+            "rules and application logs cannot both be written in {:?}!",
+            config.log.file
+        );
+    }
+
     let console = append::console::ConsoleAppender::builder()
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
             "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
