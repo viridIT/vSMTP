@@ -99,8 +99,7 @@ impl ServerVSMTP {
             .delivery
             .queues
             .get("delivery")
-            .map(|q| q.capacity)
-            .flatten()
+            .and_then(|q| q.capacity)
             .unwrap_or(1);
 
         let (delivery_sender, delivery_receiver) =
@@ -111,8 +110,7 @@ impl ServerVSMTP {
             .delivery
             .queues
             .get("working")
-            .map(|q| q.capacity)
-            .flatten()
+            .and_then(|q| q.capacity)
             .unwrap_or(1);
 
         let (working_sender, working_receiver) =

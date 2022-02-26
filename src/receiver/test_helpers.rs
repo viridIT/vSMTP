@@ -165,7 +165,7 @@ where
 
     assert_eq!(
         std::str::from_utf8(&written_data),
-        std::str::from_utf8(&expected_output.to_vec())
+        std::str::from_utf8(expected_output)
     );
 
     Ok(())

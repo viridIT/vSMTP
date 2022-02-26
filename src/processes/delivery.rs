@@ -49,8 +49,7 @@ pub async fn start(
             .delivery
             .queues
             .get("deferred")
-            .map(|q| q.cron_period)
-            .flatten()
+            .and_then(|q| q.cron_period)
             .unwrap_or_else(|| std::time::Duration::from_secs(10)),
     );
 
@@ -209,8 +208,7 @@ async fn handle_one_in_deferred_queue(
         .delivery
         .queues
         .get("deferred")
-        .map(|q| q.retry_max)
-        .flatten()
+        .and_then(|q| q.retry_max)
         .unwrap_or(100);
 
     if mail.metadata.is_none() {
