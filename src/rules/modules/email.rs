@@ -237,8 +237,8 @@ pub mod email {
     /// write the current email to a specified folder.
     #[rhai_fn(global, return_raw)]
     pub fn write(this: &mut Arc<RwLock<MailContext>>, dir: &str) -> EngineResult<()> {
-        match std::fs::OpenOptions::new().create(true).append(true).open(
-            std::path::PathBuf::from_iter([dir, &format!("w{}", message_id(this)?)]),
+        match std::fs::OpenOptions::new().create(true).write(true).open(
+            std::path::PathBuf::from_iter([dir, &format!("{}.eml", message_id(this)?)]),
         ) {
             Ok(file) => {
                 let mut writer = std::io::LineWriter::new(file);
@@ -269,8 +269,8 @@ pub mod email {
     /// NOTE: it would be great not having all those 'map_err'.
     #[rhai_fn(global, return_raw)]
     pub fn dump(this: &mut Arc<RwLock<MailContext>>, dir: &str) -> EngineResult<()> {
-        match std::fs::OpenOptions::new().create(true).append(true).open(
-            std::path::PathBuf::from_iter([dir, &format!("d{}", message_id(this)?)]),
+        match std::fs::OpenOptions::new().create(true).write(true).open(
+            std::path::PathBuf::from_iter([dir, &format!("{}.dump.json", message_id(this)?)]),
         ) {
             Ok(mut file) => file
                 .write_all(

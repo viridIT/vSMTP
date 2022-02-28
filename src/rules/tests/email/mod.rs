@@ -77,10 +77,40 @@ fn test_context_write() {
     let re = RuleEngine::new("./src/rules/tests/email/write").expect("couldn't build rule engine");
     let mut state = get_default_state();
 
+    state.get_context().write().unwrap().metadata = Some(MessageMetadata {
+        message_id: "test_message_id".to_string(),
+        timestamp: std::time::SystemTime::now(),
+        retry: 0,
+        resolver: "default".to_string(),
+        skipped: None,
+    });
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.get_context().write().unwrap().body = Body::Raw(
+        r#"From: john doe <john@doe.com>
+To: green@foo.net
+Subject: test email
+
+This is a raw email.
+"#
+        .to_string(),
+    );
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+
+    // raw mail should have been written on disk.
+    assert_eq!(
+        std::fs::read_to_string("./tests/generated/test_message_id.eml")
+            .expect("could not read 'test_message_id'"),
+        r#"From: john doe <john@doe.com>
+To: green@foo.net
+Subject: test email
+
+This is a raw email.
+"#
+    );
+
+    std::fs::remove_file("./tests/generated/test_message_id.eml")
+        .expect("could not remove generated test file");
 }
 
 #[test]
@@ -90,6 +120,13 @@ fn test_context_dump() {
     let re = RuleEngine::new("./src/rules/tests/email/dump").expect("couldn't build rule engine");
     let mut state = get_default_state();
 
+    state.get_context().write().unwrap().metadata = Some(MessageMetadata {
+        message_id: "test_message_id".to_string(),
+        timestamp: std::time::SystemTime::now(),
+        retry: 0,
+        resolver: "default".to_string(),
+        skipped: None,
+    });
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
     state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
@@ -102,4 +139,14 @@ fn test_context_dump() {
         body: BodyType::Regular(vec!["this is an empty body".to_string()]),
     }));
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+
+    assert_eq!(
+        std::fs::read_to_string("./tests/generated/test_message_id.dump.json")
+            .expect("could not read 'test_message_id'"),
+        serde_json::to_string_pretty(&*state.get_context().read().unwrap())
+            .expect("couldn't convert context into string")
+    );
+
+    std::fs::remove_file("./tests/generated/test_message_id.dump.json")
+        .expect("could not remove generated test file");
 }
