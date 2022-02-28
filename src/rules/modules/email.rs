@@ -256,7 +256,7 @@ pub mod email {
                     Body::Raw(raw) => writer.write_all(raw.as_bytes()),
                     Body::Parsed(email) => {
                         let (headers, body) = email.to_raw();
-                        writer.write_all(format!("{}\n{}", headers, body).as_bytes())
+                        writer.write_all(format!("{}\n\n{}", headers, body).as_bytes())
                     }
                 }
             }
