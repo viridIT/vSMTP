@@ -230,7 +230,7 @@ impl RuleEngine {
         match *error {
             // NOTE: since all errors are caught and thrown in "run_rules", errors
             //       are always wrapped in ErrorInFunctionCall.
-            EvalAltResult::ErrorInFunctionCall(_, _, mut error, _) => match *error {
+            EvalAltResult::ErrorInFunctionCall(_, _, error, _) => match *error {
                 EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
                     let error = error.cast::<rhai::Map>();
                     let rule = error
@@ -248,7 +248,6 @@ impl RuleEngine {
                     )
                 }
                 _ => {
-                    error.take_position();
                     format!(
                         "stage '{}' skipped => rule engine failed:\n\t{}",
                         stage, error,
