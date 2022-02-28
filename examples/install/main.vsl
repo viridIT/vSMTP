@@ -1,0 +1,5 @@
+#{
+    preq: [
+        action "deliv" || vsl::accept(),
+    ]
+}

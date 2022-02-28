@@ -1,15 +1,12 @@
 [Unit]
 Description=vSMTP Mail Transfer Agent
-Conflicts=sendmail.service exim4.service postfix.service 
+Conflicts=sendmail.service exim4.service postfix.service
 ConditionPathExists=/etc/vsmtp/vsmtp.toml
-After=network-online.target 
+After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=simple
-User=vsmtp
-Group=vsmtp
-AmbientCapabilities=CAP_NET_BIND_SERVICE
+Type=forking
 UMask=007
 ExecStart=/usr/sbin/vsmtp -c /etc/vsmtp/vsmtp.toml
 Restart=on-failure
