@@ -87,7 +87,7 @@ async fn test_tls_tunneled(
 
         let mut output = vec![];
 
-        let mut input = smtp_input.to_vec().into_iter();
+        let mut input = smtp_input.iter().copied();
         loop {
             match io.get_next_line_async().await {
                 Ok(res) => {
