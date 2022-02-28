@@ -15,8 +15,8 @@
  *
 **/
 
-const CLIENT_THREAD_COUNT: u64 = 2;
-const MAIL_PER_THREAD: u64 = 3;
+const CLIENT_THREAD_COUNT: u64 = 10;
+const MAIL_PER_THREAD: u64 = 100;
 
 fn get_mail() -> lettre::Message {
     lettre::Message::builder()
@@ -30,7 +30,7 @@ fn get_mail() -> lettre::Message {
 
 async fn run_one_connection(client_nb: u64) {
     let tracer = opentelemetry::global::tracer("client");
-    let span = opentelemetry::trace::Tracer::start(&tracer, format!("Connecting: {client_nb}"));
+    let span = opentelemetry::trace::Tracer::start(&tracer, format!("Connection: {client_nb}"));
     let cx =
         <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
 
@@ -71,27 +71,17 @@ async fn send_payload() {
         <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
 
     opentelemetry::trace::FutureExt::with_context(async move {
-        let tracer = opentelemetry::global::tracer("register-sending-payload");
-        let span = opentelemetry::trace::Tracer::start(&tracer, "register sending payload".to_string());
-        let cx =
-            <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
+        let task = (0..CLIENT_THREAD_COUNT).into_iter().map(|client_nb| {
+            let tracer = opentelemetry::global::tracer("sending-payload");
+            let span = opentelemetry::trace::Tracer::start(&tracer, "sending payload".to_string());
+            let cx =
+                <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
 
-        for client_nb in 0..CLIENT_THREAD_COUNT {
-            opentelemetry::trace::FutureExt::with_context(
-                async move {
-                    let tracer = opentelemetry::global::tracer("sending-payload");
-                    let span = opentelemetry::trace::Tracer::start(&tracer, "sending payload".to_string());
-                    let cx =
-                        <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
+            tokio::spawn(opentelemetry::trace::FutureExt::with_context(run_one_connection(client_nb), cx))
+        }).collect::<Vec<_>>();
 
-                    tokio::spawn(
-                        opentelemetry::trace::FutureExt::with_context(run_one_connection(client_nb), cx)
-                    ).await
-                },
-            cx.clone()
-            )
-            .await
-            .unwrap();
+        for i in task {
+            i.await.unwrap();
         }
     }, cx).await;
     opentelemetry::global::shutdown_tracer_provider();
