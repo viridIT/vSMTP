@@ -262,6 +262,7 @@ mod tests {
 
         let config = std::sync::Arc::new(
             ServerConfig::builder()
+                .with_version("")
                 .with_server(
                     "test.server.com",
                     "foo",
@@ -305,6 +306,7 @@ mod tests {
 
         let config = std::sync::Arc::new(
             ServerConfig::builder()
+                .with_version("")
                 .with_server(
                     "test.server.com",
                     "foo",

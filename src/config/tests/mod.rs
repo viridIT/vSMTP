@@ -8,6 +8,7 @@ use super::server_config::{QueueConfig, ServerConfig, Service, TlsSecurityLevel}
 #[test]
 fn init() -> anyhow::Result<()> {
     let _config = ServerConfig::builder()
+        .with_version("")
         .with_rfc_port("test.server.com", "root", "root", None)
         .with_logging(
             "./tmp/log",
@@ -36,6 +37,7 @@ fn init() -> anyhow::Result<()> {
 #[test]
 fn init_no_smtps() -> anyhow::Result<()> {
     let _config = ServerConfig::builder()
+        .with_version("")
         .with_rfc_port("test.server.com", "root", "root", None)
         .with_logging(
             "./tmp/log",
@@ -65,6 +67,7 @@ fn from_toml_template_simple() -> anyhow::Result<()> {
     assert_eq!(
         ServerConfig::from_toml(include_str!("../template/simple.toml")).unwrap(),
         ServerConfig::builder()
+            .with_version("")
             .with_rfc_port("testserver.com", "vsmtp", "vsmtp", None)
             .with_logging(
                 "/var/log/vsmtp/vsmtp.log",
@@ -107,6 +110,7 @@ fn from_toml_template_smtps() -> anyhow::Result<()> {
     assert_eq!(
         ServerConfig::from_toml(include_str!("../template/smtps.toml")).unwrap(),
         ServerConfig::builder()
+            .with_version("")
             .with_server(
                 "testserver.com",
                 "vsmtp",
@@ -171,6 +175,7 @@ fn from_toml_template_services() -> anyhow::Result<()> {
     assert_eq!(
         ServerConfig::from_toml(include_str!("../template/services.toml")).unwrap(),
         ServerConfig::builder()
+            .with_version("")
             .with_rfc_port("testserver.com", "vsmtp", "vsmtp", None)
             .with_logging(
                 "/var/log/vsmtp/vsmtp.log",

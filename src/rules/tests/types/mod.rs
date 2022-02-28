@@ -95,6 +95,7 @@ fn test_services() {
         RuleEngine::new("./src/rules/tests/types/service").expect("couldn't build rule engine");
 
     let config = ServerConfig::builder()
+        .with_version("")
         .with_rfc_port("test.server.com", "foo", "foo", None)
         .without_log()
         .without_smtps()

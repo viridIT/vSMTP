@@ -185,6 +185,7 @@ async fn test_receiver_10() {
         .as_bytes(),
         std::sync::Arc::new(
             ServerConfig::builder()
+                .with_version("")
                 .with_rfc_port("test.server.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)

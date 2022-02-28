@@ -27,13 +27,27 @@ pub struct ConfigBuilder<State> {
 }
 
 impl ServerConfig {
-    pub fn builder() -> ConfigBuilder<WantsServer> {
+    pub fn builder() -> ConfigBuilder<WantsVersion> {
         ConfigBuilder {
-            state: WantsServer(()),
+            state: WantsVersion(()),
         }
     }
 
     pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
+        let version = ConfigBuilder::<WantsServer> {
+            state: toml::from_str::<WantsServer>(data)?,
+        };
+        let req = semver::VersionReq::parse(&version.state.version_requirement)?;
+        let pkg_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
+
+        if !req.matches(&pkg_version) {
+            anyhow::bail!(
+                "Version requirement not fulfilled: expected '{}' but got '{}'",
+                version.state.version_requirement,
+                env!("CARGO_PKG_VERSION")
+            );
+        }
+
         ConfigBuilder::<WantsBuild> {
             state: toml::from_str::<WantsBuild>(data)?,
         }
@@ -42,7 +56,26 @@ impl ServerConfig {
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
-pub struct WantsServer(pub(crate) ());
+pub struct WantsVersion(pub(crate) ());
+
+impl ConfigBuilder<WantsVersion> {
+    pub fn with_version(self, version: impl Into<String>) -> ConfigBuilder<WantsServer> {
+        ConfigBuilder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                version_requirement: version.into(),
+            },
+        }
+    }
+}
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+pub struct WantsServer {
+    #[serde(skip)]
+    #[allow(unused)]
+    pub(crate) parent: WantsVersion,
+    version_requirement: String,
+}
 
 impl ConfigBuilder<WantsServer> {
     #[allow(clippy::too_many_arguments)]
@@ -111,8 +144,7 @@ impl ConfigBuilder<WantsServer> {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsLogging {
-    #[serde(skip)]
-    #[allow(unused)]
+    #[serde(flatten)]
     pub(crate) parent: WantsServer,
     pub(crate) server: InnerServerConfig,
 }
@@ -415,6 +447,16 @@ impl ConfigBuilder<WantsBuild> {
         };
 
         Ok(ServerConfig {
+            version_requirement: self
+                .state
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .version_requirement,
             server: self.state.parent.parent.parent.parent.parent.parent.server,
             log: self.state.parent.parent.parent.parent.parent.logs,
             smtps: self.state.parent.parent.parent.parent.smtps,

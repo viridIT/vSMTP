@@ -83,6 +83,7 @@ fn main() -> anyhow::Result<()> {
                 let loaded_config = serde_json::to_string_pretty(&config)?;
                 let default_config = serde_json::to_string_pretty(
                     &ServerConfig::builder()
+                        .with_version("")
                         .with_rfc_port(&config.server.domain, "vsmtp", "vsmtp", None)
                         .without_log()
                         // TODO: default
