@@ -31,13 +31,13 @@ fn test_email_context() {
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.get_state().write().unwrap().mail_context.body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.get_state().write().unwrap().mail_context.body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
-    state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
+    state.get_state().write().unwrap().mail_context.metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
 }
 
@@ -61,13 +61,13 @@ fn test_email_add_header() {
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.get_state().write().unwrap().mail_context.body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.get_state().write().unwrap().mail_context.body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
-    state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
+    state.get_state().write().unwrap().mail_context.metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
 }
 
@@ -80,7 +80,7 @@ fn test_context_write() {
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.get_state().write().unwrap().mail_context.body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
 }
@@ -94,9 +94,9 @@ fn test_context_dump() {
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.get_state().write().unwrap().mail_context.body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.get_state().write().unwrap().mail_context.body = Body::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),

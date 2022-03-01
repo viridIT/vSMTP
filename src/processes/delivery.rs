@@ -105,9 +105,11 @@ pub(crate) async fn handle_one_in_delivery_queue(
     let result = rule_engine.read().unwrap().run_when(&mut state, "delivery");
 
     match result {
-        Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
+        Status::Deny => {
+            Queue::Dead.write_to_queue(config, &state.get_state().read().unwrap().mail_context)?
+        }
         _ => {
-            let ctx = state.get_context().read().unwrap().clone();
+            let ctx = &state.get_state().read().unwrap().clone().mail_context;
             match &ctx.metadata {
                 // quietly skipping delivery processes when there is no resolver.
                 // (in case of a quarantine for example)
@@ -127,7 +129,7 @@ pub(crate) async fn handle_one_in_delivery_queue(
                 None => anyhow::bail!("resolver '{resolver_name}' not found"),
             };
 
-            match resolver.deliver(config, &ctx).await {
+            match resolver.deliver(config, ctx).await {
                 Ok(_) => {
                     log::trace!(
                         target: DELIVER,

@@ -69,11 +69,13 @@ pub(crate) async fn handle_one_in_working_queue(
     let result = rule_engine.read().unwrap().run_when(&mut state, "postq");
 
     match result {
-        Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
+        Status::Deny => {
+            Queue::Dead.write_to_queue(config, &state.get_state().read().unwrap().mail_context)?
+        }
         _ => {
             {
-                let ctx = state.get_context();
-                let ctx = ctx.read().unwrap();
+                let ctx = state.get_state();
+                let ctx = &ctx.read().unwrap().mail_context;
                 match &ctx.metadata {
                     // quietly skipping delivery processes when there is no resolver.
                     // (in case of a quarantine for example)
@@ -87,7 +89,7 @@ pub(crate) async fn handle_one_in_working_queue(
                     _ => {}
                 };
 
-                Queue::Deliver.write_to_queue(config, &ctx)?;
+                Queue::Deliver.write_to_queue(config, ctx)?;
             }
 
             delivery_sender

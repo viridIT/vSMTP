@@ -31,10 +31,10 @@ fn test_connect_rules() {
     let mut state = get_default_state();
 
     // ctx.client_addr is 0.0.0.0 by default.
-    state.get_context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
+    state.get_state().write().unwrap().mail_context.client_addr = "127.0.0.1:0".parse().unwrap();
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
 
-    state.get_context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
+    state.get_state().write().unwrap().mail_context.client_addr = "0.0.0.0:0".parse().unwrap();
     assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
 }
 
@@ -46,7 +46,7 @@ fn test_helo_rules() {
         RuleEngine::new("./src/rules/tests/rules/helo".into()).expect("couldn't build rule engine");
 
     let mut state = get_default_state();
-    state.get_context().write().unwrap().envelop.helo = "viridit.com".to_string();
+    state.get_state().write().unwrap().mail_context.envelop.helo = "viridit.com".to_string();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
     assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
@@ -61,8 +61,8 @@ fn test_mail_from_rules() {
 
     let mut state = get_default_state();
     {
-        let email = state.get_context();
-        let mut email = email.write().unwrap();
+        let email = state.get_state();
+        let mut email = &mut email.write().unwrap().mail_context;
 
         email.envelop.mail_from = Address::new("staff@viridit.com").unwrap();
         email.body = Body::Parsed(Box::new(
@@ -80,7 +80,14 @@ This is a reply to your hello."#,
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
     assert_eq!(
-        state.get_context().read().unwrap().envelop.mail_from.full(),
+        state
+            .get_state()
+            .read()
+            .unwrap()
+            .mail_context
+            .envelop
+            .mail_from
+            .full(),
         "no-reply@viridit.com"
     );
 }
@@ -94,8 +101,8 @@ fn test_rcpt_rules() {
 
     let mut state = get_default_state();
     {
-        let email = state.get_context();
-        let mut email = email.write().unwrap();
+        let email = state.get_state();
+        let mut email = &mut email.write().unwrap().mail_context;
 
         email.envelop.rcpt = std::collections::HashSet::from_iter([
             Address::new("johndoe@compagny.com").unwrap(),
@@ -118,7 +125,7 @@ This is a reply to your hello."#,
     assert_eq!(re.run_when(&mut state, "rcpt"), Status::Accept);
     assert_eq!(re.run_when(&mut state, "postq"), Status::Next);
     assert_eq!(
-        state.get_context().read().unwrap().envelop.rcpt,
+        state.get_state().read().unwrap().mail_context.envelop.rcpt,
         std::collections::HashSet::from_iter([
             Address::new("johndoe@viridit.com").unwrap(),
             Address::new("user@viridit.com").unwrap(),

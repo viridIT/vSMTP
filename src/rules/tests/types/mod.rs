@@ -73,8 +73,13 @@ fn test_address() {
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
-    state.get_context().write().unwrap().envelop.mail_from =
-        Address::new("mail.from@test.net").expect("could not parse address");
+    state
+        .get_state()
+        .write()
+        .unwrap()
+        .mail_context
+        .envelop
+        .mail_from = Address::new("mail.from@test.net").expect("could not parse address");
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
 }
@@ -120,7 +125,7 @@ fn test_services() {
 
     let mut state = RuleState::new(&config);
 
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.get_state().write().unwrap().mail_context.body = Body::Raw(String::default());
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
 }

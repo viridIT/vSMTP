@@ -18,7 +18,7 @@ use rhai::plugin::*;
 
 #[allow(dead_code)]
 #[export_module]
-pub mod email {
+pub mod mail_context {
 
     use crate::{
         rules::address::Address, rules::modules::types::Rcpt, rules::modules::EngineResult,
