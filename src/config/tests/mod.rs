@@ -1,9 +1,12 @@
 use crate::{
-    config::server_config::{ProtocolVersion, ProtocolVersionRequirement, SniKey},
+    config::{
+        server_config::{ProtocolVersion, ProtocolVersionRequirement, SniKey},
+        service::Service,
+    },
     smtp::{code::SMTPReplyCode, state::StateSMTP},
 };
 
-use super::server_config::{QueueConfig, ServerConfig, Service, TlsSecurityLevel};
+use super::server_config::{QueueConfig, ServerConfig, TlsSecurityLevel};
 
 #[test]
 fn init() -> anyhow::Result<()> {

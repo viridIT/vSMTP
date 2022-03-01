@@ -1,3 +1,4 @@
+use super::Resolver;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -17,13 +18,8 @@
 use crate::config::server_config::ServerConfig;
 use crate::smtp::mail::Body;
 use crate::smtp::mail::MailContext;
-use anyhow::Context;
-use lettre::{SmtpTransport, Transport};
-use trust_dns_resolver::config::*;
-use trust_dns_resolver::TokioAsyncResolver;
 
-use super::Resolver;
-
+/// This delivery will send the mail to another MTA (relaying)
 #[derive(Default)]
 pub struct SMTPResolver;
 
@@ -40,9 +36,13 @@ impl Resolver for SMTPResolver {
                 .collect(),
         )?;
 
-        let resolver =
-            TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default())
-                .context("failed to build resolver with trust-dns-resolver")?;
+        let resolver = anyhow::Context::context(
+            trust_dns_resolver::TokioAsyncResolver::tokio(
+                trust_dns_resolver::config::ResolverConfig::default(),
+                trust_dns_resolver::config::ResolverOpts::default(),
+            ),
+            "failed to build resolver with trust-dns-resolver",
+        )?;
 
         for rcpt in ctx.envelop.rcpt.iter() {
             match resolver.mx_lookup(rcpt.domain()).await {
@@ -53,12 +53,14 @@ impl Resolver for SMTPResolver {
                     for record in mxs_by_priority.iter() {
                         let exchange = record.exchange().to_ascii();
 
-                        let tls_parameters = lettre::transport::smtp::client::TlsParameters::new(
-                            exchange.as_str().into(),
-                        )
-                        .context("couldn't build tls parameters in smtp resolver")?;
+                        let tls_parameters = anyhow::Context::context(
+                            lettre::transport::smtp::client::TlsParameters::new(
+                                exchange.as_str().into(),
+                            ),
+                            "couldn't build tls parameters in smtp resolver",
+                        )?;
 
-                        let mailer = SmtpTransport::builder_dangerous(exchange.as_str())
+                        let mailer = lettre::SmtpTransport::builder_dangerous(exchange.as_str())
                             .port(25)
                             .tls(lettre::transport::smtp::client::Tls::Required(
                                 tls_parameters,
@@ -67,10 +69,14 @@ impl Resolver for SMTPResolver {
 
                         let result = match &ctx.body {
                             Body::Empty => anyhow::bail!("failed to send email: body is empty"),
-                            Body::Raw(raw) => mailer.send_raw(&envelop, raw.as_bytes()),
-                            Body::Parsed(mail) => {
-                                mailer.send_raw(&envelop, mail.to_raw().1.as_bytes())
+                            Body::Raw(raw) => {
+                                lettre::Transport::send_raw(&mailer, &envelop, raw.as_bytes())
                             }
+                            Body::Parsed(mail) => lettre::Transport::send_raw(
+                                &mailer,
+                                &envelop,
+                                mail.to_raw().1.as_bytes(),
+                            ),
                         };
 
                         match result {

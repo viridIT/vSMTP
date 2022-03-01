@@ -16,10 +16,14 @@
 **/
 use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
-use super::server_config::{
-    Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, InnerUserLogConfig, ProtocolVersion,
-    ProtocolVersionRequirement, QueueConfig, ServerConfig, Service, SniKey, TlsSecurityLevel,
+use super::{
+    server_config::{
+        Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig,
+        InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig,
+        InnerUserLogConfig, ProtocolVersion, ProtocolVersionRequirement, QueueConfig, ServerConfig,
+        SniKey, TlsSecurityLevel,
+    },
+    service::Service,
 };
 
 pub struct ConfigBuilder<State> {

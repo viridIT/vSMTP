@@ -74,6 +74,7 @@ impl std::fmt::Display for Address {
 }
 
 impl Address {
+    /// Create a new address from a string, fail is invalid
     pub fn new(addr: &str) -> Result<Self, AddressParsingError> {
         match addr::parse_email_address(addr) {
             Ok(addr) => Ok(Self {

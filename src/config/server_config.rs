@@ -18,6 +18,8 @@ use serde_with::{serde_as, DisplayFromStr};
 
 use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
+use super::service::Service;
+
 /// vSMTP's system server information
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
@@ -177,33 +179,6 @@ pub struct InnerSMTPConfig {
     pub rcpt_count_max: usize,
 }
 
-/// Services are external dependencies to run by the application
-///
-/// They are defined in the .toml configuration for safety reason
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "type", deny_unknown_fields)]
-pub enum Service {
-    /// A service can be a program to run in a subprocess
-    #[serde(rename = "shell")]
-    UnixShell {
-        /// string alias to call the service in the .vsl files
-        name: String,
-        #[serde(with = "humantime_serde")]
-        /// a duration after which the subprocess will be forced-kill
-        timeout: std::time::Duration,
-        /// optional: a user to run the subprocess under
-        #[serde(default)]
-        user: Option<String>,
-        /// optional: a group to run the subprocess under
-        #[serde(default)]
-        group: Option<String>,
-        /// the command to execute in the subprocess
-        command: String,
-        /// optional: parameters directly given to the executed program (argc, argv)
-        args: Option<String>,
-    },
-}
-
 /// vSMTP's application configuration
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
@@ -257,18 +232,18 @@ pub struct ServerConfig {
     /// the version required for vSMTP to parse this configuration
     #[serde(serialize_with = "crate::config::serializer::serialize_version_req")]
     pub version_requirement: semver::VersionReq,
-    /// see [InnerServerConfig]
+    #[doc(hidden)]
     pub server: InnerServerConfig,
-    /// see [InnerLogConfig]
+    #[doc(hidden)]
     pub log: InnerLogConfig,
-    /// see [InnerSmtpsConfig]
+    #[doc(hidden)]
     pub smtps: Option<InnerSmtpsConfig>,
-    /// see [InnerSMTPConfig]
+    #[doc(hidden)]
     pub smtp: InnerSMTPConfig,
-    /// see [InnerDeliveryConfig]
+    #[doc(hidden)]
     pub delivery: InnerDeliveryConfig,
-    /// see [InnerRulesConfig]
+    #[doc(hidden)]
     pub rules: InnerRulesConfig,
-    /// see [Codes]
+    #[doc(hidden)]
     pub reply_codes: Codes,
 }

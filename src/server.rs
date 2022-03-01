@@ -29,6 +29,7 @@ use crate::{
     tls_helpers::get_rustls_config,
 };
 
+/// TCP/IP server
 pub struct ServerVSMTP {
     resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
     listener: tokio::net::TcpListener,
@@ -39,6 +40,7 @@ pub struct ServerVSMTP {
 }
 
 impl ServerVSMTP {
+    /// Create a server with the configuration provided, and the sockets already bound
     pub fn new(
         config: std::sync::Arc<ServerConfig>,
         sockets: (
@@ -71,6 +73,7 @@ impl ServerVSMTP {
         })
     }
 
+    /// Get the local address of the tcp listener
     pub fn addr(&self) -> Vec<std::net::SocketAddr> {
         vec![
             self.listener
@@ -85,6 +88,7 @@ impl ServerVSMTP {
         ]
     }
 
+    /// Append a delivery method to the server
     pub fn with_resolver<T>(&mut self, name: &str, resolver: T) -> &mut Self
     where
         T: Resolver + Send + Sync + 'static,
@@ -93,6 +97,7 @@ impl ServerVSMTP {
         self
     }
 
+    /// Main loop of vSMTP's server
     pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
         let delivery_buffer_size = self
             .config

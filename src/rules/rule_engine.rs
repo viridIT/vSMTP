@@ -15,7 +15,7 @@
  *
  **/
 use crate::config::log_channel::SRULES;
-use crate::config::server_config::Service;
+use crate::config::service::Service;
 use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
 use crate::smtp::envelop::Envelop;

@@ -27,6 +27,7 @@ pub enum Queue {
     Deliver,
     Deferred,
     Dead,
+    #[allow(unused)]
     Quarantine,
 }
 

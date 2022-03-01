@@ -38,6 +38,7 @@
         "SMTPS",
         "SMTPUTF",
         "STARTTLS",
+        "tabis",
         "testserver",
         "unencrypted",
         "viridit",

@@ -20,6 +20,8 @@ pub mod default;
 mod serializer;
 /// The rust representation of the configuration
 pub mod server_config;
+/// The external services used in .vsl format
+pub mod service;
 
 #[cfg(test)]
 mod tests;
