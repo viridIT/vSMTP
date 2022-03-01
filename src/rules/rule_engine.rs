@@ -15,7 +15,7 @@
  *
  **/
 use crate::config::log_channel::SRULES;
-use crate::config::server_config::Service;
+use crate::config::server_config::ServerConfig;
 use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
 use crate::smtp::envelop::Envelop;
@@ -79,6 +79,7 @@ impl<'a> RuleState<'a> {
             // FIXME: set config in Arc.
             config: config.clone(),
             mail_context: MailContext {
+                connexion_timestamp: std::time::SystemTime::now(),
                 client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
                 envelop: Envelop::default(),
                 body: Body::Empty,
@@ -87,20 +88,8 @@ impl<'a> RuleState<'a> {
         }));
 
         scope
-            // stage specific variables.
-            // .push("ctx", ctx.clone())
-            // // data available in every stage.
-            // .push("date", "")
-            // .push("time", "")
-            // .push("connection_timestamp", std::time::SystemTime::now())
-            // // configuration variables.
-            // .push("addr", config.server.addr)
-            // .push("logs_file", config.log.file.clone())
-            // .push("spool_dir", config.delivery.spool_dir.clone())
-            // .push(
-            //     "services",
-            //     std::sync::Arc::new(config.rules.services.clone()),
-            // );
+            .push("date", "")
+            .push("time", "")
             .push("server", server.clone());
 
         Self {
@@ -122,20 +111,8 @@ impl<'a> RuleState<'a> {
         }));
 
         scope
-            // // stage specific variables.
-            // .push("ctx", ctx.clone())
-            // // data available in every stage.
-            // .push("date", "")
-            // .push("time", "")
-            // .push("connection_timestamp", std::time::SystemTime::now())
-            // // configuration variables.
-            // .push("addr", config.server.addr)
-            // .push("logs_file", config.log.file.clone())
-            // .push("spool_dir", config.delivery.spool_dir.clone())
-            // .push(
-            //     "services",
-            //     std::sync::Arc::new(config.rules.services.clone()),
-            // );
+            .push("date", "")
+            .push("time", "")
             .push("server", server.clone());
 
         Self {
@@ -189,9 +166,8 @@ impl RuleEngine {
 
         let now = chrono::Local::now();
         state
-            .scope
-            .set_value("date", now.date().format("%Y/%m/%d").to_string())
-            .set_value("time", now.time().format("%H:%M:%S").to_string());
+            .add_data("date", now.date().format("%Y/%m/%d").to_string())
+            .add_data("time", now.time().format("%H:%M:%S").to_string());
 
         let rules = match self
             .context
@@ -576,29 +552,36 @@ impl RuleEngine {
         log::debug!(target: SRULES, "compiling rhai scripts ...");
 
         let mut scope = Scope::new();
-        scope
-            // stage specific variables.
-            .push(
-                "ctx",
-                std::sync::Arc::new(std::sync::RwLock::new(MailContext {
+        scope.push("date", "").push("time", "").push(
+            "server",
+            std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
+                config: ServerConfig::builder()
+                    .with_server(
+                        "",
+                        "",
+                        "",
+                        "0.0.0.0:10026".parse().unwrap(),
+                        "0.0.0.0:10588".parse().unwrap(),
+                        "0.0.0.0:10466".parse().unwrap(),
+                        0,
+                    )
+                    .without_log()
+                    .without_smtps()
+                    .with_default_smtp()
+                    .with_delivery("./tmp/trash", crate::collection! {})
+                    .with_rules("./tmp/no_rules", vec![])
+                    .with_default_reply_codes()
+                    .build()
+                    .unwrap(),
+                mail_context: MailContext {
+                    connexion_timestamp: std::time::SystemTime::now(),
                     client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
                     envelop: Envelop::default(),
                     body: Body::Empty,
                     metadata: None,
-                })),
-            )
-            // data available in every stage.
-            .push("date", "")
-            .push("time", "")
-            .push("connection_timestamp", std::time::SystemTime::now())
-            // configuration variables.
-            .push(
-                "addr",
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
-            )
-            .push("logs_file", "")
-            .push("spool_dir", "")
-            .push("services", std::sync::Arc::new(Vec::<Service>::new()));
+                },
+            })),
+        );
 
         let mut ast = engine
             .compile(include_str!("rule_executor.rhai"))

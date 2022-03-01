@@ -39,6 +39,17 @@ pub mod mail_context {
             .client_addr)
     }
 
+    #[rhai_fn(global, get = "connection_timestamp", return_raw)]
+    pub fn connection_timestamp(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<std::time::SystemTime> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
+            .connexion_timestamp)
+    }
+
     #[rhai_fn(global, get = "helo", return_raw)]
     pub fn helo(this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>) -> EngineResult<String> {
         Ok(this
@@ -194,8 +205,8 @@ pub mod mail_context {
         }
     }
 
-    #[rhai_fn(global, get = "timestamp", return_raw)]
-    pub fn timestamp(
+    #[rhai_fn(global, get = "mail_timestamp", return_raw)]
+    pub fn mail_timestamp(
         this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
     ) -> EngineResult<std::time::SystemTime> {
         Ok(this

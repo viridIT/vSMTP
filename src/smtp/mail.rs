@@ -55,6 +55,7 @@ pub enum Body {
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
+    pub connexion_timestamp: std::time::SystemTime,
     pub client_addr: std::net::SocketAddr,
     pub envelop: Envelop,
     pub body: Body,
