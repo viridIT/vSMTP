@@ -1,3 +1,4 @@
+use anyhow::Context;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -70,7 +71,11 @@ fn main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
     println!("Loading configuration at path='{}'", args.config);
 
-    let config = ServerConfig::from_toml(&std::fs::read_to_string(&args.config)?)?;
+    let config = ServerConfig::from_toml(
+        &std::fs::read_to_string(&args.config)
+            .with_context(|| format!("failed to read config at '{}'", args.config))?,
+    )
+    .context("failed to parse the configuration")?;
 
     if let Some(command) = args.command {
         match command {
@@ -83,6 +88,8 @@ fn main() -> anyhow::Result<()> {
                 let loaded_config = serde_json::to_string_pretty(&config)?;
                 let default_config = serde_json::to_string_pretty(
                     &ServerConfig::builder()
+                        .with_version_str("<1.0.0")
+                        .unwrap()
                         .with_rfc_port(&config.server.domain, "vsmtp", "vsmtp", None)
                         .without_log()
                         // TODO: default
@@ -108,7 +115,8 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    log4rs::init_config(get_logger_config(&config)?)?;
+    log4rs::init_config(get_logger_config(&config).context("failed to get logger configuration")?)
+        .context("failed to initialize loggers")?;
 
     let vsmtp_user = users::get_user_by_name(&config.server.vsmtp_user)
         .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.vsmtp_user))?;

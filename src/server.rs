@@ -99,8 +99,7 @@ impl ServerVSMTP {
             .delivery
             .queues
             .get("delivery")
-            .map(|q| q.capacity)
-            .flatten()
+            .and_then(|q| q.capacity)
             .unwrap_or(1);
 
         let (delivery_sender, delivery_receiver) =
@@ -111,16 +110,13 @@ impl ServerVSMTP {
             .delivery
             .queues
             .get("working")
-            .map(|q| q.capacity)
-            .flatten()
+            .and_then(|q| q.capacity)
             .unwrap_or(1);
 
         let (working_sender, working_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
-        let rule_engine = Arc::new(RwLock::new(RuleEngine::new(
-            self.config.rules.dir.as_str(),
-        )?));
+        let rule_engine = Arc::new(RwLock::new(RuleEngine::new(self.config.rules.dir.clone())?));
 
         let re_delivery = rule_engine.clone();
         let config_deliver = self.config.clone();
@@ -264,6 +260,8 @@ mod tests {
 
         let config = std::sync::Arc::new(
             ServerConfig::builder()
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_server(
                     "test.server.com",
                     "foo",
@@ -300,13 +298,15 @@ mod tests {
     async fn init_server_secured_valid() -> anyhow::Result<()> {
         // NOTE: using debug port + 1 in case of a debug server running elsewhere
         let (addr, addr_submission, addr_submissions) = (
-            "0.0.0.0:10026".parse().expect("valid address"),
-            "0.0.0.0:10588".parse().expect("valid address"),
-            "0.0.0.0:10466".parse().expect("valid address"),
+            "0.0.0.0:10027".parse().expect("valid address"),
+            "0.0.0.0:10589".parse().expect("valid address"),
+            "0.0.0.0:10467".parse().expect("valid address"),
         );
 
         let config = std::sync::Arc::new(
             ServerConfig::builder()
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_server(
                     "test.server.com",
                     "foo",

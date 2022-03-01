@@ -108,14 +108,14 @@
 
     postq: [
         action "print_client_data" || {
-            vsl::log_debug("email received.");
-            vsl::log_debug(`ip: ${ctx.client_addr}`);
-            vsl::log_debug(`helo: ${ctx.helo}`);
-            vsl::log_debug(`mail_from: ${ctx.mail_from}`);
-            vsl::log_debug(`metadata {\n  timestamp: ${ctx.timestamp}\n  message id: ${ctx.message_id}\n  retries: ${ctx.retry}\n}`);
+            vsl::log("debug", "email received.");
+            vsl::log("debug", `ip: ${ctx.client_addr}`);
+            vsl::log("debug", `helo: ${ctx.helo}`);
+            vsl::log("debug", `mail_from: ${ctx.mail_from}`);
+            vsl::log("debug", `metadata {\n  timestamp: ${ctx.timestamp}\n  message id: ${ctx.message_id}\n  retries: ${ctx.retry}\n}`);
 
-            vsl::log_trace(ctx.to_string());
-            vsl::log_trace(ctx.to_debug());
+            vsl::log("trace", ctx.to_string());
+            vsl::log("trace", ctx.to_debug());
 
             print(ctx.timestamp.to_string());
             print(ctx.timestamp.to_debug());

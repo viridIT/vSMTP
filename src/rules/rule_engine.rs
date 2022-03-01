@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
-use crate::config::log_channel::RULES;
+use crate::config::log_channel::SRULES;
 use crate::config::server_config::Service;
 use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
@@ -188,7 +188,7 @@ impl RuleEngine {
             Ok(rules) => rules,
             Err(error) => {
                 log::error!(
-                    target: RULES,
+                    target: SRULES,
                     "stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
                     stage,
                     error
@@ -204,12 +204,12 @@ impl RuleEngine {
             (rules, stage.to_string()),
         ) {
             Ok(status) => {
-                log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
+                log::debug!(target: SRULES, "[{}] evaluated => {:?}.", stage, status);
 
                 match status {
                     Status::Faccept | Status::Deny => {
                         log::debug!(
-                        target: RULES,
+                        target: SRULES,
                         "[{}] the rule engine will skip all rules because of the previous result.",
                         stage
                     );
@@ -220,7 +220,7 @@ impl RuleEngine {
                 }
             }
             Err(error) => {
-                log::error!(target: RULES, "{}", self.parse_stage_error(error, stage));
+                log::error!(target: SRULES, "{}", self.parse_stage_error(error, stage));
                 Status::Next
             }
         }
@@ -230,7 +230,7 @@ impl RuleEngine {
         match *error {
             // NOTE: since all errors are caught and thrown in "run_rules", errors
             //       are always wrapped in ErrorInFunctionCall.
-            EvalAltResult::ErrorInFunctionCall(_, _, mut error, _) => match *error {
+            EvalAltResult::ErrorInFunctionCall(_, _, error, _) => match *error {
                 EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
                     let error = error.cast::<rhai::Map>();
                     let rule = error
@@ -248,13 +248,14 @@ impl RuleEngine {
                     )
                 }
                 _ => {
-                    error.take_position();
                     format!(
                         "stage '{}' skipped => rule engine failed:\n\t{}",
                         stage, error,
                     )
                 }
             },
+            // NOTE: all errors are caught in "run_rules", should this code be replaced
+            //       with `unreachable!` ?
             _ => {
                 format!(
                     "rule engine unexpected error in stage '{}':\n\t{:?}",
@@ -266,10 +267,7 @@ impl RuleEngine {
 
     /// creates a new instance of the rule engine, reading all files in
     /// src_path parameter.
-    pub fn new<S>(script_path: S) -> anyhow::Result<Self>
-    where
-        S: AsRef<str>,
-    {
+    pub fn new(script_path: std::path::PathBuf) -> anyhow::Result<Self> {
         let mut engine = Engine::new();
 
         let mut module: Module = exported_module!(crate::rules::modules::actions::actions);
@@ -279,7 +277,7 @@ impl RuleEngine {
 
         engine
             .set_module_resolver(FileModuleResolver::new_with_path_and_extension(
-                script_path.as_ref(),
+                &script_path,
                 "vsl",
             ))
             .register_static_module("vsl", module.into())
@@ -349,7 +347,7 @@ impl RuleEngine {
                             .into_iter()
                         } else {
                             return Err(format!(
-                                "a rule must be a map (#{{}}) or an anonymous function (|| {{}}){}",
+                                "a rule must be a map (#{{}}) or an anonymous function (|| {{}})\n{}",
                                 RuleEngineError::Rule.as_str()
                             )
                             .into());
@@ -551,7 +549,7 @@ impl RuleEngine {
 
                     // pushing object in scope, preventing a "let _" statement,
                     // and returning a reference to the object in case of a parent group.
-                    context.scope_mut().push(var_name, obj_ptr.clone());
+                    context.scope_mut().push_constant(var_name, obj_ptr.clone());
 
                     Ok(Dynamic::from(obj_ptr))
                 },
@@ -560,9 +558,7 @@ impl RuleEngine {
             .register_iterator::<crate::rules::modules::types::Rcpt>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
-        log::debug!(target: RULES, "compiling rhai scripts ...");
-
-        let main_path = std::path::PathBuf::from_iter([script_path.as_ref(), "main.vsl"]);
+        log::debug!(target: SRULES, "compiling rhai scripts ...");
 
         let mut scope = Scope::new();
         scope
@@ -590,9 +586,10 @@ impl RuleEngine {
             .push("services", std::sync::Arc::new(Vec::<Service>::new()));
 
         let mut ast = engine
-            // FIXME: use include_str in production.
             .compile(include_str!("rule_executor.rhai"))
             .context("failed to load the rule executor")?;
+
+        let main_path = script_path.join("main.vsl");
 
         // compiling main script.
         ast += engine
@@ -600,7 +597,7 @@ impl RuleEngine {
                 &scope,
                 std::fs::read_to_string(&main_path).unwrap_or_else(|err| {
                     log::warn!(
-                        target: RULES,
+                        target: SRULES,
                         "No main.vsl file found at '{:?}', no rules will be processed. {}",
                         main_path,
                         err
@@ -614,7 +611,7 @@ impl RuleEngine {
             .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
             .context("failed to parse rules")?;
 
-        log::debug!(target: RULES, "done.");
+        log::debug!(target: SRULES, "done.");
 
         Ok(Self {
             context: engine,

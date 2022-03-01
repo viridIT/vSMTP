@@ -94,6 +94,8 @@ impl vsmtp::resolver::Resolver for Nothing {
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn stress() {
     let config = ServerConfig::builder()
+        .with_version_str("<1.0.0")
+        .unwrap()
         .with_server(
             "stress.server.com",
             "foo",

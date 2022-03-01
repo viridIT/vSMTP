@@ -18,7 +18,7 @@ use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
 use super::server_config::{
     Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, ProtocolVersion,
+    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, InnerUserLogConfig, ProtocolVersion,
     ProtocolVersionRequirement, QueueConfig, ServerConfig, Service, SniKey, TlsSecurityLevel,
 };
 
@@ -27,13 +27,26 @@ pub struct ConfigBuilder<State> {
 }
 
 impl ServerConfig {
-    pub fn builder() -> ConfigBuilder<WantsServer> {
+    pub fn builder() -> ConfigBuilder<WantsVersion> {
         ConfigBuilder {
-            state: WantsServer(()),
+            state: WantsVersion(()),
         }
     }
 
     pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
+        let parsed_ahead = ConfigBuilder::<WantsServer> {
+            state: toml::from_str::<WantsServer>(data)?,
+        };
+        let pkg_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
+
+        if !parsed_ahead.state.version_requirement.matches(&pkg_version) {
+            anyhow::bail!(
+                "Version requirement not fulfilled: expected '{}' but got '{}'",
+                parsed_ahead.state.version_requirement,
+                env!("CARGO_PKG_VERSION")
+            );
+        }
+
         ConfigBuilder::<WantsBuild> {
             state: toml::from_str::<WantsBuild>(data)?,
         }
@@ -42,7 +55,45 @@ impl ServerConfig {
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
-pub struct WantsServer(pub(crate) ());
+pub struct WantsVersion(pub(crate) ());
+
+impl ConfigBuilder<WantsVersion> {
+    pub fn with_version(
+        self,
+        version_requirement: semver::VersionReq,
+    ) -> ConfigBuilder<WantsServer> {
+        ConfigBuilder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                version_requirement,
+            },
+        }
+    }
+
+    pub fn with_version_str(
+        self,
+        version_requirement: &str,
+    ) -> anyhow::Result<ConfigBuilder<WantsServer>> {
+        Ok(ConfigBuilder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                version_requirement: semver::VersionReq::parse(version_requirement)?,
+            },
+        })
+    }
+}
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+pub struct WantsServer {
+    #[serde(skip)]
+    #[allow(unused)]
+    pub(crate) parent: WantsVersion,
+    #[serde(
+        serialize_with = "crate::config::serializer::serialize_version_req",
+        deserialize_with = "crate::config::serializer::deserialize_version_req"
+    )]
+    version_requirement: semver::VersionReq,
+}
 
 impl ConfigBuilder<WantsServer> {
     #[allow(clippy::too_many_arguments)]
@@ -111,8 +162,7 @@ impl ConfigBuilder<WantsServer> {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsLogging {
-    #[serde(skip)]
-    #[allow(unused)]
+    #[serde(flatten)]
     pub(crate) parent: WantsServer,
     pub(crate) server: InnerServerConfig,
 }
@@ -298,7 +348,7 @@ pub struct WantsRules {
 impl ConfigBuilder<WantsRules> {
     pub fn with_rules(
         self,
-        source_dir: impl Into<String>,
+        source_dir: impl Into<std::path::PathBuf>,
         services: Vec<Service>,
     ) -> ConfigBuilder<WantsReplyCodes> {
         ConfigBuilder::<WantsReplyCodes> {
@@ -306,6 +356,31 @@ impl ConfigBuilder<WantsRules> {
                 parent: self.state,
                 rules: InnerRulesConfig {
                     dir: source_dir.into(),
+                    logs: InnerUserLogConfig::default(),
+                    services,
+                },
+            },
+        }
+    }
+
+    pub fn with_rules_and_logging(
+        self,
+        source_dir: impl Into<std::path::PathBuf>,
+        services: Vec<Service>,
+        log_file: impl Into<std::path::PathBuf>,
+        log_level: log::LevelFilter,
+        log_format: Option<String>,
+    ) -> ConfigBuilder<WantsReplyCodes> {
+        ConfigBuilder::<WantsReplyCodes> {
+            state: WantsReplyCodes {
+                parent: self.state,
+                rules: InnerRulesConfig {
+                    dir: source_dir.into(),
+                    logs: InnerUserLogConfig {
+                        file: log_file.into(),
+                        level: log_level,
+                        format: log_format,
+                    },
                     services,
                 },
             },
@@ -415,6 +490,16 @@ impl ConfigBuilder<WantsBuild> {
         };
 
         Ok(ServerConfig {
+            version_requirement: self
+                .state
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .version_requirement,
             server: self.state.parent.parent.parent.parent.parent.parent.server,
             log: self.state.parent.parent.parent.parent.parent.logs,
             smtps: self.state.parent.parent.parent.parent.smtps,

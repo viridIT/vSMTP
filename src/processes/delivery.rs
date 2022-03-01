@@ -49,8 +49,7 @@ pub async fn start(
             .delivery
             .queues
             .get("deferred")
-            .map(|q| q.cron_period)
-            .flatten()
+            .and_then(|q| q.cron_period)
             .unwrap_or_else(|| std::time::Duration::from_secs(10)),
     );
 
@@ -107,9 +106,6 @@ pub(crate) async fn handle_one_in_delivery_queue(
 
     match result {
         Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
-        // Status::Block => {
-        //     Queue::Quarantine.write_to_queue(config, &state.get_context().read().unwrap())?
-        // }
         _ => {
             let ctx = state.get_context().read().unwrap().clone();
             match &ctx.metadata {
@@ -212,8 +208,7 @@ async fn handle_one_in_deferred_queue(
         .delivery
         .queues
         .get("deferred")
-        .map(|q| q.retry_max)
-        .flatten()
+        .and_then(|q| q.retry_max)
         .unwrap_or(100);
 
     if mail.metadata.is_none() {

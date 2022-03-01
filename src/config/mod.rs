@@ -25,12 +25,20 @@ mod tests;
 pub mod log_channel {
     pub const RECEIVER: &str = "receiver";
     pub const RESOLVER: &str = "resolver";
-    pub const RULES: &str = "rules";
+    pub const SRULES: &str = "rules";
+    pub const URULES: &str = "user_rules";
     pub const DELIVER: &str = "deliver";
 }
 
 pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result<log4rs::Config> {
     use log4rs::*;
+
+    if config.log.file == config.rules.logs.file {
+        anyhow::bail!(
+            "rules and application logs cannot both be written in {:?}!",
+            config.log.file
+        );
+    }
 
     let console = append::console::ConsoleAppender::builder()
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
@@ -38,15 +46,27 @@ pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result
         )))
         .build();
 
-    let file = append::file::FileAppender::builder()
+    let app = append::file::FileAppender::builder()
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
             "{d} - {m}{n}",
         )))
         .build(config.log.file.clone())?;
 
+    let user = append::file::FileAppender::builder()
+        .encoder(Box::new(encode::pattern::PatternEncoder::new(
+            config
+                .rules
+                .logs
+                .format
+                .as_ref()
+                .unwrap_or(&"{d} - {m}{n}".to_string()),
+        )))
+        .build(config.rules.logs.file.clone())?;
+
     Config::builder()
         .appender(config::Appender::builder().build("stdout", Box::new(console)))
-        .appender(config::Appender::builder().build("file", Box::new(file)))
+        .appender(config::Appender::builder().build("app", Box::new(app)))
+        .appender(config::Appender::builder().build("user", Box::new(user)))
         .loggers(
             config
                 .log
@@ -54,10 +74,16 @@ pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result
                 .iter()
                 .map(|(name, level)| config::Logger::builder().build(name, *level)),
         )
+        .logger(
+            config::Logger::builder()
+                .appender("user")
+                .additive(false)
+                .build(log_channel::URULES, config.rules.logs.level),
+        )
         .build(
             config::Root::builder()
                 .appender("stdout")
-                .appender("file")
+                .appender("app")
                 .build(
                     *config
                         .log

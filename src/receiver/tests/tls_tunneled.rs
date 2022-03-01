@@ -41,7 +41,7 @@ async fn test_tls_tunneled(
     let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-        server_config.rules.dir.as_str(),
+        server_config.rules.dir.clone(),
     )?));
 
     let server = tokio::spawn(async move {
@@ -87,7 +87,7 @@ async fn test_tls_tunneled(
 
         let mut output = vec![];
 
-        let mut input = smtp_input.to_vec().into_iter();
+        let mut input = smtp_input.iter().copied();
         loop {
             match io.get_next_line_async().await {
                 Ok(res) => {
@@ -118,6 +118,8 @@ async fn simple() -> anyhow::Result<()> {
         "testserver.com",
         std::sync::Arc::new(
             ServerConfig::builder()
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_rfc_port("testserver.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(
@@ -163,6 +165,8 @@ async fn sni() -> anyhow::Result<()> {
         "second.testserver.com",
         std::sync::Arc::new(
             ServerConfig::builder()
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_rfc_port("testserver.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(

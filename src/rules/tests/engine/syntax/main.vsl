@@ -1,0 +1,67 @@
+import "../error_handling/errors" as err;
+
+#{
+    connect: [
+        rule "short rule" || vsl::next(),
+        action "short action" || {},
+
+        rule "extended rule format" #{
+            evaluate: || {
+                vsl::next()
+            },
+            description: "an extended rule",
+            color: "#ffffff",
+        },
+
+        action "extended action format" #{
+            evaluate: || vsl::next(),
+            description: "an extended rule",
+            color: "#ffffff",
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+
+    helo: [
+        rule "invalid rule" || {
+            import "bad_rule";
+        },
+
+        // should not be reached.
+        rule "trailing" || vsl::deny(),
+    ],
+
+    mail: [
+        rule "rule missing evaluate" || {
+            import "rule_missing_evaluate";
+        },
+
+        // should not be reached.
+        rule "trailing" || vsl::deny(),
+    ],
+
+    rcpt: [
+        rule "invalid action" || import "bad_action",
+
+        // should not be reached.
+        rule "trailing" || vsl::deny(),
+    ],
+
+    preq: [
+        rule "action missing evaluate" || {
+            import "action_missing_evaluate";
+        },
+
+        // should not be reached.
+        rule "trailing" || vsl::deny(),
+    ],
+
+    postq: [
+        rule "invalid object" || {
+            import "bad_object";
+        },
+
+        // should not be reached.
+        rule "trailing" || vsl::deny(),
+    ],
+}

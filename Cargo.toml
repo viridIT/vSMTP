@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp"
-version = "0.8.8"
+version = "0.8.9"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -66,6 +66,8 @@ tokio = { version = "1.16.1", features = [
 
 num_cpus = "1.13.1"
 wait-timeout = "0.2.0"
+
+semver = "1.0.6"
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }

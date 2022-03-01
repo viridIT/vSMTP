@@ -1,0 +1,3 @@
+rule "child rule missing evaluate" #{
+    description: "this rule does not contain the mendatory 'evaluate' anonymous function"
+}

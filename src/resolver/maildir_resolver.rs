@@ -32,7 +32,7 @@ impl MailDirResolver {
         if !passwd.is_null() && !unsafe { *passwd }.pw_dir.is_null() {
             unsafe { std::ffi::CStr::from_ptr((*passwd).pw_dir) }
                 .to_str()
-                .map(|path| std::path::PathBuf::from_iter([&path.to_string(), "Maildir", "new"]))
+                .map(|path| std::path::PathBuf::from_iter([path, "Maildir", "new"]))
                 .map_err(|error| {
                     anyhow::anyhow!("unable to get user's home directory: '{}'", error)
                 })

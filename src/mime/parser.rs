@@ -171,7 +171,12 @@ impl MailMimeParser {
                     )));
                 }
 
-                None => body.push(content[0].to_string()),
+                None => {
+                    // we skip the header & body separation line.
+                    if !(body.is_empty() && content[0].is_empty()) {
+                        body.push(content[0].to_string())
+                    }
+                }
             };
             *content = &content[1..];
         }

@@ -1,3 +1,5 @@
+version_requirement = ">=0.8.9, <1.0.0"
+
 [server]
 domain = "testserver.com"
 addr = "0.0.0.0:10025"

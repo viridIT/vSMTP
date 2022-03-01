@@ -64,7 +64,6 @@ fn mime_parser() {
                                         }
                                     ],
                                     content: MimeBodyType::Regular(vec![
-                                        "",
                                         "Please see the attached file for a list of customers to contact.",
                                         ""
                                     ].into_iter().map(str::to_string).collect::<_>())
@@ -85,7 +84,6 @@ fn mime_parser() {
                                         }
                                     ],
                                     content: MimeBodyType::Regular(vec![
-                                        "",
                                         "<html>",
                                         "<head></head>",
                                         "<body>",
@@ -129,7 +127,6 @@ fn mime_parser() {
                             }
                         ],
                         content: MimeBodyType::Regular(vec![
-                            "",
                             "SUQsRmlyc3ROYW1lLExhc3ROYW1lLENvdW50cnkKMzQ4LEpvaG4sU3RpbGVzLENhbmFkYQo5MjM4",
                             "OSxKaWUsTGl1LENoaW5hCjczNCxTaGlybGV5LFJvZHJpZ3VleixVbml0ZWQgU3RhdGVzCjI4OTMs",
                             "QW5heWEsSXllbmdhcixJbmRpYQ==",

@@ -100,7 +100,7 @@ where
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
         anyhow::Context::context(
-            RuleEngine::new(config.rules.dir.as_str()),
+            RuleEngine::new(config.rules.dir.clone()),
             "failed to initialize the engine",
         )
         .unwrap(),
@@ -165,7 +165,7 @@ where
 
     assert_eq!(
         std::str::from_utf8(&written_data),
-        std::str::from_utf8(&expected_output.to_vec())
+        std::str::from_utf8(expected_output)
     );
 
     Ok(())
@@ -173,6 +173,8 @@ where
 
 pub fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
+        .with_version_str("<1.0.0")
+        .unwrap()
         .with_rfc_port("test.server.com", "foo", "foo", None)
         .without_log()
         .without_smtps()
@@ -197,6 +199,10 @@ pub mod logs {
                 .log
                 .level
                 .insert("default".into(), log::LevelFilter::Warn);
+            config.log.file =
+                std::path::PathBuf::from_iter([".", "tests", "generated", "app.test.log"]);
+            config.rules.logs.file =
+                std::path::PathBuf::from_iter([".", "tests", "generated", "rules.test.log"]);
 
             log4rs::init_config(
                 crate::config::get_logger_config(&config).expect("failed to init logs"),

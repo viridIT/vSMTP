@@ -1,0 +1,29 @@
+#{
+    mail: [
+        rule "path doesn't exists" || {
+            try {
+                vsl::dump(ctx, "does/not/exists");
+            } catch (err) {
+                if "failed to dump email" in err { return vsl::next(); } else { return vsl::deny(); }
+            }
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+
+    preq: [
+        action "dump raw email to disk" || {
+            vsl::dump(ctx, "./tests/generated");
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+
+    postq: [
+        action "dump parsed email to disk" || {
+            vsl::dump(ctx, "./tests/generated");
+        },
+
+        rule "trailing" || vsl::accept(),
+    ]
+}

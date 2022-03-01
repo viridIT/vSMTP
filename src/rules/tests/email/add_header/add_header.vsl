@@ -1,0 +1,17 @@
+fn add_header_failure(ctx, header, value, error_desired) {
+    try {
+        vsl::add_header(ctx, header, value);
+        return vsl::deny();
+    } catch (err) {
+        if error_desired in err && !vsl::has_header(ctx, header) { return vsl::next(); } else { return vsl::deny(); }
+    }
+}
+
+fn add_header_success(ctx, header, value) {
+    try {
+        vsl::add_header(ctx, header, value);
+        if vsl::has_header(ctx, header) { return vsl::next(); } else { return vsl::deny(); }
+    } catch (err) {
+        return vsl::deny();
+    }
+}

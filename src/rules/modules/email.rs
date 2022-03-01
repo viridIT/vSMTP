@@ -15,13 +15,14 @@
  *
 **/
 use rhai::plugin::*;
+
 #[allow(dead_code)]
 #[export_module]
 pub mod email {
 
     use crate::{
         rules::address::Address, rules::modules::types::Rcpt, rules::modules::EngineResult,
-        smtp::mail::Body, smtp::mail::MailContext,
+        rules::obj::Object, smtp::mail::Body, smtp::mail::MailContext,
     };
     use std::io::Write;
     use std::sync::{Arc, RwLock};
@@ -233,17 +234,12 @@ pub mod email {
         ))
     }
 
-    /// write the current email to a specified file.
+    /// write the current email to a specified folder.
     #[rhai_fn(global, return_raw)]
-    pub fn write(
-        this: &mut Arc<RwLock<MailContext>>,
-        path: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
-        match std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-        {
+    pub fn write(this: &mut Arc<RwLock<MailContext>>, dir: &str) -> EngineResult<()> {
+        match std::fs::OpenOptions::new().create(true).write(true).open(
+            std::path::PathBuf::from_iter([dir, &format!("{}.eml", message_id(this)?)]),
+        ) {
             Ok(file) => {
                 let mut writer = std::io::LineWriter::new(file);
 
@@ -259,46 +255,44 @@ pub mod email {
                     }
                     Body::Raw(raw) => writer.write_all(raw.as_bytes()),
                     Body::Parsed(email) => {
-                        let (body, headers) = email.to_raw();
-                        writer.write_all(format!("{}\n{}", headers, body).as_bytes())
+                        let (headers, body) = email.to_raw();
+                        writer.write_all(format!("{}\n\n{}", headers, body).as_bytes())
                     }
                 }
             }
-            .map_err(|err| format!("failed to write email: {err:?}").into()),
-            Err(err) => Err(format!("failed to write email: {err:?}").into()),
+            .map_err(|err| format!("failed to write email at '{}': {:?}", dir, err).into()),
+            Err(err) => Err(format!("failed to write email at '{}': {:?}", dir, err).into()),
         }
     }
 
     /// write the content of the current email in a json file.
+    /// NOTE: it would be great not having all those 'map_err'.
     #[rhai_fn(global, return_raw)]
-    pub fn dump(this: &mut Arc<RwLock<MailContext>>, path: &str) -> Result<(), Box<EvalAltResult>> {
-        match std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-        {
+    pub fn dump(this: &mut Arc<RwLock<MailContext>>, dir: &str) -> EngineResult<()> {
+        match std::fs::OpenOptions::new().create(true).write(true).open(
+            std::path::PathBuf::from_iter([dir, &format!("{}.dump.json", message_id(this)?)]),
+        ) {
             Ok(mut file) => file
                 .write_all(
-                    serde_json::to_string_pretty(&*this.read().map_err::<Box<EvalAltResult>, _>(
-                        |err| format!("failed to dump email: {err:?}").into(),
-                    )?)
+                    serde_json::to_string_pretty(
+                        &*this
+                            .read()
+                            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
+                    )
                     .map_err::<Box<EvalAltResult>, _>(|err| {
-                        format!("failed to dump email: {err:?}").into()
+                        format!("failed to dump email at '{}': {:?}", dir, err).into()
                     })?
                     .as_bytes(),
                 )
-                .map_err(|err| format!("failed to dump email: {err:?}").into()),
-            Err(err) => Err(format!("failed to dump email: {err:?}").into()),
+                .map_err(|err| format!("failed to dump email at '{}': {:?}", dir, err).into()),
+            Err(err) => Err(format!("failed to dump email at '{}': {:?}", dir, err).into()),
         }
     }
 
     // TODO: unfinished, queue parameter should point to a folder specified in toml config.
     /// dump the current email into a quarantine queue, skipping delivery.
     #[rhai_fn(global, return_raw)]
-    pub fn quarantine(
-        this: &mut Arc<RwLock<MailContext>>,
-        queue: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
+    pub fn quarantine(this: &mut Arc<RwLock<MailContext>>, queue: &str) -> EngineResult<()> {
         match std::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -323,7 +317,7 @@ pub mod email {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn use_resolver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
+    pub fn deliver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .metadata
@@ -338,6 +332,118 @@ pub mod email {
 
     #[rhai_fn(global, return_raw)]
     pub fn disable_delivery(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<()> {
-        use_resolver(this, "none".to_string())
+        deliver(this, "none".to_string())
+    }
+
+    /// check if a given header exists in the top level headers.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn has_header(this: &mut Arc<RwLock<MailContext>>, header: &str) -> EngineResult<bool> {
+        Ok(
+            match &this
+                .read()
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                .body
+            {
+                Body::Empty => false,
+                Body::Raw(raw) => {
+                    let mut headers_end = 0;
+
+                    // getting headers from the raw email.
+                    for line in raw.lines() {
+                        let mut split = line.splitn(2, ':');
+                        match (split.next(), split.next()) {
+                            // adding one to the index because `\n` is striped using the Lines iterator.
+                            (Some(_), Some(_)) => headers_end += line.len() + 1,
+                            _ => break,
+                        }
+                    }
+
+                    raw[0..headers_end].contains(format!("{}: ", header).as_str())
+                }
+                Body::Parsed(email) => email.headers.iter().any(|(name, _)| header == name),
+            },
+        )
+    }
+
+    /// add a header to the raw or parsed email contained in ctx.
+    #[rhai_fn(global, return_raw)]
+    pub fn add_header(
+        this: &mut Arc<RwLock<MailContext>>,
+        header: &str,
+        value: &str,
+    ) -> EngineResult<()> {
+        match &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+        {
+            Body::Empty => {
+                return Err(format!(
+                    "failed to add header '{}': the body has not been received yet.",
+                    header
+                )
+                .into())
+            }
+            Body::Raw(raw) => *raw = format!("{}: {}\n{}", header, value, raw),
+            Body::Parsed(email) => email.headers.push((header.to_string(), value.to_string())),
+        };
+
+        Ok(())
+    }
+
+    /// add a recipient to the list recipient using a raw string.
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_str(this: &mut Arc<RwLock<MailContext>>, bcc: &str) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(Address::new(bcc).map_err(|_| {
+                format!("'{}' could not be converted to a valid rcpt address", bcc)
+            })?);
+
+        Ok(())
+    }
+
+    /// add a recipient to the list recipient using an address.
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_addr(this: &mut Arc<RwLock<MailContext>>, bcc: Address) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(bcc);
+
+        Ok(())
+    }
+
+    /// add a recipient to the list recipient using an object.
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_object(
+        this: &mut Arc<RwLock<MailContext>>,
+        bcc: std::sync::Arc<Object>,
+    ) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(match &*bcc {
+                Object::Address(addr) => addr.clone(),
+                Object::Str(string) => Address::new(string.as_str()).map_err(|_| {
+                    format!(
+                        "'{}' could not be converted to a valid rcpt address",
+                        string
+                    )
+                })?,
+                other => {
+                    return Err(format!(
+                        "'{}' could not be converted to a valid rcpt address",
+                        other.to_string()
+                    )
+                    .into())
+                }
+            });
+
+        Ok(())
     }
 }
