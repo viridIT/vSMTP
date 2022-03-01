@@ -27,13 +27,26 @@ pub struct ConfigBuilder<State> {
 }
 
 impl ServerConfig {
-    pub fn builder() -> ConfigBuilder<WantsServer> {
+    pub fn builder() -> ConfigBuilder<WantsVersion> {
         ConfigBuilder {
-            state: WantsServer(()),
+            state: WantsVersion(()),
         }
     }
 
     pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
+        let parsed_ahead = ConfigBuilder::<WantsServer> {
+            state: toml::from_str::<WantsServer>(data)?,
+        };
+        let pkg_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
+
+        if !parsed_ahead.state.version_requirement.matches(&pkg_version) {
+            anyhow::bail!(
+                "Version requirement not fulfilled: expected '{}' but got '{}'",
+                parsed_ahead.state.version_requirement,
+                env!("CARGO_PKG_VERSION")
+            );
+        }
+
         ConfigBuilder::<WantsBuild> {
             state: toml::from_str::<WantsBuild>(data)?,
         }
@@ -42,7 +55,45 @@ impl ServerConfig {
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
-pub struct WantsServer(pub(crate) ());
+pub struct WantsVersion(pub(crate) ());
+
+impl ConfigBuilder<WantsVersion> {
+    pub fn with_version(
+        self,
+        version_requirement: semver::VersionReq,
+    ) -> ConfigBuilder<WantsServer> {
+        ConfigBuilder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                version_requirement,
+            },
+        }
+    }
+
+    pub fn with_version_str(
+        self,
+        version_requirement: &str,
+    ) -> anyhow::Result<ConfigBuilder<WantsServer>> {
+        Ok(ConfigBuilder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                version_requirement: semver::VersionReq::parse(version_requirement)?,
+            },
+        })
+    }
+}
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+pub struct WantsServer {
+    #[serde(skip)]
+    #[allow(unused)]
+    pub(crate) parent: WantsVersion,
+    #[serde(
+        serialize_with = "crate::config::serializer::serialize_version_req",
+        deserialize_with = "crate::config::serializer::deserialize_version_req"
+    )]
+    version_requirement: semver::VersionReq,
+}
 
 impl ConfigBuilder<WantsServer> {
     #[allow(clippy::too_many_arguments)]
@@ -111,8 +162,7 @@ impl ConfigBuilder<WantsServer> {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsLogging {
-    #[serde(skip)]
-    #[allow(unused)]
+    #[serde(flatten)]
     pub(crate) parent: WantsServer,
     pub(crate) server: InnerServerConfig,
 }
@@ -440,6 +490,16 @@ impl ConfigBuilder<WantsBuild> {
         };
 
         Ok(ServerConfig {
+            version_requirement: self
+                .state
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .version_requirement,
             server: self.state.parent.parent.parent.parent.parent.parent.server,
             log: self.state.parent.parent.parent.parent.parent.logs,
             smtps: self.state.parent.parent.parent.parent.smtps,

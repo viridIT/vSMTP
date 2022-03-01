@@ -31,6 +31,23 @@ where
     )
 }
 
+pub(super) fn serialize_version_req<S: serde::Serializer>(
+    value: &semver::VersionReq,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serde::Serialize::serialize(&value.to_string(), serializer)
+}
+
+pub(super) fn deserialize_version_req<'de, D>(
+    deserializer: D,
+) -> Result<semver::VersionReq, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    semver::VersionReq::parse(&<String as serde::Deserialize>::deserialize(deserializer)?)
+        .map_err(serde::de::Error::custom)
+}
+
 const ALL_PROTOCOL_VERSION: [ProtocolVersion; 6] = [
     ProtocolVersion(rustls::ProtocolVersion::SSLv2),
     ProtocolVersion(rustls::ProtocolVersion::SSLv3),

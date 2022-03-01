@@ -27,6 +27,8 @@ pub mod helpers {
 
     pub(super) fn get_default_state() -> RuleState<'static> {
         let config = ServerConfig::builder()
+            .with_version_str("<1.0.0")
+            .unwrap()
             .with_rfc_port("test.server.com", "foo", "foo", None)
             .without_log()
             .without_smtps()

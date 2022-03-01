@@ -179,6 +179,8 @@ pub struct Codes {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ServerConfig {
+    #[serde(serialize_with = "crate::config::serializer::serialize_version_req")]
+    pub version_requirement: semver::VersionReq,
     pub server: InnerServerConfig,
     pub log: InnerLogConfig,
     pub smtps: Option<InnerSmtpsConfig>,
