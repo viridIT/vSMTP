@@ -137,23 +137,19 @@ impl Resolver for MailDirResolver {
                                 error
                             })?
                     }
-                    Body::Parsed(email) => {
-                        let (headers, body) = email.to_raw();
-
-                        Self::write_to_maildir(
-                            rcpt,
-                            mail.metadata.as_ref().unwrap(),
-                            format!("{headers}\n{body}").as_str(),
-                        )
-                        .map_err(|error| {
-                            log::error!(
-                                target: RESOLVER,
-                                "Couldn't write email to inbox: {:?}",
-                                error
-                            );
+                    Body::Parsed(email) => Self::write_to_maildir(
+                        rcpt,
+                        mail.metadata.as_ref().unwrap(),
+                        &email.to_raw(),
+                    )
+                    .map_err(|error| {
+                        log::error!(
+                            target: RESOLVER,
+                            "Couldn't write email to inbox: {:?}",
                             error
-                        })?
-                    }
+                        );
+                        error
+                    })?,
                 }
             }
             Ok(())

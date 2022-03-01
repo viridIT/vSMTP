@@ -37,8 +37,7 @@ macro_rules! test_lang {
                 );
                 assert!(match &ctx.body {
                     Body::Parsed(mail) => {
-                        let (headers, body) = mail.to_raw();
-                        format!("{headers}\n\n{body}\n").as_str() == include_str!($lang_code)
+                        format!("{}\n", mail.to_raw()).as_str() == include_str!($lang_code)
                     }
                     _ => false,
                 });

@@ -383,11 +383,6 @@ impl MailMimeParser {
 
         Ok(multi_parts)
     }
-
-    /// consume a mail instance and return headers and body raw strings.
-    pub fn to_raw(mail: Mail) -> (String, String) {
-        mail.to_raw()
-    }
 }
 
 /// See https://datatracker.ietf.org/doc/html/rfc5322#page-11

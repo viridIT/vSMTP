@@ -69,7 +69,7 @@ impl Resolver for SMTPResolver {
                             Body::Empty => anyhow::bail!("failed to send email: body is empty"),
                             Body::Raw(raw) => mailer.send_raw(&envelop, raw.as_bytes()),
                             Body::Parsed(mail) => {
-                                mailer.send_raw(&envelop, mail.to_raw().1.as_bytes())
+                                mailer.send_raw(&envelop, mail.raw_body().as_bytes())
                             }
                         };
 
