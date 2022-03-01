@@ -22,8 +22,7 @@ pub mod actions {
 
     use crate::{
         config::{log_channel::URULES, server_config::Service},
-        rules::{rule_engine::Status, service::ServiceResult},
-        smtp::mail::MailContext,
+        rules::{rule_engine::Status, server_api::ServerAPI, service::ServiceResult},
     };
 
     pub fn faccept() -> Status {
@@ -110,11 +109,17 @@ pub mod actions {
 
     #[rhai_fn(global, return_raw)]
     pub fn run(
-        services: &mut std::sync::Arc<Vec<Service>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         service_name: &str,
-        ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> Result<ServiceResult, Box<EvalAltResult>> {
-        services
+        let server = this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+        server
+            .config
+            .rules
+            .services
             .iter()
             .find(|s| match s {
                 Service::UnixShell { name, .. } => name == service_name,
@@ -122,7 +127,7 @@ pub mod actions {
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
                 format!("No service in config named: '{service_name}'").into()
             })?
-            .run(ctx)
+            .run(&server.mail_context)
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
     }
 }

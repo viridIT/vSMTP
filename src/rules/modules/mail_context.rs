@@ -22,34 +22,42 @@ pub mod mail_context {
 
     use crate::{
         rules::address::Address, rules::modules::types::Rcpt, rules::modules::EngineResult,
-        rules::obj::Object, smtp::mail::Body, smtp::mail::MailContext,
+        rules::obj::Object, rules::server_api::ServerAPI, smtp::mail::Body,
     };
     use std::io::Write;
-    use std::sync::{Arc, RwLock};
+
+    // FIXME: all those poison error map_err make the code harder to read.
 
     #[rhai_fn(global, get = "client_addr", return_raw)]
-    pub fn client_addr(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<std::net::SocketAddr> {
+    pub fn client_addr(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<std::net::SocketAddr> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .client_addr)
     }
 
     #[rhai_fn(global, get = "helo", return_raw)]
-    pub fn helo(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
+    pub fn helo(this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .envelop
             .helo
             .clone())
     }
 
     #[rhai_fn(global, get = "mail_from", return_raw)]
-    pub fn mail_from(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<Address> {
+    pub fn mail_from(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<Address> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .envelop
             .mail_from
             .clone())
@@ -57,7 +65,7 @@ pub mod mail_context {
 
     #[rhai_fn(global, return_raw)]
     pub fn rewrite_mail_from(
-        this: &mut Arc<RwLock<MailContext>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         addr: String,
     ) -> EngineResult<()> {
         let addr = Address::new(&addr).map_err::<Box<EvalAltResult>, _>(|_| {
@@ -68,9 +76,10 @@ pub mod mail_context {
             .into()
         })?;
 
-        let mut email = this
+        let mut email = &mut this
             .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context;
 
         email.envelop.mail_from = addr.clone();
 
@@ -85,10 +94,11 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw)]
-    pub fn rcpt(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<Rcpt> {
+    pub fn rcpt(this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>) -> EngineResult<Rcpt> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .envelop
             .rcpt
             .clone())
@@ -96,7 +106,7 @@ pub mod mail_context {
 
     #[rhai_fn(global, return_raw)]
     pub fn rewrite_rcpt(
-        this: &mut Arc<RwLock<MailContext>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         index: String,
         addr: String,
     ) -> EngineResult<()> {
@@ -116,9 +126,10 @@ pub mod mail_context {
             .into()
         })?;
 
-        let mut email = this
+        let email = &mut this
             .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context;
 
         email.envelop.rcpt.remove(&index);
         email.envelop.rcpt.insert(addr.clone());
@@ -134,13 +145,17 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn add_rcpt(this: &mut Arc<RwLock<MailContext>>, s: String) -> EngineResult<()> {
+    pub fn add_rcpt(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        s: String,
+    ) -> EngineResult<()> {
         let new_addr = Address::new(&s)
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", s))?;
 
-        let mut email = this
+        let email = &mut this
             .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context;
 
         email.envelop.rcpt.insert(new_addr.clone());
 
@@ -155,13 +170,17 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn remove_rcpt(this: Arc<RwLock<MailContext>>, s: String) -> EngineResult<()> {
+    pub fn remove_rcpt(
+        this: std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        s: String,
+    ) -> EngineResult<()> {
         let addr = Address::new(&s)
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", s))?;
 
-        let mut email = this
+        let email = &mut this
             .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context;
 
         email.envelop.rcpt.remove(&addr);
 
@@ -176,10 +195,13 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "timestamp", return_raw)]
-    pub fn timestamp(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<std::time::SystemTime> {
+    pub fn timestamp(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<std::time::SystemTime> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .metadata
             .as_ref()
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
@@ -189,10 +211,13 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "message_id", return_raw)]
-    pub fn message_id(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
+    pub fn message_id(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .metadata
             .as_ref()
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
@@ -203,9 +228,10 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "retry", return_raw)]
-    pub fn retry(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<u64> {
+    pub fn retry(this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>) -> EngineResult<u64> {
         this.read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .metadata
             .as_ref()
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
@@ -217,7 +243,9 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn to_string(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
+    pub fn to_string(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<String> {
         Ok(format!(
             "{:?}",
             this.read()
@@ -226,7 +254,9 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn to_debug(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<String> {
+    pub fn to_debug(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<String> {
         Ok(format!(
             "{:#?}",
             this.read()
@@ -237,7 +267,7 @@ pub mod mail_context {
     /// write the current email to a specified file.
     #[rhai_fn(global, return_raw)]
     pub fn write(
-        this: &mut Arc<RwLock<MailContext>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         path: &str,
     ) -> Result<(), Box<EvalAltResult>> {
         match std::fs::OpenOptions::new()
@@ -251,6 +281,7 @@ pub mod mail_context {
                 match &this
                     .read()
                     .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                    .mail_context
                     .body
                 {
                     Body::Empty => {
@@ -272,7 +303,10 @@ pub mod mail_context {
 
     /// write the content of the current email in a json file.
     #[rhai_fn(global, return_raw)]
-    pub fn dump(this: &mut Arc<RwLock<MailContext>>, path: &str) -> Result<(), Box<EvalAltResult>> {
+    pub fn dump(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        path: &str,
+    ) -> Result<(), Box<EvalAltResult>> {
         match std::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -280,9 +314,14 @@ pub mod mail_context {
         {
             Ok(mut file) => file
                 .write_all(
-                    serde_json::to_string_pretty(&*this.read().map_err::<Box<EvalAltResult>, _>(
-                        |err| format!("failed to dump email: {err:?}").into(),
-                    )?)
+                    serde_json::to_string_pretty(
+                        &this
+                            .read()
+                            .map_err::<Box<EvalAltResult>, _>(|err| {
+                                format!("failed to dump email: {err:?}").into()
+                            })?
+                            .mail_context,
+                    )
                     .map_err::<Box<EvalAltResult>, _>(|err| {
                         format!("failed to dump email: {err:?}").into()
                     })?
@@ -297,7 +336,7 @@ pub mod mail_context {
     /// dump the current email into a quarantine queue, skipping delivery.
     #[rhai_fn(global, return_raw)]
     pub fn quarantine(
-        this: &mut Arc<RwLock<MailContext>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         queue: &str,
     ) -> Result<(), Box<EvalAltResult>> {
         match std::fs::OpenOptions::new()
@@ -309,9 +348,14 @@ pub mod mail_context {
                 disable_delivery(this)?;
 
                 file.write_all(
-                    serde_json::to_string_pretty(&*this.write().map_err::<Box<EvalAltResult>, _>(
-                        |err| format!("failed to dump email: {err:?}").into(),
-                    )?)
+                    serde_json::to_string_pretty(
+                        &this
+                            .write()
+                            .map_err::<Box<EvalAltResult>, _>(|err| {
+                                format!("failed to dump email: {err:?}").into()
+                            })?
+                            .mail_context,
+                    )
                     .map_err::<Box<EvalAltResult>, _>(|err| {
                         format!("failed to dump email: {err:?}").into()
                     })?
@@ -324,9 +368,13 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn deliver(this: &mut Arc<RwLock<MailContext>>, resolver: String) -> EngineResult<()> {
+    pub fn deliver(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        resolver: String,
+    ) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .metadata
             .as_mut()
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
@@ -338,17 +386,23 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn disable_delivery(this: &mut Arc<RwLock<MailContext>>) -> EngineResult<()> {
+    pub fn disable_delivery(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<()> {
         deliver(this, "none".to_string())
     }
 
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn has_header(this: &mut Arc<RwLock<MailContext>>, header: &str) -> EngineResult<bool> {
+    pub fn has_header(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        header: &str,
+    ) -> EngineResult<bool> {
         Ok(
             match &this
                 .read()
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                .mail_context
                 .body
             {
                 Body::Empty => false,
@@ -375,13 +429,14 @@ pub mod mail_context {
     /// add a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw)]
     pub fn add_header(
-        this: &mut Arc<RwLock<MailContext>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         header: &str,
         value: &str,
     ) -> EngineResult<()> {
         match &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .body
         {
             Body::Empty => {
@@ -400,9 +455,13 @@ pub mod mail_context {
 
     /// add a recipient to the list recipient using a raw string.
     #[rhai_fn(global, name = "bcc", return_raw)]
-    pub fn bcc_str(this: &mut Arc<RwLock<MailContext>>, bcc: &str) -> EngineResult<()> {
+    pub fn bcc_str(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        bcc: &str,
+    ) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .envelop
             .rcpt
             .insert(Address::new(bcc).map_err(|_| {
@@ -414,9 +473,13 @@ pub mod mail_context {
 
     /// add a recipient to the list recipient using an address.
     #[rhai_fn(global, name = "bcc", return_raw)]
-    pub fn bcc_addr(this: &mut Arc<RwLock<MailContext>>, bcc: Address) -> EngineResult<()> {
+    pub fn bcc_addr(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        bcc: Address,
+    ) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .envelop
             .rcpt
             .insert(bcc);
@@ -427,11 +490,12 @@ pub mod mail_context {
     /// add a recipient to the list recipient using an object.
     #[rhai_fn(global, name = "bcc", return_raw)]
     pub fn bcc_object(
-        this: &mut Arc<RwLock<MailContext>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         bcc: std::sync::Arc<Object>,
     ) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .mail_context
             .envelop
             .rcpt
             .insert(match &*bcc {

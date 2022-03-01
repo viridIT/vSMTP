@@ -18,7 +18,7 @@ use crate::{config::server_config::ServerConfig, smtp::mail::MailContext};
 
 /// the frontend available in the rule engine to interact with the server.
 #[derive(Debug, Clone)]
-pub(crate) struct ServerAPI {
+pub struct ServerAPI {
     pub config: ServerConfig,
     pub mail_context: MailContext,
 }

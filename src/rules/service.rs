@@ -38,10 +38,7 @@ impl std::fmt::Display for ServiceResult {
 }
 
 impl Service {
-    pub fn run(
-        &self,
-        ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> anyhow::Result<ServiceResult> {
+    pub fn run(&self, ctx: &MailContext) -> anyhow::Result<ServiceResult> {
         match self {
             Service::UnixShell {
                 timeout,
@@ -53,11 +50,10 @@ impl Service {
             } => {
                 let mut child = std::process::Command::new(command);
                 if let Some(args) = args {
-                    let guard = ctx.read().expect("mutex is poisoned");
                     for i in args.split_whitespace() {
                         child.arg(i.replace(
                             "{mail}",
-                            match &guard.body {
+                            match &ctx.body {
                                 Body::Empty => todo!(),
                                 Body::Raw(raw) => raw,
                                 Body::Parsed(_) => todo!(),
