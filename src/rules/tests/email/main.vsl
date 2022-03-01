@@ -1,6 +1,6 @@
 #{
     connect: [
-        rule "fail_mail_from_rewrite" || {
+        rule "fail mail_from rewrite: email not received" || {
             try {
                 vsl::rewrite_mail_from(server, "impossible@torewrite.com");
                 return vsl::deny();
@@ -9,7 +9,7 @@
             }
         },
 
-        rule "fail_mail_from_rewrite_address_format" || {
+        rule "fail mail_from rewrite: bad address format" || {
             try {
                 vsl::rewrite_mail_from(server, "invalid");
                 return vsl::deny();
@@ -18,7 +18,7 @@
             }
         },
 
-        rule "fail_rcpt_rewrite_first_address_format" || {
+        rule "fail rcpt rewrite: 1st bad address format" || {
             try {
                 vsl::rewrite_rcpt(server, "invalid", "valid@email.com");
                 return vsl::deny();
@@ -27,7 +27,7 @@
             }
         },
 
-        rule "fail_rcpt_rewrite_second_address_format" || {
+        rule "fail rcpt rewrite: 2nd bad address format" || {
             try {
                 vsl::rewrite_rcpt(server, "valid@email.com", "invalid");
                 return vsl::deny();
@@ -36,16 +36,16 @@
             }
         },
 
-        rule "invalid_timestamp_metadata" || {
+        rule "unavailable mail timestamp" || {
             try {
-                print(server.timestamp);
+                print(server.mail_timestamp);
                 return vsl::deny();
             } catch (err) {
                 if "metadata are not available in this stage" in err { return vsl::next(); } else { return vsl::deny(); }
             }
         },
 
-        rule "invalid_message_id_metadata" || {
+        rule "unavailable message id" || {
             try {
                 print(server.message_id);
                 return vsl::deny();
@@ -54,7 +54,7 @@
             }
         },
 
-        rule "invalid_retry_metadata" || {
+        rule "unavailable mail retries" || {
             try {
                 print(server.retry);
                 return vsl::deny();
@@ -67,7 +67,7 @@
     ],
 
     preq: [
-        rule "email_not_parsed" || {
+        rule "failed mail_from rewrite: email not parsed" || {
             try {
                 vsl::rewrite_mail_from(server, "impossible@torewrite.com");
                 return vsl::deny();
@@ -76,7 +76,7 @@
             }
         },
 
-        rule "add_rcpt_email_not_parsed" || {
+        rule "failed add rcpt: email not yet parsed" || {
             try {
                 vsl::add_rcpt(server, "impossible@toadd.com");
                 return vsl::deny();
@@ -85,7 +85,7 @@
             }
         },
 
-        rule "remove_rcpt_email_not_parsed" || {
+        rule "failed remove rcpt: email not yet parsed" || {
             try {
                 vsl::remove_rcpt(server, "impossible@toremove.com");
                 return vsl::deny();
@@ -94,7 +94,7 @@
             }
         },
 
-        rule "rewrite_rcpt_email_not_parsed" || {
+        rule "failed rewrite rcpt: email not yet parsed" || {
             try {
                 vsl::rewrite_rcpt(server, "impossible@torewrite.com", "impossible@torewrite.com");
                 return vsl::deny();
@@ -107,19 +107,19 @@
     ],
 
     postq: [
-        action "print_client_data" || {
+        action "printing client data" || {
             vsl::log("debug", "email received.");
-            vsl::log("debug", `connexion timestamp: ${server.connexion_timestamp}`);
+            vsl::log("debug", `connexion timestamp: ${server.connection_timestamp}`);
             vsl::log("debug", `ip: ${server.client_addr}`);
             vsl::log("debug", `helo: ${server.helo}`);
             vsl::log("debug", `mail_from: ${server.mail_from}`);
-            vsl::log("debug", `metadata {\n  mail timestamp: ${server.timestamp}\n  message id: ${server.message_id}\n  retries: ${server.retry}\n}`);
+            vsl::log("debug", `metadata {\n  mail timestamp: ${server.mail_timestamp}\n  message id: ${server.message_id}\n  retries: ${server.retry}\n}`);
 
             vsl::log("trace", server.to_string());
             vsl::log("trace", server.to_debug());
 
-            print(server.timestamp.to_string());
-            print(server.timestamp.to_debug());
+            print(server.mail_timestamp.to_string());
+            print(server.mail_timestamp.to_debug());
         },
 
         action "rewrite" || {

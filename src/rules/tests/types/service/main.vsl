@@ -1,6 +1,6 @@
 #{
     connect: [
-        rule "unknown_service" || {
+        rule "unknown service" || {
             try {
                 server.run_service("unknown");
                 return vsl::deny();
@@ -10,8 +10,8 @@
             }
         },
 
-        rule "test_services" || {
-            let result = services.run_service("shell");
+        rule "test shell service" || {
+            let result = server.run_service("shell");
 
             print(`string: ${result.to_string()}`);
             print(`debug: ${result.to_debug()}`);
