@@ -2,14 +2,14 @@ import "bcc" as bcc;
 
 #{
     postq: [
-        rule "bcc with invalid address (str)"       || bcc::invalid_object(ctx, "invalid-address"),
-        rule "bcc with invalid address (obj ident)" || bcc::invalid_object(ctx, object ident "green" "green.foo"),
-        rule "bcc with invalid address (obj str)"   || bcc::invalid_object(ctx, object string "invalid" "invalid-str-address"),
+        rule "bcc with invalid address (str)"       || bcc::invalid_object(server, "invalid-address"),
+        rule "bcc with invalid address (obj ident)" || bcc::invalid_object(server, object ident "green" "green.foo"),
+        rule "bcc with invalid address (obj str)"   || bcc::invalid_object(server, object string "invalid" "invalid-str-address"),
         rule "add bcc" || {
-            if bcc::add_bcc(ctx, "string@address.com") == vsl::next()
-            && bcc::add_bcc(ctx, object string "str" "my.string@address.eu") == vsl::next()
-            && bcc::add_bcc(ctx, object address "addr" "my.addr@address.com") == vsl::next()
-            && bcc::add_bcc(ctx, vsl::new_address("new.address@address.fr")) == vsl::next()
+            if bcc::add_bcc(server, "string@address.com") == vsl::next()
+            && bcc::add_bcc(server, object string "str" "my.string@address.eu") == vsl::next()
+            && bcc::add_bcc(server, object address "addr" "my.addr@address.com") == vsl::next()
+            && bcc::add_bcc(server, vsl::new_address("new.address@address.fr")) == vsl::next()
             {
                 vsl::next()
             } else {

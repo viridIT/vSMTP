@@ -1,5 +1,5 @@
-fn has_virus(services, ctx) {
-    let result = services.run("clamscan", ctx);
+fn has_virus(server) {
+    let result = services.run_service("clamscan");
     debug(`${result}`);
 
     if result.has_signal {
@@ -13,7 +13,7 @@ fn has_virus(services, ctx) {
 run_rules!(#{
     preq: [
         action "antivirus" || {
-            if has_virus(services, ctx) {
+            if has_virus(server) {
                 // quarantine and log and blacklist
             }
         }

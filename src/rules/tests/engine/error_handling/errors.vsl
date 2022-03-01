@@ -1,5 +1,5 @@
-fn generic_error(ctx) {
-    print(ctx.timestamp);
+fn generic_error(server) {
+    print(server.timestamp);
 }
 
 fn throw_error() {

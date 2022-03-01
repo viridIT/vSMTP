@@ -1,16 +1,16 @@
-fn add_header_failure(ctx, header, value, error_desired) {
+fn add_header_failure(server, header, value, error_desired) {
     try {
-        vsl::add_header(ctx, header, value);
+        vsl::add_header(server, header, value);
         return vsl::deny();
     } catch (err) {
-        if error_desired in err && !vsl::has_header(ctx, header) { return vsl::next(); } else { return vsl::deny(); }
+        if error_desired in err && !vsl::has_header(server, header) { return vsl::next(); } else { return vsl::deny(); }
     }
 }
 
-fn add_header_success(ctx, header, value) {
+fn add_header_success(server, header, value) {
     try {
-        vsl::add_header(ctx, header, value);
-        if vsl::has_header(ctx, header) { return vsl::next(); } else { return vsl::deny(); }
+        vsl::add_header(server, header, value);
+        if vsl::has_header(server, header) { return vsl::next(); } else { return vsl::deny(); }
     } catch (err) {
         return vsl::deny();
     }

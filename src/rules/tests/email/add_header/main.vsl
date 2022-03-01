@@ -4,7 +4,7 @@ import "add_header" as add;
     mail: [
         rule "adding header when no data" || {
             add::add_header_failure(
-                ctx,
+                server,
                 "X-My-Header",
                 "my value", "failed to add header 'X-My-Header': the body has not been received yet."
             )
@@ -15,10 +15,10 @@ import "add_header" as add;
 
     preq: [
         rule "adding header to raw email" || {
-            if add::add_header_success(ctx, "X-New-Header", "value of header") == vsl::next()
-            && add::add_header_success(ctx, "X-Another-Header", "value of another") == vsl::next()
-            && add::add_header_success(ctx, "From", "<john@doe.com>") == vsl::next()
-            && add::add_header_success(ctx, "To", "<green@foo.net>") == vsl::next()
+            if add::add_header_success(server, "X-New-Header", "value of header") == vsl::next()
+            && add::add_header_success(server, "X-Another-Header", "value of another") == vsl::next()
+            && add::add_header_success(server, "From", "<john@doe.com>") == vsl::next()
+            && add::add_header_success(server, "To", "<green@foo.net>") == vsl::next()
             {
                 vsl::next()
             } else {
@@ -30,7 +30,7 @@ import "add_header" as add;
     ],
 
     postq: [
-        rule "adding header to parsed email" || add::add_header_success(ctx, "X-New-Header", "value of header"),
+        rule "adding header to parsed email" || add::add_header_success(server, "X-New-Header", "value of header"),
 
         rule "trailing" || vsl::accept(),
     ],

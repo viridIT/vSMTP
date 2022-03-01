@@ -4,16 +4,16 @@ object address "customer" "customer@company.com";
 
 #{
   rcpt: [
-    rule "test_ident" || if john in ctx.rcpt.local_parts { vsl::next() } else { vsl::deny() },
-    rule "test_fqdn" || if viridit in ctx.rcpt.domains { vsl::next() } else { vsl::deny() },
-    rule "test_addr" || if customer in ctx.rcpt { vsl::accept() } else { vsl::deny() },
+    rule "test_ident" || if john in server.rcpt.local_parts { vsl::next() } else { vsl::deny() },
+    rule "test_fqdn" || if viridit in server.rcpt.domains { vsl::next() } else { vsl::deny() },
+    rule "test_addr" || if customer in server.rcpt { vsl::accept() } else { vsl::deny() },
   ],
 
   postq: [
     action "test_rewrite" || {
-      ctx.rewrite_rcpt("johndoe@compagny.com", "johndoe@viridit.com");
-      ctx.remove_rcpt("customer@company.com");
-      ctx.add_rcpt("no-reply@viridit.com");
+      server.rewrite_rcpt("johndoe@compagny.com", "johndoe@viridit.com");
+      server.remove_rcpt("customer@company.com");
+      server.add_rcpt("no-reply@viridit.com");
     },
   ]
 }

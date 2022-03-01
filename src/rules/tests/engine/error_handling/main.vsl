@@ -2,8 +2,8 @@ import "errors" as err;
 
 #{
     connect: [
-        // `ctx.timestamp` isn't available in 'connect' stage.
-        rule "error parsing" || err::generic_error(ctx),
+        // `server.timestamp` isn't available in 'connect' stage.
+        rule "error parsing" || err::generic_error(server),
 
         // previous rule should short circuit and return `next`.
         rule "trailing" || vsl::deny(),

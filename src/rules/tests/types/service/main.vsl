@@ -2,7 +2,7 @@
     connect: [
         rule "unknown_service" || {
             try {
-                services.run("unknown", ctx);
+                server.run_service("unknown");
                 return vsl::deny();
             } catch (err) {
                 print(err);
@@ -11,7 +11,7 @@
         },
 
         rule "test_services" || {
-            let result = services.run("shell", ctx);
+            let result = services.run_service("shell");
 
             print(`string: ${result.to_string()}`);
             print(`debug: ${result.to_debug()}`);
