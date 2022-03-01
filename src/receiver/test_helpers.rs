@@ -100,7 +100,7 @@ where
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
         anyhow::Context::context(
-            RuleEngine::new(config.rules.dir.as_str()),
+            RuleEngine::new(config.rules.dir.clone()),
             "failed to initialize the engine",
         )
         .unwrap(),
@@ -198,6 +198,10 @@ pub mod logs {
                 .log
                 .level
                 .insert("default".into(), log::LevelFilter::Warn);
+            config.log.file =
+                std::path::PathBuf::from_iter([".", "tests", "generated", "app.test.log"]);
+            config.rules.logs.file =
+                std::path::PathBuf::from_iter([".", "tests", "generated", "rules.test.log"]);
 
             log4rs::init_config(
                 crate::config::get_logger_config(&config).expect("failed to init logs"),

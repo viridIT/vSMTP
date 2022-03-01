@@ -26,8 +26,8 @@ use crate::{
 
 #[test]
 fn test_connect_rules() {
-    let re =
-        RuleEngine::new("./src/rules/tests/rules/connect").expect("couldn't build rule engine");
+    let re = RuleEngine::new("./src/rules/tests/rules/connect".into())
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     // ctx.client_addr is 0.0.0.0 by default.
@@ -42,7 +42,8 @@ fn test_connect_rules() {
 fn test_helo_rules() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/rules/helo").expect("couldn't build rule engine");
+    let re =
+        RuleEngine::new("./src/rules/tests/rules/helo".into()).expect("couldn't build rule engine");
 
     let mut state = get_default_state();
     state.get_context().write().unwrap().envelop.helo = "viridit.com".to_string();
@@ -55,7 +56,8 @@ fn test_helo_rules() {
 fn test_mail_from_rules() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/rules/mail").expect("couldn't build rule engine");
+    let re =
+        RuleEngine::new("./src/rules/tests/rules/mail".into()).expect("couldn't build rule engine");
 
     let mut state = get_default_state();
     {
@@ -87,7 +89,8 @@ This is a reply to your hello."#,
 fn test_rcpt_rules() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/rules/rcpt").expect("couldn't build rule engine");
+    let re =
+        RuleEngine::new("./src/rules/tests/rules/rcpt".into()).expect("couldn't build rule engine");
 
     let mut state = get_default_state();
     {

@@ -1,7 +1,7 @@
 #{
   connect: [
     rule "test_connect" || {
-      vsl::log_trace(`${ctx.client_addr}`);
+      vsl::log("trace", `${ctx.client_addr}`);
       if ctx.client_addr is "127.0.0.1" { vsl::next() } else { vsl::deny() }
     }
   ],

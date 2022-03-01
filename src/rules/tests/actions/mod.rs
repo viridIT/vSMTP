@@ -23,7 +23,8 @@ use crate::rules::{
 fn test_logs() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/actions/logs").expect("couldn't build rule engine");
+    let re = RuleEngine::new("./src/rules/tests/actions/logs".into())
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
@@ -33,8 +34,8 @@ fn test_logs() {
 fn test_users() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/actions/users").expect("couldn't build rule engine");
+    let re = RuleEngine::new("./src/rules/tests/actions/users".into())
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "delivery"), Status::Accept);
@@ -44,8 +45,8 @@ fn test_users() {
 fn test_send_mail() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/actions/send_mail").expect("couldn't build rule engine");
+    let re = RuleEngine::new("./src/rules/tests/actions/send_mail".into())
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     // TODO: add test to send a valid email.

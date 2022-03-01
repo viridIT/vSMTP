@@ -18,7 +18,7 @@ use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
 use super::server_config::{
     Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, ProtocolVersion,
+    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, InnerUserLogConfig, ProtocolVersion,
     ProtocolVersionRequirement, QueueConfig, ServerConfig, Service, SniKey, TlsSecurityLevel,
 };
 
@@ -330,7 +330,7 @@ pub struct WantsRules {
 impl ConfigBuilder<WantsRules> {
     pub fn with_rules(
         self,
-        source_dir: impl Into<String>,
+        source_dir: impl Into<std::path::PathBuf>,
         services: Vec<Service>,
     ) -> ConfigBuilder<WantsReplyCodes> {
         ConfigBuilder::<WantsReplyCodes> {
@@ -338,6 +338,31 @@ impl ConfigBuilder<WantsRules> {
                 parent: self.state,
                 rules: InnerRulesConfig {
                     dir: source_dir.into(),
+                    logs: InnerUserLogConfig::default(),
+                    services,
+                },
+            },
+        }
+    }
+
+    pub fn with_rules_and_logging(
+        self,
+        source_dir: impl Into<std::path::PathBuf>,
+        services: Vec<Service>,
+        log_file: impl Into<std::path::PathBuf>,
+        log_level: log::LevelFilter,
+        log_format: Option<String>,
+    ) -> ConfigBuilder<WantsReplyCodes> {
+        ConfigBuilder::<WantsReplyCodes> {
+            state: WantsReplyCodes {
+                parent: self.state,
+                rules: InnerRulesConfig {
+                    dir: source_dir.into(),
+                    logs: InnerUserLogConfig {
+                        file: log_file.into(),
+                        level: log_level,
+                        format: log_format,
+                    },
                     services,
                 },
             },
