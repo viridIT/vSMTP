@@ -1,0 +1,26 @@
+#! /bin/sh
+
+# PROVIDE: vsmtp
+# REQUIRE: DAEMON
+# KEYWORD: shutdown
+
+#
+# Add the following lines to /etc/rc.conf to enable vsmtp:
+#
+#vsmtp_enable="YES"
+
+. /etc/rc.subr
+
+name="vsmtp"
+rcvar="${name}_enable"
+
+load_rc_config $name
+
+: ${vsmtp_enable:=NO}
+: ${vsmtp_config:=/etc/vsmtp/vsmtp.toml}
+: ${vsmtp_flags:=--config}
+
+command="/usr/sbin/vsmtp"
+command_args="${vsmtp_config}"
+
+run_rc_command "$1"
