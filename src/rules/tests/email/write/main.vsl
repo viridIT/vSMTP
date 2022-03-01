@@ -1,18 +1,24 @@
 #{
     mail: [
-        rule "fail_write_to_disk_wrong_path" || {
+        rule "fail write to disk: wrong_path" || {
             try {
                 vsl::write(ctx, "does/not/exists");
+                return vsl::deny();
             } catch (err) {
-                if "failed to write email" in err { return vsl::next(); } else { return vsl::deny(); }
+                if "failed to write email" in err { return vsl::next(); } else {
+                    return vsl::deny();
+                }
             }
         },
 
-        rule "fail_write_to_disk" || {
+        rule "fail write to disk: body not received" || {
             try {
-                vsl::write(ctx, "./tests/generated/write_mail.txt");
+                vsl::write(ctx, "./tests/generated");
+                return vsl::deny();
             } catch (err) {
-                if "failed to write email: the body has not been received yet" in err { return vsl::next(); } else { return vsl::deny(); }
+                if "failed to write email: the body has not been received yet" in err { return vsl::next(); } else {
+                    return vsl::deny();
+                }
             }
         },
 
@@ -20,16 +26,17 @@
     ],
 
     preq: [
-        action "write_to_disk" || {
-            vsl::write(ctx, "./tests/generated/write_preq.txt");
+        action "write to disk preq" || {
+            vsl::write(ctx, "./tests/generated");
         },
 
         rule "trailing" || vsl::accept(),
     ],
 
     postq: [
-        action "write_to_disk" || {
-            vsl::write(ctx, "./tests/generated/write_postq.txt");
+        action "write to disk postq" || {
+            // will override the email written in preq.
+            vsl::write(ctx, "./tests/generated");
         },
 
         rule "trailing" || vsl::accept(),

@@ -275,17 +275,15 @@ pub mod mail_context {
         ))
     }
 
-    /// write the current email to a specified file.
+    /// write the current email to a specified folder.
     #[rhai_fn(global, return_raw)]
     pub fn write(
         this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
-        path: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
-        match std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-        {
+        dir: &str,
+    ) -> EngineResult<()> {
+        match std::fs::OpenOptions::new().create(true).write(true).open(
+            std::path::PathBuf::from_iter([dir, &format!("{}.eml", message_id(this)?)]),
+        ) {
             Ok(file) => {
                 let mut writer = std::io::LineWriter::new(file);
 
@@ -302,44 +300,41 @@ pub mod mail_context {
                     }
                     Body::Raw(raw) => writer.write_all(raw.as_bytes()),
                     Body::Parsed(email) => {
-                        let (body, headers) = email.to_raw();
-                        writer.write_all(format!("{}\n{}", headers, body).as_bytes())
+                        let (headers, body) = email.to_raw();
+                        writer.write_all(format!("{}\n\n{}", headers, body).as_bytes())
                     }
                 }
             }
-            .map_err(|err| format!("failed to write email: {err:?}").into()),
-            Err(err) => Err(format!("failed to write email: {err:?}").into()),
+            .map_err(|err| format!("failed to write email at '{}': {:?}", dir, err).into()),
+            Err(err) => Err(format!("failed to write email at '{}': {:?}", dir, err).into()),
         }
     }
 
     /// write the content of the current email in a json file.
+    /// NOTE: it would be great not having all those 'map_err'.
     #[rhai_fn(global, return_raw)]
     pub fn dump(
         this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
-        path: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
-        match std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-        {
+        dir: &str,
+    ) -> EngineResult<()> {
+        match std::fs::OpenOptions::new().create(true).write(true).open(
+            std::path::PathBuf::from_iter([dir, &format!("{}.dump.json", message_id(this)?)]),
+        ) {
             Ok(mut file) => file
                 .write_all(
                     serde_json::to_string_pretty(
                         &this
                             .read()
-                            .map_err::<Box<EvalAltResult>, _>(|err| {
-                                format!("failed to dump email: {err:?}").into()
-                            })?
+                            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
                             .mail_context,
                     )
                     .map_err::<Box<EvalAltResult>, _>(|err| {
-                        format!("failed to dump email: {err:?}").into()
+                        format!("failed to dump email at '{}': {:?}", dir, err).into()
                     })?
                     .as_bytes(),
                 )
-                .map_err(|err| format!("failed to dump email: {err:?}").into()),
-            Err(err) => Err(format!("failed to dump email: {err:?}").into()),
+                .map_err(|err| format!("failed to dump email at '{}': {:?}", dir, err).into()),
+            Err(err) => Err(format!("failed to dump email at '{}': {:?}", dir, err).into()),
         }
     }
 
@@ -349,7 +344,7 @@ pub mod mail_context {
     pub fn quarantine(
         this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         queue: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
+    ) -> EngineResult<()> {
         match std::fs::OpenOptions::new()
             .create(true)
             .append(true)

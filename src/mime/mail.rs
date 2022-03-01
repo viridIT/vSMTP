@@ -33,7 +33,7 @@ impl ToString for BodyType {
             Self::Regular(content) => content.join("\n"),
             Self::Mime(content) => {
                 let (headers, body) = content.to_raw();
-                format!("{}\n{}", headers, body)
+                format!("{}\n\n{}", headers, body)
             }
             Self::Undefined => String::default(),
         }
