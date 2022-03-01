@@ -27,12 +27,22 @@ pub struct ConfigBuilder<State> {
 }
 
 impl ServerConfig {
+    /// Return an instance of [ConfigBuilder] for a step-by-step configuration generation
     pub fn builder() -> ConfigBuilder<WantsVersion> {
         ConfigBuilder {
             state: WantsVersion(()),
         }
     }
 
+    /// Parse a [ServerConfig] with [TOML] format
+    ///
+    /// Produce an error if :
+    /// * file is not a valid [TOML]
+    /// * one field is unknown
+    /// * the version requirement are not fulfilled
+    /// * a mandatory field is not provided (no default value)
+    ///
+    /// [TOML]: https://github.com/toml-lang/toml
     pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
         let parsed_ahead = ConfigBuilder::<WantsServer> {
             state: toml::from_str::<WantsServer>(data)?,

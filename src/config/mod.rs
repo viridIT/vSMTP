@@ -15,21 +15,24 @@
  *
 **/
 mod config_builder;
+/// The default values of the configuration
 pub mod default;
 mod serializer;
+/// The rust representation of the configuration
 pub mod server_config;
 
 #[cfg(test)]
 mod tests;
 
-pub mod log_channel {
-    pub const RECEIVER: &str = "receiver";
-    pub const RESOLVER: &str = "resolver";
-    pub const SRULES: &str = "rules";
-    pub const URULES: &str = "user_rules";
-    pub const DELIVER: &str = "deliver";
+pub(crate) mod log_channel {
+    pub(crate) const RECEIVER: &str = "receiver";
+    pub(crate) const RESOLVER: &str = "resolver";
+    pub(crate) const SRULES: &str = "rules";
+    pub(crate) const URULES: &str = "user_rules";
+    pub(crate) const DELIVER: &str = "deliver";
 }
 
+/// helper to initialize the log4rs config from our ServerConfig
 pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result<log4rs::Config> {
     use log4rs::*;
 

@@ -6,6 +6,7 @@
         "capath",
         "chrono",
         "cipherlist",
+        "ciphersuite",
         "clamav",
         "cpus",
         "ehlo",

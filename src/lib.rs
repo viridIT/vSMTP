@@ -14,7 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
-// #[deny(missing_docs)]
+
+#[deny(missing_docs)]
 pub mod config;
 pub mod mime;
 pub mod my_libc;
