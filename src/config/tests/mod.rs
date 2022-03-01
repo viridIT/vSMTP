@@ -23,6 +23,7 @@ fn init() -> anyhow::Result<()> {
             10,
             std::time::Duration::from_millis(100),
             1000,
+            1000,
         )
         .with_delivery(
             "/tmp/spool",
@@ -52,6 +53,7 @@ fn init_no_smtps() -> anyhow::Result<()> {
             5,
             10,
             std::time::Duration::from_millis(100),
+            1000,
             1000,
         )
         .with_delivery(
@@ -198,6 +200,7 @@ fn from_toml_template_services() -> anyhow::Result<()> {
                 5,
                 10,
                 std::time::Duration::from_millis(1000),
+                1000,
                 1000,
             )
             .with_delivery(

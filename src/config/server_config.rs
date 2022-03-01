@@ -121,6 +121,8 @@ pub struct InnerSMTPConfig {
     pub error: InnerSMTPErrorConfig,
     #[serde(default = "default_rcpt_count_max")]
     pub rcpt_count_max: usize,
+    #[serde(default = "InnerSMTPConfig::default_client_count_max")]
+    pub client_count_max: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

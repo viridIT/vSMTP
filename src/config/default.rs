@@ -107,7 +107,14 @@ impl Default for InnerSMTPConfig {
             timeout_client: Default::default(),
             error: Default::default(),
             rcpt_count_max: 1000,
+            client_count_max: Self::default_client_count_max(),
         }
+    }
+}
+
+impl InnerSMTPConfig {
+    pub(crate) fn default_client_count_max() -> usize {
+        1000
     }
 }
 

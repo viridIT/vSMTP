@@ -271,6 +271,7 @@ pub struct WantSMTP {
 }
 
 impl ConfigBuilder<WantSMTP> {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_smtp(
         self,
         disable_ehlo: bool,
@@ -279,6 +280,7 @@ impl ConfigBuilder<WantSMTP> {
         error_hard_count: i64,
         error_delay: std::time::Duration,
         rcpt_count_max: usize,
+        client_count_max: usize,
     ) -> ConfigBuilder<WantsDelivery> {
         ConfigBuilder::<WantsDelivery> {
             state: WantsDelivery {
@@ -295,6 +297,7 @@ impl ConfigBuilder<WantSMTP> {
                         delay: error_delay,
                     },
                     rcpt_count_max,
+                    client_count_max,
                 },
             },
         }
@@ -307,6 +310,7 @@ impl ConfigBuilder<WantSMTP> {
             5,
             10,
             std::time::Duration::from_millis(1000),
+            1000,
             1000,
         )
     }
