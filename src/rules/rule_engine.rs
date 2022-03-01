@@ -555,6 +555,8 @@ impl RuleEngine {
             "server",
             std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
                 config: ServerConfig::builder()
+                    .with_version_str("<1.0.0")
+                    .unwrap()
                     .with_server(
                         "",
                         "",
