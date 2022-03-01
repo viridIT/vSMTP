@@ -24,7 +24,8 @@ use crate::{
 
 fn get_regular_config() -> ServerConfig {
     ServerConfig::builder()
-        .with_version("")
+        .with_version_str("<1.0.0")
+        .unwrap()
         .with_rfc_port("test.server.com", "foo", "foo", None)
         .without_log()
         .without_smtps()

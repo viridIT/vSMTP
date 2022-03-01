@@ -260,7 +260,8 @@ mod tests {
 
         let config = std::sync::Arc::new(
             ServerConfig::builder()
-                .with_version("")
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_server(
                     "test.server.com",
                     "foo",
@@ -297,14 +298,15 @@ mod tests {
     async fn init_server_secured_valid() -> anyhow::Result<()> {
         // NOTE: using debug port + 1 in case of a debug server running elsewhere
         let (addr, addr_submission, addr_submissions) = (
-            "0.0.0.0:10026".parse().expect("valid address"),
-            "0.0.0.0:10588".parse().expect("valid address"),
-            "0.0.0.0:10466".parse().expect("valid address"),
+            "0.0.0.0:10027".parse().expect("valid address"),
+            "0.0.0.0:10589".parse().expect("valid address"),
+            "0.0.0.0:10467".parse().expect("valid address"),
         );
 
         let config = std::sync::Arc::new(
             ServerConfig::builder()
-                .with_version("")
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_server(
                     "test.server.com",
                     "foo",

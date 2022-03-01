@@ -118,7 +118,8 @@ async fn simple() -> anyhow::Result<()> {
         "testserver.com",
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_version("")
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_rfc_port("testserver.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(
@@ -164,7 +165,8 @@ async fn sni() -> anyhow::Result<()> {
         "second.testserver.com",
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_version("")
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_rfc_port("testserver.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(

@@ -13,7 +13,8 @@ use crate::{
 
 fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
-        .with_version("")
+        .with_version_str("<1.0.0")
+        .unwrap()
         .with_rfc_port("test.server.com", "foo", "foo", None)
         .without_log()
         .without_smtps()
@@ -157,7 +158,8 @@ async fn simple() -> anyhow::Result<()> {
         "testserver.com",
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_version("")
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_rfc_port("testserver.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(
@@ -293,7 +295,8 @@ async fn test_receiver_8() -> anyhow::Result<()> {
         .as_bytes(),
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_version("")
+                .with_version_str("<1.0.0")
+                .unwrap()
                 .with_rfc_port("test.server.com", "foo", "foo", None)
                 .without_log()
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
@@ -301,7 +304,8 @@ async fn test_receiver_8() -> anyhow::Result<()> {
                 .with_delivery("./tmp/delivery", crate::collection! {})
                 .with_rules("./tmp/nothing", vec![])
                 .with_default_reply_codes()
-                .build()?
+                .build()
+                .unwrap()
         )
     )
     .await

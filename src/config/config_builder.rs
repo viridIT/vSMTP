@@ -34,16 +34,15 @@ impl ServerConfig {
     }
 
     pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
-        let version = ConfigBuilder::<WantsServer> {
+        let parsed_ahead = ConfigBuilder::<WantsServer> {
             state: toml::from_str::<WantsServer>(data)?,
         };
-        let req = semver::VersionReq::parse(&version.state.version_requirement)?;
         let pkg_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
 
-        if !req.matches(&pkg_version) {
+        if !parsed_ahead.state.version_requirement.matches(&pkg_version) {
             anyhow::bail!(
                 "Version requirement not fulfilled: expected '{}' but got '{}'",
-                version.state.version_requirement,
+                parsed_ahead.state.version_requirement,
                 env!("CARGO_PKG_VERSION")
             );
         }
@@ -59,13 +58,28 @@ impl ServerConfig {
 pub struct WantsVersion(pub(crate) ());
 
 impl ConfigBuilder<WantsVersion> {
-    pub fn with_version(self, version: impl Into<String>) -> ConfigBuilder<WantsServer> {
+    pub fn with_version(
+        self,
+        version_requirement: semver::VersionReq,
+    ) -> ConfigBuilder<WantsServer> {
         ConfigBuilder::<WantsServer> {
             state: WantsServer {
                 parent: self.state,
-                version_requirement: version.into(),
+                version_requirement,
             },
         }
+    }
+
+    pub fn with_version_str(
+        self,
+        version_requirement: &str,
+    ) -> anyhow::Result<ConfigBuilder<WantsServer>> {
+        Ok(ConfigBuilder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                version_requirement: semver::VersionReq::parse(version_requirement)?,
+            },
+        })
     }
 }
 
@@ -74,7 +88,11 @@ pub struct WantsServer {
     #[serde(skip)]
     #[allow(unused)]
     pub(crate) parent: WantsVersion,
-    version_requirement: String,
+    #[serde(
+        serialize_with = "crate::config::serializer::serialize_version_req",
+        deserialize_with = "crate::config::serializer::deserialize_version_req"
+    )]
+    version_requirement: semver::VersionReq,
 }
 
 impl ConfigBuilder<WantsServer> {
