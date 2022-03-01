@@ -9,6 +9,11 @@ default = "warn"
 [rules]
 dir = "/etc/vsmtp/rules"
 
+[rules.logs]
+file = "/var/log/vsmtp/custom_file.log"
+level = "trace"
+format = "{d} - {m}{n}"
+
 [[rules.services]]
 type = "shell"
 name = "echo_hello"

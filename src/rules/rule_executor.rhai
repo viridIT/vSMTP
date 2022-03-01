@@ -27,7 +27,6 @@ fn run_rules(rules, stage) {
             try {
                 result = procedure.evaluate.call();
             } catch (err) {
-                print(err);
                 err.set("rule", procedure.name);
                 result = err;
             };

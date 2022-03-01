@@ -67,7 +67,7 @@ fn from_toml_template_simple() -> anyhow::Result<()> {
         ServerConfig::builder()
             .with_rfc_port("testserver.com", "vsmtp", "vsmtp", None)
             .with_logging(
-                "/var/log/vsmtp/vsmtp.log",
+                "/var/log/vsmtp/app.log",
                 crate::collection! {
                     "default".to_string() => log::LevelFilter::Warn
                 },
@@ -173,7 +173,7 @@ fn from_toml_template_services() -> anyhow::Result<()> {
         ServerConfig::builder()
             .with_rfc_port("testserver.com", "vsmtp", "vsmtp", None)
             .with_logging(
-                "/var/log/vsmtp/vsmtp.log",
+                "/var/log/vsmtp/app.log",
                 crate::collection! {
                     "default".to_string() => log::LevelFilter::Warn
                 },
@@ -210,7 +210,7 @@ fn from_toml_template_services() -> anyhow::Result<()> {
                     },
                 },
             )
-            .with_rules(
+            .with_rules_and_logging(
                 "/etc/vsmtp/rules",
                 vec![
                     Service::UnixShell {
@@ -230,6 +230,9 @@ fn from_toml_template_services() -> anyhow::Result<()> {
                         group: Some("anti_spam".to_string())
                     }
                 ],
+                "/var/log/vsmtp/custom_file.log",
+                log::LevelFilter::Trace,
+                Some("{d} - {m}{n}".to_string()),
             )
             .with_reply_codes(crate::collection! {
                 SMTPReplyCode::Code214 => "214 my custom help message\r\n".to_string(),

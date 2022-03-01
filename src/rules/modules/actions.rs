@@ -21,7 +21,7 @@ use rhai::plugin::*;
 pub mod actions {
 
     use crate::{
-        config::{log_channel::RULES, server_config::Service},
+        config::{log_channel::URULES, server_config::Service},
         rules::{rule_engine::Status, service::ServiceResult},
         smtp::mail::MailContext,
     };
@@ -42,24 +42,20 @@ pub mod actions {
         Status::Deny
     }
 
-    pub fn log_error(message: &str) {
-        log::error!(target: RULES, "{}", message);
-    }
-
-    pub fn log_warn(message: &str) {
-        log::warn!(target: RULES, "{}", message);
-    }
-
-    pub fn log_info(message: &str) {
-        log::info!(target: RULES, "{}", message);
-    }
-
-    pub fn log_debug(message: &str) {
-        log::debug!(target: RULES, "{}", message);
-    }
-
-    pub fn log_trace(message: &str) {
-        log::trace!(target: RULES, "{}", message);
+    pub fn log(level: &str, message: &str) {
+        match level {
+            "trace" => log::trace!(target: URULES, "{}", message),
+            "debug" => log::debug!(target: URULES, "{}", message),
+            "info" => log::info!(target: URULES, "{}", message),
+            "warn" => log::warn!(target: URULES, "{}", message),
+            "error" => log::error!(target: URULES, "{}", message),
+            unknown => log::warn!(
+                target: URULES,
+                "'{}' is not a valid log level. Original message: '{}'",
+                unknown,
+                message
+            ),
+        }
     }
 
     // TODO: not yet functional, the relayer cannot connect to servers.

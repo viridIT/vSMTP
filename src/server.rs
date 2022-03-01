@@ -116,9 +116,7 @@ impl ServerVSMTP {
         let (working_sender, working_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
-        let rule_engine = Arc::new(RwLock::new(RuleEngine::new(
-            self.config.rules.dir.as_str(),
-        )?));
+        let rule_engine = Arc::new(RwLock::new(RuleEngine::new(self.config.rules.dir.clone())?));
 
         let re_delivery = rule_engine.clone();
         let config_deliver = self.config.clone();

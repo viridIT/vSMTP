@@ -1,5 +1,5 @@
 use crate::{
-    config::{log_channel::RULES, server_config::Service},
+    config::{log_channel::SRULES, server_config::Service},
     smtp::mail::{Body, MailContext},
 };
 
@@ -81,7 +81,7 @@ impl Service {
                     }
                 }
 
-                log::trace!(target: RULES, "running command: {:#?}", child);
+                log::trace!(target: SRULES, "running command: {:#?}", child);
 
                 let mut child = match child.spawn() {
                     Ok(child) => child,
