@@ -10,7 +10,7 @@ fn has_virus(server) {
     result.has_code && result.code != 0
 }
 
-run_rules!(#{
+#{
     preq: [
         action "antivirus" || {
             if has_virus(server) {
@@ -18,4 +18,4 @@ run_rules!(#{
             }
         }
     ]
-})
+}
