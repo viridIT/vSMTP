@@ -30,12 +30,14 @@ use crate::{
     smtp::mail::MailContext,
 };
 
+/// A type implementing Write+Read to emulate sockets
 pub struct Mock<'a, T: std::io::Write + std::io::Read> {
     read_cursor: T,
     write_cursor: std::io::Cursor<&'a mut Vec<u8>>,
 }
 
 impl<'a, T: std::io::Write + std::io::Read> Mock<'a, T> {
+    /// Create an new instance
     pub fn new(read: T, write: &'a mut Vec<u8>) -> Self {
         Self {
             read_cursor: read,
@@ -60,7 +62,7 @@ impl<T: std::io::Write + std::io::Read> std::io::Read for Mock<'_, T> {
     }
 }
 
-pub struct DefaultResolverTest;
+pub(crate) struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl Resolver for DefaultResolverTest {
@@ -171,7 +173,8 @@ where
     Ok(())
 }
 
-pub fn get_regular_config() -> anyhow::Result<ServerConfig> {
+#[cfg(test)]
+pub(crate) fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
         .with_version_str("<1.0.0")
         .unwrap()

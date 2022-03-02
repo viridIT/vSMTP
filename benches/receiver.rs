@@ -21,11 +21,9 @@ use criterion::{
 };
 use vsmtp::{
     config::server_config::ServerConfig,
-    mime::mail::BodyType,
     receiver::test_helpers::test_receiver,
-    resolver::Resolver,
-    rules::address::Address,
-    smtp::mail::{Body, MailContext},
+    resolver::{MailContext, Resolver},
+    Address, Body, BodyType,
 };
 
 #[derive(Clone)]

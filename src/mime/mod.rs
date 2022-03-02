@@ -15,7 +15,10 @@
  *
 **/
 mod error;
+mod helpers;
 pub mod mail;
 pub mod mime_type;
 pub mod parser;
+
+#[cfg(test)]
 pub mod tests;

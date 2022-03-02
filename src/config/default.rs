@@ -21,6 +21,10 @@ use super::server_config::{
     InnerServerConfig, InnerUserLogConfig,
 };
 
+pub(super) fn default_rcpt_count_max() -> usize {
+    1000
+}
+
 impl Default for InnerServerConfig {
     fn default() -> Self {
         Self {
@@ -161,6 +165,9 @@ impl Codes {
             .all(|i| self.codes.contains_key(&i))
     }
 
+    /// return the message associated with a [SMTPReplyCode].
+    ///
+    /// panic if the config is ill-formed
     pub fn get(&self, code: &SMTPReplyCode) -> &String {
         self.codes
             .get(code)

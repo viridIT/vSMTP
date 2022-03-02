@@ -30,14 +30,15 @@ use self::{
 
 use std::sync::{Arc, RwLock};
 
-pub mod connection;
-pub mod io_service;
-pub mod transaction;
+pub(crate) mod connection;
+pub(crate) mod io_service;
+pub(crate) mod transaction;
 
 #[cfg(test)]
 mod tests;
 
 // NOTE: not marked as #[cfg(test)] because it is used by the bench/fuzz
+/// boilerplate for the tests
 pub mod test_helpers;
 
 fn is_version_requirement_satisfied(
@@ -128,6 +129,7 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
     Ok(())
 }
 
+/// Receives the incomings mail of a connection
 pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -176,7 +178,7 @@ where
     Ok(())
 }
 
-pub async fn handle_connection_secured<S>(
+pub(crate) async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rule_engine: Arc<RwLock<RuleEngine>>,

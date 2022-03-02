@@ -21,8 +21,11 @@ use rhai::plugin::*;
 pub mod actions {
 
     use crate::{
-        config::{log_channel::URULES, server_config::Service},
-        rules::{rule_engine::Status, service::ServiceResult},
+        config::{
+            log_channel::URULES,
+            service::{Service, ServiceResult},
+        },
+        rules::rule_engine::Status,
         smtp::mail::MailContext,
     };
 
@@ -109,7 +112,7 @@ pub mod actions {
     }
 
     #[rhai_fn(global, return_raw)]
-    pub fn run(
+    pub(crate) fn run(
         services: &mut std::sync::Arc<Vec<Service>>,
         service_name: &str,
         ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,

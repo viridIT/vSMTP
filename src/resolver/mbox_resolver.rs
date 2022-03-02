@@ -16,6 +16,7 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
+    my_libc::chown_file,
     smtp::mail::{Body, MailContext},
 };
 
@@ -65,7 +66,7 @@ impl Resolver for MBoxResolver {
                         .create(true)
                         .append(true)
                         .open(&mbox)?;
-                    super::chown_file(&mbox, &user)?;
+                    chown_file(&mbox, &user)?;
 
                     std::io::Write::write_all(&mut file, content.as_bytes())?;
 

@@ -16,8 +16,8 @@
 **/
 use vsmtp::{
     config::{get_logger_config, server_config::ServerConfig},
+    resolver::{MailContext, Resolver},
     server::ServerVSMTP,
-    smtp::mail::MailContext,
 };
 
 const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
@@ -84,7 +84,7 @@ async fn send_payload() {
 struct Nothing;
 
 #[async_trait::async_trait]
-impl vsmtp::resolver::Resolver for Nothing {
+impl Resolver for Nothing {
     async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
         Ok(())
     }
