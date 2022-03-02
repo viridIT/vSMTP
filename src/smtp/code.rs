@@ -127,6 +127,8 @@ pub enum SMTPReplyCode {
     // Code555,
     // domain does not accept mail
     // Code556,
+    /// 554
+    ConnectionMaxReached,
 }
 
 impl SMTPReplyCode {
@@ -151,7 +153,8 @@ impl SMTPReplyCode {
             | SMTPReplyCode::Code503
             | SMTPReplyCode::Code530
             | SMTPReplyCode::Code554
-            | SMTPReplyCode::Code554tls => true,
+            | SMTPReplyCode::Code554tls
+            | SMTPReplyCode::ConnectionMaxReached => true,
             //
             _ => unimplemented!(),
         }
@@ -182,6 +185,7 @@ impl std::fmt::Display for SMTPReplyCode {
             SMTPReplyCode::Code530 => "Code530",
             SMTPReplyCode::Code554 => "Code554",
             SMTPReplyCode::Code554tls => "Code554tls",
+            SMTPReplyCode::ConnectionMaxReached => "ConnectionMaxReached",
         })
     }
 }
@@ -227,6 +231,7 @@ impl std::str::FromStr for SMTPReplyCode {
             "Code530" => Ok(SMTPReplyCode::Code530),
             "Code554" => Ok(SMTPReplyCode::Code554),
             "Code554tls" => Ok(SMTPReplyCode::Code554tls),
+            "ConnectionMaxReached" => Ok(SMTPReplyCode::ConnectionMaxReached),
             _ => Err(SMTPReplyCodeFromStrError),
         }
     }

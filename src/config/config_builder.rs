@@ -294,7 +294,7 @@ impl ConfigBuilder<WantSMTP> {
         error_hard_count: i64,
         error_delay: std::time::Duration,
         rcpt_count_max: usize,
-        client_count_max: usize,
+        client_count_max: i64,
     ) -> ConfigBuilder<WantsDelivery> {
         ConfigBuilder::<WantsDelivery> {
             state: WantsDelivery {
@@ -325,7 +325,7 @@ impl ConfigBuilder<WantSMTP> {
             10,
             std::time::Duration::from_millis(1000),
             1000,
-            1000,
+            InnerSMTPConfig::default_client_count_max(),
         )
     }
 }

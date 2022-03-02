@@ -178,8 +178,10 @@ pub struct InnerSMTPConfig {
     #[serde(default = "crate::config::default::default_rcpt_count_max")]
     pub rcpt_count_max: usize,
     /// maximum number of client handled at the same time, any new connection will be closed
+    ///
+    /// -1 to disable
     #[serde(default = "InnerSMTPConfig::default_client_count_max")]
-    pub client_count_max: usize,
+    pub client_count_max: i64,
 }
 
 /// vSMTP's application configuration

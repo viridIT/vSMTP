@@ -117,8 +117,8 @@ impl Default for InnerSMTPConfig {
 }
 
 impl InnerSMTPConfig {
-    pub(crate) fn default_client_count_max() -> usize {
-        1000
+    pub(crate) fn default_client_count_max() -> i64 {
+        -1
     }
 }
 
@@ -146,6 +146,7 @@ impl Default for Codes {
             SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n",
             SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
             SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
+            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
         };
 
         let out = Self {

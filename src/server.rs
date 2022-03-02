@@ -24,6 +24,7 @@ use crate::{
     },
     resolver::{smtp_resolver::SMTPResolver, Resolver},
     rules::rule_engine::RuleEngine,
+    smtp::code::SMTPReplyCode,
     tls_helpers::get_rustls_config,
 };
 
@@ -154,7 +155,7 @@ impl ServerVSMTP {
         let working_sender = std::sync::Arc::new(working_sender);
         let delivery_sender = std::sync::Arc::new(delivery_sender);
 
-        let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
         loop {
             let (mut stream, client_addr, kind) = tokio::select! {
@@ -168,10 +169,24 @@ impl ServerVSMTP {
                     (stream, client_addr, ConnectionKind::Tunneled)
                 }
             };
-            if client_counter.load(std::sync::atomic::Ordering::SeqCst)
-                >= self.config.smtp.client_count_max
+            log::warn!("Connection from: {:?}, {}", kind, client_addr);
+
+            if self.config.smtp.client_count_max != -1
+                && client_counter.load(std::sync::atomic::Ordering::SeqCst)
+                    >= self.config.smtp.client_count_max
             {
-                // TODO: send busy code ?
+                if let Err(e) = tokio::io::AsyncWriteExt::write_all(
+                    &mut stream,
+                    self.config
+                        .reply_codes
+                        .get(&SMTPReplyCode::ConnectionMaxReached)
+                        .as_bytes(),
+                )
+                .await
+                {
+                    log::warn!("{}", e);
+                }
+
                 if let Err(e) = tokio::io::AsyncWriteExt::shutdown(&mut stream).await {
                     log::warn!("{}", e);
                 }
@@ -180,16 +195,13 @@ impl ServerVSMTP {
 
             client_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
-            log::warn!("Connection from: {:?}, {}", kind, client_addr);
-
-            let re_smtp = rule_engine.clone();
             let session = Self::run_session(
                 stream,
                 client_addr,
                 kind,
                 self.config.clone(),
                 self.tls_config.clone(),
-                re_smtp,
+                rule_engine.clone(),
                 working_sender.clone(),
                 delivery_sender.clone(),
             );
