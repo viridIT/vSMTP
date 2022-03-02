@@ -6,8 +6,8 @@ addr = "0.0.0.0:10025"
 addr_submission = "0.0.0.0:10587"
 addr_submissions = "0.0.0.0:10465"
 thread_count = 10
-vsmtp_user = "vsmtp"
-vsmtp_group = "vsmtp"
+vsmtp_user = "lala"
+vsmtp_group = "lala"
 
 [logs]
 file = "./tmp/var/log/vsmtp/vsmtp.log"
@@ -21,6 +21,11 @@ rules = "warn"
 [rules]
 dir = "./config/rules"
 
+[rules.logs]
+file = "./tmp/app.log"
+level = "trace"
+format = "{d} - {m}{n}"
+
 [[rules.services]]
 name = "clamscan"
 type = "shell"
@@ -28,22 +33,23 @@ timeout = "15s"
 command = "./config/rules/service/clamscan.sh"
 args = "{mail}"
 
-[smtps]
-security_level = "May"
-capath = "./config/certs"
-preempt_cipherlist = true
-handshake_timeout = "100ms"
-protocol_version = ["TLSv1.3"]
-
-fullchain = "{capath}/certificate.crt"
-private_key = "{capath}/privateKey.key"
-
-[[smtps.sni_maps]]
-domain = "testserver.com"
-fullchain = "{capath}/fullchain.{domain}.pem"
-private_key = "{capath}/rsa.{domain}.pem"
+# [smtps]
+# security_level = "May"
+# capath = "./config/certs"
+# preempt_cipherlist = true
+# handshake_timeout = "100ms"
+# protocol_version = ["TLSv1.3"]
+#
+# fullchain = "{capath}/certificate.crt"
+# private_key = "{capath}/privateKey.key"
+#
+# [[smtps.sni_maps]]
+# domain = "testserver.com"
+# fullchain = "{capath}/fullchain.{domain}.pem"
+# private_key = "{capath}/rsa.{domain}.pem"
 
 [smtp]
+client_count_max = 3
 rcpt_count_max = 25
 disable_ehlo = false
 
