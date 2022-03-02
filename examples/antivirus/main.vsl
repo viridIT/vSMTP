@@ -1,6 +1,6 @@
 fn has_virus(services, ctx) {
     let result = services.run("clamscan", ctx);
-    debug(`${result}`);
+    vsl::log("debug", `${result}`);
 
     if result.has_signal {
         // timed out
@@ -10,12 +10,12 @@ fn has_virus(services, ctx) {
     result.has_code && result.code != 0
 }
 
-run_rules!(#{
+#{
     preq: [
         action "antivirus" || {
             if has_virus(services, ctx) {
-                // quarantine and log and blacklist
+                // quarantine, log and blacklist.
             }
         }
     ]
-})
+}

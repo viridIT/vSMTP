@@ -40,15 +40,37 @@ About filtering functionalities :
 - Offline filtering stage (post-queue).
 - Deliver stage related rules and actions.
 
-## Release 0.9.x
+## Release 0.9.x : current version
 
-Available on mid February these releases will focus on the vSMTP policy server and on performances.
+Due to several constraints the vSMTP Policy Server (vPS) module dedicated to the integration of third-party software has been postponed to versions 0.10.x.
 
-The vSMTP Policy Server (vPS) is a module dedicated to integrating of
+The 0.9.x releases focus on:
+
+- TLS integration.
+- vSL grammar and syntax.
+- Refactoring of TOML tables/fields.
+- Local Unix services.
+
+About system integration and security:
+
+- Daemon startup mode and drop of privileges.
+- Split of system and application logs.
+- Folders restrictions fo user-defined quarantines, logs, etc.
+
+About filtering features:
+
+- Headers manipulation.
+- Bcc() action.
+
+## Release 0.10.x : available in april 2022
+
+These versions will be the first pre-production releases, focusing on vSMTP policy server and performances.
+
+The vSMTP Policy Server (vPS) is a module dedicated to the integration of
 third-party software. Thanks to its logic engine it can manage complex filtering
-and security rules. In version 0.9.x, vPS will accept delegation trough:
+and security rules. In version 0.10.x, vPS will accept delegation trough:
 
-- The SMTP protocol.
+- The SMTP protocol
 - A libmilter-like emulator.
 - Local Unix scripts.
 
@@ -56,5 +78,5 @@ It can be called at any stage of a SMTP transaction via the rule engine.
 
 ## Production release
 
-Depending on versions 0.7+ fixes and user feedbacks, the production version is
+Depending on versions fixes and user feedbacks, the production version is
 expected for end of Q2/2022.
