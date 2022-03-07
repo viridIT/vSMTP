@@ -614,18 +614,24 @@ impl RuleEngine {
             ast += engine
                 .compile_with_scope(
                     &scope,
-                    std::fs::read_to_string(&script_path).map_err(|err| anyhow::anyhow!(err))?,
+                    std::fs::read_to_string(&script_path).map_err(|err| {
+                        anyhow::anyhow!(
+                            "could not load rule script at '{:?}': {}",
+                            script_path,
+                            err
+                        )
+                    })?,
                 )
                 .context(format!("failed to compile '{}'", script_path.display()))?;
         } else {
-            log::info!(
+            log::warn!(
                 target: SRULES,
-                "No 'main.vsl' provided in the config, no rules will be processed.",
+                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
             );
 
             ast += engine
-                .compile_with_scope(&scope, "#{}")
-                .context("empty rules")?;
+                .compile_with_scope(&scope, include_str!("default_rules.rhai"))
+                .context("failed to load default rules")?;
         }
 
         engine
