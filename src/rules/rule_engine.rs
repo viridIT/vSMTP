@@ -68,6 +68,7 @@ impl std::fmt::Display for Status {
 pub struct RuleState<'a> {
     scope: Scope<'a>,
     server: std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
     skip: Option<Status>,
 }
 
@@ -78,23 +79,27 @@ impl<'a> RuleState<'a> {
         let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
             // FIXME: set config in Arc.
             config: config.clone(),
-            mail_context: MailContext {
-                connexion_timestamp: std::time::SystemTime::now(),
-                client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
-                envelop: Envelop::default(),
-                body: Body::Empty,
-                metadata: None,
-            },
+            resolver: "default".to_string(),
+        }));
+
+        let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
+            connexion_timestamp: std::time::SystemTime::now(),
+            client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
+            envelop: Envelop::default(),
+            body: Body::Empty,
+            metadata: None,
         }));
 
         scope
             .push("date", "")
             .push("time", "")
-            .push("server", server.clone());
+            .push("srv", server.clone())
+            .push("ctx", mail_context.clone());
 
         Self {
             scope,
             server,
+            mail_context,
             skip: None,
         }
     }
@@ -107,17 +112,20 @@ impl<'a> RuleState<'a> {
         let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
             // FIXME: set config in Arc.
             config: config.clone(),
-            mail_context,
+            resolver: "default".to_string(),
         }));
+        let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
 
         scope
             .push("date", "")
             .push("time", "")
-            .push("server", server.clone());
+            .push("srv", server.clone())
+            .push("ctx", mail_context.clone());
 
         Self {
             scope,
             server,
+            mail_context,
             skip: None,
         }
     }
@@ -132,8 +140,8 @@ impl<'a> RuleState<'a> {
     }
 
     /// fetch the email context (possibly) mutated by the user's rules.
-    pub(crate) fn get_state(&mut self) -> std::sync::Arc<std::sync::RwLock<ServerAPI>> {
-        self.server.clone()
+    pub(crate) fn get_context(&mut self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
+        self.mail_context.clone()
     }
 
     pub fn skipped(&self) -> Option<Status> {
@@ -551,38 +559,45 @@ impl RuleEngine {
         log::debug!(target: SRULES, "compiling rhai scripts ...");
 
         let mut scope = Scope::new();
-        scope.push("date", "").push("time", "").push(
-            "server",
-            std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
-                config: ServerConfig::builder()
-                    .with_version_str("<1.0.0")
-                    .unwrap()
-                    .with_server(
-                        "",
-                        "",
-                        "",
-                        "0.0.0.0:10026".parse().unwrap(),
-                        "0.0.0.0:10588".parse().unwrap(),
-                        "0.0.0.0:10466".parse().unwrap(),
-                        0,
-                    )
-                    .without_log()
-                    .without_smtps()
-                    .with_default_smtp()
-                    .with_delivery("./tmp/trash", crate::collection! {})
-                    .with_rules("./tmp/no_rules", vec![])
-                    .with_default_reply_codes()
-                    .build()
-                    .unwrap(),
-                mail_context: MailContext {
+        scope
+            .push("date", "")
+            .push("time", "")
+            .push(
+                "srv",
+                std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
+                    config: ServerConfig::builder()
+                        .with_version_str("<1.0.0")
+                        .unwrap()
+                        .with_server(
+                            "",
+                            "",
+                            "",
+                            "0.0.0.0:10026".parse().unwrap(),
+                            "0.0.0.0:10588".parse().unwrap(),
+                            "0.0.0.0:10466".parse().unwrap(),
+                            0,
+                        )
+                        .without_log()
+                        .without_smtps()
+                        .with_default_smtp()
+                        .with_delivery("./tmp/trash", crate::collection! {})
+                        .with_rules("./tmp/no_rules", vec![])
+                        .with_default_reply_codes()
+                        .build()
+                        .unwrap(),
+                    resolver: "default".to_string(),
+                })),
+            )
+            .push(
+                "ctx",
+                std::sync::Arc::new(std::sync::RwLock::new(MailContext {
                     connexion_timestamp: std::time::SystemTime::now(),
                     client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
                     envelop: Envelop::default(),
                     body: Body::Empty,
                     metadata: None,
-                },
-            })),
-        );
+                })),
+            );
 
         let mut ast = engine
             .compile(include_str!("rule_executor.rhai"))

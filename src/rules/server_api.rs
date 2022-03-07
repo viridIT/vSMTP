@@ -14,11 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{config::server_config::ServerConfig, smtp::mail::MailContext};
+use crate::config::server_config::ServerConfig;
 
 /// the frontend available in the rule engine to interact with the server.
 #[derive(Debug, Clone)]
 pub struct ServerAPI {
     pub config: ServerConfig,
-    pub mail_context: MailContext,
+    pub resolver: String,
 }

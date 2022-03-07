@@ -21,40 +21,37 @@ use rhai::plugin::*;
 pub mod mail_context {
 
     use crate::{
-        rules::address::Address, rules::modules::types::Rcpt, rules::modules::EngineResult,
-        rules::server_api::ServerAPI,
+        resolver::MailContext, rules::address::Address, rules::modules::types::Rcpt,
+        rules::modules::EngineResult,
     };
 
     // FIXME: all those poison error map_err make the code harder to read.
 
     #[rhai_fn(global, get = "client_addr", return_raw)]
     pub fn client_addr(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<std::net::SocketAddr> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .mail_context
             .client_addr)
     }
 
     #[rhai_fn(global, get = "connection_timestamp", return_raw)]
     pub fn connection_timestamp(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<std::time::SystemTime> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .mail_context
             .connexion_timestamp)
     }
 
     #[rhai_fn(global, get = "helo", return_raw)]
-    pub fn helo(this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>) -> EngineResult<String> {
+    pub fn helo(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .mail_context
             .envelop
             .helo
             .clone())
@@ -62,23 +59,21 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "mail_from", return_raw)]
     pub fn mail_from(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<Address> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .mail_context
             .envelop
             .mail_from
             .clone())
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw)]
-    pub fn rcpt(this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>) -> EngineResult<Rcpt> {
+    pub fn rcpt(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<Rcpt> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .mail_context
             .envelop
             .rcpt
             .clone())
@@ -86,12 +81,11 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw)]
     pub fn mail_timestamp(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<std::time::SystemTime> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .mail_context
             .metadata
             .as_ref()
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
@@ -102,12 +96,11 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "message_id", return_raw)]
     pub fn message_id(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .mail_context
             .metadata
             .as_ref()
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
@@ -118,10 +111,9 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "retry", return_raw)]
-    pub fn retry(this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>) -> EngineResult<u64> {
+    pub fn retry(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<u64> {
         this.read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .mail_context
             .metadata
             .as_ref()
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
@@ -134,7 +126,7 @@ pub mod mail_context {
 
     #[rhai_fn(global, return_raw)]
     pub fn to_string(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<String> {
         Ok(format!(
             "{:?}",
@@ -145,7 +137,7 @@ pub mod mail_context {
 
     #[rhai_fn(global, return_raw)]
     pub fn to_debug(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<String> {
         Ok(format!(
             "{:#?}",

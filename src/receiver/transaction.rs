@@ -90,8 +90,8 @@ impl Transaction<'_> {
 
             (_, Event::RsetCmd) => {
                 {
-                    let state = self.rule_state.get_state();
-                    let mut ctx = &mut state.write().unwrap().mail_context;
+                    let state = self.rule_state.get_context();
+                    let mut ctx = state.write().unwrap();
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
@@ -202,10 +202,9 @@ impl Transaction<'_> {
                     }
                     _ if self
                         .rule_state
-                        .get_state()
+                        .get_context()
                         .read()
                         .unwrap()
-                        .mail_context
                         .envelop
                         .rcpt
                         .len()
@@ -223,18 +222,14 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
-                self.rule_state
-                    .get_state()
-                    .write()
-                    .unwrap()
-                    .mail_context
-                    .body = Body::Raw(String::with_capacity(MAIL_CAPACITY));
+                self.rule_state.get_context().write().unwrap().body =
+                    Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 ProcessedEvent::ReplyChangeState(StateSMTP::Data, SMTPReplyCode::Code354)
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
-                let state = self.rule_state.get_state();
-                if let Body::Raw(body) = &mut state.write().unwrap().mail_context.body {
+                let state = self.rule_state.get_context();
+                if let Body::Raw(body) = &mut state.write().unwrap().body {
                     body.push_str(&line);
                     body.push('\n');
                 }
@@ -254,8 +249,8 @@ impl Transaction<'_> {
                     );
                 }
 
-                let state = self.rule_state.get_state();
-                let ctx = &mut state.write().unwrap().mail_context;
+                let state = self.rule_state.get_context();
+                let mut ctx = state.write().unwrap();
 
                 // TODO: find a better way to propagate force accept.
                 // the "skipped" field is updated by the rule engine internal state,
@@ -287,16 +282,16 @@ impl Transaction<'_> {
 
 impl Transaction<'_> {
     fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
-        let state = self.rule_state.get_state();
-        let ctx = &mut state.write().unwrap().mail_context;
+        let state = self.rule_state.get_context();
+        let ctx = &mut state.write().unwrap();
 
         ctx.client_addr = conn.client_addr;
         ctx.connexion_timestamp = conn.timestamp;
     }
 
     fn set_helo(&mut self, helo: String) {
-        let state = self.rule_state.get_state();
-        let mut ctx = &mut state.write().unwrap().mail_context;
+        let state = self.rule_state.get_context();
+        let mut ctx = state.write().unwrap();
 
         ctx.body = Body::Empty;
         ctx.metadata = None;
@@ -316,8 +311,8 @@ impl Transaction<'_> {
             Ok(mail_from) => {
                 let now = std::time::SystemTime::now();
 
-                let state = self.rule_state.get_state();
-                let mut ctx = &mut state.write().unwrap().mail_context;
+                let state = self.rule_state.get_context();
+                let mut ctx = state.write().unwrap();
                 ctx.body = Body::Empty;
                 ctx.envelop.rcpt.clear();
                 ctx.envelop.mail_from = mail_from;
@@ -353,10 +348,9 @@ impl Transaction<'_> {
             Err(_) => (),
             Ok(rcpt_to) => {
                 self.rule_state
-                    .get_state()
+                    .get_context()
                     .write()
                     .unwrap()
-                    .mail_context
                     .envelop
                     .rcpt
                     .insert(rcpt_to);

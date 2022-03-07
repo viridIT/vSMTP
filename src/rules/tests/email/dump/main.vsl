@@ -2,7 +2,7 @@
     mail: [
         rule "path doesn't exists" || {
             try {
-                vsl::dump(server, "does/not/exists");
+                vsl::dump(ctx, "does/not/exists");
             } catch (err) {
                 if "failed to dump email" in err { return vsl::next(); } else { return vsl::deny(); }
             }
@@ -13,7 +13,7 @@
 
     preq: [
         action "dump raw email to disk" || {
-            vsl::dump(server, "./tests/generated");
+            vsl::dump(ctx, "./tests/generated");
         },
 
         rule "trailing" || vsl::accept(),
@@ -21,7 +21,7 @@
 
     postq: [
         action "dump parsed email to disk" || {
-            vsl::dump(server, "./tests/generated");
+            vsl::dump(ctx, "./tests/generated");
         },
 
         rule "trailing" || vsl::accept(),

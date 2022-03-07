@@ -4,7 +4,7 @@
 
         action "log_incoming" || {
             vsl::log("info", "incoming transaction.");
-            vsl::log("trace", `[${date}/${time}] client=${server.client_addr}`);
+            vsl::log("trace", `[${date}/${time}] client=${ctx.client_addr}`);
         },
 
         rule "stop" || {

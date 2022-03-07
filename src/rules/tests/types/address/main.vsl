@@ -41,10 +41,10 @@ object string "string_obj" "raw@address.net";
 
             // check against another address.
 
-            && server.mail_from is "mail.from@test.net"
-            && server.mail_from not "not an email"
-            && my_address.domain not server.mail_from
-            && my_address.domain != server.mail_from
+            && ctx.mail_from is "mail.from@test.net"
+            && ctx.mail_from not "not an email"
+            && my_address.domain not ctx.mail_from
+            && my_address.domain != ctx.mail_from
             && my_address.domain is "address.fqdn"
             && my_address.domain == "address.fqdn"
 

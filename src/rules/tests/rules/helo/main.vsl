@@ -5,7 +5,7 @@ object regex "com" "^[a-z0-9.]+.com$";
 #{
   helo: [
     rule "test_fqdn" || {
-      if server.helo is viridit && viridit is server.helo {
+      if ctx.helo is viridit && viridit is ctx.helo {
         vsl::next()
       } else {
         vsl::deny()
@@ -13,7 +13,7 @@ object regex "com" "^[a-z0-9.]+.com$";
     },
 
     rule "test_file" || {
-      if server.helo in domains {
+      if ctx.helo in domains {
         vsl::next()
       } else {
         vsl::deny()
@@ -21,7 +21,7 @@ object regex "com" "^[a-z0-9.]+.com$";
     },
 
     rule "test_regex" || {
-      if server.helo is com {
+      if ctx.helo is com {
         vsl::next()
       } else {
         vsl::deny()

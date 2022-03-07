@@ -31,13 +31,13 @@ fn test_email_context() {
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
-    state.get_state().write().unwrap().mail_context.body = Body::Raw(String::default());
+    state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
-    state.get_state().write().unwrap().mail_context.body = Body::Parsed(Box::new(Mail {
+    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
-    state.get_state().write().unwrap().mail_context.metadata = Some(MessageMetadata::default());
+    state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
 }
 
@@ -61,13 +61,13 @@ fn test_email_add_header() {
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
-    state.get_state().write().unwrap().mail_context.body = Body::Raw(String::default());
+    state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
-    state.get_state().write().unwrap().mail_context.body = Body::Parsed(Box::new(Mail {
+    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
-    state.get_state().write().unwrap().mail_context.metadata = Some(MessageMetadata::default());
+    state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
 }
 
@@ -83,7 +83,7 @@ fn test_context_write() {
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
-    state.get_state().write().unwrap().mail_context.metadata = Some(MessageMetadata {
+    state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
         retry: 0,
@@ -91,7 +91,7 @@ fn test_context_write() {
         skipped: None,
     });
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
-    state.get_state().write().unwrap().mail_context.body = Body::Raw(
+    state.get_context().write().unwrap().body = Body::Raw(
         r#"From: john doe <john@doe.com>
 To: green@foo.net
 Subject: test email
@@ -131,7 +131,7 @@ fn test_context_dump() {
         RuleEngine::new("./src/rules/tests/email/dump".into()).expect("couldn't build rule engine");
     let mut state = get_default_state();
 
-    state.get_state().write().unwrap().mail_context.metadata = Some(MessageMetadata {
+    state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
         retry: 0,
@@ -139,9 +139,9 @@ fn test_context_dump() {
         skipped: None,
     });
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
-    state.get_state().write().unwrap().mail_context.body = Body::Raw(String::default());
+    state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
-    state.get_state().write().unwrap().mail_context.body = Body::Parsed(Box::new(Mail {
+    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),
@@ -154,7 +154,7 @@ fn test_context_dump() {
     assert_eq!(
         std::fs::read_to_string("./tests/generated/test_message_id.dump.json")
             .expect("could not read 'test_message_id'"),
-        serde_json::to_string_pretty(&state.get_state().read().unwrap().mail_context)
+        serde_json::to_string_pretty(&*state.get_context().read().unwrap())
             .expect("couldn't convert context into string")
     );
 

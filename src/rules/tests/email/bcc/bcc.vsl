@@ -1,18 +1,18 @@
-fn invalid_object(server, obj) {
+fn invalid_object(ctx, obj) {
     try {
-        vsl::bcc(server, obj);
+        vsl::bcc(ctx, obj);
         return vsl::deny();
     } catch (err) {
         if `'${obj}' could not be converted to a valid rcpt address` in err { return vsl::next(); } else { return vsl::deny(); }
     }
 }
 
-fn add_bcc(server, bcc) {
-    if bcc in server.rcpt {
+fn add_bcc(ctx, bcc) {
+    if bcc in ctx.rcpt {
         return vsl::deny();
     }
 
-    vsl::bcc(server, bcc);
+    vsl::bcc(ctx, bcc);
 
-    if bcc in server.rcpt { vsl::next() } else { vsl::deny() }
+    if bcc in ctx.rcpt { vsl::next() } else { vsl::deny() }
 }
