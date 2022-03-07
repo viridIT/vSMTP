@@ -67,6 +67,7 @@ impl std::fmt::Display for Status {
 
 pub struct RuleState<'a> {
     scope: Scope<'a>,
+    #[allow(unused)]
     server: std::sync::Arc<std::sync::RwLock<ServerAPI>>,
     mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
     skip: Option<Status>,
@@ -623,7 +624,7 @@ impl RuleEngine {
 
         engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
-            .context("failed to parse rules")?;
+            .with_context(|| RuleEngineError::Stage.as_str())?;
 
         log::debug!(target: SRULES, "done.");
 

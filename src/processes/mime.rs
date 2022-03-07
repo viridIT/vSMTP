@@ -26,7 +26,7 @@ use crate::{
 /// process that treats incoming email offline with the postq stage.
 pub async fn start(
     config: &ServerConfig,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
@@ -43,7 +43,7 @@ pub async fn start(
 
 pub(crate) async fn handle_one_in_working_queue(
     config: &ServerConfig,
-    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: &Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
     process_message: ProcessMessage,
     delivery_sender: &tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
@@ -64,9 +64,13 @@ pub(crate) async fn handle_one_in_working_queue(
     if let Body::Raw(raw) = &ctx.body {
         ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
     }
-
     let mut state = RuleState::with_context(config, ctx);
-    let result = rule_engine.read().unwrap().run_when(&mut state, "postq");
+
+    let result = if let Some(rule_engine) = rule_engine {
+        rule_engine.read().unwrap().run_when(&mut state, "postq")
+    } else {
+        Status::Next
+    };
 
     match result {
         Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,

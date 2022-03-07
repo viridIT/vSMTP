@@ -373,7 +373,7 @@ impl ConfigBuilder<WantsRules> {
             state: WantsReplyCodes {
                 parent: self.state,
                 rules: InnerRulesConfig {
-                    dir: source_dir.into(),
+                    dir: Some(source_dir.into()),
                     logs: InnerUserLogConfig::default(),
                     services,
                 },
@@ -393,12 +393,25 @@ impl ConfigBuilder<WantsRules> {
             state: WantsReplyCodes {
                 parent: self.state,
                 rules: InnerRulesConfig {
-                    dir: source_dir.into(),
+                    dir: Some(source_dir.into()),
                     logs: InnerUserLogConfig {
                         file: log_file.into(),
                         level: log_level,
                         format: log_format,
                     },
+                    services,
+                },
+            },
+        }
+    }
+
+    pub fn without_rules(self, services: Vec<Service>) -> ConfigBuilder<WantsReplyCodes> {
+        ConfigBuilder::<WantsReplyCodes> {
+            state: WantsReplyCodes {
+                parent: self.state,
+                rules: InnerRulesConfig {
+                    dir: None,
+                    logs: InnerUserLogConfig::default(),
                     services,
                 },
             },

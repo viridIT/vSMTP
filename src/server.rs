@@ -120,9 +120,13 @@ impl ServerVSMTP {
         let (working_sender, working_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
-        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-            self.config.rules.dir.clone(),
-        )?));
+        let rule_engine = if let Some(dir) = &self.config.rules.dir {
+            Some(std::sync::Arc::new(std::sync::RwLock::new(
+                RuleEngine::new(dir.clone())?,
+            )))
+        } else {
+            None
+        };
 
         let re_delivery = rule_engine.clone();
         let config_deliver = self.config.clone();
@@ -223,7 +227,7 @@ impl ServerVSMTP {
         kind: ConnectionKind,
         config: std::sync::Arc<ServerConfig>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     ) -> anyhow::Result<()> {

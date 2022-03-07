@@ -40,7 +40,7 @@ const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 pub struct Transaction<'re> {
     state: StateSMTP,
     rule_state: RuleState<'re>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
 }
 
 pub enum TransactionResult {
@@ -112,16 +112,26 @@ impl Transaction<'_> {
             (_, Event::HeloCmd(helo)) => {
                 self.set_helo(helo);
 
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, "helo")
-                {
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
+                match &self.rule_engine {
+                    Some(rule_engine) => {
+                        match rule_engine
+                            .read()
+                            .unwrap()
+                            .run_when(&mut self.rule_state, "helo")
+                        {
+                            Status::Deny => ProcessedEvent::ReplyChangeState(
+                                StateSMTP::Stop,
+                                SMTPReplyCode::Code554,
+                            ),
+                            _ => ProcessedEvent::ReplyChangeState(
+                                StateSMTP::Helo,
+                                SMTPReplyCode::Code250,
+                            ),
+                        }
                     }
-                    _ => ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250),
+                    None => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
+                    }
                 }
             }
 
@@ -132,16 +142,28 @@ impl Transaction<'_> {
             (_, Event::EhloCmd(helo)) => {
                 self.set_helo(helo);
 
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, "helo")
-                {
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
+                match &self.rule_engine {
+                    Some(rule_engine) => {
+                        match rule_engine
+                            .read()
+                            .unwrap()
+                            .run_when(&mut self.rule_state, "helo")
+                        {
+                            Status::Deny => ProcessedEvent::ReplyChangeState(
+                                StateSMTP::Stop,
+                                SMTPReplyCode::Code554,
+                            ),
+                            _ => ProcessedEvent::ReplyChangeState(
+                                StateSMTP::Helo,
+                                if conn.is_secured {
+                                    SMTPReplyCode::Code250SecuredEsmtp
+                                } else {
+                                    SMTPReplyCode::Code250PlainEsmtp
+                                },
+                            ),
+                        }
                     }
-                    _ => ProcessedEvent::ReplyChangeState(
+                    None => ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
                         if conn.is_secured {
                             SMTPReplyCode::Code250SecuredEsmtp
@@ -172,16 +194,24 @@ impl Transaction<'_> {
                 // TODO: store in envelop _body_bit_mime
                 self.set_mail_from(mail_from, conn);
 
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, "mail")
-                {
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
+                match &self.rule_engine {
+                    Some(rule_engine) => {
+                        match rule_engine
+                            .read()
+                            .unwrap()
+                            .run_when(&mut self.rule_state, "mail")
+                        {
+                            Status::Deny => ProcessedEvent::ReplyChangeState(
+                                StateSMTP::Stop,
+                                SMTPReplyCode::Code554,
+                            ),
+                            _ => ProcessedEvent::ReplyChangeState(
+                                StateSMTP::MailFrom,
+                                SMTPReplyCode::Code250,
+                            ),
+                        }
                     }
-                    _ => ProcessedEvent::ReplyChangeState(
+                    None => ProcessedEvent::ReplyChangeState(
                         StateSMTP::MailFrom,
                         SMTPReplyCode::Code250,
                     ),
@@ -191,31 +221,39 @@ impl Transaction<'_> {
             (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
                 self.set_rcpt_to(rcpt_to);
 
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, "rcpt")
-                {
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
+                match &self.rule_engine {
+                    Some(rule_engine) => {
+                        match rule_engine
+                            .read()
+                            .unwrap()
+                            .run_when(&mut self.rule_state, "rcpt")
+                        {
+                            Status::Deny => ProcessedEvent::ReplyChangeState(
+                                StateSMTP::Stop,
+                                SMTPReplyCode::Code554,
+                            ),
+                            _ if self
+                                .rule_state
+                                .get_context()
+                                .read()
+                                .unwrap()
+                                .envelop
+                                .rcpt
+                                .len()
+                                >= conn.config.smtp.rcpt_count_max =>
+                            {
+                                ProcessedEvent::ReplyChangeState(
+                                    StateSMTP::RcptTo,
+                                    SMTPReplyCode::Code452TooManyRecipients,
+                                )
+                            }
+                            _ => ProcessedEvent::ReplyChangeState(
+                                StateSMTP::RcptTo,
+                                SMTPReplyCode::Code250,
+                            ),
+                        }
                     }
-                    _ if self
-                        .rule_state
-                        .get_context()
-                        .read()
-                        .unwrap()
-                        .envelop
-                        .rcpt
-                        .len()
-                        >= conn.config.smtp.rcpt_count_max =>
-                    {
-                        ProcessedEvent::ReplyChangeState(
-                            StateSMTP::RcptTo,
-                            SMTPReplyCode::Code452TooManyRecipients,
-                        )
-                    }
-                    _ => {
+                    None => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::RcptTo, SMTPReplyCode::Code250)
                     }
                 }
@@ -237,16 +275,17 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                if let Status::Deny = self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, "preq")
-                {
-                    return ProcessedEvent::ReplyChangeState(
-                        StateSMTP::Stop,
-                        SMTPReplyCode::Code554,
-                    );
+                if let Some(rule_engine) = &self.rule_engine {
+                    if let Status::Deny = rule_engine
+                        .read()
+                        .unwrap()
+                        .run_when(&mut self.rule_state, "preq")
+                    {
+                        return ProcessedEvent::ReplyChangeState(
+                            StateSMTP::Stop,
+                            SMTPReplyCode::Code554,
+                        );
+                    }
                 }
 
                 let state = self.rule_state.get_context();
@@ -363,7 +402,7 @@ impl Transaction<'_> {
     pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write>(
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
     ) -> anyhow::Result<TransactionResult> {
         let mut transaction = Transaction {
             state: if helo_domain.is_none() {
@@ -381,17 +420,18 @@ impl Transaction<'_> {
             transaction.set_helo(helo)
         }
 
-        if let Status::Deny = transaction
-            .rule_engine
-            .read()
-            .unwrap()
-            .run_when(&mut transaction.rule_state, "connect")
-        {
-            anyhow::bail!(
-                "connection at '{}' has been denied when connecting.",
-                conn.client_addr
-            )
-        };
+        if let Some(rule_engine) = &transaction.rule_engine {
+            if let Status::Deny = rule_engine
+                .read()
+                .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
+                .run_when(&mut transaction.rule_state, "connect")
+            {
+                anyhow::bail!(
+                    "connection at '{}' has been denied when connecting.",
+                    conn.client_addr
+                )
+            };
+        }
 
         fn get_timeout_for_state(
             config: &std::sync::Arc<ServerConfig>,

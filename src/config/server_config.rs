@@ -185,12 +185,11 @@ pub struct InnerSMTPConfig {
 }
 
 /// vSMTP's application configuration
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InnerRulesConfig {
     /// entry point of the application
-    #[serde(default = "InnerRulesConfig::default_directory")]
-    pub dir: std::path::PathBuf,
+    pub dir: Option<std::path::PathBuf>,
     /// application's logs configuration
     #[serde(default)]
     pub logs: InnerUserLogConfig,

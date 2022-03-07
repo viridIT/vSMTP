@@ -17,8 +17,8 @@
 use crate::smtp::code::SMTPReplyCode;
 
 use super::server_config::{
-    Codes, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig,
-    InnerServerConfig, InnerUserLogConfig,
+    Codes, InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
+    InnerUserLogConfig,
 };
 
 pub(super) fn default_rcpt_count_max() -> usize {
@@ -75,22 +75,6 @@ impl Default for InnerUserLogConfig {
             level: log::LevelFilter::Warn,
             format: None,
         }
-    }
-}
-
-impl Default for InnerRulesConfig {
-    fn default() -> Self {
-        Self {
-            dir: std::path::PathBuf::from_iter(["/", "etc", "vsmtp", "rules"]),
-            logs: Default::default(),
-            services: Default::default(),
-        }
-    }
-}
-
-impl InnerRulesConfig {
-    pub(crate) fn default_directory() -> std::path::PathBuf {
-        InnerRulesConfig::default().dir
     }
 }
 

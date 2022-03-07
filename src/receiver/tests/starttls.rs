@@ -48,13 +48,11 @@ async fn test_starttls(
 
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
-        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            anyhow::Context::context(
-                RuleEngine::new(server_config.rules.dir.clone()),
-                "failed to initialize the engine",
-            )
-            .unwrap(),
-        ));
+        let rule_engine = server_config.rules.dir.as_ref().map(|dir| {
+            std::sync::Arc::new(std::sync::RwLock::new(
+                RuleEngine::new(dir.clone()).expect("failed to create rule engine."),
+            ))
+        });
 
         ServerVSMTP::run_session(
             client_stream,

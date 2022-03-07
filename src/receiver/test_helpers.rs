@@ -100,13 +100,11 @@ where
     )
     .unwrap();
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-        anyhow::Context::context(
-            RuleEngine::new(config.rules.dir.clone()),
-            "failed to initialize the engine",
-        )
-        .unwrap(),
-    ));
+    let rule_engine = config.rules.dir.as_ref().map(|dir| {
+        std::sync::Arc::new(std::sync::RwLock::new(
+            RuleEngine::new(dir.clone()).expect("failed to create rule engine."),
+        ))
+    });
 
     let (working_sender, mut working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, mut delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
