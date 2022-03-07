@@ -8,9 +8,6 @@ vsmtp_group = "vsmtp"
 [logs.level]
 default = "warn"
 
-[rules]
-dir = "/etc/vsmtp/rules"
-
 [delivery]
 spool_dir = "/var/spool/vsmtp"
 

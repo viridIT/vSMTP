@@ -21,6 +21,8 @@
     Hash,
     Copy,
     Clone,
+    Ord,
+    PartialOrd,
     enum_iterator::IntoEnumIterator,
     serde::Deserialize,
     serde::Serialize,

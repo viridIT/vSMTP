@@ -267,7 +267,7 @@ impl RuleEngine {
 
     /// creates a new instance of the rule engine, reading all files in
     /// src_path parameter.
-    pub fn new(script_path: std::path::PathBuf) -> anyhow::Result<Self> {
+    pub fn new(script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
         let mut engine = Engine::new();
 
         let mut module: Module = exported_module!(crate::rules::modules::actions::actions);
@@ -276,10 +276,16 @@ impl RuleEngine {
             .combine(exported_module!(crate::rules::modules::email::email));
 
         engine
-            .set_module_resolver(FileModuleResolver::new_with_path_and_extension(
-                &script_path,
-                "vsl",
-            ))
+            .set_module_resolver(match script_path {
+                Some(script_path) => FileModuleResolver::new_with_path_and_extension(
+                 script_path.parent().ok_or_else(|| anyhow::anyhow!(
+                        "File '{}' is not a valid root directory for rules",
+                        script_path.display()
+                    ))?,
+                    "vsl",
+                ),
+                None => FileModuleResolver::new_with_extension("vsl"),
+            })
             .register_static_module("vsl", module.into())
             .disable_symbol("eval")
 
@@ -589,23 +595,23 @@ impl RuleEngine {
             .compile(include_str!("rule_executor.rhai"))
             .context("failed to load the rule executor")?;
 
-        let main_path = script_path.join("main.vsl");
+        if let Some(script_path) = &script_path {
+            ast += engine
+                .compile_with_scope(
+                    &scope,
+                    std::fs::read_to_string(&script_path).map_err(|err| anyhow::anyhow!(err))?,
+                )
+                .context(format!("failed to compile '{}'", script_path.display()))?;
+        } else {
+            log::info!(
+                target: SRULES,
+                "No 'main.vsl' provided in the config, no rules will be processed.",
+            );
 
-        // compiling main script.
-        ast += engine
-            .compile_with_scope(
-                &scope,
-                std::fs::read_to_string(&main_path).unwrap_or_else(|err| {
-                    log::warn!(
-                        target: SRULES,
-                        "No main.vsl file found at '{:?}', no rules will be processed. {}",
-                        main_path,
-                        err
-                    );
-                    "#{}".to_string()
-                }),
-            )
-            .context("failed to compile main.vsl")?;
+            ast += engine
+                .compile_with_scope(&scope, "#{}")
+                .context("empty rules")?;
+        }
 
         engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
