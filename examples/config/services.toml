@@ -9,7 +9,7 @@ vsmtp_group = "vsmtp"
 default = "warn"
 
 [rules]
-dir = "/etc/vsmtp/rules"
+main_filepath = "/etc/vsmtp/rules/main.vsl"
 
 [rules.logs]
 file = "/var/log/vsmtp/custom_file.log"

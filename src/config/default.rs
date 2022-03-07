@@ -17,13 +17,9 @@
 use crate::smtp::code::SMTPReplyCode;
 
 use super::server_config::{
-    Codes, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig,
-    InnerServerConfig, InnerUserLogConfig,
+    Codes, InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
+    InnerUserLogConfig,
 };
-
-pub(super) fn default_rcpt_count_max() -> usize {
-    1000
-}
 
 impl Default for InnerServerConfig {
     fn default() -> Self {
@@ -78,21 +74,18 @@ impl Default for InnerUserLogConfig {
     }
 }
 
+/*
 impl Default for InnerRulesConfig {
     fn default() -> Self {
         Self {
-            dir: std::path::PathBuf::from_iter(["/", "etc", "vsmtp", "rules"]),
+            // Some(std::path::PathBuf::from_iter(["/", "etc", "vsmtp", "rules", "main.vsl"]))
+            main_filepath: None,
             logs: Default::default(),
             services: Default::default(),
         }
     }
 }
-
-impl InnerRulesConfig {
-    pub(crate) fn default_directory() -> std::path::PathBuf {
-        InnerRulesConfig::default().dir
-    }
-}
+*/
 
 impl Default for InnerSMTPErrorConfig {
     fn default() -> Self {
@@ -110,7 +103,7 @@ impl Default for InnerSMTPConfig {
             disable_ehlo: false,
             timeout_client: Default::default(),
             error: Default::default(),
-            rcpt_count_max: 1000,
+            rcpt_count_max: Self::default_rcpt_count_max(),
             client_count_max: Self::default_client_count_max(),
         }
     }
@@ -119,6 +112,10 @@ impl Default for InnerSMTPConfig {
 impl InnerSMTPConfig {
     pub(crate) fn default_client_count_max() -> i64 {
         -1
+    }
+
+    pub(super) fn default_rcpt_count_max() -> usize {
+        1000
     }
 }
 

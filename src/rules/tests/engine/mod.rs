@@ -23,7 +23,7 @@ use crate::rules::{
 fn test_engine_errors() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/engine/error_handling".into())
+    let re = RuleEngine::new(&Some("./src/rules/tests/engine/error_handling".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -37,7 +37,7 @@ fn test_engine_errors() {
 fn test_engine_rules_syntax() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/engine/syntax".into())
+    let re = RuleEngine::new(&Some("./src/rules/tests/engine/syntax".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 

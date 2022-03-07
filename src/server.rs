@@ -121,7 +121,7 @@ impl ServerVSMTP {
             tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-            self.config.rules.dir.clone(),
+            &self.config.rules.main_filepath.clone(),
         )?));
 
         let re_delivery = rule_engine.clone();
