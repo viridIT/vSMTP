@@ -16,7 +16,7 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
-    my_libc::chown_file,
+    libc_abstraction::chown_file,
     smtp::mail::{Body, MailContext},
 };
 

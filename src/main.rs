@@ -17,7 +17,7 @@
 use anyhow::Context;
 use vsmtp::config::get_logger_config;
 use vsmtp::config::server_config::ServerConfig;
-use vsmtp::my_libc::{fork, setgid, setuid, Fork};
+use vsmtp::libc_abstraction::{daemon, setgid, setuid, ForkResult};
 use vsmtp::resolver::maildir_resolver::MailDirResolver;
 use vsmtp::resolver::mbox_resolver::MBoxResolver;
 use vsmtp::resolver::smtp_resolver::SMTPResolver;
@@ -26,11 +26,16 @@ use vsmtp::server::ServerVSMTP;
 #[derive(Debug, clap::Parser, PartialEq)]
 #[clap(about, version, author)]
 struct Args {
+    /// Path of the vSMTP configuration file (toml format)
     #[clap(short, long)]
     config: String,
 
     #[clap(subcommand)]
     command: Option<Commands>,
+
+    /// Do not run the program as a daemon
+    #[clap(short, long)]
+    no_daemon: bool,
 }
 
 #[derive(Debug, clap::Subcommand, PartialEq)]
@@ -49,8 +54,18 @@ mod tests {
 
         assert_eq!(
             crate::Args {
+                command: None,
+                config: "path".to_string(),
+                no_daemon: false
+            },
+            <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path"]).unwrap()
+        );
+
+        assert_eq!(
+            crate::Args {
                 command: Some(crate::Commands::ConfigShow),
-                config: "path".to_string()
+                config: "path".to_string(),
+                no_daemon: false
             },
             <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-show"])
                 .unwrap()
@@ -59,12 +74,27 @@ mod tests {
         assert_eq!(
             crate::Args {
                 command: Some(crate::Commands::ConfigDiff),
-                config: "path".to_string()
+                config: "path".to_string(),
+                no_daemon: false
             },
             <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-diff"])
                 .unwrap()
         );
+
+        assert_eq!(
+            crate::Args {
+                command: None,
+                config: "path".to_string(),
+                no_daemon: true
+            },
+            <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "--no-daemon"])
+                .unwrap()
+        );
     }
+}
+
+fn socket_bind_anyhow(addr: std::net::SocketAddr) -> anyhow::Result<std::net::TcpListener> {
+    std::net::TcpListener::bind(addr).map_err(|e| anyhow::anyhow!("{e}: '{addr}'"))
 }
 
 fn main() -> anyhow::Result<()> {
@@ -120,13 +150,8 @@ fn main() -> anyhow::Result<()> {
 
     let vsmtp_user = users::get_user_by_name(&config.server.vsmtp_user)
         .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.vsmtp_user))?;
-
     let vsmtp_group = users::get_group_by_name(&config.server.vsmtp_group)
         .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", config.server.vsmtp_group))?;
-
-    fn socket_bind_anyhow(addr: std::net::SocketAddr) -> anyhow::Result<std::net::TcpListener> {
-        std::net::TcpListener::bind(addr).map_err(|e| anyhow::anyhow!("{e}: '{addr}'"))
-    }
 
     let sockets = (
         socket_bind_anyhow(config.server.addr)?,
@@ -134,32 +159,41 @@ fn main() -> anyhow::Result<()> {
         socket_bind_anyhow(config.server.addr_submissions)?,
     );
 
-    match fork()? {
-        Fork::Child => {
-            setgid(vsmtp_group.gid())?;
-            setuid(vsmtp_user.uid())?;
+    if args.no_daemon {
+        start_runtime(config, sockets)
+    } else if let ForkResult::Child = daemon()? {
+        setgid(vsmtp_group.gid())?;
+        setuid(vsmtp_user.uid())?;
 
-            tokio::runtime::Builder::new_multi_thread()
-                .worker_threads(config.server.thread_count)
-                .enable_all()
-                // .on_thread_start(|| { println!("thread started"); })
-                // .on_thread_stop(|| { println!("thread stopping"); })
-                .build()?
-                .block_on(async move {
-                    let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)?;
-                    log::warn!("Listening on: {:?}", server.addr());
-
-                    server
-                        .with_resolver("maildir", MailDirResolver::default())
-                        .with_resolver("smtp", SMTPResolver::default())
-                        .with_resolver("mbox", MBoxResolver::default())
-                        .listen_and_serve()
-                        .await
-                })
-        }
-        Fork::Parent(child) => {
-            println!("vsmtp is running on process: {child}");
-            Ok(())
-        }
+        start_runtime(config, sockets)
+    } else {
+        Ok(())
     }
+}
+
+fn start_runtime(
+    config: ServerConfig,
+    sockets: (
+        std::net::TcpListener,
+        std::net::TcpListener,
+        std::net::TcpListener,
+    ),
+) -> anyhow::Result<()> {
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(config.server.thread_count)
+        .enable_all()
+        // .on_thread_start(|| { println!("thread started"); })
+        // .on_thread_stop(|| { println!("thread stopping"); })
+        .build()?
+        .block_on(async move {
+            let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)?;
+            log::warn!("Listening on: {:?}", server.addr());
+
+            server
+                .with_resolver("maildir", MailDirResolver::default())
+                .with_resolver("smtp", SMTPResolver::default())
+                .with_resolver("mbox", MBoxResolver::default())
+                .listen_and_serve()
+                .await
+        })
 }
