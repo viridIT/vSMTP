@@ -27,7 +27,7 @@ use crate::{
 fn test_email_context() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/email".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -46,7 +46,7 @@ fn test_email_context() {
 fn test_email_bcc() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/bcc".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/bcc/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -57,7 +57,7 @@ fn test_email_bcc() {
 fn test_email_add_header() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/add_header".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/add_header/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -80,7 +80,7 @@ fn test_context_write() {
         .create("./tests/generated")
         .unwrap();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/write".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/write/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -128,7 +128,7 @@ fn test_context_dump() {
         .create("./tests/generated")
         .unwrap();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/dump".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/dump/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 

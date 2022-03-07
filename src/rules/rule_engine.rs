@@ -278,13 +278,10 @@ impl RuleEngine {
         engine
             .set_module_resolver(match script_path {
                 Some(script_path) => FileModuleResolver::new_with_path_and_extension(
-                match script_path.parent() {
-                        Some(parent) => parent,
-                        None => anyhow::bail!(
-                            "File '{}' is not a valid root directory for rules",
-                            script_path.display()
-                        ),
-                    },
+                 script_path.parent().ok_or_else(|| anyhow::anyhow!(
+                        "File '{}' is not a valid root directory for rules",
+                        script_path.display()
+                    ))?,
                     "vsl",
                 ),
                 None => FileModuleResolver::new_with_extension("vsl"),
@@ -599,14 +596,12 @@ impl RuleEngine {
             .context("failed to load the rule executor")?;
 
         if let Some(script_path) = &script_path {
-            let main_path = script_path.join("main.vsl");
-
             ast += engine
                 .compile_with_scope(
                     &scope,
-                    std::fs::read_to_string(&main_path).map_err(|err| anyhow::anyhow!(err))?,
+                    std::fs::read_to_string(&script_path).map_err(|err| anyhow::anyhow!(err))?,
                 )
-                .context("failed to compile main.vsl")?;
+                .context(format!("failed to compile '{}'", script_path.display()))?;
         } else {
             log::info!(
                 target: SRULES,

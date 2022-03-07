@@ -57,7 +57,6 @@ pub struct InnerLogConfig {
     ///
     /// keys are: [receiver, resolver, rules, deliver]
     #[serde(default)]
-    // #[serde(serialize_with = "crate::config::serializer::ordered_map")]
     pub level: std::collections::BTreeMap<String, log::LevelFilter>,
 }
 
@@ -217,7 +216,6 @@ pub struct InnerDeliveryConfig {
     /// path of the spool directory where the processing queues write the files
     pub spool_dir: std::path::PathBuf,
     #[doc(hidden)]
-    // #[serde(serialize_with = "crate::config::serializer::ordered_map")]
     pub queues: std::collections::BTreeMap<String, QueueConfig>,
 }
 
@@ -227,7 +225,6 @@ pub struct InnerDeliveryConfig {
 #[serde(transparent)]
 pub struct Codes {
     /// key is the scenario, value is the message
-    // #[serde(serialize_with = "crate::config::serializer::ordered_map")]
     pub codes: std::collections::BTreeMap<SMTPReplyCode, String>,
 }
 

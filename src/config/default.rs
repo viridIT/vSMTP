@@ -74,19 +74,6 @@ impl Default for InnerUserLogConfig {
     }
 }
 
-/*
-impl Default for InnerRulesConfig {
-    fn default() -> Self {
-        Self {
-            // Some(std::path::PathBuf::from_iter(["/", "etc", "vsmtp", "rules", "main.vsl"]))
-            main_filepath: None,
-            logs: Default::default(),
-            services: Default::default(),
-        }
-    }
-}
-*/
-
 impl Default for InnerSMTPErrorConfig {
     fn default() -> Self {
         Self {

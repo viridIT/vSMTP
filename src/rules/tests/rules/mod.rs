@@ -26,7 +26,7 @@ use crate::{
 
 #[test]
 fn test_connect_rules() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/rules/connect".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/rules/connect/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -42,7 +42,7 @@ fn test_connect_rules() {
 fn test_helo_rules() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/rules/helo".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/rules/helo/main.vsl".into()))
         .expect("couldn't build rule engine");
 
     let mut state = get_default_state();
@@ -56,7 +56,7 @@ fn test_helo_rules() {
 fn test_mail_from_rules() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/rules/mail".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/rules/mail/main.vsl".into()))
         .expect("couldn't build rule engine");
 
     let mut state = get_default_state();
@@ -89,7 +89,7 @@ This is a reply to your hello."#,
 fn test_rcpt_rules() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/rules/rcpt".into()))
+    let re = RuleEngine::new(&Some("./src/rules/tests/rules/rcpt/main.vsl".into()))
         .expect("couldn't build rule engine");
 
     let mut state = get_default_state();
