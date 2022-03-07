@@ -14,8 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use std::sync::{Arc, RwLock};
-
 use crate::{
     config::server_config::ServerConfig,
     processes::ProcessMessage,
@@ -26,9 +24,11 @@ use crate::{
     },
     resolver::{smtp_resolver::SMTPResolver, Resolver},
     rules::rule_engine::RuleEngine,
+    smtp::code::SMTPReplyCode,
     tls_helpers::get_rustls_config,
 };
 
+/// TCP/IP server
 pub struct ServerVSMTP {
     resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
     listener: tokio::net::TcpListener,
@@ -39,6 +39,7 @@ pub struct ServerVSMTP {
 }
 
 impl ServerVSMTP {
+    /// Create a server with the configuration provided, and the sockets already bound
     pub fn new(
         config: std::sync::Arc<ServerConfig>,
         sockets: (
@@ -71,6 +72,7 @@ impl ServerVSMTP {
         })
     }
 
+    /// Get the local address of the tcp listener
     pub fn addr(&self) -> Vec<std::net::SocketAddr> {
         vec![
             self.listener
@@ -85,6 +87,7 @@ impl ServerVSMTP {
         ]
     }
 
+    /// Append a delivery method to the server
     pub fn with_resolver<T>(&mut self, name: &str, resolver: T) -> &mut Self
     where
         T: Resolver + Send + Sync + 'static,
@@ -93,6 +96,7 @@ impl ServerVSMTP {
         self
     }
 
+    /// Main loop of vSMTP's server
     pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
         let delivery_buffer_size = self
             .config
@@ -116,7 +120,9 @@ impl ServerVSMTP {
         let (working_sender, working_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
 
-        let rule_engine = Arc::new(RwLock::new(RuleEngine::new(self.config.rules.dir.clone())?));
+        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
+            self.config.rules.dir.clone(),
+        )?));
 
         let re_delivery = rule_engine.clone();
         let config_deliver = self.config.clone();
@@ -149,8 +155,10 @@ impl ServerVSMTP {
         let working_sender = std::sync::Arc::new(working_sender);
         let delivery_sender = std::sync::Arc::new(delivery_sender);
 
+        let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
+
         loop {
-            let (stream, client_addr, kind) = tokio::select! {
+            let (mut stream, client_addr, kind) = tokio::select! {
                 Ok((stream, client_addr)) = self.listener.accept() => {
                     (stream, client_addr, ConnectionKind::Opportunistic)
                 }
@@ -161,20 +169,50 @@ impl ServerVSMTP {
                     (stream, client_addr, ConnectionKind::Tunneled)
                 }
             };
-
             log::warn!("Connection from: {:?}, {}", kind, client_addr);
 
-            let re_smtp = rule_engine.clone();
-            tokio::spawn(Self::run_session(
+            if self.config.smtp.client_count_max != -1
+                && client_counter.load(std::sync::atomic::Ordering::SeqCst)
+                    >= self.config.smtp.client_count_max
+            {
+                if let Err(e) = tokio::io::AsyncWriteExt::write_all(
+                    &mut stream,
+                    self.config
+                        .reply_codes
+                        .get(&SMTPReplyCode::ConnectionMaxReached)
+                        .as_bytes(),
+                )
+                .await
+                {
+                    log::warn!("{}", e);
+                }
+
+                if let Err(e) = tokio::io::AsyncWriteExt::shutdown(&mut stream).await {
+                    log::warn!("{}", e);
+                }
+                continue;
+            }
+
+            client_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+            let session = Self::run_session(
                 stream,
                 client_addr,
                 kind,
                 self.config.clone(),
                 self.tls_config.clone(),
-                re_smtp,
+                rule_engine.clone(),
                 working_sender.clone(),
                 delivery_sender.clone(),
-            ));
+            );
+            let client_counter_copy = client_counter.clone();
+            tokio::spawn(async move {
+                if let Err(e) = session.await {
+                    log::warn!("{}", e);
+                }
+
+                client_counter_copy.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            });
         }
     }
 
@@ -185,7 +223,7 @@ impl ServerVSMTP {
         kind: ConnectionKind,
         config: std::sync::Arc<ServerConfig>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-        rule_engine: Arc<RwLock<RuleEngine>>,
+        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
         delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     ) -> anyhow::Result<()> {

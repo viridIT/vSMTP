@@ -16,12 +16,14 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
+    my_libc::chown_file,
     rules::address::Address,
     smtp::mail::{Body, MailContext, MessageMetadata},
 };
 
 use super::Resolver;
 
+/// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
 pub struct MailDirResolver;
 
@@ -57,8 +59,8 @@ impl MailDirResolver {
                 // create and set rights for the MailDir folder if it doesn't exists.
                 if !maildir.exists() {
                     std::fs::create_dir_all(&maildir)?;
-                    super::chown_file(&maildir, &user)?;
-                    super::chown_file(
+                    chown_file(&maildir, &user)?;
+                    chown_file(
                         maildir
                             .parent()
                             .ok_or_else(|| anyhow::anyhow!("Maildir parent folder is missing."))?,
@@ -77,7 +79,7 @@ impl MailDirResolver {
 
                 std::io::Write::write_all(&mut email, content.as_bytes())?;
 
-                super::chown_file(&maildir, &user)?;
+                chown_file(&maildir, &user)?;
             }
             None => anyhow::bail!("unable to get user '{}' by name", rcpt.local_part()),
         }

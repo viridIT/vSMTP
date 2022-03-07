@@ -1,3 +1,7 @@
+//! vSMTP
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -14,19 +18,30 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
-// #[deny(missing_docs)]
-pub mod config;
-pub mod mime;
-pub mod my_libc;
-pub mod processes;
-pub mod queue;
-pub mod receiver;
-pub mod resolver;
-pub mod rules;
-pub mod server;
-pub mod smtp;
-pub mod tls_helpers;
 
+/// ServerConfig, ServerConfigBuilder, default values, and parser
+pub mod config;
+mod mime;
+/// Abstraction of the libc
+pub mod my_libc;
+mod processes;
+mod queue;
+/// The transaction receiver, with SMTP state machine
+pub mod receiver;
+/// The delivery methods supported by the system
+pub mod resolver;
+mod rules;
+/// The main instance of vSMTP
+pub mod server;
+mod smtp;
+mod tls_helpers;
+
+pub use mime::mail::BodyType;
+pub use mime::parser::MailMimeParser;
+pub use rules::address::Address;
+pub use smtp::mail::Body;
+
+#[doc(hidden)]
 #[macro_export]
 macro_rules! collection {
     // map-like

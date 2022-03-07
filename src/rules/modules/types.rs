@@ -16,16 +16,14 @@
 **/
 use rhai::plugin::*;
 
-use crate::rules::{
-    address::Address, modules::EngineResult, obj::Object, rule_engine::Status,
-    service::ServiceResult,
-};
+use crate::rules::{address::Address, modules::EngineResult, obj::Object, rule_engine::Status};
 
 pub type Rcpt = std::collections::HashSet<Address>;
 
 #[allow(dead_code)]
 #[export_module]
 pub mod types {
+    use crate::config::service::ServiceResult;
 
     // Status
 

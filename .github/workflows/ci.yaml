@@ -24,8 +24,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
   ## Runs all test and upload coverage
   test:
