@@ -19,11 +19,14 @@ use super::mime_type::Mime;
 /// we use Vec instead of a HashMap because header ordering is important.
 pub type MailHeaders = Vec<(String, String)>;
 
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 /// see rfc5322 (section 2.1 and 2.3)
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum BodyType {
+    /// Text message body
     Regular(Vec<String>),
+    /// Mime
     Mime(Box<Mime>),
+    /// Empty message body
     Undefined,
 }
 

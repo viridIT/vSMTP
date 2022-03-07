@@ -21,6 +21,10 @@ use super::server_config::{
     InnerServerConfig, InnerUserLogConfig,
 };
 
+pub(super) fn default_rcpt_count_max() -> usize {
+    1000
+}
+
 impl Default for InnerServerConfig {
     fn default() -> Self {
         Self {
@@ -107,7 +111,14 @@ impl Default for InnerSMTPConfig {
             timeout_client: Default::default(),
             error: Default::default(),
             rcpt_count_max: 1000,
+            client_count_max: Self::default_client_count_max(),
         }
+    }
+}
+
+impl InnerSMTPConfig {
+    pub(crate) fn default_client_count_max() -> i64 {
+        -1
     }
 }
 
@@ -135,6 +146,7 @@ impl Default for Codes {
             SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n",
             SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
             SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
+            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
         };
 
         let out = Self {
@@ -154,6 +166,9 @@ impl Codes {
             .all(|i| self.codes.contains_key(&i))
     }
 
+    /// return the message associated with a [SMTPReplyCode].
+    ///
+    /// panic if the config is ill-formed
     pub fn get(&self, code: &SMTPReplyCode) -> &String {
         self.codes
             .get(code)

@@ -55,7 +55,6 @@ About system integration and security:
 
 - Daemon startup mode and drop of privileges.
 - Split of system and application logs.
-- Folders restrictions fo user-defined quarantines, logs, etc.
 
 About filtering features:
 
@@ -70,11 +69,17 @@ The vSMTP Policy Server (vPS) is a module dedicated to the integration of
 third-party software. Thanks to its logic engine it can manage complex filtering
 and security rules. In version 0.10.x, vPS will accept delegation trough:
 
-- The SMTP protocol
-- A libmilter-like emulator.
+- The SMTP protocol.
+- Postfix SMTP access policy delegation support.
 - Local Unix scripts.
 
 It can be called at any stage of a SMTP transaction via the rule engine.
+
+This version will also include:
+
+- Folders restrictions for user-defined quarantines.
+- system & application logs.
+- a new `server` vsl api that will enable interaction with services and server configuration in rules.
 
 ## Production release
 

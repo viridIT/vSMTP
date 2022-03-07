@@ -46,18 +46,28 @@ impl Default for MessageMetadata {
     }
 }
 
+/// Message body issued by a SMTP transaction
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Body {
+    /// Nothing
     Empty,
+    /// The raw representation of the message
     Raw(String),
+    /// The message parsed using [MailMimeParser]
     Parsed(Box<Mail>),
 }
 
+/// Representation of one mail obtained by a transaction SMTP
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
+    /// time of connexion by the client.
     pub connexion_timestamp: std::time::SystemTime,
+    /// emitter of the mail
     pub client_addr: std::net::SocketAddr,
+    /// envelop of the message
     pub envelop: Envelop,
+    /// content of the message
     pub body: Body,
+    /// metadata
     pub metadata: Option<MessageMetadata>,
 }

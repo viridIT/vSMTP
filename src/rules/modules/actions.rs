@@ -21,11 +21,11 @@ use rhai::plugin::*;
 pub mod actions {
 
     use crate::{
-        config::{log_channel::URULES, server_config::Service},
+        config::log_channel::URULES,
+        config::service::{Service, ServiceResult},
         rules::{
             address::Address, modules::mail_context::mail_context::message_id,
             modules::EngineResult, obj::Object, rule_engine::Status, server_api::ServerAPI,
-            service::ServiceResult,
         },
         smtp::mail::Body,
     };

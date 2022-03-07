@@ -78,34 +78,6 @@ impl MimeHeader {
 }
 
 impl ToString for MimeHeader {
-    /// ```
-    /// use vsmtp::mime::mime_type::MimeHeader;
-    ///
-    /// let input = MimeHeader {
-    ///     name: "Content-Type".to_string(),
-    ///     value: "text/plain".to_string(),
-    ///     args: std::collections::HashMap::from([
-    ///       ("charset".to_string(), "us-ascii".to_string()),
-    ///       ("another".to_string(), "argument".to_string()),
-    ///    ]),
-    /// };
-    ///
-    /// assert!(
-    ///     // arguments can be in any order.
-    ///     input.to_string() == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\"".to_string() ||
-    ///     input.to_string() == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\"".to_string()
-    /// );
-    ///
-    /// let input = MimeHeader {
-    ///     name: "Content-Type".to_string(),
-    ///     value: "application/foobar".to_string(),
-    ///     args: std::collections::HashMap::default(),
-    /// };
-    ///
-    /// assert_eq!(input.to_string(),
-    ///   "Content-Type: application/foobar".to_string()
-    /// );
-    /// ```
     fn to_string(&self) -> String {
         let args = self
             .args
@@ -190,5 +162,41 @@ impl Mime {
                 }
             },
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mime_type() {
+        let input = MimeHeader {
+            name: "Content-Type".to_string(),
+            value: "text/plain".to_string(),
+            args: std::collections::HashMap::from([
+                ("charset".to_string(), "us-ascii".to_string()),
+                ("another".to_string(), "argument".to_string()),
+            ]),
+        };
+
+        assert!(
+            // arguments can be in any order.
+            input.to_string()
+                == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\""
+                || input.to_string()
+                    == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\""
+        );
+
+        let input = MimeHeader {
+            name: "Content-Type".to_string(),
+            value: "application/foobar".to_string(),
+            args: std::collections::HashMap::default(),
+        };
+
+        assert_eq!(
+            input.to_string(),
+            "Content-Type: application/foobar".to_string()
+        );
     }
 }

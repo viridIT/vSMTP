@@ -16,10 +16,14 @@
 **/
 use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
-use super::server_config::{
-    Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, InnerUserLogConfig, ProtocolVersion,
-    ProtocolVersionRequirement, QueueConfig, ServerConfig, Service, SniKey, TlsSecurityLevel,
+use super::{
+    server_config::{
+        Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig,
+        InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig,
+        InnerUserLogConfig, ProtocolVersion, ProtocolVersionRequirement, QueueConfig, ServerConfig,
+        SniKey, TlsSecurityLevel,
+    },
+    service::Service,
 };
 
 pub struct ConfigBuilder<State> {
@@ -27,12 +31,22 @@ pub struct ConfigBuilder<State> {
 }
 
 impl ServerConfig {
+    /// Return an instance of [ConfigBuilder] for a step-by-step configuration generation
     pub fn builder() -> ConfigBuilder<WantsVersion> {
         ConfigBuilder {
             state: WantsVersion(()),
         }
     }
 
+    /// Parse a [ServerConfig] with [TOML] format
+    ///
+    /// Produce an error if :
+    /// * file is not a valid [TOML]
+    /// * one field is unknown
+    /// * the version requirement are not fulfilled
+    /// * a mandatory field is not provided (no default value)
+    ///
+    /// [TOML]: https://github.com/toml-lang/toml
     pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
         let parsed_ahead = ConfigBuilder::<WantsServer> {
             state: toml::from_str::<WantsServer>(data)?,
@@ -271,6 +285,7 @@ pub struct WantSMTP {
 }
 
 impl ConfigBuilder<WantSMTP> {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_smtp(
         self,
         disable_ehlo: bool,
@@ -279,6 +294,7 @@ impl ConfigBuilder<WantSMTP> {
         error_hard_count: i64,
         error_delay: std::time::Duration,
         rcpt_count_max: usize,
+        client_count_max: i64,
     ) -> ConfigBuilder<WantsDelivery> {
         ConfigBuilder::<WantsDelivery> {
             state: WantsDelivery {
@@ -295,6 +311,7 @@ impl ConfigBuilder<WantSMTP> {
                         delay: error_delay,
                     },
                     rcpt_count_max,
+                    client_count_max,
                 },
             },
         }
@@ -308,6 +325,7 @@ impl ConfigBuilder<WantSMTP> {
             10,
             std::time::Duration::from_millis(1000),
             1000,
+            InnerSMTPConfig::default_client_count_max(),
         )
     }
 }

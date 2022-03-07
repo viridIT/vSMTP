@@ -20,6 +20,6 @@ pub mod modules;
 mod obj;
 pub mod rule_engine;
 mod server_api;
-mod service;
+
 #[cfg(test)]
 mod tests;

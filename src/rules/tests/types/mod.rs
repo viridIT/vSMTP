@@ -15,7 +15,7 @@
  *
 **/
 use crate::{
-    config::server_config::{ServerConfig, Service},
+    config::{server_config::ServerConfig, service::Service},
     rules::{
         address::Address,
         rule_engine::{RuleEngine, RuleState, Status},
