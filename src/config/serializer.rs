@@ -16,21 +16,6 @@
 **/
 use super::server_config::{ProtocolVersion, ProtocolVersionRequirement};
 
-pub(super) fn ordered_map<K, V, S>(
-    value: &std::collections::HashMap<K, V>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-    K: std::cmp::Ord + serde::Serialize,
-    V: serde::Serialize,
-{
-    serde::Serialize::serialize(
-        &value.iter().collect::<std::collections::BTreeMap<_, _>>(),
-        serializer,
-    )
-}
-
 pub(super) fn serialize_version_req<S: serde::Serializer>(
     value: &semver::VersionReq,
     serializer: S,

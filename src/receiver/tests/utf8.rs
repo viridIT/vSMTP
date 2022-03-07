@@ -37,8 +37,7 @@ macro_rules! test_lang {
                 );
                 assert!(match &ctx.body {
                     Body::Parsed(mail) => {
-                        let (headers, body) = mail.to_raw();
-                        format!("{headers}\n\n{body}\n").as_str() == include_str!($lang_code)
+                        format!("{}\n", mail.to_raw()).as_str() == include_str!($lang_code)
                     }
                     _ => false,
                 });
@@ -81,7 +80,7 @@ macro_rules! test_lang {
                     .without_smtps()
                     .with_default_smtp()
                     .with_delivery("./tmp/delivery", crate::collection! {})
-                    .with_rules("./tmp/nothing", vec![])
+                    .with_empty_rules()
                     .with_default_reply_codes()
                     .build()?,
             )

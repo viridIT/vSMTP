@@ -16,9 +16,6 @@ file = "/var/log/vsmtp/vsmtp.log"
 [logs.level]
 default = "warn"
 
-[rules]
-dir = "./config/rules"
-
 [smtps]
 security_level = "May"
 capath = "./config/certs"

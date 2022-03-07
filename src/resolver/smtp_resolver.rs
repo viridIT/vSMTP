@@ -1,3 +1,5 @@
+use lettre::Transport;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -70,14 +72,10 @@ impl Resolver for SMTPResolver {
 
                         let result = match &ctx.body {
                             Body::Empty => anyhow::bail!("failed to send email: body is empty"),
-                            Body::Raw(raw) => {
-                                lettre::Transport::send_raw(&mailer, &envelop, raw.as_bytes())
+                            Body::Raw(raw) => mailer.send_raw(&envelop, raw.as_bytes()),
+                            Body::Parsed(mail) => {
+                                mailer.send_raw(&envelop, mail.raw_body().as_bytes())
                             }
-                            Body::Parsed(mail) => lettre::Transport::send_raw(
-                                &mailer,
-                                &envelop,
-                                mail.to_raw().1.as_bytes(),
-                            ),
                         };
 
                         match result {

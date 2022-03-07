@@ -254,10 +254,7 @@ pub mod email {
                         )
                     }
                     Body::Raw(raw) => writer.write_all(raw.as_bytes()),
-                    Body::Parsed(email) => {
-                        let (headers, body) = email.to_raw();
-                        writer.write_all(format!("{}\n\n{}", headers, body).as_bytes())
-                    }
+                    Body::Parsed(email) => writer.write_all(email.to_raw().as_bytes()),
                 }
             }
             .map_err(|err| format!("failed to write email at '{}': {:?}", dir, err).into()),

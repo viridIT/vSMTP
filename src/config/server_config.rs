@@ -57,7 +57,7 @@ pub struct InnerLogConfig {
     ///
     /// keys are: [receiver, resolver, rules, deliver]
     #[serde(default)]
-    pub level: std::collections::HashMap<String, log::LevelFilter>,
+    pub level: std::collections::BTreeMap<String, log::LevelFilter>,
 }
 
 /// vSMTP's application logs information
@@ -170,12 +170,12 @@ pub struct InnerSMTPConfig {
     pub disable_ehlo: bool,
     /// maximum delay for the next command for each step
     #[serde(default)]
-    #[serde_as(as = "std::collections::HashMap<DisplayFromStr, _>")]
-    pub timeout_client: std::collections::HashMap<StateSMTP, DurationAlias>,
+    #[serde_as(as = "std::collections::BTreeMap<DisplayFromStr, _>")]
+    pub timeout_client: std::collections::BTreeMap<StateSMTP, DurationAlias>,
     /// specify how the client's error should be handled
     pub error: InnerSMTPErrorConfig,
     /// maximum allowed recipients for a message
-    #[serde(default = "crate::config::default::default_rcpt_count_max")]
+    #[serde(default = "InnerSMTPConfig::default_rcpt_count_max")]
     pub rcpt_count_max: usize,
     /// maximum number of client handled at the same time, any new connection will be closed
     ///
@@ -185,12 +185,12 @@ pub struct InnerSMTPConfig {
 }
 
 /// vSMTP's application configuration
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InnerRulesConfig {
     /// entry point of the application
-    #[serde(default = "InnerRulesConfig::default_directory")]
-    pub dir: std::path::PathBuf,
+    #[serde(default)]
+    pub main_filepath: Option<std::path::PathBuf>,
     /// application's logs configuration
     #[serde(default)]
     pub logs: InnerUserLogConfig,
@@ -216,8 +216,7 @@ pub struct InnerDeliveryConfig {
     /// path of the spool directory where the processing queues write the files
     pub spool_dir: std::path::PathBuf,
     #[doc(hidden)]
-    #[serde(serialize_with = "crate::config::serializer::ordered_map")]
-    pub queues: std::collections::HashMap<String, QueueConfig>,
+    pub queues: std::collections::BTreeMap<String, QueueConfig>,
 }
 
 /// the message sent to the client
@@ -226,8 +225,7 @@ pub struct InnerDeliveryConfig {
 #[serde(transparent)]
 pub struct Codes {
     /// key is the scenario, value is the message
-    #[serde(serialize_with = "crate::config::serializer::ordered_map")]
-    pub codes: std::collections::HashMap<SMTPReplyCode, String>,
+    pub codes: std::collections::BTreeMap<SMTPReplyCode, String>,
 }
 
 /// The server's configuration
