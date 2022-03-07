@@ -185,7 +185,7 @@ impl ConfigBuilder<WantsLogging> {
     pub fn with_logging(
         self,
         file: impl Into<std::path::PathBuf>,
-        level: std::collections::HashMap<String, log::LevelFilter>,
+        level: std::collections::BTreeMap<String, log::LevelFilter>,
     ) -> ConfigBuilder<WantSMTPS> {
         ConfigBuilder::<WantSMTPS> {
             state: WantSMTPS {
@@ -342,7 +342,7 @@ impl ConfigBuilder<WantsDelivery> {
     pub fn with_delivery(
         self,
         spool_dir: impl Into<std::path::PathBuf>,
-        queues: std::collections::HashMap<String, QueueConfig>,
+        queues: std::collections::BTreeMap<String, QueueConfig>,
     ) -> ConfigBuilder<WantsRules> {
         ConfigBuilder::<WantsRules> {
             state: WantsRules {
@@ -364,16 +364,29 @@ pub struct WantsRules {
 }
 
 impl ConfigBuilder<WantsRules> {
+    pub fn with_empty_rules(self) -> ConfigBuilder<WantsReplyCodes> {
+        ConfigBuilder::<WantsReplyCodes> {
+            state: WantsReplyCodes {
+                parent: self.state,
+                rules: InnerRulesConfig {
+                    main_filepath: None,
+                    logs: InnerUserLogConfig::default(),
+                    services: vec![],
+                },
+            },
+        }
+    }
+
     pub fn with_rules(
         self,
-        source_dir: impl Into<std::path::PathBuf>,
+        main_filepath: impl Into<std::path::PathBuf>,
         services: Vec<Service>,
     ) -> ConfigBuilder<WantsReplyCodes> {
         ConfigBuilder::<WantsReplyCodes> {
             state: WantsReplyCodes {
                 parent: self.state,
                 rules: InnerRulesConfig {
-                    dir: Some(source_dir.into()),
+                    main_filepath: Some(main_filepath.into()),
                     logs: InnerUserLogConfig::default(),
                     services,
                 },
@@ -383,7 +396,7 @@ impl ConfigBuilder<WantsRules> {
 
     pub fn with_rules_and_logging(
         self,
-        source_dir: impl Into<std::path::PathBuf>,
+        main_filepath: impl Into<std::path::PathBuf>,
         services: Vec<Service>,
         log_file: impl Into<std::path::PathBuf>,
         log_level: log::LevelFilter,
@@ -393,25 +406,12 @@ impl ConfigBuilder<WantsRules> {
             state: WantsReplyCodes {
                 parent: self.state,
                 rules: InnerRulesConfig {
-                    dir: Some(source_dir.into()),
+                    main_filepath: Some(main_filepath.into()),
                     logs: InnerUserLogConfig {
                         file: log_file.into(),
                         level: log_level,
                         format: log_format,
                     },
-                    services,
-                },
-            },
-        }
-    }
-
-    pub fn without_rules(self, services: Vec<Service>) -> ConfigBuilder<WantsReplyCodes> {
-        ConfigBuilder::<WantsReplyCodes> {
-            state: WantsReplyCodes {
-                parent: self.state,
-                rules: InnerRulesConfig {
-                    dir: None,
-                    logs: InnerUserLogConfig::default(),
                     services,
                 },
             },
@@ -423,13 +423,14 @@ impl ConfigBuilder<WantsRules> {
 pub struct WantsReplyCodes {
     #[serde(flatten)]
     pub(crate) parent: WantsRules,
+    #[serde(default)]
     pub(crate) rules: InnerRulesConfig,
 }
 
 impl ConfigBuilder<WantsReplyCodes> {
     pub fn with_reply_codes(
         self,
-        reply_codes: std::collections::HashMap<SMTPReplyCode, String>,
+        reply_codes: std::collections::BTreeMap<SMTPReplyCode, String>,
     ) -> ConfigBuilder<WantsBuild> {
         ConfigBuilder::<WantsBuild> {
             state: WantsBuild {

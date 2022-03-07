@@ -1,4 +1,7 @@
+use pretty_assertions::assert_eq;
+
 use crate::{
+    collection,
     config::{
         server_config::{ProtocolVersion, ProtocolVersionRequirement, SniKey},
         service::Service,
@@ -9,77 +12,16 @@ use crate::{
 use super::server_config::{QueueConfig, ServerConfig, TlsSecurityLevel};
 
 #[test]
-fn init() -> anyhow::Result<()> {
-    let _config = ServerConfig::builder()
-        .with_version_str("<1.0.0")
-        .unwrap()
-        .with_rfc_port("test.server.com", "root", "root", None)
-        .with_logging(
-            "./tmp/log",
-            std::collections::HashMap::<String, log::LevelFilter>::default(),
-        )
-        .with_safe_default_smtps(TlsSecurityLevel::May, "dummy", "dummy", None)
-        .with_smtp(
-            false,
-            std::collections::HashMap::<StateSMTP, std::time::Duration>::default(),
-            5,
-            10,
-            std::time::Duration::from_millis(100),
-            1000,
-            -1,
-        )
-        .with_delivery(
-            "/tmp/spool",
-            std::collections::HashMap::<String, QueueConfig>::default(),
-        )
-        .with_rules("/tmp/re", vec![])
-        .with_default_reply_codes()
-        .build();
-
-    Ok(())
-}
-
-#[test]
-fn init_no_smtps() -> anyhow::Result<()> {
-    let _config = ServerConfig::builder()
-        .with_version_str("<1.0.0")
-        .unwrap()
-        .with_rfc_port("test.server.com", "root", "root", None)
-        .with_logging(
-            "./tmp/log",
-            std::collections::HashMap::<String, log::LevelFilter>::default(),
-        )
-        .without_smtps()
-        .with_smtp(
-            false,
-            std::collections::HashMap::<StateSMTP, std::time::Duration>::default(),
-            5,
-            10,
-            std::time::Duration::from_millis(100),
-            1000,
-            -1,
-        )
-        .with_delivery(
-            "/tmp/spool",
-            std::collections::HashMap::<String, QueueConfig>::default(),
-        )
-        .with_rules("/tmp/re", vec![])
-        .with_default_reply_codes()
-        .build();
-    Ok(())
-}
-
-#[test]
-fn from_toml_template_simple() -> anyhow::Result<()> {
+fn simple() {
     assert_eq!(
-        ServerConfig::from_toml(include_str!("../template/simple.toml")).unwrap(),
+        ServerConfig::from_toml(include_str!("../../../examples/config/simple.toml")).unwrap(),
         ServerConfig::builder()
             .with_version_str("<1.0.0")
             .unwrap()
             .with_rfc_port("testserver.com", "vsmtp", "vsmtp", None)
             .with_logging(
                 "/var/log/vsmtp/app.log",
-                crate::collection! {
+                collection! {
                     "default".to_string() => log::LevelFilter::Warn
                 },
             )
@@ -87,7 +29,7 @@ fn from_toml_template_simple() -> anyhow::Result<()> {
             .with_default_smtp()
             .with_delivery(
                 "/var/spool/vsmtp",
-                crate::collection! {
+                collection! {
                     "working".to_string() => QueueConfig {
                         capacity: Some(32),
                         retry_max: None,
@@ -105,18 +47,17 @@ fn from_toml_template_simple() -> anyhow::Result<()> {
                     },
                 },
             )
-            .with_rules("/etc/vsmtp/rules", vec![])
+            .with_empty_rules()
             .with_default_reply_codes()
             .build()
             .unwrap()
     );
-    Ok(())
 }
 
 #[test]
-fn from_toml_template_smtps() -> anyhow::Result<()> {
+fn smtps() {
     assert_eq!(
-        ServerConfig::from_toml(include_str!("../template/smtps.toml")).unwrap(),
+        ServerConfig::from_toml(include_str!("../../../examples/config/smtps.toml")).unwrap(),
         ServerConfig::builder()
             .with_version_str("<1.0.0")
             .unwrap()
@@ -131,7 +72,7 @@ fn from_toml_template_smtps() -> anyhow::Result<()> {
             )
             .with_logging(
                 "/var/log/vsmtp/vsmtp.log",
-                crate::collection! {
+                collection! {
                     "default".to_string() => log::LevelFilter::Warn
                 },
             )
@@ -153,7 +94,7 @@ fn from_toml_template_smtps() -> anyhow::Result<()> {
             .with_default_smtp()
             .with_delivery(
                 "./tmp/var/spool/vsmtp",
-                crate::collection! {
+                collection! {
                     "working".to_string() => QueueConfig {
                         capacity: Some(32),
                         retry_max: None,
@@ -171,32 +112,31 @@ fn from_toml_template_smtps() -> anyhow::Result<()> {
                     },
                 },
             )
-            .with_rules("./config/rules", vec![])
+            .with_empty_rules()
             .with_default_reply_codes()
             .build()
             .unwrap()
     );
-    Ok(())
 }
 
 #[test]
-fn from_toml_template_services() -> anyhow::Result<()> {
+fn services() {
     assert_eq!(
-        ServerConfig::from_toml(include_str!("../template/services.toml")).unwrap(),
+        ServerConfig::from_toml(include_str!("../../../examples/config/services.toml")).unwrap(),
         ServerConfig::builder()
             .with_version_str("<1.0.0")
             .unwrap()
             .with_rfc_port("testserver.com", "vsmtp", "vsmtp", None)
             .with_logging(
                 "/var/log/vsmtp/app.log",
-                crate::collection! {
+                collection! {
                     "default".to_string() => log::LevelFilter::Warn
                 },
             )
             .without_smtps()
             .with_smtp(
                 false,
-                crate::collection! {
+                collection! {
                     StateSMTP::Helo =>  std::time::Duration::from_millis(100) ,
                     StateSMTP::Data =>  std::time::Duration::from_millis(200) ,
                 },
@@ -208,7 +148,7 @@ fn from_toml_template_services() -> anyhow::Result<()> {
             )
             .with_delivery(
                 "/var/spool/vsmtp",
-                crate::collection! {
+                collection! {
                     "working".to_string() => QueueConfig {
                         capacity: Some(32),
                         retry_max: None,
@@ -227,7 +167,7 @@ fn from_toml_template_services() -> anyhow::Result<()> {
                 },
             )
             .with_rules_and_logging(
-                "/etc/vsmtp/rules",
+                "/etc/vsmtp/rules/main.vsl",
                 vec![
                     Service::UnixShell {
                         name: "echo_hello".to_string(),
@@ -250,12 +190,124 @@ fn from_toml_template_services() -> anyhow::Result<()> {
                 log::LevelFilter::Trace,
                 Some("{d} - {m}{n}".to_string()),
             )
-            .with_reply_codes(crate::collection! {
+            .with_reply_codes(collection! {
                 SMTPReplyCode::Code214 => "214 my custom help message\r\n".to_string(),
                 SMTPReplyCode::Code220 => "220 {domain} ESMTP Service ready\r\n".to_string(),
             })
             .build()
             .unwrap()
     );
-    Ok(())
+}
+
+#[test]
+fn complete() {
+    assert_eq!(
+        ServerConfig::from_toml(include_str!("../../../examples/config/complete.toml")).unwrap(),
+        ServerConfig::builder()
+            .with_version_str(">=0.9.2, <1.0.0")
+            .unwrap()
+            .with_server(
+                "testserver.com",
+                "vsmtp",
+                "vsmtp",
+                "0.0.0.0:10025".parse().unwrap(),
+                "0.0.0.0:10587".parse().unwrap(),
+                "0.0.0.0:10465".parse().unwrap(),
+                10,
+            )
+            .with_logging(
+                "/var/log/vsmtp/vsmtp.log",
+                collection! {
+                    "default".to_string() => log::LevelFilter::Warn,
+                    "receiver".to_string() => log::LevelFilter::Info,
+                    "resolver".to_string() => log::LevelFilter::Error,
+                    "rules".to_string() => log::LevelFilter::Warn,
+                }
+            )
+            .with_smtps(
+                TlsSecurityLevel::May,
+                ProtocolVersionRequirement(vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_3)]),
+                "./config/certs",
+                true,
+                "{capath}/certificate.crt",
+                "{capath}/privateKey.key",
+                std::time::Duration::from_millis(100),
+                Some(vec![
+                    SniKey {
+                        domain: "testserver.com".to_string(),
+                        private_key: "{capath}/rsa.{domain}.pem".into(),
+                        fullchain: "{capath}/fullchain.{domain}.pem".into(),
+                        protocol_version: None
+                    },
+                    SniKey {
+                        domain: "testserver2.com".to_string(),
+                        private_key: "{capath}/rsa.{domain}.pem".into(),
+                        fullchain: "{capath}/fullchain.{domain}.pem".into(),
+                        protocol_version: None
+                    }
+                ]),
+            )
+            .with_smtp(
+                false,
+                collection! {
+                    StateSMTP::Connect => std::time::Duration::from_millis(50),
+                    StateSMTP::Helo => std::time::Duration::from_millis (100),
+                    StateSMTP::MailFrom => std::time::Duration::from_millis (200),
+                    StateSMTP::RcptTo => std::time::Duration::from_millis (400),
+                    StateSMTP::Data => std::time::Duration::from_millis (800),
+                },
+                5,
+                10,
+                std::time::Duration::from_millis(5000),
+                25,
+                16
+            )
+            .with_delivery(
+                "/var/spool/vsmtp",
+                collection! {
+                    "working".to_string() => QueueConfig {
+                        capacity: Some(32),
+                        retry_max: None,
+                        cron_period: None
+                    },
+                    "deliver".to_string() => QueueConfig {
+                        capacity: Some(32),
+                        retry_max: None,
+                        cron_period: None
+                    },
+                    "deferred".to_string() => QueueConfig {
+                        capacity: None,
+                        retry_max: Some(10),
+                        cron_period: Some(std::time::Duration::from_secs(10))
+                    },
+                },
+            )
+            .with_rules(
+                "/etc/vsmtp/rules/main.vsl",
+                vec![
+                    Service::UnixShell {
+                        name: "clamscan".to_string(),
+                        timeout: std::time::Duration::from_millis(15000),
+                        user: None,
+                        group: None,
+                        command: "/etc/vsmtp/rules/service/clamscan.sh".to_string(),
+                        args: Some("{mail}".to_string())
+                    },
+                    Service::UnixShell {
+                        name: "spamassassin".to_string(),
+                        timeout: std::time::Duration::from_millis(15000),
+                        user: Some("root".to_string()),
+                        group: Some("root".to_string()),
+                        command: "/etc/vsmtp/rules/service/spamassassin.sh".to_string(),
+                        args: Some("{mail}".to_string())
+                    }
+                ],
+            )
+            .with_reply_codes(collection! {
+                SMTPReplyCode::Code214 => "214 my custom help message\r\n".to_string(),
+                SMTPReplyCode::Code220 => "220 {domain} ESMTP Service ready\r\n".to_string(),
+            })
+            .build()
+            .unwrap()
+    )
 }

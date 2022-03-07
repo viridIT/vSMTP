@@ -28,7 +28,7 @@ use std::collections::HashMap;
 /// or parsed by the vMime process.
 pub async fn start(
     config: std::sync::Arc<ServerConfig>,
-    rule_engine: Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut resolvers: HashMap<String, Box<dyn Resolver + Send + Sync>>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> anyhow::Result<()> {
@@ -83,7 +83,7 @@ pub async fn start(
 pub(crate) async fn handle_one_in_delivery_queue(
     config: &ServerConfig,
     path: &std::path::Path,
-    rule_engine: &Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
+    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
 ) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
@@ -102,11 +102,10 @@ pub(crate) async fn handle_one_in_delivery_queue(
     let ctx: MailContext = serde_json::from_str(&raw)?;
     let mut state = RuleState::with_context(config, ctx);
 
-    let result = if let Some(rule_engine) = rule_engine {
-        rule_engine.read().unwrap().run_when(&mut state, "delivery")
-    } else {
-        Status::Next
-    };
+    let result = rule_engine
+        .read()
+        .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
+        .run_when(&mut state, "delivery");
 
     match result {
         Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
@@ -178,7 +177,7 @@ pub(crate) async fn handle_one_in_delivery_queue(
 
 async fn flush_deliver_queue(
     config: &ServerConfig,
-    rule_engine: &Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
+    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {

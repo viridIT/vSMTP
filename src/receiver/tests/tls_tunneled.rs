@@ -40,11 +40,9 @@ async fn test_tls_tunneled(
     let (working_sender, _working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
-    let rule_engine = server_config.rules.dir.as_ref().map(|dir| {
-        std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::new(dir.clone()).expect("failed to create rule engine."),
-        ))
-    });
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
+        &server_config.rules.main_filepath.clone(),
+    )?));
 
     let server = tokio::spawn(async move {
         let tls_config = get_rustls_config(server_config.smtps.as_ref().unwrap()).unwrap();
@@ -132,7 +130,7 @@ async fn simple() -> anyhow::Result<()> {
                 )
                 .with_default_smtp()
                 .with_delivery("./tmp/trash", crate::collection! {})
-                .with_rules("./tmp/no_rules", vec![])
+                .with_empty_rules()
                 .with_default_reply_codes()
                 .build()
                 .unwrap(),
@@ -184,7 +182,7 @@ async fn sni() -> anyhow::Result<()> {
                 )
                 .with_default_smtp()
                 .with_delivery("./tmp/trash", crate::collection! {})
-                .with_rules("./tmp/no_rules", vec![])
+                .with_empty_rules()
                 .with_default_reply_codes()
                 .build()
                 .unwrap(),

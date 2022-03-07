@@ -114,7 +114,6 @@ impl MimeMultipart {
             self.parts
                 .iter()
                 .map(Mime::to_raw)
-                .map(|(headers, body)| format!("{}\n{}", headers, body))
                 .collect::<Vec<_>>()
                 .join(&format!("\n--{}\n", boundary)),
             if self.epilogue.is_empty() {
@@ -134,34 +133,39 @@ pub struct Mime {
 }
 
 impl Mime {
-    pub fn to_raw(&self) -> (String, String) {
-        (
-            self.headers
-                .iter()
-                .map(MimeHeader::to_string)
-                .collect::<Vec<_>>()
-                .join("\n"),
-            match &self.content {
-                MimeBodyType::Regular(regular) => regular.join("\n"),
-                MimeBodyType::Multipart(multipart) => {
-                    let boundary = self
-                        .headers
-                        .iter()
-                        .find(|header| header.args.get("boundary").is_some());
-                    multipart.to_raw(
-                        boundary
-                            .expect("multipart mime message is missing it's boundary argument.")
-                            .args
-                            .get("boundary")
-                            .unwrap(),
-                    )
-                }
-                MimeBodyType::Embedded(mail) => {
-                    let (headers, body) = mail.to_raw();
-                    format!("{}\n{}", headers, body)
-                }
-            },
-        )
+    /// get the original mime header section of the part.
+    pub fn raw_headers(&self) -> String {
+        self.headers
+            .iter()
+            .map(MimeHeader::to_string)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// get the original body section of the part.
+    pub fn raw_body(&self) -> String {
+        match &self.content {
+            MimeBodyType::Regular(regular) => regular.join("\n"),
+            MimeBodyType::Multipart(multipart) => {
+                let boundary = self
+                    .headers
+                    .iter()
+                    .find(|header| header.args.get("boundary").is_some());
+                multipart.to_raw(
+                    boundary
+                        .expect("multipart mime message is missing it's boundary argument.")
+                        .args
+                        .get("boundary")
+                        .unwrap(),
+                )
+            }
+            MimeBodyType::Embedded(mail) => mail.to_raw(),
+        }
+    }
+
+    /// return the original text representation of the mime part.
+    pub fn to_raw(&self) -> String {
+        format!("{}\n\n{}", self.raw_headers(), self.raw_body())
     }
 }
 

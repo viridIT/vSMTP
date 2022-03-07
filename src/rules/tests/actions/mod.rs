@@ -23,7 +23,7 @@ use crate::rules::{
 fn test_logs() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/actions/logs".into())
+    let re = RuleEngine::new(&Some("./src/rules/tests/actions/logs/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -34,7 +34,7 @@ fn test_logs() {
 fn test_users() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/actions/users".into())
+    let re = RuleEngine::new(&Some("./src/rules/tests/actions/users/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -45,7 +45,7 @@ fn test_users() {
 fn test_send_mail() {
     crate::receiver::test_helpers::logs::setup_logs();
 
-    let re = RuleEngine::new("./src/rules/tests/actions/send_mail".into())
+    let re = RuleEngine::new(&Some("./src/rules/tests/actions/send_mail/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 

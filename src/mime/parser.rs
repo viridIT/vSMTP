@@ -385,12 +385,6 @@ impl MailMimeParser {
 
         Ok(multi_parts)
     }
-
-    /// consume a mail instance and return headers and body raw strings.
-    #[allow(dead_code)]
-    pub fn to_raw(mail: Mail) -> (String, String) {
-        mail.to_raw()
-    }
 }
 
 fn check_mandatory_headers(headers: &[(String, String)]) -> ParserResult<()> {

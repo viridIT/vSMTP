@@ -51,10 +51,11 @@ impl Resolver for MBoxResolver {
                             format!("From {} {timestamp}\n{raw}\n", ctx.envelop.mail_from)
                         }
                         Body::Parsed(parsed) => {
-                            let (headers, body) = parsed.to_raw();
                             format!(
-                                "From {} {timestamp}\n{headers}\n\n{body}\n",
-                                ctx.envelop.mail_from
+                                "From {} {}\n{}\n",
+                                timestamp,
+                                ctx.envelop.mail_from,
+                                parsed.to_raw()
                             )
                         }
                     };

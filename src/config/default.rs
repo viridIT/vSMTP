@@ -21,10 +21,6 @@ use super::server_config::{
     InnerUserLogConfig,
 };
 
-pub(super) fn default_rcpt_count_max() -> usize {
-    1000
-}
-
 impl Default for InnerServerConfig {
     fn default() -> Self {
         Self {
@@ -94,7 +90,7 @@ impl Default for InnerSMTPConfig {
             disable_ehlo: false,
             timeout_client: Default::default(),
             error: Default::default(),
-            rcpt_count_max: 1000,
+            rcpt_count_max: Self::default_rcpt_count_max(),
             client_count_max: Self::default_client_count_max(),
         }
     }
@@ -103,6 +99,10 @@ impl Default for InnerSMTPConfig {
 impl InnerSMTPConfig {
     pub(crate) fn default_client_count_max() -> i64 {
         -1
+    }
+
+    pub(super) fn default_rcpt_count_max() -> usize {
+        1000
     }
 }
 

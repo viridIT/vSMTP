@@ -131,7 +131,7 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
 pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    rule_engine: Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
 ) -> anyhow::Result<()>
@@ -179,7 +179,7 @@ where
 pub(crate) async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    rule_engine: Option<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
 ) -> anyhow::Result<()>
