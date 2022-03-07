@@ -35,7 +35,10 @@ pub(crate) mod log_channel {
 }
 
 /// helper to initialize the log4rs config from our ServerConfig
-pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result<log4rs::Config> {
+pub fn get_logger_config(
+    config: &server_config::ServerConfig,
+    no_daemon: bool,
+) -> anyhow::Result<log4rs::Config> {
     use log4rs::*;
 
     if config.log.file == config.rules.logs.file {
@@ -44,12 +47,6 @@ pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result
             config.log.file
         );
     }
-
-    let console = append::console::ConsoleAppender::builder()
-        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-            "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
-        )))
-        .build();
 
     let app = append::file::FileAppender::builder()
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
@@ -68,8 +65,26 @@ pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result
         )))
         .build(config.rules.logs.file.clone())?;
 
-    Config::builder()
-        .appender(config::Appender::builder().build("stdout", Box::new(console)))
+    let mut builder = Config::builder();
+    let mut root = config::Root::builder();
+
+    if no_daemon {
+        builder = builder.appender(
+            config::Appender::builder().build(
+                "stdout",
+                Box::new(
+                    append::console::ConsoleAppender::builder()
+                        .encoder(Box::new(encode::pattern::PatternEncoder::new(
+                            "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
+                        )))
+                        .build(),
+                ),
+            ),
+        );
+        root = root.appender("stdout");
+    }
+
+    builder
         .appender(config::Appender::builder().build("app", Box::new(app)))
         .appender(config::Appender::builder().build("user", Box::new(user)))
         .loggers(
@@ -86,16 +101,13 @@ pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result
                 .build(log_channel::URULES, config.rules.logs.level),
         )
         .build(
-            config::Root::builder()
-                .appender("stdout")
-                .appender("app")
-                .build(
-                    *config
-                        .log
-                        .level
-                        .get("default")
-                        .unwrap_or(&log::LevelFilter::Warn),
-                ),
+            root.appender("app").build(
+                *config
+                    .log
+                    .level
+                    .get("default")
+                    .unwrap_or(&log::LevelFilter::Warn),
+            ),
         )
         .map_err(|e| {
             e.errors().iter().for_each(|e| log::error!("{}", e));

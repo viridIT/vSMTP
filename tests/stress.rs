@@ -117,7 +117,7 @@ async fn stress() {
         .build()
         .unwrap();
 
-    log4rs::init_config(get_logger_config(&config).unwrap()).unwrap();
+    log4rs::init_config(get_logger_config(&config, true).unwrap()).unwrap();
 
     let sockets = (
         std::net::TcpListener::bind(config.server.addr).unwrap(),

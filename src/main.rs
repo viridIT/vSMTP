@@ -40,7 +40,7 @@ struct Args {
 
 #[derive(Debug, clap::Subcommand, PartialEq)]
 enum Commands {
-    /// Show the loaded config (as json)
+    /// Show the loaded config (as serialized json format)
     ConfigShow,
     /// Show the difference between the loaded config and the default one
     ConfigDiff,
@@ -99,7 +99,6 @@ fn socket_bind_anyhow(addr: std::net::SocketAddr) -> anyhow::Result<std::net::Tc
 
 fn main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
-    println!("Loading configuration at path='{}'", args.config);
 
     let config = ServerConfig::from_toml(
         &std::fs::read_to_string(&args.config)
@@ -145,8 +144,10 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    log4rs::init_config(get_logger_config(&config).context("failed to get logger configuration")?)
-        .context("failed to initialize loggers")?;
+    log4rs::init_config(
+        get_logger_config(&config, args.no_daemon).context("failed to get logger configuration")?,
+    )
+    .context("failed to initialize loggers")?;
 
     let vsmtp_user = users::get_user_by_name(&config.server.vsmtp_user)
         .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.vsmtp_user))?;
@@ -161,13 +162,18 @@ fn main() -> anyhow::Result<()> {
 
     if args.no_daemon {
         start_runtime(config, sockets)
-    } else if let ForkResult::Child = daemon()? {
-        setgid(vsmtp_group.gid())?;
-        setuid(vsmtp_user.uid())?;
-
-        start_runtime(config, sockets)
     } else {
-        Ok(())
+        match daemon()? {
+            ForkResult::Child => {
+                setgid(vsmtp_group.gid())?;
+                setuid(vsmtp_user.uid())?;
+                start_runtime(config, sockets)
+            }
+            ForkResult::Parent(pid) => {
+                log::info!("vSMTP running in process id={pid}");
+                Ok(())
+            }
+        }
     }
 }
 
@@ -187,7 +193,7 @@ fn start_runtime(
         .build()?
         .block_on(async move {
             let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)?;
-            log::warn!("Listening on: {:?}", server.addr());
+            log::info!("Listening on: {:?}", server.addr());
 
             server
                 .with_resolver("maildir", MailDirResolver::default())
