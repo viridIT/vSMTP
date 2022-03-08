@@ -88,9 +88,11 @@ fn write_content_to_mbox(
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&mbox)?;
+        .open(&mbox)
+        .with_context(|| format!("could not open '{:?}' mbox", mbox))?;
+
     chown_file(&mbox, user)
-        .with_context(|| format!("could not write email to '{:?}' mbox", mbox))?;
+        .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
     std::io::Write::write_all(&mut file, content.as_bytes())
         .with_context(|| format!("could not write email to '{:?}' mbox", mbox))?;
@@ -173,13 +175,17 @@ This is a raw email."#
         );
         assert_eq!(message_from_raw, message_from_parsed);
     }
+
     #[test]
+    #[ignore]
     fn test_writing_to_mbox() {
         let user = users::get_user_by_uid(users::get_current_uid())
             .expect("current user has been deleted after running this test");
         let content = "From 0 john@doe.com\nfrom: john doe <john@doe.com>\n";
         let mbox =
             std::path::PathBuf::from_iter(["./tests/generated/", user.name().to_str().unwrap()]);
+
+        std::fs::create_dir_all("./tests/generated/").expect("could not create temporary folders");
 
         write_content_to_mbox(mbox.clone(), &user, content).expect("could not write to mbox");
 

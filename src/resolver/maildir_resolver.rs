@@ -93,9 +93,9 @@ fn create_maildir(
 
     let create_and_chown = |path: &std::path::PathBuf, user: &users::User| -> anyhow::Result<()> {
         if !path.exists() {
-            std::fs::create_dir(&path).with_context(|| format!("failed to create '{:?}'", path))?;
+            std::fs::create_dir(&path).with_context(|| format!("failed to create {:?}", path))?;
             chown_file(path, user)
-                .with_context(|| format!("failed to set user rights to '{:?}'", path))?;
+                .with_context(|| format!("failed to set user rights to {:?}", path))?;
         }
 
         Ok(())
@@ -161,6 +161,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_writing_to_maildir() {
         let current = users::get_user_by_uid(users::get_current_uid())
             .expect("current user has been deleted after running this test");
