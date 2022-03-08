@@ -34,6 +34,7 @@
         "Rset",
         "rustls",
         "setgid",
+        "setsid",
         "setuid",
         "SMTPS",
         "SMTPUTF",
