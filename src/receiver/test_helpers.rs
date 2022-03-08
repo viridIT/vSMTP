@@ -208,7 +208,7 @@ pub mod logs {
                 std::path::PathBuf::from_iter([".", "tests", "generated", "rules.test.log"]);
 
             log4rs::init_config(
-                crate::config::get_logger_config(&config).expect("failed to init logs"),
+                crate::config::get_logger_config(&config, true).expect("failed to init logs"),
             )
             .expect("failed to init logs");
         });

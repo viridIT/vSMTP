@@ -33,9 +33,9 @@
 
 /// ServerConfig, ServerConfigBuilder, default values, and parser
 pub mod config;
-mod mime;
 /// Abstraction of the libc
-pub mod my_libc;
+pub mod libc_abstraction;
+mod mime;
 mod processes;
 mod queue;
 /// The transaction receiver, with SMTP state machine

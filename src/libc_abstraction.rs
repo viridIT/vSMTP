@@ -1,5 +1,5 @@
 /// return type of [fork]
-pub enum Fork {
+pub enum ForkResult {
     /// to the parent, with the pid of the child process
     Parent(libc::pid_t),
     /// to the child
@@ -12,14 +12,44 @@ pub enum Fork {
 ///
 /// see fork(2) ERRORS
 #[inline]
-pub fn fork() -> anyhow::Result<Fork> {
+pub fn fork() -> anyhow::Result<ForkResult> {
     match unsafe { libc::fork() } {
         -1 => Err(anyhow::anyhow!(
             "fork: '{}'",
             std::io::Error::last_os_error()
         )),
-        0 => Ok(Fork::Child),
-        child_pid => Ok(Fork::Parent(child_pid)),
+        0 => Ok(ForkResult::Child),
+        child_pid => Ok(ForkResult::Parent(child_pid)),
+    }
+}
+
+/// run a program as a background process
+///
+/// # Errors
+///
+/// see daemon(2) ERRORS
+pub fn daemon() -> anyhow::Result<ForkResult> {
+    match fork()? {
+        ForkResult::Parent(_) => std::process::exit(0),
+        ForkResult::Child => {
+            setsid()?;
+            fork()
+        }
+    }
+}
+
+/// run a program in a new session
+///
+/// # Errors
+///
+/// see setsid(2) ERRORS
+pub fn setsid() -> anyhow::Result<libc::pid_t> {
+    match unsafe { libc::setsid() } {
+        -1 => Err(anyhow::anyhow!(
+            "setsid: '{}'",
+            std::io::Error::last_os_error()
+        )),
+        res => Ok(res),
     }
 }
 
