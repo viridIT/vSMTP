@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn error() {
         assert_eq!(
-            format!("{}", SMTPReplyCode::from_str("foo").unwrap_err()),
+            format!("{}", SMTPReplyCode::from_str("root").unwrap_err()),
             "SMTPReplyCodeFromStrError"
         );
     }

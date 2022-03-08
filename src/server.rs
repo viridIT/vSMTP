@@ -319,8 +319,8 @@ mod tests {
                 .unwrap()
                 .with_server(
                     "test.server.com",
-                    "foo",
-                    "foo",
+                    "root",
+                    "root",
                     addr,
                     addr_submission,
                     addr_submissions,
@@ -364,8 +364,8 @@ mod tests {
                 .unwrap()
                 .with_server(
                     "test.server.com",
-                    "foo",
-                    "foo",
+                    "root",
+                    "root",
                     addr,
                     addr_submission,
                     addr_submissions,

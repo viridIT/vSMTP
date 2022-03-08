@@ -120,7 +120,7 @@ async fn simple() -> anyhow::Result<()> {
             ServerConfig::builder()
                 .with_version_str("<1.0.0")
                 .unwrap()
-                .with_rfc_port("testserver.com", "foo", "foo", None)
+                .with_rfc_port("testserver.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(
                     TlsSecurityLevel::Encrypt,
@@ -167,7 +167,7 @@ async fn sni() -> anyhow::Result<()> {
             ServerConfig::builder()
                 .with_version_str("<1.0.0")
                 .unwrap()
-                .with_rfc_port("testserver.com", "foo", "foo", None)
+                .with_rfc_port("testserver.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(
                     TlsSecurityLevel::Encrypt,

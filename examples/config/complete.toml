@@ -15,9 +15,9 @@ addr_submissions = "0.0.0.0:10465"
 ## number of thread available in the vsmtp's pool
 thread_count = 10
 ## user used to run the deamon (when implemented)
-vsmtp_user = "vsmtp"
+vsmtp_user = "root"
 ## group used to run the deamon (when implemented)
-vsmtp_group = "vsmtp"
+vsmtp_group = "root"
 
 [logs]
 ## current output are on the console and in this file

@@ -178,7 +178,7 @@ pub(crate) fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_rfc_port("test.server.com", "foo", "foo", None)
+        .with_rfc_port("test.server.com", "root", "root", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()

@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn error() {
         assert_eq!(
-            format!("{}", StateSMTP::from_str("foo").unwrap_err()),
+            format!("{}", StateSMTP::from_str("root").unwrap_err()),
             "StateSMTPFromStrError"
         );
     }
