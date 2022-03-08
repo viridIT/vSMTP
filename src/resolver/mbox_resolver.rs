@@ -31,15 +31,14 @@ pub struct MBoxResolver;
 #[async_trait::async_trait]
 impl Resolver for MBoxResolver {
     async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
-        for rcpt in ctx.envelop.rcpt.iter() {
+        for rcpt in &ctx.envelop.rcpt {
             // FIXME: use UsersCache.
             match users::get_user_by_name(rcpt.local_part()) {
                 Some(user) => {
                     let timestamp: chrono::DateTime<chrono::offset::Utc> = ctx
                         .metadata
                         .as_ref()
-                        .map(|metadata| metadata.timestamp)
-                        .unwrap_or_else(std::time::SystemTime::now)
+                        .map_or_else(std::time::SystemTime::now, |metadata| metadata.timestamp)
                         .into();
                     let timestamp = timestamp.format("%c");
 

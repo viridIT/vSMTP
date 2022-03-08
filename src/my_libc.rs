@@ -6,7 +6,11 @@ pub enum Fork {
     Child,
 }
 
-/// create a child process, see fork(2)
+/// create a child process
+///
+/// # Errors
+///
+/// see fork(2) ERRORS
 #[inline]
 pub fn fork() -> anyhow::Result<Fork> {
     match unsafe { libc::fork() } {
@@ -19,7 +23,11 @@ pub fn fork() -> anyhow::Result<Fork> {
     }
 }
 
-/// set user identity, see setuid(2)
+/// set user identity
+///
+/// # Errors
+///
+/// see setuid(2) ERRORS
 #[inline]
 pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
     match unsafe { libc::setuid(uid) } {
@@ -31,7 +39,11 @@ pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
     }
 }
 
-/// set group identity, see setgid(2)
+/// set group identity
+///
+/// # Errors
+///
+/// see setgid(2) ERRORS
 #[inline]
 pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
     match unsafe { libc::setgid(gid) } {
@@ -43,10 +55,13 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
     }
 }
 
-/// sets user & group rights to the given file / folder.
-pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<()> {
-    // log::error!("unable to setuid of user {:?}", user.name());
-
+/// change ownership of a file
+///
+/// # Errors
+///
+/// * `path` cannot be convert to CString
+/// * see chown(2) ERRORS
+pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<i32> {
     // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
     //       to a CString because it is platform independent.
 
@@ -62,6 +77,6 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
             "chown: '{}'",
             std::io::Error::last_os_error()
         )),
-        _ => Ok(()),
+        otherwise => Ok(otherwise),
     }
 }

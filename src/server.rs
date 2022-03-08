@@ -29,6 +29,7 @@ use crate::{
 };
 
 /// TCP/IP server
+#[allow(clippy::module_name_repetitions)]
 pub struct ServerVSMTP {
     resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
     listener: tokio::net::TcpListener,
@@ -40,6 +41,12 @@ pub struct ServerVSMTP {
 
 impl ServerVSMTP {
     /// Create a server with the configuration provided, and the sockets already bound
+    ///
+    /// # Errors
+    ///
+    /// * `spool_dir` does not exist and failed to be created
+    /// * cannot convert sockets to [tokio::net::TcpListener]
+    /// * cannot initialize [rustls] config
     pub fn new(
         config: std::sync::Arc<ServerConfig>,
         sockets: (
@@ -97,6 +104,16 @@ impl ServerVSMTP {
     }
 
     /// Main loop of vSMTP's server
+    ///
+    /// # Errors
+    ///
+    /// * failed to initialize the [RuleEngine]
+    ///
+    /// # Panics
+    ///
+    /// * [tokio::spawn]
+    /// * [tokio::select]
+    #[allow(clippy::too_many_lines)]
     pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
         let delivery_buffer_size = self
             .config
@@ -239,7 +256,7 @@ impl ServerVSMTP {
             client_addr,
             config.clone(),
             &mut io_plain,
-        )?;
+        );
         match conn.kind {
             ConnectionKind::Opportunistic | ConnectionKind::Submission => {
                 handle_connection::<std::net::TcpStream>(

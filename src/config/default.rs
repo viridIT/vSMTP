@@ -24,7 +24,7 @@ use super::server_config::{
 impl Default for InnerServerConfig {
     fn default() -> Self {
         Self {
-            domain: Default::default(),
+            domain: String::default(),
             vsmtp_user: "vsmtp".to_string(),
             vsmtp_group: "vsmtp".to_string(),
             addr: "0.0.0.0:25".parse().expect("valid address"),
@@ -37,15 +37,15 @@ impl Default for InnerServerConfig {
 
 impl InnerServerConfig {
     pub(crate) fn default_addr() -> std::net::SocketAddr {
-        InnerServerConfig::default().addr
+        Self::default().addr
     }
 
     pub(crate) fn default_addr_submission() -> std::net::SocketAddr {
-        InnerServerConfig::default().addr_submission
+        Self::default().addr_submission
     }
 
     pub(crate) fn default_addr_submissions() -> std::net::SocketAddr {
-        InnerServerConfig::default().addr_submissions
+        Self::default().addr_submissions
     }
 }
 
@@ -53,14 +53,14 @@ impl Default for InnerLogConfig {
     fn default() -> Self {
         Self {
             file: std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "app.log"]),
-            level: Default::default(),
+            level: std::collections::BTreeMap::default(),
         }
     }
 }
 
 impl InnerLogConfig {
     pub(crate) fn default_file() -> std::path::PathBuf {
-        InnerLogConfig::default().file
+        Self::default().file
     }
 }
 
@@ -88,8 +88,8 @@ impl Default for InnerSMTPConfig {
     fn default() -> Self {
         Self {
             disable_ehlo: false,
-            timeout_client: Default::default(),
-            error: Default::default(),
+            timeout_client: std::collections::BTreeMap::default(),
+            error: InnerSMTPErrorConfig::default(),
             rcpt_count_max: Self::default_rcpt_count_max(),
             client_count_max: Self::default_client_count_max(),
         }
@@ -97,11 +97,11 @@ impl Default for InnerSMTPConfig {
 }
 
 impl InnerSMTPConfig {
-    pub(crate) fn default_client_count_max() -> i64 {
+    pub(crate) const fn default_client_count_max() -> i64 {
         -1
     }
 
-    pub(super) fn default_rcpt_count_max() -> usize {
+    pub(super) const fn default_rcpt_count_max() -> usize {
         1000
     }
 }
@@ -135,8 +135,8 @@ impl Default for Codes {
 
         let out = Self {
             codes: codes
-                .iter()
-                .map(|(k, v)| (*k, v.to_string()))
+                .into_iter()
+                .map(|(k, v)| (k, v.to_string()))
                 .collect::<_>(),
         };
         assert!(out.is_not_ill_formed(), "missing codes in default values");
@@ -152,7 +152,10 @@ impl Codes {
 
     /// return the message associated with a [SMTPReplyCode].
     ///
-    /// panic if the config is ill-formed
+    /// # Panics
+    ///
+    /// * the config is ill-formed
+    #[must_use]
     pub fn get(&self, code: &SMTPReplyCode) -> &String {
         self.codes
             .get(code)

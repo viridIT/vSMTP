@@ -40,7 +40,7 @@ fn test_connect_rules() {
 
 #[test]
 fn test_helo_rules() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/rules/helo/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -54,7 +54,7 @@ fn test_helo_rules() {
 
 #[test]
 fn test_mail_from_rules() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/rules/mail/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -87,7 +87,7 @@ This is a reply to your hello."#,
 
 #[test]
 fn test_rcpt_rules() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/rules/rcpt/main.vsl".into()))
         .expect("couldn't build rule engine");

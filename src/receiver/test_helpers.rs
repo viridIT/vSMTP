@@ -76,6 +76,10 @@ impl Resolver for DefaultResolverTest {
 //       because their could be a lot of parameters to tweak for tests.
 //       (the connection kind for example)
 /// this function mocks all of the server's processes.
+///
+/// # Errors
+///
+/// # Panics
 pub async fn test_receiver<T>(
     address: &str,
     resolver: T,
@@ -89,16 +93,12 @@ where
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = anyhow::Context::context(
-        Connection::from_plain(
-            ConnectionKind::Opportunistic,
-            address.parse().unwrap(),
-            config.clone(),
-            &mut io,
-        ),
-        "failed to initialize connection",
-    )
-    .unwrap();
+    let mut conn = Connection::from_plain(
+        ConnectionKind::Opportunistic,
+        address.parse().unwrap(),
+        config.clone(),
+        &mut io,
+    );
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
         anyhow::Context::context(
@@ -194,7 +194,7 @@ pub mod logs {
 
     static INIT: Once = Once::new();
 
-    pub fn setup_logs() {
+    pub fn setup() {
         INIT.call_once(|| {
             let mut config = crate::receiver::test_helpers::get_regular_config()
                 .expect("failed to create config for logs");

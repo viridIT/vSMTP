@@ -31,6 +31,7 @@ enum BoundaryType {
 }
 
 /// Instance parsing a message body
+#[allow(clippy::module_name_repetitions)]
 #[derive(Default)]
 pub struct MailMimeParser {
     boundary_stack: Vec<String>,
@@ -38,6 +39,11 @@ pub struct MailMimeParser {
 
 impl MailMimeParser {
     /// parse method
+    ///
+    /// # Errors
+    ///
+    /// * data is not utf8 encoded
+    /// * data is not a valid mail format
     pub fn parse(&mut self, data: &[u8]) -> ParserResult<Mail> {
         let input = match std::str::from_utf8(data) {
             Ok(ut8_decoded) => ut8_decoded,
@@ -57,7 +63,7 @@ impl MailMimeParser {
             match read_header(content) {
                 Some((name, value)) if is_mime_header(&name) => {
                     log::debug!(target: "mail_parser", "new mime header found: '{}' => '{}'", name, value);
-                    mime_headers.push(get_mime_header(&name, &value)?);
+                    mime_headers.push(get_mime_header(&name, &value));
                 }
 
                 Some((name, value)) => {
@@ -176,7 +182,7 @@ impl MailMimeParser {
                 None => {
                     // we skip the header & body separation line.
                     if !(body.is_empty() && content[0].is_empty()) {
-                        body.push(content[0].to_string())
+                        body.push(content[0].to_string());
                     }
                 }
             };
@@ -204,7 +210,7 @@ impl MailMimeParser {
             ("multipart", _) => {
                 log::debug!(target: "mail_parser", "parsing multipart.");
                 Ok(Mime {
-                    headers: headers.to_vec(),
+                    headers: headers.clone(),
                     content: MimeBodyType::Multipart(self.parse_multipart(&headers, content)?),
                 })
             }
@@ -231,16 +237,12 @@ impl MailMimeParser {
         log::debug!(target: "mail_parser", "parsing a mime section.");
 
         while content.len() > 1 {
-            match read_header(content) {
-                Some((name, value)) => {
-                    log::debug!(target: "mail_parser", "mime-header found: '{}' => '{}'.", name, value);
-                    headers.push(get_mime_header(&name, &value)?);
-                }
-
-                None => {
-                    log::debug!(target: "mail_parser", "finished reading mime headers, body found.");
-                    break;
-                }
+            if let Some((name, value)) = read_header(content) {
+                log::debug!(target: "mail_parser", "mime-header found: '{}' => '{}'.", name, value);
+                headers.push(get_mime_header(&name, &value));
+            } else {
+                log::debug!(target: "mail_parser", "finished reading mime headers, body found.");
+                break;
             };
             *content = &content[1..];
         }
@@ -318,7 +320,7 @@ impl MailMimeParser {
         match content_type.args.get("boundary") {
             Some(b) => {
                 log::debug!(target: "mail_parser", "boundary found in parameters: '{}'.", b);
-                self.boundary_stack.push(b.to_string())
+                self.boundary_stack.push(b.to_string());
             }
             None => {
                 return Err(ParserError::BoundaryNotFound(
@@ -332,7 +334,7 @@ impl MailMimeParser {
             preamble: self
                 .parse_preamble(content)?
                 .iter()
-                .map(|s| s.to_string())
+                .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join("\r\n"),
             parts: Vec::new(),
@@ -363,7 +365,7 @@ impl MailMimeParser {
                     multi_parts.epilogue = self
                         .parse_epilogue(content)?
                         .iter()
-                        .map(|s| s.to_string())
+                        .map(ToString::to_string)
                         .collect::<Vec<_>>()
                         .join("\r\n");
                     return Ok(multi_parts);
@@ -413,12 +415,12 @@ fn check_mandatory_headers(headers: &[(String, String)]) -> ParserResult<()> {
 ///
 /// * `Result<MimeHeader>` - a MimeHeader or a ParserError.
 ///
-fn get_mime_header(name: &str, value: &str) -> ParserResult<MimeHeader> {
+fn get_mime_header(name: &str, value: &str) -> MimeHeader {
     // cut the current line using the ";" separator into a vector of "arg=value" strings.
     let args = value.split(';').collect::<Vec<&str>>();
     let mut args_iter = args.iter();
 
-    Ok(MimeHeader {
+    MimeHeader {
         name: name.to_string(),
         value: args_iter.next().unwrap().trim().to_lowercase(),
 
@@ -446,7 +448,7 @@ fn get_mime_header(name: &str, value: &str) -> ParserResult<MimeHeader> {
                 )
             })
             .collect::<std::collections::HashMap<String, String>>(),
-    })
+    }
 }
 
 // check rfc2045 p.9. Additional MIME Header Fields.

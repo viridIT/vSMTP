@@ -19,6 +19,7 @@ mod config_builder;
 pub mod default;
 mod serializer;
 /// The rust representation of the configuration
+#[allow(clippy::module_name_repetitions)]
 pub mod server_config;
 /// The external services used in .vsl format
 pub mod service;
@@ -27,23 +28,21 @@ pub mod service;
 mod tests;
 
 pub(crate) mod log_channel {
-    pub(crate) const RECEIVER: &str = "receiver";
-    pub(crate) const RESOLVER: &str = "resolver";
-    pub(crate) const SRULES: &str = "rules";
-    pub(crate) const URULES: &str = "user_rules";
-    pub(crate) const DELIVER: &str = "deliver";
+    pub const RECEIVER: &str = "receiver";
+    pub const RESOLVER: &str = "resolver";
+    pub const SRULES: &str = "rules";
+    pub const URULES: &str = "user_rules";
+    pub const DELIVER: &str = "deliver";
 }
 
 /// helper to initialize the log4rs config from our ServerConfig
+///
+/// # Errors
+///
+/// * if log4rs produce an error
+#[allow(clippy::module_name_repetitions)]
 pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result<log4rs::Config> {
-    use log4rs::*;
-
-    if config.log.file == config.rules.logs.file {
-        anyhow::bail!(
-            "rules and application logs cannot both be written in {:?}!",
-            config.log.file
-        );
-    }
+    use log4rs::{append, config, encode, Config};
 
     let console = append::console::ConsoleAppender::builder()
         .encoder(Box::new(encode::pattern::PatternEncoder::new(

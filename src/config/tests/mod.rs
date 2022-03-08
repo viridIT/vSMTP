@@ -199,6 +199,7 @@ fn services() {
     );
 }
 
+#[allow(clippy::too_many_lines)]
 #[test]
 fn complete() {
     assert_eq!(
@@ -309,5 +310,5 @@ fn complete() {
             })
             .build()
             .unwrap()
-    )
+    );
 }

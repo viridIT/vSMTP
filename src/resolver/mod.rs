@@ -17,12 +17,15 @@
 pub use crate::{config::server_config::ServerConfig, smtp::mail::MailContext};
 
 /// Protocol Maildir
+#[allow(clippy::module_name_repetitions)]
 pub mod maildir_resolver;
 
 /// Protocol Mailbox
+#[allow(clippy::module_name_repetitions)]
 pub mod mbox_resolver;
 
 /// Mail relaying
+#[allow(clippy::module_name_repetitions)]
 pub mod smtp_resolver;
 
 /// A trait allowing the [ServerVSMTP] to deliver a mail

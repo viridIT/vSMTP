@@ -6,6 +6,7 @@ use crate::mime::{
 
 const MAIL: &str = include_str!("../mail/mime1.eml");
 
+#[allow(clippy::too_many_lines)]
 #[test]
 fn mime_parser() {
     assert_eq!(

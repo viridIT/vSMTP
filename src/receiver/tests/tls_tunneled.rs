@@ -60,7 +60,7 @@ async fn test_tls_tunneled(
             std::sync::Arc::new(delivery_sender),
         )
         .await
-        .unwrap()
+        .unwrap();
     });
 
     let mut root_store = rustls::RootCertStore::empty();

@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use rhai::plugin::*;
+use rhai::plugin::{
+    export_module, mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module,
+    NativeCallContext, PluginFunction, Position, RhaiResult, TypeId,
+};
 
 #[allow(dead_code)]
 #[export_module]
@@ -29,19 +32,19 @@ pub mod actions {
         smtp::mail::MailContext,
     };
 
-    pub fn faccept() -> Status {
+    pub const fn faccept() -> Status {
         Status::Faccept
     }
 
-    pub fn accept() -> Status {
+    pub const fn accept() -> Status {
         Status::Accept
     }
 
-    pub fn next() -> Status {
+    pub const fn next() -> Status {
         Status::Next
     }
 
-    pub fn deny() -> Status {
+    pub const fn deny() -> Status {
         Status::Deny
     }
 
@@ -81,7 +84,7 @@ pub mod actions {
             })?),
             to.into_iter()
                 // NOTE: address that couldn't be converted will be silently dropped.
-                .flat_map(|rcpt| {
+                .filter_map(|rcpt| {
                     rcpt.try_cast::<String>()
                         .and_then(|s| s.parse::<lettre::Address>().map(Some).unwrap_or(None))
                 })
@@ -107,12 +110,13 @@ pub mod actions {
 
     // TODO: use UsersCache to optimize user lookup.
     /// use the user cache to check if a user exists on the system.
-    pub(crate) fn user_exist(name: &str) -> bool {
+    pub fn user_exist(name: &str) -> bool {
         users::get_user_by_name(name).is_some()
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
-    pub(crate) fn run(
+    pub fn run(
         services: &mut std::sync::Arc<Vec<Service>>,
         service_name: &str,
         ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -125,7 +129,7 @@ pub mod actions {
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
                 format!("No service in config named: '{service_name}'").into()
             })?
-            .run(ctx)
+            .run(&ctx)
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
     }
 }

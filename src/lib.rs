@@ -1,6 +1,18 @@
 //! vSMTP
 #![doc(html_no_source)]
 #![deny(missing_docs)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+// due to license
+#![allow(clippy::doc_markdown)]
+// due to [IntoIterEnum]
+#![allow(clippy::copy_iterator)]
+#![allow(clippy::future_not_send)]
+#![allow(clippy::multiple_crate_versions)]
 
 /**
  * vSMTP mail transfer agent

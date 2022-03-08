@@ -80,13 +80,13 @@ pub async fn start(
     }
 }
 
-pub(crate) async fn handle_one_in_delivery_queue(
+pub async fn handle_one_in_delivery_queue(
     config: &ServerConfig,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
 ) -> anyhow::Result<()> {
-    let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
+    let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
     log::trace!(
         target: DELIVER,
@@ -96,7 +96,8 @@ pub(crate) async fn handle_one_in_delivery_queue(
 
     let mut file = std::fs::OpenOptions::new().read(true).open(&path)?;
 
-    let mut raw = String::with_capacity(file.metadata().unwrap().len() as usize);
+    let mut raw =
+        String::with_capacity(usize::try_from(file.metadata().unwrap().len()).unwrap_or(0));
     std::io::Read::read_to_string(&mut file, &mut raw)?;
 
     let ctx: MailContext = serde_json::from_str(&raw)?;
@@ -104,67 +105,66 @@ pub(crate) async fn handle_one_in_delivery_queue(
     let mut state = RuleState::with_context(config, ctx);
     let result = rule_engine.read().unwrap().run_when(&mut state, "delivery");
 
-    match result {
-        Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
-        _ => {
-            let ctx = state.get_context().read().unwrap().clone();
-            match &ctx.metadata {
-                // quietly skipping delivery processes when there is no resolver.
-                // (in case of a quarantine for example)
-                Some(metadata) if metadata.resolver == "none" => {
-                    log::warn!(
-                        target: DELIVER,
-                        "delivery skipped due to NO_DELIVERY action call."
-                    );
-                    return Ok(());
-                }
-                _ => {}
-            };
+    if result == Status::Deny {
+        Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;
+    } else {
+        let ctx = state.get_context().read().unwrap().clone();
+        match &ctx.metadata {
+            // quietly skipping delivery processes when there is no resolver.
+            // (in case of a quarantine for example)
+            Some(metadata) if metadata.resolver == "none" => {
+                log::warn!(
+                    target: DELIVER,
+                    "delivery skipped due to NO_DELIVERY action call."
+                );
+                return Ok(());
+            }
+            _ => {}
+        };
 
-            let resolver_name = &ctx.metadata.as_ref().unwrap().resolver;
-            let resolver = match resolvers.get_mut(resolver_name) {
-                Some(resolver) => resolver,
-                None => anyhow::bail!("resolver '{resolver_name}' not found"),
-            };
+        let resolver_name = &ctx.metadata.as_ref().unwrap().resolver;
+        let resolver = match resolvers.get_mut(resolver_name) {
+            Some(resolver) => resolver,
+            None => anyhow::bail!("resolver '{resolver_name}' not found"),
+        };
 
-            match resolver.deliver(config, &ctx).await {
-                Ok(_) => {
-                    log::trace!(
-                        target: DELIVER,
-                        "vDeliver (delivery) '{}' SEND successfully.",
-                        message_id
-                    );
+        match resolver.deliver(config, &ctx).await {
+            Ok(_) => {
+                log::trace!(
+                    target: DELIVER,
+                    "vDeliver (delivery) '{}' SEND successfully.",
+                    message_id
+                );
 
-                    std::fs::remove_file(&path)?;
+                std::fs::remove_file(&path)?;
 
-                    log::info!(
-                        target: DELIVER,
-                        "vDeliver (delivery) '{}' REMOVED successfully.",
-                        message_id
-                    );
-                }
-                Err(error) => {
-                    log::warn!(
-                        target: DELIVER,
-                        "vDeliver (delivery) '{}' SEND FAILED, reason: '{}'",
-                        message_id,
-                        error
-                    );
+                log::info!(
+                    target: DELIVER,
+                    "vDeliver (delivery) '{}' REMOVED successfully.",
+                    message_id
+                );
+            }
+            Err(error) => {
+                log::warn!(
+                    target: DELIVER,
+                    "vDeliver (delivery) '{}' SEND FAILED, reason: '{}'",
+                    message_id,
+                    error
+                );
 
-                    std::fs::rename(
-                        path,
-                        std::path::PathBuf::from_iter([
-                            Queue::Deferred.to_path(&config.delivery.spool_dir)?,
-                            std::path::Path::new(&message_id).to_path_buf(),
-                        ]),
-                    )?;
+                std::fs::rename(
+                    path,
+                    std::path::PathBuf::from_iter([
+                        Queue::Deferred.to_path(&config.delivery.spool_dir)?,
+                        std::path::Path::new(&message_id).to_path_buf(),
+                    ]),
+                )?;
 
-                    log::info!(
-                        target: DELIVER,
-                        "vDeliver (delivery) '{}' MOVED delivery => deferred.",
-                        message_id
-                    );
-                }
+                log::info!(
+                    target: DELIVER,
+                    "vDeliver (delivery) '{}' MOVED delivery => deferred.",
+                    message_id
+                );
             }
         }
     };
@@ -178,7 +178,7 @@ async fn flush_deliver_queue(
     resolvers: &mut HashMap<String, Box<dyn Resolver + Send + Sync>>,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
-        handle_one_in_delivery_queue(config, &path?.path(), rule_engine, resolvers).await?
+        handle_one_in_delivery_queue(config, &path?.path(), rule_engine, resolvers).await?;
     }
 
     Ok(())
@@ -189,7 +189,7 @@ async fn handle_one_in_deferred_queue(
     path: &std::path::Path,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
-    let message_id = path.file_name().and_then(|i| i.to_str()).unwrap();
+    let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
     log::debug!(
         target: DELIVER,
@@ -199,7 +199,8 @@ async fn handle_one_in_deferred_queue(
 
     let mut file = std::fs::OpenOptions::new().read(true).open(&path)?;
 
-    let mut raw = String::with_capacity(file.metadata().unwrap().len() as usize);
+    let mut raw =
+        String::with_capacity(usize::try_from(file.metadata().unwrap().len()).unwrap_or(0));
     std::io::Read::read_to_string(&mut file, &mut raw)?;
 
     let mut mail: MailContext = serde_json::from_str(&raw)?;

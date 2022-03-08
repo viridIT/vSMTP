@@ -7,7 +7,7 @@ use crate::mime::{
 fn simple() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_str!("../../mail/rfc5322/A.2.a.eml").as_bytes())
+            .parse(include_bytes!("../../mail/rfc5322/A.2.a.eml"))
             .unwrap(),
         Mail {
             headers: vec![
@@ -34,7 +34,7 @@ fn simple() {
 fn reply_simple() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_str!("../../mail/rfc5322/A.2.b.eml").as_bytes())
+            .parse(include_bytes!("../../mail/rfc5322/A.2.b.eml"))
             .unwrap(),
         Mail {
             headers: vec![
@@ -67,7 +67,7 @@ fn reply_simple() {
 fn reply_reply() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_str!("../../mail/rfc5322/A.2.c.eml").as_bytes())
+            .parse(include_bytes!("../../mail/rfc5322/A.2.c.eml"))
             .unwrap(),
         Mail {
             headers: vec![

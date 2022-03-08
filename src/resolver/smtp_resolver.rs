@@ -47,13 +47,14 @@ impl Resolver for SMTPResolver {
             "failed to build resolver with trust-dns-resolver",
         )?;
 
-        for rcpt in ctx.envelop.rcpt.iter() {
+        for rcpt in &ctx.envelop.rcpt {
             match resolver.mx_lookup(rcpt.domain()).await {
                 Ok(mxs) => {
                     let mut mxs_by_priority = mxs.into_iter().collect::<Vec<_>>();
-                    mxs_by_priority.sort_by_key(|mx| mx.preference());
+                    mxs_by_priority
+                        .sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
 
-                    for record in mxs_by_priority.iter() {
+                    for record in mxs_by_priority {
                         let exchange = record.exchange().to_ascii();
 
                         let tls_parameters = anyhow::Context::context(

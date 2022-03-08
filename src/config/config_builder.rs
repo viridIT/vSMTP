@@ -32,7 +32,8 @@ pub struct ConfigBuilder<State> {
 
 impl ServerConfig {
     /// Return an instance of [ConfigBuilder] for a step-by-step configuration generation
-    pub fn builder() -> ConfigBuilder<WantsVersion> {
+    #[must_use]
+    pub const fn builder() -> ConfigBuilder<WantsVersion> {
         ConfigBuilder {
             state: WantsVersion(()),
         }
@@ -40,14 +41,15 @@ impl ServerConfig {
 
     /// Parse a [ServerConfig] with [TOML] format
     ///
-    /// Produce an error if :
-    /// * file is not a valid [TOML]
+    /// # Errors
+    ///
+    /// * data is not a valid [TOML]
     /// * one field is unknown
     /// * the version requirement are not fulfilled
     /// * a mandatory field is not provided (no default value)
     ///
     /// [TOML]: https://github.com/toml-lang/toml
-    pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
+    pub fn from_toml(data: &str) -> anyhow::Result<Self> {
         let parsed_ahead = ConfigBuilder::<WantsServer> {
             state: toml::from_str::<WantsServer>(data)?,
         };
@@ -72,7 +74,7 @@ impl ServerConfig {
 pub struct WantsVersion(pub(crate) ());
 
 impl ConfigBuilder<WantsVersion> {
-    pub fn with_version(
+    pub const fn with_version(
         self,
         version_requirement: semver::VersionReq,
     ) -> ConfigBuilder<WantsServer> {
@@ -267,6 +269,8 @@ impl ConfigBuilder<WantSMTPS> {
         )
     }
 
+    // FIXME: false positive ?
+    #[allow(clippy::missing_const_for_fn)]
     pub fn without_smtps(self) -> ConfigBuilder<WantSMTP> {
         ConfigBuilder::<WantSMTP> {
             state: WantSMTP {
@@ -455,6 +459,15 @@ pub struct WantsBuild {
 
 impl ConfigBuilder<WantsBuild> {
     pub fn build(mut self) -> anyhow::Result<ServerConfig> {
+        if self.state.parent.rules.logs.file
+            == self.state.parent.parent.parent.parent.parent.logs.file
+        {
+            anyhow::bail!(
+                "rules and application logs cannot both be written in '{}' !",
+                self.state.parent.rules.logs.file.display()
+            );
+        }
+
         let server_domain = &self
             .state
             .parent

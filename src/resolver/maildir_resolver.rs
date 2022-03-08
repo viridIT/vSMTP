@@ -120,41 +120,40 @@ impl Resolver for MailDirResolver {
                 "Users '{:?}' not found on the system, skipping delivery ...",
                 not_local_users
             )
-        } else {
-            for rcpt in &mail.envelop.rcpt {
-                log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
-
-                match &mail.body {
-                    Body::Empty => {
-                        anyhow::bail!("failed to write email using maildir: body is empty")
-                    }
-                    Body::Raw(content) => {
-                        Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), content)
-                            .map_err(|error| {
-                                log::error!(
-                                    target: RESOLVER,
-                                    "Couldn't write email to inbox: {:?}",
-                                    error
-                                );
-                                error
-                            })?
-                    }
-                    Body::Parsed(email) => Self::write_to_maildir(
-                        rcpt,
-                        mail.metadata.as_ref().unwrap(),
-                        &email.to_raw(),
-                    )
-                    .map_err(|error| {
-                        log::error!(
-                            target: RESOLVER,
-                            "Couldn't write email to inbox: {:?}",
-                            error
-                        );
-                        error
-                    })?,
-                }
-            }
-            Ok(())
         }
+        for rcpt in &mail.envelop.rcpt {
+            log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
+
+            match &mail.body {
+                Body::Empty => {
+                    anyhow::bail!("failed to write email using maildir: body is empty")
+                }
+                Body::Raw(content) => {
+                    Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), content)
+                        .map_err(|error| {
+                            log::error!(
+                                target: RESOLVER,
+                                "Couldn't write email to inbox: {:?}",
+                                error
+                            );
+                            error
+                        })?;
+                }
+                Body::Parsed(parsed_mail) => Self::write_to_maildir(
+                    rcpt,
+                    mail.metadata.as_ref().unwrap(),
+                    &parsed_mail.to_raw(),
+                )
+                .map_err(|error| {
+                    log::error!(
+                        target: RESOLVER,
+                        "Couldn't write email to inbox: {:?}",
+                        error
+                    );
+                    error
+                })?,
+            }
+        }
+        Ok(())
     }
 }

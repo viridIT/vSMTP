@@ -25,7 +25,7 @@ use crate::{
 
 #[test]
 fn test_email_context() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/email/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -44,7 +44,7 @@ fn test_email_context() {
 
 #[test]
 fn test_email_bcc() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/email/bcc/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -55,7 +55,7 @@ fn test_email_bcc() {
 
 #[test]
 fn test_email_add_header() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/email/add_header/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -74,7 +74,7 @@ fn test_email_add_header() {
 
 #[test]
 fn test_context_write() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
     std::fs::DirBuilder::new()
         .recursive(true)
         .create("./tests/generated")
@@ -122,7 +122,7 @@ This is a raw email.
 
 #[test]
 fn test_context_dump() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
     std::fs::DirBuilder::new()
         .recursive(true)
         .create("./tests/generated")
