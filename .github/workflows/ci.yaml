@@ -97,7 +97,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: "-- -D warnings --all-targets --all-features"
+          args: "--all-targets --all-features -- -D warnings"
   ## Only on stable branch run the benchmark
   bench:
     runs-on: ubuntu-latest
