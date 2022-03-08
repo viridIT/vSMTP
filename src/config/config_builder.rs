@@ -458,6 +458,10 @@ pub struct WantsBuild {
 }
 
 impl ConfigBuilder<WantsBuild> {
+    /// Create an instance of [ServerConfig]
+    ///
+    /// The method ensure that the instance is valid for the execution of the program,
+    /// and no further verification are required
     pub fn build(mut self) -> anyhow::Result<ServerConfig> {
         if self.state.parent.rules.logs.file
             == self.state.parent.parent.parent.parent.parent.logs.file
@@ -467,17 +471,8 @@ impl ConfigBuilder<WantsBuild> {
                 self.state.parent.rules.logs.file.display()
             );
         }
+        let server = &self.state.parent.parent.parent.parent.parent.parent.server;
 
-        let server_domain = &self
-            .state
-            .parent
-            .parent
-            .parent
-            .parent
-            .parent
-            .parent
-            .server
-            .domain;
         let default_values = Codes::default();
 
         let mut reply_codes = self.state.reply_codes.codes;
@@ -489,7 +484,7 @@ impl ConfigBuilder<WantsBuild> {
                     Some(v) => v,
                     None => default_values.get(&i),
                 }
-                .replace("{domain}", server_domain),
+                .replace("{domain}", &server.domain),
             );
         }
         self.state.reply_codes.codes = reply_codes;
@@ -500,14 +495,14 @@ impl ConfigBuilder<WantsBuild> {
                 .to_str()
                 .unwrap()
                 .replace("{capath}", smtps.capath.to_str().unwrap())
-                .replace("{domain}", server_domain)
+                .replace("{domain}", &server.domain)
                 .into();
             smtps.private_key = smtps
                 .private_key
                 .to_str()
                 .unwrap()
                 .replace("{capath}", smtps.capath.to_str().unwrap())
-                .replace("{domain}", server_domain)
+                .replace("{domain}", &server.domain)
                 .into();
 
             if let Some(sni_maps) = &mut smtps.sni_maps {
@@ -533,6 +528,11 @@ impl ConfigBuilder<WantsBuild> {
                 }
             }
         };
+
+        users::get_user_by_name(&server.vsmtp_user)
+            .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", server.vsmtp_user))?;
+        users::get_group_by_name(&server.vsmtp_group)
+            .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", server.vsmtp_group))?;
 
         Ok(ServerConfig {
             version_requirement: self

@@ -94,17 +94,20 @@ mod tests {
 }
 
 fn socket_bind_anyhow(addr: std::net::SocketAddr) -> anyhow::Result<std::net::TcpListener> {
-    std::net::TcpListener::bind(addr).map_err(|e| anyhow::anyhow!("{e}: '{addr}'"))
+    anyhow::Context::with_context(std::net::TcpListener::bind(addr), || {
+        format!("Failed to bind socket on addr: '{}'", addr)
+    })
 }
 
 fn main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
 
-    let config = ServerConfig::from_toml(
-        &std::fs::read_to_string(&args.config)
-            .with_context(|| format!("failed to read config at '{}'", args.config))?,
-    )
-    .context("failed to parse the configuration")?;
+    let config = std::fs::read_to_string(&args.config)
+        .with_context(|| format!("Cannot read file '{}'", args.config))
+        .and_then(|data| {
+            ServerConfig::from_toml(&data).with_context(|| "File contains format error")
+        })
+        .with_context(|| "Cannot parse the configuration")?;
 
     if let Some(command) = args.command {
         match command {
@@ -119,9 +122,8 @@ fn main() -> anyhow::Result<()> {
                     &ServerConfig::builder()
                         .with_version_str("<1.0.0")
                         .unwrap()
-                        .with_rfc_port(&config.server.domain, "vsmtp", "vsmtp", None)
+                        .with_rfc_port(&config.server.domain, "root", "root", None)
                         .without_log()
-                        // TODO: default
                         .without_smtps()
                         .with_default_smtp()
                         // TODO: default
@@ -144,15 +146,10 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    log4rs::init_config(
-        get_logger_config(&config, args.no_daemon).context("failed to get logger configuration")?,
-    )
-    .context("failed to initialize loggers")?;
-
-    let vsmtp_user = users::get_user_by_name(&config.server.vsmtp_user)
-        .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.vsmtp_user))?;
-    let vsmtp_group = users::get_group_by_name(&config.server.vsmtp_group)
-        .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", config.server.vsmtp_group))?;
+    get_logger_config(&config, args.no_daemon)
+        .context("Logs configuration contain error")
+        .map(log4rs::init_config)
+        .context("Cannot initialize logs")??;
 
     let sockets = (
         socket_bind_anyhow(config.server.addr)?,
@@ -165,8 +162,16 @@ fn main() -> anyhow::Result<()> {
     } else {
         match daemon()? {
             ForkResult::Child => {
-                setgid(vsmtp_group.gid())?;
-                setuid(vsmtp_user.uid())?;
+                setgid(
+                    users::get_group_by_name(&config.server.vsmtp_group)
+                        .unwrap()
+                        .gid(),
+                )?;
+                setuid(
+                    users::get_user_by_name(&config.server.vsmtp_user)
+                        .unwrap()
+                        .uid(),
+                )?;
                 start_runtime(config, sockets)
             }
             ForkResult::Parent(pid) => {
