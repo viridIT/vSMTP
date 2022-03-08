@@ -175,12 +175,13 @@ This is a raw email."#
     }
     #[test]
     fn test_writing_to_mbox() {
-        let user = "mbox_test_user";
+        let user = users::get_user_by_uid(users::get_current_uid())
+            .expect("current user has been deleted after running this test");
         let content = "From 0 john@doe.com\nfrom: john doe <john@doe.com>\n";
-        let mbox = std::path::PathBuf::from_iter(["./tests/generated/", user]);
+        let mbox =
+            std::path::PathBuf::from_iter(["./tests/generated/", user.name().to_str().unwrap()]);
 
-        write_content_to_mbox(mbox.clone(), &users::User::new(500, user, 500), content)
-            .expect("could not write to mbox");
+        write_content_to_mbox(mbox.clone(), &user, content).expect("could not write to mbox");
 
         assert_eq!(
             content.to_string(),
