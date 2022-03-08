@@ -17,144 +17,176 @@
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
     my_libc::chown_file,
-    rules::address::Address,
     smtp::mail::{Body, MailContext, MessageMetadata},
 };
 
 use super::Resolver;
 
+use anyhow::Context;
+
 /// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
 pub struct MailDirResolver;
 
-impl MailDirResolver {
-    // getting user's home directory using getpwuid.
-    fn get_maildir_path(user: &users::User) -> anyhow::Result<std::path::PathBuf> {
-        let passwd = unsafe { libc::getpwuid(user.uid()) };
-        if !passwd.is_null() && !unsafe { *passwd }.pw_dir.is_null() {
-            unsafe { std::ffi::CStr::from_ptr((*passwd).pw_dir) }
-                .to_str()
-                .map(|path| std::path::PathBuf::from_iter([path, "Maildir", "new"]))
-                .map_err(|error| {
-                    anyhow::anyhow!("unable to get user's home directory: '{}'", error)
-                })
-        } else {
-            anyhow::bail!(std::io::Error::last_os_error())
-        }
-    }
-
-    /// write to /home/${user}/Maildir/new/ the mail body sent by the client.
-    /// the format of the file name is the following:
-    /// `{timestamp}.{content size}{deliveries}{rcpt id}.vsmtp`
-    fn write_to_maildir(
-        rcpt: &Address,
-        metadata: &MessageMetadata,
-        content: &str,
-    ) -> anyhow::Result<()> {
-        // FIXME: use UsersCache.
-        match users::get_user_by_name(rcpt.local_part()) {
-            Some(user) => {
-                let mut maildir = Self::get_maildir_path(&user)?;
-
-                // create and set rights for the MailDir folder if it doesn't exists.
-                if !maildir.exists() {
-                    std::fs::create_dir_all(&maildir)?;
-                    chown_file(&maildir, &user)?;
-                    chown_file(
-                        maildir
-                            .parent()
-                            .ok_or_else(|| anyhow::anyhow!("Maildir parent folder is missing."))?,
-                        &user,
-                    )?;
-                }
-
-                // NOTE: see https://en.wikipedia.org/wiki/Maildir
-                maildir.push(format!("{}.vsmtp", metadata.message_id));
-
-                // TODO: should loop if an email name is conflicting with another.
-                let mut email = std::fs::OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .open(&maildir)?;
-
-                std::io::Write::write_all(&mut email, content.as_bytes())?;
-
-                chown_file(&maildir, &user)?;
+#[async_trait::async_trait]
+impl Resolver for MailDirResolver {
+    // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
+    //       and https://en.wikipedia.org/wiki/Maildir
+    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+        let content = match &ctx.body {
+            Body::Empty => {
+                anyhow::bail!("failed to write email using maildir: body is empty")
             }
-            None => anyhow::bail!("unable to get user '{}' by name", rcpt.local_part()),
+            Body::Raw(raw) => raw.clone(),
+            Body::Parsed(parsed) => parsed.to_raw(),
+        };
+
+        for rcpt in &ctx.envelop.rcpt {
+            match users::get_user_by_name(rcpt.local_part()) {
+                Some(user) => {
+                    if let Err(err) =
+                        write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)
+                    {
+                        log::error!(
+                            target: RESOLVER,
+                            "could not write email to '{}' maildir directory: {}",
+                            rcpt,
+                            err
+                        );
+                    }
+                }
+                None => {
+                    log::error!(
+                        target: RESOLVER,
+                        "could not write email to '{}' maildir directory: user was not found on the system",
+                        rcpt
+                    );
+                }
+            }
         }
-
-        log::debug!(
-            target: RESOLVER,
-            "{} bytes written to {}'s mail spool",
-            content.len(),
-            rcpt
-        );
-
         Ok(())
     }
 }
 
-#[async_trait::async_trait]
-impl Resolver for MailDirResolver {
-    async fn deliver(&mut self, _: &ServerConfig, mail: &MailContext) -> anyhow::Result<()> {
-        // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
-        //       and https://en.wikipedia.org/wiki/Maildir
+fn get_maildir_path(user: &users::User) -> anyhow::Result<std::path::PathBuf> {
+    let passwd = unsafe { libc::getpwuid(user.uid()) };
+    if !passwd.is_null() && !unsafe { *passwd }.pw_dir.is_null() {
+        unsafe { std::ffi::CStr::from_ptr((*passwd).pw_dir) }
+            .to_str()
+            .map(|path| std::path::PathBuf::from_iter([path, "Maildir"]))
+            .map_err(|error| anyhow::anyhow!("unable to get user's home directory: '{}'", error))
+    } else {
+        anyhow::bail!(
+            "failed to get maildir directory for '{:?}': {}",
+            user.name(),
+            std::io::Error::last_os_error()
+        )
+    }
+}
 
-        log::trace!(target: RESOLVER, "mail: {:#?}", mail.envelop);
+// NOTE: see https://en.wikipedia.org/wiki/Maildir
+fn create_maildir(
+    user: &users::User,
+    metadata: &MessageMetadata,
+) -> anyhow::Result<std::path::PathBuf> {
+    let mut maildir = get_maildir_path(user)?;
 
-        let not_local_users = mail
-            .envelop
-            .rcpt
-            .iter()
-            .filter(|i| users::get_user_by_name(i.local_part()).is_some())
-            .collect::<Vec<_>>();
-
-        if !not_local_users.is_empty() {
-            log::trace!(
-                target: RESOLVER,
-                "Users '{:?}' not found on the system, skipping delivery ...",
-                not_local_users
-            );
-            anyhow::bail!(
-                "Users '{:?}' not found on the system, skipping delivery ...",
-                not_local_users
-            )
-        } else {
-            for rcpt in &mail.envelop.rcpt {
-                log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
-
-                match &mail.body {
-                    Body::Empty => {
-                        anyhow::bail!("failed to write email using maildir: body is empty")
-                    }
-                    Body::Raw(content) => {
-                        Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), content)
-                            .map_err(|error| {
-                                log::error!(
-                                    target: RESOLVER,
-                                    "Couldn't write email to inbox: {:?}",
-                                    error
-                                );
-                                error
-                            })?
-                    }
-                    Body::Parsed(email) => Self::write_to_maildir(
-                        rcpt,
-                        mail.metadata.as_ref().unwrap(),
-                        &email.to_raw(),
-                    )
-                    .map_err(|error| {
-                        log::error!(
-                            target: RESOLVER,
-                            "Couldn't write email to inbox: {:?}",
-                            error
-                        );
-                        error
-                    })?,
-                }
-            }
-            Ok(())
+    let create_and_chown = |path: &std::path::PathBuf, user: &users::User| -> anyhow::Result<()> {
+        if !path.exists() {
+            std::fs::create_dir(&path).with_context(|| format!("failed to create '{:?}'", path))?;
+            chown_file(path, user)
+                .with_context(|| format!("failed to set user rights to '{:?}'", path))?;
         }
+
+        Ok(())
+    };
+
+    // create and set rights for the MailDir & new folder if they don't exists.
+    create_and_chown(&maildir, user)?;
+    maildir.push("new");
+    create_and_chown(&maildir, user)?;
+    maildir.push(format!("{}.eml", metadata.message_id));
+
+    Ok(maildir)
+}
+
+fn write_to_maildir(
+    user: &users::User,
+    metadata: &MessageMetadata,
+    content: &str,
+) -> anyhow::Result<()> {
+    let maildir = create_maildir(user, metadata)?;
+
+    let mut email = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(&maildir)?;
+
+    std::io::Write::write_all(&mut email, content.as_bytes())?;
+
+    chown_file(&maildir, user)?;
+
+    log::debug!(
+        target: RESOLVER,
+        "{} bytes written to {:?}'s inbox",
+        content.len(),
+        user
+    );
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+
+    use users::os::unix::UserExt;
+
+    use super::*;
+
+    #[test]
+    fn test_maildir_path() {
+        let user = users::User::new(10000, "test_user", 10001);
+        let current = users::get_user_by_uid(users::get_current_uid())
+            .expect("current user has been deleted after running this test");
+
+        // NOTE: if a user with uid 10000 exists, this is not guaranteed to fail. maybe iterate over all users beforehand ?
+        assert!(get_maildir_path(&user).is_err());
+        assert_eq!(
+            std::path::PathBuf::from_iter([
+                current.home_dir().as_os_str().to_str().unwrap(),
+                "Maildir",
+            ]),
+            get_maildir_path(&current).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_writing_to_maildir() {
+        let current = users::get_user_by_uid(users::get_current_uid())
+            .expect("current user has been deleted after running this test");
+        let message_id = "test_message";
+
+        write_to_maildir(
+            &current,
+            &MessageMetadata {
+                message_id: message_id.to_string(),
+                ..Default::default()
+            },
+            "email content",
+        )
+        .expect("could not write email to maildir");
+
+        let maildir = std::path::PathBuf::from_iter([
+            current.home_dir().as_os_str().to_str().unwrap(),
+            "Maildir",
+            "new",
+            &format!("{}.eml", message_id),
+        ]);
+
+        assert_eq!(
+            "email content".to_string(),
+            std::fs::read_to_string(&maildir)
+                .unwrap_or_else(|_| panic!("could not read current '{:?}'", maildir))
+        );
     }
 }

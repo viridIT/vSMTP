@@ -56,10 +56,10 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
             user.uid(),
         )
     } {
-        0 => Err(anyhow::anyhow!(
+        0 => Ok(()),
+        _ => Err(anyhow::anyhow!(
             "failed to change file owner: '{}'",
             std::io::Error::last_os_error()
         )),
-        _ => Ok(()),
     }
 }
