@@ -47,7 +47,6 @@ lettre = { version = "0.10.0-rc.4", features = ["tracing"] }
 trust-dns-resolver = "0.20.4"
 
 async-trait = "0.1.52"
-lazy_static = "1.4.0"
 enum-iterator = "0.7.0"
 diff = "0.1.12"
 fastrand = "1.7.0"
