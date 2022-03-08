@@ -33,19 +33,19 @@ pub struct MBoxResolver;
 #[async_trait::async_trait]
 impl Resolver for MBoxResolver {
     async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+        let timestamp = get_mbox_timestamp_format(&ctx.metadata);
+        let content = build_mbox_message(ctx, timestamp)?;
+
         for rcpt in ctx.envelop.rcpt.iter() {
             // FIXME: use UsersCache.
             match users::get_user_by_name(rcpt.local_part()) {
                 Some(user) => {
-                    let timestamp = get_mbox_timestamp_format(&ctx.metadata);
-                    let content = build_mbox_message(ctx, timestamp)?;
-
                     // NOTE: only linux system is supported here, is the
                     //       path to all mboxes always /var/mail ?
                     write_content_to_mbox(
                         std::path::PathBuf::from_iter(["/var/mail/", rcpt.local_part()]),
                         &user,
-                        content,
+                        &content,
                     )?;
                 }
                 _ => anyhow::bail!("unable to get user '{}' by name", rcpt.local_part()),
@@ -83,7 +83,7 @@ fn build_mbox_message(ctx: &MailContext, timestamp: String) -> anyhow::Result<St
 fn write_content_to_mbox(
     mbox: std::path::PathBuf,
     user: &users::User,
-    content: String,
+    content: &str,
 ) -> anyhow::Result<()> {
     let mut file = std::fs::OpenOptions::new()
         .create(true)
@@ -108,25 +108,9 @@ fn write_content_to_mbox(
 #[cfg(test)]
 mod test {
 
-    use crate::{mime::mail::Mail, Address, BodyType};
+    use crate::{mime::mail::Mail, resolver::get_default_context, Address, BodyType};
 
     use super::*;
-
-    fn get_default_context() -> MailContext {
-        MailContext {
-            body: Body::Empty,
-            connexion_timestamp: std::time::SystemTime::now(),
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
-            envelop: Default::default(),
-            metadata: Some(MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                ..Default::default()
-            }),
-        }
-    }
 
     #[test]
     fn test_mbox_time_format() {
@@ -195,12 +179,8 @@ This is a raw email."#
         let content = "From 0 john@doe.com\nfrom: john doe <john@doe.com>\n";
         let mbox = std::path::PathBuf::from_iter(["./tests/generated/", user]);
 
-        write_content_to_mbox(
-            mbox.clone(),
-            &users::User::new(500, user, 500),
-            content.to_string(),
-        )
-        .expect("could not write to mbox");
+        write_content_to_mbox(mbox.clone(), &users::User::new(500, user, 500), content)
+            .expect("could not write to mbox");
 
         assert_eq!(
             content.to_string(),
