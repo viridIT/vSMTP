@@ -45,8 +45,6 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
 
 /// sets user & group rights to the given file / folder.
 pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<()> {
-    // log::error!("unable to setuid of user {:?}", user.name());
-
     // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
     //       to a CString because it is platform independent.
 
@@ -59,7 +57,7 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
         )
     } {
         0 => Err(anyhow::anyhow!(
-            "chown: '{}'",
+            "failed to change file owner: '{}'",
             std::io::Error::last_os_error()
         )),
         _ => Ok(()),
