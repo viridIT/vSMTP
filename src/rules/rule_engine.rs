@@ -15,7 +15,6 @@
  *
  **/
 use crate::config::log_channel::SRULES;
-use crate::config::server_config::ServerConfig;
 use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
 use crate::smtp::envelop::Envelop;
@@ -574,42 +573,8 @@ impl RuleEngine {
         scope
             .push("date", "")
             .push("time", "")
-            .push(
-                "srv",
-                std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
-                    config: ServerConfig::builder()
-                        .with_version_str("<1.0.0")
-                        .unwrap()
-                        .with_server(
-                            "",
-                            "",
-                            "",
-                            "0.0.0.0:10026".parse().unwrap(),
-                            "0.0.0.0:10588".parse().unwrap(),
-                            "0.0.0.0:10466".parse().unwrap(),
-                            0,
-                        )
-                        .without_log()
-                        .without_smtps()
-                        .with_default_smtp()
-                        .with_delivery("./tmp/trash", crate::collection! {})
-                        .with_rules("./tmp/no_rules", vec![])
-                        .with_default_reply_codes()
-                        .build()
-                        .unwrap(),
-                    resolver: "default".to_string(),
-                })),
-            )
-            .push(
-                "ctx",
-                std::sync::Arc::new(std::sync::RwLock::new(MailContext {
-                    connexion_timestamp: std::time::SystemTime::now(),
-                    client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
-                    envelop: Envelop::default(),
-                    body: Body::Empty,
-                    metadata: None,
-                })),
-            );
+            .push("srv", "")
+            .push("ctx", "");
 
         let mut ast = engine
             .compile(include_str!("rule_executor.rhai"))
