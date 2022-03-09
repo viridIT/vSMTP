@@ -553,9 +553,10 @@ impl RuleEngine {
                             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
                     );
 
-                    // pushing object in scope, preventing a "let _" statement,
+                    // Pushing object in scope, preventing a "let _" statement,
                     // and returning a reference to the object in case of a parent group.
-                    context.scope_mut().push_constant(var_name, obj_ptr.clone());
+                    // Also, exporting the variable by default.
+                    context.scope_mut().push_constant(&var_name, obj_ptr.clone()).set_alias(var_name, "");
 
                     Ok(Dynamic::from(obj_ptr))
                 },
@@ -599,7 +600,9 @@ impl RuleEngine {
             ast += engine
                 .compile_with_scope(
                     &scope,
-                    std::fs::read_to_string(&script_path).map_err(|err| anyhow::anyhow!(err))?,
+                    std::fs::read_to_string(&script_path).with_context(|| {
+                        format!("failed to load vsl script at {:?}.", script_path)
+                    })?,
                 )
                 .context(format!("failed to compile '{}'", script_path.display()))?;
         } else {
