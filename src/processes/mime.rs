@@ -41,7 +41,7 @@ pub async fn start(
     }
 }
 
-pub(crate) async fn handle_one_in_working_queue(
+pub async fn handle_one_in_working_queue(
     config: &ServerConfig,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     process_message: ProcessMessage,
@@ -68,45 +68,44 @@ pub(crate) async fn handle_one_in_working_queue(
     let mut state = RuleState::with_context(config, ctx);
     let result = rule_engine.read().unwrap().run_when(&mut state, "postq");
 
-    match result {
-        Status::Deny => Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?,
-        _ => {
-            {
-                let ctx = state.get_context();
-                let ctx = ctx.read().unwrap();
-                match &ctx.metadata {
-                    // quietly skipping delivery processes when there is no resolver.
-                    // (in case of a quarantine for example)
-                    Some(metadata) if metadata.resolver == "none" => {
-                        log::warn!(
-                            target: DELIVER,
-                            "delivery skipped due to NO_DELIVERY action call."
-                        );
-                        return Ok(());
-                    }
-                    _ => {}
-                };
+    if result == Status::Deny {
+        Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;
+    } else {
+        {
+            let ctx = state.get_context();
+            let ctx = ctx.read().unwrap();
+            match &ctx.metadata {
+                // quietly skipping delivery processes when there is no resolver.
+                // (in case of a quarantine for example)
+                Some(metadata) if metadata.resolver == "none" => {
+                    log::warn!(
+                        target: DELIVER,
+                        "delivery skipped due to NO_DELIVERY action call."
+                    );
+                    return Ok(());
+                }
+                _ => {}
+            };
 
-                Queue::Deliver.write_to_queue(config, &ctx)?;
-            }
-
-            delivery_sender
-                .send(ProcessMessage {
-                    message_id: process_message.message_id.to_string(),
-                })
-                .await?;
-
-            anyhow::Context::context(
-                std::fs::remove_file(&file_to_process),
-                "failed to remove a file from the working queue",
-            )?;
-
-            log::debug!(
-                target: DELIVER,
-                "message '{}' removed from working queue.",
-                process_message.message_id
-            );
+            Queue::Deliver.write_to_queue(config, &ctx)?;
         }
+
+        delivery_sender
+            .send(ProcessMessage {
+                message_id: process_message.message_id.to_string(),
+            })
+            .await?;
+
+        anyhow::Context::context(
+            std::fs::remove_file(&file_to_process),
+            "failed to remove a file from the working queue",
+        )?;
+
+        log::debug!(
+            target: DELIVER,
+            "message '{}' removed from working queue.",
+            process_message.message_id
+        );
     };
 
     Ok(())

@@ -43,7 +43,7 @@ fn get_signing_key_from_file(
     }
 }
 
-pub(crate) fn get_cert_from_file(
+pub fn get_cert_from_file(
     fullchain_path: &std::path::Path,
 ) -> anyhow::Result<Vec<rustls::Certificate>> {
     let mut reader = std::io::BufReader::new(
@@ -97,10 +97,9 @@ pub fn get_rustls_config(config: &InnerSmtpsConfig) -> anyhow::Result<rustls::Se
         .map_err(|e| anyhow::anyhow!("cannot initialize tls config: '{e}'"))?
         .with_client_cert_verifier(rustls::server::NoClientAuth::new())
         .with_cert_resolver(std::sync::Arc::new(CertResolver {
-            sni_resolver: config
-                .sni_maps
-                .as_ref()
-                .map(|x| {
+            sni_resolver: config.sni_maps.as_ref().map_or_else(
+                || anyhow::Ok(rustls::server::ResolvesServerCertUsingSni::new()),
+                |x| {
                     x.iter().fold(
                         Ok(rustls::server::ResolvesServerCertUsingSni::new()),
                         |sni_resolver, sni| {
@@ -119,8 +118,8 @@ pub fn get_rustls_config(config: &InnerSmtpsConfig) -> anyhow::Result<rustls::Se
                             Ok(sni_resolver)
                         },
                     )
-                })
-                .unwrap_or_else(|| anyhow::Ok(rustls::server::ResolvesServerCertUsingSni::new()))?,
+                },
+            )?,
             cert: Some(std::sync::Arc::new(rustls::sign::CertifiedKey {
                 cert: get_cert_from_file(&config.fullchain)?,
                 key: get_signing_key_from_file(&config.private_key)?,

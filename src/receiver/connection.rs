@@ -21,6 +21,7 @@ use crate::{
 
 use super::io_service::{IoService, ReadError};
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Copy, Clone)]
 pub enum ConnectionKind {
     // connection may use STARTTLS
@@ -40,7 +41,7 @@ where
     pub is_alive: bool,
     pub config: std::sync::Arc<crate::config::server_config::ServerConfig>,
     pub client_addr: std::net::SocketAddr,
-    pub error_count: u64,
+    pub error_count: i64,
     pub is_secured: bool,
     pub io_stream: &'stream mut IoService<'stream, S>,
 }
@@ -54,8 +55,8 @@ where
         client_addr: std::net::SocketAddr,
         config: std::sync::Arc<ServerConfig>,
         io_stream: &'a mut IoService<'a, S>,
-    ) -> std::io::Result<Connection<'a, S>> {
-        Ok(Connection {
+    ) -> Connection<S> {
+        Connection {
             kind,
             timestamp: std::time::SystemTime::now(),
             is_alive: true,
@@ -64,7 +65,7 @@ where
             error_count: 0,
             is_secured: false,
             io_stream,
-        })
+        }
     }
 }
 
@@ -81,7 +82,7 @@ where
             let hard_error = self.config.smtp.error.hard_count;
             let soft_error = self.config.smtp.error.soft_count;
 
-            if hard_error != -1 && self.error_count >= hard_error as u64 {
+            if hard_error != -1 && self.error_count >= hard_error {
                 let mut response_begin = self.config.reply_codes.get(&reply_to_send).to_string();
                 response_begin.replace_range(3..4, "-");
                 response_begin.push_str(
@@ -99,14 +100,14 @@ where
                 self.config.reply_codes.get(&reply_to_send).as_bytes(),
             )?;
 
-            if soft_error != -1 && self.error_count >= soft_error as u64 {
+            if soft_error != -1 && self.error_count >= soft_error {
                 std::thread::sleep(self.config.smtp.error.delay);
             }
         } else {
             std::io::Write::write_all(
                 &mut self.io_stream,
                 self.config.reply_codes.get(&reply_to_send).as_bytes(),
-            )?
+            )?;
         }
         Ok(())
     }

@@ -17,13 +17,17 @@
 use super::mime_type::Mime;
 
 /// we use Vec instead of a HashMap because header ordering is important.
+#[allow(clippy::module_name_repetitions)]
 pub type MailHeaders = Vec<(String, String)>;
 
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 /// see rfc5322 (section 2.1 and 2.3)
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum BodyType {
+    /// Text message body
     Regular(Vec<String>),
+    /// Mime
     Mime(Box<Mime>),
+    /// Empty message body
     Undefined,
 }
 
@@ -31,10 +35,7 @@ impl ToString for BodyType {
     fn to_string(&self) -> String {
         match self {
             Self::Regular(content) => content.join("\n"),
-            Self::Mime(content) => {
-                let (headers, body) = content.to_raw();
-                format!("{}\n{}", headers, body)
-            }
+            Self::Mime(content) => content.to_raw(),
             Self::Undefined => String::default(),
         }
     }
@@ -56,16 +57,23 @@ impl Default for Mail {
 }
 
 impl Mail {
-    /// return raw string of the mail with (headers, body).
-    pub fn to_raw(&self) -> (String, String) {
-        (
-            self.headers
-                .iter()
-                .map(|(header, value)| format!("{}: {}", header, value))
-                .collect::<Vec<_>>()
-                .join("\n"),
-            self.body.to_string(),
-        )
+    /// get the original header section of the email.
+    pub fn raw_headers(&self) -> String {
+        self.headers
+            .iter()
+            .map(|(header, value)| format!("{}: {}", header, value))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// get the original body section of the email.
+    pub fn raw_body(&self) -> String {
+        self.body.to_string()
+    }
+
+    /// return the original text representation of the email.
+    pub fn to_raw(&self) -> String {
+        format!("{}\n\n{}", self.raw_headers(), self.raw_body())
     }
 
     pub fn rewrite_mail_from(&mut self, value: &str) {

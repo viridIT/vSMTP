@@ -15,7 +15,11 @@
  *
 **/
 mod error;
+mod helpers;
 pub mod mail;
+#[allow(clippy::module_name_repetitions)]
 pub mod mime_type;
 pub mod parser;
+
+#[cfg(test)]
 pub mod tests;

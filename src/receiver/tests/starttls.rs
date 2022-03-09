@@ -13,12 +13,14 @@ use crate::{
 
 fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
-        .with_rfc_port("test.server.com", "foo", "foo", None)
+        .with_version_str("<1.0.0")
+        .unwrap()
+        .with_rfc_port("test.server.com", "root", "root", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()
         .with_delivery("./tmp/delivery", crate::collection! {})
-        .with_rules("./tmp/nothing", vec![])
+        .with_empty_rules()
         .with_default_reply_codes()
         .build()
 }
@@ -48,7 +50,7 @@ async fn test_starttls(
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
             anyhow::Context::context(
-                RuleEngine::new(server_config.rules.dir.as_str()),
+                RuleEngine::new(&server_config.rules.main_filepath.clone()),
                 "failed to initialize the engine",
             )
             .unwrap(),
@@ -65,7 +67,7 @@ async fn test_starttls(
             std::sync::Arc::new(delivery_sender),
         )
         .await
-        .unwrap()
+        .unwrap();
     });
 
     let mut root_store = rustls::RootCertStore::empty();
@@ -88,7 +90,7 @@ async fn test_starttls(
 
         let mut output = vec![];
 
-        let mut input = clair_smtp_input.to_vec().into_iter();
+        let mut input = clair_smtp_input.iter().copied();
 
         loop {
             match io.get_next_line_async().await {
@@ -117,7 +119,7 @@ async fn test_starttls(
 
         // TODO: assert on negotiated cipher ... ?
 
-        let mut input = secured_smtp_input.to_vec().into_iter();
+        let mut input = secured_smtp_input.iter().copied();
         match input.next() {
             Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
             None => panic!(),
@@ -156,7 +158,9 @@ async fn simple() -> anyhow::Result<()> {
         "testserver.com",
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_rfc_port("testserver.com", "foo", "foo", None)
+                .with_version_str("<1.0.0")
+                .unwrap()
+                .with_rfc_port("testserver.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(
                     TlsSecurityLevel::May,
@@ -166,7 +170,7 @@ async fn simple() -> anyhow::Result<()> {
                 )
                 .with_default_smtp()
                 .with_delivery("./tmp/trash", crate::collection! {})
-                .with_rules("./tmp/no_rules", vec![])
+                .with_empty_rules()
                 .with_default_reply_codes()
                 .build()
                 .unwrap(),
@@ -291,14 +295,17 @@ async fn test_receiver_8() -> anyhow::Result<()> {
         .as_bytes(),
         std::sync::Arc::new(
             ServerConfig::builder()
-                .with_rfc_port("test.server.com", "foo", "foo", None)
+                .with_version_str("<1.0.0")
+                .unwrap()
+                .with_rfc_port("test.server.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
                 .with_default_smtp()
                 .with_delivery("./tmp/delivery", crate::collection! {})
-                .with_rules("./tmp/nothing", vec![])
+                .with_empty_rules()
                 .with_default_reply_codes()
-                .build()?
+                .build()
+                .unwrap()
         )
     )
     .await

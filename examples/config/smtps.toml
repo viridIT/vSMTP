@@ -1,0 +1,49 @@
+version_requirement = "<1.0.0"
+
+[server]
+domain = "testserver.com"
+vsmtp_user = "root"
+vsmtp_group = "root"
+
+addr = "0.0.0.0:25"
+addr_submission = "0.0.0.0:587"
+addr_submissions = "0.0.0.0:465"
+thread_count = 8
+
+[logs]
+file = "/var/log/vsmtp/vsmtp.log"
+
+[logs.level]
+default = "warn"
+
+[smtps]
+security_level = "May"
+capath = "./config/certs"
+preempt_cipherlist = true
+handshake_timeout = "100ms"
+protocol_version = ["TLSv1.3"]
+
+fullchain = "{capath}/certificate.crt"
+private_key = "{capath}/privateKey.key"
+
+[[smtps.sni_maps]]
+domain = "testserver.com"
+fullchain = "{capath}/fullchain.{domain}.pem"
+private_key = "{capath}/rsa.{domain}.pem"
+
+[smtp]
+rcpt_count_max = 1000
+disable_ehlo = false
+
+[smtp.error]
+soft_count = 5
+hard_count = 10
+delay = "1000ms"
+
+[delivery]
+spool_dir = "./tmp/var/spool/vsmtp"
+
+[delivery.queues]
+working = { capacity = 32 }
+deliver = { capacity = 32 }
+deferred = { retry_max = 10, cron_period = "10s" }

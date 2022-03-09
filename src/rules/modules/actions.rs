@@ -14,52 +14,54 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use rhai::plugin::*;
+use rhai::plugin::{
+    export_module, mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module,
+    NativeCallContext, PluginFunction, Position, RhaiResult, TypeId,
+};
 
 #[allow(dead_code)]
 #[export_module]
 pub mod actions {
 
     use crate::{
-        config::{log_channel::RULES, server_config::Service},
-        rules::{rule_engine::Status, service::ServiceResult},
+        config::{
+            log_channel::URULES,
+            service::{Service, ServiceResult},
+        },
+        rules::rule_engine::Status,
         smtp::mail::MailContext,
     };
 
-    pub fn faccept() -> Status {
+    pub const fn faccept() -> Status {
         Status::Faccept
     }
 
-    pub fn accept() -> Status {
+    pub const fn accept() -> Status {
         Status::Accept
     }
 
-    pub fn next() -> Status {
+    pub const fn next() -> Status {
         Status::Next
     }
 
-    pub fn deny() -> Status {
+    pub const fn deny() -> Status {
         Status::Deny
     }
 
-    pub fn log_error(message: &str) {
-        log::error!(target: RULES, "{}", message);
-    }
-
-    pub fn log_warn(message: &str) {
-        log::warn!(target: RULES, "{}", message);
-    }
-
-    pub fn log_info(message: &str) {
-        log::info!(target: RULES, "{}", message);
-    }
-
-    pub fn log_debug(message: &str) {
-        log::debug!(target: RULES, "{}", message);
-    }
-
-    pub fn log_trace(message: &str) {
-        log::trace!(target: RULES, "{}", message);
+    pub fn log(level: &str, message: &str) {
+        match level {
+            "trace" => log::trace!(target: URULES, "{}", message),
+            "debug" => log::debug!(target: URULES, "{}", message),
+            "info" => log::info!(target: URULES, "{}", message),
+            "warn" => log::warn!(target: URULES, "{}", message),
+            "error" => log::error!(target: URULES, "{}", message),
+            unknown => log::warn!(
+                target: URULES,
+                "'{}' is not a valid log level. Original message: '{}'",
+                unknown,
+                message
+            ),
+        }
     }
 
     // TODO: not yet functional, the relayer cannot connect to servers.
@@ -82,7 +84,7 @@ pub mod actions {
             })?),
             to.into_iter()
                 // NOTE: address that couldn't be converted will be silently dropped.
-                .flat_map(|rcpt| {
+                .filter_map(|rcpt| {
                     rcpt.try_cast::<String>()
                         .and_then(|s| s.parse::<lettre::Address>().map(Some).unwrap_or(None))
                 })
@@ -108,10 +110,11 @@ pub mod actions {
 
     // TODO: use UsersCache to optimize user lookup.
     /// use the user cache to check if a user exists on the system.
-    pub(crate) fn user_exist(name: &str) -> bool {
+    pub fn user_exist(name: &str) -> bool {
         users::get_user_by_name(name).is_some()
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
     pub fn run(
         services: &mut std::sync::Arc<Vec<Service>>,
@@ -126,7 +129,7 @@ pub mod actions {
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
                 format!("No service in config named: '{service_name}'").into()
             })?
-            .run(ctx)
+            .run(&ctx)
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
     }
 }

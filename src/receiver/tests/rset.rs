@@ -24,12 +24,14 @@ use crate::{
 
 fn get_regular_config() -> ServerConfig {
     ServerConfig::builder()
-        .with_rfc_port("test.server.com", "foo", "foo", None)
+        .with_version_str("<1.0.0")
+        .unwrap()
+        .with_rfc_port("test.server.com", "root", "root", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()
         .with_delivery("./tmp/delivery", crate::collection! {})
-        .with_rules("./tmp/nothing", vec![])
+        .with_empty_rules()
         .with_default_reply_codes()
         .build()
         .unwrap()

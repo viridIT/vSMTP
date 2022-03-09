@@ -1,13 +1,20 @@
+version_requirement = "<1.0.0"
+
 [server]
 domain = "testserver.com"
-vsmtp_user = "vsmtp"
-vsmtp_group = "vsmtp"
+vsmtp_user = "root"
+vsmtp_group = "root"
 
 [logs.level]
 default = "warn"
 
 [rules]
-dir = "/etc/vsmtp/rules"
+main_filepath = "/etc/vsmtp/rules/main.vsl"
+
+[rules.logs]
+file = "/var/log/vsmtp/custom_file.log"
+level = "trace"
+format = "{d} - {m}{n}"
 
 [[rules.services]]
 type = "shell"

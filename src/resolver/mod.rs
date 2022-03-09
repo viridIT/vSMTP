@@ -14,32 +14,23 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{config::server_config::ServerConfig, smtp::mail::MailContext};
+pub use crate::{config::server_config::ServerConfig, smtp::mail::MailContext};
 
+/// Protocol Maildir
+#[allow(clippy::module_name_repetitions)]
 pub mod maildir_resolver;
+
+/// Protocol Mailbox
+#[allow(clippy::module_name_repetitions)]
 pub mod mbox_resolver;
+
+/// Mail relaying
+#[allow(clippy::module_name_repetitions)]
 pub mod smtp_resolver;
 
+/// A trait allowing the [ServerVSMTP] to deliver a mail
 #[async_trait::async_trait]
 pub trait Resolver {
+    /// the deliver method of the [Resolver] trait
     async fn deliver(&mut self, config: &ServerConfig, mail: &MailContext) -> anyhow::Result<()>;
-}
-
-/// sets user & group rights to the given file / folder.
-fn chown_file(path: &std::path::Path, user: &users::User) -> std::io::Result<()> {
-    if unsafe {
-        libc::chown(
-            // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
-            //       to a CString because it is platform independent.
-            std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr(),
-            user.uid(),
-            user.uid(),
-        )
-    } != 0
-    {
-        log::error!("unable to setuid of user {:?}", user.name());
-        return Err(std::io::Error::last_os_error());
-    }
-
-    Ok(())
 }

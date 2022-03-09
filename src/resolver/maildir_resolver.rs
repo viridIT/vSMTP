@@ -16,12 +16,14 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
+    libc_abstraction::chown_file,
     rules::address::Address,
     smtp::mail::{Body, MailContext, MessageMetadata},
 };
 
 use super::Resolver;
 
+/// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
 pub struct MailDirResolver;
 
@@ -57,8 +59,8 @@ impl MailDirResolver {
                 // create and set rights for the MailDir folder if it doesn't exists.
                 if !maildir.exists() {
                     std::fs::create_dir_all(&maildir)?;
-                    super::chown_file(&maildir, &user)?;
-                    super::chown_file(
+                    chown_file(&maildir, &user)?;
+                    chown_file(
                         maildir
                             .parent()
                             .ok_or_else(|| anyhow::anyhow!("Maildir parent folder is missing."))?,
@@ -77,7 +79,7 @@ impl MailDirResolver {
 
                 std::io::Write::write_all(&mut email, content.as_bytes())?;
 
-                super::chown_file(&maildir, &user)?;
+                chown_file(&maildir, &user)?;
             }
             None => anyhow::bail!("unable to get user '{}' by name", rcpt.local_part()),
         }
@@ -118,33 +120,16 @@ impl Resolver for MailDirResolver {
                 "Users '{:?}' not found on the system, skipping delivery ...",
                 not_local_users
             )
-        } else {
-            for rcpt in &mail.envelop.rcpt {
-                log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
+        }
+        for rcpt in &mail.envelop.rcpt {
+            log::debug!(target: RESOLVER, "writing email to {}'s inbox.", rcpt);
 
-                match &mail.body {
-                    Body::Empty => {
-                        anyhow::bail!("failed to write email using maildir: body is empty")
-                    }
-                    Body::Raw(content) => {
-                        Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), content)
-                            .map_err(|error| {
-                                log::error!(
-                                    target: RESOLVER,
-                                    "Couldn't write email to inbox: {:?}",
-                                    error
-                                );
-                                error
-                            })?
-                    }
-                    Body::Parsed(email) => {
-                        let (headers, body) = email.to_raw();
-
-                        Self::write_to_maildir(
-                            rcpt,
-                            mail.metadata.as_ref().unwrap(),
-                            format!("{headers}\n{body}").as_str(),
-                        )
+            match &mail.body {
+                Body::Empty => {
+                    anyhow::bail!("failed to write email using maildir: body is empty")
+                }
+                Body::Raw(content) => {
+                    Self::write_to_maildir(rcpt, mail.metadata.as_ref().unwrap(), content)
                         .map_err(|error| {
                             log::error!(
                                 target: RESOLVER,
@@ -152,11 +137,23 @@ impl Resolver for MailDirResolver {
                                 error
                             );
                             error
-                        })?
-                    }
+                        })?;
                 }
+                Body::Parsed(parsed_mail) => Self::write_to_maildir(
+                    rcpt,
+                    mail.metadata.as_ref().unwrap(),
+                    &parsed_mail.to_raw(),
+                )
+                .map_err(|error| {
+                    log::error!(
+                        target: RESOLVER,
+                        "Couldn't write email to inbox: {:?}",
+                        error
+                    );
+                    error
+                })?,
             }
-            Ok(())
         }
+        Ok(())
     }
 }

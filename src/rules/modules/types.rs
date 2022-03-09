@@ -14,18 +14,19 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use rhai::plugin::*;
-
-use crate::rules::{
-    address::Address, modules::EngineResult, obj::Object, rule_engine::Status,
-    service::ServiceResult,
+use rhai::plugin::{
+    export_module, mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module,
+    NativeCallContext, PluginFunction, Position, RhaiResult, TypeId,
 };
+
+use crate::rules::{address::Address, modules::EngineResult, obj::Object, rule_engine::Status};
 
 pub type Rcpt = std::collections::HashSet<Address>;
 
 #[allow(dead_code)]
 #[export_module]
 pub mod types {
+    use crate::config::service::ServiceResult;
 
     // Status
 
@@ -118,12 +119,12 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "==", pure)]
-    pub fn socket_is_string(this: &mut std::net::SocketAddr, ip: String) -> bool {
+    pub fn socket_is_string(this: &mut std::net::SocketAddr, ip: &str) -> bool {
         this.ip().to_string() == ip
     }
 
     #[rhai_fn(global, name = "!=", pure)]
-    pub fn socket_not_string(this: &mut std::net::SocketAddr, ip: String) -> bool {
+    pub fn socket_not_string(this: &mut std::net::SocketAddr, ip: &str) -> bool {
         this.ip().to_string() != ip
     }
 
@@ -155,16 +156,18 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "==", pure)]
-    pub fn address_is_string(this: &mut Address, other: String) -> bool {
+    pub fn address_is_string(this: &mut Address, other: &str) -> bool {
         this.full() == other
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", pure)]
     pub fn address_is_self(this: &mut Address, other: Address) -> bool {
         *this == other
     }
 
     // NOTE: should a mismatched object fail or just return false ?
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw, pure)]
     pub fn address_is_object(
         this: &mut Address,
@@ -173,6 +176,7 @@ pub mod types {
         internal_address_is_object(this, &other)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw, pure)]
     pub fn object_is_address(
         this: &mut std::sync::Arc<Object>,
@@ -182,15 +186,17 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "!=", pure)]
-    pub fn address_not_string(this: &mut Address, other: String) -> bool {
+    pub fn address_not_string(this: &mut Address, other: &str) -> bool {
         this.full() != other
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", pure)]
     pub fn address_not_self(this: &mut Address, other: Address) -> bool {
         *this != other
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", return_raw, pure)]
     pub fn address_not_object(
         this: &mut Address,
@@ -211,6 +217,7 @@ pub mod types {
         format!("{:#?}", **this)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", pure)]
     pub fn object_is_self(
         this: &mut std::sync::Arc<Object>,
@@ -220,20 +227,22 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "==", return_raw, pure)]
-    pub fn object_is_string(this: &mut std::sync::Arc<Object>, s: String) -> EngineResult<bool> {
-        internal_string_is_object(&s, this)
+    pub fn object_is_string(this: &mut std::sync::Arc<Object>, s: &str) -> EngineResult<bool> {
+        internal_string_is_object(s, this)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw)]
     pub fn string_is_object(this: &str, other: std::sync::Arc<Object>) -> EngineResult<bool> {
         internal_string_is_object(this, &other)
     }
 
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn string_in_object(this: &mut std::sync::Arc<Object>, s: String) -> EngineResult<bool> {
-        internal_string_in_object(&s, this)
+    pub fn string_in_object(this: &mut std::sync::Arc<Object>, s: &str) -> EngineResult<bool> {
+        internal_string_in_object(s, this)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn address_in_object(
         this: &mut std::sync::Arc<Object>,
@@ -242,6 +251,7 @@ pub mod types {
         internal_address_in_object(&addr, this)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_object(
         this: &mut std::sync::Arc<Object>,
@@ -262,6 +272,7 @@ pub mod types {
         format!("{:#?}", this)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn object_in_object_vec(
         this: &mut Vec<std::sync::Arc<Object>>,
@@ -297,17 +308,19 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn string_in_rcpt(this: &mut Rcpt, s: String) -> EngineResult<bool> {
-        let addr = Address::new(&s)
+    pub fn string_in_rcpt(this: &mut Rcpt, s: &str) -> EngineResult<bool> {
+        let addr = Address::new(s)
             .map_err::<Box<EvalAltResult>, _>(|_| format!("'{}' is not an address", s).into())?;
         Ok(this.contains(&addr))
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn address_in_rcpt(this: &mut Rcpt, addr: Address) -> bool {
         this.contains(&addr)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_rcpt(this: &mut Rcpt, other: std::sync::Arc<Object>) -> EngineResult<bool> {
         internal_object_in_rcpt(this, &other)
@@ -318,35 +331,32 @@ pub mod types {
 // using refs instead of shared rhai objects.
 
 pub fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<bool> {
-    Ok(match &*other {
-        Object::Address(addr) => this == addr.full(),
-        Object::Fqdn(fqdn) => this == fqdn,
-        Object::Regex(re) => re.is_match(this),
-        Object::Identifier(s) => this == s,
-        Object::Str(s) => this == s,
-        _ => {
-            return Err(format!(
-                "a {} object cannot be compared to a string",
-                other.to_string()
-            )
-            .into())
-        }
-    })
+    match other {
+        Object::Address(addr) => Ok(this == addr.full()),
+        Object::Fqdn(fqdn) => Ok(this == fqdn),
+        Object::Regex(re) => Ok(re.is_match(this)),
+        Object::Str(s) | Object::Identifier(s) => Ok(this == s),
+        _ => Err(format!(
+            "a {} object cannot be compared to a string",
+            other.to_string()
+        )
+        .into()),
+    }
 }
 
 pub fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<bool> {
-    Ok(match &*other {
-        Object::Group(group) => group.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false)),
-        Object::File(file) => file.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false)),
+    match other {
+        Object::Group(group) => Ok(group.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false))),
+        Object::File(file) => Ok(file.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false))),
         _ => {
-            return Err(format!(
+             Err(format!(
                 "the 'in' operator can only be used with 'group' and 'file' object types, you used the string {} with the object {}",
                 this,
                 other.to_string()
             )
             .into())
         }
-    })
+    }
 }
 
 pub fn internal_address_is_object(this: &Address, other: &Object) -> EngineResult<bool> {

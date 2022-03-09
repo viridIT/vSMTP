@@ -30,14 +30,15 @@ use self::{
 
 use std::sync::{Arc, RwLock};
 
-pub mod connection;
-pub mod io_service;
-pub mod transaction;
+pub(crate) mod connection;
+pub(crate) mod io_service;
+pub(crate) mod transaction;
 
 #[cfg(test)]
 mod tests;
 
 // NOTE: not marked as #[cfg(test)] because it is used by the bench/fuzz
+/// boilerplate for the tests
 pub mod test_helpers;
 
 fn is_version_requirement_satisfied(
@@ -60,16 +61,14 @@ fn is_version_requirement_satisfied(
         .and_then(|i| i.protocol_version.as_ref())
         .unwrap_or(&config.protocol_version);
 
-    conn.protocol_version()
-        .map(|protocol_version| {
-            protocol_version_requirement
-                .0
-                .iter()
-                .filter(|i| i.0 == protocol_version)
-                .count()
-                != 0
-        })
-        .unwrap_or(false)
+    conn.protocol_version().map_or(false, |protocol_version| {
+        protocol_version_requirement
+            .0
+            .iter()
+            .filter(|i| i.0 == protocol_version)
+            .count()
+            != 0
+    })
 }
 
 async fn on_mail<S: std::io::Read + std::io::Write>(
@@ -98,11 +97,11 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
                         })
                         .await?;
 
-                    conn.send_code(SMTPReplyCode::Code250)?
+                    conn.send_code(SMTPReplyCode::Code250)?;
                 }
                 Err(error) => {
                     log::error!("couldn't write to delivery queue: {}", error);
-                    conn.send_code(SMTPReplyCode::Code554)?
+                    conn.send_code(SMTPReplyCode::Code554)?;
                 }
             };
         }
@@ -115,11 +114,11 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
                         })
                         .await?;
 
-                    conn.send_code(SMTPReplyCode::Code250)?
+                    conn.send_code(SMTPReplyCode::Code250)?;
                 }
                 Err(error) => {
                     log::error!("couldn't write to queue: {}", error);
-                    conn.send_code(SMTPReplyCode::Code554)?
+                    conn.send_code(SMTPReplyCode::Code554)?;
                 }
             };
         }
@@ -128,6 +127,13 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
     Ok(())
 }
 
+/// Receives the incomings mail of a connection
+///
+/// # Errors
+///
+/// * server failed to send a message
+/// * a transaction failed
+/// * the pre-queue processing of the mail failed
 pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -176,7 +182,7 @@ where
     Ok(())
 }
 
-pub async fn handle_connection_secured<S>(
+pub(crate) async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rule_engine: Arc<RwLock<RuleEngine>>,

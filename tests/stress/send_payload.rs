@@ -14,9 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use opentelemetry::{global, runtime, trace, Context};
 
 const CLIENT_THREAD_COUNT: u64 = 10;
-const MAIL_PER_THREAD: u64 = 100;
+const MAIL_PER_THREAD: u64 = 10;
 
 fn get_mail() -> lettre::Message {
     lettre::Message::builder()
@@ -28,11 +29,10 @@ fn get_mail() -> lettre::Message {
         .unwrap()
 }
 
-async fn run_one_connection(client_nb: u64) {
-    let tracer = opentelemetry::global::tracer("client");
-    let span = opentelemetry::trace::Tracer::start(&tracer, format!("Connection: {client_nb}"));
-    let cx =
-        <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
+async fn run_one_connection(client_nb: u64) -> Result<(), u64> {
+    let tracer = global::tracer("client");
+    let span = trace::Tracer::start(&tracer, format!("Connection: {client_nb}"));
+    let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
     let mailer = std::sync::Arc::new(
         lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous("0.0.0.0")
@@ -42,20 +42,29 @@ async fn run_one_connection(client_nb: u64) {
 
     for i in 0..MAIL_PER_THREAD {
         let sender = mailer.clone();
-        opentelemetry::trace::FutureExt::with_context(async move {
-            let tracer = opentelemetry::global::tracer("mail");
-            let span = opentelemetry::trace::Tracer::start(&tracer, format!("Sending: {i}"));
-            let cx =
-                <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
 
-            opentelemetry::trace::FutureExt::with_context(
-                lettre::AsyncTransport::send(sender.as_ref(), get_mail()),
-                cx,
-            )
-            .await
-            .unwrap();
-        }, cx.clone()).await;
+        let x = trace::FutureExt::with_context(
+            async move {
+                let tracer = global::tracer("mail");
+                let span = trace::Tracer::start(&tracer, format!("Sending: {i}"));
+                let cx = <Context as trace::TraceContextExt>::current_with_span(span);
+
+                trace::FutureExt::with_context(
+                    lettre::AsyncTransport::send(sender.as_ref(), get_mail()),
+                    cx,
+                )
+                .await
+            },
+            cx.clone(),
+        )
+        .await;
+
+        if x.is_err() {
+            return Err(client_nb);
+        }
     }
+
+    Ok(())
 }
 
 #[ignore = "require the test 'listen_and_serve' and a 'jaeger-all-in-one' to run in background"]
@@ -63,26 +72,40 @@ async fn run_one_connection(client_nb: u64) {
 async fn send_payload() {
     let tracer = opentelemetry_jaeger::new_pipeline()
         .with_service_name("vsmtp-stress")
-        .install_batch(opentelemetry::runtime::Tokio)
+        .install_batch(runtime::Tokio)
         .unwrap();
 
-    let span = opentelemetry::trace::Tracer::start(&tracer, "root");
-    let cx =
-        <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
+    let span = trace::Tracer::start(&tracer, "root");
+    let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
-    opentelemetry::trace::FutureExt::with_context(async move {
-        let task = (0..CLIENT_THREAD_COUNT).into_iter().map(|client_nb| {
-            let tracer = opentelemetry::global::tracer("sending-payload");
-            let span = opentelemetry::trace::Tracer::start(&tracer, "sending payload".to_string());
-            let cx =
-                <opentelemetry::Context as opentelemetry::trace::TraceContextExt>::current_with_span(span);
+    fn create_task(id: u64) -> tokio::task::JoinHandle<std::result::Result<(), u64>> {
+        let tracer = global::tracer("sending-payload");
+        let span = trace::Tracer::start(&tracer, "sending payload".to_string());
+        let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
-            tokio::spawn(opentelemetry::trace::FutureExt::with_context(run_one_connection(client_nb), cx))
-        }).collect::<Vec<_>>();
+        tokio::spawn(trace::FutureExt::with_context(run_one_connection(id), cx))
+    }
 
-        for i in task {
-            i.await.unwrap();
-        }
-    }, cx).await;
-    opentelemetry::global::shutdown_tracer_provider();
+    trace::FutureExt::with_context(
+        async move {
+            let mut task = (0..CLIENT_THREAD_COUNT)
+                .into_iter()
+                .map(create_task)
+                .collect::<Vec<_>>();
+
+            while !task.is_empty() {
+                let mut new_task = vec![];
+                for i in task {
+                    if let Err(id) = i.await.unwrap() {
+                        new_task.push(create_task(id + 1000))
+                    }
+                }
+                task = new_task;
+            }
+        },
+        cx,
+    )
+    .await;
+
+    global::shutdown_tracer_provider();
 }

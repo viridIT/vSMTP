@@ -15,7 +15,7 @@
  *
 **/
 use crate::{
-    config::server_config::{ServerConfig, Service},
+    config::{server_config::ServerConfig, service::Service},
     rules::{
         address::Address,
         rule_engine::{RuleEngine, RuleState, Status},
@@ -26,9 +26,10 @@ use crate::{
 
 #[test]
 fn test_status() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re = RuleEngine::new("./src/rules/tests/types/status").expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/types/status/main.vsl".into()))
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
@@ -36,9 +37,10 @@ fn test_status() {
 
 #[test]
 fn test_time() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re = RuleEngine::new("./src/rules/tests/types/time").expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/types/time/main.vsl".into()))
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     state.add_data("time", std::time::SystemTime::UNIX_EPOCH);
@@ -48,9 +50,10 @@ fn test_time() {
 
 #[test]
 fn test_socket() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re = RuleEngine::new("./src/rules/tests/types/socket").expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/types/socket/main.vsl".into()))
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     state.add_data(
@@ -64,10 +67,10 @@ fn test_socket() {
 
 #[test]
 fn test_address() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/types/address").expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/types/address/main.vsl".into()))
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     state.get_context().write().unwrap().envelop.mail_from =
@@ -78,10 +81,10 @@ fn test_address() {
 
 #[test]
 fn test_objects() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/types/objects").expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/types/objects/main.vsl".into()))
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
@@ -89,13 +92,15 @@ fn test_objects() {
 
 #[test]
 fn test_services() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/types/service").expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/types/service/main.vsl".into()))
+        .expect("couldn't build rule engine");
 
     let config = ServerConfig::builder()
-        .with_rfc_port("test.server.com", "foo", "foo", None)
+        .with_version_str("<1.0.0")
+        .unwrap()
+        .with_rfc_port("test.server.com", "root", "root", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()

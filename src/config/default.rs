@@ -18,12 +18,13 @@ use crate::smtp::code::SMTPReplyCode;
 
 use super::server_config::{
     Codes, InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
+    InnerUserLogConfig,
 };
 
 impl Default for InnerServerConfig {
     fn default() -> Self {
         Self {
-            domain: Default::default(),
+            domain: String::default(),
             vsmtp_user: "vsmtp".to_string(),
             vsmtp_group: "vsmtp".to_string(),
             addr: "0.0.0.0:25".parse().expect("valid address"),
@@ -36,30 +37,40 @@ impl Default for InnerServerConfig {
 
 impl InnerServerConfig {
     pub(crate) fn default_addr() -> std::net::SocketAddr {
-        InnerServerConfig::default().addr
+        Self::default().addr
     }
 
     pub(crate) fn default_addr_submission() -> std::net::SocketAddr {
-        InnerServerConfig::default().addr_submission
+        Self::default().addr_submission
     }
 
     pub(crate) fn default_addr_submissions() -> std::net::SocketAddr {
-        InnerServerConfig::default().addr_submissions
+        Self::default().addr_submissions
     }
 }
 
 impl Default for InnerLogConfig {
     fn default() -> Self {
         Self {
-            file: "/var/log/vsmtp/vsmtp.log".into(),
-            level: Default::default(),
+            file: std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "app.log"]),
+            level: std::collections::BTreeMap::default(),
         }
     }
 }
 
 impl InnerLogConfig {
     pub(crate) fn default_file() -> std::path::PathBuf {
-        InnerLogConfig::default().file
+        Self::default().file
+    }
+}
+
+impl Default for InnerUserLogConfig {
+    fn default() -> Self {
+        Self {
+            file: std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "rules.log"]),
+            level: log::LevelFilter::Warn,
+            format: None,
+        }
     }
 }
 
@@ -77,10 +88,21 @@ impl Default for InnerSMTPConfig {
     fn default() -> Self {
         Self {
             disable_ehlo: false,
-            timeout_client: Default::default(),
-            error: Default::default(),
-            rcpt_count_max: 1000,
+            timeout_client: std::collections::BTreeMap::default(),
+            error: InnerSMTPErrorConfig::default(),
+            rcpt_count_max: Self::default_rcpt_count_max(),
+            client_count_max: Self::default_client_count_max(),
         }
+    }
+}
+
+impl InnerSMTPConfig {
+    pub(crate) const fn default_client_count_max() -> i64 {
+        -1
+    }
+
+    pub(super) const fn default_rcpt_count_max() -> usize {
+        1000
     }
 }
 
@@ -108,12 +130,13 @@ impl Default for Codes {
             SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n",
             SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
             SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
+            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
         };
 
         let out = Self {
             codes: codes
-                .iter()
-                .map(|(k, v)| (*k, v.to_string()))
+                .into_iter()
+                .map(|(k, v)| (k, v.to_string()))
                 .collect::<_>(),
         };
         assert!(out.is_not_ill_formed(), "missing codes in default values");
@@ -127,6 +150,12 @@ impl Codes {
             .all(|i| self.codes.contains_key(&i))
     }
 
+    /// return the message associated with a [SMTPReplyCode].
+    ///
+    /// # Panics
+    ///
+    /// * the config is ill-formed
+    #[must_use]
     pub fn get(&self, code: &SMTPReplyCode) -> &String {
         self.codes
             .get(code)

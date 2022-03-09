@@ -16,6 +16,7 @@
 **/
 use crate::{
     config::{log_channel::RESOLVER, server_config::ServerConfig},
+    libc_abstraction::chown_file,
     smtp::mail::{Body, MailContext},
 };
 
@@ -30,15 +31,14 @@ pub struct MBoxResolver;
 #[async_trait::async_trait]
 impl Resolver for MBoxResolver {
     async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
-        for rcpt in ctx.envelop.rcpt.iter() {
+        for rcpt in &ctx.envelop.rcpt {
             // FIXME: use UsersCache.
             match users::get_user_by_name(rcpt.local_part()) {
                 Some(user) => {
                     let timestamp: chrono::DateTime<chrono::offset::Utc> = ctx
                         .metadata
                         .as_ref()
-                        .map(|metadata| metadata.timestamp)
-                        .unwrap_or_else(std::time::SystemTime::now)
+                        .map_or_else(std::time::SystemTime::now, |metadata| metadata.timestamp)
                         .into();
                     let timestamp = timestamp.format("%c");
 
@@ -50,10 +50,11 @@ impl Resolver for MBoxResolver {
                             format!("From {} {timestamp}\n{raw}\n", ctx.envelop.mail_from)
                         }
                         Body::Parsed(parsed) => {
-                            let (headers, body) = parsed.to_raw();
                             format!(
-                                "From {} {timestamp}\n{headers}\n\n{body}\n",
-                                ctx.envelop.mail_from
+                                "From {} {}\n{}\n",
+                                timestamp,
+                                ctx.envelop.mail_from,
+                                parsed.to_raw()
                             )
                         }
                     };
@@ -65,7 +66,7 @@ impl Resolver for MBoxResolver {
                         .create(true)
                         .append(true)
                         .open(&mbox)?;
-                    super::chown_file(&mbox, &user)?;
+                    chown_file(&mbox, &user)?;
 
                     std::io::Write::write_all(&mut file, content.as_bytes())?;
 

@@ -14,8 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
-use crate::config::log_channel::RULES;
-use crate::config::server_config::Service;
+use crate::config::log_channel::SRULES;
+use crate::config::service::Service;
 use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
 use crate::smtp::envelop::Envelop;
@@ -24,8 +24,9 @@ use crate::smtp::mail::{Body, MailContext};
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::{
-    exported_module, plugin::*, Array, Engine, LexError, Map, ParseError, ParseErrorType, Scope,
-    AST,
+    exported_module,
+    plugin::{Dynamic, EvalAltResult, ImmutableString, Module, Position},
+    Array, Engine, LexError, Map, ParseError, ParseErrorType, Scope, AST,
 };
 
 use std::net::Ipv4Addr;
@@ -47,7 +48,7 @@ pub enum Status {
 }
 
 impl Status {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Status::Accept => "accept",
             Status::Next => "next",
@@ -147,7 +148,7 @@ impl<'a> RuleState<'a> {
         self.ctx.clone()
     }
 
-    pub fn skipped(&self) -> Option<Status> {
+    pub const fn skipped(&self) -> Option<Status> {
         self.skip
     }
 }
@@ -170,7 +171,7 @@ pub struct RuleEngine {
 
 impl RuleEngine {
     /// runs all rules from a stage using the current transaction state.
-    pub(crate) fn run_when(&self, state: &mut RuleState, stage: &str) -> Status {
+    pub(crate) fn run_when(&self, state: &mut RuleState, smtp_stage: &str) -> Status {
         if let Some(status) = state.skip {
             return status;
         }
@@ -188,9 +189,9 @@ impl RuleEngine {
             Ok(rules) => rules,
             Err(error) => {
                 log::error!(
-                    target: RULES,
-                    "stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
-                    stage,
+                    target: SRULES,
+                    "smtp_stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
+                    smtp_stage,
                     error
                 );
                 return Status::Next;
@@ -201,17 +202,22 @@ impl RuleEngine {
             &mut state.scope,
             &self.ast,
             "run_rules",
-            (rules, stage.to_string()),
+            (rules, smtp_stage.to_string()),
         ) {
             Ok(status) => {
-                log::debug!(target: RULES, "[{}] evaluated => {:?}.", stage, status);
+                log::debug!(
+                    target: SRULES,
+                    "[{}] evaluated => {:?}.",
+                    smtp_stage,
+                    status
+                );
 
                 match status {
                     Status::Faccept | Status::Deny => {
                         log::debug!(
-                        target: RULES,
+                        target: SRULES,
                         "[{}] the rule engine will skip all rules because of the previous result.",
-                        stage
+                        smtp_stage
                     );
                         state.skip = Some(status);
                         status
@@ -220,27 +226,31 @@ impl RuleEngine {
                 }
             }
             Err(error) => {
-                log::error!(target: RULES, "{}", self.parse_stage_error(error, stage));
+                log::error!(
+                    target: SRULES,
+                    "{}",
+                    Self::parse_stage_error(error, smtp_stage)
+                );
                 Status::Next
             }
         }
     }
 
-    fn parse_stage_error(&self, error: Box<EvalAltResult>, stage: &str) -> String {
+    fn parse_stage_error(error: Box<EvalAltResult>, stage: &str) -> String {
         match *error {
             // NOTE: since all errors are caught and thrown in "run_rules", errors
             //       are always wrapped in ErrorInFunctionCall.
-            EvalAltResult::ErrorInFunctionCall(_, _, mut error, _) => match *error {
+            EvalAltResult::ErrorInFunctionCall(_, _, error, _) => match *error {
                 EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
                     let error = error.cast::<rhai::Map>();
-                    let rule = error
-                        .get("rule")
-                        .map(|d| d.to_string())
-                        .unwrap_or_else(|| "unknown rule".to_string());
-                    let error = error
-                        .get("message")
-                        .map(|d| d.to_string())
-                        .unwrap_or_else(|| "vsl internal unexpected error".to_string());
+                    let rule = error.get("rule").map_or_else(
+                        || "unknown rule".to_string(),
+                        std::string::ToString::to_string,
+                    );
+                    let error = error.get("message").map_or_else(
+                        || "vsl internal unexpected error".to_string(),
+                        std::string::ToString::to_string,
+                    );
 
                     format!(
                         "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
@@ -248,7 +258,6 @@ impl RuleEngine {
                     )
                 }
                 _ => {
-                    error.take_position();
                     format!(
                         "stage '{}' skipped => rule engine failed:\n\t{}",
                         stage, error,
@@ -268,10 +277,8 @@ impl RuleEngine {
 
     /// creates a new instance of the rule engine, reading all files in
     /// src_path parameter.
-    pub fn new<S>(script_path: S) -> anyhow::Result<Self>
-    where
-        S: AsRef<str>,
-    {
+    #[allow(clippy::too_many_lines)]
+    pub fn new(script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
         let mut engine = Engine::new();
 
         let mut module: Module = exported_module!(crate::rules::modules::actions::actions);
@@ -280,10 +287,16 @@ impl RuleEngine {
             .combine(exported_module!(crate::rules::modules::email::email));
 
         engine
-            .set_module_resolver(FileModuleResolver::new_with_path_and_extension(
-                script_path.as_ref(),
-                "vsl",
-            ))
+            .set_module_resolver(match script_path {
+                Some(script_path) => FileModuleResolver::new_with_path_and_extension(
+                 script_path.parent().ok_or_else(|| anyhow::anyhow!(
+                        "File '{}' is not a valid root directory for rules",
+                        script_path.display()
+                    ))?,
+                    "vsl",
+                ),
+                None => FileModuleResolver::new_with_extension("vsl"),
+            })
             .register_static_module("vsl", module.into())
             .disable_symbol("eval")
 
@@ -322,7 +335,7 @@ impl RuleEngine {
                     let name = input[0].get_literal_value::<ImmutableString>().unwrap();
                     let expr = context.eval_expression_tree(&input[1])?;
 
-                    Ok(Dynamic::from(Map::from_iter(
+                    Ok(Dynamic::from(
                         [
                             ("name".into(), Dynamic::from(name.clone())),
                             ("type".into(), "rule".into()),
@@ -351,12 +364,12 @@ impl RuleEngine {
                             .into_iter()
                         } else {
                             return Err(format!(
-                                "a rule must be a map (#{{}}) or an anonymous function (|| {{}}){}",
+                                "a rule must be a map (#{{}}) or an anonymous function (|| {{}})\n{}",
                                 RuleEngineError::Rule.as_str()
                             )
                             .into());
-                        }),
-                    )))
+                        }).collect::<Map>(),
+                    ))
                 },
             )
             // `action $name$ #{expr}` syntax.
@@ -384,8 +397,7 @@ impl RuleEngine {
                     let name = input[0].get_literal_value::<ImmutableString>().unwrap();
                     let expr = context.eval_expression_tree(&input[1])?;
 
-                    Ok(Dynamic::from(Map::from_iter(
-                        [
+                    Ok(Dynamic::from([
                             ("name".into(), Dynamic::from(name.clone())),
                             ("type".into(), "action".into()),
                         ]
@@ -417,8 +429,8 @@ impl RuleEngine {
                                 RuleEngineError::Action.as_str()
                             )
                             .into());
-                        }),
-                    )))
+                        }).collect::<Map>(),
+                    ))
                  },
             )
             // `obj $type[:file_type]$ $name$ #{}` container syntax.
@@ -475,74 +487,69 @@ impl RuleEngine {
                     // FIXME: refactor this expression.
                     // file type as a special syntax (file:type),
                     // so we need a different method to parse it.
-                    let object = match var_type.as_str() {
-                        "file" => {
-                            let content_type = input[2].get_string_value().unwrap();
-                            var_name = input[3]
-                                .get_literal_value::<ImmutableString>()
-                                .unwrap()
-                                .to_string();
-                            let object = context.eval_expression_tree(&input[4])?;
+                    let object = if var_type.as_str() == "file" {
+                        let content_type = input[2].get_string_value().unwrap();
+                        var_name = input[3]
+                            .get_literal_value::<ImmutableString>()
+                            .unwrap()
+                            .to_string();
+                        let object = context.eval_expression_tree(&input[4])?;
 
-                            // the object syntax can use a map or an inline string.
-                            if object.is::<Map>() {
-                                let mut object: Map =
-                                    object.try_cast().ok_or(RuleEngineError::Object)?;
-                                object.insert("type".into(), Dynamic::from(var_type.clone()));
-                                object.insert("name".into(), Dynamic::from(var_name.clone()));
-                                object.insert(
-                                    "content_type".into(),
-                                    Dynamic::from(content_type.to_string()),
-                                );
-                                object
-                            } else if object.is::<String>() {
-                                let mut map = Map::new();
-                                map.insert("type".into(), Dynamic::from(var_type.clone()));
-                                map.insert("name".into(), Dynamic::from(var_name.clone()));
-                                map.insert(
-                                    "content_type".into(),
-                                    Dynamic::from(content_type.to_string()),
-                                );
-                                map.insert("value".into(), object);
-                                map
-                            } else {
-                                return Err(EvalAltResult::ErrorMismatchDataType(
-                                    "Map | String".to_string(),
-                                    object.type_name().to_string(),
-                                    Position::NONE,
-                                )
-                                .into());
-                            }
+                        // the object syntax can use a map or an inline string.
+                        if object.is::<Map>() {
+                            let mut object: Map =
+                                object.try_cast().ok_or(RuleEngineError::Object)?;
+                            object.insert("type".into(), Dynamic::from(var_type));
+                            object.insert("name".into(), Dynamic::from(var_name.clone()));
+                            object.insert(
+                                "content_type".into(),
+                                Dynamic::from(content_type.to_string()),
+                            );
+                            object
+                        } else if object.is::<String>() {
+                            let mut map = Map::new();
+                            map.insert("type".into(), Dynamic::from(var_type));
+                            map.insert("name".into(), Dynamic::from(var_name.clone()));
+                            map.insert(
+                                "content_type".into(),
+                                Dynamic::from(content_type.to_string()),
+                            );
+                            map.insert("value".into(), object);
+                            map
+                        } else {
+                            return Err(EvalAltResult::ErrorMismatchDataType(
+                                "Map | String".to_string(),
+                                object.type_name().to_string(),
+                                Position::NONE,
+                            )
+                            .into());
                         }
+                    } else {
+                        var_name = input[1]
+                            .get_literal_value::<ImmutableString>()
+                            .unwrap()
+                            .to_string();
+                        let object = context.eval_expression_tree(&input[2])?;
 
-                        // generic type, we can parse it easily.
-                        _ => {
-                            var_name = input[1]
-                                .get_literal_value::<ImmutableString>()
-                                .unwrap()
-                                .to_string();
-                            let object = context.eval_expression_tree(&input[2])?;
-
-                            if object.is::<Map>() {
-                                let mut object: Map =
-                                    object.try_cast().ok_or(RuleEngineError::Object)?;
-                                object.insert("type".into(), Dynamic::from(var_type.clone()));
-                                object.insert("name".into(), Dynamic::from(var_name.clone()));
-                                object
-                            } else if object.is::<String>() || object.is::<Array>() {
-                                let mut map = Map::new();
-                                map.insert("type".into(), Dynamic::from(var_type.clone()));
-                                map.insert("name".into(), Dynamic::from(var_name.clone()));
-                                map.insert("value".into(), object);
-                                map
-                            } else {
-                                return Err(EvalAltResult::ErrorMismatchDataType(
-                                    "Map | String".to_string(),
-                                    object.type_name().to_string(),
-                                    Position::NONE,
-                                )
-                                .into());
-                            }
+                        if object.is::<Map>() {
+                            let mut object: Map =
+                                object.try_cast().ok_or(RuleEngineError::Object)?;
+                            object.insert("type".into(), Dynamic::from(var_type));
+                            object.insert("name".into(), Dynamic::from(var_name.clone()));
+                            object
+                        } else if object.is::<String>() || object.is::<Array>() {
+                            let mut map = Map::new();
+                            map.insert("type".into(), Dynamic::from(var_type));
+                            map.insert("name".into(), Dynamic::from(var_name.clone()));
+                            map.insert("value".into(), object);
+                            map
+                        } else {
+                            return Err(EvalAltResult::ErrorMismatchDataType(
+                                "Map | String".to_string(),
+                                object.type_name().to_string(),
+                                Position::NONE,
+                            )
+                            .into());
                         }
                     };
 
@@ -562,9 +569,7 @@ impl RuleEngine {
             .register_iterator::<crate::rules::modules::types::Rcpt>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
-        log::debug!(target: RULES, "compiling rhai scripts ...");
-
-        let main_path = std::path::PathBuf::from_iter([script_path.as_ref(), "main.vsl"]);
+        log::debug!(target: SRULES, "compiling rhai scripts ...");
 
         let mut scope = Scope::new();
         scope
@@ -595,27 +600,29 @@ impl RuleEngine {
             .compile(include_str!("rule_executor.rhai"))
             .context("failed to load the rule executor")?;
 
-        // compiling main script.
-        ast += engine
-            .compile_with_scope(
-                &scope,
-                std::fs::read_to_string(&main_path).unwrap_or_else(|err| {
-                    log::warn!(
-                        target: RULES,
-                        "No main.vsl file found at '{:?}', no rules will be processed. {}",
-                        main_path,
-                        err
-                    );
-                    "#{}".to_string()
-                }),
-            )
-            .context("failed to compile main.vsl")?;
+        if let Some(script_path) = &script_path {
+            ast += engine
+                .compile_with_scope(
+                    &scope,
+                    std::fs::read_to_string(&script_path).map_err(|err| anyhow::anyhow!(err))?,
+                )
+                .context(format!("failed to compile '{}'", script_path.display()))?;
+        } else {
+            log::info!(
+                target: SRULES,
+                "No 'main.vsl' provided in the config, no rules will be processed.",
+            );
+
+            ast += engine
+                .compile_with_scope(&scope, "#{}")
+                .context("empty rules")?;
+        }
 
         engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
             .context("failed to parse rules")?;
 
-        log::debug!(target: RULES, "done.");
+        log::debug!(target: SRULES, "done.");
 
         Ok(Self {
             context: engine,

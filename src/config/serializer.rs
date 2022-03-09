@@ -16,19 +16,21 @@
 **/
 use super::server_config::{ProtocolVersion, ProtocolVersionRequirement};
 
-pub(super) fn ordered_map<K, V, S>(
-    value: &std::collections::HashMap<K, V>,
+pub(super) fn serialize_version_req<S: serde::Serializer>(
+    value: &semver::VersionReq,
     serializer: S,
-) -> Result<S::Ok, S::Error>
+) -> Result<S::Ok, S::Error> {
+    serde::Serialize::serialize(&value.to_string(), serializer)
+}
+
+pub(super) fn deserialize_version_req<'de, D>(
+    deserializer: D,
+) -> Result<semver::VersionReq, D::Error>
 where
-    S: serde::Serializer,
-    K: std::cmp::Ord + serde::Serialize,
-    V: serde::Serialize,
+    D: serde::Deserializer<'de>,
 {
-    serde::Serialize::serialize(
-        &value.iter().collect::<std::collections::BTreeMap<_, _>>(),
-        serializer,
-    )
+    semver::VersionReq::parse(&<String as serde::Deserialize>::deserialize(deserializer)?)
+        .map_err(serde::de::Error::custom)
 }
 
 const ALL_PROTOCOL_VERSION: [ProtocolVersion; 6] = [
@@ -45,12 +47,12 @@ impl std::str::FromStr for ProtocolVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SSLv2" | "0x0200" => Ok(ProtocolVersion(rustls::ProtocolVersion::SSLv2)),
-            "SSLv3" | "0x0300" => Ok(ProtocolVersion(rustls::ProtocolVersion::SSLv3)),
-            "TLSv1.0" | "0x0301" => Ok(ProtocolVersion(rustls::ProtocolVersion::TLSv1_0)),
-            "TLSv1.1" | "0x0302" => Ok(ProtocolVersion(rustls::ProtocolVersion::TLSv1_1)),
-            "TLSv1.2" | "0x0303" => Ok(ProtocolVersion(rustls::ProtocolVersion::TLSv1_2)),
-            "TLSv1.3" | "0x0304" => Ok(ProtocolVersion(rustls::ProtocolVersion::TLSv1_3)),
+            "SSLv2" | "0x0200" => Ok(Self(rustls::ProtocolVersion::SSLv2)),
+            "SSLv3" | "0x0300" => Ok(Self(rustls::ProtocolVersion::SSLv3)),
+            "TLSv1.0" | "0x0301" => Ok(Self(rustls::ProtocolVersion::TLSv1_0)),
+            "TLSv1.1" | "0x0302" => Ok(Self(rustls::ProtocolVersion::TLSv1_1)),
+            "TLSv1.2" | "0x0303" => Ok(Self(rustls::ProtocolVersion::TLSv1_2)),
+            "TLSv1.3" | "0x0304" => Ok(Self(rustls::ProtocolVersion::TLSv1_3)),
             _ => Err(()),
         }
     }

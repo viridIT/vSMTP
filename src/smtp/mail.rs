@@ -38,7 +38,7 @@ impl Default for MessageMetadata {
     fn default() -> Self {
         Self {
             timestamp: std::time::SystemTime::now(),
-            message_id: Default::default(),
+            message_id: String::default(),
             retry: Default::default(),
             resolver: "default".to_string(),
             skipped: None,
@@ -46,17 +46,27 @@ impl Default for MessageMetadata {
     }
 }
 
+/// Message body issued by a SMTP transaction
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Body {
+    /// Nothing
     Empty,
+    /// The raw representation of the message
     Raw(String),
+    /// The message parsed using [MailMimeParser]
     Parsed(Box<Mail>),
 }
 
+/// Representation of one mail obtained by a transaction SMTP
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
+    /// emitter of the mail
     pub client_addr: std::net::SocketAddr,
+    /// envelop of the message
     pub envelop: Envelop,
+    /// content of the message
     pub body: Body,
+    /// metadata
     pub metadata: Option<MessageMetadata>,
 }

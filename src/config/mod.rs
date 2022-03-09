@@ -15,38 +15,77 @@
  *
 **/
 mod config_builder;
+/// The default values of the configuration
 pub mod default;
 mod serializer;
+/// The rust representation of the configuration
+#[allow(clippy::module_name_repetitions)]
 pub mod server_config;
+/// The external services used in .vsl format
+pub mod service;
 
 #[cfg(test)]
 mod tests;
 
-pub mod log_channel {
+pub(crate) mod log_channel {
     pub const RECEIVER: &str = "receiver";
     pub const RESOLVER: &str = "resolver";
-    pub const RULES: &str = "rules";
+    pub const SRULES: &str = "rules";
+    pub const URULES: &str = "user_rules";
     pub const DELIVER: &str = "deliver";
 }
 
-pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result<log4rs::Config> {
-    use log4rs::*;
+/// helper to initialize the log4rs config from our ServerConfig
+///
+/// # Errors
+///
+/// * if log4rs produce an error
+#[allow(clippy::module_name_repetitions)]
+pub fn get_logger_config(
+    config: &server_config::ServerConfig,
+    no_daemon: bool,
+) -> anyhow::Result<log4rs::Config> {
+    use log4rs::{append, config, encode, Config};
 
-    let console = append::console::ConsoleAppender::builder()
-        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-            "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
-        )))
-        .build();
-
-    let file = append::file::FileAppender::builder()
+    let app = append::file::FileAppender::builder()
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
             "{d} - {m}{n}",
         )))
         .build(config.log.file.clone())?;
 
-    Config::builder()
-        .appender(config::Appender::builder().build("stdout", Box::new(console)))
-        .appender(config::Appender::builder().build("file", Box::new(file)))
+    let user = append::file::FileAppender::builder()
+        .encoder(Box::new(encode::pattern::PatternEncoder::new(
+            config
+                .rules
+                .logs
+                .format
+                .as_ref()
+                .unwrap_or(&"{d} - {m}{n}".to_string()),
+        )))
+        .build(config.rules.logs.file.clone())?;
+
+    let mut builder = Config::builder();
+    let mut root = config::Root::builder();
+
+    if no_daemon {
+        builder = builder.appender(
+            config::Appender::builder().build(
+                "stdout",
+                Box::new(
+                    append::console::ConsoleAppender::builder()
+                        .encoder(Box::new(encode::pattern::PatternEncoder::new(
+                            "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
+                        )))
+                        .build(),
+                ),
+            ),
+        );
+        root = root.appender("stdout");
+    }
+
+    builder
+        .appender(config::Appender::builder().build("app", Box::new(app)))
+        .appender(config::Appender::builder().build("user", Box::new(user)))
         .loggers(
             config
                 .log
@@ -54,17 +93,20 @@ pub fn get_logger_config(config: &server_config::ServerConfig) -> anyhow::Result
                 .iter()
                 .map(|(name, level)| config::Logger::builder().build(name, *level)),
         )
+        .logger(
+            config::Logger::builder()
+                .appender("user")
+                .additive(false)
+                .build(log_channel::URULES, config.rules.logs.level),
+        )
         .build(
-            config::Root::builder()
-                .appender("stdout")
-                .appender("file")
-                .build(
-                    *config
-                        .log
-                        .level
-                        .get("default")
-                        .unwrap_or(&log::LevelFilter::Warn),
-                ),
+            root.appender("app").build(
+                *config
+                    .log
+                    .level
+                    .get("default")
+                    .unwrap_or(&log::LevelFilter::Warn),
+            ),
         )
         .map_err(|e| {
             e.errors().iter().for_each(|e| log::error!("{}", e));

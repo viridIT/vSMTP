@@ -16,10 +16,14 @@
 **/
 use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
-use super::server_config::{
-    Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig, ProtocolVersion,
-    ProtocolVersionRequirement, QueueConfig, ServerConfig, Service, SniKey, TlsSecurityLevel,
+use super::{
+    server_config::{
+        Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig,
+        InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig,
+        InnerUserLogConfig, ProtocolVersion, ProtocolVersionRequirement, QueueConfig, ServerConfig,
+        SniKey, TlsSecurityLevel,
+    },
+    service::Service,
 };
 
 pub struct ConfigBuilder<State> {
@@ -27,13 +31,38 @@ pub struct ConfigBuilder<State> {
 }
 
 impl ServerConfig {
-    pub fn builder() -> ConfigBuilder<WantsServer> {
+    /// Return an instance of [ConfigBuilder] for a step-by-step configuration generation
+    #[must_use]
+    pub const fn builder() -> ConfigBuilder<WantsVersion> {
         ConfigBuilder {
-            state: WantsServer(()),
+            state: WantsVersion(()),
         }
     }
 
-    pub fn from_toml(data: &str) -> anyhow::Result<ServerConfig> {
+    /// Parse a [ServerConfig] with [TOML] format
+    ///
+    /// # Errors
+    ///
+    /// * data is not a valid [TOML]
+    /// * one field is unknown
+    /// * the version requirement are not fulfilled
+    /// * a mandatory field is not provided (no default value)
+    ///
+    /// [TOML]: https://github.com/toml-lang/toml
+    pub fn from_toml(data: &str) -> anyhow::Result<Self> {
+        let parsed_ahead = ConfigBuilder::<WantsServer> {
+            state: toml::from_str::<WantsServer>(data)?,
+        };
+        let pkg_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
+
+        if !parsed_ahead.state.version_requirement.matches(&pkg_version) {
+            anyhow::bail!(
+                "Version requirement not fulfilled: expected '{}' but got '{}'",
+                parsed_ahead.state.version_requirement,
+                env!("CARGO_PKG_VERSION")
+            );
+        }
+
         ConfigBuilder::<WantsBuild> {
             state: toml::from_str::<WantsBuild>(data)?,
         }
@@ -42,7 +71,45 @@ impl ServerConfig {
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
-pub struct WantsServer(pub(crate) ());
+pub struct WantsVersion(pub(crate) ());
+
+impl ConfigBuilder<WantsVersion> {
+    pub const fn with_version(
+        self,
+        version_requirement: semver::VersionReq,
+    ) -> ConfigBuilder<WantsServer> {
+        ConfigBuilder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                version_requirement,
+            },
+        }
+    }
+
+    pub fn with_version_str(
+        self,
+        version_requirement: &str,
+    ) -> anyhow::Result<ConfigBuilder<WantsServer>> {
+        Ok(ConfigBuilder::<WantsServer> {
+            state: WantsServer {
+                parent: self.state,
+                version_requirement: semver::VersionReq::parse(version_requirement)?,
+            },
+        })
+    }
+}
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+pub struct WantsServer {
+    #[serde(skip)]
+    #[allow(unused)]
+    pub(crate) parent: WantsVersion,
+    #[serde(
+        serialize_with = "crate::config::serializer::serialize_version_req",
+        deserialize_with = "crate::config::serializer::deserialize_version_req"
+    )]
+    version_requirement: semver::VersionReq,
+}
 
 impl ConfigBuilder<WantsServer> {
     #[allow(clippy::too_many_arguments)]
@@ -111,8 +178,7 @@ impl ConfigBuilder<WantsServer> {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct WantsLogging {
-    #[serde(skip)]
-    #[allow(unused)]
+    #[serde(flatten)]
     pub(crate) parent: WantsServer,
     pub(crate) server: InnerServerConfig,
 }
@@ -121,7 +187,7 @@ impl ConfigBuilder<WantsLogging> {
     pub fn with_logging(
         self,
         file: impl Into<std::path::PathBuf>,
-        level: std::collections::HashMap<String, log::LevelFilter>,
+        level: std::collections::BTreeMap<String, log::LevelFilter>,
     ) -> ConfigBuilder<WantSMTPS> {
         ConfigBuilder::<WantSMTPS> {
             state: WantSMTPS {
@@ -203,6 +269,8 @@ impl ConfigBuilder<WantSMTPS> {
         )
     }
 
+    // FIXME: false positive ?
+    #[allow(clippy::missing_const_for_fn)]
     pub fn without_smtps(self) -> ConfigBuilder<WantSMTP> {
         ConfigBuilder::<WantSMTP> {
             state: WantSMTP {
@@ -221,6 +289,7 @@ pub struct WantSMTP {
 }
 
 impl ConfigBuilder<WantSMTP> {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_smtp(
         self,
         disable_ehlo: bool,
@@ -229,6 +298,7 @@ impl ConfigBuilder<WantSMTP> {
         error_hard_count: i64,
         error_delay: std::time::Duration,
         rcpt_count_max: usize,
+        client_count_max: i64,
     ) -> ConfigBuilder<WantsDelivery> {
         ConfigBuilder::<WantsDelivery> {
             state: WantsDelivery {
@@ -245,6 +315,7 @@ impl ConfigBuilder<WantSMTP> {
                         delay: error_delay,
                     },
                     rcpt_count_max,
+                    client_count_max,
                 },
             },
         }
@@ -258,6 +329,7 @@ impl ConfigBuilder<WantSMTP> {
             10,
             std::time::Duration::from_millis(1000),
             1000,
+            InnerSMTPConfig::default_client_count_max(),
         )
     }
 }
@@ -274,7 +346,7 @@ impl ConfigBuilder<WantsDelivery> {
     pub fn with_delivery(
         self,
         spool_dir: impl Into<std::path::PathBuf>,
-        queues: std::collections::HashMap<String, QueueConfig>,
+        queues: std::collections::BTreeMap<String, QueueConfig>,
     ) -> ConfigBuilder<WantsRules> {
         ConfigBuilder::<WantsRules> {
             state: WantsRules {
@@ -296,16 +368,54 @@ pub struct WantsRules {
 }
 
 impl ConfigBuilder<WantsRules> {
+    pub fn with_empty_rules(self) -> ConfigBuilder<WantsReplyCodes> {
+        ConfigBuilder::<WantsReplyCodes> {
+            state: WantsReplyCodes {
+                parent: self.state,
+                rules: InnerRulesConfig {
+                    main_filepath: None,
+                    logs: InnerUserLogConfig::default(),
+                    services: vec![],
+                },
+            },
+        }
+    }
+
     pub fn with_rules(
         self,
-        source_dir: impl Into<String>,
+        main_filepath: impl Into<std::path::PathBuf>,
         services: Vec<Service>,
     ) -> ConfigBuilder<WantsReplyCodes> {
         ConfigBuilder::<WantsReplyCodes> {
             state: WantsReplyCodes {
                 parent: self.state,
                 rules: InnerRulesConfig {
-                    dir: source_dir.into(),
+                    main_filepath: Some(main_filepath.into()),
+                    logs: InnerUserLogConfig::default(),
+                    services,
+                },
+            },
+        }
+    }
+
+    pub fn with_rules_and_logging(
+        self,
+        main_filepath: impl Into<std::path::PathBuf>,
+        services: Vec<Service>,
+        log_file: impl Into<std::path::PathBuf>,
+        log_level: log::LevelFilter,
+        log_format: Option<String>,
+    ) -> ConfigBuilder<WantsReplyCodes> {
+        ConfigBuilder::<WantsReplyCodes> {
+            state: WantsReplyCodes {
+                parent: self.state,
+                rules: InnerRulesConfig {
+                    main_filepath: Some(main_filepath.into()),
+                    logs: InnerUserLogConfig {
+                        file: log_file.into(),
+                        level: log_level,
+                        format: log_format,
+                    },
                     services,
                 },
             },
@@ -317,13 +427,14 @@ impl ConfigBuilder<WantsRules> {
 pub struct WantsReplyCodes {
     #[serde(flatten)]
     pub(crate) parent: WantsRules,
+    #[serde(default)]
     pub(crate) rules: InnerRulesConfig,
 }
 
 impl ConfigBuilder<WantsReplyCodes> {
     pub fn with_reply_codes(
         self,
-        reply_codes: std::collections::HashMap<SMTPReplyCode, String>,
+        reply_codes: std::collections::BTreeMap<SMTPReplyCode, String>,
     ) -> ConfigBuilder<WantsBuild> {
         ConfigBuilder::<WantsBuild> {
             state: WantsBuild {
@@ -347,17 +458,21 @@ pub struct WantsBuild {
 }
 
 impl ConfigBuilder<WantsBuild> {
+    /// Create an instance of [ServerConfig]
+    ///
+    /// The method ensure that the instance is valid for the execution of the program,
+    /// and no further verification are required
     pub fn build(mut self) -> anyhow::Result<ServerConfig> {
-        let server_domain = &self
-            .state
-            .parent
-            .parent
-            .parent
-            .parent
-            .parent
-            .parent
-            .server
-            .domain;
+        if self.state.parent.rules.logs.file
+            == self.state.parent.parent.parent.parent.parent.logs.file
+        {
+            anyhow::bail!(
+                "rules and application logs cannot both be written in '{}' !",
+                self.state.parent.rules.logs.file.display()
+            );
+        }
+        let server = &self.state.parent.parent.parent.parent.parent.parent.server;
+
         let default_values = Codes::default();
 
         let mut reply_codes = self.state.reply_codes.codes;
@@ -369,7 +484,7 @@ impl ConfigBuilder<WantsBuild> {
                     Some(v) => v,
                     None => default_values.get(&i),
                 }
-                .replace("{domain}", server_domain),
+                .replace("{domain}", &server.domain),
             );
         }
         self.state.reply_codes.codes = reply_codes;
@@ -380,14 +495,14 @@ impl ConfigBuilder<WantsBuild> {
                 .to_str()
                 .unwrap()
                 .replace("{capath}", smtps.capath.to_str().unwrap())
-                .replace("{domain}", server_domain)
+                .replace("{domain}", &server.domain)
                 .into();
             smtps.private_key = smtps
                 .private_key
                 .to_str()
                 .unwrap()
                 .replace("{capath}", smtps.capath.to_str().unwrap())
-                .replace("{domain}", server_domain)
+                .replace("{domain}", &server.domain)
                 .into();
 
             if let Some(sni_maps) = &mut smtps.sni_maps {
@@ -414,7 +529,22 @@ impl ConfigBuilder<WantsBuild> {
             }
         };
 
+        users::get_user_by_name(&server.vsmtp_user)
+            .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", server.vsmtp_user))?;
+        users::get_group_by_name(&server.vsmtp_group)
+            .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", server.vsmtp_group))?;
+
         Ok(ServerConfig {
+            version_requirement: self
+                .state
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .parent
+                .version_requirement,
             server: self.state.parent.parent.parent.parent.parent.parent.server,
             log: self.state.parent.parent.parent.parent.parent.logs,
             smtps: self.state.parent.parent.parent.parent.smtps,

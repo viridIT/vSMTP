@@ -21,11 +21,9 @@ use criterion::{
 };
 use vsmtp::{
     config::server_config::ServerConfig,
-    mime::mail::BodyType,
     receiver::test_helpers::test_receiver,
-    resolver::Resolver,
-    rules::address::Address,
-    smtp::mail::{Body, MailContext},
+    resolver::{MailContext, Resolver},
+    Address, Body, BodyType,
 };
 
 #[derive(Clone)]
@@ -41,12 +39,14 @@ impl Resolver for DefaultResolverTest {
 fn get_test_config() -> std::sync::Arc<ServerConfig> {
     std::sync::Arc::new(
         ServerConfig::builder()
-            .with_rfc_port("bench.server.com", "foo", "foo", None)
+            .with_version_str("<1.0.0")
+            .unwrap()
+            .with_rfc_port("bench.server.com", "root", "root", None)
             .without_log()
             .without_smtps()
             .with_default_smtp()
             .with_delivery("./tmp/bench", vsmtp::collection! {})
-            .with_rules("./tmp/no_rules", vec![])
+            .with_empty_rules()
             .with_default_reply_codes()
             .build()
             .unwrap(),
