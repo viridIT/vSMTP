@@ -1,3 +1,4 @@
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum RuleEngineError {
     Object,
@@ -7,7 +8,7 @@ pub enum RuleEngineError {
 }
 
 impl RuleEngineError {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             RuleEngineError::Object => {
                 r#"failed to parse an object.

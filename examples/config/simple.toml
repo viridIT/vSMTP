@@ -2,14 +2,11 @@ version_requirement = "<1.0.0"
 
 [server]
 domain = "testserver.com"
-vsmtp_user = "vsmtp"
-vsmtp_group = "vsmtp"
+vsmtp_user = "root"
+vsmtp_group = "root"
 
 [logs.level]
 default = "warn"
-
-[rules]
-dir = "/etc/vsmtp/rules"
 
 [delivery]
 spool_dir = "/var/spool/vsmtp"

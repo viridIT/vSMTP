@@ -25,9 +25,10 @@ use crate::{
 
 #[test]
 fn test_email_context() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re = RuleEngine::new("./src/rules/tests/email".into()).expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/main.vsl".into()))
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
@@ -43,10 +44,10 @@ fn test_email_context() {
 
 #[test]
 fn test_email_bcc() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/email/bcc".into()).expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/bcc/main.vsl".into()))
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
@@ -54,9 +55,9 @@ fn test_email_bcc() {
 
 #[test]
 fn test_email_add_header() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re = RuleEngine::new("./src/rules/tests/email/add_header".into())
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/add_header/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -73,13 +74,13 @@ fn test_email_add_header() {
 
 #[test]
 fn test_context_write() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
     std::fs::DirBuilder::new()
         .recursive(true)
         .create("./tests/generated")
         .unwrap();
 
-    let re = RuleEngine::new("./src/rules/tests/email/write".into())
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/write/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
@@ -121,14 +122,14 @@ This is a raw email.
 
 #[test]
 fn test_context_dump() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
     std::fs::DirBuilder::new()
         .recursive(true)
         .create("./tests/generated")
         .unwrap();
 
-    let re =
-        RuleEngine::new("./src/rules/tests/email/dump".into()).expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some("./src/rules/tests/email/dump/main.vsl".into()))
+        .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {

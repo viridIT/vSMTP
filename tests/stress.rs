@@ -16,8 +16,8 @@
 **/
 use vsmtp::{
     config::{get_logger_config, server_config::ServerConfig},
+    resolver::{MailContext, Resolver},
     server::ServerVSMTP,
-    smtp::mail::MailContext,
 };
 
 const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
@@ -84,7 +84,7 @@ async fn send_payload() {
 struct Nothing;
 
 #[async_trait::async_trait]
-impl vsmtp::resolver::Resolver for Nothing {
+impl Resolver for Nothing {
     async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
         Ok(())
     }
@@ -98,8 +98,8 @@ async fn stress() {
         .unwrap()
         .with_server(
             "stress.server.com",
-            "foo",
-            "foo",
+            "root",
+            "root",
             "0.0.0.0:10027".parse().expect("valid address"),
             "0.0.0.0:10589".parse().expect("valid address"),
             "0.0.0.0:10467".parse().expect("valid address"),
@@ -117,7 +117,7 @@ async fn stress() {
         .build()
         .unwrap();
 
-    log4rs::init_config(get_logger_config(&config).unwrap()).unwrap();
+    log4rs::init_config(get_logger_config(&config, true).unwrap()).unwrap();
 
     let sockets = (
         std::net::TcpListener::bind(config.server.addr).unwrap(),

@@ -21,6 +21,8 @@
     Hash,
     Copy,
     Clone,
+    Ord,
+    PartialOrd,
     enum_iterator::IntoEnumIterator,
     serde::Deserialize,
     serde::Serialize,
@@ -28,6 +30,7 @@
 #[serde(untagged)]
 #[serde(into = "String")]
 #[serde(try_from = "String")]
+#[allow(clippy::module_name_repetitions)]
 pub enum StateSMTP {
     Connect,
     Helo,
@@ -53,11 +56,12 @@ impl std::fmt::Display for StateSMTP {
 }
 
 impl From<StateSMTP> for String {
-    fn from(state: StateSMTP) -> String {
+    fn from(state: StateSMTP) -> Self {
         format!("{}", state)
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, PartialEq, Eq)]
 pub struct StateSMTPFromStrError;
 
@@ -72,13 +76,13 @@ impl std::str::FromStr for StateSMTP {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Connect" => Ok(StateSMTP::Connect),
-            "Helo" => Ok(StateSMTP::Helo),
-            "MailFrom" => Ok(StateSMTP::MailFrom),
-            "NegotiationTLS" => Ok(StateSMTP::NegotiationTLS),
-            "RcptTo" => Ok(StateSMTP::RcptTo),
-            "Data" => Ok(StateSMTP::Data),
-            "Stop" => Ok(StateSMTP::Stop),
+            "Connect" => Ok(Self::Connect),
+            "Helo" => Ok(Self::Helo),
+            "MailFrom" => Ok(Self::MailFrom),
+            "NegotiationTLS" => Ok(Self::NegotiationTLS),
+            "RcptTo" => Ok(Self::RcptTo),
+            "Data" => Ok(Self::Data),
+            "Stop" => Ok(Self::Stop),
             _ => Err(StateSMTPFromStrError),
         }
     }
@@ -88,7 +92,7 @@ impl TryFrom<String> for StateSMTP {
     type Error = StateSMTPFromStrError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        <StateSMTP as std::str::FromStr>::from_str(&value)
+        <Self as std::str::FromStr>::from_str(&value)
     }
 }
 
@@ -101,7 +105,7 @@ mod tests {
     #[test]
     fn error() {
         assert_eq!(
-            format!("{}", StateSMTP::from_str("foo").unwrap_err()),
+            format!("{}", StateSMTP::from_str("root").unwrap_err()),
             "StateSMTPFromStrError"
         );
     }

@@ -21,10 +21,12 @@ use crate::rules::{
 
 #[test]
 fn test_engine_errors() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re = RuleEngine::new("./src/rules/tests/engine/error_handling".into())
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(
+        "./src/rules/tests/engine/error_handling/main.vsl".into(),
+    ))
+    .expect("couldn't build rule engine");
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
@@ -35,9 +37,9 @@ fn test_engine_errors() {
 
 #[test]
 fn test_engine_rules_syntax() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
-    let re = RuleEngine::new("./src/rules/tests/engine/syntax".into())
+    let re = RuleEngine::new(&Some("./src/rules/tests/engine/syntax/main.vsl".into()))
         .expect("couldn't build rule engine");
     let mut state = get_default_state();
 

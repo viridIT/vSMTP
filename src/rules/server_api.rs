@@ -14,12 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-mod error;
-mod helpers;
-pub mod mail;
-#[allow(clippy::module_name_repetitions)]
-pub mod mime_type;
-pub mod parser;
+use crate::config::server_config::ServerConfig;
 
-#[cfg(test)]
-pub mod tests;
+/// the frontend available in the rule engine to interact with the server.
+#[derive(Debug, Clone)]
+pub struct ServerAPI {
+    pub config: ServerConfig,
+    pub resolver: String,
+}

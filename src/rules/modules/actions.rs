@@ -14,31 +14,40 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use rhai::plugin::*;
+use rhai::plugin::{
+    export_module, mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module,
+    NativeCallContext, PluginFunction, Position, RhaiResult, TypeId,
+};
 
 #[allow(dead_code)]
 #[export_module]
 pub mod actions {
 
     use crate::{
-        config::{log_channel::URULES, server_config::Service},
-        rules::{rule_engine::Status, service::ServiceResult},
-        smtp::mail::MailContext,
+        config::log_channel::URULES,
+        config::service::{Service, ServiceResult},
+        resolver::MailContext,
+        rules::{
+            address::Address, modules::mail_context::mail_context::message_id,
+            modules::EngineResult, obj::Object, rule_engine::Status, server_api::ServerAPI,
+        },
+        smtp::mail::Body,
     };
+    use std::io::Write;
 
-    pub fn faccept() -> Status {
+    pub const fn faccept() -> Status {
         Status::Faccept
     }
 
-    pub fn accept() -> Status {
+    pub const fn accept() -> Status {
         Status::Accept
     }
 
-    pub fn next() -> Status {
+    pub const fn next() -> Status {
         Status::Next
     }
 
-    pub fn deny() -> Status {
+    pub const fn deny() -> Status {
         Status::Deny
     }
 
@@ -78,7 +87,7 @@ pub mod actions {
             })?),
             to.into_iter()
                 // NOTE: address that couldn't be converted will be silently dropped.
-                .flat_map(|rcpt| {
+                .filter_map(|rcpt| {
                     rcpt.try_cast::<String>()
                         .and_then(|s| s.parse::<lettre::Address>().map(Some).unwrap_or(None))
                 })
@@ -104,17 +113,25 @@ pub mod actions {
 
     // TODO: use UsersCache to optimize user lookup.
     /// use the user cache to check if a user exists on the system.
-    pub(crate) fn user_exist(name: &str) -> bool {
+    pub fn user_exist(name: &str) -> bool {
         users::get_user_by_name(name).is_some()
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
-    pub fn run(
-        services: &mut std::sync::Arc<Vec<Service>>,
-        service_name: &str,
+    pub fn run_service(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
         ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> Result<ServiceResult, Box<EvalAltResult>> {
-        services
+        service_name: &str,
+    ) -> EngineResult<ServiceResult> {
+        let server = this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+        server
+            .config
+            .rules
+            .services
             .iter()
             .find(|s| match s {
                 Service::UnixShell { name, .. } => name == service_name,
@@ -122,7 +139,358 @@ pub mod actions {
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
                 format!("No service in config named: '{service_name}'").into()
             })?
-            .run(ctx)
+            .run(
+                &*ctx
+                    .read()
+                    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
+            )
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
+    }
+
+    #[rhai_fn(global, return_raw)]
+    pub fn rewrite_mail_from(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        addr: &str,
+    ) -> EngineResult<()> {
+        let addr = Address::new(addr).map_err::<Box<EvalAltResult>, _>(|_| {
+            format!(
+                "could not rewrite mail_from with '{}' because it is not valid address",
+                addr,
+            )
+            .into()
+        })?;
+
+        let email = &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+        email.envelop.mail_from = addr.clone();
+
+        match &mut email.body {
+            Body::Empty => Err("failed to rewrite mail_from: the email has not been received yet. Use this method in postq or later.".into()),
+            Body::Raw(_) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Body::Parsed(body) => {
+                body.rewrite_mail_from(addr.full());
+                Ok(())
+            },
+        }
+    }
+
+    #[rhai_fn(global, return_raw)]
+    pub fn rewrite_rcpt(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        index: &str,
+        addr: &str,
+    ) -> EngineResult<()> {
+        let index = Address::new(index).map_err::<Box<EvalAltResult>, _>(|_| {
+            format!(
+                "could not rewrite address '{}' because it is not valid address",
+                index,
+            )
+            .into()
+        })?;
+
+        let addr = Address::new(addr).map_err::<Box<EvalAltResult>, _>(|_| {
+            format!(
+                "could not rewrite address '{}' with '{}' because it is not valid address",
+                index, addr,
+            )
+            .into()
+        })?;
+
+        let email = &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+        email.envelop.rcpt.remove(&index);
+        email.envelop.rcpt.insert(addr.clone());
+
+        match &mut email.body {
+            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
+            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Body::Parsed(body) => {
+                body.rewrite_rcpt(index.full(), addr.full());
+                Ok(())
+            },
+        }
+    }
+
+    #[rhai_fn(global, return_raw)]
+    pub fn add_rcpt(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        let new_addr = Address::new(rcpt)
+            .map_err(|_| format!("'{}' could not be converted to a valid rcpt address", rcpt))?;
+
+        let email = &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+        email.envelop.rcpt.insert(new_addr.clone());
+
+        match &mut email.body {
+            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
+            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Body::Parsed(body) => {
+                body.add_rcpt(new_addr.full());
+                Ok(())
+            },
+        }
+    }
+
+    #[rhai_fn(global, return_raw)]
+    pub fn remove_rcpt(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        let addr = Address::new(rcpt)
+            .map_err(|_| format!("{} could not be converted to a valid rcpt address", rcpt))?;
+
+        let email = &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+        email.envelop.rcpt.remove(&addr);
+
+        match &mut email.body {
+            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
+            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Body::Parsed(body) => {
+                body.remove_rcpt(addr.full());
+                Ok(())
+            },
+        }
+    }
+
+    /// write the current email to a specified folder.
+    #[rhai_fn(global, return_raw)]
+    pub fn write(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        dir: &str,
+    ) -> EngineResult<()> {
+        match std::fs::OpenOptions::new().create(true).write(true).open(
+            std::path::PathBuf::from_iter([dir, &format!("{}.eml", message_id(this)?)]),
+        ) {
+            Ok(file) => {
+                let mut writer = std::io::LineWriter::new(file);
+
+                match &this
+                    .read()
+                    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                    .body
+                {
+                    Body::Empty => {
+                        return Err(
+                            "failed to write email: the body has not been received yet.".into()
+                        )
+                    }
+                    Body::Raw(raw) => writer.write_all(raw.as_bytes()),
+                    Body::Parsed(email) => writer.write_all(email.to_raw().as_bytes()),
+                }
+            }
+            .map_err(|err| format!("failed to write email at '{}': {:?}", dir, err).into()),
+            Err(err) => Err(format!("failed to write email at '{}': {:?}", dir, err).into()),
+        }
+    }
+
+    /// write the content of the current email in a json file.
+    /// NOTE: it would be great not having all those 'map_err'.
+    #[rhai_fn(global, return_raw)]
+    pub fn dump(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        dir: &str,
+    ) -> EngineResult<()> {
+        match std::fs::OpenOptions::new().create(true).write(true).open(
+            std::path::PathBuf::from_iter([dir, &format!("{}.dump.json", message_id(this)?)]),
+        ) {
+            Ok(mut file) => file
+                .write_all(
+                    serde_json::to_string_pretty(
+                        &*this
+                            .read()
+                            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
+                    )
+                    .map_err::<Box<EvalAltResult>, _>(|err| {
+                        format!("failed to dump email at '{}': {:?}", dir, err).into()
+                    })?
+                    .as_bytes(),
+                )
+                .map_err(|err| format!("failed to dump email at '{}': {:?}", dir, err).into()),
+            Err(err) => Err(format!("failed to dump email at '{}': {:?}", dir, err).into()),
+        }
+    }
+
+    // TODO: unfinished, queue parameter should point to a folder specified in toml config.
+    /// dump the current email into a quarantine queue, skipping delivery.
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, return_raw)]
+    pub fn quarantine(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
+        queue: &str,
+    ) -> EngineResult<()> {
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(queue)
+        {
+            Ok(mut file) => {
+                disable_delivery(this)?;
+
+                file.write_all(
+                    serde_json::to_string_pretty(&*ctx.read().map_err::<Box<EvalAltResult>, _>(
+                        |err| format!("failed to dump email: {err:?}").into(),
+                    )?)
+                    .map_err::<Box<EvalAltResult>, _>(|err| {
+                        format!("failed to dump email: {err:?}").into()
+                    })?
+                    .as_bytes(),
+                )
+                .map_err(|err| format!("failed to dump email: {err:?}").into())
+            }
+            Err(err) => Err(format!("failed to dump email: {err:?}").into()),
+        }
+    }
+
+    #[rhai_fn(global, return_raw)]
+    pub fn deliver(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        resolver: String,
+    ) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .resolver = resolver;
+
+        Ok(())
+    }
+
+    #[rhai_fn(global, return_raw)]
+    pub fn disable_delivery(
+        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    ) -> EngineResult<()> {
+        deliver(this, "none".to_string())
+    }
+
+    /// check if a given header exists in the top level headers.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn has_header(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        header: &str,
+    ) -> EngineResult<bool> {
+        Ok(
+            match &this
+                .read()
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                .body
+            {
+                Body::Empty => false,
+                Body::Raw(raw) => {
+                    let mut headers_end = 0;
+
+                    // getting headers from the raw email.
+                    for line in raw.lines() {
+                        let mut split = line.splitn(2, ':');
+                        match (split.next(), split.next()) {
+                            // adding one to the index because `\n` is striped using the Lines iterator.
+                            (Some(_), Some(_)) => headers_end += line.len() + 1,
+                            _ => break,
+                        }
+                    }
+
+                    raw[0..headers_end].contains(format!("{}: ", header).as_str())
+                }
+                Body::Parsed(email) => email.headers.iter().any(|(name, _)| header == name),
+            },
+        )
+    }
+
+    /// add a header to the raw or parsed email contained in ctx.
+    #[rhai_fn(global, return_raw)]
+    pub fn add_header(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        header: &str,
+        value: &str,
+    ) -> EngineResult<()> {
+        match &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+        {
+            Body::Empty => {
+                return Err(format!(
+                    "failed to add header '{}': the body has not been received yet.",
+                    header
+                )
+                .into())
+            }
+            Body::Raw(raw) => *raw = format!("{}: {}\n{}", header, value, raw),
+            Body::Parsed(email) => email.headers.push((header.to_string(), value.to_string())),
+        };
+
+        Ok(())
+    }
+
+    /// add a recipient to the list recipient using a raw string.
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_str(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        bcc: &str,
+    ) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(Address::new(bcc).map_err(|_| {
+                format!("'{}' could not be converted to a valid rcpt address", bcc)
+            })?);
+
+        Ok(())
+    }
+
+    /// add a recipient to the list recipient using an address.
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_addr(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        bcc: Address,
+    ) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(bcc);
+
+        Ok(())
+    }
+
+    /// add a recipient to the list recipient using an object.
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "bcc", return_raw)]
+    pub fn bcc_object(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        bcc: std::sync::Arc<Object>,
+    ) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .envelop
+            .rcpt
+            .insert(match &*bcc {
+                Object::Address(addr) => addr.clone(),
+                Object::Str(string) => Address::new(string.as_str()).map_err(|_| {
+                    format!(
+                        "'{}' could not be converted to a valid rcpt address",
+                        string
+                    )
+                })?,
+                other => {
+                    return Err(format!(
+                        "'{}' could not be converted to a valid rcpt address",
+                        other.to_string()
+                    )
+                    .into())
+                }
+            });
+
+        Ok(())
     }
 }

@@ -43,6 +43,7 @@ pub struct Transaction<'re> {
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub enum TransactionResult {
     Nothing,
     Mail(Box<MailContext>),
@@ -61,7 +62,7 @@ impl Transaction<'_> {
     fn parse_and_apply_and_get_reply<S: std::io::Read + std::io::Write>(
         &mut self,
         conn: &Connection<S>,
-        client_message: String,
+        client_message: &str,
     ) -> ProcessedEvent {
         log::trace!(target: RECEIVER, "buffer=\"{}\"", client_message);
 
@@ -69,15 +70,16 @@ impl Transaction<'_> {
             Event::parse_data
         } else {
             Event::parse_cmd
-        }(&client_message);
+        }(client_message);
 
         log::trace!(target: RECEIVER, "parsed=\"{:?}\"", command_or_code);
 
-        command_or_code
-            .map(|command| self.process_event(conn, command))
-            .unwrap_or_else(ProcessedEvent::Reply)
+        command_or_code.map_or_else(ProcessedEvent::Reply, |command| {
+            self.process_event(conn, command)
+        })
     }
 
+    #[allow(clippy::too_many_lines)]
     fn process_event<S: std::io::Read + std::io::Write>(
         &mut self,
         conn: &Connection<S>,
@@ -90,8 +92,8 @@ impl Transaction<'_> {
 
             (_, Event::RsetCmd) => {
                 {
-                    let ctx = self.rule_state.get_context();
-                    let mut ctx = ctx.write().unwrap();
+                    let state = self.rule_state.get_context();
+                    let mut ctx = state.write().unwrap();
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
@@ -170,7 +172,7 @@ impl Transaction<'_> {
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {
                 // TODO: store in envelop _body_bit_mime
-                self.set_mail_from(mail_from, conn);
+                self.set_mail_from(&mail_from, conn);
 
                 match self
                     .rule_engine
@@ -189,7 +191,7 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
-                self.set_rcpt_to(rcpt_to);
+                self.set_rcpt_to(&rcpt_to);
 
                 match self
                     .rule_engine
@@ -228,8 +230,8 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
-                let ctx = self.rule_state.get_context();
-                if let Body::Raw(body) = &mut ctx.write().unwrap().body {
+                let state = self.rule_state.get_context();
+                if let Body::Raw(body) = &mut state.write().unwrap().body {
                     body.push_str(&line);
                     body.push('\n');
                 }
@@ -237,11 +239,12 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                if let Status::Deny = self
+                if self
                     .rule_engine
                     .read()
                     .unwrap()
                     .run_when(&mut self.rule_state, "preq")
+                    == Status::Deny
                 {
                     return ProcessedEvent::ReplyChangeState(
                         StateSMTP::Stop,
@@ -249,8 +252,8 @@ impl Transaction<'_> {
                     );
                 }
 
-                let ctx = self.rule_state.get_context();
-                let mut ctx = ctx.write().unwrap();
+                let state = self.rule_state.get_context();
+                let mut ctx = state.write().unwrap();
 
                 // TODO: find a better way to propagate force accept.
                 // the "skipped" field is updated by the rule engine internal state,
@@ -264,6 +267,7 @@ impl Transaction<'_> {
                 }
 
                 let mut output = MailContext {
+                    connexion_timestamp: std::time::SystemTime::now(),
                     client_addr: ctx.client_addr,
                     envelop: Envelop::default(),
                     body: Body::Empty,
@@ -281,15 +285,16 @@ impl Transaction<'_> {
 
 impl Transaction<'_> {
     fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
-        self.rule_state.get_context().write().unwrap().client_addr = conn.client_addr;
+        let state = self.rule_state.get_context();
+        let ctx = &mut state.write().unwrap();
 
-        self.rule_state
-            .add_data("connection_timestamp", conn.timestamp);
+        ctx.client_addr = conn.client_addr;
+        ctx.connexion_timestamp = conn.timestamp;
     }
 
     fn set_helo(&mut self, helo: String) {
-        let ctx = self.rule_state.get_context();
-        let mut ctx = ctx.write().unwrap();
+        let state = self.rule_state.get_context();
+        let mut ctx = state.write().unwrap();
 
         ctx.body = Body::Empty;
         ctx.metadata = None;
@@ -300,17 +305,17 @@ impl Transaction<'_> {
         };
     }
 
-    fn set_mail_from<S>(&mut self, mail_from: String, conn: &Connection<'_, S>)
+    fn set_mail_from<S>(&mut self, mail_from: &str, conn: &Connection<'_, S>)
     where
         S: std::io::Write + std::io::Read,
     {
-        match Address::new(&mail_from) {
+        match Address::new(mail_from) {
             Err(_) => (),
             Ok(mail_from) => {
                 let now = std::time::SystemTime::now();
 
-                let ctx = self.rule_state.get_context();
-                let mut ctx = ctx.write().unwrap();
+                let state = self.rule_state.get_context();
+                let mut ctx = state.write().unwrap();
                 ctx.body = Body::Empty;
                 ctx.envelop.rcpt.clear();
                 ctx.envelop.mail_from = mail_from;
@@ -341,8 +346,8 @@ impl Transaction<'_> {
         }
     }
 
-    fn set_rcpt_to(&mut self, rcpt_to: String) {
-        match Address::new(&rcpt_to) {
+    fn set_rcpt_to(&mut self, rcpt_to: &str) {
+        match Address::new(rcpt_to) {
             Err(_) => (),
             Ok(rcpt_to) => {
                 self.rule_state
@@ -355,6 +360,16 @@ impl Transaction<'_> {
             }
         }
     }
+}
+
+fn get_timeout_for_state(
+    config: &std::sync::Arc<ServerConfig>,
+    state: StateSMTP,
+) -> std::time::Duration {
+    config.smtp.timeout_client.get(&state).map_or_else(
+        || std::time::Duration::from_millis(TIMEOUT_DEFAULT),
+        |t| t.alias,
+    )
 }
 
 impl Transaction<'_> {
@@ -376,14 +391,15 @@ impl Transaction<'_> {
         transaction.set_connect(conn);
 
         if let Some(helo) = helo_domain.as_ref().cloned() {
-            transaction.set_helo(helo)
+            transaction.set_helo(helo);
         }
 
-        if let Status::Deny = transaction
+        if transaction
             .rule_engine
             .read()
-            .unwrap()
+            .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
             .run_when(&mut transaction.rule_state, "connect")
+            == Status::Deny
         {
             anyhow::bail!(
                 "connection at '{}' has been denied when connecting.",
@@ -391,19 +407,7 @@ impl Transaction<'_> {
             )
         };
 
-        fn get_timeout_for_state(
-            config: &std::sync::Arc<ServerConfig>,
-            state: &StateSMTP,
-        ) -> std::time::Duration {
-            config
-                .smtp
-                .timeout_client
-                .get(state)
-                .map(|t| t.alias)
-                .unwrap_or_else(|| std::time::Duration::from_millis(TIMEOUT_DEFAULT))
-        }
-
-        let mut read_timeout = get_timeout_for_state(&conn.config, &transaction.state);
+        let mut read_timeout = get_timeout_for_state(&conn.config, transaction.state);
 
         while transaction.state != StateSMTP::Stop {
             if transaction.state == StateSMTP::NegotiationTLS {
@@ -411,7 +415,7 @@ impl Transaction<'_> {
             }
             match conn.read(read_timeout).await {
                 Ok(Ok(client_message)) => {
-                    match transaction.parse_and_apply_and_get_reply(conn, client_message) {
+                    match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
                         ProcessedEvent::Reply(reply_to_send) => {
                             conn.send_code(reply_to_send)?;
                         }
@@ -423,7 +427,7 @@ impl Transaction<'_> {
                                 new_state
                             );
                             transaction.state = new_state;
-                            read_timeout = get_timeout_for_state(&conn.config, &transaction.state);
+                            read_timeout = get_timeout_for_state(&conn.config, transaction.state);
                             conn.send_code(reply_to_send)?;
                         }
                         ProcessedEvent::TransactionCompleted(mail) => {

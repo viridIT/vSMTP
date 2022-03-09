@@ -49,8 +49,8 @@ impl MimeHeader {
     /// see https://datatracker.ietf.org/doc/html/rfc2045#page-14 for default content-type.
     /// see https://datatracker.ietf.org/doc/html/rfc2046#page-26 for digest multipart parent.
     pub fn get_mime_type<'a>(
-        headers: &'a [MimeHeader],
-        parent: Option<&'a [MimeHeader]>,
+        headers: &'a [Self],
+        parent: Option<&'a [Self]>,
     ) -> ParserResult<(&'a str, &'a str)> {
         match headers.iter().find(|h| h.name == "content-type") {
             Some(content_type) => {
@@ -78,34 +78,6 @@ impl MimeHeader {
 }
 
 impl ToString for MimeHeader {
-    /// ```
-    /// use vsmtp::mime::mime_type::MimeHeader;
-    ///
-    /// let input = MimeHeader {
-    ///     name: "Content-Type".to_string(),
-    ///     value: "text/plain".to_string(),
-    ///     args: std::collections::HashMap::from([
-    ///       ("charset".to_string(), "us-ascii".to_string()),
-    ///       ("another".to_string(), "argument".to_string()),
-    ///    ]),
-    /// };
-    ///
-    /// assert!(
-    ///     // arguments can be in any order.
-    ///     input.to_string() == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\"".to_string() ||
-    ///     input.to_string() == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\"".to_string()
-    /// );
-    ///
-    /// let input = MimeHeader {
-    ///     name: "Content-Type".to_string(),
-    ///     value: "application/foobar".to_string(),
-    ///     args: std::collections::HashMap::default(),
-    /// };
-    ///
-    /// assert_eq!(input.to_string(),
-    ///   "Content-Type: application/foobar".to_string()
-    /// );
-    /// ```
     fn to_string(&self) -> String {
         let args = self
             .args
@@ -142,7 +114,6 @@ impl MimeMultipart {
             self.parts
                 .iter()
                 .map(Mime::to_raw)
-                .map(|(headers, body)| format!("{}\n{}", headers, body))
                 .collect::<Vec<_>>()
                 .join(&format!("\n--{}\n", boundary)),
             if self.epilogue.is_empty() {
@@ -162,33 +133,74 @@ pub struct Mime {
 }
 
 impl Mime {
-    pub fn to_raw(&self) -> (String, String) {
-        (
-            self.headers
-                .iter()
-                .map(MimeHeader::to_string)
-                .collect::<Vec<_>>()
-                .join("\n"),
-            match &self.content {
-                MimeBodyType::Regular(regular) => regular.join("\n"),
-                MimeBodyType::Multipart(multipart) => {
-                    let boundary = self
-                        .headers
-                        .iter()
-                        .find(|header| header.args.get("boundary").is_some());
-                    multipart.to_raw(
-                        boundary
-                            .expect("multipart mime message is missing it's boundary argument.")
-                            .args
-                            .get("boundary")
-                            .unwrap(),
-                    )
-                }
-                MimeBodyType::Embedded(mail) => {
-                    let (headers, body) = mail.to_raw();
-                    format!("{}\n{}", headers, body)
-                }
-            },
-        )
+    /// get the original mime header section of the part.
+    pub fn raw_headers(&self) -> String {
+        self.headers
+            .iter()
+            .map(MimeHeader::to_string)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// get the original body section of the part.
+    pub fn raw_body(&self) -> String {
+        match &self.content {
+            MimeBodyType::Regular(regular) => regular.join("\n"),
+            MimeBodyType::Multipart(multipart) => {
+                let boundary = self
+                    .headers
+                    .iter()
+                    .find(|header| header.args.get("boundary").is_some());
+                multipart.to_raw(
+                    boundary
+                        .expect("multipart mime message is missing it's boundary argument.")
+                        .args
+                        .get("boundary")
+                        .unwrap(),
+                )
+            }
+            MimeBodyType::Embedded(mail) => mail.to_raw(),
+        }
+    }
+
+    /// return the original text representation of the mime part.
+    pub fn to_raw(&self) -> String {
+        format!("{}\n\n{}", self.raw_headers(), self.raw_body())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mime_type() {
+        let input = MimeHeader {
+            name: "Content-Type".to_string(),
+            value: "text/plain".to_string(),
+            args: std::collections::HashMap::from([
+                ("charset".to_string(), "us-ascii".to_string()),
+                ("another".to_string(), "argument".to_string()),
+            ]),
+        };
+
+        assert!(
+            // arguments can be in any order.
+            input.to_string()
+                == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\""
+                || input.to_string()
+                    == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\""
+        );
+
+        let input = MimeHeader {
+            name: "Content-Type".to_string(),
+            value: "application/foobar".to_string(),
+            args: std::collections::HashMap::default(),
+        };
+
+        assert_eq!(
+            input.to_string(),
+            "Content-Type: application/foobar".to_string()
+        );
     }
 }

@@ -41,7 +41,7 @@ async fn test_tls_tunneled(
     let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-        server_config.rules.dir.clone(),
+        &server_config.rules.main_filepath.clone(),
     )?));
 
     let server = tokio::spawn(async move {
@@ -60,7 +60,7 @@ async fn test_tls_tunneled(
             std::sync::Arc::new(delivery_sender),
         )
         .await
-        .unwrap()
+        .unwrap();
     });
 
     let mut root_store = rustls::RootCertStore::empty();
@@ -120,7 +120,7 @@ async fn simple() -> anyhow::Result<()> {
             ServerConfig::builder()
                 .with_version_str("<1.0.0")
                 .unwrap()
-                .with_rfc_port("testserver.com", "foo", "foo", None)
+                .with_rfc_port("testserver.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(
                     TlsSecurityLevel::Encrypt,
@@ -130,7 +130,7 @@ async fn simple() -> anyhow::Result<()> {
                 )
                 .with_default_smtp()
                 .with_delivery("./tmp/trash", crate::collection! {})
-                .with_rules("./tmp/no_rules", vec![])
+                .with_rules("./src/receiver/tests/main.vsl", vec![])
                 .with_default_reply_codes()
                 .build()
                 .unwrap(),
@@ -167,7 +167,7 @@ async fn sni() -> anyhow::Result<()> {
             ServerConfig::builder()
                 .with_version_str("<1.0.0")
                 .unwrap()
-                .with_rfc_port("testserver.com", "foo", "foo", None)
+                .with_rfc_port("testserver.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(
                     TlsSecurityLevel::Encrypt,
@@ -182,7 +182,7 @@ async fn sni() -> anyhow::Result<()> {
                 )
                 .with_default_smtp()
                 .with_delivery("./tmp/trash", crate::collection! {})
-                .with_rules("./tmp/no_rules", vec![])
+                .with_rules("./src/receiver/tests/main.vsl", vec![])
                 .with_default_reply_codes()
                 .build()
                 .unwrap(),

@@ -30,12 +30,14 @@ use crate::{
     smtp::mail::MailContext,
 };
 
+/// A type implementing Write+Read to emulate sockets
 pub struct Mock<'a, T: std::io::Write + std::io::Read> {
     read_cursor: T,
     write_cursor: std::io::Cursor<&'a mut Vec<u8>>,
 }
 
 impl<'a, T: std::io::Write + std::io::Read> Mock<'a, T> {
+    /// Create an new instance
     pub fn new(read: T, write: &'a mut Vec<u8>) -> Self {
         Self {
             read_cursor: read,
@@ -60,7 +62,7 @@ impl<T: std::io::Write + std::io::Read> std::io::Read for Mock<'_, T> {
     }
 }
 
-pub struct DefaultResolverTest;
+pub(crate) struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl Resolver for DefaultResolverTest {
@@ -74,6 +76,10 @@ impl Resolver for DefaultResolverTest {
 //       because their could be a lot of parameters to tweak for tests.
 //       (the connection kind for example)
 /// this function mocks all of the server's processes.
+///
+/// # Errors
+///
+/// # Panics
 pub async fn test_receiver<T>(
     address: &str,
     resolver: T,
@@ -87,20 +93,16 @@ where
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = anyhow::Context::context(
-        Connection::from_plain(
-            ConnectionKind::Opportunistic,
-            address.parse().unwrap(),
-            config.clone(),
-            &mut io,
-        ),
-        "failed to initialize connection",
-    )
-    .unwrap();
+    let mut conn = Connection::from_plain(
+        ConnectionKind::Opportunistic,
+        address.parse().unwrap(),
+        config.clone(),
+        &mut io,
+    );
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
         anyhow::Context::context(
-            RuleEngine::new(config.rules.dir.clone()),
+            RuleEngine::new(&config.rules.main_filepath.clone()),
             "failed to initialize the engine",
         )
         .unwrap(),
@@ -171,16 +173,17 @@ where
     Ok(())
 }
 
-pub fn get_regular_config() -> anyhow::Result<ServerConfig> {
+#[cfg(test)]
+pub(crate) fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_rfc_port("test.server.com", "foo", "foo", None)
+        .with_rfc_port("test.server.com", "root", "root", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()
         .with_delivery("./tmp/delivery", crate::collection! {})
-        .with_rules("./tmp/nothing", vec![])
+        .with_rules("./src/receiver/tests/main.vsl", vec![])
         .with_default_reply_codes()
         .build()
 }
@@ -191,7 +194,7 @@ pub mod logs {
 
     static INIT: Once = Once::new();
 
-    pub fn setup_logs() {
+    pub fn setup() {
         INIT.call_once(|| {
             let mut config = crate::receiver::test_helpers::get_regular_config()
                 .expect("failed to create config for logs");
@@ -205,7 +208,7 @@ pub mod logs {
                 std::path::PathBuf::from_iter([".", "tests", "generated", "rules.test.log"]);
 
             log4rs::init_config(
-                crate::config::get_logger_config(&config).expect("failed to init logs"),
+                crate::config::get_logger_config(&config, true).expect("failed to init logs"),
             )
             .expect("failed to init logs");
         });

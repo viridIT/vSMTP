@@ -19,6 +19,7 @@ mod error;
 pub mod modules;
 mod obj;
 pub mod rule_engine;
-mod service;
+mod server_api;
+
 #[cfg(test)]
 mod tests;

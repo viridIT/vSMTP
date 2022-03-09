@@ -2,8 +2,8 @@ version_requirement = "<1.0.0"
 
 [server]
 domain = "testserver.com"
-vsmtp_user = "vsmtp"
-vsmtp_group = "vsmtp"
+vsmtp_user = "root"
+vsmtp_group = "root"
 
 addr = "0.0.0.0:25"
 addr_submission = "0.0.0.0:587"
@@ -15,9 +15,6 @@ file = "/var/log/vsmtp/vsmtp.log"
 
 [logs.level]
 default = "warn"
-
-[rules]
-dir = "./config/rules"
 
 [smtps]
 security_level = "May"

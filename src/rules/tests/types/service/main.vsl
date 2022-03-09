@@ -1,8 +1,8 @@
 #{
     connect: [
-        rule "unknown_service" || {
+        rule "unknown service" || {
             try {
-                services.run("unknown", ctx);
+                srv.run_service(ctx, "unknown");
                 return vsl::deny();
             } catch (err) {
                 print(err);
@@ -10,8 +10,8 @@
             }
         },
 
-        rule "test_services" || {
-            let result = services.run("shell", ctx);
+        rule "test shell service" || {
+            let result = srv.run_service(ctx, "shell");
 
             print(`string: ${result.to_string()}`);
             print(`debug: ${result.to_debug()}`);
