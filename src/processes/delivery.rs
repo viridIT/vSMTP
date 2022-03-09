@@ -42,8 +42,8 @@ pub async fn start(
         config
             .delivery
             .queues
-            .get("deferred")
-            .and_then(|q| q.cron_period)
+            .deferred
+            .cron_period
             .unwrap_or_else(|| std::time::Duration::from_secs(10)),
     );
 
@@ -199,12 +199,7 @@ async fn handle_one_in_deferred_queue(
 
     let mut mail: MailContext = serde_json::from_str(&raw)?;
 
-    let max_retry_deferred = config
-        .delivery
-        .queues
-        .get("deferred")
-        .and_then(|q| q.retry_max)
-        .unwrap_or(100);
+    let max_retry_deferred = config.delivery.queues.deferred.retry_max.unwrap_or(100);
 
     if mail.metadata.is_none() {
         anyhow::bail!("email metadata is missing")

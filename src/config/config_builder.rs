@@ -18,10 +18,10 @@ use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
 
 use super::{
     server_config::{
-        Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerRulesConfig,
-        InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig, InnerSmtpsConfig,
-        InnerUserLogConfig, ProtocolVersion, ProtocolVersionRequirement, QueueConfig, ServerConfig,
-        SniKey, TlsSecurityLevel,
+        Codes, DurationAlias, InnerDeliveryConfig, InnerLogConfig, InnerQueuesConfig,
+        InnerRulesConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
+        InnerSmtpsConfig, InnerUserLogConfig, ProtocolVersion, ProtocolVersionRequirement,
+        ServerConfig, SniKey, TlsSecurityLevel,
     },
     service::Service,
 };
@@ -346,7 +346,22 @@ impl ConfigBuilder<WantsDelivery> {
     pub fn with_delivery(
         self,
         spool_dir: impl Into<std::path::PathBuf>,
-        queues: std::collections::BTreeMap<String, QueueConfig>,
+    ) -> ConfigBuilder<WantsRules> {
+        ConfigBuilder::<WantsRules> {
+            state: WantsRules {
+                parent: self.state,
+                delivery: InnerDeliveryConfig {
+                    spool_dir: spool_dir.into(),
+                    queues: InnerQueuesConfig::default(),
+                },
+            },
+        }
+    }
+
+    pub fn with_delivery_and_queues(
+        self,
+        spool_dir: impl Into<std::path::PathBuf>,
+        queues: InnerQueuesConfig,
     ) -> ConfigBuilder<WantsRules> {
         ConfigBuilder::<WantsRules> {
             state: WantsRules {

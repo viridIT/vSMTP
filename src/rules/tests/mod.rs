@@ -33,7 +33,7 @@ pub mod helpers {
             .without_log()
             .without_smtps()
             .with_default_smtp()
-            .with_delivery("./tmp/delivery", crate::collection! {})
+            .with_delivery("./tmp/delivery")
             .with_empty_rules()
             .with_default_reply_codes()
             .build()

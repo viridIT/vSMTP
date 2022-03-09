@@ -21,11 +21,25 @@ use vsmtp::{
     server::ServerVSMTP,
 };
 
+#[derive(Debug, serde::Deserialize)]
+struct StressConfig {
+    client_count_max: i64,
+}
+
+lazy_static::lazy_static! {
+    static ref STRESS_CONFIG: StressConfig = {
+         std::fs::read_to_string("./tests/stress/send_payload_config.json")
+            .map(|str| serde_json::from_str(&str)).unwrap().unwrap()
+    };
+}
+
 const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 #[ignore = "heavy work"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn listen_and_serve() {
+    println!("{:?}", *STRESS_CONFIG);
+
     let mut config = ServerConfig::builder()
         .with_version_str(">=0.9.0")
         .unwrap()
@@ -40,18 +54,21 @@ async fn listen_and_serve() {
         )
         .with_logging(
             "./tmp/tests/stress/output.log",
-            vsmtp::collection! {"default".to_string() => log::LevelFilter::Debug},
+            vsmtp::collection! {"default".to_string() => log::LevelFilter::Info},
         )
         .without_smtps()
         .with_default_smtp()
-        .with_delivery("./tmp/tests/stress/spool", vsmtp::collection! {})
+        .with_delivery("./tmp/tests/stress/spool")
         .with_empty_rules()
         .with_default_reply_codes()
         .build()
         .unwrap();
 
     config.rules.logs.file = "./tmp/tests/stress/app.log".into();
-    config.smtp.client_count_max = 3;
+    config.smtp.client_count_max = STRESS_CONFIG.client_count_max;
+    config.delivery.queues.working.capacity = 1;
+    config.delivery.queues.deliver.capacity = 1;
+    config.delivery.queues.deferred.capacity = 1;
 
     get_logger_config(&config, true)
         .context("Logs configuration contain error")

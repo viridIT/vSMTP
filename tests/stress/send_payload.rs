@@ -85,8 +85,8 @@ async fn run_one_connection(client_nb: u64) -> Result<(), u64> {
 }
 
 fn create_task(id: u64) -> tokio::task::JoinHandle<std::result::Result<(), u64>> {
-    let tracer = global::tracer("sending-payload");
-    let span = trace::Tracer::start(&tracer, "sending payload".to_string());
+    let tracer = global::tracer("register-task");
+    let span = trace::Tracer::start(&tracer, format!("Register Task: {id}"));
     let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
     tokio::spawn(trace::FutureExt::with_context(run_one_connection(id), cx))

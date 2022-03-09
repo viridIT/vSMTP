@@ -153,8 +153,7 @@ pub struct InnerSMTPErrorConfig {
 
 #[doc(hidden)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-#[serde(transparent)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, transparent)]
 pub struct DurationAlias {
     #[serde(with = "humantime_serde")]
     pub alias: std::time::Duration,
@@ -203,10 +202,23 @@ pub struct InnerRulesConfig {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct QueueConfig {
-    pub capacity: Option<usize>,
+    #[serde(default = "QueueConfig::default_capacity")]
+    pub capacity: usize,
     pub retry_max: Option<usize>,
     #[serde(with = "humantime_serde", default)]
     pub cron_period: Option<std::time::Duration>,
+}
+
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InnerQueuesConfig {
+    #[doc(hidden)]
+    pub working: QueueConfig,
+    #[doc(hidden)]
+    pub deliver: QueueConfig,
+    #[doc(hidden)]
+    pub deferred: QueueConfig,
 }
 
 /// vSMTP's system delivery configuration
@@ -216,13 +228,12 @@ pub struct InnerDeliveryConfig {
     /// path of the spool directory where the processing queues write the files
     pub spool_dir: std::path::PathBuf,
     #[doc(hidden)]
-    pub queues: std::collections::BTreeMap<String, QueueConfig>,
+    pub queues: InnerQueuesConfig,
 }
 
 /// the message sent to the client
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-#[serde(deny_unknown_fields)]
-#[serde(transparent)]
+#[serde(deny_unknown_fields, transparent)]
 pub struct Codes {
     /// key is the scenario, value is the message
     pub codes: std::collections::BTreeMap<SMTPReplyCode, String>,

@@ -86,6 +86,7 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
         Some(metadata) if metadata.resolver == "none" => {
             log::warn!("delivery skipped due to NO_DELIVERY action call.");
             conn.send_code(SMTPReplyCode::Code250)?;
+            Ok(())
         }
         Some(metadata) if metadata.skipped.is_some() => {
             log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
@@ -93,7 +94,7 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
                 Ok(_) => {
                     delivery_sender
                         .send(ProcessMessage {
-                            message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
+                            message_id: metadata.message_id.clone(),
                         })
                         .await?;
 
@@ -104,13 +105,14 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
                     conn.send_code(SMTPReplyCode::Code554)?;
                 }
             };
+            Ok(())
         }
-        _ => {
+        Some(metadata) => {
             match Queue::Working.write_to_queue(&conn.config, &mail) {
                 Ok(_) => {
                     working_sender
                         .send(ProcessMessage {
-                            message_id: mail.metadata.as_ref().unwrap().message_id.clone(),
+                            message_id: metadata.message_id.clone(),
                         })
                         .await?;
 
@@ -121,10 +123,10 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
                     conn.send_code(SMTPReplyCode::Code554)?;
                 }
             };
+            Ok(())
         }
-    };
-
-    Ok(())
+        _ => unreachable!(),
+    }
 }
 
 /// Receives the incomings mail of a connection

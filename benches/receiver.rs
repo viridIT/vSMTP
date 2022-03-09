@@ -45,7 +45,7 @@ fn get_test_config() -> std::sync::Arc<ServerConfig> {
             .without_log()
             .without_smtps()
             .with_default_smtp()
-            .with_delivery("./tmp/bench", vsmtp::collection! {})
+            .with_delivery("./tmp/bench")
             .with_empty_rules()
             .with_default_reply_codes()
             .build()
