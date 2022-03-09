@@ -62,8 +62,9 @@ impl PartialEq for Object {
             (Self::Fqdn(l0), Self::Fqdn(r0)) => l0 == r0,
             (Self::File(l0), Self::File(r0)) => l0 == r0,
             (Self::Group(l0), Self::Group(r0)) => l0 == r0,
-            (Self::Identifier(l0), Self::Identifier(r0)) => l0 == r0,
-            (Self::Str(l0), Self::Str(r0)) => l0 == r0,
+            (Self::Identifier(l0), Self::Identifier(r0)) | (Self::Str(l0), Self::Str(r0)) => {
+                l0 == r0
+            }
             _ => false,
         }
     }
@@ -100,49 +101,47 @@ impl Object {
     where
         S: std::fmt::Debug + FromStr + std::cmp::Ord + 'static,
     {
-        let t = Object::value::<S, String>(map, "type")?;
+        let t = Self::value::<S, String>(map, "type")?;
 
         match t.as_str() {
-            "ip4" => Ok(Object::Ip4(Ipv4Addr::from_str(
-                &Object::value::<S, String>(map, "value")?,
-            )?)),
+            "ip4" => Ok(Self::Ip4(Ipv4Addr::from_str(&Self::value::<S, String>(
+                map, "value",
+            )?)?)),
 
-            "ip6" => Ok(Object::Ip6(Ipv6Addr::from_str(
-                &Object::value::<S, String>(map, "value")?,
-            )?)),
+            "ip6" => Ok(Self::Ip6(Ipv6Addr::from_str(&Self::value::<S, String>(
+                map, "value",
+            )?)?)),
 
-            "rg4" => Ok(Object::Rg4(
-                [Object::value::<S, String>(map, "value")?.parse::<ipnet::Ipv4Net>()?]
+            "rg4" => Ok(Self::Rg4(
+                [Self::value::<S, String>(map, "value")?.parse::<ipnet::Ipv4Net>()?]
                     .into_iter()
                     .collect(),
             )),
 
-            "rg6" => Ok(Object::Rg6(
-                [Object::value::<S, String>(map, "value")?.parse::<ipnet::Ipv6Net>()?]
+            "rg6" => Ok(Self::Rg6(
+                [Self::value::<S, String>(map, "value")?.parse::<ipnet::Ipv6Net>()?]
                     .into_iter()
                     .collect(),
             )),
 
             "fqdn" => {
-                let value = Object::value::<S, String>(map, "value")?;
+                let value = Self::value::<S, String>(map, "value")?;
                 match addr::parse_domain_name(&value) {
-                    Ok(domain) => Ok(Object::Fqdn(domain.to_string())),
+                    Ok(domain) => Ok(Self::Fqdn(domain.to_string())),
                     Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                 }
             }
 
             "address" => {
-                let value = Object::value::<S, String>(map, "value")?;
-                Ok(Object::Address(Address::new(&value)?))
+                let value = Self::value::<S, String>(map, "value")?;
+                Ok(Self::Address(Address::new(&value)?))
             }
 
-            "ident" => Ok(Object::Identifier(Object::value::<S, String>(
-                map, "value",
-            )?)),
+            "ident" => Ok(Self::Identifier(Self::value::<S, String>(map, "value")?)),
 
-            "string" => Ok(Object::Str(Object::value::<S, String>(map, "value")?)),
+            "string" => Ok(Self::Str(Self::value::<S, String>(map, "value")?)),
 
-            "regex" => Ok(Object::Regex(regex::Regex::from_str(&Object::value::<
+            "regex" => Ok(Self::Regex(regex::Regex::from_str(&Self::value::<
                 S,
                 String,
             >(
@@ -151,43 +150,43 @@ impl Object {
 
             // the file object as an extra "content_type" parameter.
             "file" => {
-                let value = Object::value::<S, String>(map, "value")?;
-                let content_type = Object::value::<S, String>(map, "content_type")?;
+                let value = Self::value::<S, String>(map, "value")?;
+                let content_type = Self::value::<S, String>(map, "content_type")?;
                 let reader = BufReader::new(fs::File::open(&value)?);
                 let mut content = Vec::with_capacity(20);
 
                 for line in reader.lines() {
                     match line {
                         Ok(line) => match content_type.as_str() {
-                            "ip4" => content.push(Object::Ip4(Ipv4Addr::from_str(&line)?)),
-                            "ip6" => content.push(Object::Ip6(Ipv6Addr::from_str(&line)?)),
+                            "ip4" => content.push(Self::Ip4(Ipv4Addr::from_str(&line)?)),
+                            "ip6" => content.push(Self::Ip6(Ipv6Addr::from_str(&line)?)),
                             "fqdn" => match addr::parse_domain_name(&line) {
-                                Ok(domain) => content.push(Object::Fqdn(domain.to_string())),
+                                Ok(domain) => content.push(Self::Fqdn(domain.to_string())),
                                 Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                             },
-                            "address" => content.push(Object::Address(Address::new(&line)?)),
-                            "string" => content.push(Object::Str(line)),
-                            "ident" => content.push(Object::Identifier(line)),
-                            "regex" => content.push(Object::Regex(regex::Regex::from_str(&line)?)),
+                            "address" => content.push(Self::Address(Address::new(&line)?)),
+                            "string" => content.push(Self::Str(line)),
+                            "ident" => content.push(Self::Identifier(line)),
+                            "regex" => content.push(Self::Regex(regex::Regex::from_str(&line)?)),
                             _ => {}
                         },
                         Err(error) => log::error!("couldn't read line in '{}': {}", value, error),
                     };
                 }
 
-                Ok(Object::File(content))
+                Ok(Self::File(content))
             }
 
             "group" => {
                 let mut group = vec![];
-                let elements = Object::value::<S, rhai::Array>(map, "value")?;
-                let name = Object::value::<S, String>(map, "name")?;
+                let elements = Self::value::<S, rhai::Array>(map, "value")?;
+                let name = Self::value::<S, String>(map, "name")?;
 
-                for element in elements.iter() {
+                for element in elements {
                     group.push(
                         element
                             .clone()
-                            .try_cast::<std::sync::Arc<Object>>()
+                            .try_cast::<std::sync::Arc<Self>>()
                             .ok_or_else(|| {
                                 anyhow::anyhow!(
                                     "the element '{:?}' inside the '{}' group is not an object",
@@ -198,7 +197,7 @@ impl Object {
                     );
                 }
 
-                Ok(Object::Group(group))
+                Ok(Self::Group(group))
             }
 
             _ => anyhow::bail!("'{}' is an unknown object type.", t),
@@ -218,8 +217,7 @@ impl ToString for Object {
             Object::Regex(regex) => regex.to_string(),
             Object::File(file) => format!("{file:?}"),
             Object::Group(group) => format!("{group:?}"),
-            Object::Identifier(string) => string.clone(),
-            Object::Str(string) => string.clone(),
+            Object::Identifier(string) | Object::Str(string) => string.clone(),
         }
     }
 }

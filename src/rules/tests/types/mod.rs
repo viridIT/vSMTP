@@ -26,7 +26,7 @@ use crate::{
 
 #[test]
 fn test_status() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/types/status/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -37,7 +37,7 @@ fn test_status() {
 
 #[test]
 fn test_time() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/types/time/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -50,7 +50,7 @@ fn test_time() {
 
 #[test]
 fn test_socket() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/types/socket/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -67,7 +67,7 @@ fn test_socket() {
 
 #[test]
 fn test_address() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/types/address/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -81,7 +81,7 @@ fn test_address() {
 
 #[test]
 fn test_objects() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/types/objects/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -92,7 +92,7 @@ fn test_objects() {
 
 #[test]
 fn test_services() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/types/service/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -100,7 +100,7 @@ fn test_services() {
     let config = ServerConfig::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_rfc_port("test.server.com", "foo", "foo", None)
+        .with_rfc_port("test.server.com", "root", "root", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()

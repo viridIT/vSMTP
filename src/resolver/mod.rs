@@ -17,12 +17,15 @@
 pub use crate::{config::server_config::ServerConfig, smtp::mail::MailContext};
 
 /// Protocol Maildir
+#[allow(clippy::module_name_repetitions)]
 pub mod maildir_resolver;
 
 /// Protocol Mailbox
+#[allow(clippy::module_name_repetitions)]
 pub mod mbox_resolver;
 
 /// Mail relaying
+#[allow(clippy::module_name_repetitions)]
 pub mod smtp_resolver;
 
 /// A trait allowing the [ServerVSMTP] to deliver a mail
@@ -41,10 +44,10 @@ fn get_default_context() -> MailContext {
             std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
             0,
         ),
-        envelop: Default::default(),
+        envelop: crate::smtp::envelop::Envelop::default(),
         metadata: Some(crate::smtp::mail::MessageMetadata {
             timestamp: std::time::SystemTime::now(),
-            ..Default::default()
+            ..crate::smtp::mail::MessageMetadata::default()
         }),
     }
 }

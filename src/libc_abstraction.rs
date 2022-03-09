@@ -6,7 +6,11 @@ pub enum ForkResult {
     Child,
 }
 
-/// create a child process, see fork(2)
+/// create a child process
+///
+/// # Errors
+///
+/// see fork(2) ERRORS
 #[inline]
 pub fn fork() -> anyhow::Result<ForkResult> {
     match unsafe { libc::fork() } {
@@ -20,6 +24,10 @@ pub fn fork() -> anyhow::Result<ForkResult> {
 }
 
 /// run a program as a background process
+///
+/// # Errors
+///
+/// see daemon(2) ERRORS
 pub fn daemon() -> anyhow::Result<ForkResult> {
     match fork()? {
         ForkResult::Parent(_) => std::process::exit(0),
@@ -30,7 +38,11 @@ pub fn daemon() -> anyhow::Result<ForkResult> {
     }
 }
 
-/// run a program in a new session, see setsid(2)
+/// run a program in a new session
+///
+/// # Errors
+///
+/// see setsid(2) ERRORS
 pub fn setsid() -> anyhow::Result<libc::pid_t> {
     match unsafe { libc::setsid() } {
         -1 => Err(anyhow::anyhow!(
@@ -41,7 +53,11 @@ pub fn setsid() -> anyhow::Result<libc::pid_t> {
     }
 }
 
-/// set user identity, see setuid(2)
+/// set user identity
+///
+/// # Errors
+///
+/// see setuid(2) ERRORS
 #[inline]
 pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
     match unsafe { libc::setuid(uid) } {
@@ -53,7 +69,11 @@ pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
     }
 }
 
-/// set group identity, see setgid(2)
+/// set group identity
+///
+/// # Errors
+///
+/// see setgid(2) ERRORS
 #[inline]
 pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
     match unsafe { libc::setgid(gid) } {
@@ -65,7 +85,12 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
     }
 }
 
-/// sets user & group rights to the given file / folder.
+/// change ownership of a file
+///
+/// # Errors
+///
+/// * `path` cannot be convert to CString
+/// * see chown(2) ERRORS
 pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<()> {
     // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
     //       to a CString because it is platform independent.
@@ -79,8 +104,9 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
         )
     } {
         0 => Ok(()),
-        _ => Err(anyhow::anyhow!(
-            "failed to change file owner: '{}'",
+        otherwise => Err(anyhow::anyhow!(
+            "failed to change file owner: ({}) '{}'",
+            otherwise,
             std::io::Error::last_os_error()
         )),
     }

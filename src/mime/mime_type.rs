@@ -49,8 +49,8 @@ impl MimeHeader {
     /// see https://datatracker.ietf.org/doc/html/rfc2045#page-14 for default content-type.
     /// see https://datatracker.ietf.org/doc/html/rfc2046#page-26 for digest multipart parent.
     pub fn get_mime_type<'a>(
-        headers: &'a [MimeHeader],
-        parent: Option<&'a [MimeHeader]>,
+        headers: &'a [Self],
+        parent: Option<&'a [Self]>,
     ) -> ParserResult<(&'a str, &'a str)> {
         match headers.iter().find(|h| h.name == "content-type") {
             Some(content_type) => {

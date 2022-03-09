@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use rhai::plugin::*;
+use rhai::plugin::{
+    export_module, Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext,
+    PluginFunction, Position, RhaiResult, TypeId,
+};
 
 #[allow(dead_code)]
 #[export_module]

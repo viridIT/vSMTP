@@ -15,7 +15,7 @@ fn get_regular_config() -> anyhow::Result<ServerConfig> {
     ServerConfig::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_rfc_port("test.server.com", "foo", "foo", None)
+        .with_rfc_port("test.server.com", "root", "root", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()
@@ -67,7 +67,7 @@ async fn test_starttls(
             std::sync::Arc::new(delivery_sender),
         )
         .await
-        .unwrap()
+        .unwrap();
     });
 
     let mut root_store = rustls::RootCertStore::empty();
@@ -160,7 +160,7 @@ async fn simple() -> anyhow::Result<()> {
             ServerConfig::builder()
                 .with_version_str("<1.0.0")
                 .unwrap()
-                .with_rfc_port("testserver.com", "foo", "foo", None)
+                .with_rfc_port("testserver.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(
                     TlsSecurityLevel::May,
@@ -297,7 +297,7 @@ async fn test_receiver_8() -> anyhow::Result<()> {
             ServerConfig::builder()
                 .with_version_str("<1.0.0")
                 .unwrap()
-                .with_rfc_port("test.server.com", "foo", "foo", None)
+                .with_rfc_port("test.server.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
                 .with_default_smtp()

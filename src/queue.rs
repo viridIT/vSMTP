@@ -32,7 +32,7 @@ pub enum Queue {
 }
 
 impl Queue {
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Queue::Working => "working",
             Queue::Deliver => "deliver",

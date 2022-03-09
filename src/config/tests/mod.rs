@@ -18,7 +18,7 @@ fn simple() {
         ServerConfig::builder()
             .with_version_str("<1.0.0")
             .unwrap()
-            .with_rfc_port("testserver.com", "vsmtp", "vsmtp", None)
+            .with_rfc_port("testserver.com", "root", "root", None)
             .with_logging(
                 "/var/log/vsmtp/app.log",
                 collection! {
@@ -63,8 +63,8 @@ fn smtps() {
             .unwrap()
             .with_server(
                 "testserver.com",
-                "vsmtp",
-                "vsmtp",
+                "root",
+                "root",
                 "0.0.0.0:25".parse().expect("valid address"),
                 "0.0.0.0:587".parse().expect("valid address"),
                 "0.0.0.0:465".parse().expect("valid address"),
@@ -126,7 +126,7 @@ fn services() {
         ServerConfig::builder()
             .with_version_str("<1.0.0")
             .unwrap()
-            .with_rfc_port("testserver.com", "vsmtp", "vsmtp", None)
+            .with_rfc_port("testserver.com", "root", "root", None)
             .with_logging(
                 "/var/log/vsmtp/app.log",
                 collection! {
@@ -199,6 +199,7 @@ fn services() {
     );
 }
 
+#[allow(clippy::too_many_lines)]
 #[test]
 fn complete() {
     assert_eq!(
@@ -208,8 +209,8 @@ fn complete() {
             .unwrap()
             .with_server(
                 "testserver.com",
-                "vsmtp",
-                "vsmtp",
+                "root",
+                "root",
                 "0.0.0.0:10025".parse().unwrap(),
                 "0.0.0.0:10587".parse().unwrap(),
                 "0.0.0.0:10465".parse().unwrap(),
@@ -309,5 +310,5 @@ fn complete() {
             })
             .build()
             .unwrap()
-    )
+    );
 }

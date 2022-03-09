@@ -12,7 +12,7 @@ pub(super) fn remove_comments(line: &str) -> anyhow::Result<String> {
                 if elem == '(' {
                     return (depth + 1, false, output);
                 } else if elem == ')' {
-                    return (depth - (depth > 0) as i32, false, output);
+                    return (depth - i32::from(depth > 0), false, output);
                 }
             }
 
@@ -26,9 +26,8 @@ pub(super) fn remove_comments(line: &str) -> anyhow::Result<String> {
 
     if depth != 0 || is_escaped {
         anyhow::bail!("something went wrong")
-    } else {
-        Ok(output)
     }
+    Ok(output)
 }
 
 /// read the current line or folded content and extracts a header if there is any.

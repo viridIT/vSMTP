@@ -21,7 +21,7 @@ use crate::rules::{
 
 #[test]
 fn test_logs() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/actions/logs/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -32,7 +32,7 @@ fn test_logs() {
 
 #[test]
 fn test_users() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/actions/users/main.vsl".into()))
         .expect("couldn't build rule engine");
@@ -43,7 +43,7 @@ fn test_users() {
 
 #[test]
 fn test_send_mail() {
-    crate::receiver::test_helpers::logs::setup_logs();
+    crate::receiver::test_helpers::logs::setup();
 
     let re = RuleEngine::new(&Some("./src/rules/tests/actions/send_mail/main.vsl".into()))
         .expect("couldn't build rule engine");

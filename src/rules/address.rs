@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub struct AddressParsingError(String);
 
@@ -75,6 +76,10 @@ impl std::fmt::Display for Address {
 
 impl Address {
     /// Create a new address from a string, fail is invalid
+    ///
+    /// # Errors
+    ///
+    /// * addr is not rfc compliant
     pub fn new(addr: &str) -> Result<Self, AddressParsingError> {
         match addr::parse_email_address(addr) {
             Ok(addr) => Ok(Self {
@@ -91,16 +96,19 @@ impl Address {
     }
 
     /// get the full email address.
+    #[must_use]
     pub fn full(&self) -> &str {
         &self.full
     }
 
     /// get the user of the address.
+    #[must_use]
     pub fn local_part(&self) -> &str {
         &self.full[..self.at_sign]
     }
 
     /// get the fqdn of the address.
+    #[must_use]
     pub fn domain(&self) -> &str {
         &self.full[self.at_sign + 1..]
     }

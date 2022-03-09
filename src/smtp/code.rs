@@ -39,7 +39,7 @@
 /// x5z  Mail system: These replies indicate the status of the receiver
 /// mail system vis-a-vis the requested transfer or other mail system
 /// action.
-
+#[allow(clippy::module_name_repetitions)]
 #[derive(
     Debug,
     Ord,
@@ -50,8 +50,8 @@
     Copy,
     Clone,
     enum_iterator::IntoEnumIterator,
-    serde:: Serialize,
-    serde:: Deserialize,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 #[serde(untagged)]
 #[serde(into = "String")]
@@ -132,7 +132,7 @@ pub enum SMTPReplyCode {
 }
 
 impl SMTPReplyCode {
-    pub(crate) fn is_error(&self) -> bool {
+    pub(crate) fn is_error(self) -> bool {
         match self {
             SMTPReplyCode::Code214
             | SMTPReplyCode::Code220
@@ -210,28 +210,28 @@ impl std::str::FromStr for SMTPReplyCode {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Code214" => Ok(SMTPReplyCode::Code214),
-            "Code220" => Ok(SMTPReplyCode::Code220),
-            "Code221" => Ok(SMTPReplyCode::Code221),
-            "Code250" => Ok(SMTPReplyCode::Code250),
-            "Code250PlainEsmtp" => Ok(SMTPReplyCode::Code250PlainEsmtp),
-            "Code250SecuredEsmtp" => Ok(SMTPReplyCode::Code250SecuredEsmtp),
-            "Code354" => Ok(SMTPReplyCode::Code354),
-            "Code451" => Ok(SMTPReplyCode::Code451),
-            "Code451Timeout" => Ok(SMTPReplyCode::Code451Timeout),
-            "Code451TooManyError" => Ok(SMTPReplyCode::Code451TooManyError),
-            "Code452" => Ok(SMTPReplyCode::Code452),
-            "Code452TooManyRecipients" => Ok(SMTPReplyCode::Code452TooManyRecipients),
-            "Code454" => Ok(SMTPReplyCode::Code454),
-            "Code500" => Ok(SMTPReplyCode::Code500),
-            "Code501" => Ok(SMTPReplyCode::Code501),
-            "Code502unimplemented" => Ok(SMTPReplyCode::Code502unimplemented),
-            "Code503" => Ok(SMTPReplyCode::Code503),
-            "Code504" => Ok(SMTPReplyCode::Code504),
-            "Code530" => Ok(SMTPReplyCode::Code530),
-            "Code554" => Ok(SMTPReplyCode::Code554),
-            "Code554tls" => Ok(SMTPReplyCode::Code554tls),
-            "ConnectionMaxReached" => Ok(SMTPReplyCode::ConnectionMaxReached),
+            "Code214" => Ok(Self::Code214),
+            "Code220" => Ok(Self::Code220),
+            "Code221" => Ok(Self::Code221),
+            "Code250" => Ok(Self::Code250),
+            "Code250PlainEsmtp" => Ok(Self::Code250PlainEsmtp),
+            "Code250SecuredEsmtp" => Ok(Self::Code250SecuredEsmtp),
+            "Code354" => Ok(Self::Code354),
+            "Code451" => Ok(Self::Code451),
+            "Code451Timeout" => Ok(Self::Code451Timeout),
+            "Code451TooManyError" => Ok(Self::Code451TooManyError),
+            "Code452" => Ok(Self::Code452),
+            "Code452TooManyRecipients" => Ok(Self::Code452TooManyRecipients),
+            "Code454" => Ok(Self::Code454),
+            "Code500" => Ok(Self::Code500),
+            "Code501" => Ok(Self::Code501),
+            "Code502unimplemented" => Ok(Self::Code502unimplemented),
+            "Code503" => Ok(Self::Code503),
+            "Code504" => Ok(Self::Code504),
+            "Code530" => Ok(Self::Code530),
+            "Code554" => Ok(Self::Code554),
+            "Code554tls" => Ok(Self::Code554tls),
+            "ConnectionMaxReached" => Ok(Self::ConnectionMaxReached),
             _ => Err(SMTPReplyCodeFromStrError),
         }
     }
@@ -241,7 +241,7 @@ impl TryFrom<String> for SMTPReplyCode {
     type Error = SMTPReplyCodeFromStrError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        <SMTPReplyCode as std::str::FromStr>::from_str(&value)
+        <Self as std::str::FromStr>::from_str(&value)
     }
 }
 
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn error() {
         assert_eq!(
-            format!("{}", SMTPReplyCode::from_str("foo").unwrap_err()),
+            format!("{}", SMTPReplyCode::from_str("root").unwrap_err()),
             "SMTPReplyCodeFromStrError"
         );
     }

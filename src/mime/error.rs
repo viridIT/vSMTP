@@ -16,6 +16,7 @@
 **/
 // NOTE: should be improved
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum ParserError {
     InvalidInput,

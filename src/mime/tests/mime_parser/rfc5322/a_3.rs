@@ -7,7 +7,7 @@ use crate::mime::{
 fn resent() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_str!("../../mail/rfc5322/A.3.eml").as_bytes())
+            .parse(include_bytes!("../../mail/rfc5322/A.3.eml"))
             .unwrap(),
         Mail {
             headers: vec![

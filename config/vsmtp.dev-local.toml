@@ -2,7 +2,7 @@ version_requirement = ">=0.8.9, <1.0.0"
 
 [server]
 domain = "testserver.com"
-addr = "0.0.0.0:10025"
+addr = "[::]:10025"
 addr_submission = "0.0.0.0:10587"
 addr_submissions = "0.0.0.0:10465"
 thread_count = 10
@@ -19,7 +19,7 @@ resolver = "warn"
 rules = "warn"
 
 [rules]
-dir = "./config/rules"
+# main_filepath = "./config/rules"
 
 [rules.logs]
 file = "./tmp/app.log"

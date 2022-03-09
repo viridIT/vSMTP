@@ -40,7 +40,7 @@ impl Resolver for SMTPResolver {
             Body::Parsed(mail) => mail.raw_body(),
         };
 
-        for rcpt in ctx.envelop.rcpt.iter() {
+        for rcpt in &ctx.envelop.rcpt {
             let query = rcpt.domain();
             let records = match get_mx_records(&resolver, query).await {
                 Ok(records) => records,
@@ -50,7 +50,7 @@ impl Resolver for SMTPResolver {
                 }
             };
 
-            match records.iter().any(|record| {
+            if records.iter().any(|record| {
                 match send_email(&record.exchange().to_ascii(), &envelop, &content) {
                     Ok(_) => true,
                     Err(err) => {
@@ -59,8 +59,9 @@ impl Resolver for SMTPResolver {
                     }
                 }
             }) {
-                true => log::debug!("email successfully delivered to '{}'", rcpt),
-                false => log::error!("no valid mail exchanger found for '{}'", rcpt),
+                log::debug!("email successfully delivered to '{}'", rcpt);
+            } else {
+                log::error!("no valid mail exchanger found for '{}'", rcpt);
             }
         }
         Ok(())
@@ -95,7 +96,7 @@ async fn get_mx_records(
         .await?
         .into_iter()
         .collect::<Vec<_>>();
-    mxs_by_priority.sort_by_key(|mx| mx.preference());
+    mxs_by_priority.sort_by_key(MX::preference);
 
     Ok(mxs_by_priority)
 }
@@ -153,7 +154,7 @@ mod test {
             .await
             .expect("couldn't find any mx records for google.com");
 
-        assert!(get_mx_records(&resolver, "invalid_query").await.is_err())
+        assert!(get_mx_records(&resolver, "invalid_query").await.is_err());
     }
 
     #[tokio::test]

@@ -30,8 +30,8 @@ impl std::str::FromStr for MimeBodyType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "7BIT" => Ok(MimeBodyType::SevenBit),
-            "8BITMIME" => Ok(MimeBodyType::EightBitMime),
+            "7BIT" => Ok(Self::SevenBit),
+            "8BITMIME" => Ok(Self::EightBitMime),
             _ => Err(SMTPReplyCode::Code501),
         }
     }
@@ -120,7 +120,7 @@ pub enum Event {
 impl Event {
     /// Create a valid SMTP command (or event) from a string OR return a SMTP error code
     /// See https://datatracker.ietf.org/doc/html/rfc5321#section-4.1
-    pub fn parse_cmd(input: &str) -> Result<Event, SMTPReplyCode> {
+    pub fn parse_cmd(input: &str) -> Result<Self, SMTPReplyCode> {
         // 88 = 80 - "\r\n".len() + (SMTPUTF8 ? 10 : 0)
         if input.len() > 88 || input.is_empty() {
             return Err(SMTPReplyCode::Code500);
@@ -145,27 +145,27 @@ impl Event {
             smtp_verb.to_ascii_uppercase().as_str(),
             smtp_args.as_slice(),
         ) {
-            ("HELO", args) => Event::parse_arg_helo(args),
-            ("EHLO", args) => Event::parse_arg_ehlo(args),
-            ("MAIL", args) => Event::parse_arg_mail_from(args),
-            ("RCPT", args) => Event::parse_arg_rcpt_to(args),
+            ("HELO", args) => Self::parse_arg_helo(args),
+            ("EHLO", args) => Self::parse_arg_ehlo(args),
+            ("MAIL", args) => Self::parse_arg_mail_from(args),
+            ("RCPT", args) => Self::parse_arg_rcpt_to(args),
 
-            ("VRFY", [user_or_mailbox]) | ("VRFY", [user_or_mailbox, "SMTPUTF8"]) => {
-                Ok(Event::VrfyCmd(user_or_mailbox.to_string()))
+            ("VRFY", [user_or_mailbox] | [user_or_mailbox, "SMTPUTF8"]) => {
+                Ok(Self::VrfyCmd((*user_or_mailbox).to_string()))
             }
-            ("EXPN", [mailing_list]) | ("EXPN", [mailing_list, "SMTPUTF8"]) => {
-                Ok(Event::ExpnCmd(mailing_list.to_string()))
+            ("EXPN", [mailing_list] | [mailing_list, "SMTPUTF8"]) => {
+                Ok(Self::ExpnCmd((*mailing_list).to_string()))
             }
 
-            ("HELP", []) => Ok(Event::HelpCmd(None)),
-            ("HELP", [help_value]) => Ok(Event::HelpCmd(Some(help_value.to_string()))),
+            ("HELP", []) => Ok(Self::HelpCmd(None)),
+            ("HELP", [help_value]) => Ok(Self::HelpCmd(Some((*help_value).to_string()))),
 
-            ("DATA", []) => Ok(Event::DataCmd),
-            ("QUIT", []) => Ok(Event::QuitCmd),
-            ("RSET", []) => Ok(Event::RsetCmd),
-            ("NOOP", [..]) => Ok(Event::NoopCmd),
+            ("DATA", []) => Ok(Self::DataCmd),
+            ("QUIT", []) => Ok(Self::QuitCmd),
+            ("RSET", []) => Ok(Self::RsetCmd),
+            ("NOOP", [..]) => Ok(Self::NoopCmd),
 
-            ("STARTTLS", []) => Ok(Event::StartTls),
+            ("STARTTLS", []) => Ok(Self::StartTls),
 
             _ => Err(SMTPReplyCode::Code501),
         }
@@ -184,16 +184,16 @@ impl Event {
         }
     }
 
-    fn parse_arg_helo(args: &[&str]) -> Result<Event, SMTPReplyCode> {
-        match Event::parse_domain_or_address_literal(args) {
-            Ok(out) => Ok(Event::HeloCmd(out)),
+    fn parse_arg_helo(args: &[&str]) -> Result<Self, SMTPReplyCode> {
+        match Self::parse_domain_or_address_literal(args) {
+            Ok(out) => Ok(Self::HeloCmd(out)),
             Err(_) => Err(SMTPReplyCode::Code501),
         }
     }
 
-    fn parse_arg_ehlo(args: &[&str]) -> Result<Event, SMTPReplyCode> {
-        match Event::parse_domain_or_address_literal(args) {
-            Ok(out) => Ok(Event::EhloCmd(out)),
+    fn parse_arg_ehlo(args: &[&str]) -> Result<Self, SMTPReplyCode> {
+        match Self::parse_domain_or_address_literal(args) {
+            Ok(out) => Ok(Self::EhloCmd(out)),
             Err(_) => Err(SMTPReplyCode::Code501),
         }
     }
@@ -214,7 +214,7 @@ impl Event {
         }
     }
 
-    fn parse_arg_mail_from(args: &[&str]) -> Result<Event, SMTPReplyCode> {
+    fn parse_arg_mail_from(args: &[&str]) -> Result<Self, SMTPReplyCode> {
         fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
             let mut bitmime = None;
 
@@ -239,7 +239,7 @@ impl Event {
         match args {
             // note: separated word (can return a warning)
             [from, reverse_path, ..] if from.to_ascii_uppercase() == "FROM:" => {
-                parse_esmtp_args(Event::from_path(reverse_path, true)?, &args[2..])
+                parse_esmtp_args(Self::from_path(reverse_path, true)?, &args[2..])
             }
             [from_and_reverse_path, ..] => match from_and_reverse_path
                 .to_ascii_uppercase()
@@ -247,7 +247,7 @@ impl Event {
             {
                 Some("") | None => Err(SMTPReplyCode::Code501),
                 Some(_) => parse_esmtp_args(
-                    Event::from_path(&from_and_reverse_path["FROM:".len()..], true)?,
+                    Self::from_path(&from_and_reverse_path["FROM:".len()..], true)?,
                     &args[1..],
                 ),
             },
@@ -255,7 +255,7 @@ impl Event {
         }
     }
 
-    fn parse_arg_rcpt_to(args: &[&str]) -> Result<Event, SMTPReplyCode> {
+    fn parse_arg_rcpt_to(args: &[&str]) -> Result<Self, SMTPReplyCode> {
         // TODO: https://datatracker.ietf.org/doc/html/rfc5321#section-4.1.1.3
         // Syntax = "RCPT TO:" ( "<Postmaster@" Domain ">" / "<Postmaster>" /
         //         Forward-path ) [SP Rcpt-parameters] CRLF
@@ -265,6 +265,8 @@ impl Event {
 
         // TODO: parse "<Postmaster@" Domain ">" / "<Postmaster>"
 
+        // FIXME: false positive ?
+        #[allow(clippy::missing_const_for_fn)]
         fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
             if args.is_empty() {
                 Ok(Event::RcptCmd(path))
@@ -276,13 +278,13 @@ impl Event {
         match args {
             // NOTE: separated word (can return a warning)
             [to, forward_path, ..] if to.to_ascii_uppercase() == "TO:" => {
-                parse_esmtp_args(Event::from_path(forward_path, false)?, &args[2..])
+                parse_esmtp_args(Self::from_path(forward_path, false)?, &args[2..])
             }
             [to_and_forward_path, ..] => {
                 match to_and_forward_path.to_ascii_uppercase().strip_prefix("TO:") {
                     Some("") | None => Err(SMTPReplyCode::Code501),
                     Some(_) => parse_esmtp_args(
-                        Event::from_path(&to_and_forward_path["TO:".len()..], false)?,
+                        Self::from_path(&to_and_forward_path["TO:".len()..], false)?,
                         &args[1..],
                     ),
                 }
@@ -291,11 +293,11 @@ impl Event {
         }
     }
 
-    pub fn parse_data(input: &str) -> Result<Event, SMTPReplyCode> {
+    pub fn parse_data(input: &str) -> Result<Self, SMTPReplyCode> {
         match input {
-            "." => Ok(Event::DataEnd),
+            "." => Ok(Self::DataEnd),
             too_long if too_long.len() > 998 => Err(SMTPReplyCode::Code500),
-            _ => Ok(Event::DataLine(input.to_string())),
+            _ => Ok(Self::DataLine(input.to_string())),
         }
     }
 }

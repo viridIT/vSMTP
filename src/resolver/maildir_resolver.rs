@@ -171,7 +171,7 @@ mod test {
             &current,
             &MessageMetadata {
                 message_id: message_id.to_string(),
-                ..Default::default()
+                ..crate::smtp::mail::MessageMetadata::default()
             },
             "email content",
         )

@@ -187,7 +187,7 @@ async fn test_receiver_10() {
             ServerConfig::builder()
                 .with_version_str("<1.0.0")
                 .unwrap()
-                .with_rfc_port("test.server.com", "foo", "foo", None)
+                .with_rfc_port("test.server.com", "root", "root", None)
                 .without_log()
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
                 .with_default_smtp()

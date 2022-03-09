@@ -372,6 +372,7 @@ fn command_starttls() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn parse_path() {
     assert_eq!(
         Event::from_path("foo@bar", false),

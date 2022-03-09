@@ -34,16 +34,16 @@ pub struct MBoxResolver;
 impl Resolver for MBoxResolver {
     async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
         let timestamp = get_mbox_timestamp_format(&ctx.metadata);
-        let content = build_mbox_message(ctx, timestamp)?;
+        let content = build_mbox_message(ctx, &timestamp)?;
 
-        for rcpt in ctx.envelop.rcpt.iter() {
+        for rcpt in &ctx.envelop.rcpt {
             // FIXME: use UsersCache.
             match users::get_user_by_name(rcpt.local_part()) {
                 Some(user) => {
                     // NOTE: only linux system is supported here, is the
                     //       path to all mboxes always /var/mail ?
                     write_content_to_mbox(
-                        std::path::PathBuf::from_iter(["/var/mail/", rcpt.local_part()]),
+                        &std::path::PathBuf::from_iter(["/var/mail/", rcpt.local_part()]),
                         &user,
                         &content,
                     )?;
@@ -58,14 +58,13 @@ impl Resolver for MBoxResolver {
 fn get_mbox_timestamp_format(metadata: &Option<MessageMetadata>) -> String {
     let timestamp: chrono::DateTime<chrono::offset::Utc> = metadata
         .as_ref()
-        .map(|metadata| metadata.timestamp)
-        .unwrap_or_else(std::time::SystemTime::now)
+        .map_or_else(std::time::SystemTime::now, |metadata| metadata.timestamp)
         .into();
 
     timestamp.format("%c").to_string()
 }
 
-fn build_mbox_message(ctx: &MailContext, timestamp: String) -> anyhow::Result<String> {
+fn build_mbox_message(ctx: &MailContext, timestamp: &str) -> anyhow::Result<String> {
     Ok(format!(
         "From {} {}\n{}\n",
         timestamp,
@@ -81,7 +80,7 @@ fn build_mbox_message(ctx: &MailContext, timestamp: String) -> anyhow::Result<St
 }
 
 fn write_content_to_mbox(
-    mbox: std::path::PathBuf,
+    mbox: &std::path::Path,
     user: &users::User,
     content: &str,
 ) -> anyhow::Result<()> {
@@ -91,8 +90,7 @@ fn write_content_to_mbox(
         .open(&mbox)
         .with_context(|| format!("could not open '{:?}' mbox", mbox))?;
 
-    chown_file(&mbox, user)
-        .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
+    chown_file(mbox, user).with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
     std::io::Write::write_all(&mut file, content.as_bytes())
         .with_context(|| format!("could not write email to '{:?}' mbox", mbox))?;
@@ -118,7 +116,7 @@ mod test {
     fn test_mbox_time_format() {
         let metadata = Some(MessageMetadata {
             timestamp: std::time::SystemTime::now(),
-            ..Default::default()
+            ..crate::smtp::mail::MessageMetadata::default()
         });
 
         // FIXME: I did not find a proper way to compare timestamps because the system time
@@ -131,7 +129,7 @@ mod test {
     fn test_mbox_message_empty() {
         let ctx = get_default_context();
 
-        assert!(build_mbox_message(&ctx, get_mbox_timestamp_format(&ctx.metadata)).is_err())
+        assert!(build_mbox_message(&ctx, &get_mbox_timestamp_format(&ctx.metadata)).is_err());
     }
 
     #[test]
@@ -150,7 +148,7 @@ This is a raw email."#
 
         let timestamp = get_mbox_timestamp_format(&ctx.metadata);
 
-        let message_from_raw = build_mbox_message(&ctx, timestamp.clone()).unwrap();
+        let message_from_raw = build_mbox_message(&ctx, &timestamp).unwrap();
 
         ctx.body = Body::Parsed(Box::new(Mail {
             headers: [
@@ -164,7 +162,7 @@ This is a raw email."#
             body: BodyType::Regular(vec!["This is a raw email.".to_string()]),
         }));
 
-        let message_from_parsed = build_mbox_message(&ctx, timestamp.clone()).unwrap();
+        let message_from_parsed = build_mbox_message(&ctx, &timestamp).unwrap();
 
         assert_eq!(
             format!(
@@ -187,7 +185,7 @@ This is a raw email."#
 
         std::fs::create_dir_all("./tests/generated/").expect("could not create temporary folders");
 
-        write_content_to_mbox(mbox.clone(), &user, content).expect("could not write to mbox");
+        write_content_to_mbox(&mbox, &user, content).expect("could not write to mbox");
 
         assert_eq!(
             content.to_string(),
