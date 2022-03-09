@@ -16,8 +16,20 @@
 **/
 use opentelemetry::{global, runtime, trace, Context};
 
-const CLIENT_THREAD_COUNT: u64 = 10;
-const MAIL_PER_THREAD: u64 = 10;
+#[derive(Debug, serde::Deserialize)]
+struct StressConfig {
+    server_ip: String,
+    server_port: u16,
+    total_client_count: u64,
+    mail_per_client: u64,
+}
+
+lazy_static::lazy_static! {
+    static ref STRESS_CONFIG: StressConfig = {
+         std::fs::read_to_string("./tests/stress/send_payload_config.json")
+            .map(|str| serde_json::from_str(&str)).unwrap().unwrap()
+    };
+}
 
 fn get_mail() -> lettre::Message {
     lettre::Message::builder()
@@ -35,12 +47,17 @@ async fn run_one_connection(client_nb: u64) -> Result<(), u64> {
     let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
     let mailer = std::sync::Arc::new(
-        lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous("0.0.0.0")
-            .port(10027)
-            .build(),
+        lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
+            STRESS_CONFIG.server_ip.clone(),
+        )
+        .port(STRESS_CONFIG.server_port)
+        // TODO:
+        // .tls()
+        // .credentials()
+        .build(),
     );
 
-    for i in 0..MAIL_PER_THREAD {
+    for i in 0..STRESS_CONFIG.mail_per_client {
         let sender = mailer.clone();
 
         let x = trace::FutureExt::with_context(
@@ -67,9 +84,19 @@ async fn run_one_connection(client_nb: u64) -> Result<(), u64> {
     Ok(())
 }
 
+fn create_task(id: u64) -> tokio::task::JoinHandle<std::result::Result<(), u64>> {
+    let tracer = global::tracer("sending-payload");
+    let span = trace::Tracer::start(&tracer, "sending payload".to_string());
+    let cx = <Context as trace::TraceContextExt>::current_with_span(span);
+
+    tokio::spawn(trace::FutureExt::with_context(run_one_connection(id), cx))
+}
+
 #[ignore = "require the test 'listen_and_serve' and a 'jaeger-all-in-one' to run in background"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 async fn send_payload() {
+    println!("{:?}", *STRESS_CONFIG);
+
     let tracer = opentelemetry_jaeger::new_pipeline()
         .with_service_name("vsmtp-stress")
         .install_batch(runtime::Tokio)
@@ -78,17 +105,9 @@ async fn send_payload() {
     let span = trace::Tracer::start(&tracer, "root");
     let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
-    fn create_task(id: u64) -> tokio::task::JoinHandle<std::result::Result<(), u64>> {
-        let tracer = global::tracer("sending-payload");
-        let span = trace::Tracer::start(&tracer, "sending payload".to_string());
-        let cx = <Context as trace::TraceContextExt>::current_with_span(span);
-
-        tokio::spawn(trace::FutureExt::with_context(run_one_connection(id), cx))
-    }
-
     trace::FutureExt::with_context(
         async move {
-            let mut task = (0..CLIENT_THREAD_COUNT)
+            let mut task = (0..STRESS_CONFIG.total_client_count)
                 .into_iter()
                 .map(create_task)
                 .collect::<Vec<_>>();

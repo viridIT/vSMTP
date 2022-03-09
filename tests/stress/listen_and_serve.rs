@@ -1,4 +1,3 @@
-use anyhow::Context;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -15,6 +14,7 @@ use anyhow::Context;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use anyhow::Context;
 use vsmtp::{
     config::{get_logger_config, server_config::ServerConfig},
     resolver::{MailContext, Resolver},
@@ -52,8 +52,6 @@ async fn listen_and_serve() {
 
     config.rules.logs.file = "./tmp/tests/stress/app.log".into();
     config.smtp.client_count_max = 3;
-
-    println!("{:#?}", config);
 
     get_logger_config(&config, true)
         .context("Logs configuration contain error")

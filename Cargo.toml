@@ -52,7 +52,6 @@ lettre = { version = "0.10.0-rc.4", default-features = false, features = [
 trust-dns-resolver = "0.21.1"
 
 async-trait = "0.1.52"
-lazy_static = "1.4.0"
 enum-iterator = "0.7.0"
 diff = "0.1.12"
 fastrand = "1.7.0"
@@ -75,6 +74,7 @@ wait-timeout = "0.2.0"
 semver = "1.0.6"
 
 [dev-dependencies]
+lazy_static = "1.4.0"
 criterion = { version = "0.3.5", features = ["async_tokio"] }
 rand = "0.8.5"
 webpki-roots = "0.22.2"
