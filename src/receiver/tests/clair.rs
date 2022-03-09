@@ -192,7 +192,7 @@ async fn test_receiver_10() {
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
                 .with_default_smtp()
                 .with_delivery("./tmp/delivery")
-                .with_empty_rules()
+                .with_rules("./src/receiver/tests/main.vsl", vec![])
                 .with_default_reply_codes()
                 .build()
                 .expect("could not build the server config"),

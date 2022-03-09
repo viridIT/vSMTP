@@ -92,8 +92,8 @@ impl Transaction<'_> {
 
             (_, Event::RsetCmd) => {
                 {
-                    let ctx = self.rule_state.get_context();
-                    let mut ctx = ctx.write().unwrap();
+                    let state = self.rule_state.get_context();
+                    let mut ctx = state.write().unwrap();
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
@@ -230,8 +230,8 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
-                let ctx = self.rule_state.get_context();
-                if let Body::Raw(body) = &mut ctx.write().unwrap().body {
+                let state = self.rule_state.get_context();
+                if let Body::Raw(body) = &mut state.write().unwrap().body {
                     body.push_str(&line);
                     body.push('\n');
                 }
@@ -252,8 +252,8 @@ impl Transaction<'_> {
                     );
                 }
 
-                let ctx = self.rule_state.get_context();
-                let mut ctx = ctx.write().unwrap();
+                let state = self.rule_state.get_context();
+                let mut ctx = state.write().unwrap();
 
                 // TODO: find a better way to propagate force accept.
                 // the "skipped" field is updated by the rule engine internal state,
@@ -267,6 +267,7 @@ impl Transaction<'_> {
                 }
 
                 let mut output = MailContext {
+                    connexion_timestamp: std::time::SystemTime::now(),
                     client_addr: ctx.client_addr,
                     envelop: Envelop::default(),
                     body: Body::Empty,
@@ -284,15 +285,16 @@ impl Transaction<'_> {
 
 impl Transaction<'_> {
     fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
-        self.rule_state.get_context().write().unwrap().client_addr = conn.client_addr;
+        let state = self.rule_state.get_context();
+        let ctx = &mut state.write().unwrap();
 
-        self.rule_state
-            .add_data("connection_timestamp", conn.timestamp);
+        ctx.client_addr = conn.client_addr;
+        ctx.connexion_timestamp = conn.timestamp;
     }
 
     fn set_helo(&mut self, helo: String) {
-        let ctx = self.rule_state.get_context();
-        let mut ctx = ctx.write().unwrap();
+        let state = self.rule_state.get_context();
+        let mut ctx = state.write().unwrap();
 
         ctx.body = Body::Empty;
         ctx.metadata = None;
@@ -312,8 +314,8 @@ impl Transaction<'_> {
             Ok(mail_from) => {
                 let now = std::time::SystemTime::now();
 
-                let ctx = self.rule_state.get_context();
-                let mut ctx = ctx.write().unwrap();
+                let state = self.rule_state.get_context();
+                let mut ctx = state.write().unwrap();
                 ctx.body = Body::Empty;
                 ctx.envelop.rcpt.clear();
                 ctx.envelop.mail_from = mail_from;
@@ -395,7 +397,7 @@ impl Transaction<'_> {
         if transaction
             .rule_engine
             .read()
-            .unwrap()
+            .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
             .run_when(&mut transaction.rule_state, "connect")
             == Status::Deny
         {

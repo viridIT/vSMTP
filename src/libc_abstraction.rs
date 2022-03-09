@@ -91,7 +91,7 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
 ///
 /// * `path` cannot be convert to CString
 /// * see chown(2) ERRORS
-pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<i32> {
+pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<()> {
     // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
     //       to a CString because it is platform independent.
 
@@ -103,10 +103,11 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
             user.uid(),
         )
     } {
-        0 => Err(anyhow::anyhow!(
-            "chown: '{}'",
+        0 => Ok(()),
+        otherwise => Err(anyhow::anyhow!(
+            "failed to change file owner: ({}) '{}'",
+            otherwise,
             std::io::Error::last_os_error()
         )),
-        otherwise => Ok(otherwise),
     }
 }

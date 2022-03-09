@@ -95,9 +95,12 @@ pub async fn handle_one_in_delivery_queue(
     std::io::Read::read_to_string(&mut file, &mut raw)?;
 
     let ctx: MailContext = serde_json::from_str(&raw)?;
-
     let mut state = RuleState::with_context(config, ctx);
-    let result = rule_engine.read().unwrap().run_when(&mut state, "delivery");
+
+    let result = rule_engine
+        .read()
+        .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
+        .run_when(&mut state, "delivery");
 
     if result == Status::Deny {
         Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;

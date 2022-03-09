@@ -34,3 +34,20 @@ pub trait Resolver {
     /// the deliver method of the [Resolver] trait
     async fn deliver(&mut self, config: &ServerConfig, mail: &MailContext) -> anyhow::Result<()>;
 }
+
+#[cfg(test)]
+fn get_default_context() -> MailContext {
+    MailContext {
+        body: crate::Body::Empty,
+        connexion_timestamp: std::time::SystemTime::now(),
+        client_addr: std::net::SocketAddr::new(
+            std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
+            0,
+        ),
+        envelop: crate::smtp::envelop::Envelop::default(),
+        metadata: Some(crate::smtp::mail::MessageMetadata {
+            timestamp: std::time::SystemTime::now(),
+            ..crate::smtp::mail::MessageMetadata::default()
+        }),
+    }
+}

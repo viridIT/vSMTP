@@ -19,8 +19,8 @@ log4rs = { version = "1.0.0" }
 clap = { version = "3.1.6", features = ["derive"] }
 
 # inactive since Oct. 2020
-users = "0.11.0"
-libc = "0.2.119"
+users = { version = "0.11.0", features = [] }
+libc = "0.2.109"
 
 anyhow = "1.0.56"
 

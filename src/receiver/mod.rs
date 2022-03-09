@@ -28,8 +28,6 @@ use self::{
     transaction::{Transaction, TransactionResult},
 };
 
-use std::sync::{Arc, RwLock};
-
 pub(crate) mod connection;
 pub(crate) mod io_service;
 pub(crate) mod transaction;
@@ -139,7 +137,7 @@ async fn on_mail<S: std::io::Read + std::io::Write>(
 pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    rule_engine: Arc<RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
 ) -> anyhow::Result<()>
@@ -187,7 +185,7 @@ where
 pub(crate) async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    rule_engine: Arc<RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
     delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
 ) -> anyhow::Result<()>

@@ -15,7 +15,6 @@
  *
  **/
 use crate::config::log_channel::SRULES;
-use crate::config::service::Service;
 use crate::rules::error::RuleEngineError;
 use crate::rules::obj::Object;
 use crate::smtp::envelop::Envelop;
@@ -31,6 +30,8 @@ use rhai::{
 
 use std::net::Ipv4Addr;
 use std::net::{IpAddr, SocketAddr};
+
+use super::server_api::ServerAPI;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
@@ -66,7 +67,9 @@ impl std::fmt::Display for Status {
 
 pub struct RuleState<'a> {
     scope: Scope<'a>,
-    ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
+    #[allow(unused)]
+    server: std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
     skip: Option<Status>,
 }
 
@@ -74,7 +77,14 @@ impl<'a> RuleState<'a> {
     /// creates a new rule engine with an empty scope.
     pub(crate) fn new(config: &crate::config::server_config::ServerConfig) -> Self {
         let mut scope = Scope::new();
-        let ctx = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
+        let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
+            // FIXME: set config in Arc.
+            config: config.clone(),
+            resolver: "default".to_string(),
+        }));
+
+        let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
+            connexion_timestamp: std::time::SystemTime::now(),
             client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
             envelop: Envelop::default(),
             body: Body::Empty,
@@ -82,54 +92,41 @@ impl<'a> RuleState<'a> {
         }));
 
         scope
-            // stage specific variables.
-            .push("ctx", ctx.clone())
-            // data available in every stage.
             .push("date", "")
             .push("time", "")
-            .push("connection_timestamp", std::time::SystemTime::now())
-            // configuration variables.
-            .push("addr", config.server.addr)
-            .push("logs_file", config.log.file.clone())
-            .push("spool_dir", config.delivery.spool_dir.clone())
-            .push(
-                "services",
-                std::sync::Arc::new(config.rules.services.clone()),
-            );
+            .push("srv", server.clone())
+            .push("ctx", mail_context.clone());
 
         Self {
             scope,
-            ctx,
+            server,
+            mail_context,
             skip: None,
         }
     }
 
     pub(crate) fn with_context(
         config: &crate::config::server_config::ServerConfig,
-        ctx: MailContext,
+        mail_context: MailContext,
     ) -> Self {
         let mut scope = Scope::new();
-        let ctx = std::sync::Arc::new(std::sync::RwLock::new(ctx));
+        let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
+            // FIXME: set config in Arc.
+            config: config.clone(),
+            resolver: "default".to_string(),
+        }));
+        let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
 
         scope
-            // stage specific variables.
-            .push("ctx", ctx.clone())
-            // data available in every stage.
             .push("date", "")
             .push("time", "")
-            .push("connection_timestamp", std::time::SystemTime::now())
-            // configuration variables.
-            .push("addr", config.server.addr)
-            .push("logs_file", config.log.file.clone())
-            .push("spool_dir", config.delivery.spool_dir.clone())
-            .push(
-                "services",
-                std::sync::Arc::new(config.rules.services.clone()),
-            );
+            .push("srv", server.clone())
+            .push("ctx", mail_context.clone());
 
         Self {
             scope,
-            ctx,
+            server,
+            mail_context,
             skip: None,
         }
     }
@@ -145,7 +142,7 @@ impl<'a> RuleState<'a> {
 
     /// fetch the email context (possibly) mutated by the user's rules.
     pub(crate) fn get_context(&mut self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
-        self.ctx.clone()
+        self.mail_context.clone()
     }
 
     pub const fn skipped(&self) -> Option<Status> {
@@ -178,9 +175,8 @@ impl RuleEngine {
 
         let now = chrono::Local::now();
         state
-            .scope
-            .set_value("date", now.date().format("%Y/%m/%d").to_string())
-            .set_value("time", now.time().format("%H:%M:%S").to_string());
+            .add_data("date", now.date().format("%Y/%m/%d").to_string())
+            .add_data("time", now.time().format("%H:%M:%S").to_string());
 
         let rules = match self
             .context
@@ -284,7 +280,9 @@ impl RuleEngine {
         let mut module: Module = exported_module!(crate::rules::modules::actions::actions);
         module
             .combine(exported_module!(crate::rules::modules::types::types))
-            .combine(exported_module!(crate::rules::modules::email::email));
+            .combine(exported_module!(
+                crate::rules::modules::mail_context::mail_context
+            ));
 
         engine
             .set_module_resolver(match script_path {
@@ -573,28 +571,10 @@ impl RuleEngine {
 
         let mut scope = Scope::new();
         scope
-            // stage specific variables.
-            .push(
-                "ctx",
-                std::sync::Arc::new(std::sync::RwLock::new(MailContext {
-                    client_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
-                    envelop: Envelop::default(),
-                    body: Body::Empty,
-                    metadata: None,
-                })),
-            )
-            // data available in every stage.
             .push("date", "")
             .push("time", "")
-            .push("connection_timestamp", std::time::SystemTime::now())
-            // configuration variables.
-            .push(
-                "addr",
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
-            )
-            .push("logs_file", "")
-            .push("spool_dir", "")
-            .push("services", std::sync::Arc::new(Vec::<Service>::new()));
+            .push("srv", "")
+            .push("ctx", "");
 
         let mut ast = engine
             .compile(include_str!("rule_executor.rhai"))
@@ -604,23 +584,29 @@ impl RuleEngine {
             ast += engine
                 .compile_with_scope(
                     &scope,
-                    std::fs::read_to_string(&script_path).map_err(|err| anyhow::anyhow!(err))?,
+                    std::fs::read_to_string(&script_path).map_err(|err| {
+                        anyhow::anyhow!(
+                            "could not load rule script at '{:?}': {}",
+                            script_path,
+                            err
+                        )
+                    })?,
                 )
                 .context(format!("failed to compile '{}'", script_path.display()))?;
         } else {
-            log::info!(
+            log::warn!(
                 target: SRULES,
-                "No 'main.vsl' provided in the config, no rules will be processed.",
+                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
             );
 
             ast += engine
-                .compile_with_scope(&scope, "#{}")
-                .context("empty rules")?;
+                .compile_with_scope(&scope, include_str!("default_rules.rhai"))
+                .context("failed to load default rules")?;
         }
 
         engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
-            .context("failed to parse rules")?;
+            .with_context(|| RuleEngineError::Stage.as_str())?;
 
         log::debug!(target: SRULES, "done.");
 

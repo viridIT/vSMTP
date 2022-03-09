@@ -14,12 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-pub mod address;
-mod error;
-pub mod modules;
-mod obj;
-pub mod rule_engine;
-mod server_api;
+use crate::config::server_config::ServerConfig;
 
-#[cfg(test)]
-mod tests;
+/// the frontend available in the rule engine to interact with the server.
+#[derive(Debug, Clone)]
+pub struct ServerAPI {
+    pub config: ServerConfig,
+    pub resolver: String,
+}

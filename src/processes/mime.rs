@@ -64,9 +64,12 @@ pub async fn handle_one_in_working_queue(
     if let Body::Raw(raw) = &ctx.body {
         ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
     }
-
     let mut state = RuleState::with_context(config, ctx);
-    let result = rule_engine.read().unwrap().run_when(&mut state, "postq");
+
+    let result = rule_engine
+        .read()
+        .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
+        .run_when(&mut state, "postq");
 
     if result == Status::Deny {
         Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;

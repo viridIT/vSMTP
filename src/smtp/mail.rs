@@ -61,6 +61,8 @@ pub enum Body {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
+    /// time of connexion by the client.
+    pub connexion_timestamp: std::time::SystemTime,
     /// emitter of the mail
     pub client_addr: std::net::SocketAddr,
     /// envelop of the message
