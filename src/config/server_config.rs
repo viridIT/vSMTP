@@ -225,8 +225,11 @@ pub struct InnerQueuesConfig {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InnerDeliveryConfig {
-    /// path of the spool directory where the processing queues write the files
+    /// path of the spool directory where the processing queues write the files.
     pub spool_dir: std::path::PathBuf,
+    /// default protocol to use to deliver emails.
+    #[serde(default = "InnerDeliveryConfig::default_delivery_method")]
+    pub default_method: String,
     #[doc(hidden)]
     pub queues: InnerQueuesConfig,
 }

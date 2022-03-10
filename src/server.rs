@@ -316,7 +316,7 @@ mod tests {
                 .without_log()
                 .without_smtps()
                 .with_default_smtp()
-                .with_delivery("./tmp/trash")
+                .with_delivery("./tmp/trash", "none")
                 .with_rules("./tmp/no_rules", vec![])
                 .with_default_reply_codes()
                 .build()
@@ -366,7 +366,7 @@ mod tests {
                     None,
                 )
                 .with_default_smtp()
-                .with_delivery("./tmp/trash")
+                .with_delivery("./tmp/trash", "none")
                 .with_rules("./tmp/no_rules", vec![])
                 .with_default_reply_codes()
                 .build()

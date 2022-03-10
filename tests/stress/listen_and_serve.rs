@@ -58,7 +58,7 @@ async fn listen_and_serve() {
         )
         .without_smtps()
         .with_default_smtp()
-        .with_delivery("./tmp/tests/stress/spool")
+        .with_delivery("./tmp/tests/stress/spool", "none")
         .with_empty_rules()
         .with_default_reply_codes()
         .build()

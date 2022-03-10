@@ -126,7 +126,7 @@ fn main() -> anyhow::Result<()> {
                         .without_log()
                         .without_smtps()
                         .with_default_smtp()
-                        .with_delivery("/var/spool/vsmtp")
+                        .with_delivery("/var/spool/vsmtp", "smtp")
                         .with_empty_rules()
                         .with_default_reply_codes()
                         .build()

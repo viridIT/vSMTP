@@ -29,6 +29,7 @@ fn simple() {
             .with_default_smtp()
             .with_delivery_and_queues(
                 "/var/spool/vsmtp",
+                "none",
                 InnerQueuesConfig {
                     working: QueueConfig {
                         capacity: 32,
@@ -94,6 +95,7 @@ fn smtps() {
             .with_default_smtp()
             .with_delivery_and_queues(
                 "./tmp/var/spool/vsmtp",
+                "none",
                 InnerQueuesConfig {
                     working: QueueConfig {
                         capacity: 32,
@@ -148,6 +150,7 @@ fn services() {
             )
             .with_delivery_and_queues(
                 "/var/spool/vsmtp",
+                "none",
                 InnerQueuesConfig {
                     working: QueueConfig {
                         capacity: 32,
@@ -265,6 +268,7 @@ fn complete() {
             )
             .with_delivery_and_queues(
                 "/var/spool/vsmtp",
+                "none",
                 InnerQueuesConfig {
                     working: QueueConfig {
                         capacity: 32,

@@ -30,7 +30,7 @@ fn get_regular_config() -> ServerConfig {
         .without_log()
         .without_smtps()
         .with_default_smtp()
-        .with_delivery("./tmp/delivery")
+        .with_delivery("./tmp/delivery", "none")
         .with_rules("./src/receiver/tests/main.vsl", vec![])
         .with_default_reply_codes()
         .build()

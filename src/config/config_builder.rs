@@ -346,12 +346,14 @@ impl ConfigBuilder<WantsDelivery> {
     pub fn with_delivery(
         self,
         spool_dir: impl Into<std::path::PathBuf>,
+        default_method: impl Into<String>,
     ) -> ConfigBuilder<WantsRules> {
         ConfigBuilder::<WantsRules> {
             state: WantsRules {
                 parent: self.state,
                 delivery: InnerDeliveryConfig {
                     spool_dir: spool_dir.into(),
+                    default_method: default_method.into(),
                     queues: InnerQueuesConfig::default(),
                 },
             },
@@ -361,6 +363,7 @@ impl ConfigBuilder<WantsDelivery> {
     pub fn with_delivery_and_queues(
         self,
         spool_dir: impl Into<std::path::PathBuf>,
+        default_method: impl Into<String>,
         queues: InnerQueuesConfig,
     ) -> ConfigBuilder<WantsRules> {
         ConfigBuilder::<WantsRules> {
@@ -368,6 +371,7 @@ impl ConfigBuilder<WantsDelivery> {
                 parent: self.state,
                 delivery: InnerDeliveryConfig {
                     spool_dir: spool_dir.into(),
+                    default_method: default_method.into(),
                     queues,
                 },
             },

@@ -129,7 +129,7 @@ async fn simple() -> anyhow::Result<()> {
                     None,
                 )
                 .with_default_smtp()
-                .with_delivery("./tmp/trash")
+                .with_delivery("./tmp/trash", "none")
                 .with_rules("./src/receiver/tests/main.vsl", vec![])
                 .with_default_reply_codes()
                 .build()
@@ -181,7 +181,7 @@ async fn sni() -> anyhow::Result<()> {
                     }]),
                 )
                 .with_default_smtp()
-                .with_delivery("./tmp/trash")
+                .with_delivery("./tmp/trash", "none")
                 .with_rules("./src/receiver/tests/main.vsl", vec![])
                 .with_default_reply_codes()
                 .build()

@@ -104,7 +104,7 @@ fn test_services() {
         .without_log()
         .without_smtps()
         .with_default_smtp()
-        .with_delivery("./tmp/delivery")
+        .with_delivery("./tmp/delivery", "none")
         .with_rules(
             "./tmp/nothing",
             vec![Service::UnixShell {
