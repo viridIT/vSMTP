@@ -28,6 +28,7 @@ pub struct IoService<'a, T>
 where
     T: std::io::Read + std::io::Write,
 {
+    /// inner stream
     pub inner: &'a mut T,
     // buffer used by AsyncBufRead impl
     buffer: Vec<u8>,
@@ -98,6 +99,7 @@ where
 }
 
 impl<'a, T: std::io::Read + std::io::Write> IoService<'a, T> {
+    ///
     pub fn new(inner: &'a mut T) -> Self {
         Self {
             inner,
@@ -132,6 +134,13 @@ impl<'a, T: std::io::Read + std::io::Write> IoService<'a, T> {
         buf.to_string()
     }
 
+    /// Read one line from the inner stream
+    ///
+    /// # Errors
+    ///
+    /// * Eof if read size is 0
+    /// * Blocking if would block
+    /// * Other (io error)
     pub async fn get_next_line_async(&mut self) -> Result<String, ReadError> {
         let mut buf = String::new();
         match tokio::io::AsyncBufReadExt::read_line(self, &mut buf).await {

@@ -1,5 +1,5 @@
 [package]
-name = "v-smtp-fuzz"
+name = "vsmtp-fuzz"
 version = "0.0.0"
 authors = ["Automatically generated"]
 publish = false
@@ -17,8 +17,17 @@ log = "0.4.14"
 toml = "0.5.8"
 futures = "0.3.21"
 
-[dependencies.vsmtp]
-path = ".."
+[dependencies.vsmtp-config]
+path = "../vsmtp-config"
+
+[dependencies.vsmtp-server]
+path = "../vsmtp-server"
+
+[dependencies.vsmtp-rule-engine]
+path = "../vsmtp-rule-engine"
+
+[dependencies.vsmtp-mail-parser]
+path = "../vsmtp-mail-parser"
 
 # Prevent this from interfering with workspaces
 [workspace]

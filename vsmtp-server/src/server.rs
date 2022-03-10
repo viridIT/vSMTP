@@ -17,9 +17,7 @@
 use crate::{
     processes::ProcessMessage,
     receiver::{
-        connection::{Connection, ConnectionKind},
-        handle_connection, handle_connection_secured,
-        io_service::IoService,
+        handle_connection, handle_connection_secured, IoService, {Connection, ConnectionKind},
     },
     resolver::Resolver,
     tls_helpers::get_rustls_config,

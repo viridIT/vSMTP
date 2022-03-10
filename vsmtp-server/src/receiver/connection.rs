@@ -1,6 +1,3 @@
-use vsmtp_common::code::SMTPReplyCode;
-use vsmtp_config::{log_channel::RECEIVER, server_config::ServerConfig};
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -18,29 +15,41 @@ use vsmtp_config::{log_channel::RECEIVER, server_config::ServerConfig};
  *
 **/
 use super::io_service::{IoService, ReadError};
+use vsmtp_common::code::SMTPReplyCode;
+use vsmtp_config::{log_channel::RECEIVER, server_config::ServerConfig};
 
+/// how the server would react to tls interaction for this connection
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Copy, Clone)]
 pub enum ConnectionKind {
-    // connection may use STARTTLS
+    /// connection may use STARTTLS
     Opportunistic,
-    // Opportunistic and enforced security (auth)
+    /// Opportunistic and enforced security (auth)
     Submission,
-    // within TLS
+    /// within TLS
     Tunneled,
 }
 
+/// Instance containing connection to the server's information
 pub struct Connection<'stream, S>
 where
     S: std::io::Read + std::io::Write,
 {
+    /// server's port
     pub kind: ConnectionKind,
+    /// connection timestamp
     pub timestamp: std::time::SystemTime,
+    /// is still alive
     pub is_alive: bool,
+    /// server's configuration
     pub config: std::sync::Arc<ServerConfig>,
+    /// peer socket address
     pub client_addr: std::net::SocketAddr,
+    /// number of error the client made so far
     pub error_count: i64,
+    /// is under tls (tunneled or opportunistic)
     pub is_secured: bool,
+    /// abstraction of the stream
     pub io_stream: &'stream mut IoService<'stream, S>,
 }
 
@@ -48,6 +57,7 @@ impl<S> Connection<'_, S>
 where
     S: std::io::Read + std::io::Write,
 {
+    ///
     pub fn from_plain<'a>(
         kind: ConnectionKind,
         client_addr: std::net::SocketAddr,
@@ -71,6 +81,9 @@ impl<S> Connection<'_, S>
 where
     S: std::io::Read + std::io::Write,
 {
+    /// send a reply code to the client
+    ///
+    /// # Errors
     pub fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> anyhow::Result<()> {
         log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
 
@@ -110,6 +123,12 @@ where
         Ok(())
     }
 
+    /// read a line from the client
+    ///
+    /// # Errors
+    ///
+    /// * timed-out
+    /// * stream's error
     pub async fn read(
         &mut self,
         timeout: std::time::Duration,
@@ -125,6 +144,9 @@ impl<S> Connection<'_, S>
 where
     S: std::io::Read + std::io::Write,
 {
+    /// process a tls handshake
+    ///
+    /// # Errors
     pub fn complete_tls_handshake(
         io: &mut IoService<rustls::Stream<rustls::ServerConnection, &mut S>>,
         timeout: &std::time::Duration,

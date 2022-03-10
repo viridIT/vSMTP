@@ -14,19 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use self::{
-    connection::{Connection, ConnectionKind},
-    io_service::IoService,
-    transaction::{Transaction, TransactionResult},
-};
+use self::transaction::{Transaction, TransactionResult};
 use crate::{processes::ProcessMessage, queue::Queue};
 use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext};
 use vsmtp_config::server_config::InnerSmtpsConfig;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-pub(crate) mod connection;
-pub(crate) mod io_service;
+mod connection;
+mod io_service;
 pub(crate) mod transaction;
+
+pub use connection::{Connection, ConnectionKind};
+pub use io_service::IoService;
 
 #[cfg(test)]
 mod tests;
