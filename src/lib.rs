@@ -52,18 +52,3 @@ pub use mime::mail::BodyType;
 pub use mime::parser::MailMimeParser;
 pub use rules::address::Address;
 pub use smtp::mail::Body;
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! collection {
-    // map-like
-    ($($k:expr => $v:expr),* $(,)?) => {{
-        use std::iter::{Iterator, IntoIterator};
-        Iterator::collect(IntoIterator::into_iter([$(($k, $v),)*]))
-    }};
-    // set-like
-    ($($v:expr),* $(,)?) => {{
-        use std::iter::{Iterator, IntoIterator};
-        Iterator::collect(IntoIterator::into_iter([$($v,)*]))
-    }};
-}
