@@ -23,8 +23,7 @@ use vsmtp_config::{server_config::ServerConfig, service::Service};
 
 #[test]
 fn test_status() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/types/status/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["status", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
@@ -32,8 +31,7 @@ fn test_status() {
 
 #[test]
 fn test_time() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/types/time/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["time", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     state.add_data("time", std::time::SystemTime::UNIX_EPOCH);
@@ -43,8 +41,7 @@ fn test_time() {
 
 #[test]
 fn test_socket() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/types/socket/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["socket", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     state.add_data(
@@ -58,8 +55,7 @@ fn test_socket() {
 
 #[test]
 fn test_address() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/types/address/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["address", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     state.get_context().write().unwrap().envelop.mail_from =
@@ -70,8 +66,7 @@ fn test_address() {
 
 #[test]
 fn test_objects() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/types/objects/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["objects", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
@@ -79,8 +74,7 @@ fn test_objects() {
 
 #[test]
 fn test_services() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/types/service/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["service", "main.vsl"])).unwrap();
 
     let config = ServerConfig::builder()
         .with_version_str("<1.0.0")

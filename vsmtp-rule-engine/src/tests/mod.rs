@@ -14,6 +14,19 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+
+macro_rules! rules_path {
+    ( $( $x:expr ),* ) => [
+        std::path::PathBuf::from(file!())
+            .parent()
+            .unwrap()
+            .join(std::path::PathBuf::from_iter([ $( $x, )* ]))
+            .strip_prefix("vsmtp-rule-engine")
+            .unwrap()
+            .to_path_buf()
+    ];
+}
+
 mod actions;
 mod email;
 mod engine;

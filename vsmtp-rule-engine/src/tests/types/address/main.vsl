@@ -1,7 +1,7 @@
 object address "address_obj" "add@obj.net";
 object fqdn "fqdn_obj" "obj.net";
 object regex "regex_obj" "^[a-z0-9.]+@obj.com$";
-object file:address "file_obj" "./src/rules/tests/types/address/whitelist.txt";
+object file:address "file_obj" "./src/tests/types/address/whitelist.txt";
 
 object group "group_obj" [
     address_obj,

@@ -20,8 +20,7 @@ use vsmtp_mail_parser::parser::MailMimeParser;
 
 #[test]
 fn test_connect_rules() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/rules/connect/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["connect", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     // ctx.client_addr is 0.0.0.0 by default.
@@ -34,9 +33,7 @@ fn test_connect_rules() {
 
 #[test]
 fn test_helo_rules() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/rules/helo/main.vsl".into()))
-        .expect("couldn't build rule engine");
-
+    let re = RuleEngine::new(&Some(rules_path!["helo", "main.vsl"])).unwrap();
     let mut state = get_default_state();
     state.get_context().write().unwrap().envelop.helo = "viridit.com".to_string();
 
@@ -46,8 +43,7 @@ fn test_helo_rules() {
 
 #[test]
 fn test_mail_from_rules() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/rules/mail/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["mail", "main.vsl"])).unwrap();
 
     let mut state = get_default_state();
     {
@@ -77,8 +73,7 @@ This is a reply to your hello."#,
 
 #[test]
 fn test_rcpt_rules() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/rules/rcpt/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["rcpt", "main.vsl"])).unwrap();
 
     let mut state = get_default_state();
     {

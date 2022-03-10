@@ -563,18 +563,10 @@ impl RuleEngine {
             .context("failed to load the rule executor")?;
 
         if let Some(script_path) = &script_path {
-            ast += engine
-                .compile_with_scope(
-                    &scope,
-                    std::fs::read_to_string(&script_path).map_err(|err| {
-                        anyhow::anyhow!(
-                            "could not load rule script at '{:?}': {}",
-                            script_path,
-                            err
-                        )
-                    })?,
-                )
-                .context(format!("failed to compile '{}'", script_path.display()))?;
+            ast += std::fs::read_to_string(&script_path)
+                .with_context(|| format!("Failed to read file: '{}'", script_path.display()))
+                .map(|s| engine.compile_with_scope(&scope, s))
+                .with_context(|| format!("Failed to compile '{}'", script_path.display()))??;
         } else {
             log::warn!(
                 target: SRULES,

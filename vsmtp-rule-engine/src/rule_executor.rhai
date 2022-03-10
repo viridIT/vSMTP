@@ -32,7 +32,7 @@ fn run_rules(rules, stage) {
             };
 
             switch result.type_of() {
-                "vsmtp::rules::rule_engine::Status" => {
+                "vsmtp_common::status::Status" => {
                     switch procedure.type {
                         "rule" => status = result,
                         _ => {},

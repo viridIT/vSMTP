@@ -19,8 +19,7 @@ use vsmtp_common::status::Status;
 
 #[test]
 fn test_logs() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/actions/logs/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["logs", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
@@ -28,8 +27,7 @@ fn test_logs() {
 
 #[test]
 fn test_users() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/actions/users/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["users", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "delivery"), Status::Accept);
@@ -37,8 +35,7 @@ fn test_users() {
 
 #[test]
 fn test_send_mail() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/actions/send_mail/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["send_mail", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     // TODO: add test to send a valid email.

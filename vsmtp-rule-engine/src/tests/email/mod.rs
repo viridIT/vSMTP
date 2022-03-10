@@ -23,8 +23,7 @@ use vsmtp_common::{
 
 #[test]
 fn test_email_context() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
@@ -40,8 +39,7 @@ fn test_email_context() {
 
 #[test]
 fn test_email_bcc() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/bcc/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["bcc", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
@@ -49,8 +47,7 @@ fn test_email_bcc() {
 
 #[test]
 fn test_email_add_header() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/add_header/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["add_header", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
@@ -71,8 +68,7 @@ fn test_context_write() {
         .create("./tests/generated")
         .unwrap();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/write/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["write", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
@@ -118,8 +114,7 @@ fn test_context_dump() {
         .create("./tests/generated")
         .unwrap();
 
-    let re = RuleEngine::new(&Some("./src/rules/tests/email/dump/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["dump", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {

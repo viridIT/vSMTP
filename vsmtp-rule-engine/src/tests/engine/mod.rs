@@ -19,10 +19,7 @@ use vsmtp_common::status::Status;
 
 #[test]
 fn test_engine_errors() {
-    let re = RuleEngine::new(&Some(
-        "./src/rules/tests/engine/error_handling/main.vsl".into(),
-    ))
-    .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["error_handling", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
@@ -33,8 +30,7 @@ fn test_engine_errors() {
 
 #[test]
 fn test_engine_rules_syntax() {
-    let re = RuleEngine::new(&Some("./src/rules/tests/engine/syntax/main.vsl".into()))
-        .expect("couldn't build rule engine");
+    let re = RuleEngine::new(&Some(rules_path!["syntax", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);

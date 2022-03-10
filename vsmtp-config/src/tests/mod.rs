@@ -8,6 +8,8 @@ use crate::{
 
 use super::server_config::{QueueConfig, ServerConfig, TlsSecurityLevel};
 
+mod tls_protocol_version;
+
 #[test]
 fn simple() {
     assert_eq!(

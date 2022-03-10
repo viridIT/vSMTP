@@ -1,5 +1,5 @@
 object fqdn "viridit" "viridit.com";
-object file:fqdn "domains" "./src/rules/tests/rules/helo/helo.txt";
+object file:fqdn "domains" "./src/tests/rules/helo/helo.txt";
 object regex "com" "^[a-z0-9.]+.com$";
 
 #{

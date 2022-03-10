@@ -8,7 +8,7 @@ object regex "regex" "^[a-z0-9.]+@domain.com$";
 object ident "identifier" "local_part";
 object string "str" "a string";
 
-object file:address "file" "./src/rules/tests/types/address/whitelist.txt";
+object file:address "file" "./src/tests/types/address/whitelist.txt";
 object group "group" [
     ip4,
     ip6,
