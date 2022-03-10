@@ -20,10 +20,12 @@ use vsmtp_common::{
     status::Status,
 };
 use vsmtp_config::{log_channel::DELIVER, server_config::ServerConfig};
-use vsmtp_mail_parser::parser::MailMimeParser;
+use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
 /// process that treats incoming email offline with the postq stage.
+///
+/// # Errors
 pub async fn start(
     config: &ServerConfig,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -41,6 +43,10 @@ pub async fn start(
     }
 }
 
+///
+/// # Errors
+///
+/// # Panics
 pub async fn handle_one_in_working_queue(
     config: &ServerConfig,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,

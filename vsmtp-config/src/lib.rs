@@ -1,3 +1,15 @@
+//! vSMTP configuration
+
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::doc_markdown)]
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -27,11 +39,15 @@ pub mod service;
 #[cfg(test)]
 mod tests;
 
+/// targets for log! macro
 pub mod log_channel {
+    /// receiver system
     pub const RECEIVER: &str = "receiver";
-    pub const RESOLVER: &str = "resolver";
+    /// server's rule
     pub const SRULES: &str = "rules";
+    /// application side's rule
     pub const URULES: &str = "user_rules";
+    /// delivery system
     pub const DELIVER: &str = "deliver";
 }
 

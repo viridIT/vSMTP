@@ -19,7 +19,7 @@ use vsmtp_common::{
     libc_abstraction::chown_file,
     mail_context::{Body, MailContext, MessageMetadata},
 };
-use vsmtp_config::{log_channel::RESOLVER, server_config::ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, server_config::ServerConfig};
 use vsmtp_server::resolver::Resolver;
 
 /// see https://en.wikipedia.org/wiki/Maildir
@@ -46,7 +46,7 @@ impl Resolver for MailDirResolver {
                         write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)
                     {
                         log::error!(
-                            target: RESOLVER,
+                            target: DELIVER,
                             "could not write email to '{}' maildir directory: {}",
                             rcpt,
                             err
@@ -55,7 +55,7 @@ impl Resolver for MailDirResolver {
                 }
                 None => {
                     log::error!(
-                        target: RESOLVER,
+                        target: DELIVER,
                         "could not write email to '{}' maildir directory: user was not found on the system",
                         rcpt
                     );
@@ -125,7 +125,7 @@ fn write_to_maildir(
     chown_file(&maildir, user)?;
 
     log::debug!(
-        target: RESOLVER,
+        target: DELIVER,
         "{} bytes written to {:?}'s inbox",
         content.len(),
         user

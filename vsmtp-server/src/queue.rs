@@ -19,11 +19,16 @@ use vsmtp_common::mail_context::MailContext;
 use vsmtp_config::{log_channel::RECEIVER, server_config::ServerConfig};
 
 /// identifiers for all mail queues.
-pub enum Queue {
+pub(crate) enum Queue {
+    /// postq
     Working,
+    /// 1st attempt to deliver
     Deliver,
+    /// delivery #1 failed, next attempts
     Deferred,
+    /// too many attempts failed
     Dead,
+    /// user defined queue
     #[allow(unused)]
     Quarantine,
 }

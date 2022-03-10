@@ -16,9 +16,13 @@
 **/
 use crate::address::Address;
 
+/// Data receive during a smtp transaction
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Envelop {
+    ///
     pub helo: String,
+    ///
     pub mail_from: Address,
+    ///
     pub rcpt: std::collections::HashSet<Address>,
 }

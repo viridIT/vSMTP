@@ -1,3 +1,4 @@
+/// Status of the mail context treated by the rule engine
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
     /// accepts the current stage value, skips all rules in the stage.
@@ -13,19 +14,17 @@ pub enum Status {
     Faccept,
 }
 
-impl Status {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Status::Accept => "accept",
-            Status::Next => "next",
-            Status::Deny => "deny",
-            Status::Faccept => "faccept",
-        }
-    }
-}
-
 impl std::fmt::Display for Status {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(
+            f,
+            "{}",
+            match self {
+                Status::Accept => "accept",
+                Status::Next => "next",
+                Status::Deny => "deny",
+                Status::Faccept => "faccept",
+            }
+        )
     }
 }

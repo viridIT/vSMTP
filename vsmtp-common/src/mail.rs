@@ -41,9 +41,12 @@ impl ToString for BodyType {
     }
 }
 
+/// Message body representation
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Mail {
+    /// Message body 's headers
     pub headers: MailHeaders,
+    /// Message body content
     pub body: BodyType,
 }
 
@@ -58,6 +61,7 @@ impl Default for Mail {
 
 impl Mail {
     /// get the original header section of the email.
+    #[must_use]
     pub fn raw_headers(&self) -> String {
         self.headers
             .iter()
@@ -67,15 +71,18 @@ impl Mail {
     }
 
     /// get the original body section of the email.
+    #[must_use]
     pub fn raw_body(&self) -> String {
         self.body.to_string()
     }
 
     /// return the original text representation of the email.
+    #[must_use]
     pub fn to_raw(&self) -> String {
         format!("{}\n\n{}", self.raw_headers(), self.raw_body())
     }
 
+    /// change the from field of the header
     pub fn rewrite_mail_from(&mut self, value: &str) {
         self.headers
             .iter_mut()
@@ -86,6 +93,7 @@ impl Mail {
             });
     }
 
+    /// change one recipients value from @old to @new
     pub fn rewrite_rcpt(&mut self, old: &str, new: &str) {
         self.headers
             .iter_mut()
@@ -96,6 +104,7 @@ impl Mail {
             });
     }
 
+    /// add a recipients
     pub fn add_rcpt(&mut self, new: &str) {
         self.headers
             .iter_mut()
@@ -106,6 +115,7 @@ impl Mail {
             });
     }
 
+    /// remove a recipients
     pub fn remove_rcpt(&mut self, old: &str) {
         self.headers
             .iter_mut()

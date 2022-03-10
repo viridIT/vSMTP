@@ -23,6 +23,7 @@ use rhai::plugin::{
 use vsmtp_common::address::Address;
 use vsmtp_common::mail_context::MailContext;
 
+#[doc(hidden)]
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod mail_context {

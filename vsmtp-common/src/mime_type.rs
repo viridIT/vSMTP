@@ -16,25 +16,36 @@
 **/
 use super::mail::Mail;
 
+/// header of a mime section
 #[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct MimeHeader {
+    ///
     pub name: String,
+    ///
     pub value: String,
     /// parameter ordering does not matter.
     pub args: std::collections::HashMap<String, String>,
 }
 
+///
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum MimeBodyType {
+    ///
     Regular(Vec<String>),
+    ///
     Multipart(MimeMultipart),
+    ///
     Embedded(Mail),
 }
 
+///
 #[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct MimeMultipart {
+    ///
     pub preamble: String,
+    ///
     pub parts: Vec<Mime>,
+    ///
     pub epilogue: String,
 }
 
@@ -87,14 +98,18 @@ impl MimeMultipart {
     }
 }
 
+///
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Mime {
+    ///
     pub headers: Vec<MimeHeader>,
+    ///
     pub content: MimeBodyType,
 }
 
 impl Mime {
     /// get the original mime header section of the part.
+    #[must_use]
     pub fn raw_headers(&self) -> String {
         self.headers
             .iter()
@@ -104,6 +119,11 @@ impl Mime {
     }
 
     /// get the original body section of the part.
+    ///
+    /// # Panics
+    ///
+    /// * @self is a multipart ill formed (no boundary in header)
+    #[must_use]
     pub fn raw_body(&self) -> String {
         match &self.content {
             MimeBodyType::Regular(regular) => regular.join("\n"),
@@ -125,6 +145,7 @@ impl Mime {
     }
 
     /// return the original text representation of the mime part.
+    #[must_use]
     pub fn to_raw(&self) -> String {
         format!("{}\n\n{}", self.raw_headers(), self.raw_body())
     }

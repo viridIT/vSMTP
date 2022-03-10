@@ -39,6 +39,7 @@ const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
 const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[hour]:[minute]:[second]");
 
+///
 pub struct RuleState<'a> {
     scope: Scope<'a>,
     #[allow(unused)]
@@ -49,6 +50,7 @@ pub struct RuleState<'a> {
 
 impl<'a> RuleState<'a> {
     /// creates a new rule engine with an empty scope.
+    #[must_use]
     pub fn new(config: &ServerConfig) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
@@ -82,6 +84,8 @@ impl<'a> RuleState<'a> {
         }
     }
 
+    ///
+    #[must_use]
     pub fn with_context(config: &ServerConfig, mail_context: MailContext) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
@@ -119,6 +123,8 @@ impl<'a> RuleState<'a> {
         self.mail_context.clone()
     }
 
+    ///
+    #[must_use]
     pub const fn skipped(&self) -> Option<Status> {
         self.skip
     }
@@ -257,6 +263,10 @@ impl RuleEngine {
 
     /// creates a new instance of the rule engine, reading all files in
     /// src_path parameter.
+    ///
+    /// # Errors
+    ///
+    /// # Panics
     #[allow(clippy::too_many_lines)]
     pub fn new(script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
         let mut engine = Engine::new();

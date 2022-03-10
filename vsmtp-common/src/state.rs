@@ -32,12 +32,19 @@
 #[serde(try_from = "String")]
 #[allow(clippy::module_name_repetitions)]
 pub enum StateSMTP {
+    /// After TCP/IP socket has been accepted
     Connect,
+    /// After receiving HELO/EHLO command
     Helo,
+    /// After receiving STARTTLS command
     NegotiationTLS,
+    /// After receiving MAIL FROM command
     MailFrom,
+    /// After receiving RCPT TO command
     RcptTo,
+    /// After receiving DATA command
     Data,
+    /// After receiving QUIT command
     Stop,
 }
 
@@ -61,6 +68,7 @@ impl From<StateSMTP> for String {
     }
 }
 
+/// Error return type of StateSMTP::from_str
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, PartialEq, Eq)]
 pub struct StateSMTPFromStrError;

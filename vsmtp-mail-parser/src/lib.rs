@@ -1,3 +1,15 @@
+//! vSMTP mail parser
+
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::doc_markdown)]
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,7 +28,9 @@
 **/
 mod error;
 mod helpers;
-pub mod parser;
+mod parser;
+
+pub use parser::MailMimeParser;
 
 #[cfg(test)]
 pub mod tests;

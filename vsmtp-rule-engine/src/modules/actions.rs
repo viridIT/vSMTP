@@ -30,26 +30,36 @@ use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::URULES;
 use vsmtp_config::service::Service;
 
+#[doc(hidden)]
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod actions {
 
+    /// the transaction if forced accepted, skipping rules of next stages and going the pre-queue
+    #[must_use]
     pub const fn faccept() -> Status {
         Status::Faccept
     }
 
+    /// the transaction if accepted, skipping rules to the next stage
+    #[must_use]
     pub const fn accept() -> Status {
         Status::Accept
     }
 
+    /// the transaction continue to execute rule for that stage
+    #[must_use]
     pub const fn next() -> Status {
         Status::Next
     }
 
+    /// the transaction is denied, reply error to clients
+    #[must_use]
     pub const fn deny() -> Status {
         Status::Deny
     }
 
+    ///
     pub fn log(level: &str, message: &str) {
         match level {
             "trace" => log::trace!(target: URULES, "{}", message),
@@ -112,10 +122,12 @@ pub mod actions {
 
     // TODO: use UsersCache to optimize user lookup.
     /// use the user cache to check if a user exists on the system.
+    #[must_use]
     pub fn user_exist(name: &str) -> bool {
         users::get_user_by_name(name).is_some()
     }
 
+    /// execute the service named @service_name from the vSMTP configuration definition
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
     pub fn run_service(
@@ -146,6 +158,7 @@ pub mod actions {
         .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
     }
 
+    /// change the sender of the mail
     #[rhai_fn(global, return_raw)]
     pub fn rewrite_mail_from(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -175,6 +188,7 @@ pub mod actions {
         }
     }
 
+    /// change a recipient of the mail
     #[rhai_fn(global, return_raw)]
     pub fn rewrite_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -214,6 +228,7 @@ pub mod actions {
         }
     }
 
+    /// add a recipient to the mail
     #[rhai_fn(global, return_raw)]
     pub fn add_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -238,6 +253,7 @@ pub mod actions {
         }
     }
 
+    /// remove a recipient to the mail
     #[rhai_fn(global, return_raw)]
     pub fn remove_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -354,6 +370,7 @@ pub mod actions {
         }
     }
 
+    /// set the delivery method
     #[rhai_fn(global, return_raw)]
     pub fn deliver(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -371,6 +388,7 @@ pub mod actions {
         Ok(())
     }
 
+    /// remove the delivery method
     #[rhai_fn(global, return_raw)]
     pub fn disable_delivery(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,

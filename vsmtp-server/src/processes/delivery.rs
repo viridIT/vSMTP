@@ -22,10 +22,18 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
-pub async fn start(
+///
+/// # Errors
+///
+/// *
+///
+/// # Panics
+///
+/// * tokio::select!
+pub async fn start<S: std::hash::BuildHasher>(
     config: std::sync::Arc<ServerConfig>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    mut resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
+    mut resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> anyhow::Result<()> {
     log::info!(
@@ -64,17 +72,22 @@ pub async fn start(
                     target: DELIVER,
                     "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
                 );
-                flush_deferred_queue(&mut resolvers, &config).await.unwrap();
+                flush_deferred_queue(&mut resolvers, &config).await?;
             }
         };
     }
 }
 
-pub async fn handle_one_in_delivery_queue(
+///
+///
+/// # Panics
+///
+/// # Errors
+pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher>(
     config: &ServerConfig,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
+    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
 ) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
@@ -165,10 +178,10 @@ pub async fn handle_one_in_delivery_queue(
     Ok(())
 }
 
-async fn flush_deliver_queue(
+async fn flush_deliver_queue<S: std::hash::BuildHasher>(
     config: &ServerConfig,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
+    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
         handle_one_in_delivery_queue(config, &path?.path(), rule_engine, resolvers).await?;
@@ -177,8 +190,8 @@ async fn flush_deliver_queue(
     Ok(())
 }
 
-async fn handle_one_in_deferred_queue(
-    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
+async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher>(
+    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
     path: &std::path::Path,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
@@ -279,14 +292,12 @@ async fn handle_one_in_deferred_queue(
     Ok(())
 }
 
-async fn flush_deferred_queue(
-    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
+async fn flush_deferred_queue<S: std::hash::BuildHasher>(
+    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deferred.to_path(&config.delivery.spool_dir)?)? {
-        handle_one_in_deferred_queue(resolvers, &path?.path(), config)
-            .await
-            .unwrap();
+        handle_one_in_deferred_queue(resolvers, &path?.path(), config).await?;
     }
 
     Ok(())

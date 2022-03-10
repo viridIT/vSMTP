@@ -1,7 +1,7 @@
 use rhai::EvalAltResult;
 
-pub mod actions;
-pub mod mail_context;
-pub mod types;
+pub(crate) mod actions;
+pub(crate) mod mail_context;
+pub(crate) mod types;
 
-pub type EngineResult<T> = Result<T, Box<EvalAltResult>>;
+pub(crate) type EngineResult<T> = Result<T, Box<EvalAltResult>>;

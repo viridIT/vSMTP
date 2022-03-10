@@ -1,14 +1,20 @@
-pub mod resolver {
-    /// Protocol Maildir
-    #[allow(clippy::module_name_repetitions)]
+//! vSMTP executable
+
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::multiple_crate_versions)]
+
+#[allow(clippy::module_name_repetitions)]
+mod resolver {
     pub mod maildir_resolver;
-
-    /// Protocol Mailbox
-    #[allow(clippy::module_name_repetitions)]
     pub mod mbox_resolver;
-
-    /// Mail relaying
-    #[allow(clippy::module_name_repetitions)]
     pub mod smtp_resolver;
 
     #[cfg(test)]
@@ -36,3 +42,7 @@ pub mod resolver {
         }
     }
 }
+
+pub use resolver::maildir_resolver::MailDirResolver;
+pub use resolver::mbox_resolver::MBoxResolver;
+pub use resolver::smtp_resolver::SMTPResolver;

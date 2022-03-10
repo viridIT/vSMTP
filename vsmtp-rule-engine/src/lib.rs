@@ -1,3 +1,15 @@
+//! vSMTP rule engine
+
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::doc_markdown)]
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -15,8 +27,10 @@
  *
 **/
 mod error;
+/// vsl prelude
 pub mod modules;
 mod obj;
+/// rust api
 pub mod rule_engine;
 mod server_api;
 mod service;

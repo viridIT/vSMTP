@@ -15,9 +15,7 @@
  *
  **/
 use anyhow::Context;
-use vsmtp::resolver::maildir_resolver::MailDirResolver;
-use vsmtp::resolver::mbox_resolver::MBoxResolver;
-use vsmtp::resolver::smtp_resolver::SMTPResolver;
+use vsmtp::{MBoxResolver, MailDirResolver, SMTPResolver};
 use vsmtp_common::libc_abstraction::{daemon, setgid, setuid, ForkResult};
 use vsmtp_config::get_logger_config;
 use vsmtp_config::server_config::ServerConfig;

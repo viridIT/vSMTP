@@ -85,12 +85,15 @@ pub enum SMTPReplyCode {
     // Code450,
     /// requested action aborted: local error in processing
     Code451,
+    ///
     Code451Timeout,
+    ///
     Code451TooManyError,
     /// requested action not taken: insufficient system storage
     Code452,
+    ///
     Code452TooManyRecipients,
-    // TLS not available due to temporary reason
+    /// TLS not available due to temporary reason
     Code454,
     /// server unable to accommodate parameters
     // Code455,
@@ -132,7 +135,9 @@ pub enum SMTPReplyCode {
 }
 
 impl SMTPReplyCode {
-    pub fn is_error(self) -> bool {
+    /// Is the code considered as an error
+    #[must_use]
+    pub const fn is_error(self) -> bool {
         match self {
             SMTPReplyCode::Code214
             | SMTPReplyCode::Code220
@@ -154,9 +159,10 @@ impl SMTPReplyCode {
             | SMTPReplyCode::Code530
             | SMTPReplyCode::Code554
             | SMTPReplyCode::Code554tls
-            | SMTPReplyCode::ConnectionMaxReached => true,
+            | SMTPReplyCode::ConnectionMaxReached
+            | SMTPReplyCode::Code451TooManyError
+            | SMTPReplyCode::Code504 => true,
             //
-            _ => unimplemented!(),
         }
     }
 }
@@ -196,6 +202,7 @@ impl From<SMTPReplyCode> for String {
     }
 }
 
+/// Error return type of SMTPReplyCode::from_str
 #[derive(Debug, PartialEq, Eq)]
 pub struct SMTPReplyCodeFromStrError;
 

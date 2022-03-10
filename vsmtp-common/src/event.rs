@@ -20,7 +20,9 @@ use super::code::SMTPReplyCode;
 /// https://datatracker.ietf.org/doc/html/rfc6152
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MimeBodyType {
+    ///
     SevenBit,
+    ///
     EightBitMime,
     // Binary, // TODO: https://datatracker.ietf.org/doc/html/rfc3030
 }
@@ -120,6 +122,8 @@ pub enum Event {
 impl Event {
     /// Create a valid SMTP command (or event) from a string OR return a SMTP error code
     /// See https://datatracker.ietf.org/doc/html/rfc5321#section-4.1
+    ///
+    /// # Errors
     pub fn parse_cmd(input: &str) -> Result<Self, SMTPReplyCode> {
         // 88 = 80 - "\r\n".len() + (SMTPUTF8 ? 10 : 0)
         if input.len() > 88 || input.is_empty() {
@@ -293,6 +297,11 @@ impl Event {
         }
     }
 
+    /// Parse a smtp input receive between DATA and "\r\n.\r\n" (DATA END)
+    ///
+    /// # Errors
+    ///
+    /// * input length is too long (> 998)
     pub fn parse_data(input: &str) -> Result<Self, SMTPReplyCode> {
         match input {
             "." => Ok(Self::DataEnd),

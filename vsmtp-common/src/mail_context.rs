@@ -16,10 +16,10 @@
 **/
 use crate::{envelop::Envelop, mail::Mail, status::Status};
 
-// use crate::{mime::mail::Mail, rules::rule_engine::Status};
-
+/// average size of a mail
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
+/// metadata
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MessageMetadata {
     /// instant when the last "MAIL FROM" has been received.
