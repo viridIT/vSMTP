@@ -15,11 +15,9 @@
  *
 **/
 use anyhow::Context;
-use vsmtp::{
-    config::{get_logger_config, server_config::ServerConfig},
-    resolver::{MailContext, Resolver},
-    server::ServerVSMTP,
-};
+use vsmtp_common::{collection, mail_context::MailContext};
+use vsmtp_config::{get_logger_config, server_config::ServerConfig};
+use vsmtp_server::{resolver::Resolver, server::ServerVSMTP};
 
 #[derive(Debug, serde::Deserialize)]
 struct StressConfig {
@@ -45,8 +43,8 @@ async fn listen_and_serve() {
         .unwrap()
         .with_server(
             "stress.server.com",
-            users::get_current_username().unwrap().to_str().unwrap(),
-            users::get_current_groupname().unwrap().to_str().unwrap(),
+            "root",
+            "root",
             "0.0.0.0:10027".parse().expect("valid address"),
             "0.0.0.0:10589".parse().expect("valid address"),
             "0.0.0.0:10467".parse().expect("valid address"),
@@ -54,12 +52,12 @@ async fn listen_and_serve() {
         )
         .with_logging(
             "./tmp/tests/stress/output.log",
-            vsmtp::collection! {"default".to_string() => log::LevelFilter::Info},
+            collection! {"default".to_string() => log::LevelFilter::Info},
         )
         .without_smtps()
         .with_default_smtp()
         .with_delivery("./tmp/tests/stress/spool")
-        .with_empty_rules()
+        .with_rules("./tests/stress/main.vsl", vec![])
         .with_default_reply_codes()
         .build()
         .unwrap();

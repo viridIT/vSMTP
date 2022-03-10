@@ -4,5 +4,7 @@
 /// cargo test stress::send_payload -- --ignored
 /// ```
 ///
-mod listen_and_serve;
-mod send_payload;
+mod stress {
+    mod listen_and_serve;
+    mod send_payload;
+}

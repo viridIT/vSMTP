@@ -81,7 +81,7 @@ tokio = { version = "1.17.0", features = [
 #
 # semver = "1.0.6"
 #
-# [dev-dependencies]
+[dev-dependencies]
 # lazy_static = "1.4.0"
 # criterion = { version = "0.3.5", features = ["async_tokio"] }
 # rand = "0.8.5"
@@ -89,6 +89,14 @@ tokio = { version = "1.17.0", features = [
 # opentelemetry = { version = "0.17.0", features = ["rt-tokio", "metrics"] }
 # opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"] }
 # pretty_assertions = "1.1.0"
+
+## Stress tests
+opentelemetry = { version = "0.17.0", features = ["rt-tokio", "metrics"] }
+opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"] }
+serde = { version = "1.0.136", features = ["derive"] }
+serde_derive = "1.0.136"
+lazy_static = "1.4.0"
+
 
 # [[bench]]
 # name = "receiver"
