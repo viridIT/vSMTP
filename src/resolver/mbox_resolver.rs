@@ -24,6 +24,10 @@ use crate::{
 
 use super::Resolver;
 
+const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
+    "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"
+);
+
 #[derive(Default)]
 /// resolver use to write emails on the system following the
 /// application/mbox Media Type.
@@ -56,19 +60,20 @@ impl Resolver for MBoxResolver {
 }
 
 fn get_mbox_timestamp_format(metadata: &Option<MessageMetadata>) -> String {
-    let timestamp: chrono::DateTime<chrono::offset::Utc> = metadata
+    let odt: time::OffsetDateTime = metadata
         .as_ref()
         .map_or_else(std::time::SystemTime::now, |metadata| metadata.timestamp)
         .into();
 
-    timestamp.format("%c").to_string()
+    odt.format(&CTIME_FORMAT)
+        .unwrap_or_else(|_| String::default())
 }
 
 fn build_mbox_message(ctx: &MailContext, timestamp: &str) -> anyhow::Result<String> {
     Ok(format!(
         "From {} {}\n{}\n",
-        timestamp,
         ctx.envelop.mail_from,
+        timestamp,
         match &ctx.body {
             Body::Empty => {
                 anyhow::bail!("failed to write email using mbox: body is empty")
@@ -166,7 +171,7 @@ This is a raw email."#
 
         assert_eq!(
             format!(
-                "From {} john@doe.com\nfrom: john doe <john@doe.com>\nto: green@foo.net\nsubject: test email\n\nThis is a raw email.\n",
+                "From john@doe.com {}\nfrom: john doe <john@doe.com>\nto: green@foo.net\nsubject: test email\n\nThis is a raw email.\n",
                 timestamp
             ),
             message_from_parsed

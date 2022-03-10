@@ -38,7 +38,11 @@ addr = { version = "0.15.3" }
 regex = "1.5.4"
 iprange = "0.6.7"
 ipnet = "2.4.0"
-chrono = "0.4.19"
+time = { version = "0.3.7", default-features = false, features = [
+    "std",
+    "formatting",
+    "macros",
+] }
 
 rhai = { version = "1.5.0", features = ["unchecked", "sync", "internals"] }
 

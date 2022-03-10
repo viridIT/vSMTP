@@ -33,6 +33,11 @@ use std::net::{IpAddr, SocketAddr};
 
 use super::server_api::ServerAPI;
 
+const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
+    time::macros::format_description!("[year]-[month]-[day]");
+const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
+    time::macros::format_description!("[hour]:[minute]:[second]");
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
     /// accepts the current stage value, skips all rules in the stage.
@@ -173,10 +178,20 @@ impl RuleEngine {
             return status;
         }
 
-        let now = chrono::Local::now();
+        // let now = chrono::Local::now();
+        let now = time::OffsetDateTime::now_utc();
+
         state
-            .add_data("date", now.date().format("%Y/%m/%d").to_string())
-            .add_data("time", now.time().format("%H:%M:%S").to_string());
+            .add_data(
+                "date",
+                now.format(&DATE_FORMAT)
+                    .unwrap_or_else(|_| String::default()),
+            )
+            .add_data(
+                "time",
+                now.format(&TIME_FORMAT)
+                    .unwrap_or_else(|_| String::default()),
+            );
 
         let rules = match self
             .context

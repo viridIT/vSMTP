@@ -326,8 +326,7 @@ pub mod actions {
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
     pub fn quarantine(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
-        ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         queue: &str,
     ) -> EngineResult<()> {
         match std::fs::OpenOptions::new()
@@ -339,7 +338,7 @@ pub mod actions {
                 disable_delivery(this)?;
 
                 file.write_all(
-                    serde_json::to_string_pretty(&*ctx.read().map_err::<Box<EvalAltResult>, _>(
+                    serde_json::to_string_pretty(&*this.read().map_err::<Box<EvalAltResult>, _>(
                         |err| format!("failed to dump email: {err:?}").into(),
                     )?)
                     .map_err::<Box<EvalAltResult>, _>(|err| {
@@ -355,21 +354,26 @@ pub mod actions {
 
     #[rhai_fn(global, return_raw)]
     pub fn deliver(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
-        resolver: String,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        resolver: &str,
     ) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .resolver = resolver;
+            .metadata
+            .as_mut()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "metadata are not available in this stage".into()
+            })?
+            .resolver = resolver.to_string();
 
         Ok(())
     }
 
     #[rhai_fn(global, return_raw)]
     pub fn disable_delivery(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<()> {
-        deliver(this, "none".to_string())
+        deliver(this, "none")
     }
 
     /// check if a given header exists in the top level headers.
