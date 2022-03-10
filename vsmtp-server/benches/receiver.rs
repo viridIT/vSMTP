@@ -14,17 +14,16 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use std::collections::HashSet;
-
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp::{
-    config::server_config::ServerConfig,
-    receiver::test_helpers::test_receiver,
-    resolver::{MailContext, Resolver},
-    Address, Body, BodyType,
+use vsmtp_common::{
+    address::Address,
+    mail::BodyType,
+    mail_context::{Body, MailContext},
 };
+use vsmtp_config::server_config::ServerConfig;
+use vsmtp_server::{receiver::test_helpers::test_receiver, resolver::Resolver};
 
 #[derive(Clone)]
 struct DefaultResolverTest;
@@ -85,7 +84,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
                     ctx.envelop.rcpt,
-                    HashSet::from([Address::new("aa@bb").unwrap()])
+                    std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
                 );
                 assert!(match &ctx.body {
                     Body::Parsed(mail) => mail.body == BodyType::Undefined,
