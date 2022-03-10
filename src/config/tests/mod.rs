@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 use crate::{
     collection,
     config::{
-        server_config::{ProtocolVersion, ProtocolVersionRequirement, SniKey},
+        server_config::{InnerQueuesConfig, ProtocolVersion, ProtocolVersionRequirement, SniKey},
         service::Service,
     },
     smtp::{code::SMTPReplyCode, state::StateSMTP},
@@ -27,21 +27,21 @@ fn simple() {
             )
             .without_smtps()
             .with_default_smtp()
-            .with_delivery(
+            .with_delivery_and_queues(
                 "/var/spool/vsmtp",
-                collection! {
-                    "working".to_string() => QueueConfig {
-                        capacity: Some(32),
+                InnerQueuesConfig {
+                    working: QueueConfig {
+                        capacity: 32,
                         retry_max: None,
                         cron_period: None
                     },
-                    "deliver".to_string() => QueueConfig {
-                        capacity: Some(32),
+                    deliver: QueueConfig {
+                        capacity: 32,
                         retry_max: None,
                         cron_period: None
                     },
-                    "deferred".to_string() => QueueConfig {
-                        capacity: None,
+                    deferred: QueueConfig {
+                        capacity: QueueConfig::default_capacity(),
                         retry_max: Some(10),
                         cron_period: Some(std::time::Duration::from_secs(10))
                     },
@@ -92,21 +92,21 @@ fn smtps() {
                 }]),
             )
             .with_default_smtp()
-            .with_delivery(
+            .with_delivery_and_queues(
                 "./tmp/var/spool/vsmtp",
-                collection! {
-                    "working".to_string() => QueueConfig {
-                        capacity: Some(32),
+                InnerQueuesConfig {
+                    working: QueueConfig {
+                        capacity: 32,
                         retry_max: None,
                         cron_period: None
                     },
-                    "deliver".to_string() => QueueConfig {
-                        capacity: Some(32),
+                    deliver: QueueConfig {
+                        capacity: 32,
                         retry_max: None,
                         cron_period: None
                     },
-                    "deferred".to_string() => QueueConfig {
-                        capacity: None,
+                    deferred: QueueConfig {
+                        capacity: QueueConfig::default_capacity(),
                         retry_max: Some(10),
                         cron_period: Some(std::time::Duration::from_secs(10))
                     },
@@ -146,21 +146,21 @@ fn services() {
                 1000,
                 -1,
             )
-            .with_delivery(
+            .with_delivery_and_queues(
                 "/var/spool/vsmtp",
-                collection! {
-                    "working".to_string() => QueueConfig {
-                        capacity: Some(32),
+                InnerQueuesConfig {
+                    working: QueueConfig {
+                        capacity: 32,
                         retry_max: None,
                         cron_period: None
                     },
-                    "deliver".to_string() => QueueConfig {
-                        capacity: Some(32),
+                    deliver: QueueConfig {
+                        capacity: 32,
                         retry_max: None,
                         cron_period: None
                     },
-                    "deferred".to_string() => QueueConfig {
-                        capacity: None,
+                    deferred: QueueConfig {
+                        capacity: QueueConfig::default_capacity(),
                         retry_max: Some(10),
                         cron_period: Some(std::time::Duration::from_secs(10))
                     },
@@ -263,21 +263,21 @@ fn complete() {
                 25,
                 16
             )
-            .with_delivery(
+            .with_delivery_and_queues(
                 "/var/spool/vsmtp",
-                collection! {
-                    "working".to_string() => QueueConfig {
-                        capacity: Some(32),
+                InnerQueuesConfig {
+                    working: QueueConfig {
+                        capacity: 32,
                         retry_max: None,
                         cron_period: None
                     },
-                    "deliver".to_string() => QueueConfig {
-                        capacity: Some(32),
+                    deliver: QueueConfig {
+                        capacity: 32,
                         retry_max: None,
                         cron_period: None
                     },
-                    "deferred".to_string() => QueueConfig {
-                        capacity: None,
+                    deferred: QueueConfig {
+                        capacity: 32,
                         retry_max: Some(10),
                         cron_period: Some(std::time::Duration::from_secs(10))
                     },

@@ -1,0 +1,7 @@
+{
+    "server_ip": "0.0.0.0",
+    "server_port": 10027,
+    "total_client_count": 100,
+    "mail_per_client": 10,
+    "client_count_max": 5
+}

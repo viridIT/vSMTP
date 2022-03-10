@@ -126,10 +126,8 @@ fn main() -> anyhow::Result<()> {
                         .without_log()
                         .without_smtps()
                         .with_default_smtp()
-                        // TODO: default
-                        .with_delivery("/var/spool/vsmtp", vsmtp::collection! {})
-                        // TODO: default
-                        .with_rules("/etc/vsmtp/rules", vec![])
+                        .with_delivery("/var/spool/vsmtp")
+                        .with_empty_rules()
                         .with_default_reply_codes()
                         .build()
                         .unwrap(),

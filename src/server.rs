@@ -55,6 +55,7 @@ impl ServerVSMTP {
             std::net::TcpListener,
         ),
     ) -> anyhow::Result<Self> {
+        // TODO: move that in config builder ?
         if !config.delivery.spool_dir.exists() {
             std::fs::DirBuilder::new()
                 .recursive(true)
@@ -115,27 +116,13 @@ impl ServerVSMTP {
     /// * [tokio::select]
     #[allow(clippy::too_many_lines)]
     pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
-        let delivery_buffer_size = self
-            .config
-            .delivery
-            .queues
-            .get("delivery")
-            .and_then(|q| q.capacity)
-            .unwrap_or(1);
+        let (delivery_sender, delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(
+            self.config.delivery.queues.deliver.capacity,
+        );
 
-        let (delivery_sender, delivery_receiver) =
-            tokio::sync::mpsc::channel::<ProcessMessage>(delivery_buffer_size);
-
-        let working_buffer_size = self
-            .config
-            .delivery
-            .queues
-            .get("working")
-            .and_then(|q| q.capacity)
-            .unwrap_or(1);
-
-        let (working_sender, working_receiver) =
-            tokio::sync::mpsc::channel::<ProcessMessage>(working_buffer_size);
+        let (working_sender, working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(
+            self.config.delivery.queues.working.capacity,
+        );
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
             &self.config.rules.main_filepath.clone(),
@@ -329,7 +316,7 @@ mod tests {
                 .without_log()
                 .without_smtps()
                 .with_default_smtp()
-                .with_delivery("./tmp/trash", crate::collection! {})
+                .with_delivery("./tmp/trash")
                 .with_rules("./tmp/no_rules", vec![])
                 .with_default_reply_codes()
                 .build()
@@ -379,7 +366,7 @@ mod tests {
                     None,
                 )
                 .with_default_smtp()
-                .with_delivery("./tmp/trash", crate::collection! {})
+                .with_delivery("./tmp/trash")
                 .with_rules("./tmp/no_rules", vec![])
                 .with_default_reply_codes()
                 .build()

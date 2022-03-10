@@ -17,8 +17,8 @@
 use crate::smtp::code::SMTPReplyCode;
 
 use super::server_config::{
-    Codes, InnerLogConfig, InnerSMTPConfig, InnerSMTPErrorConfig, InnerServerConfig,
-    InnerUserLogConfig,
+    Codes, InnerLogConfig, InnerQueuesConfig, InnerSMTPConfig, InnerSMTPErrorConfig,
+    InnerServerConfig, InnerUserLogConfig, QueueConfig,
 };
 
 impl Default for InnerServerConfig {
@@ -103,6 +103,34 @@ impl InnerSMTPConfig {
 
     pub(super) const fn default_rcpt_count_max() -> usize {
         1000
+    }
+}
+
+impl Default for InnerQueuesConfig {
+    fn default() -> Self {
+        Self {
+            working: QueueConfig {
+                capacity: QueueConfig::default_capacity(),
+                retry_max: None,
+                cron_period: None,
+            },
+            deliver: QueueConfig {
+                capacity: QueueConfig::default_capacity(),
+                retry_max: None,
+                cron_period: None,
+            },
+            deferred: QueueConfig {
+                capacity: QueueConfig::default_capacity(),
+                retry_max: None,
+                cron_period: None,
+            },
+        }
+    }
+}
+
+impl QueueConfig {
+    pub(crate) const fn default_capacity() -> usize {
+        32
     }
 }
 

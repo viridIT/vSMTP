@@ -34,12 +34,6 @@ pub async fn start(
 ) -> anyhow::Result<()> {
     log::info!(
         target: DELIVER,
-        "vDeliver (deferred) booting, flushing queue.",
-    );
-    flush_deferred_queue(&mut resolvers, &config).await?;
-
-    log::info!(
-        target: DELIVER,
         "vDeliver (delivery) booting, flushing queue.",
     );
     flush_deliver_queue(&config, &rule_engine, &mut resolvers).await?;
@@ -48,22 +42,22 @@ pub async fn start(
         config
             .delivery
             .queues
-            .get("deferred")
-            .and_then(|q| q.cron_period)
+            .deferred
+            .cron_period
             .unwrap_or_else(|| std::time::Duration::from_secs(10)),
     );
 
     loop {
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
-                            if let Err(error) = handle_one_in_delivery_queue(
-                                &config,
-                                &std::path::PathBuf::from_iter([
-                                    Queue::Deliver.to_path(&config.delivery.spool_dir)?,
-                                    std::path::Path::new(&pm.message_id).to_path_buf(),
-                                ]),
-                                &rule_engine,
-                                &mut resolvers,
+                if let Err(error) = handle_one_in_delivery_queue(
+                    &config,
+                    &std::path::PathBuf::from_iter([
+                        Queue::Deliver.to_path(&config.delivery.spool_dir)?,
+                        std::path::Path::new(&pm.message_id).to_path_buf(),
+                    ]),
+                    &rule_engine,
+                    &mut resolvers,
                 )
                 .await {
                     log::error!(target: DELIVER, "{error}");
@@ -208,12 +202,7 @@ async fn handle_one_in_deferred_queue(
 
     let mut mail: MailContext = serde_json::from_str(&raw)?;
 
-    let max_retry_deferred = config
-        .delivery
-        .queues
-        .get("deferred")
-        .and_then(|q| q.retry_max)
-        .unwrap_or(100);
+    let max_retry_deferred = config.delivery.queues.deferred.retry_max.unwrap_or(100);
 
     if mail.metadata.is_none() {
         anyhow::bail!("email metadata is missing")
