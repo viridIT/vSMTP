@@ -27,32 +27,32 @@ impl Default for InnerServerConfig {
             domain: String::default(),
             vsmtp_user: "vsmtp".to_string(),
             vsmtp_group: "vsmtp".to_string(),
-            addr: "0.0.0.0:25".parse().expect("valid address"),
-            addr_submission: "0.0.0.0:587".parse().expect("valid address"),
-            addr_submissions: "0.0.0.0:465".parse().expect("valid address"),
+            addr: Self::default_addr(),
+            addr_submission: Self::default_addr_submission(),
+            addr_submissions: Self::default_addr_submissions(),
             thread_count: num_cpus::get(),
         }
     }
 }
 
 impl InnerServerConfig {
-    pub(crate) fn default_addr() -> std::net::SocketAddr {
-        Self::default().addr
+    pub(crate) fn default_addr() -> Vec<std::net::SocketAddr> {
+        vec!["0.0.0.0:25".parse().expect("valid address")]
     }
 
-    pub(crate) fn default_addr_submission() -> std::net::SocketAddr {
-        Self::default().addr_submission
+    pub(crate) fn default_addr_submission() -> Vec<std::net::SocketAddr> {
+        vec!["0.0.0.0:587".parse().expect("valid address")]
     }
 
-    pub(crate) fn default_addr_submissions() -> std::net::SocketAddr {
-        Self::default().addr_submissions
+    pub(crate) fn default_addr_submissions() -> Vec<std::net::SocketAddr> {
+        vec!["0.0.0.0:465".parse().expect("valid address")]
     }
 }
 
 impl Default for InnerLogConfig {
     fn default() -> Self {
         Self {
-            file: std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "app.log"]),
+            file: Self::default_file(),
             level: std::collections::BTreeMap::default(),
         }
     }
@@ -60,7 +60,7 @@ impl Default for InnerLogConfig {
 
 impl InnerLogConfig {
     pub(crate) fn default_file() -> std::path::PathBuf {
-        Self::default().file
+        std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "app.log"])
     }
 }
 

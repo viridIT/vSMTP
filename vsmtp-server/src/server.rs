@@ -323,9 +323,9 @@ mod tests {
         let s = ServerVSMTP::new(
             config.clone(),
             (
-                std::net::TcpListener::bind(config.server.addr)?,
-                std::net::TcpListener::bind(config.server.addr_submission)?,
-                std::net::TcpListener::bind(config.server.addr_submissions)?,
+                std::net::TcpListener::bind(&config.server.addr[..])?,
+                std::net::TcpListener::bind(&config.server.addr_submission[..])?,
+                std::net::TcpListener::bind(&config.server.addr_submissions[..])?,
             ),
         )
         .unwrap();
@@ -373,9 +373,9 @@ mod tests {
         let s = ServerVSMTP::new(
             config.clone(),
             (
-                std::net::TcpListener::bind(config.server.addr)?,
-                std::net::TcpListener::bind(config.server.addr_submission)?,
-                std::net::TcpListener::bind(config.server.addr_submissions)?,
+                std::net::TcpListener::bind(&config.server.addr[..])?,
+                std::net::TcpListener::bind(&config.server.addr_submission[..])?,
+                std::net::TcpListener::bind(&config.server.addr_submissions[..])?,
             ),
         )
         .unwrap();

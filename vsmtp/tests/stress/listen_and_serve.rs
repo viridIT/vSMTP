@@ -76,9 +76,9 @@ async fn listen_and_serve() {
         .unwrap();
 
     let sockets = (
-        std::net::TcpListener::bind(config.server.addr).unwrap(),
-        std::net::TcpListener::bind(config.server.addr_submission).unwrap(),
-        std::net::TcpListener::bind(config.server.addr_submissions).unwrap(),
+        std::net::TcpListener::bind(&config.server.addr[..]).unwrap(),
+        std::net::TcpListener::bind(&config.server.addr_submission[..]).unwrap(),
+        std::net::TcpListener::bind(&config.server.addr_submissions[..]).unwrap(),
     );
 
     let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets).unwrap();
