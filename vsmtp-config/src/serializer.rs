@@ -33,6 +33,88 @@ where
         .map_err(serde::de::Error::custom)
 }
 
+/// std::net::SocketAddr::parse does not support https://datatracker.ietf.org/doc/html/rfc4007#page-15
+pub(super) fn deserialize_socket_addr<'de, D>(
+    deserializer: D,
+) -> Result<Vec<std::net::SocketAddr>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    fn ipv6_with_scope_id(input: &str) -> anyhow::Result<std::net::SocketAddr> {
+        let (addr_ip_and_scope_name, colon_and_port) = input.split_at(
+            input
+                .rfind(':')
+                .ok_or_else(|| anyhow::anyhow!("ipv6 port not provided"))?,
+        );
+
+        let (addr_ip, scope_name) = addr_ip_and_scope_name
+            .strip_prefix('[')
+            .and_then(|s| s.strip_suffix(']'))
+            .ok_or_else(|| anyhow::anyhow!("ipv6 not valid format"))?
+            .split_once('%')
+            .ok_or_else(|| anyhow::anyhow!("ipv6 no scope_id"))?;
+
+        let mut socket_addr = format!("[{addr_ip}]{colon_and_port}")
+            .parse::<std::net::SocketAddrV6>()
+            .map_err(|e| anyhow::anyhow!("ipv6 parser produce error: '{e}'"))?;
+
+        let hints = libc::addrinfo {
+            ai_flags: libc::AI_NUMERICHOST | libc::AI_PASSIVE,
+            ai_family: 0,
+            ai_socktype: 0,
+            ai_protocol: 0,
+            ai_addrlen: 0,
+            ai_addr: std::ptr::null_mut(),
+            ai_canonname: std::ptr::null_mut(),
+            ai_next: std::ptr::null_mut(),
+        };
+        let mut result: *mut libc::addrinfo = std::ptr::null_mut();
+
+        let node = format!("{addr_ip}%{scope_name}");
+        match unsafe {
+            libc::getaddrinfo(
+                std::ffi::CString::new(node.as_bytes())?.as_ptr(),
+                std::ptr::null(),
+                &hints,
+                &mut result,
+            )
+        } {
+            0 => Ok(()),
+            otherwise => Err(anyhow::anyhow!(
+                "{error}: '{node}'",
+                error =
+                    unsafe { std::ffi::CStr::from_ptr(libc::gai_strerror(otherwise)) }.to_str()?
+            )),
+        }?;
+
+        if result.is_null() {
+            anyhow::bail!("pointer returned by getaddrinfo are null");
+        }
+        let ai_addr = unsafe { (*result).ai_addr };
+        if ai_addr.is_null() {
+            anyhow::bail!("getaddrinfo result is ill-formed");
+        }
+        let addr_in6 = ai_addr as *const libc::sockaddr_in6;
+        let scope_id = unsafe { (*addr_in6).sin6_scope_id };
+
+        println!("{:?}", scope_id);
+
+        unsafe { libc::freeaddrinfo(result) };
+
+        socket_addr.set_scope_id(scope_id);
+        Ok(std::net::SocketAddr::V6(socket_addr))
+    }
+
+    <Vec<String> as serde::Deserialize>::deserialize(deserializer)?
+        .into_iter()
+        .map(|s| {
+            <std::net::SocketAddr as std::str::FromStr>::from_str(&s)
+                .or_else(|_| ipv6_with_scope_id(&s))
+        })
+        .collect::<anyhow::Result<Vec<std::net::SocketAddr>>>()
+        .map_err(serde::de::Error::custom)
+}
+
 const ALL_PROTOCOL_VERSION: [ProtocolVersion; 6] = [
     ProtocolVersion(rustls::ProtocolVersion::SSLv2),
     ProtocolVersion(rustls::ProtocolVersion::SSLv3),

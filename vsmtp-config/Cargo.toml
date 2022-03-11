@@ -15,6 +15,8 @@ publish = false
 [dependencies]
 vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 
+libc = "0.2.109"
+
 log = "0.4.14"
 log4rs = { version = "1.0.0" }
 
