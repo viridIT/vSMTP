@@ -15,6 +15,7 @@
  *
 **/
 use super::server_config::{ProtocolVersion, ProtocolVersionRequirement};
+use vsmtp_common::libc_abstraction::if_nametoindex;
 
 pub(super) fn serialize_version_req<S: serde::Serializer>(
     value: &semver::VersionReq,
@@ -58,50 +59,7 @@ where
             .parse::<std::net::SocketAddrV6>()
             .map_err(|e| anyhow::anyhow!("ipv6 parser produce error: '{e}'"))?;
 
-        let hints = libc::addrinfo {
-            ai_flags: libc::AI_NUMERICHOST | libc::AI_PASSIVE,
-            ai_family: 0,
-            ai_socktype: 0,
-            ai_protocol: 0,
-            ai_addrlen: 0,
-            ai_addr: std::ptr::null_mut(),
-            ai_canonname: std::ptr::null_mut(),
-            ai_next: std::ptr::null_mut(),
-        };
-        let mut result: *mut libc::addrinfo = std::ptr::null_mut();
-
-        let node = format!("{addr_ip}%{scope_name}");
-        match unsafe {
-            libc::getaddrinfo(
-                std::ffi::CString::new(node.as_bytes())?.as_ptr(),
-                std::ptr::null(),
-                &hints,
-                &mut result,
-            )
-        } {
-            0 => Ok(()),
-            otherwise => Err(anyhow::anyhow!(
-                "{error}: '{node}'",
-                error =
-                    unsafe { std::ffi::CStr::from_ptr(libc::gai_strerror(otherwise)) }.to_str()?
-            )),
-        }?;
-
-        if result.is_null() {
-            anyhow::bail!("pointer returned by getaddrinfo are null");
-        }
-        let ai_addr = unsafe { (*result).ai_addr };
-        if ai_addr.is_null() {
-            anyhow::bail!("getaddrinfo result is ill-formed");
-        }
-        let addr_in6 = ai_addr as *const libc::sockaddr_in6;
-        let scope_id = unsafe { (*addr_in6).sin6_scope_id };
-
-        println!("{:?}", scope_id);
-
-        unsafe { libc::freeaddrinfo(result) };
-
-        socket_addr.set_scope_id(scope_id);
+        socket_addr.set_scope_id(if_nametoindex(scope_name)?);
         Ok(std::net::SocketAddr::V6(socket_addr))
     }
 

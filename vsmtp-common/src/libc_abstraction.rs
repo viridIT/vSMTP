@@ -111,3 +111,19 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
         )),
     }
 }
+
+/// Returns the index of the network interface corresponding to the name
+///
+/// # Errors
+///
+/// * @name contain null bytes
+/// * No interface found for the index
+pub fn if_nametoindex(name: &str) -> anyhow::Result<u32> {
+    match unsafe { libc::if_nametoindex(std::ffi::CString::new(name)?.as_ptr()) } {
+        0 => Err(anyhow::anyhow!(
+            "if_nametoindex: '{}'",
+            std::io::Error::last_os_error()
+        )),
+        otherwise => Ok(otherwise),
+    }
+}
