@@ -1,0 +1,19 @@
+[package]
+edition = "2021"
+
+name = "vsmtp-mail-parser"
+version = "0.9.2"
+license = "GPLv3"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+
+publish = false
+
+[dependencies]
+vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
+
+log = "0.4.14"
+anyhow = "1.0.56"

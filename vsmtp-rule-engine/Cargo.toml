@@ -1,0 +1,57 @@
+[package]
+edition = "2021"
+
+name = "vsmtp-rule-engine"
+version = "0.9.2"
+license = "GPLv3"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+
+publish = false
+
+[dependencies]
+vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
+vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
+
+log = "0.4.14"
+anyhow = "1.0.56"
+serde_json = "1.0.79"
+
+users = { version = "0.11.0", features = [] }
+
+addr = { version = "0.15.3" }
+regex = "1.5.4"
+iprange = "0.6.7"
+ipnet = "2.4.0"
+
+time = { version = "0.3.7", default-features = false, features = [
+    "std",
+    "formatting",
+    "macros",
+] }
+
+rhai = { version = "1.5.0", features = ["unchecked", "sync", "internals"] }
+
+lettre = { version = "0.10.0-rc.4", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }
+
+tokio = { version = "1.17.0", features = [
+    "macros",
+    "time",
+    "sync",
+    "net",
+    "io-util",
+    "rt-multi-thread",
+] }
+
+wait-timeout = "0.2.0"
+
+[dev-dependencies]
+vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }

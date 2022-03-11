@@ -13,10 +13,12 @@
         "ENHANCEDSTATUSCODES",
         "Expn",
         "Faccept",
+        "fastrand",
         "fullchain",
         "getpwuid",
         "helo",
         "humantime",
+        "iprange",
         "lettre",
         "libc",
         "libmilter",
@@ -66,5 +68,7 @@
     "rust-analyzer.checkOnSave.command": "clippy",
     "files.associations": {
         "*.vsl": "rhai"
-    }
+    },
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true
 }
