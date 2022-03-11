@@ -113,3 +113,16 @@ impl Address {
         &self.full[self.at_sign + 1..]
     }
 }
+
+impl From<crate::rcpt::Rcpt> for Address {
+    fn from(rcpt: crate::rcpt::Rcpt) -> Self {
+        rcpt.address
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<crate::rcpt::Rcpt> for Address {
+    fn into(self) -> crate::rcpt::Rcpt {
+        crate::rcpt::Rcpt::new(self)
+    }
+}

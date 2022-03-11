@@ -32,7 +32,7 @@ macro_rules! test_lang {
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(
                     ctx.envelop.rcpt,
-                    std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
+                    vec![Address::new("aa@bb").unwrap().into()]
                 );
                 assert!(match &ctx.body {
                     Body::Parsed(mail) => {

@@ -54,4 +54,37 @@ pub mod helpers {
 
         RuleState::new(&config)
     }
+
+    static INIT_LOGS: std::sync::Once = std::sync::Once::new();
+
+    pub fn setup_logs_for_tests() {
+        INIT_LOGS.call_once(|| {
+            let mut config = ServerConfig::builder()
+                .with_version_str("<1.0.0")
+                .unwrap()
+                .with_rfc_port("test.server.com", "root", "root", None)
+                .without_log()
+                .without_smtps()
+                .with_default_smtp()
+                .with_delivery("./tmp/delivery", "none")
+                .with_rules("./src/receiver/tests/main.vsl", vec![])
+                .with_default_reply_codes()
+                .build()
+                .expect("failed to create config for logs");
+
+            config
+                .log
+                .level
+                .insert("default".into(), log::LevelFilter::Warn);
+            config.log.file =
+                std::path::PathBuf::from_iter([".", "tests", "generated", "app.test.log"]);
+            config.rules.logs.file =
+                std::path::PathBuf::from_iter([".", "tests", "generated", "rules.test.log"]);
+
+            log4rs::init_config(
+                vsmtp_config::get_logger_config(&config, true).expect("failed to init logs"),
+            )
+            .expect("failed to init logs");
+        });
+    }
 }

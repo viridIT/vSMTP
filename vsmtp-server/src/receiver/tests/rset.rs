@@ -48,10 +48,7 @@ async fn reset_helo() {
         async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo");
             assert_eq!(ctx.envelop.mail_from.full(), "a@b");
-            assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::new("b@c").unwrap()])
-            );
+            assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap().into()]);
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.len() == 2,
                 _ => false,
@@ -161,10 +158,7 @@ async fn reset_rcpt_to_ok() {
         async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo2");
             assert_eq!(ctx.envelop.mail_from.full(), "d@e");
-            assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::new("b@c").unwrap()])
-            );
+            assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap().into()]);
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.is_empty(),
                 _ => false,
@@ -249,10 +243,10 @@ async fn reset_rcpt_to_multiple_rcpt() {
             assert_eq!(ctx.envelop.mail_from.full(), "foo2@foo");
             assert_eq!(
                 ctx.envelop.rcpt,
-                std::collections::HashSet::from([
-                    Address::new("toto2@bar").unwrap(),
-                    Address::new("toto3@bar").unwrap()
-                ])
+                vec![
+                    Address::new("toto2@bar").unwrap().into(),
+                    Address::new("toto3@bar").unwrap().into()
+                ]
             );
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.len() == 2,

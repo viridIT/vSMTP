@@ -108,7 +108,7 @@ impl InnerSMTPConfig {
 
 impl InnerDeliveryConfig {
     pub(crate) fn default_delivery_method() -> String {
-        "smtp".to_string()
+        "none".to_string()
     }
 }
 

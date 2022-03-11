@@ -16,6 +16,7 @@
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::{
+    address::Address,
     mail::{BodyType, Mail},
     mail_context::{Body, MessageMetadata},
     status::Status,
@@ -23,6 +24,8 @@ use vsmtp_common::{
 
 #[test]
 fn test_email_context() {
+    crate::tests::helpers::setup_logs_for_tests();
+
     let re = RuleEngine::new(&Some(rules_path!["main.vsl"])).unwrap();
     let mut state = get_default_state();
 
@@ -33,12 +36,18 @@ fn test_email_context() {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
+    state.get_context().write().unwrap().envelop.rcpt = vec![
+        Address::new("rcpt@toremove.org").unwrap().into(),
+        Address::new("rcpt@torewrite.net").unwrap().into(),
+    ];
     state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
 }
 
 #[test]
 fn test_email_bcc() {
+    crate::tests::helpers::setup_logs_for_tests();
+
     let re = RuleEngine::new(&Some(rules_path!["bcc", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
@@ -47,6 +56,8 @@ fn test_email_bcc() {
 
 #[test]
 fn test_email_add_header() {
+    crate::tests::helpers::setup_logs_for_tests();
+
     let re = RuleEngine::new(&Some(rules_path!["add_header", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
@@ -63,6 +74,8 @@ fn test_email_add_header() {
 
 #[test]
 fn test_context_write() {
+    crate::tests::helpers::setup_logs_for_tests();
+
     std::fs::DirBuilder::new()
         .recursive(true)
         .create("./tests/generated")
@@ -109,6 +122,8 @@ This is a raw email.
 
 #[test]
 fn test_context_dump() {
+    crate::tests::helpers::setup_logs_for_tests();
+
     std::fs::DirBuilder::new()
         .recursive(true)
         .create("./tests/generated")

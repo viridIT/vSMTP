@@ -296,7 +296,7 @@ impl Transaction<'_> {
         ctx.envelop = Envelop {
             helo,
             mail_from: Address::default(),
-            rcpt: std::collections::HashSet::default(),
+            rcpt: vec![],
         };
     }
 
@@ -351,7 +351,7 @@ impl Transaction<'_> {
                     .unwrap()
                     .envelop
                     .rcpt
-                    .insert(rcpt_to);
+                    .push(vsmtp_common::rcpt::Rcpt::new(rcpt_to));
             }
         }
     }

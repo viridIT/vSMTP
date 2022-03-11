@@ -162,12 +162,12 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn rewrite_mail_from(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        addr: &str,
+        new_addr: &str,
     ) -> EngineResult<()> {
-        let addr = Address::new(addr).map_err::<Box<EvalAltResult>, _>(|_| {
+        let new_addr = Address::new(new_addr).map_err::<Box<EvalAltResult>, _>(|_| {
             format!(
                 "could not rewrite mail_from with '{}' because it is not valid address",
-                addr,
+                new_addr,
             )
             .into()
         })?;
@@ -176,13 +176,13 @@ pub mod actions {
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        email.envelop.mail_from = addr.clone();
+        email.envelop.mail_from = new_addr.clone();
 
         match &mut email.body {
             Body::Empty => Err("failed to rewrite mail_from: the email has not been received yet. Use this method in postq or later.".into()),
             Body::Raw(_) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
             Body::Parsed(body) => {
-                body.rewrite_mail_from(addr.full());
+                body.rewrite_mail_from(new_addr.full());
                 Ok(())
             },
         }
@@ -192,21 +192,21 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn rewrite_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        index: &str,
-        addr: &str,
+        old_addr: &str,
+        new_addr: &str,
     ) -> EngineResult<()> {
-        let index = Address::new(index).map_err::<Box<EvalAltResult>, _>(|_| {
+        let old_addr = Address::new(old_addr).map_err::<Box<EvalAltResult>, _>(|_| {
             format!(
                 "could not rewrite address '{}' because it is not valid address",
-                index,
+                old_addr,
             )
             .into()
         })?;
 
-        let addr = Address::new(addr).map_err::<Box<EvalAltResult>, _>(|_| {
+        let new_addr = Address::new(new_addr).map_err::<Box<EvalAltResult>, _>(|_| {
             format!(
                 "could not rewrite address '{}' with '{}' because it is not valid address",
-                index, addr,
+                old_addr, new_addr,
             )
             .into()
         })?;
@@ -215,16 +215,35 @@ pub mod actions {
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        email.envelop.rcpt.remove(&index);
-        email.envelop.rcpt.insert(addr.clone());
+        if let Body::Empty | Body::Raw(_) = &email.body {
+            return Err("failed to rewrite rcpt: the email has not been received or parsed yet. Use this method in postq or later.".into());
+        }
 
-        match &mut email.body {
-            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
-            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
-            Body::Parsed(body) => {
-                body.rewrite_rcpt(index.full(), addr.full());
-                Ok(())
-            },
+        if let Some(index) = email
+            .envelop
+            .rcpt
+            .iter()
+            .position(|rcpt| rcpt.address == old_addr)
+        {
+            email
+                .envelop
+                .rcpt
+                .push(vsmtp_common::rcpt::Rcpt::new(new_addr.clone()));
+            email.envelop.rcpt.swap_remove(index);
+
+            match &mut email.body {
+                Body::Parsed(body) => {
+                    body.rewrite_rcpt(old_addr.full(), new_addr.full());
+                    Ok(())
+                },
+                _ => unreachable!()
+            }
+        } else {
+            Err(format!(
+                "could not rewrite address '{}' because it does not resides in rcpt.",
+                old_addr
+            )
+            .into())
         }
     }
 
@@ -232,16 +251,23 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn add_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        rcpt: &str,
+        new_addr: &str,
     ) -> EngineResult<()> {
-        let new_addr = Address::new(rcpt)
-            .map_err(|_| format!("'{}' could not be converted to a valid rcpt address", rcpt))?;
+        let new_addr = Address::new(new_addr).map_err(|_| {
+            format!(
+                "'{}' could not be converted to a valid rcpt address",
+                new_addr
+            )
+        })?;
 
         let email = &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        email.envelop.rcpt.insert(new_addr.clone());
+        email
+            .envelop
+            .rcpt
+            .push(vsmtp_common::rcpt::Rcpt::new(new_addr.clone()));
 
         match &mut email.body {
             Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
@@ -257,24 +283,37 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn remove_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        rcpt: &str,
+        addr: &str,
     ) -> EngineResult<()> {
-        let addr = Address::new(rcpt)
-            .map_err(|_| format!("{} could not be converted to a valid rcpt address", rcpt))?;
+        let addr = Address::new(addr)
+            .map_err(|_| format!("{} could not be converted to a valid rcpt address", addr))?;
 
         let email = &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        email.envelop.rcpt.remove(&addr);
+        if let Body::Empty | Body::Raw(_) = &email.body {
+            return Err("failed to remove rcpt: the email has not been received or parsed yet. Use this method in postq or later.".into());
+        }
 
-        match &mut email.body {
-            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
-            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
-            Body::Parsed(body) => {
-                body.remove_rcpt(addr.full());
-                Ok(())
-            },
+        if let Some(index) = email
+            .envelop
+            .rcpt
+            .iter()
+            .position(|rcpt| rcpt.address == addr)
+        {
+            email.envelop.rcpt.remove(index);
+            match &mut email.body {
+                Body::Parsed(body) => body.remove_rcpt(addr.full()),
+                _ => unreachable!(),
+            };
+            Ok(())
+        } else {
+            Err(format!(
+                "could not remove address '{}' because it does not resides in rcpt.",
+                addr
+            )
+            .into())
         }
     }
 
@@ -465,9 +504,9 @@ pub mod actions {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .insert(Address::new(bcc).map_err(|_| {
-                format!("'{}' could not be converted to a valid rcpt address", bcc)
-            })?);
+            .push(vsmtp_common::rcpt::Rcpt::new(Address::new(bcc).map_err(
+                |_| format!("'{}' could not be converted to a valid rcpt address", bcc),
+            )?));
 
         Ok(())
     }
@@ -482,7 +521,7 @@ pub mod actions {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .insert(bcc);
+            .push(vsmtp_common::rcpt::Rcpt::new(bcc));
 
         Ok(())
     }
@@ -498,14 +537,16 @@ pub mod actions {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .insert(match &*bcc {
-                Object::Address(addr) => addr.clone(),
-                Object::Str(string) => Address::new(string.as_str()).map_err(|_| {
-                    format!(
-                        "'{}' could not be converted to a valid rcpt address",
-                        string
-                    )
-                })?,
+            .push(match &*bcc {
+                Object::Address(addr) => vsmtp_common::rcpt::Rcpt::new(addr.clone()),
+                Object::Str(string) => {
+                    vsmtp_common::rcpt::Rcpt::new(Address::new(string.as_str()).map_err(|_| {
+                        format!(
+                            "'{}' could not be converted to a valid rcpt address",
+                            string
+                        )
+                    })?)
+                }
                 other => {
                     return Err(format!(
                         "'{}' could not be converted to a valid rcpt address",

@@ -15,15 +15,36 @@
  *
 **/
 use crate::address::Address;
-use crate::rcpt::Rcpt;
 
-/// Data receive during a smtp transaction
+/// representation of a recipient with it's delivery method.
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Envelop {
-    /// result of the HELO/HELO command.
-    pub helo: String,
-    /// the sender of the email received using the MAIL FROM command.
-    pub mail_from: Address,
-    /// a list of recipients received using the RCPT TO command.
-    pub rcpt: Vec<Rcpt>,
+pub struct Rcpt {
+    /// email address of the recipient.
+    pub address: Address,
+    /// protocol used by vsmtp to delivery the email to the recipient.
+    pub delivery_method: String,
+}
+
+impl Rcpt {
+    /// create a new recipient from it's address.
+    /// the delivery method is set tp default.
+    #[must_use]
+    pub fn new(address: Address) -> Self {
+        Self {
+            address,
+            delivery_method: "default".to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for Rcpt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.address)
+    }
+}
+
+impl PartialEq for Rcpt {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address
+    }
 }

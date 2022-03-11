@@ -40,7 +40,7 @@ impl Resolver for MailDirResolver {
         };
 
         for rcpt in &ctx.envelop.rcpt {
-            match users::get_user_by_name(rcpt.local_part()) {
+            match users::get_user_by_name(rcpt.address.local_part()) {
                 Some(user) => {
                     if let Err(err) =
                         write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)

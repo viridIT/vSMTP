@@ -80,11 +80,11 @@ fn test_rcpt_rules() {
         let email = state.get_context();
         let mut email = email.write().unwrap();
 
-        email.envelop.rcpt = std::collections::HashSet::from_iter([
-            Address::new("johndoe@compagny.com").unwrap(),
-            Address::new("user@viridit.com").unwrap(),
-            Address::new("customer@company.com").unwrap(),
-        ]);
+        email.envelop.rcpt = vec![
+            vsmtp_common::rcpt::Rcpt::new(Address::new("johndoe@compagny.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::new("user@viridit.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::new("customer@company.com").unwrap()),
+        ];
 
         email.body = Body::Parsed(Box::new(
             MailMimeParser::default()
@@ -102,10 +102,10 @@ This is a reply to your hello."#,
     assert_eq!(re.run_when(&mut state, "postq"), Status::Next);
     assert_eq!(
         state.get_context().read().unwrap().envelop.rcpt,
-        std::collections::HashSet::from_iter([
-            Address::new("johndoe@viridit.com").unwrap(),
-            Address::new("user@viridit.com").unwrap(),
-            Address::new("no-reply@viridit.com").unwrap(),
-        ])
+        vec![
+            vsmtp_common::rcpt::Rcpt::new(Address::new("johndoe@viridit.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::new("user@viridit.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::new("no-reply@viridit.com").unwrap()),
+        ]
     );
 }

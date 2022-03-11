@@ -58,6 +58,9 @@ pub mod state;
 /// status of the mail context
 pub mod status;
 
+/// rcpt data structure.
+pub mod rcpt;
+
 #[cfg(test)]
 mod event_tests;
 

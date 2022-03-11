@@ -40,17 +40,17 @@ impl Resolver for MBoxResolver {
 
         for rcpt in &ctx.envelop.rcpt {
             // FIXME: use UsersCache.
-            match users::get_user_by_name(rcpt.local_part()) {
+            match users::get_user_by_name(rcpt.address.local_part()) {
                 Some(user) => {
                     // NOTE: only linux system is supported here, is the
                     //       path to all mboxes always /var/mail ?
                     write_content_to_mbox(
-                        &std::path::PathBuf::from_iter(["/var/mail/", rcpt.local_part()]),
+                        &std::path::PathBuf::from_iter(["/var/mail/", rcpt.address.local_part()]),
                         &user,
                         &content,
                     )?;
                 }
-                _ => anyhow::bail!("unable to get user '{}' by name", rcpt.local_part()),
+                _ => anyhow::bail!("unable to get user '{}' by name", rcpt.address.local_part()),
             }
         }
         Ok(())

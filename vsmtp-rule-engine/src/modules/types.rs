@@ -24,8 +24,6 @@ use rhai::plugin::{
 use vsmtp_common::address::Address;
 use vsmtp_common::status::Status;
 
-pub type Rcpt = std::collections::HashSet<Address>;
-
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod types {
@@ -286,45 +284,52 @@ pub mod types {
     // rcpt container.
 
     #[rhai_fn(global, get = "local_parts", pure)]
-    pub fn rcpt_local_parts(this: &mut Rcpt) -> Vec<std::sync::Arc<Object>> {
+    pub fn rcpt_local_parts(
+        this: &mut Vec<vsmtp_common::rcpt::Rcpt>,
+    ) -> Vec<std::sync::Arc<Object>> {
         this.iter()
-            .map(|addr| std::sync::Arc::new(Object::Identifier(addr.local_part().to_string())))
+            .map(|rcpt| {
+                std::sync::Arc::new(Object::Identifier(rcpt.address.local_part().to_string()))
+            })
             .collect()
     }
 
     #[rhai_fn(global, get = "domains", pure)]
-    pub fn rcpt_domains(this: &mut Rcpt) -> Vec<std::sync::Arc<Object>> {
+    pub fn rcpt_domains(this: &mut Vec<vsmtp_common::rcpt::Rcpt>) -> Vec<std::sync::Arc<Object>> {
         this.iter()
-            .map(|addr| std::sync::Arc::new(Object::Fqdn(addr.domain().to_string())))
+            .map(|rcpt| std::sync::Arc::new(Object::Fqdn(rcpt.address.domain().to_string())))
             .collect()
     }
 
     #[rhai_fn(global, name = "to_string", pure)]
-    pub fn rcpt_to_string(this: &mut Rcpt) -> String {
+    pub fn rcpt_to_string(this: &mut Vec<vsmtp_common::rcpt::Rcpt>) -> String {
         format!("{this:?}")
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn rcpt_to_debug(this: &mut Rcpt) -> String {
+    pub fn rcpt_to_debug(this: &mut Vec<vsmtp_common::rcpt::Rcpt>) -> String {
         format!("{this:#?}")
     }
 
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn string_in_rcpt(this: &mut Rcpt, s: &str) -> EngineResult<bool> {
+    pub fn string_in_rcpt(this: &mut Vec<vsmtp_common::rcpt::Rcpt>, s: &str) -> EngineResult<bool> {
         let addr = Address::new(s)
             .map_err::<Box<EvalAltResult>, _>(|_| format!("'{}' is not an address", s).into())?;
-        Ok(this.contains(&addr))
+        Ok(this.iter().any(|rcpt| rcpt.address == addr))
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", pure)]
-    pub fn address_in_rcpt(this: &mut Rcpt, addr: Address) -> bool {
-        this.contains(&addr)
+    pub fn address_in_rcpt(this: &mut Vec<vsmtp_common::rcpt::Rcpt>, addr: Address) -> bool {
+        this.iter().any(|rcpt| rcpt.address == addr)
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn object_in_rcpt(this: &mut Rcpt, other: std::sync::Arc<Object>) -> EngineResult<bool> {
+    pub fn object_in_rcpt(
+        this: &mut Vec<vsmtp_common::rcpt::Rcpt>,
+        other: std::sync::Arc<Object>,
+    ) -> EngineResult<bool> {
         internal_object_in_rcpt(this, &other)
     }
 }
@@ -408,19 +413,22 @@ pub fn internal_object_in_object(this: &Object, other: &Object) -> EngineResult<
     })
 }
 
-pub fn internal_object_in_rcpt(this: &Rcpt, other: &Object) -> EngineResult<bool> {
+pub fn internal_object_in_rcpt(
+    this: &[vsmtp_common::rcpt::Rcpt],
+    other: &Object,
+) -> EngineResult<bool> {
     Ok(match &*other {
-        Object::Address(addr) => this.contains(addr),
-        Object::Fqdn(fqdn) => this.iter().any(|rcpt| rcpt.domain() == fqdn),
-        Object::Regex(re) => this.iter().any(|rcpt| !re.is_match(rcpt.full())),
+        Object::Address(addr) => this.iter().any(|rcpt| rcpt.address == *addr),
+        Object::Fqdn(fqdn) => this.iter().any(|rcpt| rcpt.address.domain() == fqdn),
+        Object::Regex(re) => this.iter().any(|rcpt| !re.is_match(rcpt.address.full())),
         Object::File(file) => file
             .iter()
             .any(|obj| internal_object_in_rcpt(this, obj).unwrap_or(false)),
         Object::Group(group) => group
             .iter()
             .any(|obj| internal_object_in_rcpt(this, obj).unwrap_or(false)),
-        Object::Identifier(s) => this.iter().any(|rcpt| rcpt.local_part() == s),
-        Object::Str(s) => this.iter().any(|rcpt| rcpt.full() == s),
+        Object::Identifier(s) => this.iter().any(|rcpt| rcpt.address.local_part() == s),
+        Object::Str(s) => this.iter().any(|rcpt| rcpt.address.full() == s),
         _ => {
             return Err(format!(
                 "a {} object cannot be compared to the rcpt container",

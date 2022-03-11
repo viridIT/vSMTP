@@ -55,3 +55,4 @@ wait-timeout = "0.2.0"
 
 [dev-dependencies]
 vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
+log4rs = { version = "1.0.0" }

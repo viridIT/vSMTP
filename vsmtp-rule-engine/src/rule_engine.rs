@@ -556,7 +556,7 @@ impl RuleEngine {
                 },
             )
             // NOTE: is their a way to defined iterators directly in modules ?
-            .register_iterator::<modules::types::Rcpt>()
+            .register_iterator::<Vec<vsmtp_common::rcpt::Rcpt>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
         log::debug!(target: SRULES, "compiling rhai scripts ...");

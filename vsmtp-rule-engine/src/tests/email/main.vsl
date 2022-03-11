@@ -90,7 +90,7 @@
                 vsl::remove_rcpt(ctx, "impossible@toremove.com");
                 return vsl::deny();
             } catch (err) {
-                if "the email has not been parsed yet" in err { return vsl::next(); } else { return vsl::deny() }
+                if "failed to remove rcpt: the email has not been received or parsed yet." in err { return vsl::next(); } else { return vsl::deny() }
             }
         },
 
@@ -99,7 +99,7 @@
                 vsl::rewrite_rcpt(ctx, "impossible@torewrite.com", "impossible@torewrite.com");
                 return vsl::deny();
             } catch (err) {
-                if "the email has not been parsed yet" in err { return vsl::next(); } else { return vsl::deny() }
+                if "failed to rewrite rcpt: the email has not been received or parsed yet." in err { return vsl::next(); } else { return vsl::deny() }
             }
         },
 

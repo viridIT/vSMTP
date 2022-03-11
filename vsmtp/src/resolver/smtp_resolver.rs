@@ -36,7 +36,7 @@ impl Resolver for SMTPResolver {
         };
 
         for rcpt in &ctx.envelop.rcpt {
-            let query = rcpt.domain();
+            let query = rcpt.address.domain();
             let records = match get_mx_records(&resolver, query).await {
                 Ok(records) => records,
                 Err(err) => {
@@ -70,7 +70,7 @@ fn build_envelop(ctx: &MailContext) -> anyhow::Result<lettre::address::Envelope>
             .rcpt
             .iter()
             // NOTE: address that couldn't be converted will be silently dropped.
-            .flat_map(|rcpt| rcpt.full().parse::<lettre::Address>())
+            .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
             .collect(),
     )?)
 }
@@ -131,7 +131,7 @@ mod test {
 
         ctx.envelop
             .rcpt
-            .insert(Address::new("john@doe.com").unwrap());
+            .push(Address::new("john@doe.com").unwrap().into());
 
         build_envelop(&ctx).expect("failed to build the envelop");
     }
@@ -160,7 +160,7 @@ mod test {
         ctx.envelop.mail_from = Address::new("john@doe.com").unwrap();
         ctx.envelop
             .rcpt
-            .insert(Address::new("green@foo.com").unwrap());
+            .push(Address::new("green@foo.com").unwrap().into());
 
         let envelop = build_envelop(&ctx).expect("failed to build envelop to deliver email");
 

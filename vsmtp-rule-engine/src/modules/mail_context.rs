@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::modules::types::Rcpt;
 use crate::modules::EngineResult;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
@@ -73,7 +72,9 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw)]
-    pub fn rcpt(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<Rcpt> {
+    pub fn rcpt(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<Vec<vsmtp_common::rcpt::Rcpt>> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
