@@ -1,6 +1,7 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
+use vsmtp_mail_parser::MailMimeParser;
 
 fuzz_target!(|data: &[u8]| {
-    let _ = vsmtp::MailMimeParser::default().parse(data);
+    let _ = MailMimeParser::default().parse(data);
 });

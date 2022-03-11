@@ -1,29 +1,25 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use vsmtp::{
-    config::server_config::ServerConfig,
+use vsmtp_config::server_config::ServerConfig;
+use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_server::{
     processes::ProcessMessage,
-    receiver::{
-        connection::{Connection, ConnectionKind},
-        handle_connection,
-        io_service::IoService,
-        test_helpers::Mock,
-    },
+    receiver::{handle_connection, test_helpers::Mock, Connection, ConnectionKind, IoService},
 };
 
 fuzz_target!(|data: &[u8]| {
     let mut config = ServerConfig::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_rfc_port("fuzz.server.com", "foo", "foo", None)
+        .with_rfc_port("fuzz.server.com", "root", "root", None)
         .without_log()
         .without_smtps()
         .with_default_smtp()
-        .with_delivery("./tmp/fuzz/", vsmtp::collection! {})
-        .with_rules("./tmp/no_rules", vec![])
+        .with_delivery("./tmp/fuzz/")
+        .with_empty_rules()
         .with_default_reply_codes()
         .build()
-        .expect("failed to build server config");
+        .unwrap();
     config.smtp.error.soft_count = -1;
 
     let config = std::sync::Arc::new(config);
@@ -36,14 +32,13 @@ fuzz_target!(|data: &[u8]| {
         "0.0.0.0:0".parse().unwrap(),
         config,
         &mut io,
-    )
-    .unwrap();
+    );
 
     let (working_sender, _) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
     let (delivery_sender, _) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
 
     let re = std::sync::Arc::new(std::sync::RwLock::new(
-        vsmtp::rules::rule_engine::RuleEngine::new("").expect("failed to build rule engine"),
+        RuleEngine::new(&None).expect("failed to build rule engine"),
     ));
 
     let _ = match tokio::runtime::Runtime::new() {

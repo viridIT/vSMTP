@@ -7,7 +7,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug vsmtp",
+      "name": "Launch & configure vSMTP",
       "cargo": {
         "args": [
           "build",
@@ -20,7 +20,8 @@
         }
       },
       "args": [
-        "-c ${workspaceFolder}/config/vsmtp.toml"
+        "-c",
+        "${workspaceFolder}/config/vsmtp.dev-local.toml"
       ],
       "program": "${workspaceFolder}/target/debug/vsmtp",
       "cwd": "${workspaceFolder}/target/debug",
@@ -28,46 +29,14 @@
         "rust"
       ],
       "env": {
-        "VSMTP_CONFIG_PATH": "${workspaceFolder}/config/vsmtp.toml"
-      }
+        "VSMTP_CONFIG_PATH": "${workspaceFolder}/config/vsmtp.dev-local.toml"
+      },
     },
     {
       "type": "lldb",
-      "request": "launch",
-      "name": "Debug unit tests in executable 'vsmtp'",
-      "cargo": {
-        "args": [
-          "test",
-          "--no-run",
-          "--bin=vsmtp",
-          "--package=vsmtp"
-        ],
-        "filter": {
-          "name": "vsmtp",
-          "kind": "bin"
-        }
-      },
-      "args": [],
-      "cwd": "${workspaceFolder}"
+      "request": "attach",
+      "name": "Debug vSMTP",
+      "program": "${workspaceFolder}/target/debug/vsmtp",
     },
-    {
-      "type": "lldb",
-      "request": "launch",
-      "name": "Debug integration test 'test_parser'",
-      "cargo": {
-        "args": [
-          "test",
-          "--no-run",
-          "--test=test_parser",
-          "--package=vsmtp",
-        ],
-        "filter": {
-          "name": "test_parser",
-          "kind": "test"
-        }
-      },
-      "args": [],
-      "cwd": "${workspaceFolder}"
-    }
   ]
 }

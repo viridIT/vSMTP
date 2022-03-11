@@ -1,0 +1,13 @@
+#{
+    delivery: [
+        rule "find_users" || {
+            if !vsl::user_exist("john")
+            && vsl::user_exist("root")
+            {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ]
+}

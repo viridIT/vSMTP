@@ -1,0 +1,117 @@
+version_requirement = ">=0.9.2, <1.0.0"
+
+[system]
+thread_pool_size = 10
+user = "vsmtp"
+group = "vsmtp"
+
+[system.logs]
+filepath = "/var/log/vsmtp/vsmtp.log"
+
+[system.logs.level]
+default = "warn"
+receiver = "info"
+delivery = "error"
+rule_engine = "warn"
+
+[system.server]
+domain = "testserver.com"
+addr = "0.0.0.0:10025"
+addr_submission = "0.0.0.0:10587"
+addr_submissions = "0.0.0.0:10465"
+client_count_max = 16
+
+
+[system.delivery]
+default_method = "relay"
+spool_folder_path = "/var/spool/vsmtp"
+
+# From TCP/IP to /spool/working
+[system.delivery.queues.working]
+# == postq ; move to deliver
+channel_size = 32
+
+# From /spool/working to /spool/deliver
+[system.delivery.queues.deliver]
+# == first attempt to deliver ; succes ? delete : move to deferred
+channel_size = 32
+
+[system.delivery.queues.deferred]
+# == next attempt to deliver until retry_max ; succes then delete ; retry => retry_max then move to dead
+retry_max = 10
+retry_period = "10s"
+
+[system.delivery.queues.dead]
+# == mail failed to be send
+size_max = "10G"
+file_lifetime = "14d"
+
+
+[system.protocol]
+rcpt_count_max = 25
+disable_ehlo = false
+required_extension = ["STARTTLS", "SMTPUTF8", "8BITMIME", "AUTH"]
+
+[system.protocol.error]
+soft_count = 5
+hard_count = 10
+delay = "5000ms"
+
+[system.protocol.timeout_client]
+Connect = "50ms"
+Helo = "100ms"
+MailFrom = "200ms"
+RcptTo = "400ms"
+Data = "800ms"
+
+[system.protocol.codes_override]
+Help = "214 my custom help message\r\n"
+Greetings = "220 {domain} ESMTP Service ready\r\n"
+
+
+[system.protocol.extension.startls]
+disable = false
+
+[system.protocol.extension.tls]
+security_level = "May"
+capath = "./config/certs"
+preempt_cipherlist = true
+handshake_timeout = "100ms"
+protocol_version = ["TLSv1.3"]
+fullchain = "{capath}/certificate.crt"
+private_key = "{capath}/privateKey.key"
+
+[[system.protocol.extension.tls.sni]]
+domain = "testserver.com"
+fullchain = "{capath}/fullchain.{domain}.pem"
+private_key = "{capath}/rsa.{domain}.pem"
+
+[[system.protocol.extension.tls.sni]]
+domain = "testserver2.com"
+fullchain = "{capath}/fullchain.{domain}.pem"
+private_key = "{capath}/rsa.{domain}.pem"
+
+
+[app]
+mail_filepath = "/etc/vsmtp/main.vsl"
+
+[app.logs]
+file = "/var/log/vsmtp/app.log"
+level = "trace"
+format = "{d} - {m}{n}"
+
+[[app.services]]
+name = "clamscan"
+type = "shell"
+timeout = "15s"
+command = "/etc/vsmtp/service/clamscan.sh"
+args = "{mail}"
+
+[[app.services]]
+name = "spamassassin"
+type = "shell"
+timeout = "15s"
+command = "/etc/vsmtp/service/spamassassin.sh"
+args = "{mail}"
+user = "spamassassin"
+group = "spamassassin"
