@@ -16,7 +16,7 @@
 **/
 use anyhow::Context;
 use vsmtp_common::{collection, mail_context::MailContext};
-use vsmtp_config::{get_logger_config, server_config::ServerConfig};
+use vsmtp_config::{get_logger_config, ServerConfig};
 use vsmtp_server::{resolver::Resolver, server::ServerVSMTP};
 
 #[derive(Debug, serde::Deserialize)]

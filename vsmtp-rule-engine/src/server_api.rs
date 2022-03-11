@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 
 /// the frontend available in the rule engine to interact with the server.
 #[derive(Debug, Clone)]

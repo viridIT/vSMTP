@@ -23,7 +23,7 @@ use crate::{
     tls_helpers::get_rustls_config,
 };
 use vsmtp_common::code::SMTPReplyCode;
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// TCP/IP server
@@ -284,7 +284,7 @@ impl ServerVSMTP {
 
 #[cfg(test)]
 mod tests {
-    use vsmtp_config::server_config::TlsSecurityLevel;
+    use vsmtp_config::TlsSecurityLevel;
 
     use super::*;
 

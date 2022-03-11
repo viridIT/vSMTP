@@ -22,7 +22,7 @@ use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
 };
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 
 fn get_regular_config() -> ServerConfig {
     ServerConfig::builder()

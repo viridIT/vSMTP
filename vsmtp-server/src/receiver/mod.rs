@@ -17,7 +17,7 @@
 use self::transaction::{Transaction, TransactionResult};
 use crate::{processes::ProcessMessage, queue::Queue};
 use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext};
-use vsmtp_config::server_config::InnerSmtpsConfig;
+use vsmtp_config::InnerSmtpsConfig;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod connection;

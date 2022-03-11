@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use vsmtp_config::server_config::InnerSmtpsConfig;
+use vsmtp_config::InnerSmtpsConfig;
 
 fn get_signing_key_from_file(
     rsa_path: &std::path::Path,

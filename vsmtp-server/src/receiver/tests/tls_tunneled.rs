@@ -20,7 +20,7 @@ use crate::{
     server::ServerVSMTP,
     tls_helpers::{get_cert_from_file, get_rustls_config},
 };
-use vsmtp_config::server_config::{ServerConfig, SniKey, TlsSecurityLevel};
+use vsmtp_config::{ServerConfig, SniKey, TlsSecurityLevel};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 const SERVER_CERT: &str = "./src/receiver/tests/certs/certificate.crt";

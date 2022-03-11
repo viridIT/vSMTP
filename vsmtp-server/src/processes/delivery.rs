@@ -17,7 +17,7 @@
 use super::ProcessMessage;
 use crate::{queue::Queue, resolver::Resolver};
 use vsmtp_common::{mail_context::MailContext, status::Status};
-use vsmtp_config::{log_channel::DELIVER, server_config::ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
 /// process used to deliver incoming emails force accepted by the smtp process

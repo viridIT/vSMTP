@@ -1,5 +1,5 @@
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 
 /// A trait allowing the [ServerVSMTP] to deliver a mail
 #[async_trait::async_trait]

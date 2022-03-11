@@ -18,7 +18,7 @@ use anyhow::Context;
 use vsmtp::{MBoxResolver, MailDirResolver, SMTPResolver};
 use vsmtp_common::libc_abstraction::{daemon, setgid, setuid, ForkResult};
 use vsmtp_config::get_logger_config;
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 use vsmtp_server::server::ServerVSMTP;
 
 #[derive(Debug, clap::Parser, PartialEq)]

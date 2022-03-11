@@ -19,7 +19,7 @@ use crate::{
     tests::helpers::get_default_state,
 };
 use vsmtp_common::{address::Address, mail_context::Body, status::Status};
-use vsmtp_config::{server_config::ServerConfig, service::Service};
+use vsmtp_config::{service::Service, ServerConfig};
 
 #[test]
 fn test_status() {

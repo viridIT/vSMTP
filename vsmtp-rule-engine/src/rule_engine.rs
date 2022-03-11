@@ -26,7 +26,7 @@ use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::SRULES;
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 
 use crate::error::RuleEngineError;
 use crate::modules;
