@@ -17,7 +17,7 @@
 // NOTE: should be improved
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParserError {
     InvalidInput,
     InvalidMail(String),
