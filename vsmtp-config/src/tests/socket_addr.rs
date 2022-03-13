@@ -1,4 +1,4 @@
-use vsmtp_common::libc_abstraction::if_nametoindex;
+use vsmtp_common::libc_abstraction::{if_indextoname, if_nametoindex};
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 struct S {
@@ -66,17 +66,21 @@ fn socket_addr_ipv6_with_scope_id() {
         r#"Error { inner: ErrorInner { kind: Custom, line: Some(0), col: 0, at: Some(0), message: "Interface not found: 'foobar'", key: ["v"] } }"#
     );
 
+    let interface1 = if_indextoname(1).unwrap();
+
     assert_eq!(
         S {
             v: vec![std::net::SocketAddr::V6(std::net::SocketAddrV6::new(
                 std::net::Ipv6Addr::LOCALHOST,
                 25,
                 0,
-                if_nametoindex("wlp8s0").unwrap(),
+                if_nametoindex(&interface1).unwrap(),
             ))]
         }
         .v,
-        toml::from_str::<S>(r#"v = ["[::1%wlp8s0]:25"]"#).unwrap().v
+        toml::from_str::<S>(&format!(r#"v = ["[::1%{interface1}]:25"]"#))
+            .unwrap()
+            .v
     );
 
     assert_eq!(
@@ -85,10 +89,12 @@ fn socket_addr_ipv6_with_scope_id() {
                 std::net::Ipv6Addr::UNSPECIFIED,
                 465,
                 0,
-                if_nametoindex("wlp8s0").unwrap(),
+                if_nametoindex(&interface1).unwrap(),
             ))]
         }
         .v,
-        toml::from_str::<S>(r#"v = ["[::%wlp8s0]:465"]"#).unwrap().v
+        toml::from_str::<S>(&format!(r#"v = ["[::%{interface1}]:465"]"#))
+            .unwrap()
+            .v
     );
 }
