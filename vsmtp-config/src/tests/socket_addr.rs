@@ -63,7 +63,7 @@ fn socket_addr_ipv6_with_scope_id() {
             "{:?}",
             toml::from_str::<S>(r#"v = ["[::1%foobar]:25"]"#).unwrap_err()
         ),
-        r#"Error { inner: ErrorInner { kind: Custom, line: Some(0), col: 0, at: Some(0), message: "Interface not found: 'foobar'", key: ["v"] } }"#
+        r#"Error { inner: ErrorInner { kind: Custom, line: Some(0), col: 0, at: Some(0), message: "if_nametoindex: 'No such device (os error 19)'", key: ["v"] } }"#
     );
 
     let interface1 = if_indextoname(1).unwrap();

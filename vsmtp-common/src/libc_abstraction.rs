@@ -144,8 +144,12 @@ pub fn if_indextoname(ifindex: u32) -> anyhow::Result<String> {
         )),
         _ => Ok(std::str::from_utf8(
             &buf.into_iter()
-                .map(u8::try_from)
-                .collect::<Result<Vec<u8>, <u8 as TryFrom<i8>>::Error>>()?,
+                .filter_map(|x| match u8::try_from(x) {
+                    Ok(i) if i == b'\0' => None,
+                    Ok(i) => Some(i),
+                    Err(_) => None,
+                })
+                .collect::<Vec<u8>>(),
         )?
         .to_string()),
     }
