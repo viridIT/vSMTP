@@ -73,11 +73,7 @@ where
         .map_err(serde::de::Error::custom)
 }
 
-const ALL_PROTOCOL_VERSION: [ProtocolVersion; 6] = [
-    ProtocolVersion(rustls::ProtocolVersion::SSLv2),
-    ProtocolVersion(rustls::ProtocolVersion::SSLv3),
-    ProtocolVersion(rustls::ProtocolVersion::TLSv1_0),
-    ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
+const ALL_PROTOCOL_VERSION: [ProtocolVersion; 2] = [
     ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
     ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
 ];
@@ -87,10 +83,6 @@ impl std::str::FromStr for ProtocolVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SSLv2" | "0x0200" => Ok(Self(rustls::ProtocolVersion::SSLv2)),
-            "SSLv3" | "0x0300" => Ok(Self(rustls::ProtocolVersion::SSLv3)),
-            "TLSv1.0" | "0x0301" => Ok(Self(rustls::ProtocolVersion::TLSv1_0)),
-            "TLSv1.1" | "0x0302" => Ok(Self(rustls::ProtocolVersion::TLSv1_1)),
             "TLSv1.2" | "0x0303" => Ok(Self(rustls::ProtocolVersion::TLSv1_2)),
             "TLSv1.3" | "0x0304" => Ok(Self(rustls::ProtocolVersion::TLSv1_3)),
             _ => Err(()),
@@ -101,12 +93,8 @@ impl std::str::FromStr for ProtocolVersion {
 impl std::fmt::Display for ProtocolVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self.0 {
-            rustls::ProtocolVersion::SSLv2 => "SSLv2",
-            rustls::ProtocolVersion::SSLv3 => "SSLv3",
-            rustls::ProtocolVersion::TLSv1_0 => "SSLv1.0",
-            rustls::ProtocolVersion::TLSv1_1 => "SSLv1.1",
-            rustls::ProtocolVersion::TLSv1_2 => "SSLv1.2",
-            rustls::ProtocolVersion::TLSv1_3 => "SSLv1.3",
+            rustls::ProtocolVersion::TLSv1_2 => "TLSv1.2",
+            rustls::ProtocolVersion::TLSv1_3 => "TLSv1.3",
             _ => todo!(),
         })
     }

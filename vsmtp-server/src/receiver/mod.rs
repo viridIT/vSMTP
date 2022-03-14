@@ -196,8 +196,7 @@ where
     Connection::<IoService<'_, S>>::complete_tls_handshake(
         &mut io_tls_stream,
         &smtps_config.handshake_timeout,
-    )
-    .unwrap();
+    )?;
 
     let mut secured_conn = Connection {
         kind: conn.kind,
