@@ -14,13 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use super::Resolver;
+
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::chown_file,
     mail_context::{Body, MailContext, MessageMetadata},
 };
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
-use vsmtp_server::resolver::Resolver;
 
 const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
     "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"

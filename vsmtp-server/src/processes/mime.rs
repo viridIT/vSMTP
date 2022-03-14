@@ -27,15 +27,20 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 ///
 /// # Errors
 pub async fn start(
-    config: &ServerConfig,
+    config: std::sync::Arc<ServerConfig>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
     loop {
         if let Some(pm) = working_receiver.recv().await {
-            if let Err(err) =
-                handle_one_in_working_queue(config, &rule_engine, pm, &delivery_sender).await
+            if let Err(err) = tokio::spawn(handle_one_in_working_queue(
+                config.clone(),
+                rule_engine.clone(),
+                pm,
+                delivery_sender.clone(),
+            ))
+            .await
             {
                 log::error!("{}", err);
             }
@@ -48,10 +53,10 @@ pub async fn start(
 ///
 /// # Panics
 pub async fn handle_one_in_working_queue(
-    config: &ServerConfig,
-    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    config: std::sync::Arc<ServerConfig>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     process_message: ProcessMessage,
-    delivery_sender: &tokio::sync::mpsc::Sender<ProcessMessage>,
+    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
     log::debug!(
         target: DELIVER,
@@ -70,7 +75,7 @@ pub async fn handle_one_in_working_queue(
     if let Body::Raw(raw) = &ctx.body {
         ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
     }
-    let mut state = RuleState::with_context(config, ctx);
+    let mut state = RuleState::with_context(config.as_ref(), ctx);
 
     let result = rule_engine
         .read()
@@ -78,7 +83,7 @@ pub async fn handle_one_in_working_queue(
         .run_when(&mut state, "postq");
 
     if result == Status::Deny {
-        Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;
+        Queue::Dead.write_to_queue(config.as_ref(), &state.get_context().read().unwrap())?;
     } else {
         {
             let ctx = state.get_context();
@@ -96,7 +101,7 @@ pub async fn handle_one_in_working_queue(
                 _ => {}
             };
 
-            Queue::Deliver.write_to_queue(config, &ctx)?;
+            Queue::Deliver.write_to_queue(config.as_ref(), &ctx)?;
         }
 
         delivery_sender

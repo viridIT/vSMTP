@@ -30,7 +30,7 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 /// # Panics
 ///
 /// * tokio::select!
-pub async fn start<S: std::hash::BuildHasher>(
+pub async fn start<S: std::hash::BuildHasher + Send>(
     config: std::sync::Arc<ServerConfig>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
@@ -54,6 +54,8 @@ pub async fn start<S: std::hash::BuildHasher>(
     loop {
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
+                // FIXME: resolvers a are mutable, so must be in a mutex
+                // for a delivery in a separated thread...
                 if let Err(error) = handle_one_in_delivery_queue(
                     &config,
                     &std::path::PathBuf::from_iter([
@@ -83,7 +85,7 @@ pub async fn start<S: std::hash::BuildHasher>(
 /// # Panics
 ///
 /// # Errors
-pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher>(
+pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     config: &ServerConfig,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -178,7 +180,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher>(
     Ok(())
 }
 
-async fn flush_deliver_queue<S: std::hash::BuildHasher>(
+async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
     config: &ServerConfig,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
@@ -190,7 +192,7 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher>(
     Ok(())
 }
 
-async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher>(
+async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
     resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
     path: &std::path::Path,
     config: &ServerConfig,
@@ -292,7 +294,7 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher>(
     Ok(())
 }
 
-async fn flush_deferred_queue<S: std::hash::BuildHasher>(
+async fn flush_deferred_queue<S: std::hash::BuildHasher + Send>(
     resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {

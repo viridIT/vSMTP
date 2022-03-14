@@ -140,14 +140,16 @@ where
     let mime_delivery_sender = delivery_sender.clone();
     let mime_handle = tokio::spawn(async move {
         while let Some(pm) = working_receiver.recv().await {
-            handle_one_in_working_queue(&config_mime, &re_mime, pm, &mime_delivery_sender)
-                .await
-                .expect("mime process failed");
+            handle_one_in_working_queue(
+                config_mime.clone(),
+                re_mime.clone(),
+                pm,
+                mime_delivery_sender.clone(),
+            )
+            .await
+            .expect("mime process failed");
         }
     });
-
-    let working_sender = std::sync::Arc::new(working_sender);
-    let delivery_sender = std::sync::Arc::new(delivery_sender);
 
     handle_connection(
         &mut conn,

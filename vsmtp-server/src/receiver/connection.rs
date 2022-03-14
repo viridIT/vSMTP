@@ -33,7 +33,7 @@ pub enum ConnectionKind {
 /// Instance containing connection to the server's information
 pub struct Connection<'stream, S>
 where
-    S: std::io::Read + std::io::Write,
+    S: std::io::Read + std::io::Write + Send,
 {
     /// server's port
     pub kind: ConnectionKind,
@@ -55,7 +55,7 @@ where
 
 impl<S> Connection<'_, S>
 where
-    S: std::io::Read + std::io::Write,
+    S: std::io::Read + std::io::Write + Send,
 {
     ///
     pub fn from_plain<'a>(
@@ -79,7 +79,7 @@ where
 
 impl<S> Connection<'_, S>
 where
-    S: std::io::Read + std::io::Write,
+    S: std::io::Read + std::io::Write + Send,
 {
     /// send a reply code to the client
     ///
@@ -132,17 +132,16 @@ where
     pub async fn read(
         &mut self,
         timeout: std::time::Duration,
-    ) -> std::result::Result<
-        std::result::Result<std::string::String, ReadError>,
-        tokio::time::error::Elapsed,
-    > {
-        tokio::time::timeout(timeout, self.io_stream.get_next_line_async()).await
+    ) -> Result<std::result::Result<std::string::String, ReadError>, tokio::time::error::Elapsed>
+    {
+        let future = self.io_stream.get_next_line_async();
+        tokio::time::timeout(timeout, future).await
     }
 }
 
 impl<S> Connection<'_, S>
 where
-    S: std::io::Read + std::io::Write,
+    S: std::io::Read + std::io::Write + Send,
 {
     /// process a tls handshake
     ///

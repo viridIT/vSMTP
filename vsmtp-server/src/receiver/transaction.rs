@@ -54,7 +54,7 @@ enum ProcessedEvent {
 }
 
 impl Transaction<'_> {
-    fn parse_and_apply_and_get_reply<S: std::io::Read + std::io::Write>(
+    fn parse_and_apply_and_get_reply<S: std::io::Read + std::io::Write + Send>(
         &mut self,
         conn: &Connection<S>,
         client_message: &str,
@@ -75,7 +75,7 @@ impl Transaction<'_> {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn process_event<S: std::io::Read + std::io::Write>(
+    fn process_event<S: std::io::Read + std::io::Write + Send>(
         &mut self,
         conn: &Connection<S>,
         event: Event,
@@ -280,7 +280,7 @@ impl Transaction<'_> {
 }
 
 impl Transaction<'_> {
-    fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
+    fn set_connect<S: std::io::Read + std::io::Write + Send>(&mut self, conn: &Connection<S>) {
         let state = self.rule_state.get_context();
         let ctx = &mut state.write().unwrap();
 
@@ -304,7 +304,7 @@ impl Transaction<'_> {
 
     fn set_mail_from<S>(&mut self, mail_from: &str, conn: &Connection<'_, S>)
     where
-        S: std::io::Write + std::io::Read,
+        S: std::io::Write + std::io::Read + Send,
     {
         match Address::try_from(mail_from.to_string()) {
             Err(_) => (),
@@ -370,7 +370,7 @@ fn get_timeout_for_state(
 }
 
 impl Transaction<'_> {
-    pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write>(
+    pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write + Send>(
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,

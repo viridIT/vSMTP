@@ -64,12 +64,12 @@ fn is_version_requirement_satisfied(
     })
 }
 
-async fn on_mail<S: std::io::Read + std::io::Write>(
+async fn on_mail<S: std::io::Read + std::io::Write + Send>(
     conn: &mut Connection<'_, S>,
     mail: Box<MailContext>,
     helo_domain: &mut Option<String>,
-    working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-    delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+    working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
     *helo_domain = Some(mail.envelop.helo.clone());
 
@@ -133,11 +133,11 @@ pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-    delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+    working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()>
 where
-    S: std::io::Read + std::io::Write,
+    S: std::io::Read + std::io::Write + Send,
 {
     let mut helo_domain = None;
 
@@ -181,11 +181,11 @@ pub(crate) async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-    delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+    working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()>
 where
-    S: std::io::Read + std::io::Write,
+    S: std::io::Read + std::io::Write + Send,
 {
     let smtps_config = conn.config.smtps.as_ref().unwrap();
 
