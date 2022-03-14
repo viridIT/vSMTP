@@ -33,13 +33,16 @@ pub struct InnerServerConfig {
     pub vsmtp_group: String,
     /// TCP/IP address of the rfc5321#section-4.5.4.2
     #[serde(default = "InnerServerConfig::default_addr")]
-    pub addr: std::net::SocketAddr,
+    #[serde(deserialize_with = "crate::serializer::deserialize_socket_addr")]
+    pub addr: Vec<std::net::SocketAddr>,
     /// TCP/IP address of the rfc6409
     #[serde(default = "InnerServerConfig::default_addr_submission")]
-    pub addr_submission: std::net::SocketAddr,
+    #[serde(deserialize_with = "crate::serializer::deserialize_socket_addr")]
+    pub addr_submission: Vec<std::net::SocketAddr>,
     /// TCP/IP address of the rfc8314
     #[serde(default = "InnerServerConfig::default_addr_submissions")]
-    pub addr_submissions: std::net::SocketAddr,
+    #[serde(deserialize_with = "crate::serializer::deserialize_socket_addr")]
+    pub addr_submissions: Vec<std::net::SocketAddr>,
     /// The number of available worker thread in the runtime
     /// (default is the number of cores available to the system)
     #[serde(default = "num_cpus::get")]

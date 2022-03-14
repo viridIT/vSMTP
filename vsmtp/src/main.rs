@@ -18,7 +18,7 @@ use anyhow::Context;
 use vsmtp::{MBoxResolver, MailDirResolver, SMTPResolver};
 use vsmtp_common::libc_abstraction::{daemon, setgid, setuid, ForkResult};
 use vsmtp_config::get_logger_config;
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 use vsmtp_server::server::ServerVSMTP;
 
 #[derive(Debug, clap::Parser, PartialEq)]
@@ -91,9 +91,11 @@ mod tests {
     }
 }
 
-fn socket_bind_anyhow(addr: std::net::SocketAddr) -> anyhow::Result<std::net::TcpListener> {
-    anyhow::Context::with_context(std::net::TcpListener::bind(addr), || {
-        format!("Failed to bind socket on addr: '{}'", addr)
+fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
+    addr: A,
+) -> anyhow::Result<std::net::TcpListener> {
+    anyhow::Context::with_context(std::net::TcpListener::bind(&addr), || {
+        format!("Failed to bind socket on addr: '{:?}'", addr)
     })
 }
 
@@ -148,9 +150,9 @@ fn main() -> anyhow::Result<()> {
         .context("Cannot initialize logs")??;
 
     let sockets = (
-        socket_bind_anyhow(config.server.addr)?,
-        socket_bind_anyhow(config.server.addr_submission)?,
-        socket_bind_anyhow(config.server.addr_submissions)?,
+        socket_bind_anyhow(&config.server.addr[..])?,
+        socket_bind_anyhow(&config.server.addr_submission[..])?,
+        socket_bind_anyhow(&config.server.addr_submissions[..])?,
     );
 
     if args.no_daemon {

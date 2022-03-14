@@ -23,6 +23,7 @@
         "libc",
         "libmilter",
         "maildir",
+        "nametoindex",
         "nonblocking",
         "ocsp",
         "opentelemetry",

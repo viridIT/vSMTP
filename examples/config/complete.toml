@@ -5,13 +5,13 @@ version_requirement = ">=0.9.2, <1.0.0"
 ## (should be optional an use machine hostname if missing)
 domain = "testserver.com"
 ## address ip for 'legacy' tcp socket
-addr = "0.0.0.0:10025"
+addr = ["0.0.0.0:10025"]
 ## address ip for submission tcp socket
 ## (= legacy socket + enhanced security verification in transactions)
-addr_submission = "0.0.0.0:10587"
+addr_submission = ["0.0.0.0:10587"]
 ## address ip for tls tunneled tcp socket
 ## (= same as submission but under a tls protocol, a thus with no STARTTLS)
-addr_submissions = "0.0.0.0:10465"
+addr_submissions = ["0.0.0.0:10465"]
 ## number of thread available in the vsmtp's pool
 thread_count = 10
 ## user used to run the deamon (when implemented)

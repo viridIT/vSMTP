@@ -34,7 +34,7 @@ mod rules;
 mod types;
 
 pub mod helpers {
-    use vsmtp_config::server_config::ServerConfig;
+    use vsmtp_config::ServerConfig;
 
     use crate::rule_engine::RuleState;
 

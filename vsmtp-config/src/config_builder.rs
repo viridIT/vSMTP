@@ -128,9 +128,9 @@ impl ConfigBuilder<WantsServer> {
                 parent: self.state,
                 server: InnerServerConfig {
                     domain: domain.into(),
-                    addr,
-                    addr_submission,
-                    addr_submissions,
+                    addr: vec![addr],
+                    addr_submission: vec![addr_submission],
+                    addr_submissions: vec![addr_submissions],
                     thread_count,
                     vsmtp_user: vsmtp_user.into(),
                     vsmtp_group: vsmtp_group.into(),

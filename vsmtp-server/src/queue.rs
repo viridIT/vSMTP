@@ -16,7 +16,7 @@
 **/
 use anyhow::Context;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::{log_channel::RECEIVER, server_config::ServerConfig};
+use vsmtp_config::{log_channel::RECEIVER, ServerConfig};
 
 /// identifiers for all mail queues.
 pub(crate) enum Queue {

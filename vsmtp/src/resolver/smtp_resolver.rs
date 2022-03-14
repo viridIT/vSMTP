@@ -16,7 +16,7 @@
 **/
 use anyhow::Context;
 use vsmtp_common::mail_context::{Body, MailContext};
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 use vsmtp_server::resolver::Resolver;
 
 /// This delivery will send the mail to another MTA (relaying)

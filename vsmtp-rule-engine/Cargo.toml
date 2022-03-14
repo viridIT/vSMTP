@@ -33,7 +33,12 @@ time = { version = "0.3.7", default-features = false, features = [
     "macros",
 ] }
 
-rhai = { version = "1.5.0", features = ["unchecked", "sync", "internals"] }
+rhai = { git = "https://github.com/rhaiscript/rhai.git", version = "1.5.0", features = [
+    "unchecked",
+    "sync",
+    "internals",
+] }
+
 
 lettre = { version = "0.10.0-rc.4", default-features = false, features = [
     "smtp-transport",

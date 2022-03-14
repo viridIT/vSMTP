@@ -26,13 +26,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+
+///
 mod config_builder;
 /// The default values of the configuration
 pub mod default;
 mod serializer;
 /// The rust representation of the configuration
 #[allow(clippy::module_name_repetitions)]
-pub mod server_config;
+mod server_config;
+
+pub use server_config::{InnerSmtpsConfig, ServerConfig, SniKey, TlsSecurityLevel};
+
 /// The external services used in .vsl format
 pub mod service;
 
@@ -51,11 +56,7 @@ pub mod log_channel {
     pub const DELIVER: &str = "deliver";
 }
 
-/// helper to initialize the log4rs config from our ServerConfig
-///
-/// # Errors
-///
-/// * if log4rs produce an error
+#[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
 pub fn get_logger_config(
     config: &server_config::ServerConfig,

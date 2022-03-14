@@ -8,6 +8,7 @@ use crate::{
 
 use super::server_config::{QueueConfig, ServerConfig, TlsSecurityLevel};
 
+mod socket_addr;
 mod tls_protocol_version;
 
 #[test]

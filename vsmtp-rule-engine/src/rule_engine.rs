@@ -26,7 +26,7 @@ use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::SRULES;
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 
 use crate::error::RuleEngineError;
 use crate::modules;
@@ -548,9 +548,10 @@ impl RuleEngine {
                             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
                     );
 
-                    // pushing object in scope, preventing a "let _" statement,
+                    // Pushing object in scope, preventing a "let _" statement,
                     // and returning a reference to the object in case of a parent group.
-                    context.scope_mut().push_constant(var_name, obj_ptr.clone());
+                    // Also, exporting the variable by default.
+                    context.scope_mut().push_constant(&var_name, obj_ptr.clone()).set_alias(var_name, "");
 
                     Ok(Dynamic::from(obj_ptr))
                 },

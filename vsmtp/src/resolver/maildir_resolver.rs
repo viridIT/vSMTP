@@ -19,7 +19,7 @@ use vsmtp_common::{
     libc_abstraction::chown_file,
     mail_context::{Body, MailContext, MessageMetadata},
 };
-use vsmtp_config::{log_channel::DELIVER, server_config::ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 use vsmtp_server::resolver::Resolver;
 
 /// see https://en.wikipedia.org/wiki/Maildir
