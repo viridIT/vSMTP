@@ -111,3 +111,46 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
         )),
     }
 }
+
+/// Returns the index of the network interface corresponding to the name @ifname
+///
+/// # Errors
+///
+/// * @name contain null bytes
+/// * No index found for the @ifname
+pub fn if_nametoindex(ifname: &str) -> anyhow::Result<u32> {
+    match unsafe { libc::if_nametoindex(std::ffi::CString::new(ifname)?.as_ptr()) } {
+        0 => Err(anyhow::anyhow!(
+            "if_nametoindex: '{}'",
+            std::io::Error::last_os_error()
+        )),
+        otherwise => Ok(otherwise),
+    }
+}
+
+/// Returns the name of the network interface corresponding to the interface index @ifindex
+///
+/// # Errors
+///
+/// * No interface found for the @ifindex
+/// * Interface name is not utf8
+pub fn if_indextoname(ifindex: u32) -> anyhow::Result<String> {
+    let mut buf = [0; libc::IF_NAMESIZE];
+
+    match unsafe { libc::if_indextoname(ifindex, buf.as_mut_ptr()) } {
+        null if null.is_null() => Err(anyhow::anyhow!(
+            "if_indextoname: '{}'",
+            std::io::Error::last_os_error()
+        )),
+        _ => Ok(std::str::from_utf8(
+            &buf.into_iter()
+                .filter_map(|x| match u8::try_from(x) {
+                    Ok(i) if i == b'\0' => None,
+                    Ok(i) => Some(i),
+                    Err(_) => None,
+                })
+                .collect::<Vec<u8>>(),
+        )?
+        .to_string()),
+    }
+}

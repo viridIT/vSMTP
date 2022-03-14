@@ -22,7 +22,7 @@ use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
 };
-use vsmtp_config::server_config::{ServerConfig, TlsSecurityLevel};
+use vsmtp_config::{ServerConfig, TlsSecurityLevel};
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 

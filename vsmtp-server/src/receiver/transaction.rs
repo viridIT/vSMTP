@@ -27,7 +27,7 @@ use vsmtp_common::{
 };
 use vsmtp_config::{
     log_channel::RECEIVER,
-    server_config::{ServerConfig, TlsSecurityLevel},
+    {ServerConfig, TlsSecurityLevel},
 };
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min

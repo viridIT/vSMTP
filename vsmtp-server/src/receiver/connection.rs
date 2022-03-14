@@ -16,7 +16,7 @@
 **/
 use super::io_service::{IoService, ReadError};
 use vsmtp_common::code::SMTPReplyCode;
-use vsmtp_config::{log_channel::RECEIVER, server_config::ServerConfig};
+use vsmtp_config::{log_channel::RECEIVER, ServerConfig};
 
 /// how the server would react to tls interaction for this connection
 #[allow(clippy::module_name_repetitions)]

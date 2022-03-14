@@ -19,7 +19,7 @@ use vsmtp_common::{
     mail_context::{Body, MailContext},
     status::Status,
 };
-use vsmtp_config::{log_channel::DELIVER, server_config::ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 

@@ -28,7 +28,7 @@ use crate::{
 };
 use anyhow::Context;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::ServerConfig;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// A type implementing Write+Read to emulate sockets
