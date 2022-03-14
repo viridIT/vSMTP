@@ -50,7 +50,7 @@ async fn reset_helo() {
             assert_eq!(ctx.envelop.mail_from.full(), "a@b");
             assert_eq!(
                 ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::new("b@c").unwrap()])
+                std::collections::HashSet::from([Address::try_from("b@c".to_string()).unwrap()])
             );
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.len() == 2,
@@ -163,7 +163,7 @@ async fn reset_rcpt_to_ok() {
             assert_eq!(ctx.envelop.mail_from.full(), "d@e");
             assert_eq!(
                 ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::new("b@c").unwrap()])
+                std::collections::HashSet::from([Address::try_from("b@c".to_string()).unwrap()])
             );
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.is_empty(),
@@ -250,8 +250,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
             assert_eq!(
                 ctx.envelop.rcpt,
                 std::collections::HashSet::from([
-                    Address::new("toto2@bar").unwrap(),
-                    Address::new("toto3@bar").unwrap()
+                    Address::try_from("toto2@bar".to_string()).unwrap(),
+                    Address::try_from("toto3@bar".to_string()).unwrap()
                 ])
             );
             assert!(match &ctx.body {

@@ -17,8 +17,6 @@
 use serde_with::{serde_as, DisplayFromStr};
 use vsmtp_common::{code::SMTPReplyCode, state::StateSMTP};
 
-// use crate::smtp::{code::SMTPReplyCode, state::StateSMTP};
-
 use super::service::Service;
 
 /// vSMTP's system server information
@@ -33,15 +31,15 @@ pub struct InnerServerConfig {
     pub vsmtp_group: String,
     /// TCP/IP address of the rfc5321#section-4.5.4.2
     #[serde(default = "InnerServerConfig::default_addr")]
-    #[serde(deserialize_with = "crate::serializer::deserialize_socket_addr")]
+    #[serde(deserialize_with = "crate::parser::deserialize_socket_addr")]
     pub addr: Vec<std::net::SocketAddr>,
     /// TCP/IP address of the rfc6409
     #[serde(default = "InnerServerConfig::default_addr_submission")]
-    #[serde(deserialize_with = "crate::serializer::deserialize_socket_addr")]
+    #[serde(deserialize_with = "crate::parser::deserialize_socket_addr")]
     pub addr_submission: Vec<std::net::SocketAddr>,
     /// TCP/IP address of the rfc8314
     #[serde(default = "InnerServerConfig::default_addr_submissions")]
-    #[serde(deserialize_with = "crate::serializer::deserialize_socket_addr")]
+    #[serde(deserialize_with = "crate::parser::deserialize_socket_addr")]
     pub addr_submissions: Vec<std::net::SocketAddr>,
     /// The number of available worker thread in the runtime
     /// (default is the number of cores available to the system)
@@ -248,7 +246,7 @@ pub struct Codes {
 #[serde(deny_unknown_fields)]
 pub struct ServerConfig {
     /// the version required for vSMTP to parse this configuration
-    #[serde(serialize_with = "crate::serializer::serialize_version_req")]
+    #[serde(serialize_with = "crate::parser::serialize_version_req")]
     pub version_requirement: semver::VersionReq,
     #[doc(hidden)]
     pub server: InnerServerConfig,

@@ -17,7 +17,7 @@
 use crate::address::Address;
 
 /// Data receive during a smtp transaction
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Envelop {
     ///
     pub helo: String,
@@ -25,4 +25,15 @@ pub struct Envelop {
     pub mail_from: Address,
     ///
     pub rcpt: std::collections::HashSet<Address>,
+}
+
+impl Default for Envelop {
+    fn default() -> Self {
+        Self {
+            helo: String::default(),
+            // FIXME:
+            mail_from: Address::try_from("default@domain.com".to_string()).expect("valid address"),
+            rcpt: std::collections::HashSet::default(),
+        }
+    }
 }

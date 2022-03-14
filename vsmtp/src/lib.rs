@@ -29,7 +29,7 @@ mod resolver {
 
         MailContext {
             body: Body::Empty,
-            connexion_timestamp: std::time::SystemTime::now(),
+            connection_timestamp: std::time::SystemTime::now(),
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
                 0,

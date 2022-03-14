@@ -84,7 +84,9 @@ fn criterion_benchmark(c: &mut Criterion) {
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
                     ctx.envelop.rcpt,
-                    std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
+                    std::collections::HashSet::from([
+                        Address::try_from("aa@bb".to_string()).unwrap()
+                    ])
                 );
                 assert!(match &ctx.body {
                     Body::Parsed(mail) => mail.body == BodyType::Undefined,

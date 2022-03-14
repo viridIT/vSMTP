@@ -92,7 +92,8 @@ impl Transaction<'_> {
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
-                    ctx.envelop.mail_from = Address::default();
+                    ctx.envelop.mail_from =
+                        Address::try_from("default@domain.com".to_string()).expect("");
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
@@ -262,7 +263,7 @@ impl Transaction<'_> {
                 }
 
                 let mut output = MailContext {
-                    connexion_timestamp: std::time::SystemTime::now(),
+                    connection_timestamp: std::time::SystemTime::now(),
                     client_addr: ctx.client_addr,
                     envelop: Envelop::default(),
                     body: Body::Empty,
@@ -284,7 +285,7 @@ impl Transaction<'_> {
         let ctx = &mut state.write().unwrap();
 
         ctx.client_addr = conn.client_addr;
-        ctx.connexion_timestamp = conn.timestamp;
+        ctx.connection_timestamp = conn.timestamp;
     }
 
     fn set_helo(&mut self, helo: String) {
@@ -295,7 +296,8 @@ impl Transaction<'_> {
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
-            mail_from: Address::default(),
+            // FIXME:
+            mail_from: Address::try_from("default@default.com".to_string()).expect(""),
             rcpt: std::collections::HashSet::default(),
         };
     }
@@ -304,7 +306,7 @@ impl Transaction<'_> {
     where
         S: std::io::Write + std::io::Read,
     {
-        match Address::new(mail_from) {
+        match Address::try_from(mail_from.to_string()) {
             Err(_) => (),
             Ok(mail_from) => {
                 let now = std::time::SystemTime::now();
@@ -342,7 +344,7 @@ impl Transaction<'_> {
     }
 
     fn set_rcpt_to(&mut self, rcpt_to: &str) {
-        match Address::new(rcpt_to) {
+        match Address::try_from(rcpt_to.to_string()) {
             Err(_) => (),
             Ok(rcpt_to) => {
                 self.rule_state

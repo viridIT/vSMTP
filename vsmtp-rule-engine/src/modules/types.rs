@@ -134,7 +134,7 @@ pub mod types {
 
     #[rhai_fn(global, return_raw)]
     pub fn new_address(addr: &str) -> EngineResult<Address> {
-        Address::new(addr).map_err(|error| error.to_string().into())
+        Address::try_from(addr.to_string()).map_err(|error| error.to_string().into())
     }
 
     #[rhai_fn(global, name = "to_string", pure)]
@@ -311,7 +311,7 @@ pub mod types {
 
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn string_in_rcpt(this: &mut Rcpt, s: &str) -> EngineResult<bool> {
-        let addr = Address::new(s)
+        let addr = Address::try_from(s.to_string())
             .map_err::<Box<EvalAltResult>, _>(|_| format!("'{}' is not an address", s).into())?;
         Ok(this.contains(&addr))
     }

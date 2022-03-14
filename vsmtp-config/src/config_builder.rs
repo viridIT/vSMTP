@@ -105,8 +105,8 @@ pub struct WantsServer {
     #[allow(unused)]
     pub(crate) parent: WantsVersion,
     #[serde(
-        serialize_with = "crate::serializer::serialize_version_req",
-        deserialize_with = "crate::serializer::deserialize_version_req"
+        serialize_with = "crate::parser::serialize_version_req",
+        deserialize_with = "crate::parser::deserialize_version_req"
     )]
     version_requirement: semver::VersionReq,
 }

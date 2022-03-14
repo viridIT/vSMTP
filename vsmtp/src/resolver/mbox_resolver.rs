@@ -144,7 +144,7 @@ mod test {
     fn test_mbox_message_raw_and_parsed() {
         let mut ctx = get_default_context();
 
-        ctx.envelop.mail_from = Address::new("john@doe.com").unwrap();
+        ctx.envelop.mail_from = Address::try_from("john@doe.com".to_string()).unwrap();
         ctx.body = Body::Raw(
             r#"from: john doe <john@doe.com>
 to: green@foo.net

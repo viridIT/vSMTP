@@ -37,7 +37,7 @@ async fn test_receiver_1() {
             assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
             assert_eq!(
                 ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
+                std::collections::HashSet::from([Address::try_from("aa@bb".to_string()).unwrap()])
             );
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.is_empty(),
@@ -313,7 +313,9 @@ async fn test_receiver_13() {
                     assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                     assert_eq!(
                         ctx.envelop.rcpt,
-                        std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
+                        std::collections::HashSet::from([
+                            Address::try_from("aa@bb".to_string()).unwrap()
+                        ])
                     );
                     assert!(match &ctx.body {
                         Body::Parsed(body) => body.headers.len() == 2,
@@ -326,7 +328,9 @@ async fn test_receiver_13() {
                     assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
                     assert_eq!(
                         ctx.envelop.rcpt,
-                        std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
+                        std::collections::HashSet::from([
+                            Address::try_from("aa2@bb".to_string()).unwrap()
+                        ])
                     );
                     assert!(match &ctx.body {
                         Body::Parsed(body) => body.headers.len() == 2,
@@ -401,7 +405,9 @@ async fn test_receiver_14() {
                     assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                     assert_eq!(
                         ctx.envelop.rcpt,
-                        std::collections::HashSet::from([Address::new("aa@bb").unwrap()])
+                        std::collections::HashSet::from([
+                            Address::try_from("aa@bb".to_string()).unwrap()
+                        ])
                     );
                     assert!(match &ctx.body {
                         Body::Parsed(body) => body.headers.len() == 2,
@@ -413,7 +419,9 @@ async fn test_receiver_14() {
                     assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
                     assert_eq!(
                         ctx.envelop.rcpt,
-                        std::collections::HashSet::from([Address::new("aa2@bb").unwrap()])
+                        std::collections::HashSet::from([
+                            Address::try_from("aa2@bb".to_string()).unwrap()
+                        ])
                     );
                     assert!(match &ctx.body {
                         Body::Parsed(body) => body.headers.len() == 2,

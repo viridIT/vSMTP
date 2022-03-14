@@ -59,7 +59,7 @@ fn test_address() {
     let mut state = get_default_state();
 
     state.get_context().write().unwrap().envelop.mail_from =
-        Address::new("mail.from@test.net").expect("could not parse address");
+        Address::try_from("mail.from@test.net".to_string()).expect("could not parse address");
 
     assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
 }

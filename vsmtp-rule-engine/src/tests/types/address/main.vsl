@@ -34,7 +34,7 @@ object string "string_obj" "raw@address.net";
             // check against a string & display.
 
             if my_address.to_string() is "my@address.fqdn"
-            && my_address.to_debug() is "Address { full: \"my@address.fqdn\", at_sign: 2 }"
+            && my_address.to_debug() is "Address { at_sign: 2, full: \"my@address.fqdn\" }"
             && my_address is "my@address.fqdn"
             && my_address.local_part is "my"
             && my_address.domain is "address.fqdn"
