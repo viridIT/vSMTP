@@ -21,6 +21,7 @@ mod builder {
 }
 
 mod config;
+mod default;
 
 pub use builder::{validate, wants::*, with::*};
 pub use config::Config;
@@ -66,7 +67,7 @@ impl Config {
         }
 
         toml::from_str::<Self>(input)
-            .map_err(anyhow::Error::new)
             .map(Builder::<WantsValidate>::ensure)
+            .map_err(anyhow::Error::new)?
     }
 }

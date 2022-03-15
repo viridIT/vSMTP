@@ -1,3 +1,5 @@
+use vsmtp_common::code::SMTPReplyCode;
+
 use crate::next::{
     config::{
         ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigServer, ConfigServerInterfaces,
@@ -5,6 +7,7 @@ use crate::next::{
         ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
         ConfigServerTls,
     },
+    default::default_smtp_codes,
     Config,
 };
 
@@ -12,9 +15,11 @@ use super::{wants::WantsValidate, with::Builder};
 
 impl Builder<WantsValidate> {
     ///
-    #[allow(clippy::missing_const_for_fn)]
-    #[must_use]
-    pub fn validate(self) -> Config {
+    ///
+    /// # Errors
+    ///
+    /// *
+    pub fn validate(self) -> anyhow::Result<Config> {
         let app_services = self.state;
         let app_logs = app_services.parent;
         let app_vsl = app_logs.parent;
@@ -102,9 +107,34 @@ impl Builder<WantsValidate> {
         })
     }
 
-    pub(crate) const fn ensure(config: Config) -> Config {
-        // TODO:
-        config
+    pub(crate) fn ensure(mut config: Config) -> anyhow::Result<Config> {
+        anyhow::ensure!(
+            config.app.logs.filepath != config.server.logs.filepath,
+            "rules and application logs cannot both be written in '{}' !",
+            config.app.logs.filepath.display()
+        );
+
+        users::get_user_by_name(&config.server.system.user)
+            .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.system.user))?;
+        users::get_group_by_name(&config.server.system.group)
+            .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", config.server.system.group))?;
+
+        {
+            let default_values = default_smtp_codes();
+            let reply_codes = &mut config.server.smtp.codes;
+            for i in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+                reply_codes.insert(
+                    i,
+                    reply_codes
+                        .get(&i)
+                        .or_else(|| default_values.get(&i))
+                        .unwrap()
+                        .replace("{domain}", &config.server.domain),
+                );
+            }
+        }
+
+        Ok(config)
     }
 }
 
