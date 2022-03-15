@@ -1,9 +1,10 @@
 use crate::TlsSecurityLevel;
 
-use super::{
-    Config, ConfigQueueDelivery, ConfigQueueWorking, ConfigServer, ConfigServerInterfaces,
-    ConfigServerLogs, ConfigServerQueues, ConfigServerSystem, ConfigServerSystemThreadPool,
-    ConfigServerTls,
+use super::config::{
+    Config, ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
+    ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues, ConfigServerSMTP,
+    ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
+    ConfigServerSystemThreadPool, ConfigServerTls,
 };
 
 #[test]
@@ -51,6 +52,36 @@ fn serialize() {
                 private_key: rustls::PrivateKey(vec![]),
                 sni: vec![],
             },
+            smtp: ConfigServerSMTP {
+                rcpt_count_max: 1000,
+                disable_ehlo: false,
+                required_extension: vec![],
+                error: ConfigServerSMTPError {
+                    soft_count: 5,
+                    hard_count: 10,
+                    delay: std::time::Duration::from_millis(500),
+                },
+                timeout_client: ConfigServerSMTPTimeoutClient {
+                    connect: std::time::Duration::from_secs(5 * 60),
+                    helo: std::time::Duration::from_secs(5 * 60),
+                    mail_from: std::time::Duration::from_secs(5 * 60),
+                    rcpt_to: std::time::Duration::from_secs(5 * 60),
+                    data: std::time::Duration::from_secs(5 * 60),
+                },
+                codes: std::collections::BTreeMap::new(),
+            },
+        },
+        app: ConfigApp {
+            dirpath: "/var/spool/vsmtp/app".into(),
+            vsl: ConfigAppVSL {
+                filepath: "/etc/vsmtp/main.vsl".into(),
+            },
+            logs: ConfigAppLogs {
+                filepath: "/var/log/vsmtp/app.log".into(),
+                level: log::LevelFilter::Info,
+                format: "{d} - {m}{n}".to_string(),
+            },
+            services: std::collections::BTreeMap::new(),
         },
     };
 
