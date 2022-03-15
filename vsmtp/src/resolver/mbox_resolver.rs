@@ -18,6 +18,7 @@ use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::chown_file,
     mail_context::{Body, MailContext, MessageMetadata},
+    rcpt::Rcpt,
 };
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 use vsmtp_server::resolver::Resolver;
@@ -34,26 +35,29 @@ pub struct MBoxResolver;
 
 #[async_trait::async_trait]
 impl Resolver for MBoxResolver {
-    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(
+        &mut self,
+        _: &ServerConfig,
+        ctx: &MailContext,
+        rcpt: &Rcpt,
+    ) -> anyhow::Result<()> {
         let timestamp = get_mbox_timestamp_format(&ctx.metadata);
         let content = build_mbox_message(ctx, &timestamp)?;
 
-        for rcpt in &ctx.envelop.rcpt {
-            // FIXME: use UsersCache.
-            match users::get_user_by_name(rcpt.address.local_part()) {
-                Some(user) => {
-                    // NOTE: only linux system is supported here, is the
-                    //       path to all mboxes always /var/mail ?
-                    write_content_to_mbox(
-                        &std::path::PathBuf::from_iter(["/var/mail/", rcpt.address.local_part()]),
-                        &user,
-                        &content,
-                    )?;
-                }
-                _ => anyhow::bail!("unable to get user '{}' by name", rcpt.address.local_part()),
+        // FIXME: use UsersCache.
+        match users::get_user_by_name(rcpt.address.local_part()) {
+            Some(user) => {
+                // NOTE: only linux system is supported here, is the
+                //       path to all mboxes always /var/mail ?
+                write_content_to_mbox(
+                    &std::path::PathBuf::from_iter(["/var/mail/", rcpt.address.local_part()]),
+                    &user,
+                    &content,
+                )?;
+                Ok(())
             }
+            _ => anyhow::bail!("unable to get user '{}' by name", rcpt.address.local_part()),
         }
-        Ok(())
     }
 }
 

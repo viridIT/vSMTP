@@ -15,7 +15,10 @@
  *
 **/
 use anyhow::Context;
-use vsmtp_common::mail_context::{Body, MailContext};
+use vsmtp_common::{
+    mail_context::{Body, MailContext},
+    rcpt::Rcpt,
+};
 use vsmtp_config::ServerConfig;
 use vsmtp_server::resolver::Resolver;
 
@@ -26,7 +29,12 @@ pub struct SMTPResolver;
 #[async_trait::async_trait]
 impl Resolver for SMTPResolver {
     // NOTE: should the function short circuit when sending an email failed ?
-    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(
+        &mut self,
+        _: &ServerConfig,
+        ctx: &MailContext,
+        rcpt: &Rcpt,
+    ) -> anyhow::Result<()> {
         let envelop = build_envelop(ctx).context("failed to build envelop to deliver email")?;
         let resolver = build_resolver().context("failed to build resolver to deliver email")?;
         let content = match &ctx.body {
@@ -35,31 +43,22 @@ impl Resolver for SMTPResolver {
             Body::Parsed(mail) => mail.raw_body(),
         };
 
-        for rcpt in &ctx.envelop.rcpt {
-            let query = rcpt.address.domain();
-            let records = match get_mx_records(&resolver, query).await {
-                Ok(records) => records,
-                Err(err) => {
-                    log::error!("failed to get mx records for '{}': {}", query, err);
-                    continue;
-                }
-            };
-
-            if records.iter().any(|record| {
-                match send_email(&record.exchange().to_ascii(), &envelop, &content) {
-                    Ok(_) => true,
-                    Err(err) => {
-                        log::debug!("failed to relay mail to {}: {}", rcpt, err);
-                        false
-                    }
-                }
-            }) {
-                log::debug!("email successfully delivered to '{}'", rcpt);
-            } else {
-                log::error!("no valid mail exchanger found for '{}'", rcpt);
+        let query = rcpt.address.domain();
+        let records = match get_mx_records(&resolver, query).await {
+            Ok(records) => records,
+            Err(err) => {
+                anyhow::bail!("failed to get mx records for '{}': {}", query, err);
             }
+        };
+
+        if records
+            .iter()
+            .any(|record| send_email(&record.exchange().to_ascii(), &envelop, &content).is_ok())
+        {
+            Ok(())
+        } else {
+            anyhow::bail!("no valid mail exchanger found for '{}'", rcpt);
         }
-        Ok(())
     }
 }
 

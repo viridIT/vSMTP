@@ -27,7 +27,7 @@ use crate::{
     resolver::Resolver,
 };
 use anyhow::Context;
-use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::{mail_context::MailContext, rcpt::Rcpt};
 use vsmtp_config::ServerConfig;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
@@ -67,7 +67,7 @@ pub(crate) struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl Resolver for DefaultResolverTest {
-    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext, _: &Rcpt) -> anyhow::Result<()> {
         Ok(())
     }
 }

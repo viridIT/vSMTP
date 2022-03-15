@@ -18,6 +18,7 @@ use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::chown_file,
     mail_context::{Body, MailContext, MessageMetadata},
+    rcpt::Rcpt,
 };
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 use vsmtp_server::resolver::Resolver;
@@ -30,7 +31,12 @@ pub struct MailDirResolver;
 impl Resolver for MailDirResolver {
     // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
     //       and https://en.wikipedia.org/wiki/Maildir
-    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(
+        &mut self,
+        _: &ServerConfig,
+        ctx: &MailContext,
+        rcpt: &Rcpt,
+    ) -> anyhow::Result<()> {
         let content = match &ctx.body {
             Body::Empty => {
                 anyhow::bail!("failed to write email using maildir: body is empty")
@@ -39,30 +45,23 @@ impl Resolver for MailDirResolver {
             Body::Parsed(parsed) => parsed.to_raw(),
         };
 
-        for rcpt in &ctx.envelop.rcpt {
-            match users::get_user_by_name(rcpt.address.local_part()) {
-                Some(user) => {
-                    if let Err(err) =
-                        write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)
-                    {
-                        log::error!(
-                            target: DELIVER,
-                            "could not write email to '{}' maildir directory: {}",
-                            rcpt,
-                            err
-                        );
-                    }
+        match users::get_user_by_name(rcpt.address.local_part()) {
+            Some(user) => {
+                if let Err(err) = write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)
+                {
+                    anyhow::bail!(
+                        "could not write email to '{}' maildir directory: {}",
+                        rcpt,
+                        err
+                    )
                 }
-                None => {
-                    log::error!(
-                        target: DELIVER,
-                        "could not write email to '{}' maildir directory: user was not found on the system",
-                        rcpt
-                    );
-                }
+                Ok(())
             }
+            None => anyhow::bail!(
+                "could not write email to '{}' maildir directory: user was not found on the system",
+                rcpt
+            ),
         }
-        Ok(())
     }
 }
 

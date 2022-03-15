@@ -21,6 +21,7 @@ use vsmtp_common::{
     address::Address,
     mail::BodyType,
     mail_context::{Body, MailContext},
+    rcpt::Rcpt,
 };
 use vsmtp_config::ServerConfig;
 use vsmtp_server::{receiver::test_helpers::test_receiver, resolver::Resolver};
@@ -30,7 +31,7 @@ struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl Resolver for DefaultResolverTest {
-    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext, _: &Rcpt) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -79,7 +80,12 @@ fn criterion_benchmark(c: &mut Criterion) {
 
         #[async_trait::async_trait]
         impl Resolver for T {
-            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+            async fn deliver(
+                &mut self,
+                _: &ServerConfig,
+                ctx: &MailContext,
+                _: &Rcpt,
+            ) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(

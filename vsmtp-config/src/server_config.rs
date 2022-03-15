@@ -232,7 +232,7 @@ pub struct InnerDeliveryConfig {
     /// path of the spool directory where the processing queues write the files.
     pub spool_dir: std::path::PathBuf,
     /// default protocol to use to deliver emails.
-    #[serde(default = "InnerDeliveryConfig::default_delivery_method")]
+    #[serde(default = "InnerDeliveryConfig::default_transfer_method")]
     pub default_method: String,
     #[doc(hidden)]
     pub queues: InnerQueuesConfig,

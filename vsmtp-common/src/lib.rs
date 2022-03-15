@@ -61,6 +61,9 @@ pub mod status;
 /// rcpt data structure.
 pub mod rcpt;
 
+/// transfer method for delivery / forwarding.
+pub mod transfer;
+
 #[cfg(test)]
 mod event_tests;
 

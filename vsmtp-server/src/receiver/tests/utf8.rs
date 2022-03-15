@@ -18,6 +18,7 @@ use crate::{receiver::test_helpers::test_receiver, resolver::Resolver};
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
+    rcpt::Rcpt,
 };
 use vsmtp_config::ServerConfig;
 
@@ -27,7 +28,12 @@ macro_rules! test_lang {
 
         #[async_trait::async_trait]
         impl Resolver for T {
-            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+            async fn deliver(
+                &mut self,
+                _: &ServerConfig,
+                ctx: &MailContext,
+                _: &Rcpt,
+            ) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foobar".to_string());
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(

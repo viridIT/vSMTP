@@ -21,6 +21,7 @@ use crate::{
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
+    rcpt::Rcpt,
 };
 use vsmtp_config::ServerConfig;
 
@@ -45,7 +46,12 @@ async fn reset_helo() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+        async fn deliver(
+            &mut self,
+            _: &ServerConfig,
+            ctx: &MailContext,
+            _: &Rcpt,
+        ) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo");
             assert_eq!(ctx.envelop.mail_from.full(), "a@b");
             assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap().into()]);
@@ -155,7 +161,12 @@ async fn reset_rcpt_to_ok() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+        async fn deliver(
+            &mut self,
+            _: &ServerConfig,
+            ctx: &MailContext,
+            _: &Rcpt,
+        ) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo2");
             assert_eq!(ctx.envelop.mail_from.full(), "d@e");
             assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap().into()]);
@@ -238,7 +249,12 @@ async fn reset_rcpt_to_multiple_rcpt() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+        async fn deliver(
+            &mut self,
+            _: &ServerConfig,
+            ctx: &MailContext,
+            _: &Rcpt,
+        ) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo");
             assert_eq!(ctx.envelop.mail_from.full(), "foo2@foo");
             assert_eq!(

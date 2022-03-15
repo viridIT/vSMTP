@@ -14,25 +14,38 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::address::Address;
+use crate::{address::Address, transfer::Transfer};
 
 /// representation of a recipient with it's delivery method.
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Rcpt {
     /// email address of the recipient.
     pub address: Address,
     /// protocol used by vsmtp to delivery the email to the recipient.
-    pub delivery_method: String,
+    pub transfer_method: Transfer,
+    /// number of times the mta tried to send an email for this rcpt.
+    pub retry: usize,
+}
+
+impl Default for Rcpt {
+    fn default() -> Self {
+        Self {
+            address: Address::default(),
+            transfer_method: Transfer::None,
+            retry: Default::default(),
+        }
+    }
 }
 
 impl Rcpt {
     /// create a new recipient from it's address.
     /// the delivery method is set tp default.
     #[must_use]
-    pub fn new(address: Address) -> Self {
+    pub const fn new(address: Address) -> Self {
         Self {
             address,
-            delivery_method: "default".to_string(),
+            transfer_method: Transfer::None,
+            retry: 0,
         }
     }
 }

@@ -21,6 +21,7 @@ use crate::{
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
+    rcpt::Rcpt,
 };
 use vsmtp_config::{ServerConfig, TlsSecurityLevel};
 
@@ -32,7 +33,12 @@ async fn test_receiver_1() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+        async fn deliver(
+            &mut self,
+            _: &ServerConfig,
+            ctx: &MailContext,
+            _: &Rcpt,
+        ) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foobar");
             assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
             assert_eq!(
@@ -306,7 +312,12 @@ async fn test_receiver_13() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+        async fn deliver(
+            &mut self,
+            _: &ServerConfig,
+            ctx: &MailContext,
+            _: &Rcpt,
+        ) -> anyhow::Result<()> {
             match self.count {
                 0 => {
                     assert_eq!(ctx.envelop.helo, "foobar");
@@ -396,7 +407,12 @@ async fn test_receiver_14() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+        async fn deliver(
+            &mut self,
+            _: &ServerConfig,
+            ctx: &MailContext,
+            _: &Rcpt,
+        ) -> anyhow::Result<()> {
             match self.count {
                 0 => {
                     assert_eq!(ctx.envelop.helo, "foobar");
