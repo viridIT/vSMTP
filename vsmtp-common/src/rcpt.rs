@@ -14,15 +14,20 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{address::Address, transfer::Transfer};
+use crate::{
+    address::Address,
+    transfer::{EmailTransferStatus, Transfer},
+};
 
 /// representation of a recipient with it's delivery method.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Rcpt {
     /// email address of the recipient.
     pub address: Address,
-    /// protocol used by vsmtp to delivery the email to the recipient.
+    /// protocol used by vsmtp to deliver / transfer the email bound by this recipient.
     pub transfer_method: Transfer,
+    /// delivery status of the email bound to this recipient.
+    pub email_status: EmailTransferStatus,
     /// number of times the mta tried to send an email for this rcpt.
     pub retry: usize,
 }
@@ -35,6 +40,7 @@ impl Rcpt {
         Self {
             address,
             transfer_method: Transfer::None,
+            email_status: EmailTransferStatus::Waiting,
             retry: 0,
         }
     }

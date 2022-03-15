@@ -39,26 +39,29 @@ impl Resolver for MBoxResolver {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
-        ctx: &MailContext,
-        rcpt: &Rcpt,
+        from: &vsmtp_common::address::Address,
+        to: &[&mut Rcpt],
+        content: &str,
     ) -> anyhow::Result<()> {
-        let timestamp = get_mbox_timestamp_format(&ctx.metadata);
-        let content = build_mbox_message(ctx, &timestamp)?;
+        // let timestamp = get_mbox_timestamp_format(&ctx.metadata);
+        // let content = build_mbox_message(ctx, &timestamp)?;
 
-        // FIXME: use UsersCache.
-        match users::get_user_by_name(rcpt.address.local_part()) {
-            Some(user) => {
-                // NOTE: only linux system is supported here, is the
-                //       path to all mboxes always /var/mail ?
-                write_content_to_mbox(
-                    &std::path::PathBuf::from_iter(["/var/mail/", rcpt.address.local_part()]),
-                    &user,
-                    &content,
-                )?;
-                Ok(())
-            }
-            _ => anyhow::bail!("unable to get user '{}' by name", rcpt.address.local_part()),
-        }
+        // // FIXME: use UsersCache.
+        // match users::get_user_by_name(rcpt.address.local_part()) {
+        //     Some(user) => {
+        //         // NOTE: only linux system is supported here, is the
+        //         //       path to all mboxes always /var/mail ?
+        //         write_content_to_mbox(
+        //             &std::path::PathBuf::from_iter(["/var/mail/", rcpt.address.local_part()]),
+        //             &user,
+        //             &content,
+        //         )?;
+        //         Ok(())
+        //     }
+        //     _ => anyhow::bail!("unable to get user '{}' by name", rcpt.address.local_part()),
+        // }
+
+        Ok(())
     }
 }
 

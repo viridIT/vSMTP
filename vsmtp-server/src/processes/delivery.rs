@@ -84,6 +84,38 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
     }
 }
 
+/// filter recipients by their transfer method and domain name.
+fn filter_recipients<S: std::hash::BuildHasher + Send>(
+    ctx: &mut MailContext,
+    resolvers: &std::collections::HashMap<
+        vsmtp_common::transfer::Transfer,
+        Box<dyn Resolver + Send + Sync>,
+        S,
+    >,
+) -> std::collections::HashMap<vsmtp_common::transfer::Transfer, Vec<vsmtp_common::rcpt::Rcpt>> {
+    ctx.envelop
+        .rcpt
+        .iter_mut()
+        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
+            if !resolvers.contains_key(&rcpt.transfer_method) {
+                rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::Failed(format!(
+                    // FIXME: find a better to couple Transfer method with Resolvers.
+                    "{} transfer method does not have a delivery system setup",
+                    rcpt.transfer_method.as_str()
+                ));
+                return acc;
+            }
+
+            if let Some(group) = acc.get_mut(&rcpt.transfer_method) {
+                group.push(rcpt.clone());
+            } else {
+                acc.insert(rcpt.transfer_method, vec![rcpt.clone()]);
+            }
+
+            acc
+        })
+}
+
 /// handle one email pulled from the delivery queue.
 ///
 /// # Panics
@@ -125,45 +157,16 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
         Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;
     } else {
         let ctx = state.get_context();
-        let ctx = ctx.read().unwrap();
+        let mut ctx = ctx.write().unwrap();
 
         // filtering recipients by domains and delivery method.
-        let triage: std::collections::HashMap<
-            vsmtp_common::transfer::Transfer,
-            std::collections::HashMap<String, Vec<vsmtp_common::rcpt::Rcpt>>,
-        > = ctx
-            .envelop
-            .rcpt
-            .iter()
-            .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-                if !resolvers.contains_key(&rcpt.transfer_method) {
-                    return acc;
-                }
-
-                if let std::collections::hash_map::Entry::Vacant(method) =
-                    acc.entry(rcpt.transfer_method)
-                {
-                    method.insert(std::collections::HashMap::from_iter([(
-                        rcpt.address.domain().to_string(),
-                        vec![rcpt.clone()],
-                    )]));
-                } else {
-                    let method = acc.get_mut(&rcpt.transfer_method).unwrap();
-
-                    if method.contains_key(rcpt.address.domain()) {
-                        method
-                            .get_mut(rcpt.address.domain())
-                            .unwrap()
-                            .push(rcpt.clone());
-                    } else {
-                        method.insert(rcpt.address.domain().to_string(), vec![rcpt.clone()]);
-                    }
-                }
-
-                acc
-            });
+        let triage = filter_recipients(&mut *ctx, &resolvers);
 
         println!("TRIAGE: {triage:#?}");
+
+        // for (method, groups) in &triage {
+
+        // }
 
         // for rcpt in &ctx.envelop.rcpt {
         //     if rcpt.transfer_method == vsmtp_common::rcpt::NO_DELIVERY {

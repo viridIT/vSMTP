@@ -19,7 +19,7 @@ use super::Resolver;
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::{chown_file, getpwuid},
-    mail_context::{Body, MailContext, MessageMetadata},
+    mail_context::MessageMetadata,
     rcpt::Rcpt,
 };
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
@@ -35,34 +35,39 @@ impl Resolver for MailDirResolver {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
-        ctx: &MailContext,
-        rcpt: &Rcpt,
+        from: &vsmtp_common::address::Address,
+        to: &[&mut Rcpt],
+        content: &str,
     ) -> anyhow::Result<()> {
-        let content = match &ctx.body {
-            Body::Empty => {
-                anyhow::bail!("failed to write email using maildir: body is empty")
-            }
-            Body::Raw(raw) => raw.clone(),
-            Body::Parsed(parsed) => parsed.to_raw(),
-        };
+        // let content = match &ctx.body {
+        //     Body::Empty => {
+        //         anyhow::bail!("failed to write email using maildir: body is empty")
+        //     }
+        //     Body::Raw(raw) => raw.clone(),
+        //     Body::Parsed(parsed) => parsed.to_raw(),
+        // };
 
-        match users::get_user_by_name(rcpt.address.local_part()) {
-            Some(user) => {
-                if let Err(err) = write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)
-                {
-                    anyhow::bail!(
-                        "could not write email to '{}' maildir directory: {}",
-                        rcpt,
-                        err
-                    )
-                }
-                Ok(())
-            }
-            None => anyhow::bail!(
-                "could not write email to '{}' maildir directory: user was not found on the system",
-                rcpt
-            ),
-        }
+        // for rcpt in deliver_to {
+        //     match users::get_user_by_name(rcpt.address.local_part()) {
+        //         Some(user) => {
+        //             // TODO: write to defer / dead queue.
+        //             if let Err(err) = write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)
+        //             {
+        //                 anyhow::bail!(
+        //                     "could not write email to '{}' maildir directory: {}",
+        //                     rcpt,
+        //                     err
+        //                 )
+        //             }
+        //         }
+        //         None => anyhow::bail!(
+        //             "could not write email to '{}' maildir directory: user was not found on the system",
+        //             rcpt
+        //         ),
+        //     }
+        // }
+
+        Ok(())
     }
 }
 

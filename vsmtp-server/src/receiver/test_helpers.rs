@@ -67,7 +67,13 @@ pub(crate) struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl Resolver for DefaultResolverTest {
-    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext, _: &Rcpt) -> anyhow::Result<()> {
+    async fn deliver(
+        &mut self,
+        _: &ServerConfig,
+        _: &vsmtp_common::address::Address,
+        _: &[&mut Rcpt],
+        _: &str,
+    ) -> anyhow::Result<()> {
         Ok(())
     }
 }

@@ -23,7 +23,7 @@ mod tls_helpers;
 ///
 pub mod resolver {
 
-    use vsmtp_common::{mail_context::MailContext, rcpt::Rcpt};
+    use vsmtp_common::{address::Address, rcpt::Rcpt};
     use vsmtp_config::ServerConfig;
 
     /// A trait allowing the [ServerVSMTP] to deliver a mail
@@ -33,8 +33,9 @@ pub mod resolver {
         async fn deliver(
             &mut self,
             config: &ServerConfig,
-            mail: &MailContext,
-            rcpt: &Rcpt,
+            from: &Address,
+            to: &[&mut Rcpt],
+            content: &str,
         ) -> anyhow::Result<()>;
     }
 
@@ -50,8 +51,9 @@ pub mod resolver {
         async fn deliver(
             &mut self,
             _: &ServerConfig,
-            _: &MailContext,
-            _: &Rcpt,
+            _: &Address,
+            _: &[&mut Rcpt],
+            _: &str,
         ) -> anyhow::Result<()> {
             Ok(())
         }
@@ -59,23 +61,18 @@ pub mod resolver {
 
     #[cfg(test)]
     #[must_use]
-    pub fn get_default_context() -> MailContext {
-        use vsmtp_common::{
-            envelop::Envelop,
-            mail_context::{Body, MessageMetadata},
-        };
-
-        MailContext {
-            body: Body::Empty,
+    pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
+        vsmtp_common::mail_context::MailContext {
+            body: vsmtp_common::mail_context::Body::Empty,
             connection_timestamp: std::time::SystemTime::now(),
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
                 0,
             ),
-            envelop: Envelop::default(),
-            metadata: Some(MessageMetadata {
+            envelop: vsmtp_common::envelop::Envelop::default(),
+            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
                 timestamp: std::time::SystemTime::now(),
-                ..MessageMetadata::default()
+                ..vsmtp_common::mail_context::MessageMetadata::default()
             }),
         }
     }

@@ -16,11 +16,8 @@
 **/
 use super::Resolver;
 
-use anyhow::Context;
-use vsmtp_common::{
-    mail_context::{Body, MailContext},
-    rcpt::Rcpt,
-};
+// use anyhow::Context;
+use vsmtp_common::rcpt::Rcpt;
 use vsmtp_config::ServerConfig;
 
 /// This delivery will send the mail to another MTA (relaying)
@@ -33,42 +30,44 @@ impl Resolver for SMTPResolver {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
-        ctx: &MailContext,
-        rcpt: &Rcpt,
+        from: &vsmtp_common::address::Address,
+        to: &[&mut Rcpt],
+        content: &str,
     ) -> anyhow::Result<()> {
-        let envelop = build_envelop(ctx).context("failed to build envelop to deliver email")?;
-        let resolver = build_resolver().context("failed to build resolver to deliver email")?;
-        let content = match &ctx.body {
-            Body::Empty => anyhow::bail!("failed to send email: body is empty"),
-            Body::Raw(raw) => raw.clone(),
-            Body::Parsed(mail) => mail.raw_body(),
-        };
+        // let envelop =
+        //     build_envelop(from, &to[..]).context("failed to build envelop to deliver email")?;
+        // let resolver = build_resolver().context("failed to build resolver to deliver email")?;
 
-        let query = rcpt.address.domain();
-        let records = match get_mx_records(&resolver, query).await {
-            Ok(records) => records,
-            Err(err) => {
-                anyhow::bail!("failed to get mx records for '{}': {}", query, err);
-            }
-        };
+        // TODO: triage to do here by domain.
 
-        if records
-            .iter()
-            .any(|record| send_email(&record.exchange().to_ascii(), &envelop, &content).is_ok())
-        {
-            Ok(())
-        } else {
-            anyhow::bail!("no valid mail exchanger found for '{}'", rcpt);
-        }
+        Ok(())
+
+        // let query = rcpt.address.domain();
+        // let records = match get_mx_records(&resolver, query).await {
+        //     Ok(records) => records,
+        //     Err(err) => {
+        //         anyhow::bail!("failed to get mx records for '{}': {}", query, err);
+        //     }
+        // };
+
+        // if records
+        //     .iter()
+        //     .any(|record| send_email(&record.exchange().to_ascii(), &envelop, &content).is_ok())
+        // {
+        //     Ok(())
+        // } else {
+        //     anyhow::bail!("no valid mail exchanger found for '{}'", rcpt);
+        // }
     }
 }
 
-fn build_envelop(ctx: &MailContext) -> anyhow::Result<lettre::address::Envelope> {
+fn build_envelop(
+    from: &vsmtp_common::address::Address,
+    rcpt: &[&Rcpt],
+) -> anyhow::Result<lettre::address::Envelope> {
     Ok(lettre::address::Envelope::new(
-        Some(ctx.envelop.mail_from.full().parse()?),
-        ctx.envelop
-            .rcpt
-            .iter()
+        Some(from.full().parse()?),
+        rcpt.iter()
             // NOTE: address that couldn't be converted will be silently dropped.
             .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
             .collect(),
@@ -127,13 +126,13 @@ mod test {
     fn test_build_envelop() {
         let mut ctx = get_default_context();
 
-        assert!(build_envelop(&ctx).is_err());
+        // assert!(build_envelop(&ctx).is_err());
 
         ctx.envelop
             .rcpt
             .push(Address::try_from("john@doe.com").unwrap().into());
 
-        build_envelop(&ctx).expect("failed to build the envelop");
+        // build_envelop(&ctx).expect("failed to build the envelop");
     }
 
     #[test]
@@ -162,9 +161,9 @@ mod test {
             .rcpt
             .push(Address::try_from("green@foo.com").unwrap().into());
 
-        let envelop = build_envelop(&ctx).expect("failed to build envelop to deliver email");
+        // let envelop = build_envelop(&ctx).expect("failed to build envelop to deliver email");
 
         // NOTE: for this to return ok, we would need to setup a test server running locally.
-        assert!(send_email("127.0.0.1", &envelop, "content").is_err());
+        // assert!(send_email("127.0.0.1", &envelop, "content").is_err());
     }
 }

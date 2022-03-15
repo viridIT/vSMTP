@@ -15,6 +15,23 @@
  *
 **/
 
+/// the delivery status of the email of the current rcpt.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum EmailTransferStatus {
+    /// the email has not been sent yet.
+    /// the email is in the deliver / working queue at this point.
+    Waiting,
+    /// email for this recipient has been successfully sent.
+    /// the email has been removed from all queues at this point.
+    Sent,
+    /// the delivery failed, the system is trying to re-send the email.
+    /// the email is located in the deferred queue at this point.
+    HeldBack(usize),
+    /// the email failed to be sent. the argument is the reason of the failure.
+    /// the email is probably written in the dead or quarantine queues at this point.
+    Failed(String),
+}
+
 /// the delivery method / protocol used for a specific recipient.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum Transfer {
