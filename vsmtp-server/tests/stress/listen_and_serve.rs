@@ -15,7 +15,7 @@
  *
 **/
 use anyhow::Context;
-use vsmtp_common::{collection, mail_context::MailContext};
+use vsmtp_common::{collection, mail_context::MailContext, rcpt::Rcpt};
 use vsmtp_config::{get_logger_config, ServerConfig};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP};
@@ -103,7 +103,12 @@ async fn listen_and_serve() {
 
     #[async_trait::async_trait]
     impl Resolver for Nothing {
-        async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+        async fn deliver(
+            &mut self,
+            _: &ServerConfig,
+            _: &MailContext,
+            _: &Rcpt,
+        ) -> anyhow::Result<()> {
             Ok(())
         }
     }

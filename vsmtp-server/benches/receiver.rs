@@ -90,7 +90,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
                     ctx.envelop.rcpt,
-                    vec![Address::new("aa@bb").unwrap().into()]
+                    vec![Address::try_from("aa@bb").unwrap().into()]
                 );
                 assert!(match &ctx.body {
                     Body::Parsed(mail) => mail.body == BodyType::Undefined,
