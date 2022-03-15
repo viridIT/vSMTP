@@ -28,23 +28,6 @@ pub enum Transfer {
     None,
 }
 
-#[derive(Debug)]
-/// errors for the Transfer struct.
-pub enum Error {
-    /// failed to parse the transfer method from a string.
-    FromStr,
-}
-
-impl std::error::Error for Error {}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::FromStr => write!(f, "failed to parse transfer method from string"),
-        }
-    }
-}
-
 impl Transfer {
     /// return the enum as a static slice.
     #[must_use]
@@ -59,7 +42,7 @@ impl Transfer {
 }
 
 impl TryFrom<&str> for Transfer {
-    type Error = Error;
+    type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
@@ -67,7 +50,7 @@ impl TryFrom<&str> for Transfer {
             "mbox" => Ok(Self::Mbox),
             "maildir" => Ok(Self::Maildir),
             "none" => Ok(Self::None),
-            _ => Err(Error::FromStr),
+            _ => anyhow::bail!("transfer method '{}' does not exist.", value),
         }
     }
 }
