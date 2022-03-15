@@ -18,7 +18,7 @@ use super::Resolver;
 
 use anyhow::Context;
 // use anyhow::Context;
-use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt};
+use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus};
 use vsmtp_config::ServerConfig;
 
 /// This delivery will send the mail to another MTA (relaying)
@@ -53,8 +53,12 @@ impl Resolver for Relay {
                     );
 
                     for rcpt in rcpt.iter_mut() {
-                        rcpt.email_status =
-                            vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                        rcpt.email_status = match rcpt.email_status {
+                            EmailTransferStatus::HeldBack(count) => {
+                                EmailTransferStatus::HeldBack(count)
+                            }
+                            _ => EmailTransferStatus::HeldBack(0),
+                        };
                     }
 
                     continue;
@@ -66,7 +70,7 @@ impl Resolver for Relay {
                 .any(|record| send_email(&record.exchange().to_ascii(), &envelop, content).is_ok())
             {
                 for rcpt in rcpt.iter_mut() {
-                    rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::Sent;
+                    rcpt.email_status = EmailTransferStatus::Sent;
                 }
             } else {
                 log::error!(
@@ -76,7 +80,12 @@ impl Resolver for Relay {
                 );
 
                 for rcpt in rcpt.iter_mut() {
-                    rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                    rcpt.email_status = match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => {
+                            EmailTransferStatus::HeldBack(count)
+                        }
+                        _ => EmailTransferStatus::HeldBack(0),
+                    };
                 }
             }
         }

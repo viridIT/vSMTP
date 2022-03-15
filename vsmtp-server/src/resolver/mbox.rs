@@ -17,7 +17,10 @@
 use super::Resolver;
 
 use anyhow::Context;
-use vsmtp_common::{libc_abstraction::chown_file, mail_context::MessageMetadata, rcpt::Rcpt};
+use vsmtp_common::{
+    libc_abstraction::chown_file, mail_context::MessageMetadata, rcpt::Rcpt,
+    transfer::EmailTransferStatus,
+};
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 
 const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
@@ -59,7 +62,14 @@ impl Resolver for MBox {
                         metadata.message_id
                     );
 
-                    rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                    rcpt.email_status = match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => {
+                            EmailTransferStatus::HeldBack(count)
+                        }
+                        _ => EmailTransferStatus::HeldBack(0),
+                    };
+                } else {
+                    rcpt.email_status = EmailTransferStatus::Sent;
                 }
             } else {
                 log::error!(
@@ -68,7 +78,10 @@ impl Resolver for MBox {
                     metadata.message_id
                 );
 
-                rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                rcpt.email_status = match rcpt.email_status {
+                    EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count),
+                    _ => EmailTransferStatus::HeldBack(0),
+                };
             };
         }
 

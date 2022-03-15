@@ -21,6 +21,7 @@ use vsmtp_common::{
     libc_abstraction::{chown_file, getpwuid},
     mail_context::MessageMetadata,
     rcpt::Rcpt,
+    transfer::EmailTransferStatus,
 };
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 
@@ -50,7 +51,14 @@ impl Resolver for MailDir {
                         metadata.message_id
                     );
 
-                    rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                    rcpt.email_status = match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => {
+                            EmailTransferStatus::HeldBack(count)
+                        }
+                        _ => EmailTransferStatus::HeldBack(0),
+                    };
+                } else {
+                    rcpt.email_status = EmailTransferStatus::Sent;
                 }
             } else {
                 log::error!(
@@ -59,7 +67,10 @@ impl Resolver for MailDir {
                     metadata.message_id
                 );
 
-                rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                rcpt.email_status = match rcpt.email_status {
+                    EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count),
+                    _ => EmailTransferStatus::HeldBack(0),
+                };
             }
         }
 
