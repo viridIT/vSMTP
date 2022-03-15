@@ -7,6 +7,8 @@ use super::config::{
     ConfigServerSystemThreadPool, ConfigServerTls,
 };
 
+mod from_toml;
+
 #[test]
 fn serialize() {
     let c = Config {

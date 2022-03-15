@@ -15,7 +15,7 @@ where
         where
             E: serde::de::Error,
         {
-            let path = std::path::Path::new(v);
+            let path = std::path::Path::new(&v);
             if path.exists() {
                 let mut reader = std::io::BufReader::new(
                     std::fs::File::open(&path).map_err(serde::de::Error::custom)?,
@@ -34,7 +34,19 @@ where
                     ))
                 })
             } else {
-                todo!();
+                let mut cursor = std::io::Cursor::new(v);
+                let pem = rustls_pemfile::certs(&mut cursor)
+                    .map_err(serde::de::Error::custom)?
+                    .into_iter()
+                    .map(rustls::Certificate)
+                    .collect::<Vec<_>>();
+
+                pem.first().cloned().ok_or_else(|| {
+                    serde::de::Error::custom(format!(
+                        "certificate is invalid: '{}'",
+                        path.display()
+                    ))
+                })
             }
         }
     }
