@@ -34,6 +34,7 @@ toml = "0.5.8"
 enum-iterator = "0.7.0"
 
 rustls = { version = "0.20.4", features = ["tls12", "logging"] }
+rustls-pemfile = "0.3.0"
 
 num_cpus = "1.13.1"
 
@@ -41,3 +42,5 @@ semver = "1.0.6"
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"
+
+serde_json = "1.0.79"

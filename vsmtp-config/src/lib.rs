@@ -56,6 +56,8 @@ pub mod log_channel {
     pub const DELIVER: &str = "deliver";
 }
 
+mod next;
+
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
 pub fn get_logger_config(
