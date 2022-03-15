@@ -15,81 +15,11 @@
  *
  **/
 use anyhow::Context;
-use vsmtp::{MBoxResolver, MailDirResolver, SMTPResolver};
+use vsmtp::args::{Args, Commands};
 use vsmtp_common::libc_abstraction::{daemon, setgid, setuid, ForkResult};
 use vsmtp_config::get_logger_config;
 use vsmtp_config::ServerConfig;
-use vsmtp_server::server::ServerVSMTP;
-
-#[derive(Debug, clap::Parser, PartialEq)]
-#[clap(about, version, author)]
-struct Args {
-    /// Path of the vSMTP configuration file (toml format)
-    #[clap(short, long)]
-    config: String,
-
-    #[clap(subcommand)]
-    command: Option<Commands>,
-
-    /// Do not run the program as a daemon
-    #[clap(short, long)]
-    no_daemon: bool,
-}
-
-#[derive(Debug, clap::Subcommand, PartialEq)]
-enum Commands {
-    /// Show the loaded config (as serialized json format)
-    ConfigShow,
-    /// Show the difference between the loaded config and the default one
-    ConfigDiff,
-}
-
-mod tests {
-
-    #[test]
-    fn parse_arg() {
-        assert!(<crate::Args as clap::StructOpt>::try_parse_from(&[""]).is_err());
-
-        assert_eq!(
-            crate::Args {
-                command: None,
-                config: "path".to_string(),
-                no_daemon: false
-            },
-            <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path"]).unwrap()
-        );
-
-        assert_eq!(
-            crate::Args {
-                command: Some(crate::Commands::ConfigShow),
-                config: "path".to_string(),
-                no_daemon: false
-            },
-            <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-show"])
-                .unwrap()
-        );
-
-        assert_eq!(
-            crate::Args {
-                command: Some(crate::Commands::ConfigDiff),
-                config: "path".to_string(),
-                no_daemon: false
-            },
-            <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-diff"])
-                .unwrap()
-        );
-
-        assert_eq!(
-            crate::Args {
-                command: None,
-                config: "path".to_string(),
-                no_daemon: true
-            },
-            <crate::Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "--no-daemon"])
-                .unwrap()
-        );
-    }
-}
+use vsmtp_server::start_runtime;
 
 fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
     addr: A,
@@ -156,7 +86,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     if args.no_daemon {
-        start_runtime(config, sockets)
+        start_runtime(std::sync::Arc::new(config), sockets)
     } else {
         match daemon()? {
             ForkResult::Child => {
@@ -170,7 +100,7 @@ fn main() -> anyhow::Result<()> {
                         .unwrap()
                         .uid(),
                 )?;
-                start_runtime(config, sockets)
+                start_runtime(std::sync::Arc::new(config), sockets)
             }
             ForkResult::Parent(pid) => {
                 log::info!("vSMTP running in process id={pid}");
@@ -178,31 +108,4 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
-}
-
-fn start_runtime(
-    config: ServerConfig,
-    sockets: (
-        std::net::TcpListener,
-        std::net::TcpListener,
-        std::net::TcpListener,
-    ),
-) -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(config.server.thread_count)
-        .enable_all()
-        // .on_thread_start(|| { println!("thread started"); })
-        // .on_thread_stop(|| { println!("thread stopping"); })
-        .build()?
-        .block_on(async move {
-            let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets)?;
-            log::info!("Listening on: {:?}", server.addr());
-
-            server
-                .with_resolver("maildir", MailDirResolver::default())
-                .with_resolver("smtp", SMTPResolver::default())
-                .with_resolver("mbox", MBoxResolver::default())
-                .listen_and_serve()
-                .await
-        })
 }

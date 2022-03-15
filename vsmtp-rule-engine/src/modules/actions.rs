@@ -164,7 +164,7 @@ pub mod actions {
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         new_addr: &str,
     ) -> EngineResult<()> {
-        let new_addr = Address::new(new_addr).map_err::<Box<EvalAltResult>, _>(|_| {
+        let new_addr = Address::try_from(new_addr).map_err::<Box<EvalAltResult>, _>(|_| {
             format!(
                 "could not rewrite mail_from with '{}' because it is not valid address",
                 new_addr,
@@ -195,7 +195,7 @@ pub mod actions {
         old_addr: &str,
         new_addr: &str,
     ) -> EngineResult<()> {
-        let old_addr = Address::new(old_addr).map_err::<Box<EvalAltResult>, _>(|_| {
+        let old_addr = Address::try_from(old_addr).map_err::<Box<EvalAltResult>, _>(|_| {
             format!(
                 "could not rewrite address '{}' because it is not valid address",
                 old_addr,
@@ -203,7 +203,7 @@ pub mod actions {
             .into()
         })?;
 
-        let new_addr = Address::new(new_addr).map_err::<Box<EvalAltResult>, _>(|_| {
+        let new_addr = Address::try_from(new_addr).map_err::<Box<EvalAltResult>, _>(|_| {
             format!(
                 "could not rewrite address '{}' with '{}' because it is not valid address",
                 old_addr, new_addr,
@@ -235,8 +235,8 @@ pub mod actions {
                 Body::Parsed(body) => {
                     body.rewrite_rcpt(old_addr.full(), new_addr.full());
                     Ok(())
-                },
-                _ => unreachable!()
+                }
+                _ => unreachable!(),
             }
         } else {
             Err(format!(
@@ -253,7 +253,7 @@ pub mod actions {
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         new_addr: &str,
     ) -> EngineResult<()> {
-        let new_addr = Address::new(new_addr).map_err(|_| {
+        let new_addr = Address::try_from(new_addr).map_err(|_| {
             format!(
                 "'{}' could not be converted to a valid rcpt address",
                 new_addr
@@ -285,7 +285,7 @@ pub mod actions {
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         addr: &str,
     ) -> EngineResult<()> {
-        let addr = Address::new(addr)
+        let addr = Address::try_from(addr)
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", addr))?;
 
         let email = &mut this
@@ -504,9 +504,11 @@ pub mod actions {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .push(vsmtp_common::rcpt::Rcpt::new(Address::new(bcc).map_err(
-                |_| format!("'{}' could not be converted to a valid rcpt address", bcc),
-            )?));
+            .push(vsmtp_common::rcpt::Rcpt::new(
+                Address::try_from(bcc).map_err(|_| {
+                    format!("'{}' could not be converted to a valid rcpt address", bcc)
+                })?,
+            ));
 
         Ok(())
     }
@@ -539,14 +541,14 @@ pub mod actions {
             .rcpt
             .push(match &*bcc {
                 Object::Address(addr) => vsmtp_common::rcpt::Rcpt::new(addr.clone()),
-                Object::Str(string) => {
-                    vsmtp_common::rcpt::Rcpt::new(Address::new(string.as_str()).map_err(|_| {
+                Object::Str(string) => vsmtp_common::rcpt::Rcpt::new(
+                    Address::try_from(string.as_str()).map_err(|_| {
                         format!(
                             "'{}' could not be converted to a valid rcpt address",
                             string
                         )
-                    })?)
-                }
+                    })?,
+                ),
                 other => {
                     return Err(format!(
                         "'{}' could not be converted to a valid rcpt address",

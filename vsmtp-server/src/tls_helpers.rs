@@ -88,12 +88,37 @@ impl rustls::server::ResolvesServerCert for CertResolver {
     }
 }
 
+static JUST_TLS1_2: &[&rustls::SupportedProtocolVersion] = &[&rustls::version::TLS12];
+
+static JUST_TLS1_3: &[&rustls::SupportedProtocolVersion] = &[&rustls::version::TLS13];
+
+static ALL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
+    &[&rustls::version::TLS13, &rustls::version::TLS12];
+
 pub fn get_rustls_config(config: &InnerSmtpsConfig) -> anyhow::Result<rustls::ServerConfig> {
+    let protocol_version = match (
+        config
+            .protocol_version
+            .0
+            .iter()
+            .any(|i| i.0 == rustls::ProtocolVersion::TLSv1_2),
+        config
+            .protocol_version
+            .0
+            .iter()
+            .any(|i| i.0 == rustls::ProtocolVersion::TLSv1_3),
+    ) {
+        (true, true) => Some(ALL_VERSIONS),
+        (true, false) => Some(JUST_TLS1_2),
+        (false, true) => Some(JUST_TLS1_3),
+        (false, false) => None,
+    }
+    .ok_or_else(|| anyhow::anyhow!("requested version is not supported"))?;
+
     let mut out = rustls::ServerConfig::builder()
         .with_cipher_suites(rustls::ALL_CIPHER_SUITES)
         .with_kx_groups(&rustls::ALL_KX_GROUPS)
-        // FIXME:
-        .with_protocol_versions(rustls::ALL_VERSIONS)
+        .with_protocol_versions(protocol_version)
         .map_err(|e| anyhow::anyhow!("cannot initialize tls config: '{e}'"))?
         .with_client_cert_verifier(rustls::server::NoClientAuth::new())
         .with_cert_resolver(std::sync::Arc::new(CertResolver {

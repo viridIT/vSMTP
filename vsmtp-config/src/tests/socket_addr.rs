@@ -2,7 +2,7 @@ use vsmtp_common::libc_abstraction::{if_indextoname, if_nametoindex};
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 struct S {
-    #[serde(deserialize_with = "crate::serializer::deserialize_socket_addr")]
+    #[serde(deserialize_with = "crate::parser::deserialize_socket_addr")]
     v: Vec<std::net::SocketAddr>,
 }
 

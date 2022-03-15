@@ -14,14 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use super::Resolver;
+
 use anyhow::Context;
 use vsmtp_common::{
-    libc_abstraction::chown_file,
+    libc_abstraction::{chown_file, getpwuid},
     mail_context::{Body, MailContext, MessageMetadata},
     rcpt::Rcpt,
 };
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
-use vsmtp_server::resolver::Resolver;
 
 /// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
@@ -65,28 +66,12 @@ impl Resolver for MailDirResolver {
     }
 }
 
-fn get_maildir_path(user: &users::User) -> anyhow::Result<std::path::PathBuf> {
-    let passwd = unsafe { libc::getpwuid(user.uid()) };
-    if !passwd.is_null() && !unsafe { *passwd }.pw_dir.is_null() {
-        unsafe { std::ffi::CStr::from_ptr((*passwd).pw_dir) }
-            .to_str()
-            .map(|path| std::path::PathBuf::from_iter([path, "Maildir"]))
-            .map_err(|error| anyhow::anyhow!("unable to get user's home directory: '{}'", error))
-    } else {
-        anyhow::bail!(
-            "failed to get maildir directory for '{:?}': {}",
-            user.name(),
-            std::io::Error::last_os_error()
-        )
-    }
-}
-
 // NOTE: see https://en.wikipedia.org/wiki/Maildir
 fn create_maildir(
     user: &users::User,
     metadata: &MessageMetadata,
 ) -> anyhow::Result<std::path::PathBuf> {
-    let mut maildir = get_maildir_path(user)?;
+    let mut maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
 
     let create_and_chown = |path: &std::path::PathBuf, user: &users::User| -> anyhow::Result<()> {
         if !path.exists() {
@@ -146,14 +131,12 @@ mod test {
         let current = users::get_user_by_uid(users::get_current_uid())
             .expect("current user has been deleted after running this test");
 
-        // NOTE: if a user with uid 10000 exists, this is not guaranteed to fail. maybe iterate over all users beforehand ?
-        assert!(get_maildir_path(&user).is_err());
+        // NOTE: if a user with uid 10000 exists, this is not guaranteed to fail.
+        // maybe iterate over all users beforehand ?
+        assert!(getpwuid(user.uid()).is_err());
         assert_eq!(
-            std::path::PathBuf::from_iter([
-                current.home_dir().as_os_str().to_str().unwrap(),
-                "Maildir",
-            ]),
-            get_maildir_path(&current).unwrap()
+            getpwuid(current.uid()).unwrap(),
+            std::path::Path::new(current.home_dir().as_os_str().to_str().unwrap()),
         );
     }
 

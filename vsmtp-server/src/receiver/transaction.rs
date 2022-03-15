@@ -54,7 +54,7 @@ enum ProcessedEvent {
 }
 
 impl Transaction<'_> {
-    fn parse_and_apply_and_get_reply<S: std::io::Read + std::io::Write>(
+    fn parse_and_apply_and_get_reply<S: std::io::Read + std::io::Write + Send>(
         &mut self,
         conn: &Connection<S>,
         client_message: &str,
@@ -75,7 +75,7 @@ impl Transaction<'_> {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn process_event<S: std::io::Read + std::io::Write>(
+    fn process_event<S: std::io::Read + std::io::Write + Send>(
         &mut self,
         conn: &Connection<S>,
         event: Event,
@@ -92,7 +92,7 @@ impl Transaction<'_> {
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
-                    ctx.envelop.mail_from = Address::default();
+                    ctx.envelop.mail_from = Address::try_from("default@domain.com").expect("");
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
@@ -262,7 +262,7 @@ impl Transaction<'_> {
                 }
 
                 let mut output = MailContext {
-                    connexion_timestamp: std::time::SystemTime::now(),
+                    connection_timestamp: std::time::SystemTime::now(),
                     client_addr: ctx.client_addr,
                     envelop: Envelop::default(),
                     body: Body::Empty,
@@ -279,12 +279,12 @@ impl Transaction<'_> {
 }
 
 impl Transaction<'_> {
-    fn set_connect<S: std::io::Read + std::io::Write>(&mut self, conn: &Connection<S>) {
+    fn set_connect<S: std::io::Read + std::io::Write + Send>(&mut self, conn: &Connection<S>) {
         let state = self.rule_state.get_context();
         let ctx = &mut state.write().unwrap();
 
         ctx.client_addr = conn.client_addr;
-        ctx.connexion_timestamp = conn.timestamp;
+        ctx.connection_timestamp = conn.timestamp;
     }
 
     fn set_helo(&mut self, helo: String) {
@@ -295,16 +295,16 @@ impl Transaction<'_> {
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
-            mail_from: Address::default(),
+            mail_from: Address::try_from("no@address.net").unwrap(),
             rcpt: vec![],
         };
     }
 
     fn set_mail_from<S>(&mut self, mail_from: &str, conn: &Connection<'_, S>)
     where
-        S: std::io::Write + std::io::Read,
+        S: std::io::Write + std::io::Read + Send,
     {
-        match Address::new(mail_from) {
+        match Address::try_from(mail_from) {
             Err(_) => (),
             Ok(mail_from) => {
                 let now = std::time::SystemTime::now();
@@ -342,7 +342,7 @@ impl Transaction<'_> {
     }
 
     fn set_rcpt_to(&mut self, rcpt_to: &str) {
-        match Address::new(rcpt_to) {
+        match Address::try_from(rcpt_to) {
             Err(_) => (),
             Ok(rcpt_to) => {
                 self.rule_state
@@ -368,7 +368,7 @@ fn get_timeout_for_state(
 }
 
 impl Transaction<'_> {
-    pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write>(
+    pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write + Send>(
         conn: &'a mut Connection<'b, S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,

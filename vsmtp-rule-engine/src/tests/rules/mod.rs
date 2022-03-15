@@ -50,7 +50,7 @@ fn test_mail_from_rules() {
         let email = state.get_context();
         let mut email = email.write().unwrap();
 
-        email.envelop.mail_from = Address::new("staff@viridit.com").unwrap();
+        email.envelop.mail_from = Address::try_from("staff@viridit.com").unwrap();
         email.body = Body::Parsed(Box::new(
             MailMimeParser::default()
                 .parse(
@@ -81,9 +81,9 @@ fn test_rcpt_rules() {
         let mut email = email.write().unwrap();
 
         email.envelop.rcpt = vec![
-            vsmtp_common::rcpt::Rcpt::new(Address::new("johndoe@compagny.com").unwrap()),
-            vsmtp_common::rcpt::Rcpt::new(Address::new("user@viridit.com").unwrap()),
-            vsmtp_common::rcpt::Rcpt::new(Address::new("customer@company.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::try_from("johndoe@compagny.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::try_from("user@viridit.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::try_from("customer@company.com").unwrap()),
         ];
 
         email.body = Body::Parsed(Box::new(
@@ -103,9 +103,9 @@ This is a reply to your hello."#,
     assert_eq!(
         state.get_context().read().unwrap().envelop.rcpt,
         vec![
-            vsmtp_common::rcpt::Rcpt::new(Address::new("johndoe@viridit.com").unwrap()),
-            vsmtp_common::rcpt::Rcpt::new(Address::new("user@viridit.com").unwrap()),
-            vsmtp_common::rcpt::Rcpt::new(Address::new("no-reply@viridit.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::try_from("johndoe@viridit.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::try_from("user@viridit.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(Address::try_from("no-reply@viridit.com").unwrap()),
         ]
     );
 }

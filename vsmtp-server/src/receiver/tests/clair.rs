@@ -43,7 +43,7 @@ async fn test_receiver_1() {
             assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
             assert_eq!(
                 ctx.envelop.rcpt,
-                vec![Address::new("aa@bb").unwrap().into()]
+                vec![Address::try_from("aa@bb").unwrap().into()]
             );
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.is_empty(),
@@ -325,7 +325,7 @@ async fn test_receiver_13() {
                     assert_eq!(
                         ctx.envelop.rcpt,
                         vec![vsmtp_common::rcpt::Rcpt::new(
-                            Address::new("aa@bb").unwrap()
+                            Address::try_from("aa@bb").unwrap()
                         )]
                     );
                     assert!(match &ctx.body {
@@ -339,7 +339,7 @@ async fn test_receiver_13() {
                     assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
                     assert_eq!(
                         ctx.envelop.rcpt,
-                        vec![Address::new("aa2@bb").unwrap().into()]
+                        vec![Address::try_from("aa2@bb").unwrap().into()]
                     );
                     assert!(match &ctx.body {
                         Body::Parsed(body) => body.headers.len() == 2,
@@ -419,7 +419,7 @@ async fn test_receiver_14() {
                     assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                     assert_eq!(
                         ctx.envelop.rcpt,
-                        vec![Address::new("aa@bb").unwrap().into()]
+                        vec![Address::try_from("aa@bb").unwrap().into()]
                     );
                     assert!(match &ctx.body {
                         Body::Parsed(body) => body.headers.len() == 2,
@@ -431,7 +431,7 @@ async fn test_receiver_14() {
                     assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
                     assert_eq!(
                         ctx.envelop.rcpt,
-                        vec![Address::new("aa2@bb").unwrap().into()]
+                        vec![Address::try_from("aa2@bb").unwrap().into()]
                     );
                     assert!(match &ctx.body {
                         Body::Parsed(body) => body.headers.len() == 2,

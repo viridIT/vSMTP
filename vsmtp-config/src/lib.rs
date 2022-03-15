@@ -31,7 +31,7 @@
 mod config_builder;
 /// The default values of the configuration
 pub mod default;
-mod serializer;
+mod parser;
 /// The rust representation of the configuration
 #[allow(clippy::module_name_repetitions)]
 mod server_config;

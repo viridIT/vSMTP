@@ -14,13 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use super::Resolver;
+
 use anyhow::Context;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
     rcpt::Rcpt,
 };
 use vsmtp_config::ServerConfig;
-use vsmtp_server::resolver::Resolver;
 
 /// This delivery will send the mail to another MTA (relaying)
 #[derive(Default)]
@@ -130,7 +131,7 @@ mod test {
 
         ctx.envelop
             .rcpt
-            .push(Address::new("john@doe.com").unwrap().into());
+            .push(Address::try_from("john@doe.com").unwrap().into());
 
         build_envelop(&ctx).expect("failed to build the envelop");
     }
@@ -156,10 +157,10 @@ mod test {
     #[tokio::test]
     async fn test_delivery() {
         let mut ctx = get_default_context();
-        ctx.envelop.mail_from = Address::new("john@doe.com").unwrap();
+        ctx.envelop.mail_from = Address::try_from("john@doe.com").unwrap();
         ctx.envelop
             .rcpt
-            .push(Address::new("green@foo.com").unwrap().into());
+            .push(Address::try_from("green@foo.com").unwrap().into());
 
         let envelop = build_envelop(&ctx).expect("failed to build envelop to deliver email");
 

@@ -19,7 +19,6 @@ use crate::{
     receiver::{
         handle_connection, handle_connection_secured, IoService, {Connection, ConnectionKind},
     },
-    resolver::Resolver,
     tls_helpers::get_rustls_config,
 };
 use vsmtp_common::code::SMTPReplyCode;
@@ -29,12 +28,14 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 /// TCP/IP server
 #[allow(clippy::module_name_repetitions)]
 pub struct ServerVSMTP {
-    resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>>,
     listener: tokio::net::TcpListener,
     listener_submission: tokio::net::TcpListener,
     listener_submissions: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     config: std::sync::Arc<ServerConfig>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
 
 impl ServerVSMTP {
@@ -52,6 +53,9 @@ impl ServerVSMTP {
             std::net::TcpListener,
             std::net::TcpListener,
         ),
+        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+        delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<Self> {
         // TODO: move that in config builder ?
         if !config.delivery.spool_dir.exists() {
@@ -60,11 +64,7 @@ impl ServerVSMTP {
                 .create(&config.delivery.spool_dir)?;
         }
 
-        let resolvers = std::collections::HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
-        // resolvers.insert("default".to_string(), Box::new(SMTPResolver));
-
         Ok(Self {
-            resolvers,
             listener: tokio::net::TcpListener::from_std(sockets.0)?,
             listener_submission: tokio::net::TcpListener::from_std(sockets.1)?,
             listener_submissions: tokio::net::TcpListener::from_std(sockets.2)?,
@@ -74,6 +74,9 @@ impl ServerVSMTP {
                 None
             },
             config,
+            rule_engine,
+            working_sender,
+            delivery_sender,
         })
     }
 
@@ -92,15 +95,6 @@ impl ServerVSMTP {
         ]
     }
 
-    /// Append a delivery method to the server
-    pub fn with_resolver<T>(&mut self, name: &str, resolver: T) -> &mut Self
-    where
-        T: Resolver + Send + Sync + 'static,
-    {
-        self.resolvers.insert(name.to_string(), Box::new(resolver));
-        self
-    }
-
     /// Main loop of vSMTP's server
     ///
     /// # Errors
@@ -113,49 +107,6 @@ impl ServerVSMTP {
     /// * [tokio::select]
     #[allow(clippy::too_many_lines)]
     pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
-        let (delivery_sender, delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(
-            self.config.delivery.queues.deliver.capacity,
-        );
-
-        let (working_sender, working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(
-            self.config.delivery.queues.working.capacity,
-        );
-
-        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-            &self.config.rules.main_filepath.clone(),
-        )?));
-
-        let re_delivery = rule_engine.clone();
-        let config_deliver = self.config.clone();
-        let resolvers = std::mem::take(&mut self.resolvers);
-        tokio::spawn(async move {
-            let result = crate::processes::delivery::start(
-                config_deliver,
-                re_delivery,
-                resolvers,
-                delivery_receiver,
-            )
-            .await;
-            log::error!("v_deliver ended unexpectedly '{:?}'", result);
-        });
-
-        let re_mime = rule_engine.clone();
-        let config_mime = self.config.clone();
-        let mime_delivery_sender = delivery_sender.clone();
-        tokio::spawn(async move {
-            let result = crate::processes::mime::start(
-                &config_mime,
-                re_mime,
-                working_receiver,
-                mime_delivery_sender,
-            )
-            .await;
-            log::error!("v_mime ended unexpectedly '{:?}'", result);
-        });
-
-        let working_sender = std::sync::Arc::new(working_sender);
-        let delivery_sender = std::sync::Arc::new(delivery_sender);
-
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
         loop {
@@ -202,9 +153,9 @@ impl ServerVSMTP {
                 kind,
                 self.config.clone(),
                 self.tls_config.clone(),
-                rule_engine.clone(),
-                working_sender.clone(),
-                delivery_sender.clone(),
+                self.rule_engine.clone(),
+                self.working_sender.clone(),
+                self.delivery_sender.clone(),
             );
             let client_counter_copy = client_counter.clone();
             tokio::spawn(async move {
@@ -225,8 +176,8 @@ impl ServerVSMTP {
         config: std::sync::Arc<ServerConfig>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-        working_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
-        delivery_sender: std::sync::Arc<tokio::sync::mpsc::Sender<ProcessMessage>>,
+        working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+        delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
         let mut stream = stream.into_std()?;
 
@@ -243,7 +194,7 @@ impl ServerVSMTP {
         );
         match conn.kind {
             ConnectionKind::Opportunistic | ConnectionKind::Submission => {
-                handle_connection::<std::net::TcpStream>(
+                handle_connection(
                     &mut conn,
                     tls_config,
                     rule_engine,
@@ -320,6 +271,15 @@ mod tests {
                 .unwrap(),
         );
 
+        let (delivery_sender, _delivery_receiver) =
+            tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
+
+        let (working_sender, _working_receiver) =
+            tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.working.capacity);
+
+        let rule_engine =
+            std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
+
         let s = ServerVSMTP::new(
             config.clone(),
             (
@@ -327,6 +287,9 @@ mod tests {
                 std::net::TcpListener::bind(&config.server.addr_submission[..])?,
                 std::net::TcpListener::bind(&config.server.addr_submissions[..])?,
             ),
+            rule_engine,
+            working_sender,
+            delivery_sender,
         )
         .unwrap();
         assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
@@ -370,6 +333,15 @@ mod tests {
                 .unwrap(),
         );
 
+        let (delivery_sender, _delivery_receiver) =
+            tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
+
+        let (working_sender, _working_receiver) =
+            tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.working.capacity);
+
+        let rule_engine =
+            std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
+
         let s = ServerVSMTP::new(
             config.clone(),
             (
@@ -377,6 +349,9 @@ mod tests {
                 std::net::TcpListener::bind(&config.server.addr_submission[..])?,
                 std::net::TcpListener::bind(&config.server.addr_submissions[..])?,
             ),
+            rule_engine,
+            working_sender,
+            delivery_sender,
         )
         .unwrap();
         assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);

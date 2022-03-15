@@ -141,6 +141,7 @@ impl<'a, T: std::io::Read + std::io::Write> IoService<'a, T> {
     /// * Eof if read size is 0
     /// * Blocking if would block
     /// * Other (io error)
+    #[allow(clippy::future_not_send)]
     pub async fn get_next_line_async(&mut self) -> Result<String, ReadError> {
         let mut buf = String::new();
         match tokio::io::AsyncBufReadExt::read_line(self, &mut buf).await {

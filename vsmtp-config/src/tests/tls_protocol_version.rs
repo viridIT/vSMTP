@@ -7,38 +7,6 @@ fn one_string() {
         v: ProtocolVersionRequirement,
     }
 
-    let s = toml::from_str::<S>(r#"v = "SSLv2""#).unwrap();
-    assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv2)]);
-    let s = toml::from_str::<S>(r#"v = "0x0200""#).unwrap();
-    assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv2)]);
-
-    let s = toml::from_str::<S>(r#"v = "SSLv3""#).unwrap();
-    assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv3)]);
-    let s = toml::from_str::<S>(r#"v = "0x0300""#).unwrap();
-    assert_eq!(s.v.0, vec![ProtocolVersion(rustls::ProtocolVersion::SSLv3)]);
-
-    let s = toml::from_str::<S>(r#"v = "TLSv1.0""#).unwrap();
-    assert_eq!(
-        s.v.0,
-        vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_0)]
-    );
-    let s = toml::from_str::<S>(r#"v = "0x0301""#).unwrap();
-    assert_eq!(
-        s.v.0,
-        vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_0)]
-    );
-
-    let s = toml::from_str::<S>(r#"v = "TLSv1.1""#).unwrap();
-    assert_eq!(
-        s.v.0,
-        vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_1)]
-    );
-    let s = toml::from_str::<S>(r#"v = "0x0302""#).unwrap();
-    assert_eq!(
-        s.v.0,
-        vec![ProtocolVersion(rustls::ProtocolVersion::TLSv1_1)]
-    );
-
     let s = toml::from_str::<S>(r#"v = "TLSv1.2""#).unwrap();
     assert_eq!(
         s.v.0,
@@ -69,11 +37,10 @@ fn array() {
         v: ProtocolVersionRequirement,
     }
 
-    let s = toml::from_str::<S>(r#"v = ["TLSv1.1", "TLSv1.2", "TLSv1.3"]"#).unwrap();
+    let s = toml::from_str::<S>(r#"v = ["TLSv1.2", "TLSv1.3"]"#).unwrap();
     assert_eq!(
         s.v.0,
         vec![
-            ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
             ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
             ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
         ]
@@ -87,23 +54,19 @@ fn pattern() {
         v: ProtocolVersionRequirement,
     }
 
-    let s = toml::from_str::<S>(r#"v = "^TLSv1.1""#).unwrap();
+    let s = toml::from_str::<S>(r#"v = "^TLSv1.2""#).unwrap();
     assert_eq!(
         s.v.0,
         vec![
-            ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
             ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
             ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
         ]
     );
 
-    let s = toml::from_str::<S>(r#"v = ">=SSLv3""#).unwrap();
+    let s = toml::from_str::<S>(r#"v = ">=TLSv1.2""#).unwrap();
     assert_eq!(
         s.v.0,
         vec![
-            ProtocolVersion(rustls::ProtocolVersion::SSLv3),
-            ProtocolVersion(rustls::ProtocolVersion::TLSv1_0),
-            ProtocolVersion(rustls::ProtocolVersion::TLSv1_1),
             ProtocolVersion(rustls::ProtocolVersion::TLSv1_2),
             ProtocolVersion(rustls::ProtocolVersion::TLSv1_3),
         ]

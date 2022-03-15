@@ -64,8 +64,8 @@ async fn test_starttls(
             server_config,
             Some(std::sync::Arc::new(tls_config)),
             rule_engine,
-            std::sync::Arc::new(working_sender),
-            std::sync::Arc::new(delivery_sender),
+            working_sender,
+            delivery_sender,
         )
         .await
         .unwrap();

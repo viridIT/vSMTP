@@ -18,6 +18,7 @@ use crate::parser::MailMimeParser;
 
 mod mime_parser {
 
+    mod rfc2049;
     mod rfc5322;
 
     #[allow(non_snake_case)]

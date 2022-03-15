@@ -112,7 +112,7 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
     }
 }
 
-/// Returns the index of the network interface corresponding to the name @ifname
+/// returns the index of the network interface corresponding to the name @ifname
 ///
 /// # Errors
 ///
@@ -128,7 +128,7 @@ pub fn if_nametoindex(ifname: &str) -> anyhow::Result<u32> {
     }
 }
 
-/// Returns the name of the network interface corresponding to the interface index @ifindex
+/// returns the name of the network interface corresponding to the interface index @ifindex
 ///
 /// # Errors
 ///
@@ -153,4 +153,20 @@ pub fn if_indextoname(ifindex: u32) -> anyhow::Result<String> {
         )?
         .to_string()),
     }
+}
+
+/// get user's home directory
+///
+/// # Errors
+///
+/// * see getpwuid(2) ERRORS
+/// * the filepath does not contain valid utf8 data
+pub fn getpwuid(uid: libc::uid_t) -> anyhow::Result<std::path::PathBuf> {
+    let passwd = unsafe { libc::getpwuid(uid) };
+    if passwd.is_null() || unsafe { *passwd }.pw_dir.is_null() {
+        anyhow::bail!("getpwuid: '{}'", std::io::Error::last_os_error());
+    }
+    Ok(unsafe { std::ffi::CStr::from_ptr((*passwd).pw_dir) }
+        .to_str()?
+        .into())
 }

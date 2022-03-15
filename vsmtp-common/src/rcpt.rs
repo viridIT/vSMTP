@@ -27,16 +27,6 @@ pub struct Rcpt {
     pub retry: usize,
 }
 
-impl Default for Rcpt {
-    fn default() -> Self {
-        Self {
-            address: Address::default(),
-            transfer_method: Transfer::None,
-            retry: Default::default(),
-        }
-    }
-}
-
 impl Rcpt {
     /// create a new recipient from it's address.
     /// the delivery method is set tp default.

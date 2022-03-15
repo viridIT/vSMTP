@@ -17,7 +17,8 @@
 use anyhow::Context;
 use vsmtp_common::{collection, mail_context::MailContext};
 use vsmtp_config::{get_logger_config, ServerConfig};
-use vsmtp_server::{resolver::Resolver, server::ServerVSMTP};
+use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_server::{processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP};
 
 #[derive(Debug, serde::Deserialize)]
 struct StressConfig {
@@ -81,7 +82,22 @@ async fn listen_and_serve() {
         std::net::TcpListener::bind(&config.server.addr_submissions[..]).unwrap(),
     );
 
-    let mut server = ServerVSMTP::new(std::sync::Arc::new(config), sockets).unwrap();
+    let (delivery_sender, _delivery_receiver) =
+        tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
+
+    let (working_sender, _working_receiver) =
+        tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.working.capacity);
+
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
+
+    let mut server = ServerVSMTP::new(
+        std::sync::Arc::new(config),
+        sockets,
+        rule_engine,
+        working_sender,
+        delivery_sender,
+    )
+    .unwrap();
 
     struct Nothing;
 
@@ -91,8 +107,6 @@ async fn listen_and_serve() {
             Ok(())
         }
     }
-
-    server.with_resolver("default", Nothing {});
 
     tokio::time::timeout(SERVER_TIMEOUT, server.listen_and_serve())
         .await

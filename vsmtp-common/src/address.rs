@@ -14,45 +14,33 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-#[allow(clippy::module_name_repetitions)]
-#[derive(Debug)]
-pub struct AddressParsingError(String);
 
-impl std::fmt::Display for AddressParsingError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl std::error::Error for AddressParsingError {}
-
-impl From<&str> for AddressParsingError {
-    fn from(s: &str) -> Self {
-        Self(s.to_string())
-    }
-}
-
-/// using a custom struct for addresses instead of addr::email::Address
-/// because addr::email::Address contains a lifetime parameter.
-/// since addr::email::Address needs to be sent in rhai's context,
-/// it needs to be static, thus impossible to do.
-/// TODO: find a way to use addr::email::Address instead of this struct.
+/// Address Email
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
+#[serde(into = "String", try_from = "&str")]
 pub struct Address {
-    full: String,
-    // TODO: ignore serialize ?
+    #[serde(skip)]
     at_sign: usize,
+    full: String,
 }
 
-impl Default for Address {
-    // NOTE: this object shouldn't expose the default trait,
-    //       this is just for convenience for now, but it will
-    //       need to be removed later.
-    fn default() -> Self {
-        Self {
-            full: "default@address.com".to_string(),
-            at_sign: 7,
+impl TryFrom<&str> for Address {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if let Err(error) = addr::parse_email_address(value) {
+            anyhow::bail!("'{}' is not a valid address: {}", value, error)
         }
+        Ok(Self {
+            at_sign: value.find('@').expect("must find '@' at this point"),
+            full: value.to_string(),
+        })
+    }
+}
+
+impl From<Address> for String {
+    fn from(value: Address) -> Self {
+        value.full().to_string()
     }
 }
 
@@ -74,27 +62,14 @@ impl std::fmt::Display for Address {
     }
 }
 
-impl Address {
-    /// Create a new address from a string, fail is invalid
-    ///
-    /// # Errors
-    ///
-    /// * addr is not rfc compliant
-    pub fn new(addr: &str) -> Result<Self, AddressParsingError> {
-        match addr::parse_email_address(addr) {
-            Ok(addr) => Ok(Self {
-                full: addr.to_string(),
-                at_sign: addr
-                    .as_str()
-                    .find('@')
-                    .ok_or_else::<AddressParsingError, _>(|| "Failed to parse address".into())?,
-            }),
-            Err(error) => Err(format!("'{}' is not a valid address: {}", addr, error)
-                .as_str()
-                .into()),
-        }
+#[allow(clippy::from_over_into)]
+impl Into<crate::rcpt::Rcpt> for Address {
+    fn into(self) -> crate::rcpt::Rcpt {
+        crate::rcpt::Rcpt::new(self)
     }
+}
 
+impl Address {
     /// get the full email address.
     #[must_use]
     pub fn full(&self) -> &str {
@@ -114,15 +89,34 @@ impl Address {
     }
 }
 
-impl From<crate::rcpt::Rcpt> for Address {
-    fn from(rcpt: crate::rcpt::Rcpt) -> Self {
-        rcpt.address
-    }
-}
+#[cfg(test)]
+mod tests {
 
-#[allow(clippy::from_over_into)]
-impl Into<crate::rcpt::Rcpt> for Address {
-    fn into(self) -> crate::rcpt::Rcpt {
-        crate::rcpt::Rcpt::new(self)
+    use super::*;
+
+    #[test]
+    fn deserialize() {
+        let parsed = serde_json::from_str::<Address>(r#""hello@domain.com""#).unwrap();
+        assert_eq!(
+            parsed,
+            Address {
+                full: "hello@domain.com".to_string(),
+                at_sign: 6
+            }
+        );
+        assert_eq!(parsed.local_part(), "hello");
+        assert_eq!(parsed.domain(), "domain.com");
+    }
+
+    #[test]
+    fn serialize() {
+        assert_eq!(
+            serde_json::to_string(&Address {
+                full: "hello@domain.com".to_string(),
+                at_sign: 6
+            })
+            .unwrap(),
+            r#""hello@domain.com""#
+        );
     }
 }

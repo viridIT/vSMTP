@@ -54,7 +54,10 @@ async fn reset_helo() {
         ) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo");
             assert_eq!(ctx.envelop.mail_from.full(), "a@b");
-            assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap().into()]);
+            assert_eq!(
+                ctx.envelop.rcpt,
+                vec![Address::try_from("b@c").unwrap().into()]
+            );
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.len() == 2,
                 _ => false,
@@ -169,7 +172,10 @@ async fn reset_rcpt_to_ok() {
         ) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo2");
             assert_eq!(ctx.envelop.mail_from.full(), "d@e");
-            assert_eq!(ctx.envelop.rcpt, vec![Address::new("b@c").unwrap().into()]);
+            assert_eq!(
+                ctx.envelop.rcpt,
+                vec![Address::try_from("b@c").unwrap().into()]
+            );
             assert!(match &ctx.body {
                 Body::Parsed(body) => body.headers.is_empty(),
                 _ => false,
@@ -260,8 +266,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
             assert_eq!(
                 ctx.envelop.rcpt,
                 vec![
-                    Address::new("toto2@bar").unwrap().into(),
-                    Address::new("toto3@bar").unwrap().into()
+                    Address::try_from("toto2@bar").unwrap().into(),
+                    Address::try_from("toto3@bar").unwrap().into()
                 ]
             );
             assert!(match &ctx.body {
