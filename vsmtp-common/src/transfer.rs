@@ -58,6 +58,12 @@ impl Transfer {
     }
 }
 
+impl std::fmt::Display for Transfer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 impl TryFrom<&str> for Transfer {
     type Error = anyhow::Error;
 

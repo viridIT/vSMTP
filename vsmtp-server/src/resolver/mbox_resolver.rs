@@ -17,11 +17,7 @@
 use super::Resolver;
 
 use anyhow::Context;
-use vsmtp_common::{
-    libc_abstraction::chown_file,
-    mail_context::{Body, MailContext, MessageMetadata},
-    rcpt::Rcpt,
-};
+use vsmtp_common::{libc_abstraction::chown_file, mail_context::MessageMetadata, rcpt::Rcpt};
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 
 const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
@@ -39,55 +35,60 @@ impl Resolver for MBoxResolver {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
+        metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
-        to: &[&mut Rcpt],
+        to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
-        // let timestamp = get_mbox_timestamp_format(&ctx.metadata);
-        // let content = build_mbox_message(ctx, &timestamp)?;
+        let timestamp = get_mbox_timestamp_format(metadata);
+        let content = build_mbox_message(from, &timestamp, content);
 
-        // // FIXME: use UsersCache.
-        // match users::get_user_by_name(rcpt.address.local_part()) {
-        //     Some(user) => {
-        //         // NOTE: only linux system is supported here, is the
-        //         //       path to all mboxes always /var/mail ?
-        //         write_content_to_mbox(
-        //             &std::path::PathBuf::from_iter(["/var/mail/", rcpt.address.local_part()]),
-        //             &user,
-        //             &content,
-        //         )?;
-        //         Ok(())
-        //     }
-        //     _ => anyhow::bail!("unable to get user '{}' by name", rcpt.address.local_part()),
-        // }
+        // FIXME: use UsersCache.
+        for rcpt in to.iter_mut() {
+            if let Some(user) = users::get_user_by_name(rcpt.address.local_part()) {
+                // NOTE: only linux system is supported here, is the
+                //       path to all mboxes always /var/mail ?
+                if let Err(err) = write_content_to_mbox(
+                    &std::path::PathBuf::from_iter(["/", "var", "mail", rcpt.address.local_part()]),
+                    &user,
+                    &content,
+                ) {
+                    log::error!(
+                        target: DELIVER,
+                        "failed to write email '{}' in mbox of '{rcpt}': {err}",
+                        metadata.message_id
+                    );
+
+                    rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                }
+            } else {
+                log::error!(
+                    target: DELIVER,
+                    "failed to write email '{}' in mbox of '{rcpt}': '{rcpt}' is not a user",
+                    metadata.message_id
+                );
+
+                rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+            };
+        }
 
         Ok(())
     }
 }
 
-fn get_mbox_timestamp_format(metadata: &Option<MessageMetadata>) -> String {
-    let odt: time::OffsetDateTime = metadata
-        .as_ref()
-        .map_or_else(std::time::SystemTime::now, |metadata| metadata.timestamp)
-        .into();
+fn get_mbox_timestamp_format(metadata: &MessageMetadata) -> String {
+    let odt: time::OffsetDateTime = metadata.timestamp.into();
 
     odt.format(&CTIME_FORMAT)
         .unwrap_or_else(|_| String::default())
 }
 
-fn build_mbox_message(ctx: &MailContext, timestamp: &str) -> anyhow::Result<String> {
-    Ok(format!(
-        "From {} {}\n{}\n",
-        ctx.envelop.mail_from,
-        timestamp,
-        match &ctx.body {
-            Body::Empty => {
-                anyhow::bail!("failed to write email using mbox: body is empty")
-            }
-            Body::Raw(raw) => raw.clone(),
-            Body::Parsed(parsed) => parsed.to_raw(),
-        }
-    ))
+fn build_mbox_message(
+    from: &vsmtp_common::address::Address,
+    timestamp: &str,
+    content: &str,
+) -> std::string::String {
+    format!("From {} {}\n{}\n", from, timestamp, content)
 }
 
 fn write_content_to_mbox(
@@ -119,75 +120,47 @@ fn write_content_to_mbox(
 #[cfg(test)]
 mod test {
 
-    use vsmtp_common::{
-        address::Address,
-        mail::{BodyType, Mail},
-    };
-
-    use crate::resolver::get_default_context;
+    use vsmtp_common::address::Address;
 
     use super::*;
 
     #[test]
     fn test_mbox_time_format() {
-        let metadata = Some(MessageMetadata {
+        let metadata = MessageMetadata {
             timestamp: std::time::SystemTime::now(),
             ..MessageMetadata::default()
-        });
+        };
 
         // FIXME: I did not find a proper way to compare timestamps because the system time
         //        cannot be zero.
         get_mbox_timestamp_format(&metadata);
-        get_mbox_timestamp_format(&None);
     }
 
     #[test]
-    fn test_mbox_message_empty() {
-        let ctx = get_default_context();
-
-        assert!(build_mbox_message(&ctx, &get_mbox_timestamp_format(&ctx.metadata)).is_err());
-    }
-
-    #[test]
-    fn test_mbox_message_raw_and_parsed() {
-        let mut ctx = get_default_context();
-
-        ctx.envelop.mail_from = Address::try_from("john@doe.com").unwrap();
-        ctx.body = Body::Raw(
-            r#"from: john doe <john@doe.com>
+    fn test_mbox_message_format() {
+        let from = Address::try_from("john@doe.com").unwrap();
+        let content = r#"from: john doe <john@doe.com>
 to: green@foo.net
 subject: test email
 
-This is a raw email."#
-                .to_string(),
-        );
+This is a raw email."#;
 
-        let timestamp = get_mbox_timestamp_format(&ctx.metadata);
+        let timestamp = get_mbox_timestamp_format(&MessageMetadata {
+            timestamp: std::time::SystemTime::UNIX_EPOCH,
+            ..MessageMetadata::default()
+        });
 
-        let message_from_raw = build_mbox_message(&ctx, &timestamp).unwrap();
-
-        ctx.body = Body::Parsed(Box::new(Mail {
-            headers: [
-                ("from", "john doe <john@doe.com>"),
-                ("to", "green@foo.net"),
-                ("subject", "test email"),
-            ]
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect::<Vec<_>>(),
-            body: BodyType::Regular(vec!["This is a raw email.".to_string()]),
-        }));
-
-        let message_from_parsed = build_mbox_message(&ctx, &timestamp).unwrap();
+        let message = build_mbox_message(&from, &timestamp, content);
 
         assert_eq!(
-            format!(
-                "From john@doe.com {}\nfrom: john doe <john@doe.com>\nto: green@foo.net\nsubject: test email\n\nThis is a raw email.\n",
-                timestamp
-            ),
-            message_from_parsed
+            r#"From 0 john@doe.com
+from: john doe <john@doe.com>
+to: green@foo.net
+subject: test email
+
+This is a raw email."#,
+            message
         );
-        assert_eq!(message_from_raw, message_from_parsed);
     }
 
     #[test]

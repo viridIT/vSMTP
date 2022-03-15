@@ -23,7 +23,7 @@ mod tls_helpers;
 ///
 pub mod resolver {
 
-    use vsmtp_common::{address::Address, rcpt::Rcpt};
+    use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
     use vsmtp_config::ServerConfig;
 
     /// A trait allowing the [ServerVSMTP] to deliver a mail
@@ -33,8 +33,9 @@ pub mod resolver {
         async fn deliver(
             &mut self,
             config: &ServerConfig,
+            metadata: &MessageMetadata,
             from: &Address,
-            to: &[&mut Rcpt],
+            to: &mut [Rcpt],
             content: &str,
         ) -> anyhow::Result<()>;
     }
@@ -51,8 +52,9 @@ pub mod resolver {
         async fn deliver(
             &mut self,
             _: &ServerConfig,
+            _: &MessageMetadata,
             _: &Address,
-            _: &[&mut Rcpt],
+            _: &mut [Rcpt],
             _: &str,
         ) -> anyhow::Result<()> {
             Ok(())

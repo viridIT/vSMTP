@@ -35,37 +35,33 @@ impl Resolver for MailDirResolver {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
-        from: &vsmtp_common::address::Address,
-        to: &[&mut Rcpt],
+        metadata: &MessageMetadata,
+        _: &vsmtp_common::address::Address,
+        to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
-        // let content = match &ctx.body {
-        //     Body::Empty => {
-        //         anyhow::bail!("failed to write email using maildir: body is empty")
-        //     }
-        //     Body::Raw(raw) => raw.clone(),
-        //     Body::Parsed(parsed) => parsed.to_raw(),
-        // };
+        for rcpt in to.iter_mut() {
+            if let Some(user) = users::get_user_by_name(rcpt.address.local_part()) {
+                // TODO: write to defer / dead queue.
+                if let Err(err) = write_to_maildir(&user, metadata, content) {
+                    log::error!(
+                        target: DELIVER,
+                        "failed to write email '{}' in maildir of '{rcpt}': {err}",
+                        metadata.message_id
+                    );
 
-        // for rcpt in deliver_to {
-        //     match users::get_user_by_name(rcpt.address.local_part()) {
-        //         Some(user) => {
-        //             // TODO: write to defer / dead queue.
-        //             if let Err(err) = write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)
-        //             {
-        //                 anyhow::bail!(
-        //                     "could not write email to '{}' maildir directory: {}",
-        //                     rcpt,
-        //                     err
-        //                 )
-        //             }
-        //         }
-        //         None => anyhow::bail!(
-        //             "could not write email to '{}' maildir directory: user was not found on the system",
-        //             rcpt
-        //         ),
-        //     }
-        // }
+                    rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                }
+            } else {
+                log::error!(
+                    target: DELIVER,
+                    "failed to write email '{}' in maildir of '{rcpt}': '{rcpt}' is not a user",
+                    metadata.message_id
+                );
+
+                rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+            }
+        }
 
         Ok(())
     }

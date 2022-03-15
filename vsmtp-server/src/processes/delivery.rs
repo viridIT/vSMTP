@@ -16,7 +16,11 @@
  **/
 use super::ProcessMessage;
 use crate::{queue::Queue, resolver::Resolver};
-use vsmtp_common::{mail_context::MailContext, status::Status};
+use anyhow::Context;
+use vsmtp_common::{
+    mail_context::{Body, MailContext},
+    status::Status,
+};
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
@@ -156,17 +160,36 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     if result == Status::Deny {
         Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;
     } else {
-        let ctx = state.get_context();
-        let mut ctx = ctx.write().unwrap();
+        let (metadata, from, mut triage, content) = {
+            // FIXME: handle poison & missing metadata errors.
+            let ctx = state.get_context();
+            let mut ctx = ctx.write().unwrap();
 
-        // filtering recipients by domains and delivery method.
-        let triage = filter_recipients(&mut *ctx, &resolvers);
+            // filtering recipients by domains and delivery method.
+            let triage = filter_recipients(&mut *ctx, resolvers);
 
-        println!("TRIAGE: {triage:#?}");
+            let content = match &ctx.body {
+                Body::Empty => todo!("empty body should not be possible in delivery"),
+                Body::Raw(raw) => raw.clone(),
+                Body::Parsed(parsed) => parsed.to_raw(),
+            };
 
-        // for (method, groups) in &triage {
+            let metadata = ctx.metadata.as_ref().unwrap().clone();
 
-        // }
+            (metadata, ctx.envelop.mail_from.clone(), triage, content)
+        };
+
+        for (method, rcpt) in &mut triage {
+            println!("'{method}' for '{rcpt:?}'");
+            resolvers
+                .get_mut(method)
+                .unwrap()
+                .deliver(config, &metadata, &from, &mut rcpt[..], &content)
+                .await
+                .with_context(|| {
+                    format!("failed to deliver email using '{method}' for '{rcpt:?}'")
+                })?;
+        }
 
         // for rcpt in &ctx.envelop.rcpt {
         //     if rcpt.transfer_method == vsmtp_common::rcpt::NO_DELIVERY {

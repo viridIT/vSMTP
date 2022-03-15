@@ -16,8 +16,9 @@
 **/
 use super::Resolver;
 
+use anyhow::Context;
 // use anyhow::Context;
-use vsmtp_common::rcpt::Rcpt;
+use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt};
 use vsmtp_config::ServerConfig;
 
 /// This delivery will send the mail to another MTA (relaying)
@@ -30,40 +31,76 @@ impl Resolver for SMTPResolver {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
+        metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
-        to: &[&mut Rcpt],
+        to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
-        // let envelop =
-        //     build_envelop(from, &to[..]).context("failed to build envelop to deliver email")?;
-        // let resolver = build_resolver().context("failed to build resolver to deliver email")?;
+        let envelop =
+            build_envelop(from, &to[..]).context("failed to build envelop to deliver email")?;
+        let resolver = build_resolver().context("failed to build resolver to deliver email")?;
 
-        // TODO: triage to do here by domain.
+        let mut rcpt = rcpt_by_domain(to);
+
+        for (query, rcpt) in &mut rcpt {
+            let records = match get_mx_records(&resolver, query).await {
+                Ok(records) => records,
+                Err(err) => {
+                    log::error!(
+                        target: vsmtp_config::log_channel::DELIVER,
+                        "failed to relay email '{}' to '{query}': {err}",
+                        metadata.message_id
+                    );
+
+                    for rcpt in rcpt.iter_mut() {
+                        rcpt.email_status =
+                            vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                    }
+
+                    continue;
+                }
+            };
+
+            if records
+                .iter()
+                .any(|record| send_email(&record.exchange().to_ascii(), &envelop, content).is_ok())
+            {
+                for rcpt in rcpt.iter_mut() {
+                    rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::Sent;
+                }
+            } else {
+                log::error!(
+                    target: vsmtp_config::log_channel::DELIVER,
+                    "no valid mail exchanger found for '{}'",
+                    query
+                );
+
+                for rcpt in rcpt.iter_mut() {
+                    rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::HeldBack(0);
+                }
+            }
+        }
 
         Ok(())
-
-        // let query = rcpt.address.domain();
-        // let records = match get_mx_records(&resolver, query).await {
-        //     Ok(records) => records,
-        //     Err(err) => {
-        //         anyhow::bail!("failed to get mx records for '{}': {}", query, err);
-        //     }
-        // };
-
-        // if records
-        //     .iter()
-        //     .any(|record| send_email(&record.exchange().to_ascii(), &envelop, &content).is_ok())
-        // {
-        //     Ok(())
-        // } else {
-        //     anyhow::bail!("no valid mail exchanger found for '{}'", rcpt);
-        // }
     }
+}
+
+fn rcpt_by_domain(rcpt: &mut [Rcpt]) -> std::collections::HashMap<String, Vec<&mut Rcpt>> {
+    rcpt.iter_mut()
+        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
+            if acc.contains_key(rcpt.address.domain()) {
+                acc.get_mut(rcpt.address.domain()).unwrap().push(rcpt);
+            } else {
+                acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
+            }
+
+            acc
+        })
 }
 
 fn build_envelop(
     from: &vsmtp_common::address::Address,
-    rcpt: &[&Rcpt],
+    rcpt: &[Rcpt],
 ) -> anyhow::Result<lettre::address::Envelope> {
     Ok(lettre::address::Envelope::new(
         Some(from.full().parse()?),
