@@ -28,10 +28,10 @@ const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::
 /// resolver use to write emails on the system following the
 /// application/mbox Media Type.
 /// (see [rfc4155](https://datatracker.ietf.org/doc/html/rfc4155#appendix-A))
-pub struct MBoxResolver;
+pub struct MBox;
 
 #[async_trait::async_trait]
-impl Resolver for MBoxResolver {
+impl Resolver for MBox {
     async fn deliver(
         &mut self,
         _: &ServerConfig,

@@ -40,9 +40,9 @@ pub mod resolver {
         ) -> anyhow::Result<()>;
     }
 
-    pub(super) mod maildir_resolver;
-    pub(super) mod mbox_resolver;
-    pub(super) mod smtp_resolver;
+    pub(super) mod maildir;
+    pub(super) mod mbox;
+    pub(super) mod relay;
 
     /// no transfer will be made if this resolver is selected.
     pub(super) struct NoTransfer;
@@ -84,12 +84,7 @@ use processes::ProcessMessage;
 use vsmtp_config::ServerConfig;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-use crate::{
-    resolver::{
-        maildir_resolver::MailDirResolver, mbox_resolver::MBoxResolver, smtp_resolver::SMTPResolver,
-    },
-    server::ServerVSMTP,
-};
+use crate::server::ServerVSMTP;
 
 /// create a list of resolvers identified by their Transfer key.
 #[must_use]
@@ -103,15 +98,15 @@ pub fn create_resolvers() -> std::collections::HashMap<
     >::new();
     resolvers.insert(
         vsmtp_common::transfer::Transfer::Maildir,
-        Box::new(MailDirResolver::default()),
+        Box::new(resolver::maildir::MailDir::default()),
     );
     resolvers.insert(
         vsmtp_common::transfer::Transfer::Mbox,
-        Box::new(MBoxResolver::default()),
+        Box::new(resolver::mbox::MBox::default()),
     );
     resolvers.insert(
         vsmtp_common::transfer::Transfer::Relay,
-        Box::new(SMTPResolver::default()),
+        Box::new(resolver::relay::Relay::default()),
     );
     resolvers.insert(
         vsmtp_common::transfer::Transfer::None,

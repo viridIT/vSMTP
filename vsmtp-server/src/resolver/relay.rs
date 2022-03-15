@@ -23,10 +23,10 @@ use vsmtp_config::ServerConfig;
 
 /// This delivery will send the mail to another MTA (relaying)
 #[derive(Default)]
-pub struct SMTPResolver;
+pub struct Relay;
 
 #[async_trait::async_trait]
-impl Resolver for SMTPResolver {
+impl Resolver for Relay {
     // NOTE: should the function short circuit when sending an email failed ?
     async fn deliver(
         &mut self,
