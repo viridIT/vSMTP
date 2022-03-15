@@ -33,7 +33,11 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 pub async fn start<S: std::hash::BuildHasher + Send>(
     config: std::sync::Arc<ServerConfig>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    mut resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
+    mut resolvers: std::collections::HashMap<
+        vsmtp_common::transfer::Transfer,
+        Box<dyn Resolver + Send + Sync>,
+        S,
+    >,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> anyhow::Result<()> {
     log::info!(
@@ -89,7 +93,11 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     config: &ServerConfig,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
+    resolvers: &mut std::collections::HashMap<
+        vsmtp_common::transfer::Transfer,
+        Box<dyn Resolver + Send + Sync>,
+        S,
+    >,
 ) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
@@ -128,9 +136,9 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
             .rcpt
             .iter()
             .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-                // if !resolvers.contains_key(&rcpt.transfer_method) {
-                //     return acc;
-                // }
+                if !resolvers.contains_key(&rcpt.transfer_method) {
+                    return acc;
+                }
 
                 if let std::collections::hash_map::Entry::Vacant(method) =
                     acc.entry(rcpt.transfer_method)
@@ -226,7 +234,11 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
 async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
     config: &ServerConfig,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
+    resolvers: &mut std::collections::HashMap<
+        vsmtp_common::transfer::Transfer,
+        Box<dyn Resolver + Send + Sync>,
+        S,
+    >,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
         handle_one_in_delivery_queue(config, &path?.path(), rule_engine, resolvers).await?;
@@ -236,7 +248,11 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
 }
 
 async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
-    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
+    resolvers: &mut std::collections::HashMap<
+        vsmtp_common::transfer::Transfer,
+        Box<dyn Resolver + Send + Sync>,
+        S,
+    >,
     path: &std::path::Path,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
@@ -325,7 +341,11 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
 }
 
 async fn flush_deferred_queue<S: std::hash::BuildHasher + Send>(
-    resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
+    resolvers: &mut std::collections::HashMap<
+        vsmtp_common::transfer::Transfer,
+        Box<dyn Resolver + Send + Sync>,
+        S,
+    >,
     config: &ServerConfig,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deferred.to_path(&config.delivery.spool_dir)?)? {

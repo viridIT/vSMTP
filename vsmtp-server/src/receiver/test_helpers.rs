@@ -114,9 +114,8 @@ where
     let config_deliver = config.clone();
 
     let delivery_handle = tokio::spawn(async move {
-        let mut resolvers =
-            std::collections::HashMap::<String, Box<dyn Resolver + Send + Sync>>::new();
-        resolvers.insert("default".to_string(), Box::new(resolver));
+        let mut resolvers = crate::create_resolvers();
+        resolvers.insert(vsmtp_common::transfer::Transfer::None, Box::new(resolver));
 
         while let Some(pm) = delivery_receiver.recv().await {
             handle_one_in_delivery_queue(

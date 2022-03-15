@@ -42,6 +42,21 @@ pub mod resolver {
     pub(super) mod mbox_resolver;
     pub(super) mod smtp_resolver;
 
+    /// no transfer will be made if this resolver is selected.
+    pub(super) struct NoTransfer;
+
+    #[async_trait::async_trait]
+    impl Resolver for NoTransfer {
+        async fn deliver(
+            &mut self,
+            _: &ServerConfig,
+            _: &MailContext,
+            _: &Rcpt,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
     #[cfg(test)]
     #[must_use]
     pub fn get_default_context() -> MailContext {
@@ -77,6 +92,35 @@ use crate::{
     server::ServerVSMTP,
 };
 
+/// create a list of resolvers identified by their Transfer key.
+#[must_use]
+pub fn create_resolvers() -> std::collections::HashMap<
+    vsmtp_common::transfer::Transfer,
+    Box<dyn resolver::Resolver + Send + Sync>,
+> {
+    let mut resolvers = std::collections::HashMap::<
+        vsmtp_common::transfer::Transfer,
+        Box<dyn resolver::Resolver + Send + Sync>,
+    >::new();
+    resolvers.insert(
+        vsmtp_common::transfer::Transfer::Maildir,
+        Box::new(MailDirResolver::default()),
+    );
+    resolvers.insert(
+        vsmtp_common::transfer::Transfer::Mbox,
+        Box::new(MBoxResolver::default()),
+    );
+    resolvers.insert(
+        vsmtp_common::transfer::Transfer::Relay,
+        Box::new(SMTPResolver::default()),
+    );
+    resolvers.insert(
+        vsmtp_common::transfer::Transfer::None,
+        Box::new(resolver::NoTransfer {}),
+    );
+    resolvers
+}
+
 #[doc(hidden)]
 pub fn start_runtime(
     config: std::sync::Arc<ServerConfig>,
@@ -86,14 +130,7 @@ pub fn start_runtime(
         std::net::TcpListener,
     ),
 ) -> anyhow::Result<()> {
-    let resolvers = {
-        let mut resolvers =
-            std::collections::HashMap::<String, Box<dyn resolver::Resolver + Send + Sync>>::new();
-        resolvers.insert("maildir".to_string(), Box::new(MailDirResolver::default()));
-        resolvers.insert("smtp".to_string(), Box::new(SMTPResolver::default()));
-        resolvers.insert("mbox".to_string(), Box::new(MBoxResolver::default()));
-        resolvers
-    };
+    let resolvers = create_resolvers();
 
     let (delivery_sender, delivery_receiver) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
