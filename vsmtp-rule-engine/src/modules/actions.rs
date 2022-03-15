@@ -413,18 +413,19 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn deliver(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        resolver: &str,
+        rcpt: &str,
+        method: &str,
     ) -> EngineResult<()> {
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .metadata
-            .as_mut()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "metadata are not available in this stage".into()
-            })?
-            .resolver = resolver.to_string();
-
-        Ok(())
+        internal_delivery(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            method,
+        )
+        .map_err(|err| {
+            format!("failed to set transfer method '{method}' to '{rcpt}': {err}").into()
+        })
     }
 
     /// remove the delivery method
@@ -432,7 +433,22 @@ pub mod actions {
     pub fn disable_delivery(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<()> {
-        deliver(this, "none")
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?
+            .envelop
+            .rcpt
+            .iter_mut()
+            .for_each(|rcpt| rcpt.transfer_method = vsmtp_common::transfer::Transfer::None);
+        Ok(())
+    }
+
+    /// remove the delivery method
+    #[rhai_fn(global, return_raw)]
+    pub fn disable_delivery_for(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        deliver(this, rcpt, "none")
     }
 
     /// check if a given header exists in the top level headers.
@@ -560,4 +576,16 @@ pub mod actions {
 
         Ok(())
     }
+}
+
+fn internal_delivery(ctx: &mut MailContext, search: &str, method: &str) -> anyhow::Result<()> {
+    ctx.envelop
+        .rcpt
+        .iter_mut()
+        .find(|rcpt| rcpt.address.full() == search)
+        .ok_or_else(|| anyhow::anyhow!("could not find rcpt '{}'", search))
+        .and_then(|rcpt| {
+            rcpt.transfer_method = vsmtp_common::transfer::Transfer::try_from(method)?;
+            Ok(())
+        })
 }

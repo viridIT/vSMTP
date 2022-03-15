@@ -74,13 +74,15 @@ pub mod mail_context {
     #[rhai_fn(global, get = "rcpt", return_raw)]
     pub fn rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<Vec<vsmtp_common::rcpt::Rcpt>> {
+    ) -> EngineResult<Vec<vsmtp_common::address::Address>> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .clone())
+            .iter()
+            .map(|rcpt| rcpt.address.clone())
+            .collect())
     }
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw)]
