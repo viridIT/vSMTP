@@ -143,13 +143,10 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
         message_id
     );
 
-    let mut file = std::fs::OpenOptions::new().read(true).open(&path)?;
+    let file = std::fs::File::open(path)?;
+    let reader = std::io::BufReader::new(file);
 
-    let mut raw =
-        String::with_capacity(usize::try_from(file.metadata().unwrap().len()).unwrap_or(0));
-    std::io::Read::read_to_string(&mut file, &mut raw)?;
-
-    let ctx: MailContext = serde_json::from_str(&raw)?;
+    let ctx: MailContext = serde_json::from_reader(reader)?;
     let mut state = RuleState::with_context(config, ctx);
 
     let result = rule_engine
@@ -190,6 +187,48 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
                     format!("failed to deliver email using '{method}' for '{rcpt:?}'")
                 })?;
         }
+
+        let ctx = state.get_context();
+        let mut ctx = ctx.write().unwrap();
+
+        // FIXME: handle poison & missing metadata errors.
+        // recipient email transfer status could have been updated.
+        ctx.envelop.rcpt = triage
+            .into_iter()
+            .flat_map(|(_, rcpt)| {
+                // FIXME: disk i/o could be avoided here by filtering rcpt statuses.
+                for rcpt in &rcpt {
+                    match &rcpt.email_status {
+                        // TODO: copy to deferred.
+                        vsmtp_common::transfer::EmailTransferStatus::HeldBack(_) => {
+                            std::fs::rename(
+                                path,
+                                std::path::PathBuf::from_iter([
+                                    Queue::Deferred.to_path(&config.delivery.spool_dir).unwrap(),
+                                    std::path::Path::new(&message_id).to_path_buf(),
+                                ]),
+                            )
+                            .unwrap();
+                        }
+                        // TODO: copy to dead queue / quarantine.
+                        vsmtp_common::transfer::EmailTransferStatus::Failed(_) => std::fs::rename(
+                            path,
+                            std::path::PathBuf::from_iter([
+                                Queue::Dead.to_path(&config.delivery.spool_dir).unwrap(),
+                                std::path::Path::new(&message_id).to_path_buf(),
+                            ]),
+                        )
+                        .unwrap(),
+                        // Sent or Waiting, we can remove the file later.
+                        _ => {}
+                    }
+                }
+
+                rcpt
+            })
+            .collect();
+
+        std::fs::remove_file(path)?;
 
         // for rcpt in &ctx.envelop.rcpt {
         //     if rcpt.transfer_method == vsmtp_common::rcpt::NO_DELIVERY {

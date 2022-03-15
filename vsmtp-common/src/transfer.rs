@@ -30,6 +30,7 @@ pub enum EmailTransferStatus {
     /// the email failed to be sent. the argument is the reason of the failure.
     /// the email is probably written in the dead or quarantine queues at this point.
     Failed(String),
+    // NOTE: is Quarantined(String) useful, or we just use Failed(String) instead ?
 }
 
 /// the delivery method / protocol used for a specific recipient.
