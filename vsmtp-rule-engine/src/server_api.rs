@@ -14,11 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use vsmtp_config::ServerConfig;
+use vsmtp_config::Config;
 
 /// the frontend available in the rule engine to interact with the server.
 #[derive(Debug, Clone)]
 pub struct ServerAPI {
-    pub config: ServerConfig,
+    pub config: Config,
     pub resolver: String,
 }

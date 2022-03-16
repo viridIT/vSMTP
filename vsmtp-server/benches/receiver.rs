@@ -22,7 +22,7 @@ use vsmtp_common::{
     mail::BodyType,
     mail_context::{Body, MailContext},
 };
-use vsmtp_config::ServerConfig;
+use vsmtp_config::Config;
 use vsmtp_server::{receiver::test_helpers::test_receiver, resolver::Resolver};
 
 #[derive(Clone)]
@@ -30,24 +30,30 @@ struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl Resolver for DefaultResolverTest {
-    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &Config, _: &MailContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
 
-fn get_test_config() -> std::sync::Arc<ServerConfig> {
+fn get_test_config() -> std::sync::Arc<Config> {
     std::sync::Arc::new(
-        ServerConfig::builder()
+        Config::builder()
             .with_version_str("<1.0.0")
             .unwrap()
-            .with_rfc_port("bench.server.com", "root", "root", None)
-            .without_log()
-            .without_smtps()
-            .with_default_smtp()
-            .with_delivery("./tmp/bench")
-            .with_empty_rules()
-            .with_default_reply_codes()
-            .build()
+            .with_server_name("test.server.com")
+            .with_user_group_and_default_system("root", "root")
+            .with_ipv4_localhost_rfc()
+            .with_default_log_settings()
+            .with_spool_dir_and_default_queues("./tmp/delivery")
+            .without_tls_support()
+            .with_default_smtp_options()
+            .with_default_smtp_error_handler()
+            .with_default_smtp_codes()
+            .with_default_app()
+            .with_vsl("./main.vsl")
+            .with_default_app_logs()
+            .without_services()
+            .validate()
             .unwrap(),
     )
 }
@@ -55,7 +61,7 @@ fn get_test_config() -> std::sync::Arc<ServerConfig> {
 fn make_bench<R>(
     resolver: R,
     b: &mut Bencher<WallTime>,
-    (input, output, config): &(&[u8], &[u8], std::sync::Arc<ServerConfig>),
+    (input, output, config): &(&[u8], &[u8], std::sync::Arc<Config>),
 ) where
     R: Resolver + Clone + Send + Sync + 'static,
 {
@@ -79,7 +85,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
         #[async_trait::async_trait]
         impl Resolver for T {
-            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+            async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foobar");
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
                 assert_eq!(

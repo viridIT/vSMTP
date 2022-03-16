@@ -14,12 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{receiver::test_helpers::test_receiver, resolver::Resolver};
+use crate::{
+    receiver::test_helpers::{get_regular_config, test_receiver},
+    resolver::Resolver,
+};
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
 };
-use vsmtp_config::ServerConfig;
+use vsmtp_config::Config;
 
 macro_rules! test_lang {
     ($lang_code:expr) => {{
@@ -27,7 +30,7 @@ macro_rules! test_lang {
 
         #[async_trait::async_trait]
         impl Resolver for T {
-            async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+            async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
                 assert_eq!(ctx.envelop.helo, "foobar".to_string());
                 assert_eq!(ctx.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(
@@ -72,19 +75,7 @@ macro_rules! test_lang {
             ]
             .concat()
             .as_bytes(),
-            std::sync::Arc::new(
-                ServerConfig::builder()
-                    .with_version_str("<1.0.0")
-                    .unwrap()
-                    .with_rfc_port("test.server.com", "root", "root", None)
-                    .without_log()
-                    .without_smtps()
-                    .with_default_smtp()
-                    .with_delivery("./tmp/delivery")
-                    .with_rules("./src/receiver/tests/main.vsl", vec![])
-                    .with_default_reply_codes()
-                    .build()?,
-            )
+            std::sync::Arc::new(get_regular_config())
         )
         .await
         .is_ok());

@@ -17,7 +17,6 @@
 use self::transaction::{Transaction, TransactionResult};
 use crate::{processes::ProcessMessage, queue::Queue};
 use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext};
-use vsmtp_config::InnerSmtpsConfig;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod connection;
@@ -33,36 +32,6 @@ mod tests;
 // NOTE: not marked as #[cfg(test)] because it is used by the bench/fuzz
 /// boilerplate for the tests
 pub mod test_helpers;
-
-fn is_version_requirement_satisfied(
-    conn: &rustls::ServerConnection,
-    config: &InnerSmtpsConfig,
-) -> bool {
-    let protocol_version_requirement = config
-        .sni_maps
-        .as_ref()
-        .and_then(|map| {
-            if let Some(sni) = conn.sni_hostname() {
-                for i in map {
-                    if i.domain == sni {
-                        return Some(i);
-                    }
-                }
-            }
-            None
-        })
-        .and_then(|i| i.protocol_version.as_ref())
-        .unwrap_or(&config.protocol_version);
-
-    conn.protocol_version().map_or(false, |protocol_version| {
-        protocol_version_requirement
-            .0
-            .iter()
-            .filter(|i| i.0 == protocol_version)
-            .count()
-            != 0
-    })
-}
 
 async fn on_mail<S: std::io::Read + std::io::Write + Send>(
     conn: &mut Connection<'_, S>,
@@ -187,7 +156,9 @@ pub(crate) async fn handle_connection_secured<S>(
 where
     S: std::io::Read + std::io::Write + Send,
 {
-    let smtps_config = conn.config.smtps.as_ref().unwrap();
+    let smtps_config = conn.config.server.tls.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("server accepted tls encrypted transaction, but not tls config provided")
+    })?;
 
     let mut tls_conn = rustls::ServerConnection::new(tls_config.unwrap()).unwrap();
     let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
@@ -208,15 +179,6 @@ where
         is_secured: true,
         io_stream: &mut io_tls_stream,
     };
-
-    // FIXME: the rejection of the client because of the SSL/TLS protocol
-    // version is done after the handshake...
-
-    if !is_version_requirement_satisfied(secured_conn.io_stream.inner.conn, smtps_config) {
-        log::error!("requirement not satisfied");
-        // TODO: send error 500 ?
-        return Ok(());
-    }
 
     if let ConnectionKind::Tunneled = secured_conn.kind {
         secured_conn.send_code(SMTPReplyCode::Code220)?;

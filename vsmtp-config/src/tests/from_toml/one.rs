@@ -1,4 +1,4 @@
-use crate::next::Config;
+use crate::Config;
 
 #[test]
 fn parse() {

@@ -18,7 +18,7 @@ use super::Resolver;
 
 use anyhow::Context;
 use vsmtp_common::mail_context::{Body, MailContext};
-use vsmtp_config::ServerConfig;
+use vsmtp_config::Config;
 
 /// This delivery will send the mail to another MTA (relaying)
 #[derive(Default)]
@@ -27,7 +27,7 @@ pub struct SMTPResolver;
 #[async_trait::async_trait]
 impl Resolver for SMTPResolver {
     // NOTE: should the function short circuit when sending an email failed ?
-    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
         let envelop = build_envelop(ctx).context("failed to build envelop to deliver email")?;
         let resolver = build_resolver().context("failed to build resolver to deliver email")?;
         let content = match &ctx.body {

@@ -43,7 +43,7 @@ fn serialize() {
                     // dead_file_lifetime: (),
                 },
             },
-            tls: ConfigServerTls {
+            tls: Some(ConfigServerTls {
                 security_level: TlsSecurityLevel::May,
                 preempt_cipherlist: false,
                 handshake_timeout: std::time::Duration::from_millis(200),
@@ -51,7 +51,7 @@ fn serialize() {
                 certificate: rustls::Certificate(vec![]),
                 private_key: rustls::PrivateKey(vec![]),
                 sni: vec![],
-            },
+            }),
             smtp: ConfigServerSMTP {
                 rcpt_count_max: 1000,
                 disable_ehlo: false,

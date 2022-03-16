@@ -28,7 +28,7 @@ use crate::{
 };
 use anyhow::Context;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::ServerConfig;
+use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// A type implementing Write+Read to emulate sockets
@@ -67,7 +67,7 @@ pub(crate) struct DefaultResolverTest;
 
 #[async_trait::async_trait]
 impl Resolver for DefaultResolverTest {
-    async fn deliver(&mut self, _: &ServerConfig, _: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &Config, _: &MailContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -86,7 +86,7 @@ pub async fn test_receiver<T>(
     resolver: T,
     smtp_input: &[u8],
     expected_output: &[u8],
-    config: std::sync::Arc<ServerConfig>,
+    config: std::sync::Arc<Config>,
 ) -> anyhow::Result<()>
 where
     T: Resolver + Send + Sync + 'static,
@@ -102,7 +102,7 @@ where
     );
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&config.rules.main_filepath.clone())
+        RuleEngine::new(&Some(config.app.vsl.filepath.clone()))
             .context("failed to initialize the engine")
             .unwrap(),
     ));
@@ -123,7 +123,7 @@ where
                 &config_deliver,
                 &std::path::PathBuf::from_iter([
                     Queue::Deliver
-                        .to_path(&config_deliver.delivery.spool_dir)
+                        .to_path(&config_deliver.server.queues.dirpath)
                         .unwrap(),
                     std::path::Path::new(&pm.message_id).to_path_buf(),
                 ]),
@@ -175,16 +175,23 @@ where
 }
 
 #[cfg(test)]
-pub(crate) fn get_regular_config() -> anyhow::Result<ServerConfig> {
-    ServerConfig::builder()
+pub(crate) fn get_regular_config() -> Config {
+    Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_rfc_port("test.server.com", "root", "root", None)
-        .without_log()
-        .without_smtps()
-        .with_default_smtp()
-        .with_delivery("./tmp/delivery")
-        .with_rules("./src/receiver/tests/main.vsl", vec![])
-        .with_default_reply_codes()
-        .build()
+        .with_server_name("test.server.com")
+        .with_user_group_and_default_system("root", "root")
+        .with_ipv4_localhost_rfc()
+        .with_default_log_settings()
+        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .without_tls_support()
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .with_default_app()
+        .with_vsl("./src/receiver/tests/main.vsl")
+        .with_default_app_logs()
+        .without_services()
+        .validate()
+        .unwrap()
 }

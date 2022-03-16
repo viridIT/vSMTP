@@ -17,8 +17,7 @@
 use anyhow::Context;
 use vsmtp::args::{Args, Commands};
 use vsmtp_common::libc_abstraction::{daemon, setgid, setuid, ForkResult};
-use vsmtp_config::get_logger_config;
-use vsmtp_config::ServerConfig;
+use vsmtp_config::{log4rs_helper::get_logger_config, Config};
 use vsmtp_server::start_runtime;
 
 fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
@@ -34,9 +33,7 @@ fn main() -> anyhow::Result<()> {
 
     let config = std::fs::read_to_string(&args.config)
         .with_context(|| format!("Cannot read file '{}'", args.config))
-        .and_then(|data| {
-            ServerConfig::from_toml(&data).with_context(|| "File contains format error")
-        })
+        .and_then(|data| Config::from_toml(&data).with_context(|| "File contains format error"))
         .with_context(|| "Cannot parse the configuration")?;
 
     if let Some(command) = args.command {
@@ -48,20 +45,7 @@ fn main() -> anyhow::Result<()> {
             }
             Commands::ConfigDiff => {
                 let loaded_config = serde_json::to_string_pretty(&config)?;
-                let default_config = serde_json::to_string_pretty(
-                    &ServerConfig::builder()
-                        .with_version_str("<1.0.0")
-                        .unwrap()
-                        .with_rfc_port(&config.server.domain, "root", "root", None)
-                        .without_log()
-                        .without_smtps()
-                        .with_default_smtp()
-                        .with_delivery("/var/spool/vsmtp")
-                        .with_empty_rules()
-                        .with_default_reply_codes()
-                        .build()
-                        .unwrap(),
-                )?;
+                let default_config = serde_json::to_string_pretty(&Config::default())?;
                 for diff in diff::lines(&default_config, &loaded_config) {
                     match diff {
                         diff::Result::Left(left) => println!("-\x1b[0;31m{left}\x1b[0m"),
@@ -80,9 +64,9 @@ fn main() -> anyhow::Result<()> {
         .context("Cannot initialize logs")??;
 
     let sockets = (
-        socket_bind_anyhow(&config.server.addr[..])?,
-        socket_bind_anyhow(&config.server.addr_submission[..])?,
-        socket_bind_anyhow(&config.server.addr_submissions[..])?,
+        socket_bind_anyhow(&config.server.interfaces.addr[..])?,
+        socket_bind_anyhow(&config.server.interfaces.addr_submission[..])?,
+        socket_bind_anyhow(&config.server.interfaces.addr_submissions[..])?,
     );
 
     if args.no_daemon {
@@ -91,12 +75,12 @@ fn main() -> anyhow::Result<()> {
         match daemon()? {
             ForkResult::Child => {
                 setgid(
-                    users::get_group_by_name(&config.server.vsmtp_group)
+                    users::get_group_by_name(&config.server.system.group)
                         .unwrap()
                         .gid(),
                 )?;
                 setuid(
-                    users::get_user_by_name(&config.server.vsmtp_user)
+                    users::get_user_by_name(&config.server.system.user)
                         .unwrap()
                         .uid(),
                 )?;

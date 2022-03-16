@@ -1,17 +1,20 @@
 #![allow(clippy::module_name_repetitions)]
+#![allow(missing_docs)]
 use vsmtp_common::code::SMTPReplyCode;
+
+use crate::parser::{tls_certificate, tls_private_key};
 
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(
-        serialize_with = "crate::next::parser::semver::serialize",
-        deserialize_with = "crate::next::parser::semver::deserialize"
+        serialize_with = "crate::parser::semver::serialize",
+        deserialize_with = "crate::parser::semver::deserialize"
     )]
-    pub(crate) version_requirement: semver::VersionReq,
-    pub(crate) server: ConfigServer,
-    pub(crate) app: ConfigApp,
+    pub version_requirement: semver::VersionReq,
+    pub server: ConfigServer,
+    pub app: ConfigApp,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -19,12 +22,12 @@ pub struct Config {
 pub struct ConfigServer {
     // TODO:
     pub domain: String,
-    pub client_count_max: u32,
+    pub client_count_max: i64,
     pub system: ConfigServerSystem,
     pub interfaces: ConfigServerInterfaces,
     pub logs: ConfigServerLogs,
     pub queues: ConfigServerQueues,
-    pub tls: ConfigServerTls,
+    pub tls: Option<ConfigServerTls>,
     pub smtp: ConfigServerSMTP,
 }
 
@@ -41,19 +44,19 @@ pub struct ConfigServerSystem {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerSystemThreadPool {
-    pub receiver: u32,
-    pub processing: u32,
-    pub delivery: u32,
+    pub receiver: usize,
+    pub processing: usize,
+    pub delivery: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerInterfaces {
-    #[serde(deserialize_with = "crate::next::parser::socket_addr::deserialize")]
+    #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr: Vec<std::net::SocketAddr>,
-    #[serde(deserialize_with = "crate::next::parser::socket_addr::deserialize")]
+    #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr_submission: Vec<std::net::SocketAddr>,
-    #[serde(deserialize_with = "crate::next::parser::socket_addr::deserialize")]
+    #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr_submissions: Vec<std::net::SocketAddr>,
 }
 
@@ -68,14 +71,14 @@ pub struct ConfigServerLogs {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigQueueWorking {
-    pub channel_size: u32,
+    pub channel_size: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigQueueDelivery {
-    pub channel_size: u32,
-    pub deferred_retry_max: u32,
+    pub channel_size: usize,
+    pub deferred_retry_max: usize,
     #[serde(with = "humantime_serde")]
     pub deferred_retry_period: std::time::Duration,
     // dead_file_lifetime: std::time::Duration,
@@ -95,15 +98,31 @@ pub struct ConfigServerTlsSni {
     // TODO:
     pub domain: String,
     #[serde(
-        serialize_with = "crate::next::parser::tls_certificate::serialize",
-        deserialize_with = "crate::next::parser::tls_certificate::deserialize"
+        serialize_with = "crate::parser::tls_certificate::serialize",
+        deserialize_with = "crate::parser::tls_certificate::deserialize"
     )]
     pub certificate: rustls::Certificate,
     #[serde(
-        serialize_with = "crate::next::parser::tls_private_key::serialize",
-        deserialize_with = "crate::next::parser::tls_private_key::deserialize"
+        serialize_with = "crate::parser::tls_private_key::serialize",
+        deserialize_with = "crate::parser::tls_private_key::deserialize"
     )]
     pub private_key: rustls::PrivateKey,
+}
+
+impl ConfigServerTlsSni {
+    ///
+    ///
+    /// # Errors
+    ///
+    /// * certificate is not valid
+    /// * private key is not valid
+    pub fn from_path(domain: &str, certificate: &str, private_key: &str) -> anyhow::Result<Self> {
+        Ok(Self {
+            domain: domain.to_string(),
+            certificate: tls_certificate::from_string(certificate)?,
+            private_key: tls_private_key::from_string(private_key)?,
+        })
+    }
 }
 
 /// If a TLS configuration is provided, configure how the connection should be treated
@@ -125,18 +144,18 @@ pub struct ConfigServerTls {
     #[serde(with = "humantime_serde")]
     pub handshake_timeout: std::time::Duration,
     #[serde(
-        serialize_with = "crate::next::parser::tls_protocol_version::serialize",
-        deserialize_with = "crate::next::parser::tls_protocol_version::deserialize"
+        serialize_with = "crate::parser::tls_protocol_version::serialize",
+        deserialize_with = "crate::parser::tls_protocol_version::deserialize"
     )]
     pub protocol_version: Vec<rustls::ProtocolVersion>,
     #[serde(
-        serialize_with = "crate::next::parser::tls_certificate::serialize",
-        deserialize_with = "crate::next::parser::tls_certificate::deserialize"
+        serialize_with = "crate::parser::tls_certificate::serialize",
+        deserialize_with = "crate::parser::tls_certificate::deserialize"
     )]
     pub certificate: rustls::Certificate,
     #[serde(
-        serialize_with = "crate::next::parser::tls_private_key::serialize",
-        deserialize_with = "crate::next::parser::tls_private_key::deserialize"
+        serialize_with = "crate::parser::tls_private_key::serialize",
+        deserialize_with = "crate::parser::tls_private_key::deserialize"
     )]
     pub private_key: rustls::PrivateKey,
     pub sni: Vec<ConfigServerTlsSni>,
@@ -145,8 +164,8 @@ pub struct ConfigServerTls {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerSMTPError {
-    pub soft_count: u32,
-    pub hard_count: u32,
+    pub soft_count: i64,
+    pub hard_count: i64,
     #[serde(with = "humantime_serde")]
     pub delay: std::time::Duration,
 }
@@ -169,7 +188,7 @@ pub struct ConfigServerSMTPTimeoutClient {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerSMTP {
-    pub rcpt_count_max: u32,
+    pub rcpt_count_max: usize,
     pub disable_ehlo: bool,
     // TODO:
     pub required_extension: Vec<String>,

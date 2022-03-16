@@ -17,7 +17,7 @@
 use super::ProcessMessage;
 use crate::{queue::Queue, resolver::Resolver};
 use vsmtp_common::{mail_context::MailContext, status::Status};
-use vsmtp_config::{log_channel::DELIVER, ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, Config};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
 /// process used to deliver incoming emails force accepted by the smtp process
@@ -31,7 +31,7 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 ///
 /// * tokio::select!
 pub async fn start<S: std::hash::BuildHasher + Send>(
-    config: std::sync::Arc<ServerConfig>,
+    config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut resolvers: std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
@@ -42,14 +42,8 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
     );
     flush_deliver_queue(&config, &rule_engine, &mut resolvers).await?;
 
-    let mut flush_deferred_interval = tokio::time::interval(
-        config
-            .delivery
-            .queues
-            .deferred
-            .cron_period
-            .unwrap_or_else(|| std::time::Duration::from_secs(10)),
-    );
+    let mut flush_deferred_interval =
+        tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
 
     loop {
         tokio::select! {
@@ -59,7 +53,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
                 if let Err(error) = handle_one_in_delivery_queue(
                     &config,
                     &std::path::PathBuf::from_iter([
-                        Queue::Deliver.to_path(&config.delivery.spool_dir)?,
+                        Queue::Deliver.to_path(&config.server.queues.dirpath)?,
                         std::path::Path::new(&pm.message_id).to_path_buf(),
                     ]),
                     &rule_engine,
@@ -86,7 +80,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
 ///
 /// # Errors
 pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
-    config: &ServerConfig,
+    config: &Config,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
@@ -163,7 +157,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
                 std::fs::rename(
                     path,
                     std::path::PathBuf::from_iter([
-                        Queue::Deferred.to_path(&config.delivery.spool_dir)?,
+                        Queue::Deferred.to_path(&config.server.queues.dirpath)?,
                         std::path::Path::new(&message_id).to_path_buf(),
                     ]),
                 )?;
@@ -181,11 +175,11 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
 }
 
 async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
-    config: &ServerConfig,
+    config: &Config,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
 ) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
+    for path in std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)? {
         handle_one_in_delivery_queue(config, &path?.path(), rule_engine, resolvers).await?;
     }
 
@@ -195,7 +189,7 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
 async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
     resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
     path: &std::path::Path,
-    config: &ServerConfig,
+    config: &Config,
 ) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
@@ -213,7 +207,7 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
 
     let mut mail: MailContext = serde_json::from_str(&raw)?;
 
-    let max_retry_deferred = config.delivery.queues.deferred.retry_max.unwrap_or(100);
+    let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
 
     if mail.metadata.is_none() {
         anyhow::bail!("email metadata is missing")
@@ -230,7 +224,7 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
         std::fs::rename(
             path,
             std::path::PathBuf::from_iter([
-                Queue::Dead.to_path(&config.delivery.spool_dir)?,
+                Queue::Dead.to_path(&config.server.queues.dirpath)?,
                 std::path::Path::new(&message_id).to_path_buf(),
             ]),
         )?;
@@ -296,9 +290,9 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
 
 async fn flush_deferred_queue<S: std::hash::BuildHasher + Send>(
     resolvers: &mut std::collections::HashMap<String, Box<dyn Resolver + Send + Sync>, S>,
-    config: &ServerConfig,
+    config: &Config,
 ) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deferred.to_path(&config.delivery.spool_dir)?)? {
+    for path in std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)? {
         handle_one_in_deferred_queue(resolvers, &path?.path(), config).await?;
     }
 

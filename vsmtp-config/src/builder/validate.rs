@@ -1,11 +1,10 @@
 use vsmtp_common::code::SMTPReplyCode;
 
-use crate::next::{
+use crate::{
     config::{
         ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigServer, ConfigServerInterfaces,
         ConfigServerLogs, ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError,
         ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
-        ConfigServerTls,
     },
     default::default_smtp_codes,
     Config,
@@ -64,15 +63,7 @@ impl Builder<WantsValidate> {
                     working: srv_delivery.working,
                     delivery: srv_delivery.delivery,
                 },
-                tls: ConfigServerTls {
-                    security_level: srv_tls.security_level,
-                    preempt_cipherlist: srv_tls.preempt_cipherlist,
-                    handshake_timeout: srv_tls.handshake_timeout,
-                    protocol_version: srv_tls.protocol_version,
-                    certificate: srv_tls.certificate,
-                    private_key: srv_tls.private_key,
-                    sni: srv_tls.sni,
-                },
+                tls: srv_tls.tls,
                 smtp: ConfigServerSMTP {
                     rcpt_count_max: smtp_opt.rcpt_count_max,
                     disable_ehlo: smtp_opt.disable_ehlo,
@@ -140,18 +131,18 @@ impl Builder<WantsValidate> {
 
 #[cfg(test)]
 mod tests {
-    use crate::next::Config;
+    use crate::Config;
 
     #[test]
-    fn build_simple() {
-        let _config = Config::builder()
+    fn default_build() {
+        let config = Config::builder()
             .with_current_version()
             .with_debug_server_info()
             .with_default_system()
             .with_ipv4_localhost_rfc()
             .with_default_log_settings()
-            .with_default_queues()
-            .with_safe_tls_config()
+            .with_default_delivery()
+            .without_tls_support()
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
@@ -160,5 +151,6 @@ mod tests {
             .with_default_app_logs()
             .without_services()
             .validate();
+        assert!(config.is_ok(), "{:?}", config);
     }
 }

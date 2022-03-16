@@ -2,9 +2,9 @@
 
 use vsmtp_common::code::SMTPReplyCode;
 
-use crate::next::config::{
+use crate::config::{
     ConfigQueueDelivery, ConfigQueueWorking, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
-    ConfigServerTlsSni, Service, TlsSecurityLevel,
+    ConfigServerTls, Service,
 };
 
 ///
@@ -21,7 +21,7 @@ pub struct WantsServer {
 pub struct WantsServerSystem {
     pub(crate) parent: WantsServer,
     pub(super) domain: String,
-    pub(super) client_count_max: u32,
+    pub(super) client_count_max: i64,
 }
 
 ///
@@ -29,9 +29,9 @@ pub struct WantsServerInterfaces {
     pub(crate) parent: WantsServerSystem,
     pub(super) user: String,
     pub(super) group: String,
-    pub(super) thread_pool_receiver: u32,
-    pub(super) thread_pool_processing: u32,
-    pub(super) thread_pool_delivery: u32,
+    pub(super) thread_pool_receiver: usize,
+    pub(super) thread_pool_processing: usize,
+    pub(super) thread_pool_delivery: usize,
 }
 
 ///
@@ -61,19 +61,20 @@ pub struct WantsServerTLSConfig {
 ///
 pub struct WantsServerSMTPConfig1 {
     pub(crate) parent: WantsServerTLSConfig,
-    pub(super) security_level: TlsSecurityLevel,
-    pub(super) preempt_cipherlist: bool,
-    pub(super) handshake_timeout: std::time::Duration,
-    pub(super) protocol_version: Vec<rustls::ProtocolVersion>,
-    pub(super) certificate: rustls::Certificate,
-    pub(super) private_key: rustls::PrivateKey,
-    pub(super) sni: Vec<ConfigServerTlsSni>,
+    // pub(super) security_level: TlsSecurityLevel,
+    // pub(super) preempt_cipherlist: bool,
+    // pub(super) handshake_timeout: std::time::Duration,
+    // pub(super) protocol_version: Vec<rustls::ProtocolVersion>,
+    // pub(super) certificate: rustls::Certificate,
+    // pub(super) private_key: rustls::PrivateKey,
+    // pub(super) sni: Vec<ConfigServerTlsSni>,
+    pub(super) tls: Option<ConfigServerTls>,
 }
 
 ///
 pub struct WantsServerSMTPConfig2 {
     pub(crate) parent: WantsServerSMTPConfig1,
-    pub(super) rcpt_count_max: u32,
+    pub(super) rcpt_count_max: usize,
     pub(super) disable_ehlo: bool,
     pub(super) required_extension: Vec<String>,
 }

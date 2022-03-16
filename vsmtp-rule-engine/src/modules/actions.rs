@@ -28,7 +28,6 @@ use vsmtp_common::mail_context::Body;
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::URULES;
-use vsmtp_config::service::Service;
 
 #[doc(hidden)]
 #[allow(dead_code)]
@@ -142,12 +141,9 @@ pub mod actions {
         crate::service::run(
             server
                 .config
-                .rules
+                .app
                 .services
-                .iter()
-                .find(|s| match s {
-                    Service::UnixShell { name, .. } => name == service_name,
-                })
+                .get(service_name)
                 .ok_or_else::<Box<EvalAltResult>, _>(|| {
                     format!("No service in config named: '{service_name}'").into()
                 })?,

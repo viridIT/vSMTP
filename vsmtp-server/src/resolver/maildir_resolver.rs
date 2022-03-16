@@ -21,7 +21,7 @@ use vsmtp_common::{
     libc_abstraction::{chown_file, getpwuid},
     mail_context::{Body, MailContext, MessageMetadata},
 };
-use vsmtp_config::{log_channel::DELIVER, ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, Config};
 
 /// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
@@ -31,7 +31,7 @@ pub struct MailDirResolver;
 impl Resolver for MailDirResolver {
     // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
     //       and https://en.wikipedia.org/wiki/Maildir
-    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
         let content = match &ctx.body {
             Body::Empty => {
                 anyhow::bail!("failed to write email using maildir: body is empty")

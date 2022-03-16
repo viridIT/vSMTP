@@ -1,4 +1,4 @@
-use vsmtp_config::{ServerConfig, TlsSecurityLevel};
+use vsmtp_config::{rustls_helper::get_rustls_config, tls_certificate, Config, TlsSecurityLevel};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use crate::{
@@ -6,32 +6,17 @@ use crate::{
     receiver::{
         connection::ConnectionKind,
         io_service::IoService,
-        test_helpers::{test_receiver, DefaultResolverTest},
+        test_helpers::{get_regular_config, test_receiver, DefaultResolverTest},
     },
     server::ServerVSMTP,
-    tls_helpers::{get_cert_from_file, get_rustls_config},
 };
 
-fn get_regular_config() -> anyhow::Result<ServerConfig> {
-    ServerConfig::builder()
-        .with_version_str("<1.0.0")
-        .unwrap()
-        .with_rfc_port("test.server.com", "root", "root", None)
-        .without_log()
-        .without_smtps()
-        .with_default_smtp()
-        .with_delivery("./tmp/delivery")
-        .with_rules("./src/receiver/tests/main.vsl", vec![])
-        .with_default_reply_codes()
-        .build()
-}
-
-const SERVER_CERT: &str = "./src/receiver/tests/certs/certificate.crt";
+use super::{get_tls_config, TEST_SERVER_CERT};
 
 // using sockets on 2 thread to make the handshake concurrently
 async fn test_starttls(
     server_name: &str,
-    server_config: std::sync::Arc<ServerConfig>,
+    server_config: std::sync::Arc<Config>,
     clair_smtp_input: &'static [&str],
     secured_smtp_input: &'static [&str],
     expected_output: &'static [&str],
@@ -45,13 +30,13 @@ async fn test_starttls(
     let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
     let server = tokio::spawn(async move {
-        let tls_config = get_rustls_config(server_config.smtps.as_ref().unwrap()).unwrap();
+        let tls_config = get_rustls_config(server_config.server.tls.as_ref().unwrap()).unwrap();
 
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
             anyhow::Context::context(
-                RuleEngine::new(&server_config.rules.main_filepath.clone()),
+                RuleEngine::new(&Some(server_config.app.vsl.filepath.clone())),
                 "failed to initialize the engine",
             )
             .unwrap(),
@@ -72,9 +57,9 @@ async fn test_starttls(
     });
 
     let mut root_store = rustls::RootCertStore::empty();
-    for i in &get_cert_from_file(&std::path::PathBuf::from(SERVER_CERT)).unwrap() {
-        root_store.add(i).unwrap();
-    }
+    root_store
+        .add(&tls_certificate::from_string(TEST_SERVER_CERT).unwrap())
+        .unwrap();
 
     let config = rustls::ClientConfig::builder()
         .with_safe_defaults()
@@ -157,25 +142,7 @@ async fn test_starttls(
 async fn simple() -> anyhow::Result<()> {
     test_starttls(
         "testserver.com",
-        std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_version_str("<1.0.0")
-                .unwrap()
-                .with_rfc_port("testserver.com", "root", "root", None)
-                .without_log()
-                .with_safe_default_smtps(
-                    TlsSecurityLevel::May,
-                    SERVER_CERT,
-                    "./src/receiver/tests/certs/privateKey.key",
-                    None,
-                )
-                .with_default_smtp()
-                .with_delivery("./tmp/trash")
-                .with_rules("./src/receiver/tests/main.vsl", vec![])
-                .with_default_reply_codes()
-                .build()
-                .unwrap(),
-        ),
+        std::sync::Arc::new(get_tls_config()),
         &["EHLO client.com\r\n", "STARTTLS\r\n"],
         &[
             "EHLO client.com\r\n",
@@ -225,7 +192,7 @@ async fn test_receiver_7() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -265,7 +232,7 @@ async fn test_receiver_9() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await;
 
@@ -277,6 +244,9 @@ async fn test_receiver_9() {
 
 #[tokio::test]
 async fn test_receiver_8() -> anyhow::Result<()> {
+    let mut config = get_tls_config();
+    config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
+
     assert!(test_receiver(
         "127.0.0.1:0",
         DefaultResolverTest,
@@ -294,20 +264,7 @@ async fn test_receiver_8() -> anyhow::Result<()> {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_version_str("<1.0.0")
-                .unwrap()
-                .with_rfc_port("test.server.com", "root", "root", None)
-                .without_log()
-                .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
-                .with_default_smtp()
-                .with_delivery("./tmp/delivery")
-                .with_rules("./src/receiver/tests/main.vsl", vec![])
-                .with_default_reply_codes()
-                .build()
-                .unwrap()
-        )
+        std::sync::Arc::new(config)
     )
     .await
     .is_ok());

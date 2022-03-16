@@ -2,6 +2,8 @@
 
 use vsmtp_common::{code::SMTPReplyCode, collection};
 
+use crate::Config;
+
 pub fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
     let codes: std::collections::BTreeMap<SMTPReplyCode, &'static str> = collection! {
         SMTPReplyCode::Code214 => "214 joining us https://viridit.com/support\r\n",
@@ -38,4 +40,26 @@ pub fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String>
         .into_iter()
         .map(|(k, v)| (k, v.to_string()))
         .collect::<_>()
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self::builder()
+            .with_current_version()
+            .with_debug_server_info()
+            .with_default_system()
+            .with_ipv4_localhost_rfc()
+            .with_default_log_settings()
+            .with_default_delivery()
+            .without_tls_support()
+            .with_default_smtp_options()
+            .with_default_smtp_error_handler()
+            .with_default_smtp_codes()
+            .with_default_app()
+            .with_default_vsl_settings()
+            .with_default_app_logs()
+            .without_services()
+            .validate()
+            .unwrap()
+    }
 }

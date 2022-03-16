@@ -14,8 +14,36 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+
+const TEST_SERVER_CERT: &str = "./src/receiver/tests/certs/certificate.crt";
+const TEST_SERVER_KEY: &str = "./src/receiver/tests/certs/privateKey.key";
+
 mod clair;
 mod rset;
 mod starttls;
 mod tls_tunneled;
 mod utf8;
+
+use vsmtp_config::Config;
+
+pub fn get_tls_config() -> Config {
+    Config::builder()
+        .with_version_str("<1.0.0")
+        .unwrap()
+        .with_server_name("test.server.com")
+        .with_user_group_and_default_system("root", "root")
+        .with_ipv4_localhost_rfc()
+        .with_default_log_settings()
+        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .with_safe_tls_config(TEST_SERVER_CERT, TEST_SERVER_KEY)
+        .unwrap()
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .with_default_app()
+        .with_vsl("./src/receiver/tests/main.vsl")
+        .with_default_app_logs()
+        .without_services()
+        .validate()
+        .unwrap()
+}

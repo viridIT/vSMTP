@@ -42,75 +42,84 @@ pub mod log_channel {
     pub const DELIVER: &str = "deliver";
 }
 
-mod next;
+#[cfg(test)]
+mod tests;
 
-pub use next::Config;
+mod parser {
+    pub mod semver;
+    pub mod socket_addr;
+    #[doc(hidden)]
+    pub mod tls_certificate;
+    #[doc(hidden)]
+    pub mod tls_private_key;
+    pub mod tls_protocol_version;
+}
 
+mod builder {
+    ///
+    pub mod validate;
+
+    ///
+    pub mod wants;
+
+    ///
+    pub mod with;
+}
 #[doc(hidden)]
-#[allow(clippy::module_name_repetitions)]
-pub fn get_logger_config(config: &Config, no_daemon: bool) -> anyhow::Result<log4rs::Config> {
-    use log4rs::{append, config, encode, Config};
+pub mod log4rs_helper;
+#[doc(hidden)]
+pub mod rustls_helper;
 
-    let server = append::file::FileAppender::builder()
-        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-            &config.server.logs.format,
-        )))
-        .build(&config.server.logs.filepath)?;
+pub use parser::{tls_certificate, tls_private_key};
 
-    let app = append::file::FileAppender::builder()
-        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-            &config.app.logs.format,
-        )))
-        .build(&config.app.logs.filepath)?;
+pub mod config;
+mod default;
 
-    let mut builder = Config::builder();
-    let mut root = config::Root::builder();
+pub use builder::{validate, wants::*, with::*};
+pub use config::{Config, Service, TlsSecurityLevel};
 
-    if no_daemon {
-        builder = builder.appender(
-            config::Appender::builder().build(
-                "stdout",
-                Box::new(
-                    append::console::ConsoleAppender::builder()
-                        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-                            "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
-                        )))
-                        .build(),
-                ),
-            ),
-        );
-        root = root.appender("stdout");
+impl Config {
+    ///
+    #[must_use]
+    pub const fn builder() -> Builder<WantsVersion> {
+        Builder {
+            state: WantsVersion(()),
+        }
     }
 
-    builder
-        .appender(config::Appender::builder().build("server", Box::new(server)))
-        .appender(config::Appender::builder().build("app", Box::new(app)))
-        .loggers(
-            config
-                .server
-                .logs
-                .level
-                .iter()
-                .map(|(name, level)| config::Logger::builder().build(name, *level)),
-        )
-        .logger(
-            config::Logger::builder()
-                .appender("app")
-                .additive(false)
-                .build(log_channel::URULES, config.app.logs.level),
-        )
-        .build(
-            root.appender("server").build(
-                *config
-                    .server
-                    .logs
-                    .level
-                    .get("default")
-                    .unwrap_or(&log::LevelFilter::Warn),
-            ),
-        )
-        .map_err(|e| {
-            e.errors().iter().for_each(|e| log::error!("{}", e));
-            anyhow::anyhow!(e)
-        })
+    /// Parse a [ServerConfig] with [TOML] format
+    ///
+    /// # Errors
+    ///
+    /// * data is not a valid [TOML]
+    /// * one field is unknown
+    /// * the version requirement are not fulfilled
+    /// * a mandatory field is not provided (no default value)
+    ///
+    /// [TOML]: https://github.com/toml-lang/toml
+    pub fn from_toml(input: &str) -> anyhow::Result<Self> {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct VersionRequirement {
+            #[serde(
+                serialize_with = "crate::parser::semver::serialize",
+                deserialize_with = "crate::parser::semver::deserialize"
+            )]
+            version_requirement: semver::VersionReq,
+        }
+
+        let req = toml::from_str::<VersionRequirement>(input)?;
+        let pkg_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
+
+        if !req.version_requirement.matches(&pkg_version) {
+            anyhow::bail!(
+                "Version requirement not fulfilled: expected '{}' but got '{}'",
+                req.version_requirement,
+                env!("CARGO_PKG_VERSION")
+            );
+        }
+
+        toml::from_str::<Self>(input)
+            .map(Builder::<WantsValidate>::ensure)
+            .map_err(anyhow::Error::new)?
+    }
 }

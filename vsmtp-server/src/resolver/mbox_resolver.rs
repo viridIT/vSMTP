@@ -21,7 +21,7 @@ use vsmtp_common::{
     libc_abstraction::chown_file,
     mail_context::{Body, MailContext, MessageMetadata},
 };
-use vsmtp_config::{log_channel::DELIVER, ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, Config};
 
 const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
     "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"
@@ -35,7 +35,7 @@ pub struct MBoxResolver;
 
 #[async_trait::async_trait]
 impl Resolver for MBoxResolver {
-    async fn deliver(&mut self, _: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
         let timestamp = get_mbox_timestamp_format(&ctx.metadata);
         let content = build_mbox_message(ctx, &timestamp)?;
 
