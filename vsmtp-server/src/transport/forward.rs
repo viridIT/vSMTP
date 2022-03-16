@@ -21,12 +21,12 @@ use anyhow::Context;
 use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus};
 use vsmtp_config::ServerConfig;
 
-/// This delivery will send the mail to another MTA (relaying)
+/// the email will be forwarded to another mail exchanger via mx record resolution & smtp.
 #[derive(Default)]
-pub struct Relay;
+pub struct Forward;
 
 #[async_trait::async_trait]
-impl Transport for Relay {
+impl Transport for Forward {
     // NOTE: should the function short circuit when sending an email failed ?
     async fn deliver(
         &mut self,
@@ -36,8 +36,8 @@ impl Transport for Relay {
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
-        let envelop =
-            build_envelop(from, &to[..]).context("failed to build envelop to deliver email")?;
+        let envelop = super::build_lettre_envelop(from, &to[..])
+            .context("failed to build envelop to deliver email")?;
         let resolver = build_resolver().context("failed to build resolver to deliver email")?;
 
         let mut rcpt = rcpt_by_domain(to);
@@ -105,19 +105,6 @@ fn rcpt_by_domain(rcpt: &mut [Rcpt]) -> std::collections::HashMap<String, Vec<&m
 
             acc
         })
-}
-
-fn build_envelop(
-    from: &vsmtp_common::address::Address,
-    rcpt: &[Rcpt],
-) -> anyhow::Result<lettre::address::Envelope> {
-    Ok(lettre::address::Envelope::new(
-        Some(from.full().parse()?),
-        rcpt.iter()
-            // NOTE: address that couldn't be converted will be silently dropped.
-            .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
-            .collect(),
-    )?)
 }
 
 fn build_resolver() -> anyhow::Result<trust_dns_resolver::TokioAsyncResolver> {

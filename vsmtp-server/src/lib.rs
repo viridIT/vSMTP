@@ -40,9 +40,10 @@ pub mod transport {
         ) -> anyhow::Result<()>;
     }
 
+    pub(super) mod deliver;
+    pub(super) mod forward;
     pub(super) mod maildir;
     pub(super) mod mbox;
-    pub(super) mod relay;
 
     /// no transfer will be made if this resolver is selected.
     pub(super) struct NoTransfer;
@@ -59,6 +60,20 @@ pub mod transport {
         ) -> anyhow::Result<()> {
             Ok(())
         }
+    }
+
+    /// build a [lettre] envelop using from address & recipients.
+    fn build_lettre_envelop(
+        from: &vsmtp_common::address::Address,
+        rcpt: &[Rcpt],
+    ) -> anyhow::Result<lettre::address::Envelope> {
+        Ok(lettre::address::Envelope::new(
+            Some(from.full().parse()?),
+            rcpt.iter()
+                // NOTE: address that couldn't be converted will be silently dropped.
+                .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
+                .collect(),
+        )?)
     }
 
     #[cfg(test)]
@@ -97,16 +112,20 @@ pub fn create_resolvers() -> std::collections::HashMap<
         Box<dyn transport::Transport + Send + Sync>,
     >::new();
     resolvers.insert(
+        vsmtp_common::transfer::Transfer::Forward,
+        Box::new(transport::forward::Forward::default()),
+    );
+    resolvers.insert(
+        vsmtp_common::transfer::Transfer::Deliver,
+        Box::new(transport::deliver::Deliver::default()),
+    );
+    resolvers.insert(
         vsmtp_common::transfer::Transfer::Maildir,
         Box::new(transport::maildir::MailDir::default()),
     );
     resolvers.insert(
         vsmtp_common::transfer::Transfer::Mbox,
         Box::new(transport::mbox::MBox::default()),
-    );
-    resolvers.insert(
-        vsmtp_common::transfer::Transfer::Relay,
-        Box::new(transport::relay::Relay::default()),
     );
     resolvers.insert(
         vsmtp_common::transfer::Transfer::None,
@@ -216,4 +235,22 @@ pub fn start_runtime(
     .collect::<std::io::Result<Vec<()>>>()?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_build_envelop() {
+        let mut ctx = crate::transport::get_default_context();
+
+        // assert!(build_envelop(&ctx).is_err());
+
+        ctx.envelop.rcpt.push(
+            vsmtp_common::address::Address::try_from("john@doe.com")
+                .unwrap()
+                .into(),
+        );
+
+        // build_envelop(&ctx).expect("failed to build the envelop");
+    }
 }
