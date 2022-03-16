@@ -21,14 +21,14 @@ pub mod server;
 mod tls_helpers;
 
 ///
-pub mod resolver {
+pub mod transport {
 
     use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
     use vsmtp_config::ServerConfig;
 
-    /// A trait allowing the [ServerVSMTP] to deliver a mail
+    /// allowing the [ServerVSMTP] to deliver a mail.
     #[async_trait::async_trait]
-    pub trait Resolver {
+    pub trait Transport {
         /// the deliver method of the [Resolver] trait
         async fn deliver(
             &mut self,
@@ -48,7 +48,7 @@ pub mod resolver {
     pub(super) struct NoTransfer;
 
     #[async_trait::async_trait]
-    impl Resolver for NoTransfer {
+    impl Transport for NoTransfer {
         async fn deliver(
             &mut self,
             _: &ServerConfig,
@@ -90,27 +90,27 @@ use crate::server::ServerVSMTP;
 #[must_use]
 pub fn create_resolvers() -> std::collections::HashMap<
     vsmtp_common::transfer::Transfer,
-    Box<dyn resolver::Resolver + Send + Sync>,
+    Box<dyn transport::Transport + Send + Sync>,
 > {
     let mut resolvers = std::collections::HashMap::<
         vsmtp_common::transfer::Transfer,
-        Box<dyn resolver::Resolver + Send + Sync>,
+        Box<dyn transport::Transport + Send + Sync>,
     >::new();
     resolvers.insert(
         vsmtp_common::transfer::Transfer::Maildir,
-        Box::new(resolver::maildir::MailDir::default()),
+        Box::new(transport::maildir::MailDir::default()),
     );
     resolvers.insert(
         vsmtp_common::transfer::Transfer::Mbox,
-        Box::new(resolver::mbox::MBox::default()),
+        Box::new(transport::mbox::MBox::default()),
     );
     resolvers.insert(
         vsmtp_common::transfer::Transfer::Relay,
-        Box::new(resolver::relay::Relay::default()),
+        Box::new(transport::relay::Relay::default()),
     );
     resolvers.insert(
         vsmtp_common::transfer::Transfer::None,
-        Box::new(resolver::NoTransfer {}),
+        Box::new(transport::NoTransfer {}),
     );
     resolvers
 }

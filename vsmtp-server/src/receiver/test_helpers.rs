@@ -24,7 +24,7 @@ use crate::{
         handle_connection,
         io_service::IoService,
     },
-    resolver::Resolver,
+    transport::Transport,
 };
 use anyhow::Context;
 use vsmtp_common::rcpt::Rcpt;
@@ -66,7 +66,7 @@ impl<T: std::io::Write + std::io::Read> std::io::Read for Mock<'_, T> {
 pub(crate) struct DefaultResolverTest;
 
 #[async_trait::async_trait]
-impl Resolver for DefaultResolverTest {
+impl Transport for DefaultResolverTest {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
@@ -96,7 +96,7 @@ pub async fn test_receiver<T>(
     config: std::sync::Arc<ServerConfig>,
 ) -> anyhow::Result<()>
 where
-    T: Resolver + Send + Sync + 'static,
+    T: Transport + Send + Sync + 'static,
 {
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);

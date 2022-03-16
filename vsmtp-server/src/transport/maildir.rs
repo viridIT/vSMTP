@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use super::Resolver;
+use super::Transport;
 
 use anyhow::Context;
 use vsmtp_common::{
@@ -30,7 +30,7 @@ use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 pub struct MailDir;
 
 #[async_trait::async_trait]
-impl Resolver for MailDir {
+impl Transport for MailDir {
     // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
     //       and https://en.wikipedia.org/wiki/Maildir
     async fn deliver(

@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use super::Resolver;
+use super::Transport;
 
 use anyhow::Context;
 // use anyhow::Context;
@@ -26,7 +26,7 @@ use vsmtp_config::ServerConfig;
 pub struct Relay;
 
 #[async_trait::async_trait]
-impl Resolver for Relay {
+impl Transport for Relay {
     // NOTE: should the function short circuit when sending an email failed ?
     async fn deliver(
         &mut self,
@@ -164,7 +164,7 @@ mod test {
 
     use vsmtp_common::address::Address;
 
-    use crate::resolver::get_default_context;
+    use crate::transport::get_default_context;
 
     use super::*;
 

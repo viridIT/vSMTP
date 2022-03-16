@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use super::Resolver;
+use super::Transport;
 
 use anyhow::Context;
 use vsmtp_common::{
@@ -34,7 +34,7 @@ const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::
 pub struct MBox;
 
 #[async_trait::async_trait]
-impl Resolver for MBox {
+impl Transport for MBox {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
