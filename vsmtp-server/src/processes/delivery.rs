@@ -38,7 +38,7 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 pub async fn start<S: std::hash::BuildHasher + Send>(
     config: std::sync::Arc<ServerConfig>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    mut resolvers: std::collections::HashMap<
+    mut transports: std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
         Box<dyn Transport + Send + Sync>,
         S,
@@ -49,7 +49,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
         target: DELIVER,
         "vDeliver (delivery) booting, flushing queue.",
     );
-    flush_deliver_queue(&config, &rule_engine, &mut resolvers).await?;
+    flush_deliver_queue(&config, &rule_engine, &mut transports).await?;
 
     let mut flush_deferred_interval = tokio::time::interval(
         config
@@ -63,16 +63,17 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
     loop {
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
-                // FIXME: resolvers a are mutable, so must be in a mutex
+                // FIXME: transports a are mutable, so must be in a mutex
                 // for a delivery in a separated thread...
                 if let Err(error) = handle_one_in_delivery_queue(
                     &config,
+                    &pm.message_id,
                     &std::path::PathBuf::from_iter([
                         Queue::Deliver.to_path(&config.delivery.spool_dir)?,
                         std::path::Path::new(&pm.message_id).to_path_buf(),
                     ]),
                     &rule_engine,
-                    &mut resolvers,
+                    &mut transports,
                 )
                 .await {
                     log::error!(target: DELIVER, "{error}");
@@ -83,19 +84,19 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
                     target: DELIVER,
                     "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
                 );
-                flush_deferred_queue(&mut resolvers, &config).await?;
+                flush_deferred_queue(&mut transports, &config).await?;
             }
         };
     }
 }
 
 /// filter recipients by their transfer method and domain name.
-/// the context is mutable because resolvers could not be correctly setup.
-/// FIXME: find a better to couple Transfer methods with Resolvers.
+/// the context is mutable because transports could not be correctly setup.
+/// FIXME: find a better to couple Transfer methods with Transport.
 ///        that way, the email status would never be failed at this stage.
 fn filter_recipients<S: std::hash::BuildHasher + Send>(
     ctx: &mut MailContext,
-    resolvers: &std::collections::HashMap<
+    transports: &std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
         Box<dyn Transport + Send + Sync>,
         S,
@@ -105,7 +106,7 @@ fn filter_recipients<S: std::hash::BuildHasher + Send>(
         .rcpt
         .iter_mut()
         .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-            if !resolvers.contains_key(&rcpt.transfer_method) {
+            if !transports.contains_key(&rcpt.transfer_method) {
                 rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::Failed(format!(
                     "{} transfer method does not have a transfer system setup",
                     rcpt.transfer_method.as_str()
@@ -130,19 +131,18 @@ fn filter_recipients<S: std::hash::BuildHasher + Send>(
 /// # Errors
 pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     config: &ServerConfig,
+    message_id: &str,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    resolvers: &mut std::collections::HashMap<
+    transports: &mut std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
         Box<dyn Transport + Send + Sync>,
         S,
     >,
 ) -> anyhow::Result<()> {
-    let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
-
     log::trace!(
         target: DELIVER,
-        "vDeliver (delivery) RECEIVED '{}'",
+        "vDeliver (delivery) email received '{}'",
         message_id
     );
 
@@ -176,7 +176,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
             let mut ctx = ctx.write().unwrap();
 
             // filtering recipients by domains and delivery method.
-            let triage = filter_recipients(&mut *ctx, resolvers);
+            let triage = filter_recipients(&mut *ctx, transports);
 
             // getting a raw copy of the email.
             let content = match &ctx.body {
@@ -192,7 +192,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
 
         for (method, rcpt) in &mut triage {
             println!("'{method}' for '{rcpt:?}'");
-            resolvers
+            transports
                 .get_mut(method)
                 .unwrap()
                 .deliver(config, &metadata, &from, &mut rcpt[..], &content)
@@ -240,68 +240,6 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
                 rcpt
             })
             .collect();
-
-        // for rcpt in &ctx.envelop.rcpt {
-        //     if rcpt.transfer_method == vsmtp_common::rcpt::NO_DELIVERY {
-        //         Queue::Dead.write_to_queue(config, &ctx)?;
-        //         continue;
-        //     }
-
-        //     let resolver = if let Some(resolver) = resolvers.get_mut(&rcpt.transfer_method) {
-        //         resolver
-        //     } else {
-        //         log::trace!(
-        //             target: DELIVER,
-        //             "vDeliver (deferred) delivery method '{}' for '{}' not found",
-        //             rcpt.transfer_method,
-        //             rcpt.address
-        //         );
-
-        //         // TODO: set in deferred, add metadata for a particular rcpt.
-
-        //         continue;
-        //     };
-
-        //     match resolver.deliver(config, &ctx, rcpt).await {
-        //         Ok(_) => {
-        //             log::trace!(
-        //                 target: DELIVER,
-        //                 "vDeliver (delivery) '{}' SEND successfully.",
-        //                 message_id
-        //             );
-
-        //             std::fs::remove_file(&path)?;
-
-        //             log::info!(
-        //                 target: DELIVER,
-        //                 "vDeliver (delivery) '{}' REMOVED successfully.",
-        //                 message_id
-        //             );
-        //         }
-        //         Err(error) => {
-        //             log::warn!(
-        //                 target: DELIVER,
-        //                 "vDeliver (delivery) '{}' SEND FAILED, reason: '{}'",
-        //                 message_id,
-        //                 error
-        //             );
-
-        //             std::fs::rename(
-        //                 path,
-        //                 std::path::PathBuf::from_iter([
-        //                     Queue::Deferred.to_path(&config.delivery.spool_dir)?,
-        //                     std::path::Path::new(&message_id).to_path_buf(),
-        //                 ]),
-        //             )?;
-
-        //             log::info!(
-        //                 target: DELIVER,
-        //                 "vDeliver (delivery) '{}' MOVED delivery => deferred.",
-        //                 message_id
-        //             );
-        //         }
-        //     }
-        // }
     };
 
     // after processing the email is removed from the delivery queue.
@@ -320,7 +258,19 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
     >,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
-        handle_one_in_delivery_queue(config, &path?.path(), rule_engine, resolvers).await?;
+        let path = path.context("could not flush delivery queue")?;
+        let message_id = path.file_name();
+
+        handle_one_in_delivery_queue(
+            config,
+            message_id
+                .to_str()
+                .context("could not fetch message id in delivery queue")?,
+            &path.path(),
+            rule_engine,
+            resolvers,
+        )
+        .await?;
     }
 
     Ok(())

@@ -127,6 +127,7 @@ where
         while let Some(pm) = delivery_receiver.recv().await {
             handle_one_in_delivery_queue(
                 &config_deliver,
+                &pm.message_id,
                 &std::path::PathBuf::from_iter([
                     Queue::Deliver
                         .to_path(&config_deliver.delivery.spool_dir)
