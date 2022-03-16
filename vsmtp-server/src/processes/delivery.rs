@@ -20,6 +20,7 @@ use anyhow::Context;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
     status::Status,
+    transfer::EmailTransferStatus,
 };
 use vsmtp_config::{log_channel::DELIVER, ServerConfig};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
@@ -89,6 +90,9 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
 }
 
 /// filter recipients by their transfer method and domain name.
+/// the context is mutable because resolvers could not be correctly setup.
+/// FIXME: find a better to couple Transfer methods with Resolvers.
+///        that way, the email status would never be failed at this stage.
 fn filter_recipients<S: std::hash::BuildHasher + Send>(
     ctx: &mut MailContext,
     resolvers: &std::collections::HashMap<
@@ -103,8 +107,7 @@ fn filter_recipients<S: std::hash::BuildHasher + Send>(
         .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
             if !resolvers.contains_key(&rcpt.transfer_method) {
                 rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::Failed(format!(
-                    // FIXME: find a better to couple Transfer method with Resolvers.
-                    "{} transfer method does not have a delivery system setup",
+                    "{} transfer method does not have a transfer system setup",
                     rcpt.transfer_method.as_str()
                 ));
                 return acc;
@@ -145,7 +148,6 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
 
     let file = std::fs::File::open(path)?;
     let reader = std::io::BufReader::new(file);
-
     let ctx: MailContext = serde_json::from_reader(reader)?;
     let mut state = RuleState::with_context(config, ctx);
 
@@ -154,9 +156,20 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
         .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
         .run_when(&mut state, "delivery");
 
+    // NOTE: should the engine able to return a status for a particular recipient ?
     if result == Status::Deny {
-        Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;
+        // we update rcpt email status and write to dead queue in case of a deny.
+        let ctx = state.get_context();
+        let mut ctx = ctx.write().unwrap();
+
+        for rcpt in &mut ctx.envelop.rcpt {
+            rcpt.email_status =
+                EmailTransferStatus::Failed("rule engine denied the email.".to_string());
+        }
+        Queue::Dead.write_to_queue(config, &ctx)?;
     } else {
+        // we pickup a copy of the metadata and envelop of the context, so we can dispatch emails
+        // to send by groups of recipients (grouped by transfer + destination)
         let (metadata, from, mut triage, content) = {
             // FIXME: handle poison & missing metadata errors.
             let ctx = state.get_context();
@@ -165,6 +178,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
             // filtering recipients by domains and delivery method.
             let triage = filter_recipients(&mut *ctx, resolvers);
 
+            // getting a raw copy of the email.
             let content = match &ctx.body {
                 Body::Empty => todo!("empty body should not be possible in delivery"),
                 Body::Raw(raw) => raw.clone(),
@@ -197,9 +211,9 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
             .into_iter()
             .flat_map(|(_, rcpt)| {
                 // FIXME: disk i/o could be avoided here by filtering rcpt statuses.
+                // TODO: email should be written with updated ctx.
                 for rcpt in &rcpt {
                     match &rcpt.email_status {
-                        // TODO: copy to deferred.
                         vsmtp_common::transfer::EmailTransferStatus::HeldBack(_) => {
                             std::fs::rename(
                                 path,
@@ -210,7 +224,6 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
                             )
                             .unwrap();
                         }
-                        // TODO: copy to dead queue / quarantine.
                         vsmtp_common::transfer::EmailTransferStatus::Failed(_) => std::fs::rename(
                             path,
                             std::path::PathBuf::from_iter([
@@ -219,7 +232,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
                             ]),
                         )
                         .unwrap(),
-                        // Sent or Waiting, we can remove the file later.
+                        // Sent or Waiting (waiting should never happen), we can remove the file later.
                         _ => {}
                     }
                 }
@@ -227,8 +240,6 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
                 rcpt
             })
             .collect();
-
-        std::fs::remove_file(path)?;
 
         // for rcpt in &ctx.envelop.rcpt {
         //     if rcpt.transfer_method == vsmtp_common::rcpt::NO_DELIVERY {
@@ -293,6 +304,9 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
         // }
     };
 
+    // after processing the email is removed from the delivery queue.
+    std::fs::remove_file(path)?;
+
     Ok(())
 }
 
@@ -312,6 +326,9 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
     Ok(())
 }
 
+// NOTE: emails stored in the deferred queue are lickly to slow down the process.
+//       the pickup process of this queue should be slower than pulling from the delivery queue.
+//       https://www.postfix.org/QSHAPE_README.html#queues
 async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
     resolvers: &mut std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
