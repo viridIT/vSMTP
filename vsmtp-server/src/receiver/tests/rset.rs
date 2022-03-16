@@ -63,7 +63,7 @@ async fn reset_helo() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -93,7 +93,7 @@ async fn reset_mail_from_error() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -122,7 +122,7 @@ async fn reset_mail_ok() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -175,7 +175,7 @@ async fn reset_rcpt_to_ok() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -208,7 +208,7 @@ async fn reset_rcpt_to_error() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -267,7 +267,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",

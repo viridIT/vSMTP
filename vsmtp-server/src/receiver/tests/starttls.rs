@@ -1,4 +1,4 @@
-use vsmtp_config::{rustls_helper::get_rustls_config, tls_certificate, Config, TlsSecurityLevel};
+use vsmtp_config::{rustls_helper::get_rustls_config, Config, TlsSecurityLevel};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use crate::{
@@ -56,10 +56,18 @@ async fn test_starttls(
         .unwrap();
     });
 
+    let mut reader = std::io::BufReader::new(std::fs::File::open(&TEST_SERVER_CERT).unwrap());
+
+    let pem = rustls_pemfile::certs(&mut reader)
+        .unwrap()
+        .into_iter()
+        .map(rustls::Certificate)
+        .collect::<Vec<_>>();
+
     let mut root_store = rustls::RootCertStore::empty();
-    root_store
-        .add(&tls_certificate::from_string(TEST_SERVER_CERT).unwrap())
-        .unwrap();
+    for i in pem {
+        root_store.add(&i).unwrap();
+    }
 
     let config = rustls::ClientConfig::builder()
         .with_safe_defaults()
@@ -182,8 +190,8 @@ async fn test_receiver_7() {
             .concat()
             .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
-            "250-test.server.com\r\n",
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
             "250-8BITMIME\r\n",
             "250-SMTPUTF8\r\n",
             "250 STARTTLS\r\n",
@@ -200,6 +208,11 @@ async fn test_receiver_7() {
 
 #[tokio::test]
 async fn test_receiver_9() {
+    let mut config = get_regular_config();
+    config.server.smtp.error.delay = std::time::Duration::from_millis(100);
+
+    let config = std::sync::Arc::new(config);
+
     let before_test = std::time::Instant::now();
     let res = test_receiver(
         "127.0.0.1:0",
@@ -221,7 +234,7 @@ async fn test_receiver_9() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
             "503 Bad sequence of commands\r\n",
             "501 Syntax error in parameters or arguments\r\n",
@@ -232,14 +245,20 @@ async fn test_receiver_9() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
+        config.clone(),
     )
     .await;
 
     assert!(res.is_err());
 
-    // (hard_error - soft_error) * error_delay
-    assert!(before_test.elapsed().as_millis() >= 5 * 100);
+    assert!(
+        before_test.elapsed().as_millis()
+            >= config.server.smtp.error.delay.as_millis()
+                * u128::try_from(
+                    config.server.smtp.error.hard_count - config.server.smtp.error.soft_count
+                )
+                .unwrap()
+    );
 }
 
 #[tokio::test]
@@ -254,8 +273,8 @@ async fn test_receiver_8() -> anyhow::Result<()> {
             .concat()
             .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
-            "250-test.server.com\r\n",
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
             "250-8BITMIME\r\n",
             "250-SMTPUTF8\r\n",
             "250 STARTTLS\r\n",

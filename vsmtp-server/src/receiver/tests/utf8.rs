@@ -65,7 +65,7 @@ macro_rules! test_lang {
             .concat()
             .as_bytes(),
             [
-                "220 test.server.com Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",
                 "250 Ok\r\n",

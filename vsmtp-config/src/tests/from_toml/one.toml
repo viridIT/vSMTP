@@ -5,8 +5,8 @@ domain = "testserver.com"
 client_count_max = 16
 
 [server.system]
-user = "vsmtp"
-group = "vsmtp"
+user = "root"
+group = "root"
 
 [server.system.thread_pool]
 receiver = 6

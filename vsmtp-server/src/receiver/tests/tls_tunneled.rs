@@ -20,14 +20,11 @@ use crate::{
     server::ServerVSMTP,
 };
 use vsmtp_config::{
-    config::ConfigServerTlsSni, rustls_helper::get_rustls_config, tls_certificate, Config,
-    TlsSecurityLevel,
+    config::ConfigServerTlsSni, rustls_helper::get_rustls_config, Config, TlsSecurityLevel,
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-use super::get_tls_config;
-
-const SERVER_CERT: &str = "./src/receiver/tests/certs/certificate.crt";
+use super::{get_tls_config, TEST_SERVER_CERT};
 
 // using sockets on 2 thread to make the handshake concurrently
 async fn test_tls_tunneled(
@@ -44,9 +41,9 @@ async fn test_tls_tunneled(
     let (working_sender, _working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&Some(
-        server_config.app.vsl.filepath.clone(),
-    ))?));
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+        RuleEngine::new(&Some(server_config.app.vsl.filepath.clone())).unwrap(),
+    ));
 
     let server = tokio::spawn(async move {
         let tls_config = get_rustls_config(server_config.server.tls.as_ref().unwrap()).unwrap();
@@ -67,10 +64,18 @@ async fn test_tls_tunneled(
         .unwrap();
     });
 
+    let mut reader = std::io::BufReader::new(std::fs::File::open(&TEST_SERVER_CERT)?);
+
+    let pem = rustls_pemfile::certs(&mut reader)
+        .unwrap()
+        .into_iter()
+        .map(rustls::Certificate)
+        .collect::<Vec<_>>();
+
     let mut root_store = rustls::RootCertStore::empty();
-    root_store
-        .add(&tls_certificate::from_string(SERVER_CERT).unwrap())
-        .unwrap();
+    for i in pem {
+        root_store.add(&i).unwrap();
+    }
 
     let config = rustls::ClientConfig::builder()
         .with_safe_defaults()

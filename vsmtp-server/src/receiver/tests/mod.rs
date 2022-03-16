@@ -30,7 +30,7 @@ pub fn get_tls_config() -> Config {
     Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_server_name("test.server.com")
+        .with_server_name("testserver.com")
         .with_user_group_and_default_system("root", "root")
         .with_ipv4_localhost_rfc()
         .with_default_log_settings()

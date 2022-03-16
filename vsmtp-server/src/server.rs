@@ -256,7 +256,7 @@ mod tests {
                 .with_version_str("<1.0.0")
                 .unwrap()
                 .with_server(
-                    "test.server.com",
+                    "testserver.com",
                     "root",
                     "root",
                     addr,
@@ -313,7 +313,7 @@ mod tests {
                 .with_version_str("<1.0.0")
                 .unwrap()
                 .with_server(
-                    "test.server.com",
+                    "testserver.com",
                     "root",
                     "root",
                     addr,

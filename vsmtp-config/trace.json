@@ -1,0 +1,84 @@
+{
+  "version_requirement": "*",
+  "server": {
+    "domain": "domain.com",
+    "client_count_max": 100,
+    "system": {
+      "user": "vsmtp",
+      "group": "vsmtp",
+      "thread_pool": {
+        "receiver": 6,
+        "processing": 6,
+        "delivery": 6
+      }
+    },
+    "interfaces": {
+      "addr": [
+        "0.0.0.0:25"
+      ],
+      "addr_submission": [
+        "0.0.0.0:587"
+      ],
+      "addr_submissions": [
+        "0.0.0.0:465"
+      ]
+    },
+    "logs": {
+      "filepath": "/var/log/vsmtp/vsmtp.log",
+      "format": "{d} {l} - ",
+      "level": {}
+    },
+    "queues": {
+      "dirpath": "/var/spool/vsmtp",
+      "working": {
+        "channel_size": 12
+      },
+      "delivery": {
+        "channel_size": 12,
+        "deferred_retry_max": 100,
+        "deferred_retry_period": "30s"
+      }
+    },
+    "tls": {
+      "security_level": "May",
+      "preempt_cipherlist": false,
+      "handshake_timeout": "200ms",
+      "protocol_version": [
+        "TLSv1.3"
+      ],
+      "certificate": [],
+      "private_key": [],
+      "sni": []
+    },
+    "smtp": {
+      "rcpt_count_max": 1000,
+      "disable_ehlo": false,
+      "required_extension": [],
+      "error": {
+        "soft_count": 5,
+        "hard_count": 10,
+        "delay": "500ms"
+      },
+      "timeout_client": {
+        "connect": "5m",
+        "helo": "5m",
+        "mail_from": "5m",
+        "rcpt_to": "5m",
+        "data": "5m"
+      },
+      "codes": {}
+    }
+  },
+  "app": {
+    "dirpath": "/var/spool/vsmtp/app",
+    "vsl": {
+      "filepath": "/etc/vsmtp/main.vsl"
+    },
+    "logs": {
+      "filepath": "/var/log/vsmtp/app.log",
+      "level": "INFO",
+      "format": "{d} - {m}{n}"
+    },
+    "services": {}
+  }
+}

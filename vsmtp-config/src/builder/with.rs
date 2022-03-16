@@ -86,7 +86,7 @@ impl Builder<WantsServerSystem> {
     ///
     #[must_use]
     pub fn with_default_system(self) -> Builder<WantsServerInterfaces> {
-        self.with_user_group_and_default_system("vsmtp", "vsmtp")
+        self.with_user_group_and_default_system("root", "root")
     }
 
     ///

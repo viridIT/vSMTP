@@ -63,7 +63,7 @@ async fn test_receiver_1() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -86,7 +86,7 @@ async fn test_receiver_2() {
         DefaultResolverTest,
         ["foo\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "501 Syntax error in parameters or arguments\r\n",
         ]
         .concat()
@@ -104,7 +104,7 @@ async fn test_receiver_3() {
         DefaultResolverTest,
         ["MAIL FROM:<john@doe>\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
@@ -122,7 +122,7 @@ async fn test_receiver_4() {
         DefaultResolverTest,
         ["RCPT TO:<john@doe>\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
@@ -142,7 +142,7 @@ async fn test_receiver_5() {
             .concat()
             .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
         ]
@@ -161,7 +161,7 @@ async fn test_receiver_6() {
         DefaultResolverTest,
         ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "221 Service closing transmission channel\r\n",
         ]
@@ -191,7 +191,7 @@ async fn test_receiver_10() {
         DefaultResolverTest,
         ["HELP\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "214 joining us https://viridit.com/support\r\n",
         ]
         .concat()
@@ -224,7 +224,7 @@ async fn test_receiver_11() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -258,7 +258,7 @@ async fn test_receiver_11_bis() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -285,7 +285,7 @@ async fn test_receiver_12() {
         DefaultResolverTest,
         ["EHLO postmaster\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "502 Command not implemented\r\n",
         ]
         .concat()
@@ -368,7 +368,7 @@ async fn test_receiver_13() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -461,7 +461,7 @@ async fn test_receiver_14() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
