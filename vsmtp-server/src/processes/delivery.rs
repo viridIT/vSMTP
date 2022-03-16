@@ -90,40 +90,6 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
     }
 }
 
-/// filter recipients by their transfer method and domain name.
-/// the context is mutable because transports could not be correctly setup.
-/// FIXME: find a better to couple Transfer methods with Transport.
-///        that way, the email status would never be failed at this stage.
-fn filter_recipients<S: std::hash::BuildHasher + Send>(
-    ctx: &mut MailContext,
-    transports: &std::collections::HashMap<
-        vsmtp_common::transfer::Transfer,
-        Box<dyn Transport + Send + Sync>,
-        S,
-    >,
-) -> std::collections::HashMap<vsmtp_common::transfer::Transfer, Vec<vsmtp_common::rcpt::Rcpt>> {
-    ctx.envelop
-        .rcpt
-        .iter_mut()
-        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-            if !transports.contains_key(&rcpt.transfer_method) {
-                rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::Failed(format!(
-                    "{} transfer method does not have a transfer system setup",
-                    rcpt.transfer_method.as_str()
-                ));
-                return acc;
-            }
-
-            if let Some(group) = acc.get_mut(&rcpt.transfer_method) {
-                group.push(rcpt.clone());
-            } else {
-                acc.insert(rcpt.transfer_method, vec![rcpt.clone()]);
-            }
-
-            acc
-        })
-}
-
 /// handle one email pulled from the delivery queue.
 ///
 /// # Panics
@@ -173,14 +139,14 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
         let (metadata, from, mut triage, content) = {
             // FIXME: handle poison & missing metadata errors.
             let ctx = state.get_context();
-            let mut ctx = ctx.write().unwrap();
+            let ctx = ctx.read().unwrap();
 
             // filtering recipients by domains and delivery method.
-            let triage = filter_recipients(&mut *ctx, transports);
+            let triage = filter_recipients(&*ctx, transports);
 
             // getting a raw copy of the email.
             let content = match &ctx.body {
-                Body::Empty => todo!("empty body should not be possible in delivery"),
+                Body::Empty => todo!("an empty body should not be possible in delivery"),
                 Body::Raw(raw) => raw.clone(),
                 Body::Parsed(parsed) => parsed.to_raw(),
             };
@@ -385,4 +351,39 @@ async fn flush_deferred_queue<S: std::hash::BuildHasher + Send>(
     }
 
     Ok(())
+}
+
+/// filter recipients by their transfer method.
+/// the context is mutable because transports could not be correctly setup.
+/// FIXME: find a better to couple Transfer methods with Transport.
+///        that way, the email status would never be failed at this stage.
+fn filter_recipients<S: std::hash::BuildHasher + Send>(
+    ctx: &MailContext,
+    transports: &std::collections::HashMap<
+        vsmtp_common::transfer::Transfer,
+        Box<dyn Transport + Send + Sync>,
+        S,
+    >,
+) -> std::collections::HashMap<vsmtp_common::transfer::Transfer, Vec<vsmtp_common::rcpt::Rcpt>> {
+    ctx.envelop
+        .rcpt
+        .iter()
+        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
+            let mut rcpt = rcpt.clone();
+            if !transports.contains_key(&rcpt.transfer_method) {
+                rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::Failed(format!(
+                    "{} transfer method does not have a transfer system setup",
+                    rcpt.transfer_method.as_str()
+                ));
+                return acc;
+            }
+
+            if let Some(group) = acc.get_mut(&rcpt.transfer_method) {
+                group.push(rcpt);
+            } else {
+                acc.insert(rcpt.transfer_method, vec![rcpt]);
+            }
+
+            acc
+        })
 }

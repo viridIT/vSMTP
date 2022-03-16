@@ -103,7 +103,7 @@ use crate::server::ServerVSMTP;
 
 /// create a list of resolvers identified by their Transfer key.
 #[must_use]
-pub fn create_resolvers() -> std::collections::HashMap<
+pub fn create_transports() -> std::collections::HashMap<
     vsmtp_common::transfer::Transfer,
     Box<dyn transport::Transport + Send + Sync>,
 > {
@@ -143,7 +143,7 @@ pub fn start_runtime(
         std::net::TcpListener,
     ),
 ) -> anyhow::Result<()> {
-    let resolvers = create_resolvers();
+    let resolvers = create_transports();
 
     let (delivery_sender, delivery_receiver) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
@@ -171,7 +171,7 @@ pub fn start_runtime(
                     delivery_receiver,
                 )
                 .await;
-                log::error!("v_deliver ended unexpectedly '{:?}'", result);
+                log::error!("vsmtp-delivery thread ended unexpectedly '{:?}'", result);
             });
         std::io::Result::Ok(())
     });
@@ -193,7 +193,7 @@ pub fn start_runtime(
                     mime_delivery_sender,
                 )
                 .await;
-                log::error!("v_mime ended unexpectedly '{:?}'", result);
+                log::error!("vsmtp-processing thread ended unexpectedly '{:?}'", result);
             });
         std::io::Result::Ok(())
     });
@@ -240,7 +240,7 @@ pub fn start_runtime(
 #[cfg(test)]
 mod test {
     #[test]
-    fn test_build_envelop() {
+    fn test_build_lettre_envelop() {
         let mut ctx = crate::transport::get_default_context();
 
         // assert!(build_envelop(&ctx).is_err());

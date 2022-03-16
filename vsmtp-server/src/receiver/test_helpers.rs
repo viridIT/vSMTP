@@ -121,7 +121,7 @@ where
     let config_deliver = config.clone();
 
     let delivery_handle = tokio::spawn(async move {
-        let mut resolvers = crate::create_resolvers();
+        let mut resolvers = crate::create_transports();
         resolvers.insert(vsmtp_common::transfer::Transfer::None, Box::new(resolver));
 
         while let Some(pm) = delivery_receiver.recv().await {

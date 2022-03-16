@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,9 +13,10 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 
 /// the delivery status of the email of the current rcpt.
+// TODO: add timestamp for Sent / HeldBack / Failed.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum EmailTransferStatus {
     /// the email has not been sent yet.

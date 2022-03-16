@@ -156,19 +156,6 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_build_envelop() {
-        let mut ctx = get_default_context();
-
-        // assert!(build_envelop(&ctx).is_err());
-
-        ctx.envelop
-            .rcpt
-            .push(Address::try_from("john@doe.com").unwrap().into());
-
-        // build_envelop(&ctx).expect("failed to build the envelop");
-    }
-
-    #[test]
     fn test_build_resolver() {
         // FIXME: find a way to make this function fail.
         assert!(build_resolver().is_ok());
