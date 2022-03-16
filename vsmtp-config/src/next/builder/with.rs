@@ -1,5 +1,6 @@
 use crate::next::config::{
     ConfigQueueDelivery, ConfigQueueWorking, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
+    TlsSecurityLevel,
 };
 
 use super::wants::{
@@ -118,7 +119,7 @@ impl Builder<WantsServerTLSConfig> {
         Builder::<WantsServerSMTPConfig1> {
             state: WantsServerSMTPConfig1 {
                 parent: self.state,
-                security_level: crate::TlsSecurityLevel::May,
+                security_level: TlsSecurityLevel::May,
                 preempt_cipherlist: false,
                 handshake_timeout: std::time::Duration::from_millis(200),
                 protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],

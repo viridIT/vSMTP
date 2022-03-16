@@ -27,22 +27,8 @@
  *
 **/
 
-///
-mod config_builder;
-/// The default values of the configuration
-pub mod default;
-mod parser;
-/// The rust representation of the configuration
-#[allow(clippy::module_name_repetitions)]
-mod server_config;
-
-pub use server_config::{InnerSmtpsConfig, ServerConfig, SniKey, TlsSecurityLevel};
-
-/// The external services used in .vsl format
-pub mod service;
-
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 /// targets for log! macro
 pub mod log_channel {
@@ -56,33 +42,26 @@ pub mod log_channel {
     pub const DELIVER: &str = "deliver";
 }
 
-///
-pub mod next;
+mod next;
+
+pub use next::Config;
 
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
-pub fn get_logger_config(
-    config: &server_config::ServerConfig,
-    no_daemon: bool,
-) -> anyhow::Result<log4rs::Config> {
+pub fn get_logger_config(config: &Config, no_daemon: bool) -> anyhow::Result<log4rs::Config> {
     use log4rs::{append, config, encode, Config};
+
+    let server = append::file::FileAppender::builder()
+        .encoder(Box::new(encode::pattern::PatternEncoder::new(
+            &config.server.logs.format,
+        )))
+        .build(&config.server.logs.filepath)?;
 
     let app = append::file::FileAppender::builder()
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
-            "{d} - {m}{n}",
+            &config.app.logs.format,
         )))
-        .build(config.log.file.clone())?;
-
-    let user = append::file::FileAppender::builder()
-        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-            config
-                .rules
-                .logs
-                .format
-                .as_ref()
-                .unwrap_or(&"{d} - {m}{n}".to_string()),
-        )))
-        .build(config.rules.logs.file.clone())?;
+        .build(&config.app.logs.filepath)?;
 
     let mut builder = Config::builder();
     let mut root = config::Root::builder();
@@ -104,25 +83,27 @@ pub fn get_logger_config(
     }
 
     builder
+        .appender(config::Appender::builder().build("server", Box::new(server)))
         .appender(config::Appender::builder().build("app", Box::new(app)))
-        .appender(config::Appender::builder().build("user", Box::new(user)))
         .loggers(
             config
-                .log
+                .server
+                .logs
                 .level
                 .iter()
                 .map(|(name, level)| config::Logger::builder().build(name, *level)),
         )
         .logger(
             config::Logger::builder()
-                .appender("user")
+                .appender("app")
                 .additive(false)
-                .build(log_channel::URULES, config.rules.logs.level),
+                .build(log_channel::URULES, config.app.logs.level),
         )
         .build(
-            root.appender("app").build(
+            root.appender("server").build(
                 *config
-                    .log
+                    .server
+                    .logs
                     .level
                     .get("default")
                     .unwrap_or(&log::LevelFilter::Warn),

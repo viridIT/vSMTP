@@ -2,12 +2,9 @@
 
 use vsmtp_common::code::SMTPReplyCode;
 
-use crate::{
-    next::config::{
-        ConfigQueueDelivery, ConfigQueueWorking, ConfigServerSMTPError,
-        ConfigServerSMTPTimeoutClient, ConfigServerTlsSni, Service,
-    },
-    TlsSecurityLevel,
+use crate::next::config::{
+    ConfigQueueDelivery, ConfigQueueWorking, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
+    ConfigServerTlsSni, Service, TlsSecurityLevel,
 };
 
 ///

@@ -1,8 +1,6 @@
 #![allow(clippy::module_name_repetitions)]
 use vsmtp_common::code::SMTPReplyCode;
 
-use crate::TlsSecurityLevel;
-
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -106,6 +104,17 @@ pub struct ConfigServerTlsSni {
         deserialize_with = "crate::next::parser::tls_private_key::deserialize"
     )]
     pub private_key: rustls::PrivateKey,
+}
+
+/// If a TLS configuration is provided, configure how the connection should be treated
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum TlsSecurityLevel {
+    /// Connection may stay in plain text for theirs transaction
+    ///
+    /// Connection may upgrade at any moment with a TLS tunnel (using STARTTLS mechanism)
+    May,
+    /// Connection must be under a TLS tunnel (using STARTTLS mechanism or using port 465)
+    Encrypt,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

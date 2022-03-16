@@ -1,10 +1,8 @@
-use crate::TlsSecurityLevel;
-
 use super::config::{
     Config, ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
     ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues, ConfigServerSMTP,
     ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
-    ConfigServerSystemThreadPool, ConfigServerTls,
+    ConfigServerSystemThreadPool, ConfigServerTls, TlsSecurityLevel,
 };
 
 mod from_toml;
