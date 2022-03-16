@@ -42,23 +42,23 @@ deferred_retry_period = "10s"
 # dead_file_lifetime = "14d"
 
 
-[server.tls]
-security_level = "May"
-preempt_cipherlist = true
-handshake_timeout = "100ms"
-protocol_version = "^TLSv1.2"
-certificate = "../tmp/config/certs/certificate.crt"
-private_key = "../tmp/config/certs/privateKey.key"
-
-[[server.tls.sni]]
-domain = "testserver2.com"
-certificate = "../tmp/config/certs/certificate.crt"
-private_key = "../tmp/config/certs/privateKey.key"
-
-[[server.tls.sni]]
-domain = "testserver3.com"
-certificate = "../tmp/config/certs/certificate.crt"
-private_key = "../tmp/config/certs/privateKey.key"
+# [server.tls]
+# security_level = "May"
+# preempt_cipherlist = true
+# handshake_timeout = "100ms"
+# protocol_version = "^TLSv1.2"
+# certificate = "../tmp/config/certs/certificate.crt"
+# private_key = "../tmp/config/certs/privateKey.key"
+#
+# [[server.tls.sni]]
+# domain = "testserver2.com"
+# certificate = "../tmp/config/certs/certificate.crt"
+# private_key = "../tmp/config/certs/privateKey.key"
+#
+# [[server.tls.sni]]
+# domain = "testserver3.com"
+# certificate = "../tmp/config/certs/certificate.crt"
+# private_key = "../tmp/config/certs/privateKey.key"
 
 
 [server.smtp]

@@ -9,7 +9,7 @@ mod from_toml;
 
 #[test]
 fn serialize() {
-    let c = Config {
+    let _c = Config {
         version_requirement: semver::VersionReq::STAR,
         server: ConfigServer {
             domain: "domain.com".to_string(),
@@ -84,16 +84,4 @@ fn serialize() {
             services: std::collections::BTreeMap::new(),
         },
     };
-
-    let mut fs = std::fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open("trace.json")
-        .unwrap();
-    std::io::Write::write_all(
-        &mut fs,
-        serde_json::to_string_pretty(&c).unwrap().as_bytes(),
-    )
-    .unwrap();
 }
