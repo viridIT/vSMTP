@@ -136,25 +136,31 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     } else {
         // we pickup a copy of the metadata and envelop of the context, so we can dispatch emails
         // to send by groups of recipients (grouped by transfer + destination)
-        let (metadata, from, mut triage, content) = {
-            // FIXME: handle poison & missing metadata errors.
-            let ctx = state.get_context();
-            let ctx = ctx.read().unwrap();
+        // NOTE: using a lambda here because extraction can fail & locking ctx needs to be scoped
+        //       because of the async code below.
+        let (from, mut triage, content, metadata) =
+            (|state: &mut RuleState| -> anyhow::Result<_> {
+                let ctx = state.get_context();
+                let ctx = ctx.read().unwrap();
 
-            // filtering recipients by domains and delivery method.
-            let triage = filter_recipients(&*ctx, transports);
+                // filtering recipients by domains and delivery method.
+                let triage = filter_recipients(&*ctx, transports);
 
-            // getting a raw copy of the email.
-            let content = match &ctx.body {
-                Body::Empty => todo!("an empty body should not be possible in delivery"),
-                Body::Raw(raw) => raw.clone(),
-                Body::Parsed(parsed) => parsed.to_raw(),
-            };
+                // getting a raw copy of the email.
+                let content = match &ctx.body {
+                    Body::Empty => todo!("an empty body should not be possible in delivery"),
+                    Body::Raw(raw) => raw.clone(),
+                    Body::Parsed(parsed) => parsed.to_raw(),
+                };
 
-            let metadata = ctx.metadata.as_ref().unwrap().clone();
+                let metadata = ctx
+                    .metadata
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("missing email metadata"))?
+                    .clone();
 
-            (metadata, ctx.envelop.mail_from.clone(), triage, content)
-        };
+                Ok((ctx.envelop.mail_from.clone(), triage, content, metadata))
+            })(&mut state)?;
 
         for (method, rcpt) in &mut triage {
             println!("'{method}' for '{rcpt:?}'");
@@ -171,41 +177,34 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
         let ctx = state.get_context();
         let mut ctx = ctx.write().unwrap();
 
-        // FIXME: handle poison & missing metadata errors.
         // recipient email transfer status could have been updated.
-        ctx.envelop.rcpt = triage
-            .into_iter()
-            .flat_map(|(_, rcpt)| {
-                // FIXME: disk i/o could be avoided here by filtering rcpt statuses.
-                // TODO: email should be written with updated ctx.
-                for rcpt in &rcpt {
-                    match &rcpt.email_status {
-                        vsmtp_common::transfer::EmailTransferStatus::HeldBack(_) => {
-                            std::fs::rename(
-                                path,
-                                std::path::PathBuf::from_iter([
-                                    Queue::Deferred.to_path(&config.delivery.spool_dir).unwrap(),
-                                    std::path::Path::new(&message_id).to_path_buf(),
-                                ]),
-                            )
-                            .unwrap();
-                        }
-                        vsmtp_common::transfer::EmailTransferStatus::Failed(_) => std::fs::rename(
-                            path,
-                            std::path::PathBuf::from_iter([
-                                Queue::Dead.to_path(&config.delivery.spool_dir).unwrap(),
-                                std::path::Path::new(&message_id).to_path_buf(),
-                            ]),
-                        )
-                        .unwrap(),
-                        // Sent or Waiting (waiting should never happen), we can remove the file later.
-                        _ => {}
-                    }
-                }
+        ctx.envelop.rcpt = triage.into_iter().flat_map(|(_, rcpt)| rcpt).collect();
 
-                rcpt
-            })
-            .collect();
+        // FIXME: disk i/o could be avoided here by filtering rcpt statuses.
+        for rcpt in &mut ctx.envelop.rcpt {
+            match &rcpt.email_status {
+                vsmtp_common::transfer::EmailTransferStatus::HeldBack(_) => {
+                    std::fs::rename(
+                        path,
+                        std::path::PathBuf::from_iter([
+                            Queue::Deferred.to_path(&config.delivery.spool_dir).unwrap(),
+                            std::path::Path::new(&message_id).to_path_buf(),
+                        ]),
+                    )
+                    .unwrap();
+                }
+                vsmtp_common::transfer::EmailTransferStatus::Failed(_) => std::fs::rename(
+                    path,
+                    std::path::PathBuf::from_iter([
+                        Queue::Dead.to_path(&config.delivery.spool_dir).unwrap(),
+                        std::path::Path::new(&message_id).to_path_buf(),
+                    ]),
+                )
+                .unwrap(),
+                // Sent or Waiting (waiting should never happen), we can remove the file later.
+                _ => {}
+            }
+        }
     };
 
     // after processing the email is removed from the delivery queue.
@@ -268,7 +267,7 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
         String::with_capacity(usize::try_from(file.metadata().unwrap().len()).unwrap_or(0));
     std::io::Read::read_to_string(&mut file, &mut raw)?;
 
-    let mut ctx: MailContext = serde_json::from_str(&raw)?;
+    let ctx: MailContext = serde_json::from_str(&raw)?;
 
     let max_retry_deferred = config.delivery.queues.deferred.retry_max.unwrap_or(100);
 
