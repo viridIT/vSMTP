@@ -3,9 +3,10 @@ use vsmtp_common::{code::SMTPReplyCode, state::StateSMTP};
 
 use crate::{
     config::{
-        ConfigAppLogs, ConfigQueueDelivery, ConfigQueueWorking, ConfigServer, ConfigServerLogs,
-        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerTls,
-        ConfigServerTlsSni, TlsSecurityLevel,
+        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
+        ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
+        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
+        ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerTlsSni, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
     Service,
@@ -64,7 +65,7 @@ impl Builder<WantsServer> {
     ///
     #[must_use]
     pub fn with_hostname(self) -> Builder<WantsServerSystem> {
-        self.with_hostname_and_client_count_max(16)
+        self.with_hostname_and_client_count_max(ConfigServer::default_client_count_max())
     }
 
     ///
@@ -79,7 +80,7 @@ impl Builder<WantsServer> {
     ///
     #[must_use]
     pub fn with_server_name(self, domain: &str) -> Builder<WantsServerSystem> {
-        self.with_server_name_and_client_count(domain, 16)
+        self.with_server_name_and_client_count(domain, ConfigServer::default_client_count_max())
     }
 
     ///
@@ -103,7 +104,10 @@ impl Builder<WantsServerSystem> {
     ///
     #[must_use]
     pub fn with_default_system(self) -> Builder<WantsServerInterfaces> {
-        self.with_user_group_and_default_system("vsmtp", "vsmtp")
+        self.with_user_group_and_default_system(
+            &ConfigServerSystem::default_user(),
+            &ConfigServerSystem::default_group(),
+        )
     }
 
     ///
@@ -115,8 +119,8 @@ impl Builder<WantsServerSystem> {
         thread_pool_delivery: usize,
     ) -> Builder<WantsServerInterfaces> {
         self.with_system(
-            "vsmtp",
-            "vsmtp",
+            &ConfigServerSystem::default_user(),
+            &ConfigServerSystem::default_group(),
             thread_pool_receiver,
             thread_pool_processing,
             thread_pool_delivery,
@@ -130,7 +134,13 @@ impl Builder<WantsServerSystem> {
         user: &str,
         group: &str,
     ) -> Builder<WantsServerInterfaces> {
-        self.with_system(user, group, 6, 6, 6)
+        self.with_system(
+            user,
+            group,
+            ConfigServerSystemThreadPool::default_receiver(),
+            ConfigServerSystemThreadPool::default_processing(),
+            ConfigServerSystemThreadPool::default_delivery(),
+        )
     }
 
     ///
@@ -159,11 +169,12 @@ impl Builder<WantsServerSystem> {
 impl Builder<WantsServerInterfaces> {
     ///
     #[must_use]
-    pub fn with_ipv4_localhost_rfc(self) -> Builder<WantsServerLogs> {
+    pub fn with_ipv4_localhost(self) -> Builder<WantsServerLogs> {
+        let ipv4_localhost = ConfigServerInterfaces::ipv4_localhost();
         self.with_interfaces(
-            &["0.0.0.0:25".parse().expect("valid")],
-            &["0.0.0.0:587".parse().expect("valid")],
-            &["0.0.0.0:465".parse().expect("valid")],
+            &ipv4_localhost.addr,
+            &ipv4_localhost.addr_submission,
+            &ipv4_localhost.addr_submissions,
         )
     }
 
@@ -220,14 +231,14 @@ impl Builder<WantsServerQueues> {
     ///
     #[must_use]
     pub fn with_default_delivery(self) -> Builder<WantsServerTLSConfig> {
-        self.with_spool_dir_and_default_queues("/var/spool/vsmtp")
+        self.with_spool_dir_and_default_queues(ConfigServerQueues::default_dirpath())
     }
 
     ///
     #[must_use]
     pub fn with_spool_dir_and_default_queues(
         self,
-        spool_dir: &str,
+        spool_dir: impl Into<std::path::PathBuf>,
     ) -> Builder<WantsServerTLSConfig> {
         self.with_spool_dir_and_queues(
             spool_dir,
@@ -240,7 +251,7 @@ impl Builder<WantsServerQueues> {
     #[must_use]
     pub fn with_spool_dir_and_queues(
         self,
-        spool_dir: &str,
+        spool_dir: impl Into<std::path::PathBuf>,
         working: ConfigQueueWorking,
         delivery: ConfigQueueDelivery,
     ) -> Builder<WantsServerTLSConfig> {
@@ -256,6 +267,7 @@ impl Builder<WantsServerQueues> {
 }
 
 impl Builder<WantsServerTLSConfig> {
+    // TODO: remove default values from this files
     ///
     /// # Errors
     ///
@@ -346,7 +358,7 @@ impl Builder<WantsServerSMTPConfig1> {
             state: WantsServerSMTPConfig2 {
                 parent: self.state,
                 rcpt_count_max,
-                disable_ehlo: false,
+                disable_ehlo: ConfigServerSMTP::default_disable_ehlo(),
                 required_extension: ConfigServerSMTP::default_required_extension(),
             },
         }
@@ -367,6 +379,7 @@ impl Builder<WantsServerSMTPConfig2> {
         }
     }
 
+    // TODO: remove default values from this files
     ///
     #[must_use]
     pub fn with_error_handler_and_timeout(
@@ -432,12 +445,15 @@ impl Builder<WantsApp> {
     ///
     #[must_use]
     pub fn with_default_app(self) -> Builder<WantsAppVSL> {
-        self.with_app_at_location("/var/spool/vsmtp/app")
+        self.with_app_at_location(ConfigApp::default_dirpath())
     }
 
     ///
     #[must_use]
-    pub fn with_app_at_location(self, dirpath: &str) -> Builder<WantsAppVSL> {
+    pub fn with_app_at_location(
+        self,
+        dirpath: impl Into<std::path::PathBuf>,
+    ) -> Builder<WantsAppVSL> {
         Builder::<WantsAppVSL> {
             state: WantsAppVSL {
                 parent: self.state,
@@ -451,12 +467,12 @@ impl Builder<WantsAppVSL> {
     ///
     #[must_use]
     pub fn with_default_vsl_settings(self) -> Builder<WantsAppLogs> {
-        self.with_vsl("/etc/vsmtp/main.vsl")
+        self.with_vsl(ConfigAppVSL::default_filepath())
     }
 
     ///
     #[must_use]
-    pub fn with_vsl(self, entry_point: &str) -> Builder<WantsAppLogs> {
+    pub fn with_vsl(self, entry_point: impl Into<std::path::PathBuf>) -> Builder<WantsAppLogs> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,

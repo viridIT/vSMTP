@@ -12,7 +12,7 @@ fn parse() {
             .unwrap()
             .with_hostname()
             .with_default_system()
-            .with_ipv4_localhost_rfc()
+            .with_ipv4_localhost()
             .with_logs_settings(
                 "/var/log/vsmtp/vsmtp.log",
                 "{d} {l} - ",

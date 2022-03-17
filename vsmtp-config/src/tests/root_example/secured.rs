@@ -15,7 +15,7 @@ fn parse() {
             .unwrap()
             .with_hostname_and_client_count_max(8)
             .with_default_user_and_thread_pool(3, 3, 3)
-            .with_ipv4_localhost_rfc()
+            .with_ipv4_localhost()
             .with_default_logs_settings()
             .with_spool_dir_and_queues(
                 "/var/spool/vsmtp",

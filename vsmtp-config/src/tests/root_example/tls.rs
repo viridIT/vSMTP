@@ -10,7 +10,7 @@ fn parse() {
             .unwrap()
             .with_server_name("testserver.com")
             .with_default_system()
-            .with_ipv4_localhost_rfc()
+            .with_ipv4_localhost()
             .with_default_logs_settings()
             .with_default_delivery()
             .with_safe_tls_config(

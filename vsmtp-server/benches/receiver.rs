@@ -42,7 +42,7 @@ fn get_test_config() -> std::sync::Arc<Config> {
             .unwrap()
             .with_server_name("testserver.com")
             .with_user_group_and_default_system("root", "root")
-            .with_ipv4_localhost_rfc()
+            .with_ipv4_localhost()
             .with_default_logs_settings()
             .with_spool_dir_and_default_queues("./tmp/delivery")
             .without_tls_support()

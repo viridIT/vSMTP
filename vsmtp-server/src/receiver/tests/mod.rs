@@ -32,7 +32,7 @@ pub fn get_tls_config() -> Config {
         .unwrap()
         .with_server_name("testserver.com")
         .with_user_group_and_default_system("root", "root")
-        .with_ipv4_localhost_rfc()
+        .with_ipv4_localhost()
         .with_default_logs_settings()
         .with_spool_dir_and_default_queues("./tmp/delivery")
         .with_safe_tls_config(TEST_SERVER_CERT, TEST_SERVER_KEY)

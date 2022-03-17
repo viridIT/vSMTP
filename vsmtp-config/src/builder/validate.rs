@@ -6,7 +6,6 @@ use crate::{
         ConfigServerLogs, ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError,
         ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
     },
-    default::default_smtp_codes,
     Config,
 };
 
@@ -111,7 +110,7 @@ impl Builder<WantsValidate> {
             .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", config.server.system.group))?;
 
         {
-            let default_values = default_smtp_codes();
+            let default_values = ConfigServerSMTP::default_smtp_codes();
             let reply_codes = &mut config.server.smtp.codes;
             for i in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
                 reply_codes.insert(
@@ -139,7 +138,7 @@ mod tests {
             .with_current_version()
             .with_debug_server_info()
             .with_default_system()
-            .with_ipv4_localhost_rfc()
+            .with_ipv4_localhost()
             .with_default_logs_settings()
             .with_default_delivery()
             .without_tls_support()

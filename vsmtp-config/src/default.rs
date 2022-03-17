@@ -12,44 +12,6 @@ use crate::{
     Builder, Config, Service,
 };
 
-pub fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
-    let codes: std::collections::BTreeMap<SMTPReplyCode, &'static str> = collection! {
-        SMTPReplyCode::Help => "214 joining us https://viridit.com/support\r\n",
-        SMTPReplyCode::Greetings => "220 {domain} Service ready\r\n",
-        SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
-        SMTPReplyCode::Code250 => "250 Ok\r\n",
-        SMTPReplyCode::Code250PlainEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS\r\n",
-        SMTPReplyCode::Code250SecuredEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250 SMTPUTF8\r\n",
-        SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-        SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n",
-        SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n",
-        SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client\r\n",
-        SMTPReplyCode::Code452 => "452 Requested action not taken: insufficient system storage\r\n",
-        SMTPReplyCode::Code452TooManyRecipients => "452 Requested action not taken: to many recipients\r\n",
-        SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason\r\n",
-        SMTPReplyCode::Code500 => "500 Syntax error command unrecognized\r\n",
-        SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments\r\n",
-        SMTPReplyCode::Code502unimplemented => "502 Command not implemented\r\n",
-        SMTPReplyCode::Code503 => "503 Bad sequence of commands\r\n",
-        SMTPReplyCode::Code504 => "504 Command parameter not implemented\r\n",
-        SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n",
-        SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
-        SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
-        SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
-    };
-
-    assert!(
-        <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter()
-            .all(|i| codes.contains_key(&i)),
-        "default SMTPReplyCode are ill-formed "
-    );
-
-    codes
-        .into_iter()
-        .map(|(k, v)| (k, v.to_string()))
-        .collect::<_>()
-}
-
 impl Default for Config {
     fn default() -> Self {
         Builder::ensure(Self {
@@ -116,12 +78,32 @@ impl Default for ConfigServerSystemThreadPool {
     }
 }
 
+impl ConfigServerSystemThreadPool {
+    pub(crate) const fn default_receiver() -> usize {
+        6
+    }
+
+    pub(crate) const fn default_processing() -> usize {
+        6
+    }
+
+    pub(crate) const fn default_delivery() -> usize {
+        6
+    }
+}
+
 impl Default for ConfigServerInterfaces {
     fn default() -> Self {
+        Self::ipv4_localhost()
+    }
+}
+
+impl ConfigServerInterfaces {
+    pub(crate) fn ipv4_localhost() -> Self {
         Self {
-            addr: vec!["0.0.0.0:25".parse().expect("valid")],
-            addr_submission: vec!["0.0.0.0:587".parse().expect("valid")],
-            addr_submissions: vec!["0.0.0.0:465".parse().expect("valid")],
+            addr: vec!["127.0.0.1:25".parse().expect("valid")],
+            addr_submission: vec!["127.0.0.1:587".parse().expect("valid")],
+            addr_submissions: vec!["127.0.0.1:465".parse().expect("valid")],
         }
     }
 }
@@ -155,10 +137,16 @@ impl ConfigServerLogs {
 impl Default for ConfigServerQueues {
     fn default() -> Self {
         Self {
-            dirpath: "/var/spool/vsmtp".into(),
+            dirpath: Self::default_dirpath(),
             working: ConfigQueueWorking::default(),
             delivery: ConfigQueueDelivery::default(),
         }
+    }
+}
+
+impl ConfigServerQueues {
+    pub(crate) fn default_dirpath() -> std::path::PathBuf {
+        "/var/spool/vsmtp".into()
     }
 }
 
@@ -186,7 +174,7 @@ impl Default for ConfigServerSMTP {
             required_extension: Self::default_required_extension(),
             error: ConfigServerSMTPError::default(),
             timeout_client: ConfigServerSMTPTimeoutClient::default(),
-            codes: default_smtp_codes(),
+            codes: Self::default_smtp_codes(),
         }
     }
 }
@@ -205,6 +193,44 @@ impl ConfigServerSMTP {
             .into_iter()
             .map(str::to_string)
             .collect()
+    }
+
+    pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
+        let codes: std::collections::BTreeMap<SMTPReplyCode, &'static str> = collection! {
+            SMTPReplyCode::Help => "214 joining us https://viridit.com/support\r\n",
+            SMTPReplyCode::Greetings => "220 {domain} Service ready\r\n",
+            SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
+            SMTPReplyCode::Code250 => "250 Ok\r\n",
+            SMTPReplyCode::Code250PlainEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS\r\n",
+            SMTPReplyCode::Code250SecuredEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250 SMTPUTF8\r\n",
+            SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+            SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n",
+            SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n",
+            SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client\r\n",
+            SMTPReplyCode::Code452 => "452 Requested action not taken: insufficient system storage\r\n",
+            SMTPReplyCode::Code452TooManyRecipients => "452 Requested action not taken: to many recipients\r\n",
+            SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason\r\n",
+            SMTPReplyCode::Code500 => "500 Syntax error command unrecognized\r\n",
+            SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments\r\n",
+            SMTPReplyCode::Code502unimplemented => "502 Command not implemented\r\n",
+            SMTPReplyCode::Code503 => "503 Bad sequence of commands\r\n",
+            SMTPReplyCode::Code504 => "504 Command parameter not implemented\r\n",
+            SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n",
+            SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
+            SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
+            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
+        };
+
+        assert!(
+            <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter()
+                .all(|i| codes.contains_key(&i)),
+            "default SMTPReplyCode are ill-formed "
+        );
+
+        codes
+            .into_iter()
+            .map(|(k, v)| (k, v.to_string()))
+            .collect::<_>()
     }
 }
 
@@ -252,6 +278,12 @@ impl Default for ConfigAppVSL {
         Self {
             filepath: "/etc/vsmtp/main.vsl".into(),
         }
+    }
+}
+
+impl ConfigAppVSL {
+    pub(crate) fn default_filepath() -> std::path::PathBuf {
+        "/etc/vsmtp/main.vsl".into()
     }
 }
 

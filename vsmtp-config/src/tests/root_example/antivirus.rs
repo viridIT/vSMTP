@@ -12,7 +12,7 @@ fn parse() {
             .unwrap()
             .with_hostname()
             .with_default_system()
-            .with_ipv4_localhost_rfc()
+            .with_ipv4_localhost()
             .with_default_logs_settings()
             .with_default_delivery()
             .without_tls_support()
