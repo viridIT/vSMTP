@@ -202,18 +202,8 @@ impl From<SMTPReplyCode> for String {
     }
 }
 
-/// Error return type of SMTPReplyCode::from_str
-#[derive(Debug, PartialEq, Eq)]
-pub struct SMTPReplyCodeFromStrError;
-
-impl std::fmt::Display for SMTPReplyCodeFromStrError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str("SMTPReplyCodeFromStrError")
-    }
-}
-
 impl std::str::FromStr for SMTPReplyCode {
-    type Err = SMTPReplyCodeFromStrError;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -239,13 +229,13 @@ impl std::str::FromStr for SMTPReplyCode {
             "Code554" => Ok(Self::Code554),
             "Code554tls" => Ok(Self::Code554tls),
             "ConnectionMaxReached" => Ok(Self::ConnectionMaxReached),
-            _ => Err(SMTPReplyCodeFromStrError),
+            _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }
 }
 
 impl TryFrom<String> for SMTPReplyCode {
-    type Error = SMTPReplyCodeFromStrError;
+    type Error = anyhow::Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         <Self as std::str::FromStr>::from_str(&value)
@@ -261,15 +251,17 @@ mod tests {
     #[test]
     fn error() {
         assert_eq!(
-            format!("{}", SMTPReplyCode::from_str("root").unwrap_err()),
-            "SMTPReplyCodeFromStrError"
+            format!("{}", SMTPReplyCode::from_str("foobar").unwrap_err()),
+            "not a valid SMTPReplyCode: 'foobar'"
         );
     }
 
     #[test]
     fn same() {
         for s in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+            println!("{:?} error={}", s, s.is_error());
             assert_eq!(SMTPReplyCode::from_str(&format!("{}", s)).unwrap(), s);
+            assert_eq!(String::try_from(s).unwrap(), format!("{}", s));
         }
     }
 }
