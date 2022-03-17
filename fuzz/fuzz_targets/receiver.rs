@@ -1,6 +1,6 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use vsmtp_config::server_config::ServerConfig;
+use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{
     processes::ProcessMessage,
@@ -8,19 +8,26 @@ use vsmtp_server::{
 };
 
 fuzz_target!(|data: &[u8]| {
-    let mut config = ServerConfig::builder()
+    let mut config = Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_rfc_port("fuzz.server.com", "root", "root", None)
-        .without_log()
-        .without_smtps()
-        .with_default_smtp()
-        .with_delivery("./tmp/fuzz/")
-        .with_empty_rules()
-        .with_default_reply_codes()
-        .build()
+        .with_hostname()
+        .with_default_system()
+        .with_ipv4_localhost()
+        .with_default_logs_settings()
+        .with_spool_dir_and_default_queues("./tmp/fuzz")
+        .without_tls_support()
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .with_default_app()
+        .with_vsl("./main.vsl")
+        .with_default_app_logs()
+        .without_services()
+        .validate()
         .unwrap();
-    config.smtp.error.soft_count = -1;
+    config.server.smtp.error.soft_count = -1;
+    config.server.smtp.error.hard_count = -1;
 
     let config = std::sync::Arc::new(config);
 
@@ -41,15 +48,13 @@ fuzz_target!(|data: &[u8]| {
         RuleEngine::new(&None).expect("failed to build rule engine"),
     ));
 
-    let _ = match tokio::runtime::Runtime::new() {
-        Ok(r) => r,
-        Err(_) => todo!(),
-    }
-    .block_on(handle_connection(
-        &mut conn,
-        None,
-        re,
-        std::sync::Arc::new(working_sender),
-        std::sync::Arc::new(delivery_sender),
-    ));
+    let _ = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(handle_connection(
+            &mut conn,
+            None,
+            re,
+            working_sender,
+            delivery_sender,
+        ));
 });

@@ -50,7 +50,7 @@ fn get_test_config() -> std::sync::Arc<Config> {
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
             .with_default_app()
-            .with_vsl("./main.vsl")
+            .with_vsl("./benches/main.vsl")
             .with_default_app_logs()
             .without_services()
             .validate()
@@ -117,7 +117,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 .concat()
                 .as_bytes(),
                 [
-                    "220 bench.server.com Service ready\r\n",
+                    "220 testserver.com Service ready\r\n",
                     "250 Ok\r\n",
                     "250 Ok\r\n",
                     "250 Ok\r\n",
@@ -138,7 +138,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         &(
             ["foo\r\n"].concat().as_bytes(),
             [
-                "220 bench.server.com Service ready\r\n",
+                "220 testserver.com Service ready\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
             ]
             .concat()
