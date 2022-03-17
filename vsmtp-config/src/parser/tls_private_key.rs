@@ -18,7 +18,21 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
             anyhow::anyhow!("private key path is valid but empty: '{}'", path.display())
         })
     } else {
-        todo!();
+        let mut cursor = std::io::Cursor::new(input);
+        let pem = rustls_pemfile::read_one(&mut cursor)?
+            .into_iter()
+            .map(|i| match i {
+                rustls_pemfile::Item::RSAKey(i)
+                | rustls_pemfile::Item::X509Certificate(i)
+                | rustls_pemfile::Item::PKCS8Key(i)
+                | rustls_pemfile::Item::ECKey(i) => rustls::PrivateKey(i),
+                _ => todo!(),
+            })
+            .collect::<Vec<_>>();
+
+        pem.first()
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("private key is invalid: '{}'", path.display()))
     }
 }
 

@@ -5,10 +5,14 @@ use super::config::{
     ConfigServerSystemThreadPool, ConfigServerTls, TlsSecurityLevel,
 };
 
-mod from_toml;
+mod root_example {
+    mod minimal;
+    mod simple;
+    mod tls;
+}
 
 #[test]
-fn serialize() {
+fn construct() {
     let _c = Config {
         version_requirement: semver::VersionReq::STAR,
         server: ConfigServer {

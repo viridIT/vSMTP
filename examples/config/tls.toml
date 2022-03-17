@@ -1,0 +1,75 @@
+version_requirement = "<1.0.0"
+
+[server]
+domain = "testserver.com"
+
+[server.tls]
+security_level = "May"
+preempt_cipherlist = false
+handshake_timeout = "200ms"
+protocol_version = "TLSv1.3"
+certificate = "../examples/config/deps/certificate.crt"
+private_key = "../examples/config/deps/private_key.key"
+
+[[server.tls.sni]]
+domain = "testserver2.com"
+certificate = "../examples/config/deps/certificate.crt"
+private_key = "../examples/config/deps/private_key.key"
+
+[[server.tls.sni]]
+domain = "testserver3.com"
+certificate = """-----BEGIN CERTIFICATE-----
+MIIEADCCAmigAwIBAgICAcgwDQYJKoZIhvcNAQELBQAwLDEqMCgGA1UEAwwhcG9u
+eXRvd24gUlNBIGxldmVsIDIgaW50ZXJtZWRpYXRlMB4XDTE5MDYwOTE3MTUxMloX
+DTI0MTEyOTE3MTUxMlowGTEXMBUGA1UEAwwOdGVzdHNlcnZlci5jb20wggEiMA0G
+CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDdwbEc6ZKih4mQA916JwctBZgnRmzO
+KERrzlHjfzy8ZfsUJLENQBN8s3RVRwPThReHdp8bpiVRrNmMRxyXoa5oqxWDjXOu
+5W4hoISIMbOAq4Kj8G+eS0UKwypKHwJ1aUzEjWQGKxNpIYvcGqwYpN1Yi1+qTgLg
+2qw1ENtBhrWHhmQruGqDtQTQLe2tbcOuGhIL0cyWIRtEWHWL/wb1Akzhm31WQF+m
+URtYvYonA/Ta7ErONXCxsEXndTR4iT/XognnOhTJ+uIinNwn52y9Te7MYix6SDBE
+VeKZx9v3iOYU81zXf+WaxNqZvTfbPjkLsXiymOgVfGQcO4hiQeLoJIHXAgMBAAGj
+gb4wgbswDAYDVR0TAQH/BAIwADALBgNVHQ8EBAMCBsAwHQYDVR0OBBYEFEweXJqS
+BzVcf/00QeOC29OwBQszMEIGA1UdIwQ7MDmAFEKPy8hHZVazpvIsxFcGo4YrkEkw
+oR6kHDAaMRgwFgYDVQQDDA9wb255dG93biBSU0EgQ0GCAXswOwYDVR0RBDQwMoIO
+dGVzdHNlcnZlci5jb22CFXNlY29uZC50ZXN0c2VydmVyLmNvbYIJbG9jYWxob3N0
+MA0GCSqGSIb3DQEBCwUAA4IBgQCViHp2pLcIMzl/wN+sULznLYZvrlynU4AHnL8/
+ba6iSAM6EMlrcu11+UBQglHIN2BEn+Jjas+HT1sQOIOixMgjrMBgirLez8n5DN66
+o5aK5bu23GjQvzq5JEh0skQDHtSFX0YRwqXIhi1spGtObsnoupxJNBQbdAcDv50/
+m6/8WXcPbXBnR+wRywFmjb6+OSVNgCRtBFTbR5XRVHMPEwvSk4hVj4jimlnPHZYL
+3VatCPtZr6iaLZl9E64BbS+J4vPQ0Z/2JMUjtXCuj19k8LO2TTTBz54QVoMF5jrZ
+xotneq+wmPH3lmozEOmyj4+4CmoyNz+RDhrlok84x3g4YEKUQyK1V4ROi9DtL1CV
+VoLfHSwS9SiDdD/Qn2n7RICn6DP2lHozICyHX0Op4W+vETHho7Flsw21bMisAGrl
+wwQ7UYU4XfPOC9hQoCvU60uVe7z+uZvlBY8RwmcW4iFIbfCcPT6Hrom5F1X4Z/dm
+zDW8ZhLDsjUY/D4lUeWjbO1RCHI=
+-----END CERTIFICATE-----
+"""
+
+private_key = """
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA3cGxHOmSooeJkAPdeicHLQWYJ0ZszihEa85R4388vGX7FCSx
+DUATfLN0VUcD04UXh3afG6YlUazZjEccl6GuaKsVg41zruVuIaCEiDGzgKuCo/Bv
+nktFCsMqSh8CdWlMxI1kBisTaSGL3BqsGKTdWItfqk4C4NqsNRDbQYa1h4ZkK7hq
+g7UE0C3trW3DrhoSC9HMliEbRFh1i/8G9QJM4Zt9VkBfplEbWL2KJwP02uxKzjVw
+sbBF53U0eIk/16IJ5zoUyfriIpzcJ+dsvU3uzGIsekgwRFXimcfb94jmFPNc13/l
+msTamb032z45C7F4spjoFXxkHDuIYkHi6CSB1wIDAQABAoIBAExZd8Vgld/nknFH
+I2X/MfVKS8yZ7rQ8IPKNIpyVHjAvXHbe+yZ4vTzd/FuwC50z4Zn+OWGnnom0XWJy
+yWFbhVT8MngMp5u72mMxhO/vTMIsStpu2b9CYw8FivXiH1KVYpz5oUqOYix8JE8v
+z7jcamkl81YLbepE362VlCfHXZC/DGzEE70iwcrKcmav/Z+l6uHMtZLppq2IJbhi
+q4evm/t/33+ME3xfbcZXnDPrXtLqCJ7uY00RhkqLiiojliy5EDTwqq0psv1X0C5G
+nLN5fGPPRaOE5QVOjBG9NrvnwkP+fKtRPGOydf2I79lU8Gr/atRF/f53APG9gtCt
+WJYIfUECgYEA9m2cCNN8+GaaNU58VHeK9KllRMWO3z/QXyTxJ9yhOM5T124ojWsz
+Ka3RaCFBLSjXJe+2WFXLzSwlAzls45mmLVSZu8LlD3CUFNm3nLsOje8mSXfZn1zz
+ogVpr/A3+QCScpnVHF6jMkovXha9ZksBYa7BUU7PBaNGxq8PFEzDO9kCgYEA5l7B
+7fNPhe2LlVK1TLoU06/w6sB4KsgkNc0F7jnhg2hT0mM4JOlxDzyVPiopfmxSGOw2
+jKJFR1rySfXvYhfH435Up6dqadQVmrdw/iN831/kgoqA/Cl3BYjH6B/W6iHwc2kH
+3jDYKjG0dH6bH/5dJ/3MCUUOChlO7Kbl6mNGjS8CgYBGtpFN3xI/XYHmxgzbWCph
+prJOl7o1yeQLSViCLcd9u4dHjG7KlfZqgVxT2ycOxGdolW7nzkbbK027rSDX9uE+
+pMYwoO6GDbIQgaE0smCszfFYp7GlD1FCLvdy6yXEqCteA1Kp/2YpKiyJfVEAJ4nP
+9Au5PzoczgujO9zB4H0tkQKBgQDNDsvQ4yOGM0xsPpLjGUAwrgvk6i4M5tpUiYsd
+4qe6MMNsIqV3NdRNm7+89gq5XfI1/Q0RYeAJBAtnimLrDf//oBP6qCswyHfyoBcU
+IMKmktT03hSyYLZxVq+bD7xd7Jf8IyG9xfykklnu2EN81w5U6rUUC0PT+XMnc+h0
+GqpSQQKBgQC98TX5krWlBVeJqJrOuH2e+eS6kMDea8I2S8ZkU7DoFSPyjxIOOMb2
+3BvPOXjVviYWEj1Mr5Kz+kG/iPDxDanTD1IE3rTq5wOE/cn+/lP8R4IQ0m9wRECs
+hpa20Tthgf4hmt8Rw/et1qMw83gH0Lsay61GkIz7H9gBIax5PLJYDA==
+-----END RSA PRIVATE KEY-----
+"""

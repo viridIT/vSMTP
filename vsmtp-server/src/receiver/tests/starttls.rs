@@ -210,6 +210,8 @@ async fn test_receiver_7() {
 async fn test_receiver_9() {
     let mut config = get_regular_config();
     config.server.smtp.error.delay = std::time::Duration::from_millis(100);
+    config.server.smtp.error.soft_count = 5;
+    config.server.smtp.error.hard_count = 10;
 
     let config = std::sync::Arc::new(config);
 

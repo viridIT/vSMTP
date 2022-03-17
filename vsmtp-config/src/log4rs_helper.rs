@@ -2,7 +2,7 @@ use crate::{log_channel, Config};
 
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
-pub fn get_logger_config(config: &Config, no_daemon: bool) -> anyhow::Result<log4rs::Config> {
+pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log4rs::Config> {
     use log4rs::{append, config, encode, Config};
 
     let server = append::file::FileAppender::builder()
@@ -67,4 +67,23 @@ pub fn get_logger_config(config: &Config, no_daemon: bool) -> anyhow::Result<log
             e.errors().iter().for_each(|e| log::error!("{}", e));
             anyhow::anyhow!(e)
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Config;
+
+    use super::get_log4rs_config;
+
+    #[test]
+    fn init() {
+        let mut config = Config::default();
+        config.app.logs.filepath = "./tmp/app.log".into();
+        config.server.logs.filepath = "./tmp/vsmtp.log".into();
+
+        let res = get_log4rs_config(&config, true);
+        assert!(res.is_ok(), "{:?}", res);
+        let res = get_log4rs_config(&config, false);
+        assert!(res.is_ok(), "{:?}", res);
+    }
 }

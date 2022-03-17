@@ -1,4 +1,4 @@
-pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
+pub(crate) fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
     let path = std::path::Path::new(&input);
     if path.exists() {
         let mut reader = std::io::BufReader::new(std::fs::File::open(&path)?);

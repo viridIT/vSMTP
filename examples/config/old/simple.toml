@@ -1,0 +1,17 @@
+version_requirement = "<1.0.0"
+
+[server]
+domain = "testserver.com"
+vsmtp_user = "root"
+vsmtp_group = "root"
+
+[logs.level]
+default = "warn"
+
+[delivery]
+spool_dir = "/var/spool/vsmtp"
+
+[delivery.queues]
+working = { capacity = 32 }
+deliver = { capacity = 32 }
+deferred = { retry_max = 10, cron_period = "10s" }

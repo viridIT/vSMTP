@@ -2,8 +2,9 @@ use anyhow::Context;
 
 use crate::{
     config::{
-        ConfigQueueDelivery, ConfigQueueWorking, ConfigServerSMTPError,
-        ConfigServerSMTPTimeoutClient, ConfigServerTls, TlsSecurityLevel,
+        ConfigAppLogs, ConfigQueueDelivery, ConfigQueueWorking, ConfigServerLogs, ConfigServerSMTP,
+        ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerTls, ConfigServerTlsSni,
+        TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
     Service,
@@ -86,7 +87,7 @@ impl Builder<WantsServerSystem> {
     ///
     #[must_use]
     pub fn with_default_system(self) -> Builder<WantsServerInterfaces> {
-        self.with_user_group_and_default_system("root", "root")
+        self.with_user_group_and_default_system("vsmtp", "vsmtp")
     }
 
     ///
@@ -146,9 +147,9 @@ impl Builder<WantsServerLogs> {
         Builder::<WantsServerQueues> {
             state: WantsServerQueues {
                 parent: self.state,
-                filepath: "/var/log/vsmtp/vsmtp.log".into(),
-                format: "{d} {l} - ".into(),
-                level: std::collections::BTreeMap::new(),
+                filepath: ConfigServerLogs::default_filepath(),
+                format: ConfigServerLogs::default_format(),
+                level: ConfigServerLogs::default_level(),
             },
         }
     }
@@ -171,12 +172,8 @@ impl Builder<WantsServerQueues> {
             state: WantsServerTLSConfig {
                 parent: self.state,
                 dirpath: spool_dir.into(),
-                working: ConfigQueueWorking { channel_size: 32 },
-                delivery: ConfigQueueDelivery {
-                    channel_size: 32,
-                    deferred_retry_max: 100,
-                    deferred_retry_period: std::time::Duration::from_secs(30),
-                },
+                working: ConfigQueueWorking::default(),
+                delivery: ConfigQueueDelivery::default(),
             },
         }
     }
@@ -224,15 +221,48 @@ impl Builder<WantsServerTLSConfig> {
 
 impl Builder<WantsServerSMTPConfig1> {
     ///
+    /// # Errors
+    ///
+    /// * certificate is not valid
+    /// * private_key is not valid
+    pub fn with_sni_entry(
+        self,
+        domain: &str,
+        certificate: &str,
+        private_key: &str,
+    ) -> anyhow::Result<Self> {
+        let mut tls = self
+            .state
+            .tls
+            .ok_or_else(|| anyhow::anyhow!("sni can only be used with tls"))?;
+        Ok(Self {
+            state: WantsServerSMTPConfig1 {
+                parent: self.state.parent,
+                tls: Some(ConfigServerTls {
+                    sni: {
+                        tls.sni.push(ConfigServerTlsSni {
+                            domain: domain.to_string(),
+                            certificate: tls_certificate::from_string(certificate)?,
+                            private_key: tls_private_key::from_string(private_key)?,
+                        });
+                        tls.sni
+                    },
+                    ..tls
+                }),
+            },
+        })
+    }
+
+    ///
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_default_smtp_options(self) -> Builder<WantsServerSMTPConfig2> {
         Builder::<WantsServerSMTPConfig2> {
             state: WantsServerSMTPConfig2 {
                 parent: self.state,
-                rcpt_count_max: 32,
+                rcpt_count_max: ConfigServerSMTP::default_rcpt_count_max(),
                 disable_ehlo: false,
-                required_extension: vec![],
+                required_extension: ConfigServerSMTP::default_required_extension(),
             },
         }
     }
@@ -246,18 +276,8 @@ impl Builder<WantsServerSMTPConfig2> {
         Builder::<WantsServerSMTPConfig3> {
             state: WantsServerSMTPConfig3 {
                 parent: self.state,
-                error: ConfigServerSMTPError {
-                    soft_count: 5,
-                    hard_count: 10,
-                    delay: std::time::Duration::from_secs(2000),
-                },
-                timeout_client: ConfigServerSMTPTimeoutClient {
-                    connect: std::time::Duration::from_secs(1),
-                    helo: std::time::Duration::from_secs(1),
-                    mail_from: std::time::Duration::from_secs(1),
-                    rcpt_to: std::time::Duration::from_secs(1),
-                    data: std::time::Duration::from_secs(1),
-                },
+                error: ConfigServerSMTPError::default(),
+                timeout_client: ConfigServerSMTPTimeoutClient::default(),
             },
         }
     }
@@ -318,18 +338,21 @@ impl Builder<WantsAppLogs> {
     ///
     #[must_use]
     pub fn with_default_app_logs(self) -> Builder<WantsAppServices> {
-        self.with_app_logs("/var/log/vsmtp/app.log")
+        self.with_app_logs(ConfigAppLogs::default_filepath())
     }
 
     ///
     #[must_use]
-    pub fn with_app_logs(self, filepath: &str) -> Builder<WantsAppServices> {
+    pub fn with_app_logs(
+        self,
+        filepath: impl Into<std::path::PathBuf>,
+    ) -> Builder<WantsAppServices> {
         Builder::<WantsAppServices> {
             state: WantsAppServices {
                 parent: self.state,
                 filepath: filepath.into(),
-                level: log::LevelFilter::Trace,
-                format: "{d} - {m}{n}".to_string(),
+                level: ConfigAppLogs::default_level(),
+                format: ConfigAppLogs::default_format(),
             },
         }
     }

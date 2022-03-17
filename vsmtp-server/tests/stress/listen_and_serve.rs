@@ -16,7 +16,7 @@
 **/
 use anyhow::Context;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::{log4rs_helper::get_logger_config, Config};
+use vsmtp_config::{log4rs_helper::get_log4rs_config, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP};
 
@@ -65,7 +65,7 @@ async fn listen_and_serve() {
     config.server.queues.working.channel_size = 1;
     config.server.queues.delivery.channel_size = 1;
 
-    get_logger_config(&config, true)
+    get_log4rs_config(&config, true)
         .context("Logs configuration contain error")
         .map(log4rs::init_config)
         .context("Cannot initialize logs")

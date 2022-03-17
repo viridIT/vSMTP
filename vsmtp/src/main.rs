@@ -17,7 +17,7 @@
 use anyhow::Context;
 use vsmtp::args::{Args, Commands};
 use vsmtp_common::libc_abstraction::{daemon, setgid, setuid, ForkResult};
-use vsmtp_config::{log4rs_helper::get_logger_config, Config};
+use vsmtp_config::{log4rs_helper::get_log4rs_config, Config};
 use vsmtp_server::start_runtime;
 
 fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    get_logger_config(&config, args.no_daemon)
+    get_log4rs_config(&config, args.no_daemon)
         .context("Logs configuration contain error")
         .map(log4rs::init_config)
         .context("Cannot initialize logs")??;

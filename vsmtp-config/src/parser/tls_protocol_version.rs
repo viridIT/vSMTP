@@ -1,11 +1,9 @@
-use std::str::FromStr;
-
 const ALL_PROTOCOL_VERSION: [rustls::ProtocolVersion; 2] = [
     rustls::ProtocolVersion::TLSv1_2,
     rustls::ProtocolVersion::TLSv1_3,
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 struct ProtocolVersion(rustls::ProtocolVersion);
 
 impl std::str::FromStr for ProtocolVersion {
@@ -64,8 +62,8 @@ where
         {
             match v.strip_prefix(">=").or_else(|| v.strip_prefix('^')) {
                 Some(v) => {
-                    let min_value =
-                        ProtocolVersion::from_str(v).map_err(serde::de::Error::custom)?;
+                    let min_value = <ProtocolVersion as std::str::FromStr>::from_str(v)
+                        .map_err(serde::de::Error::custom)?;
 
                     let (min_value_idx, _) = ALL_PROTOCOL_VERSION
                         .into_iter()
@@ -97,7 +95,7 @@ where
             while let Some(i) = seq.next_element::<&str>()? {
                 v.push(
                     <ProtocolVersion as std::str::FromStr>::from_str(i)
-                        .map_err(|_| serde::de::Error::custom("invalid")),
+                        .map_err(serde::de::Error::custom),
                 );
             }
 
@@ -128,4 +126,63 @@ where
         serde::ser::SerializeSeq::serialize_element(&mut seq, &ProtocolVersion(*i))?;
     }
     serde::ser::SerializeSeq::end(seq)
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[derive(Debug, serde::Deserialize)]
+    struct S {
+        #[serde(
+            serialize_with = "crate::parser::tls_protocol_version::serialize",
+            deserialize_with = "crate::parser::tls_protocol_version::deserialize"
+        )]
+        v: Vec<rustls::ProtocolVersion>,
+    }
+
+    #[test]
+    fn one_string() {
+        let s = toml::from_str::<S>(r#"v = "TLSv1.2""#).unwrap();
+        assert_eq!(s.v, vec![rustls::ProtocolVersion::TLSv1_2]);
+        let s = toml::from_str::<S>(r#"v = "0x0303""#).unwrap();
+        assert_eq!(s.v, vec![rustls::ProtocolVersion::TLSv1_2]);
+
+        let s = toml::from_str::<S>(r#"v = "TLSv1.3""#).unwrap();
+        assert_eq!(s.v, vec![rustls::ProtocolVersion::TLSv1_3]);
+        let s = toml::from_str::<S>(r#"v = "0x0304""#).unwrap();
+        assert_eq!(s.v, vec![rustls::ProtocolVersion::TLSv1_3]);
+    }
+
+    #[test]
+    fn array() {
+        let s = toml::from_str::<S>(r#"v = ["TLSv1.2", "TLSv1.3"]"#).unwrap();
+        assert_eq!(
+            s.v,
+            vec![
+                rustls::ProtocolVersion::TLSv1_2,
+                rustls::ProtocolVersion::TLSv1_3,
+            ]
+        );
+    }
+
+    #[test]
+    fn pattern() {
+        let s = toml::from_str::<S>(r#"v = "^TLSv1.2""#).unwrap();
+        assert_eq!(
+            s.v,
+            vec![
+                rustls::ProtocolVersion::TLSv1_2,
+                rustls::ProtocolVersion::TLSv1_3,
+            ]
+        );
+
+        let s = toml::from_str::<S>(r#"v = ">=TLSv1.2""#).unwrap();
+        assert_eq!(
+            s.v,
+            vec![
+                rustls::ProtocolVersion::TLSv1_2,
+                rustls::ProtocolVersion::TLSv1_3,
+            ]
+        );
+    }
 }

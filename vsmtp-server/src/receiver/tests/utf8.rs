@@ -83,25 +83,21 @@ macro_rules! test_lang {
 }
 
 #[tokio::test]
-async fn test_receiver_utf8_zh() -> anyhow::Result<()> {
+async fn test_receiver_utf8_zh() {
     test_lang!("mail/zh.txt");
-    Ok(())
 }
 
 #[tokio::test]
-async fn test_receiver_utf8_el() -> anyhow::Result<()> {
+async fn test_receiver_utf8_el() {
     test_lang!("mail/el.txt");
-    Ok(())
 }
 
 #[tokio::test]
-async fn test_receiver_utf8_ar() -> anyhow::Result<()> {
+async fn test_receiver_utf8_ar() {
     test_lang!("mail/ar.txt");
-    Ok(())
 }
 
 #[tokio::test]
-async fn test_receiver_utf8_ko() -> anyhow::Result<()> {
+async fn test_receiver_utf8_ko() {
     test_lang!("mail/ko.txt");
-    Ok(())
 }

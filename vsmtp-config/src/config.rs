@@ -13,7 +13,9 @@ pub struct Config {
         deserialize_with = "crate::parser::semver::deserialize"
     )]
     pub version_requirement: semver::VersionReq,
+    #[serde(default)]
     pub server: ConfigServer,
+    #[serde(default)]
     pub app: ConfigApp,
 }
 
@@ -22,12 +24,18 @@ pub struct Config {
 pub struct ConfigServer {
     // TODO:
     pub domain: String,
+    #[serde(default = "ConfigServer::default_client_count_max")]
     pub client_count_max: i64,
+    #[serde(default)]
     pub system: ConfigServerSystem,
+    #[serde(default)]
     pub interfaces: ConfigServerInterfaces,
+    #[serde(default)]
     pub logs: ConfigServerLogs,
+    #[serde(default)]
     pub queues: ConfigServerQueues,
     pub tls: Option<ConfigServerTls>,
+    #[serde(default)]
     pub smtp: ConfigServerSMTP,
 }
 
@@ -38,6 +46,7 @@ pub struct ConfigServerSystem {
     pub user: String,
     // TODO: should be users::
     pub group: String,
+    #[serde(default)]
     pub thread_pool: ConfigServerSystemThreadPool,
 }
 
@@ -74,6 +83,7 @@ pub struct ConfigQueueWorking {
     pub channel_size: usize,
 }
 
+// TODO: this could be improved
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigQueueDelivery {

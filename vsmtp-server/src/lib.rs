@@ -10,6 +10,9 @@
 //
 #![allow(clippy::doc_markdown)]
 
+#[cfg(test)]
+mod tests;
+
 ///
 pub mod processes;
 ///

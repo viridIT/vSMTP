@@ -2,7 +2,15 @@
 
 use vsmtp_common::{code::SMTPReplyCode, collection};
 
-use crate::Config;
+use crate::{
+    config::{
+        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
+        ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
+        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
+        ConfigServerSystemThreadPool,
+    },
+    Builder, Config, Service,
+};
 
 pub fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
     let codes: std::collections::BTreeMap<SMTPReplyCode, &'static str> = collection! {
@@ -44,22 +52,212 @@ pub fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String>
 
 impl Default for Config {
     fn default() -> Self {
-        Self::builder()
-            .with_current_version()
-            .with_debug_server_info()
-            .with_default_system()
-            .with_ipv4_localhost_rfc()
-            .with_default_log_settings()
-            .with_default_delivery()
-            .without_tls_support()
-            .with_default_smtp_options()
-            .with_default_smtp_error_handler()
-            .with_default_smtp_codes()
-            .with_default_app()
-            .with_default_vsl_settings()
-            .with_default_app_logs()
-            .without_services()
-            .validate()
-            .unwrap()
+        Builder::ensure(Self {
+            version_requirement: semver::VersionReq::parse("<1.0.0").unwrap(),
+            server: ConfigServer::default(),
+            app: ConfigApp::default(),
+        })
+        .unwrap()
+    }
+}
+
+impl Default for ConfigServer {
+    fn default() -> Self {
+        Self {
+            domain: Self::default_domain().unwrap(),
+            client_count_max: Self::default_client_count_max(),
+            system: ConfigServerSystem::default(),
+            interfaces: ConfigServerInterfaces::default(),
+            logs: ConfigServerLogs::default(),
+            queues: ConfigServerQueues::default(),
+            tls: None,
+            smtp: ConfigServerSMTP::default(),
+        }
+    }
+}
+
+impl ConfigServer {
+    fn default_domain() -> anyhow::Result<String> {
+        Ok(hostname::get()?
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("error"))?
+            .to_string())
+    }
+
+    pub(crate) const fn default_client_count_max() -> i64 {
+        16
+    }
+}
+
+impl Default for ConfigServerSystem {
+    fn default() -> Self {
+        Self {
+            user: "vsmtp".to_string(),
+            group: "vsmtp".to_string(),
+            thread_pool: ConfigServerSystemThreadPool::default(),
+        }
+    }
+}
+
+impl Default for ConfigServerSystemThreadPool {
+    fn default() -> Self {
+        Self {
+            receiver: 6,
+            processing: 6,
+            delivery: 6,
+        }
+    }
+}
+
+impl Default for ConfigServerInterfaces {
+    fn default() -> Self {
+        Self {
+            addr: vec!["0.0.0.0:25".parse().expect("valid")],
+            addr_submission: vec!["0.0.0.0:587".parse().expect("valid")],
+            addr_submissions: vec!["0.0.0.0:465".parse().expect("valid")],
+        }
+    }
+}
+
+impl Default for ConfigServerLogs {
+    fn default() -> Self {
+        Self {
+            filepath: Self::default_filepath(),
+            format: Self::default_format(),
+            level: Self::default_level(),
+        }
+    }
+}
+
+impl ConfigServerLogs {
+    pub(crate) fn default_filepath() -> std::path::PathBuf {
+        "/var/log/vsmtp/vsmtp.log".into()
+    }
+
+    pub(crate) fn default_format() -> String {
+        "{d} {l} - ".to_string()
+    }
+
+    pub(crate) fn default_level() -> std::collections::BTreeMap<String, log::LevelFilter> {
+        collection! {
+            "default".to_string() => log::LevelFilter::Warn
+        }
+    }
+}
+
+impl Default for ConfigServerQueues {
+    fn default() -> Self {
+        Self {
+            dirpath: "/var/spool/vsmtp".into(),
+            working: ConfigQueueWorking::default(),
+            delivery: ConfigQueueDelivery::default(),
+        }
+    }
+}
+
+impl Default for ConfigQueueWorking {
+    fn default() -> Self {
+        Self { channel_size: 32 }
+    }
+}
+
+impl Default for ConfigQueueDelivery {
+    fn default() -> Self {
+        Self {
+            channel_size: 32,
+            deferred_retry_max: 100,
+            deferred_retry_period: std::time::Duration::from_secs(300),
+        }
+    }
+}
+
+impl Default for ConfigServerSMTP {
+    fn default() -> Self {
+        Self {
+            rcpt_count_max: Self::default_rcpt_count_max(),
+            disable_ehlo: false,
+            required_extension: Self::default_required_extension(),
+            error: ConfigServerSMTPError::default(),
+            timeout_client: ConfigServerSMTPTimeoutClient::default(),
+            codes: default_smtp_codes(),
+        }
+    }
+}
+
+impl ConfigServerSMTP {
+    pub(crate) const fn default_rcpt_count_max() -> usize {
+        1000
+    }
+
+    pub(crate) fn default_required_extension() -> Vec<String> {
+        ["STARTTLS", "SMTPUTF8", "8BITMIME", "AUTH"]
+            .into_iter()
+            .map(str::to_string)
+            .collect()
+    }
+}
+
+impl Default for ConfigServerSMTPError {
+    fn default() -> Self {
+        Self {
+            soft_count: 10,
+            hard_count: 20,
+            delay: std::time::Duration::from_millis(5000),
+        }
+    }
+}
+
+impl Default for ConfigServerSMTPTimeoutClient {
+    fn default() -> Self {
+        Self {
+            connect: std::time::Duration::from_secs(5 * 60),
+            helo: std::time::Duration::from_secs(5 * 60),
+            mail_from: std::time::Duration::from_secs(5 * 60),
+            rcpt_to: std::time::Duration::from_secs(5 * 60),
+            data: std::time::Duration::from_secs(5 * 60),
+        }
+    }
+}
+
+impl Default for ConfigApp {
+    fn default() -> Self {
+        Self {
+            dirpath: "/var/spool/vsmtp/app".into(),
+            vsl: ConfigAppVSL::default(),
+            logs: ConfigAppLogs::default(),
+            services: std::collections::BTreeMap::<String, Service>::new(),
+        }
+    }
+}
+
+impl Default for ConfigAppVSL {
+    fn default() -> Self {
+        Self {
+            filepath: "/etc/vsmtp/main.vsl".into(),
+        }
+    }
+}
+
+impl Default for ConfigAppLogs {
+    fn default() -> Self {
+        Self {
+            filepath: Self::default_filepath(),
+            level: Self::default_level(),
+            format: Self::default_format(),
+        }
+    }
+}
+
+impl ConfigAppLogs {
+    pub(crate) fn default_filepath() -> std::path::PathBuf {
+        "/var/log/vsmtp/app.log".into()
+    }
+
+    pub(crate) const fn default_level() -> log::LevelFilter {
+        log::LevelFilter::Warn
+    }
+
+    pub(crate) fn default_format() -> String {
+        "{d} - {m}{n}".to_string()
     }
 }
