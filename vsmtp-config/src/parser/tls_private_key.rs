@@ -1,39 +1,25 @@
 pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
     let path = std::path::Path::new(input);
-    if path.exists() {
-        let mut reader = std::io::BufReader::new(std::fs::File::open(&path)?);
+    anyhow::ensure!(
+        path.exists(),
+        format!("private key path does not exists: '{}'", path.display())
+    );
+    let mut reader = std::io::BufReader::new(std::fs::File::open(&path)?);
 
-        let pem = rustls_pemfile::read_one(&mut reader)?
-            .into_iter()
-            .map(|i| match i {
-                rustls_pemfile::Item::RSAKey(i)
-                | rustls_pemfile::Item::X509Certificate(i)
-                | rustls_pemfile::Item::PKCS8Key(i)
-                | rustls_pemfile::Item::ECKey(i) => rustls::PrivateKey(i),
-                _ => todo!(),
-            })
-            .collect::<Vec<_>>();
-
-        pem.first().cloned().ok_or_else(|| {
-            anyhow::anyhow!("private key path is valid but empty: '{}'", path.display())
+    let pem = rustls_pemfile::read_one(&mut reader)?
+        .into_iter()
+        .map(|i| match i {
+            rustls_pemfile::Item::RSAKey(i)
+            | rustls_pemfile::Item::X509Certificate(i)
+            | rustls_pemfile::Item::PKCS8Key(i)
+            | rustls_pemfile::Item::ECKey(i) => rustls::PrivateKey(i),
+            _ => todo!(),
         })
-    } else {
-        let mut cursor = std::io::Cursor::new(input);
-        let pem = rustls_pemfile::read_one(&mut cursor)?
-            .into_iter()
-            .map(|i| match i {
-                rustls_pemfile::Item::RSAKey(i)
-                | rustls_pemfile::Item::X509Certificate(i)
-                | rustls_pemfile::Item::PKCS8Key(i)
-                | rustls_pemfile::Item::ECKey(i) => rustls::PrivateKey(i),
-                _ => todo!(),
-            })
-            .collect::<Vec<_>>();
+        .collect::<Vec<_>>();
 
-        pem.first()
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("private key is invalid: '{}'", path.display()))
-    }
+    pem.first()
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("private key path is valid but empty: '{}'", path.display()))
 }
 
 pub fn deserialize<'de, D>(deserializer: D) -> Result<rustls::PrivateKey, D::Error>

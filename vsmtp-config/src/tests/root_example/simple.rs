@@ -11,9 +11,9 @@ fn parse() {
             .with_server_name("my.fqdn.com")
             .with_default_system()
             .with_interfaces(
-                &["0.0.0.0:25".parse().unwrap()],
-                &["0.0.0.0:587".parse().unwrap()],
-                &["0.0.0.0:465".parse().unwrap()]
+                &["127.0.0.1:25".parse().unwrap()],
+                &["127.0.0.1:587".parse().unwrap()],
+                &["127.0.0.1:465".parse().unwrap()]
             )
             .with_default_logs_settings()
             .with_default_delivery()

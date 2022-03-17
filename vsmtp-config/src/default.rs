@@ -61,16 +61,16 @@ impl Default for ConfigServerSystem {
 impl ConfigServerSystem {
     pub(crate) fn default_user() -> String {
         match option_env!("CI") {
-            Some(_) => "vsmtp",
-            None => "root",
+            Some(_) => "root",
+            None => "vsmtp",
         }
         .to_string()
     }
 
     pub(crate) fn default_group() -> String {
         match option_env!("CI") {
-            Some(_) => "vsmtp",
-            None => "root",
+            Some(_) => "root",
+            None => "vsmtp",
         }
         .to_string()
     }
