@@ -1,0 +1,42 @@
+version_requirement = "<1.0.0"
+
+[server]
+client_count_max = 8
+
+[server.system.thread_pool]
+receiver = 3
+processing = 3
+delivery = 3
+
+[server.queues]
+dirpath = "/var/spool/vsmtp"
+
+[server.queues.working]
+channel_size = 16
+
+[server.queues.delivery]
+channel_size = 16
+deferred_retry_max = 10
+deferred_retry_period = "600s"
+
+
+[server.smtp]
+rcpt_count_max = 25
+disable_ehlo = false
+required_extension = ["STARTTLS", "SMTPUTF8", "8BITMIME", "AUTH"]
+
+[server.smtp.error]
+soft_count = 5
+hard_count = 10
+delay = "50000ms"
+
+[server.smtp.timeout_client]
+connect = "50ms"
+helo = "100ms"
+mail_from = "200ms"
+rcpt_to = "400ms"
+data = "800ms"
+
+
+[app]
+dirpath = "/var/spool/vsmtp/app"

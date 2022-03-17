@@ -60,9 +60,9 @@ pub enum SMTPReplyCode {
     /// system status, or system help reply
     // Code211,
     /// help message
-    Code214,
+    Help,
     /// service ready
-    Code220,
+    Greetings,
     /// service closing transmission channel
     Code221,
     /// requested mail action okay, completed
@@ -139,8 +139,8 @@ impl SMTPReplyCode {
     #[must_use]
     pub const fn is_error(self) -> bool {
         match self {
-            SMTPReplyCode::Code214
-            | SMTPReplyCode::Code220
+            SMTPReplyCode::Help
+            | SMTPReplyCode::Greetings
             | SMTPReplyCode::Code221
             | SMTPReplyCode::Code250
             | SMTPReplyCode::Code250PlainEsmtp
@@ -170,8 +170,8 @@ impl SMTPReplyCode {
 impl std::fmt::Display for SMTPReplyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            SMTPReplyCode::Code214 => "Code214",
-            SMTPReplyCode::Code220 => "Code220",
+            SMTPReplyCode::Help => "Help",
+            SMTPReplyCode::Greetings => "Greetings",
             SMTPReplyCode::Code221 => "Code221",
             SMTPReplyCode::Code250 => "Code250",
             SMTPReplyCode::Code250PlainEsmtp => "Code250PlainEsmtp",
@@ -217,8 +217,8 @@ impl std::str::FromStr for SMTPReplyCode {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Code214" => Ok(Self::Code214),
-            "Code220" => Ok(Self::Code220),
+            "Help" => Ok(Self::Help),
+            "Greetings" => Ok(Self::Greetings),
             "Code221" => Ok(Self::Code221),
             "Code250" => Ok(Self::Code250),
             "Code250PlainEsmtp" => Ok(Self::Code250PlainEsmtp),

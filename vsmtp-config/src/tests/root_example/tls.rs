@@ -11,23 +11,23 @@ fn parse() {
             .with_server_name("testserver.com")
             .with_default_system()
             .with_ipv4_localhost_rfc()
-            .with_default_log_settings()
+            .with_default_logs_settings()
             .with_default_delivery()
             .with_safe_tls_config(
-                "../examples/config/deps/certificate.crt",
-                "../examples/config/deps/private_key.key"
+                "../examples/config/tls/certificate.crt",
+                "../examples/config/tls/private_key.key"
             )
             .unwrap()
             .with_sni_entry(
                 "testserver2.com",
-                "../examples/config/deps/certificate.crt",
-                "../examples/config/deps/private_key.key"
+                "../examples/config/tls/certificate.crt",
+                "../examples/config/tls/private_key.key"
             )
             .unwrap()
             .with_sni_entry(
                 "testserver3.com",
-                "../examples/config/deps/certificate.crt",
-                "../examples/config/deps/private_key.key"
+                "../examples/config/tls/certificate.crt",
+                "../examples/config/tls/private_key.key"
             )
             .unwrap()
             .with_default_smtp_options()

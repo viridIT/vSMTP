@@ -110,7 +110,7 @@ where
 {
     let mut helo_domain = None;
 
-    conn.send_code(SMTPReplyCode::Code220)?;
+    conn.send_code(SMTPReplyCode::Greetings)?;
 
     while conn.is_alive {
         match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
@@ -181,7 +181,7 @@ where
     };
 
     if let ConnectionKind::Tunneled = secured_conn.kind {
-        secured_conn.send_code(SMTPReplyCode::Code220)?;
+        secured_conn.send_code(SMTPReplyCode::Greetings)?;
     }
 
     let mut helo_domain = None;

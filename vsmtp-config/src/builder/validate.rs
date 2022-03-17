@@ -140,7 +140,7 @@ mod tests {
             .with_debug_server_info()
             .with_default_system()
             .with_ipv4_localhost_rfc()
-            .with_default_log_settings()
+            .with_default_logs_settings()
             .with_default_delivery()
             .without_tls_support()
             .with_default_smtp_options()

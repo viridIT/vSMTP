@@ -15,7 +15,7 @@ fn parse() {
                 &["0.0.0.0:587".parse().unwrap()],
                 &["0.0.0.0:465".parse().unwrap()]
             )
-            .with_default_log_settings()
+            .with_default_logs_settings()
             .with_default_delivery()
             .without_tls_support()
             .with_default_smtp_options()

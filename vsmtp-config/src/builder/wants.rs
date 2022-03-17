@@ -61,13 +61,6 @@ pub struct WantsServerTLSConfig {
 ///
 pub struct WantsServerSMTPConfig1 {
     pub(crate) parent: WantsServerTLSConfig,
-    // pub(super) security_level: TlsSecurityLevel,
-    // pub(super) preempt_cipherlist: bool,
-    // pub(super) handshake_timeout: std::time::Duration,
-    // pub(super) protocol_version: Vec<rustls::ProtocolVersion>,
-    // pub(super) certificate: rustls::Certificate,
-    // pub(super) private_key: rustls::PrivateKey,
-    // pub(super) sni: Vec<ConfigServerTlsSni>,
     pub(super) tls: Option<ConfigServerTls>,
 }
 

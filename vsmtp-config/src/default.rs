@@ -14,8 +14,8 @@ use crate::{
 
 pub fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
     let codes: std::collections::BTreeMap<SMTPReplyCode, &'static str> = collection! {
-        SMTPReplyCode::Code214 => "214 joining us https://viridit.com/support\r\n",
-        SMTPReplyCode::Code220 => "220 {domain} Service ready\r\n",
+        SMTPReplyCode::Help => "214 joining us https://viridit.com/support\r\n",
+        SMTPReplyCode::Greetings => "220 {domain} Service ready\r\n",
         SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
         SMTPReplyCode::Code250 => "250 Ok\r\n",
         SMTPReplyCode::Code250PlainEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS\r\n",
@@ -64,7 +64,7 @@ impl Default for Config {
 impl Default for ConfigServer {
     fn default() -> Self {
         Self {
-            domain: Self::default_domain().unwrap(),
+            domain: Self::hostname(),
             client_count_max: Self::default_client_count_max(),
             system: ConfigServerSystem::default(),
             interfaces: ConfigServerInterfaces::default(),
@@ -77,11 +77,8 @@ impl Default for ConfigServer {
 }
 
 impl ConfigServer {
-    fn default_domain() -> anyhow::Result<String> {
-        Ok(hostname::get()?
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("error"))?
-            .to_string())
+    pub(crate) fn hostname() -> String {
+        hostname::get().unwrap().to_str().unwrap().to_string()
     }
 
     pub(crate) const fn default_client_count_max() -> i64 {
@@ -92,10 +89,20 @@ impl ConfigServer {
 impl Default for ConfigServerSystem {
     fn default() -> Self {
         Self {
-            user: "vsmtp".to_string(),
-            group: "vsmtp".to_string(),
+            user: Self::default_user(),
+            group: Self::default_group(),
             thread_pool: ConfigServerSystemThreadPool::default(),
         }
+    }
+}
+
+impl ConfigServerSystem {
+    pub(crate) fn default_user() -> String {
+        "vsmtp".to_string()
+    }
+
+    pub(crate) fn default_group() -> String {
+        "vsmtp".to_string()
     }
 }
 
@@ -175,7 +182,7 @@ impl Default for ConfigServerSMTP {
     fn default() -> Self {
         Self {
             rcpt_count_max: Self::default_rcpt_count_max(),
-            disable_ehlo: false,
+            disable_ehlo: Self::default_disable_ehlo(),
             required_extension: Self::default_required_extension(),
             error: ConfigServerSMTPError::default(),
             timeout_client: ConfigServerSMTPTimeoutClient::default(),
@@ -187,6 +194,10 @@ impl Default for ConfigServerSMTP {
 impl ConfigServerSMTP {
     pub(crate) const fn default_rcpt_count_max() -> usize {
         1000
+    }
+
+    pub(crate) const fn default_disable_ehlo() -> bool {
+        false
     }
 
     pub(crate) fn default_required_extension() -> Vec<String> {
@@ -222,11 +233,17 @@ impl Default for ConfigServerSMTPTimeoutClient {
 impl Default for ConfigApp {
     fn default() -> Self {
         Self {
-            dirpath: "/var/spool/vsmtp/app".into(),
+            dirpath: Self::default_dirpath(),
             vsl: ConfigAppVSL::default(),
             logs: ConfigAppLogs::default(),
             services: std::collections::BTreeMap::<String, Service>::new(),
         }
+    }
+}
+
+impl ConfigApp {
+    pub(crate) fn default_dirpath() -> std::path::PathBuf {
+        "/var/spool/vsmtp/app".into()
     }
 }
 

@@ -76,37 +76,13 @@ fn test_objects() {
 fn test_services() {
     let re = RuleEngine::new(&Some(rules_path!["service", "main.vsl"])).unwrap();
 
-    /*
-    let config = Config::builder()
-        .with_version_str("<1.0.0")
-        .unwrap()
-        .with_rfc_port("testserver.com", "root", "root", None)
-        .without_log()
-        .without_smtps()
-        .with_default_smtp()
-        .with_delivery("./tmp/delivery")
-        .with_rules(
-            "./tmp/nothing",
-            collection! {"shell".to_string() => Service::UnixShell {
-                timeout: std::time::Duration::from_secs(2),
-                user: None,
-                group: None,
-                command: "echo".to_string(),
-                args: Some("test".to_string()),
-            }},
-        )
-        .with_default_reply_codes()
-        .build()
-        .expect("could not build the default rule state");
-    */
-
     let config = Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
         .with_server_name("testserver.com")
         .with_user_group_and_default_system("root", "root")
         .with_ipv4_localhost_rfc()
-        .with_default_log_settings()
+        .with_default_logs_settings()
         .with_spool_dir_and_default_queues("./tmp/delivery")
         .without_tls_support()
         .with_default_smtp_options()

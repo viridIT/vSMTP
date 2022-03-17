@@ -39,26 +39,13 @@ pub mod helpers {
     use crate::rule_engine::RuleState;
 
     pub(super) fn get_default_state() -> RuleState<'static> {
-        //         let config = Config::builder()
-        //             .with_version_str("<1.0.0")
-        //             .unwrap()
-        //             .with_rfc_port("testserver.com", "root", "root", None)
-        //             .without_log()
-        //             .without_smtps()
-        //             .with_default_smtp()
-        //             .with_delivery("./tmp/delivery")
-        //             .with_rules("./src/receiver/tests/main.vsl", vec![])
-        //             .with_default_reply_codes()
-        //             .build()
-        //             .expect("could not build the default rule state");
-
         let config = Config::builder()
             .with_version_str("<1.0.0")
             .unwrap()
             .with_server_name_and_client_count("testserver.com", 32)
             .with_user_group_and_default_system("root", "root")
             .with_ipv4_localhost_rfc()
-            .with_default_log_settings()
+            .with_default_logs_settings()
             .with_spool_dir_and_default_queues("./tmp/delivery")
             .without_tls_support()
             .with_default_smtp_options()

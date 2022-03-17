@@ -49,7 +49,7 @@ async fn listen_and_serve() {
             &["0.0.0.0:10589".parse().expect("valid")],
             &["0.0.0.0:10467".parse().expect("valid")],
         )
-        .with_default_log_settings()
+        .with_default_logs_settings()
         .with_spool_dir_and_default_queues("./tmp/stress/spool")
         .without_tls_support()
         .with_default_smtp_options()

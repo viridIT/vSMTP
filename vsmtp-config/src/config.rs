@@ -22,7 +22,8 @@ pub struct Config {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServer {
-    // TODO:
+    // TODO: parse valid fqdn
+    #[serde(default = "ConfigServer::hostname")]
     pub domain: String,
     #[serde(default = "ConfigServer::default_client_count_max")]
     pub client_count_max: i64,
@@ -43,8 +44,10 @@ pub struct ConfigServer {
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerSystem {
     // TODO: should be users::
+    #[serde(default = "ConfigServerSystem::default_user")]
     pub user: String,
     // TODO: should be users::
+    #[serde(default = "ConfigServerSystem::default_group")]
     pub group: String,
     #[serde(default)]
     pub thread_pool: ConfigServerSystemThreadPool,
@@ -83,7 +86,6 @@ pub struct ConfigQueueWorking {
     pub channel_size: usize,
 }
 
-// TODO: this could be improved
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigQueueDelivery {
@@ -91,7 +93,6 @@ pub struct ConfigQueueDelivery {
     pub deferred_retry_max: usize,
     #[serde(with = "humantime_serde")]
     pub deferred_retry_period: std::time::Duration,
-    // dead_file_lifetime: std::time::Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -105,7 +106,7 @@ pub struct ConfigServerQueues {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerTlsSni {
-    // TODO:
+    // TODO: parse valid fqdn
     pub domain: String,
     #[serde(
         serialize_with = "crate::parser::tls_certificate::serialize",
@@ -198,14 +199,20 @@ pub struct ConfigServerSMTPTimeoutClient {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerSMTP {
+    #[serde(default = "ConfigServerSMTP::default_rcpt_count_max")]
     pub rcpt_count_max: usize,
+    #[serde(default = "ConfigServerSMTP::default_disable_ehlo")]
     pub disable_ehlo: bool,
-    // TODO:
+    // TODO: parse extension enum
+    #[serde(default = "ConfigServerSMTP::default_required_extension")]
     pub required_extension: Vec<String>,
+    #[serde(default)]
     pub error: ConfigServerSMTPError,
+    #[serde(default)]
     pub timeout_client: ConfigServerSMTPTimeoutClient,
+    #[serde(default)]
     pub codes: std::collections::BTreeMap<SMTPReplyCode, String>,
-    // TODO: extension settings here
+    // NOTE: extension settings here
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -248,8 +255,12 @@ pub enum Service {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigApp {
+    #[serde(default = "ConfigApp::default_dirpath")]
     pub dirpath: std::path::PathBuf,
+    #[serde(default)]
     pub vsl: ConfigAppVSL,
+    #[serde(default)]
     pub logs: ConfigAppLogs,
+    #[serde(default)]
     pub services: std::collections::BTreeMap<String, Service>,
 }

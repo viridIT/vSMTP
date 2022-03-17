@@ -8,13 +8,13 @@ security_level = "May"
 preempt_cipherlist = false
 handshake_timeout = "200ms"
 protocol_version = "TLSv1.3"
-certificate = "../examples/config/deps/certificate.crt"
-private_key = "../examples/config/deps/private_key.key"
+certificate = "../examples/config/tls/certificate.crt"
+private_key = "../examples/config/tls/private_key.key"
 
 [[server.tls.sni]]
 domain = "testserver2.com"
-certificate = "../examples/config/deps/certificate.crt"
-private_key = "../examples/config/deps/private_key.key"
+certificate = "../examples/config/tls/certificate.crt"
+private_key = "../examples/config/tls/private_key.key"
 
 [[server.tls.sni]]
 domain = "testserver3.com"

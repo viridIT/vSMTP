@@ -83,7 +83,7 @@ impl Transaction<'_> {
         match (&self.state, event) {
             (_, Event::NoopCmd) => ProcessedEvent::Reply(SMTPReplyCode::Code250),
 
-            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Code214),
+            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Help),
 
             (_, Event::RsetCmd) => {
                 {
@@ -155,7 +155,10 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Helo, Event::StartTls) if conn.config.server.tls.is_some() => {
-                ProcessedEvent::ReplyChangeState(StateSMTP::NegotiationTLS, SMTPReplyCode::Code220)
+                ProcessedEvent::ReplyChangeState(
+                    StateSMTP::NegotiationTLS,
+                    SMTPReplyCode::Greetings,
+                )
             }
 
             (StateSMTP::Helo, Event::MailCmd(_, _))

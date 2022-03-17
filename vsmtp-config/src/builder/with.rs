@@ -1,10 +1,11 @@
 use anyhow::Context;
+use vsmtp_common::{code::SMTPReplyCode, state::StateSMTP};
 
 use crate::{
     config::{
-        ConfigAppLogs, ConfigQueueDelivery, ConfigQueueWorking, ConfigServerLogs, ConfigServerSMTP,
-        ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerTls, ConfigServerTlsSni,
-        TlsSecurityLevel,
+        ConfigAppLogs, ConfigQueueDelivery, ConfigQueueWorking, ConfigServer, ConfigServerLogs,
+        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerTls,
+        ConfigServerTlsSni, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
     Service,
@@ -62,6 +63,21 @@ impl Builder<WantsServer> {
 
     ///
     #[must_use]
+    pub fn with_hostname(self) -> Builder<WantsServerSystem> {
+        self.with_hostname_and_client_count_max(16)
+    }
+
+    ///
+    #[must_use]
+    pub fn with_hostname_and_client_count_max(
+        self,
+        client_count_max: i64,
+    ) -> Builder<WantsServerSystem> {
+        self.with_server_name_and_client_count(&ConfigServer::hostname(), client_count_max)
+    }
+
+    ///
+    #[must_use]
     pub fn with_server_name(self, domain: &str) -> Builder<WantsServerSystem> {
         self.with_server_name_and_client_count(domain, 16)
     }
@@ -92,19 +108,49 @@ impl Builder<WantsServerSystem> {
 
     ///
     #[must_use]
+    pub fn with_default_user_and_thread_pool(
+        self,
+        thread_pool_receiver: usize,
+        thread_pool_processing: usize,
+        thread_pool_delivery: usize,
+    ) -> Builder<WantsServerInterfaces> {
+        self.with_system(
+            "vsmtp",
+            "vsmtp",
+            thread_pool_receiver,
+            thread_pool_processing,
+            thread_pool_delivery,
+        )
+    }
+
+    ///
+    #[must_use]
     pub fn with_user_group_and_default_system(
         self,
         user: &str,
         group: &str,
+    ) -> Builder<WantsServerInterfaces> {
+        self.with_system(user, group, 6, 6, 6)
+    }
+
+    ///
+    #[must_use]
+    pub fn with_system(
+        self,
+        user: &str,
+        group: &str,
+        thread_pool_receiver: usize,
+        thread_pool_processing: usize,
+        thread_pool_delivery: usize,
     ) -> Builder<WantsServerInterfaces> {
         Builder::<WantsServerInterfaces> {
             state: WantsServerInterfaces {
                 parent: self.state,
                 user: user.to_string(),
                 group: group.to_string(),
-                thread_pool_receiver: 6,
-                thread_pool_processing: 6,
-                thread_pool_delivery: 6,
+                thread_pool_receiver,
+                thread_pool_processing,
+                thread_pool_delivery,
             },
         }
     }
@@ -143,13 +189,28 @@ impl Builder<WantsServerInterfaces> {
 impl Builder<WantsServerLogs> {
     ///
     #[must_use]
-    pub fn with_default_log_settings(self) -> Builder<WantsServerQueues> {
+    pub fn with_default_logs_settings(self) -> Builder<WantsServerQueues> {
+        self.with_logs_settings(
+            ConfigServerLogs::default_filepath(),
+            ConfigServerLogs::default_format(),
+            ConfigServerLogs::default_level(),
+        )
+    }
+
+    ///
+    #[must_use]
+    pub fn with_logs_settings(
+        self,
+        filepath: impl Into<std::path::PathBuf>,
+        format: impl Into<String>,
+        level: std::collections::BTreeMap<String, log::LevelFilter>,
+    ) -> Builder<WantsServerQueues> {
         Builder::<WantsServerQueues> {
             state: WantsServerQueues {
                 parent: self.state,
-                filepath: ConfigServerLogs::default_filepath(),
-                format: ConfigServerLogs::default_format(),
-                level: ConfigServerLogs::default_level(),
+                filepath: filepath.into(),
+                format: format.into(),
+                level,
             },
         }
     }
@@ -168,12 +229,27 @@ impl Builder<WantsServerQueues> {
         self,
         spool_dir: &str,
     ) -> Builder<WantsServerTLSConfig> {
+        self.with_spool_dir_and_queues(
+            spool_dir,
+            ConfigQueueWorking::default(),
+            ConfigQueueDelivery::default(),
+        )
+    }
+
+    ///
+    #[must_use]
+    pub fn with_spool_dir_and_queues(
+        self,
+        spool_dir: &str,
+        working: ConfigQueueWorking,
+        delivery: ConfigQueueDelivery,
+    ) -> Builder<WantsServerTLSConfig> {
         Builder::<WantsServerTLSConfig> {
             state: WantsServerTLSConfig {
                 parent: self.state,
                 dirpath: spool_dir.into(),
-                working: ConfigQueueWorking::default(),
-                delivery: ConfigQueueDelivery::default(),
+                working,
+                delivery,
             },
         }
     }
@@ -257,10 +333,19 @@ impl Builder<WantsServerSMTPConfig1> {
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_default_smtp_options(self) -> Builder<WantsServerSMTPConfig2> {
+        self.with_rcpt_count_and_default(ConfigServerSMTP::default_rcpt_count_max())
+    }
+
+    ///
+    #[must_use]
+    pub fn with_rcpt_count_and_default(
+        self,
+        rcpt_count_max: usize,
+    ) -> Builder<WantsServerSMTPConfig2> {
         Builder::<WantsServerSMTPConfig2> {
             state: WantsServerSMTPConfig2 {
                 parent: self.state,
-                rcpt_count_max: ConfigServerSMTP::default_rcpt_count_max(),
+                rcpt_count_max,
                 disable_ehlo: false,
                 required_extension: ConfigServerSMTP::default_required_extension(),
             },
@@ -281,16 +366,63 @@ impl Builder<WantsServerSMTPConfig2> {
             },
         }
     }
+
+    ///
+    #[must_use]
+    pub fn with_error_handler_and_timeout(
+        self,
+        soft_count: i64,
+        hard_count: i64,
+        delay: std::time::Duration,
+        timeout_client: &std::collections::BTreeMap<StateSMTP, std::time::Duration>,
+    ) -> Builder<WantsServerSMTPConfig3> {
+        Builder::<WantsServerSMTPConfig3> {
+            state: WantsServerSMTPConfig3 {
+                parent: self.state,
+                error: ConfigServerSMTPError {
+                    soft_count,
+                    hard_count,
+                    delay,
+                },
+                timeout_client: ConfigServerSMTPTimeoutClient {
+                    connect: *timeout_client
+                        .get(&StateSMTP::Connect)
+                        .unwrap_or(&std::time::Duration::from_millis(1000)),
+                    helo: *timeout_client
+                        .get(&StateSMTP::Helo)
+                        .unwrap_or(&std::time::Duration::from_millis(1000)),
+                    mail_from: *timeout_client
+                        .get(&StateSMTP::MailFrom)
+                        .unwrap_or(&std::time::Duration::from_millis(1000)),
+                    rcpt_to: *timeout_client
+                        .get(&StateSMTP::RcptTo)
+                        .unwrap_or(&std::time::Duration::from_millis(1000)),
+                    data: *timeout_client
+                        .get(&StateSMTP::Data)
+                        .unwrap_or(&std::time::Duration::from_millis(1000)),
+                },
+            },
+        }
+    }
 }
 
 impl Builder<WantsServerSMTPConfig3> {
     ///
     #[must_use]
     pub fn with_default_smtp_codes(self) -> Builder<WantsApp> {
+        self.with_smtp_codes(std::collections::BTreeMap::new())
+    }
+
+    ///
+    #[must_use]
+    pub fn with_smtp_codes(
+        self,
+        codes: std::collections::BTreeMap<SMTPReplyCode, String>,
+    ) -> Builder<WantsApp> {
         Builder::<WantsApp> {
             state: WantsApp {
                 parent: self.state,
-                codes: std::collections::BTreeMap::new(),
+                codes,
             },
         }
     }
@@ -347,12 +479,27 @@ impl Builder<WantsAppLogs> {
         self,
         filepath: impl Into<std::path::PathBuf>,
     ) -> Builder<WantsAppServices> {
+        self.with_app_logs_level_and_format(
+            filepath,
+            ConfigAppLogs::default_level(),
+            ConfigAppLogs::default_format(),
+        )
+    }
+
+    ///
+    #[must_use]
+    pub fn with_app_logs_level_and_format(
+        self,
+        filepath: impl Into<std::path::PathBuf>,
+        level: log::LevelFilter,
+        format: impl Into<String>,
+    ) -> Builder<WantsAppServices> {
         Builder::<WantsAppServices> {
             state: WantsAppServices {
                 parent: self.state,
                 filepath: filepath.into(),
-                level: ConfigAppLogs::default_level(),
-                format: ConfigAppLogs::default_format(),
+                level,
+                format: format.into(),
             },
         }
     }
