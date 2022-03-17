@@ -24,7 +24,6 @@ use crate::{
         handle_connection,
         io_service::IoService,
     },
-    transport::Transport,
 };
 use anyhow::Context;
 use vsmtp_common::rcpt::Rcpt;
@@ -66,7 +65,7 @@ impl<T: std::io::Write + std::io::Read> std::io::Read for Mock<'_, T> {
 pub(crate) struct DefaultResolverTest;
 
 #[async_trait::async_trait]
-impl Transport for DefaultResolverTest {
+impl vsmtp_delivery::transport::Transport for DefaultResolverTest {
     async fn deliver(
         &mut self,
         _: &ServerConfig,
@@ -96,7 +95,7 @@ pub async fn test_receiver<T>(
     config: std::sync::Arc<ServerConfig>,
 ) -> anyhow::Result<()>
 where
-    T: Transport + Send + Sync + 'static,
+    T: vsmtp_delivery::transport::Transport + Send + Sync + 'static,
 {
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
@@ -121,7 +120,7 @@ where
     let config_deliver = config.clone();
 
     let delivery_handle = tokio::spawn(async move {
-        let mut resolvers = crate::create_transports();
+        let mut resolvers = vsmtp_delivery::transport::create_transports();
         resolvers.insert(vsmtp_common::transfer::Transfer::None, Box::new(resolver));
 
         while let Some(pm) = delivery_receiver.recv().await {

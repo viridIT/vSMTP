@@ -15,7 +15,7 @@
  *
  **/
 use super::ProcessMessage;
-use crate::{queue::Queue, transport::Transport};
+use crate::queue::Queue;
 use anyhow::Context;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
@@ -40,7 +40,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut transports: std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
-        Box<dyn Transport + Send + Sync>,
+        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
         S,
     >,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
@@ -102,7 +102,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     transports: &mut std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
-        Box<dyn Transport + Send + Sync>,
+        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
         S,
     >,
 ) -> anyhow::Result<()> {
@@ -218,7 +218,7 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: &mut std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
-        Box<dyn Transport + Send + Sync>,
+        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
         S,
     >,
 ) -> anyhow::Result<()> {
@@ -247,7 +247,7 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
 async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
     resolvers: &mut std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
-        Box<dyn Transport + Send + Sync>,
+        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
         S,
     >,
     path: &std::path::Path,
@@ -340,7 +340,7 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
 async fn flush_deferred_queue<S: std::hash::BuildHasher + Send>(
     resolvers: &mut std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
-        Box<dyn Transport + Send + Sync>,
+        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
         S,
     >,
     config: &ServerConfig,
@@ -360,7 +360,7 @@ fn filter_recipients<S: std::hash::BuildHasher + Send>(
     ctx: &MailContext,
     transports: &std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
-        Box<dyn Transport + Send + Sync>,
+        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
         S,
     >,
 ) -> std::collections::HashMap<vsmtp_common::transfer::Transfer, Vec<vsmtp_common::rcpt::Rcpt>> {

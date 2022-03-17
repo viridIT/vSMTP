@@ -17,6 +17,7 @@ vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
 vsmtp-rule-engine = { version = "^0.9", path = "../vsmtp-rule-engine" }
 vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
+vsmtp-delivery = { version = "^0.9", path = "../vsmtp-delivery" }
 
 log = "0.4.14"
 anyhow = "1.0.56"
@@ -36,23 +37,6 @@ tokio = { version = "1.17.0", features = [
     "io-util",
     "rt-multi-thread",
 ] }
-
-time = { version = "0.3.7", default-features = false, features = [
-    "std",
-    "formatting",
-    "macros",
-] }
-
-lettre = { version = "0.10.0-rc.4", default-features = false, features = [
-    "smtp-transport",
-    "builder",
-    "tokio1-rustls-tls",
-    "tracing",
-] }
-
-trust-dns-resolver = "0.21.1"
-
-users = { version = "0.11.0", features = [] }
 
 num_cpus = "1.13.1"
 

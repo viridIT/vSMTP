@@ -1,0 +1,47 @@
+[package]
+edition = "2021"
+
+name = "vsmtp-delivery"
+version = "0.9.3"
+license = "GPLv3"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+
+publish = false
+
+[dependencies]
+vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
+vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
+
+async-trait = "0.1.52"
+
+time = { version = "0.3.7", default-features = false, features = [
+    "std",
+    "formatting",
+    "macros",
+] }
+
+anyhow = "1.0.56"
+log = "0.4.14"
+
+users = { version = "0.11.0", features = [] }
+trust-dns-resolver = "0.21.1"
+lettre = { version = "0.10.0-rc.4", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }
+
+[dev-dependencies]
+tokio = { version = "1.17.0", features = [
+    "macros",
+    "time",
+    "sync",
+    "net",
+    "io-util",
+    "rt-multi-thread",
+] }

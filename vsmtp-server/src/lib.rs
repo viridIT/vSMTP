@@ -10,6 +10,12 @@
 //
 #![allow(clippy::doc_markdown)]
 
+use processes::ProcessMessage;
+use vsmtp_config::ServerConfig;
+use vsmtp_rule_engine::rule_engine::RuleEngine;
+
+use crate::server::ServerVSMTP;
+
 ///
 pub mod processes;
 ///
@@ -20,120 +26,6 @@ pub mod receiver;
 pub mod server;
 mod tls_helpers;
 
-///
-pub mod transport {
-
-    use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
-    use vsmtp_config::ServerConfig;
-
-    /// allowing the [ServerVSMTP] to deliver a mail.
-    #[async_trait::async_trait]
-    pub trait Transport {
-        /// the deliver method of the [Resolver] trait
-        async fn deliver(
-            &mut self,
-            config: &ServerConfig,
-            metadata: &MessageMetadata,
-            from: &Address,
-            to: &mut [Rcpt],
-            content: &str,
-        ) -> anyhow::Result<()>;
-    }
-
-    pub(super) mod deliver;
-    pub(super) mod forward;
-    pub(super) mod maildir;
-    pub(super) mod mbox;
-
-    /// no transfer will be made if this resolver is selected.
-    pub(super) struct NoTransfer;
-
-    #[async_trait::async_trait]
-    impl Transport for NoTransfer {
-        async fn deliver(
-            &mut self,
-            _: &ServerConfig,
-            _: &MessageMetadata,
-            _: &Address,
-            _: &mut [Rcpt],
-            _: &str,
-        ) -> anyhow::Result<()> {
-            Ok(())
-        }
-    }
-
-    /// build a [lettre] envelop using from address & recipients.
-    fn build_lettre_envelop(
-        from: &vsmtp_common::address::Address,
-        rcpt: &[Rcpt],
-    ) -> anyhow::Result<lettre::address::Envelope> {
-        Ok(lettre::address::Envelope::new(
-            Some(from.full().parse()?),
-            rcpt.iter()
-                // NOTE: address that couldn't be converted will be silently dropped.
-                .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
-                .collect(),
-        )?)
-    }
-
-    #[cfg(test)]
-    #[must_use]
-    pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
-        vsmtp_common::mail_context::MailContext {
-            body: vsmtp_common::mail_context::Body::Empty,
-            connection_timestamp: std::time::SystemTime::now(),
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
-            envelop: vsmtp_common::envelop::Envelop::default(),
-            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                ..vsmtp_common::mail_context::MessageMetadata::default()
-            }),
-        }
-    }
-}
-
-use processes::ProcessMessage;
-use vsmtp_config::ServerConfig;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
-
-use crate::server::ServerVSMTP;
-
-/// create a list of resolvers identified by their Transfer key.
-#[must_use]
-pub fn create_transports() -> std::collections::HashMap<
-    vsmtp_common::transfer::Transfer,
-    Box<dyn transport::Transport + Send + Sync>,
-> {
-    let mut resolvers = std::collections::HashMap::<
-        vsmtp_common::transfer::Transfer,
-        Box<dyn transport::Transport + Send + Sync>,
-    >::new();
-    resolvers.insert(
-        vsmtp_common::transfer::Transfer::Forward,
-        Box::new(transport::forward::Forward::default()),
-    );
-    resolvers.insert(
-        vsmtp_common::transfer::Transfer::Deliver,
-        Box::new(transport::deliver::Deliver::default()),
-    );
-    resolvers.insert(
-        vsmtp_common::transfer::Transfer::Maildir,
-        Box::new(transport::maildir::MailDir::default()),
-    );
-    resolvers.insert(
-        vsmtp_common::transfer::Transfer::Mbox,
-        Box::new(transport::mbox::MBox::default()),
-    );
-    resolvers.insert(
-        vsmtp_common::transfer::Transfer::None,
-        Box::new(transport::NoTransfer {}),
-    );
-    resolvers
-}
-
 #[doc(hidden)]
 pub fn start_runtime(
     config: std::sync::Arc<ServerConfig>,
@@ -143,7 +35,7 @@ pub fn start_runtime(
         std::net::TcpListener,
     ),
 ) -> anyhow::Result<()> {
-    let resolvers = create_transports();
+    let resolvers = vsmtp_delivery::transport::create_transports();
 
     let (delivery_sender, delivery_receiver) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
@@ -239,9 +131,10 @@ pub fn start_runtime(
 
 #[cfg(test)]
 mod test {
+
     #[test]
     fn test_build_lettre_envelop() {
-        let mut ctx = crate::transport::get_default_context();
+        let mut ctx = vsmtp_delivery::test::get_default_context();
 
         // assert!(build_envelop(&ctx).is_err());
 

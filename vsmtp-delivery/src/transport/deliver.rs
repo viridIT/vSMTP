@@ -17,7 +17,6 @@
 use super::Transport;
 
 use anyhow::Context;
-// use anyhow::Context;
 use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus};
 use vsmtp_config::ServerConfig;
 
@@ -151,7 +150,7 @@ mod test {
 
     use vsmtp_common::address::Address;
 
-    use crate::transport::get_default_context;
+    use crate::test::get_default_context;
 
     use super::*;
 
