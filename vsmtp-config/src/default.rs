@@ -79,9 +79,9 @@ impl ConfigServerSystem {
 impl Default for ConfigServerSystemThreadPool {
     fn default() -> Self {
         Self {
-            receiver: 6,
-            processing: 6,
-            delivery: 6,
+            receiver: Self::default_receiver(),
+            processing: Self::default_processing(),
+            delivery: Self::default_delivery(),
         }
     }
 }
@@ -284,7 +284,7 @@ impl ConfigApp {
 impl Default for ConfigAppVSL {
     fn default() -> Self {
         Self {
-            filepath: "/etc/vsmtp/main.vsl".into(),
+            filepath: Self::default_filepath(),
         }
     }
 }
