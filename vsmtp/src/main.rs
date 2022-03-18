@@ -31,10 +31,13 @@ fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
 fn main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
 
-    let config = std::fs::read_to_string(&args.config)
-        .with_context(|| format!("Cannot read file '{}'", args.config))
-        .and_then(|data| Config::from_toml(&data).with_context(|| "File contains format error"))
-        .with_context(|| "Cannot parse the configuration")?;
+    let config = match args.config {
+        Some(config) => std::fs::read_to_string(&config)
+            .with_context(|| format!("Cannot read file '{}'", config))
+            .and_then(|data| Config::from_toml(&data).with_context(|| "File contains format error"))
+            .with_context(|| "Cannot parse the configuration")?,
+        None => Config::default(),
+    };
 
     if let Some(command) = args.command {
         match command {

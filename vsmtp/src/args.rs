@@ -4,7 +4,7 @@
 pub struct Args {
     /// Path of the vSMTP configuration file (toml format)
     #[clap(short, long)]
-    pub config: String,
+    pub config: Option<String>,
 
     /// Commands
     #[clap(subcommand)]
@@ -31,12 +31,12 @@ mod tests {
 
     #[test]
     fn parse_arg() {
-        assert!(<Args as clap::StructOpt>::try_parse_from(&[""]).is_err());
+        assert!(<Args as clap::StructOpt>::try_parse_from(&[""]).is_ok());
 
         assert_eq!(
             Args {
                 command: None,
-                config: "path".to_string(),
+                config: Some("path".to_string()),
                 no_daemon: false
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path"]).unwrap()
@@ -45,7 +45,7 @@ mod tests {
         assert_eq!(
             Args {
                 command: Some(Commands::ConfigShow),
-                config: "path".to_string(),
+                config: Some("path".to_string()),
                 no_daemon: false
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-show"]).unwrap()
@@ -54,7 +54,7 @@ mod tests {
         assert_eq!(
             Args {
                 command: Some(Commands::ConfigDiff),
-                config: "path".to_string(),
+                config: Some("path".to_string()),
                 no_daemon: false
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "config-diff"]).unwrap()
@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(
             Args {
                 command: None,
-                config: "path".to_string(),
+                config: Some("path".to_string()),
                 no_daemon: true
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "-c", "path", "--no-daemon"]).unwrap()
