@@ -125,4 +125,14 @@ impl Mail {
                 None
             });
     }
+
+    /// prepend new headers to the email, folding if necessary.
+    pub fn prepend_headers(&mut self, headers: Vec<(String, String)>) {
+        self.headers.splice(..0, headers);
+    }
+
+    /// push new headers to the email, folding if necessary.
+    pub fn push_headers(&mut self, headers: Vec<(String, String)>) {
+        self.headers.extend(headers);
+    }
 }

@@ -38,6 +38,13 @@ tokio = { version = "1.17.0", features = [
     "rt-multi-thread",
 ] }
 
+trust-dns-resolver = "0.21.1"
+time = { version = "0.3.7", default-features = false, features = [
+    "std",
+    "formatting",
+    "macros",
+] }
+
 num_cpus = "1.13.1"
 
 [dev-dependencies]

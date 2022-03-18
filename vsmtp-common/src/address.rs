@@ -17,23 +17,23 @@
 
 /// Address Email
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
-#[serde(into = "String", try_from = "&str")]
+#[serde(into = "String", try_from = "String")]
 pub struct Address {
     #[serde(skip)]
     at_sign: usize,
     full: String,
 }
 
-impl TryFrom<&str> for Address {
+impl TryFrom<String> for Address {
     type Error = anyhow::Error;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if let Err(error) = addr::parse_email_address(value) {
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if let Err(error) = addr::parse_email_address(&value) {
             anyhow::bail!("'{}' is not a valid address: {}", value, error)
         }
         Ok(Self {
             at_sign: value.find('@').expect("must find '@' at this point"),
-            full: value.to_string(),
+            full: value,
         })
     }
 }

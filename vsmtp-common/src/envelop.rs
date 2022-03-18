@@ -33,7 +33,7 @@ impl Default for Envelop {
         Self {
             helo: String::default(),
             // FIXME:
-            mail_from: Address::try_from("default@domain.com").expect("valid address"),
+            mail_from: Address::try_from("default@domain.com".to_string()).expect("valid address"),
             rcpt: vec![],
         }
     }

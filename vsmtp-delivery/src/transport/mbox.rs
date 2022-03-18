@@ -113,7 +113,7 @@ fn write_content_to_mbox(
         .create(true)
         .append(true)
         .open(&mbox)
-        .with_context(|| format!("could not open '{:?}' mbox", mbox))?;
+        .with_context(|| format!("could not open {:?} mbox", mbox))?;
 
     chown_file(mbox, user).with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
@@ -151,7 +151,7 @@ mod test {
 
     #[test]
     fn test_mbox_message_format() {
-        let from = Address::try_from("john@doe.com").unwrap();
+        let from = Address::try_from("john@doe.com".to_string()).unwrap();
         let content = r#"from: john doe <john@doe.com>
 to: green@foo.net
 subject: test email

@@ -175,10 +175,12 @@ mod test {
     #[tokio::test]
     async fn test_delivery() {
         let mut ctx = get_default_context();
-        ctx.envelop.mail_from = Address::try_from("john@doe.com").unwrap();
-        ctx.envelop
-            .rcpt
-            .push(Address::try_from("green@foo.com").unwrap().into());
+        ctx.envelop.mail_from = Address::try_from("john@doe.com".to_string()).unwrap();
+        ctx.envelop.rcpt.push(
+            Address::try_from("green@foo.com".to_string())
+                .unwrap()
+                .into(),
+        );
 
         // let envelop = build_envelop(&ctx).expect("failed to build envelop to deliver email");
 

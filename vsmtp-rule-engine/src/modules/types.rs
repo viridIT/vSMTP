@@ -132,7 +132,7 @@ pub mod types {
 
     #[rhai_fn(global, return_raw)]
     pub fn new_address(addr: &str) -> EngineResult<Address> {
-        Address::try_from(addr).map_err(|error| error.to_string().into())
+        Address::try_from(addr.to_string()).map_err(|error| error.to_string().into())
     }
 
     #[rhai_fn(global, name = "to_string", pure)]
@@ -309,7 +309,7 @@ pub mod types {
 
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn string_in_rcpt(this: &mut Vec<Address>, s: &str) -> EngineResult<bool> {
-        let addr = Address::try_from(s)
+        let addr = Address::try_from(s.to_string())
             .map_err::<Box<EvalAltResult>, _>(|_| format!("'{}' is not an address", s).into())?;
         Ok(this.iter().any(|rcpt| *rcpt == addr))
     }

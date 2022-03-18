@@ -50,6 +50,7 @@ pub struct MimeMultipart {
 }
 
 impl ToString for MimeHeader {
+    // TODO: fold headers when needed.
     fn to_string(&self) -> String {
         let args = self
             .args

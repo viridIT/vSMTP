@@ -17,6 +17,7 @@
 use super::ProcessMessage;
 use crate::queue::Queue;
 use anyhow::Context;
+use time::format_description::well_known::Rfc2822;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
     status::Status,
@@ -63,7 +64,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
     loop {
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
-                // FIXME: transports a are mutable, so must be in a mutex
+                // FIXME: transports are mutable, so must be in a mutex
                 // for a delivery in a separated thread...
                 if let Err(error) = handle_one_in_delivery_queue(
                     &config,
@@ -76,7 +77,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
                     &mut transports,
                 )
                 .await {
-                    log::error!(target: DELIVER, "{error}");
+                    log::error!(target: DELIVER, "could not deliver email '{}': {error:?}", pm.message_id);
                 }
             }
             _ = flush_deferred_interval.tick() => {
@@ -112,9 +113,15 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
         message_id
     );
 
-    let file = std::fs::File::open(path)?;
+    let file = std::fs::File::open(path).context("failed to open mail in delivery queue")?;
     let reader = std::io::BufReader::new(file);
-    let ctx: MailContext = serde_json::from_reader(reader)?;
+    let mut ctx: MailContext =
+        serde_json::from_reader(reader).context("failed to read email from delivery queue")?;
+
+    add_trace_information(&mut ctx, config)?;
+
+    println!("{ctx:#?}");
+
     let mut state = RuleState::with_context(config, ctx);
 
     let result = rule_engine
@@ -385,4 +392,72 @@ fn filter_recipients<S: std::hash::BuildHasher + Send>(
 
             acc
         })
+}
+
+/// prepend trace informations to headers.
+/// see https://datatracker.ietf.org/doc/html/rfc5321#section-4.4
+// TODO: add Return-Path header.
+fn add_trace_information(ctx: &mut MailContext, config: &ServerConfig) -> anyhow::Result<()> {
+    let metadata = ctx
+        .metadata
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("missing email metadata"))?;
+
+    let stamp = create_received_stamp(
+        &config.server.domain,
+        &metadata.message_id,
+        &metadata.timestamp,
+    )?;
+
+    match &mut ctx.body {
+        Body::Empty => {
+            anyhow::bail!("could not add trace information to email header: body is empty")
+        }
+        Body::Raw(raw) => {
+            *raw = format!(
+                r#"Received: {}
+X-VSMTP: id=<{}>; version=<{}>; ok
+{}"#,
+                stamp,
+                ctx.metadata.as_ref().unwrap().message_id,
+                config.version_requirement,
+                raw
+            );
+        }
+        Body::Parsed(parsed) => {
+            parsed.prepend_headers(vec![
+                ("Received".to_string(), stamp),
+                (
+                    "X-VSMTP".to_string(),
+                    format!(
+                        "id=<{}> version=<{}> status=<ok>",
+                        ctx.metadata.as_ref().unwrap().message_id,
+                        config.version_requirement
+                    ),
+                ),
+            ]);
+        }
+    };
+
+    Ok(())
+}
+
+// NOTE: should this function moved to the email parser library ?
+/// create the "Received" header.
+fn create_received_stamp(
+    server_domain: &str,
+    message_id: &str,
+    received_timestamp: &std::time::SystemTime,
+) -> anyhow::Result<String> {
+    // NOTE: after "for": potential Additional-Registered-Clauses
+    Ok(format!(
+        "by {} with SMTP id {}; {}",
+        server_domain,
+        message_id,
+        {
+            let odt: time::OffsetDateTime = (*received_timestamp).into();
+
+            odt.format(&Rfc2822)?
+        }
+    ))
 }

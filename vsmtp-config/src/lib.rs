@@ -36,6 +36,7 @@ mod parser;
 #[allow(clippy::module_name_repetitions)]
 mod server_config;
 
+use anyhow::Context;
 pub use server_config::{InnerSmtpsConfig, ServerConfig, SniKey, TlsSecurityLevel};
 
 /// The external services used in .vsl format
@@ -68,7 +69,8 @@ pub fn get_logger_config(
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
             "{d} - {m}{n}",
         )))
-        .build(config.log.file.clone())?;
+        .build(config.log.file.clone())
+        .context("failed to build system logs")?;
 
     let user = append::file::FileAppender::builder()
         .encoder(Box::new(encode::pattern::PatternEncoder::new(
@@ -79,7 +81,8 @@ pub fn get_logger_config(
                 .as_ref()
                 .unwrap_or(&"{d} - {m}{n}".to_string()),
         )))
-        .build(config.rules.logs.file.clone())?;
+        .build(config.rules.logs.file.clone())
+        .context("failed to build app logs")?;
 
     let mut builder = Config::builder();
     let mut root = config::Root::builder();

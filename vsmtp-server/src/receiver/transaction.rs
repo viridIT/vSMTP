@@ -92,7 +92,8 @@ impl Transaction<'_> {
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
-                    ctx.envelop.mail_from = Address::try_from("default@domain.com").expect("");
+                    ctx.envelop.mail_from =
+                        Address::try_from("default@domain.com".to_string()).expect("");
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
@@ -295,7 +296,7 @@ impl Transaction<'_> {
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
-            mail_from: Address::try_from("no@address.net").unwrap(),
+            mail_from: Address::try_from("no@address.net".to_string()).unwrap(),
             rcpt: vec![],
         };
     }
@@ -304,7 +305,7 @@ impl Transaction<'_> {
     where
         S: std::io::Write + std::io::Read + Send,
     {
-        match Address::try_from(mail_from) {
+        match Address::try_from(mail_from.to_string()) {
             Err(_) => (),
             Ok(mail_from) => {
                 let now = std::time::SystemTime::now();
@@ -342,7 +343,7 @@ impl Transaction<'_> {
     }
 
     fn set_rcpt_to(&mut self, rcpt_to: &str) {
-        match Address::try_from(rcpt_to) {
+        match Address::try_from(rcpt_to.to_string()) {
             Err(_) => (),
             Ok(rcpt_to) => {
                 self.rule_state
