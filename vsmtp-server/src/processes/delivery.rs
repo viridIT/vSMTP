@@ -406,6 +406,7 @@ fn add_trace_information(
         .ok_or_else(|| anyhow::anyhow!("missing email metadata"))?;
 
     let stamp = create_received_stamp(
+        &ctx.envelop.helo,
         &config.server.domain,
         &metadata.message_id,
         &metadata.timestamp,
@@ -439,15 +440,14 @@ fn add_trace_information(
 // NOTE: should this function moved to the email parser library ?
 /// create the "Received" header.
 fn create_received_stamp(
+    client_helo: &str,
     server_domain: &str,
     message_id: &str,
     received_timestamp: &std::time::SystemTime,
 ) -> anyhow::Result<String> {
     // NOTE: after "for": potential Additional-Registered-Clauses
     Ok(format!(
-        "by {} with SMTP id {}; {}",
-        server_domain,
-        message_id,
+        "from {client_helo}\n\tby {server_domain}\n\twith SMTP\n\tid {message_id};\n\t{}",
         {
             let odt: time::OffsetDateTime = (*received_timestamp).into();
 
@@ -460,7 +460,7 @@ fn create_received_stamp(
 /// create the "X-VSMTP" header.
 fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: Status) -> String {
     format!(
-        "id='{}' version='{}' status='{}'",
+        "id='{}'\n\tversion='{}'\n\tstatus='{}'",
         message_id, version, status
     )
 }
