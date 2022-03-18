@@ -15,17 +15,17 @@
  *
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::status::Status;
+use vsmtp_common::{state::StateSMTP, status::Status};
 
 #[test]
 fn test_engine_errors() {
     let re = RuleEngine::new(&Some(rules_path!["error_handling", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
-    assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
-    assert_eq!(re.run_when(&mut state, "mail"), Status::Deny);
-    assert_eq!(re.run_when(&mut state, "rcpt"), Status::Deny);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::MailFrom), Status::Deny);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Deny);
 }
 
 #[test]
@@ -33,10 +33,10 @@ fn test_engine_rules_syntax() {
     let re = RuleEngine::new(&Some(rules_path!["syntax", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
-    assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
-    assert_eq!(re.run_when(&mut state, "mail"), Status::Next);
-    assert_eq!(re.run_when(&mut state, "rcpt"), Status::Next);
-    assert_eq!(re.run_when(&mut state, "preq"), Status::Next);
-    assert_eq!(re.run_when(&mut state, "postq"), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::MailFrom), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Next);
 }

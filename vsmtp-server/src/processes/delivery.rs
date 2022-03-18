@@ -16,7 +16,7 @@
  **/
 use super::ProcessMessage;
 use crate::{queue::Queue, resolver::Resolver};
-use vsmtp_common::{mail_context::MailContext, status::Status};
+use vsmtp_common::{mail_context::MailContext, state::StateSMTP, status::Status};
 use vsmtp_config::{log_channel::DELIVER, Config};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
@@ -105,7 +105,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     let result = rule_engine
         .read()
         .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
-        .run_when(&mut state, "delivery");
+        .run_when(&mut state, &StateSMTP::Delivery);
 
     if result == Status::Deny {
         Queue::Dead.write_to_queue(config, &state.get_context().read().unwrap())?;

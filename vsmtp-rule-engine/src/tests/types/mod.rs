@@ -18,7 +18,9 @@ use crate::{
     rule_engine::{RuleEngine, RuleState},
     tests::helpers::get_default_state,
 };
-use vsmtp_common::{address::Address, collection, mail_context::Body, status::Status};
+use vsmtp_common::{
+    address::Address, collection, mail_context::Body, state::StateSMTP, status::Status,
+};
 use vsmtp_config::{Config, Service};
 
 #[test]
@@ -26,7 +28,7 @@ fn test_status() {
     let re = RuleEngine::new(&Some(rules_path!["status", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
 
 #[test]
@@ -36,7 +38,7 @@ fn test_time() {
 
     state.add_data("time", std::time::SystemTime::UNIX_EPOCH);
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
 
 #[test]
@@ -50,7 +52,7 @@ fn test_socket() {
             .expect("could not build socket"),
     );
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
 
 #[test]
@@ -61,7 +63,7 @@ fn test_address() {
     state.get_context().write().unwrap().envelop.mail_from =
         Address::try_from("mail.from@test.net".to_string()).expect("could not parse address");
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
 
 #[test]
@@ -69,7 +71,7 @@ fn test_objects() {
     let re = RuleEngine::new(&Some(rules_path!["objects", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
 }
 
 #[test]
@@ -105,5 +107,5 @@ fn test_services() {
 
     state.get_context().write().unwrap().body = Body::Raw(String::default());
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }

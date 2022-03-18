@@ -18,6 +18,7 @@ use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::{
     mail::{BodyType, Mail},
     mail_context::{Body, MessageMetadata},
+    state::StateSMTP,
     status::Status,
 };
 
@@ -26,15 +27,15 @@ fn test_email_context() {
     let re = RuleEngine::new(&Some(rules_path!["main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
     state.get_context().write().unwrap().body = Body::Raw(String::default());
-    assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
     state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
     state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
-    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }
 
 #[test]
@@ -42,7 +43,7 @@ fn test_email_bcc() {
     let re = RuleEngine::new(&Some(rules_path!["bcc", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }
 
 #[test]
@@ -50,15 +51,18 @@ fn test_email_add_header() {
     let re = RuleEngine::new(&Some(rules_path!["add_header", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::MailFrom),
+        Status::Accept
+    );
     state.get_context().write().unwrap().body = Body::Raw(String::default());
-    assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
     state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
     state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
-    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }
 
 #[test]
@@ -78,7 +82,10 @@ fn test_context_write() {
         resolver: "default".to_string(),
         skipped: None,
     });
-    assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::MailFrom),
+        Status::Accept
+    );
     state.get_context().write().unwrap().body = Body::Raw(
         r#"From: john doe <john@doe.com>
 To: green@foo.net
@@ -88,8 +95,8 @@ This is a raw email.
 "#
         .to_string(),
     );
-    assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
-    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 
     // raw mail should have been written on disk.
     assert_eq!(
@@ -124,9 +131,12 @@ fn test_context_dump() {
         resolver: "default".to_string(),
         skipped: None,
     });
-    assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::MailFrom),
+        Status::Accept
+    );
     state.get_context().write().unwrap().body = Body::Raw(String::default());
-    assert_eq!(re.run_when(&mut state, "preq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
     state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
@@ -135,7 +145,7 @@ fn test_context_dump() {
         ],
         body: BodyType::Regular(vec!["this is an empty body".to_string()]),
     }));
-    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 
     assert_eq!(
         std::fs::read_to_string("./tests/generated/test_message_id.dump.json")

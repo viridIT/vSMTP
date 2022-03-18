@@ -23,6 +23,7 @@ use rhai::{
 };
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
+use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::SRULES;
 use vsmtp_config::Config;
@@ -147,15 +148,15 @@ pub struct RuleEngine {
 
 impl RuleEngine {
     /// runs all rules from a stage using the current transaction state.
-    pub fn run_when(&self, state: &mut RuleState, smtp_stage: &str) -> Status {
-        if let Some(status) = state.skip {
+    pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
+        if let Some(status) = rule_state.skip {
             return status;
         }
 
         // let now = chrono::Local::now();
         let now = time::OffsetDateTime::now_utc();
 
-        state
+        rule_state
             .add_data(
                 "date",
                 now.format(&DATE_FORMAT)
@@ -169,14 +170,14 @@ impl RuleEngine {
 
         let rules = match self
             .context
-            .eval_ast_with_scope::<rhai::Map>(&mut state.scope, &self.ast)
+            .eval_ast_with_scope::<rhai::Map>(&mut rule_state.scope, &self.ast)
         {
             Ok(rules) => rules,
             Err(error) => {
                 log::error!(
                     target: SRULES,
                     "smtp_stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
-                    smtp_stage,
+                    smtp_state,
                     error
                 );
                 return Status::Next;
@@ -184,16 +185,16 @@ impl RuleEngine {
         };
 
         match self.context.call_fn(
-            &mut state.scope,
+            &mut rule_state.scope,
             &self.ast,
             "run_rules",
-            (rules, smtp_stage.to_string()),
+            (rules, smtp_state.to_string()),
         ) {
             Ok(status) => {
                 log::debug!(
                     target: SRULES,
                     "[{}] evaluated => {:?}.",
-                    smtp_stage,
+                    smtp_state,
                     status
                 );
 
@@ -202,9 +203,9 @@ impl RuleEngine {
                         log::debug!(
                         target: SRULES,
                         "[{}] the rule engine will skip all rules because of the previous result.",
-                        smtp_stage
+                        smtp_state
                     );
-                        state.skip = Some(status);
+                        rule_state.skip = Some(status);
                         status
                     }
                     s => s,
@@ -214,38 +215,37 @@ impl RuleEngine {
                 log::error!(
                     target: SRULES,
                     "{}",
-                    Self::parse_stage_error(error, smtp_stage)
+                    Self::parse_stage_error(error, *smtp_state)
                 );
                 Status::Next
             }
         }
     }
 
-    fn parse_stage_error(error: Box<EvalAltResult>, stage: &str) -> String {
+    fn parse_stage_error(error: Box<EvalAltResult>, smtp_state: StateSMTP) -> String {
         match *error {
             // NOTE: since all errors are caught and thrown in "run_rules", errors
             //       are always wrapped in ErrorInFunctionCall.
             EvalAltResult::ErrorInFunctionCall(_, _, error, _) => match *error {
                 EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
                     let error = error.cast::<rhai::Map>();
-                    let rule = error.get("rule").map_or_else(
-                        || "unknown rule".to_string(),
-                        std::string::ToString::to_string,
-                    );
+                    let rule = error
+                        .get("rule")
+                        .map_or_else(|| "unknown rule".to_string(), ToString::to_string);
                     let error = error.get("message").map_or_else(
                         || "vsl internal unexpected error".to_string(),
-                        std::string::ToString::to_string,
+                        ToString::to_string,
                     );
 
                     format!(
                         "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
-                        stage, rule, error
+                        smtp_state, rule, error
                     )
                 }
                 _ => {
                     format!(
                         "stage '{}' skipped => rule engine failed:\n\t{}",
-                        stage, error,
+                        smtp_state, error,
                     )
                 }
             },
@@ -254,7 +254,7 @@ impl RuleEngine {
             _ => {
                 format!(
                     "rule engine unexpected error in stage '{}':\n\t{:?}",
-                    stage, error
+                    smtp_state, error
                 )
             }
         }
