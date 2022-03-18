@@ -21,7 +21,8 @@
       },
       "args": [
         "-c",
-        "${workspaceFolder}/config/vsmtp.dev-local.toml"
+        "${workspaceFolder}/config/dev-config.toml",
+        "--no-daemon"
       ],
       "program": "${workspaceFolder}/target/debug/vsmtp",
       "cwd": "${workspaceFolder}/target/debug",
