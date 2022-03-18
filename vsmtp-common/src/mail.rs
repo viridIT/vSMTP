@@ -34,7 +34,17 @@ pub enum BodyType {
 impl ToString for BodyType {
     fn to_string(&self) -> String {
         match self {
-            Self::Regular(content) => content.join("\n"),
+            Self::Regular(content) => content
+                .iter()
+                .map(|l| {
+                    if l.starts_with('.') {
+                        ".".to_owned() + l
+                    } else {
+                        l.to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
             Self::Mime(content) => content.to_raw(),
             Self::Undefined => String::default(),
         }

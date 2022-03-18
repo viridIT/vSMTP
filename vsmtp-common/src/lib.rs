@@ -59,7 +59,9 @@ pub mod state;
 pub mod status;
 
 #[cfg(test)]
-mod event_tests;
+mod tests {
+    mod event;
+}
 
 #[doc(hidden)]
 #[macro_export]

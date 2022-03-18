@@ -297,7 +297,8 @@ impl Event {
         }
     }
 
-    /// Parse a smtp input receive between DATA and "\r\n.\r\n" (DATA END)
+    /// Parse a smtp input receive between DATA and <CRLF>.<CRLF> (DATA END)
+    /// and handle dot-stuffing
     ///
     /// # Errors
     ///
@@ -306,6 +307,10 @@ impl Event {
         match input {
             "." => Ok(Self::DataEnd),
             too_long if too_long.len() > 998 => Err(SMTPReplyCode::Code500),
+            dot_string if dot_string.starts_with('.') => {
+                // https://www.rfc-editor.org/rfc/rfc5321#section-4.5.2
+                Ok(Self::DataLine(dot_string[1..].to_string()))
+            }
             _ => Ok(Self::DataLine(input.to_string())),
         }
     }

@@ -25,6 +25,18 @@ fn data_end() {
 }
 
 #[test]
+fn dot_stuffing() {
+    assert_eq!(
+        Event::parse_data(".."),
+        Ok(Event::DataLine(".".to_string()))
+    );
+    assert_eq!(
+        Event::parse_data(".How are you today?"),
+        Ok(Event::DataLine("How are you today?".to_string()))
+    );
+}
+
+#[test]
 fn data_valid() {
     assert_eq!(Event::parse_data(""), Ok(Event::DataLine("".to_string())));
     assert_eq!(
