@@ -23,7 +23,7 @@ use vsmtp_common::{
     status::Status,
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::{log_channel::DELIVER, ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, Config};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
 /// process used to deliver incoming emails force accepted by the smtp process
@@ -37,7 +37,7 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 ///
 /// * tokio::select!
 pub async fn start<S: std::hash::BuildHasher + Send>(
-    config: std::sync::Arc<ServerConfig>,
+    config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut transports: std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
@@ -52,14 +52,8 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
     );
     flush_deliver_queue(&config, &rule_engine, &mut transports).await?;
 
-    let mut flush_deferred_interval = tokio::time::interval(
-        config
-            .delivery
-            .queues
-            .deferred
-            .cron_period
-            .unwrap_or_else(|| std::time::Duration::from_secs(10)),
-    );
+    let mut flush_deferred_interval =
+        tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
 
     loop {
         tokio::select! {
@@ -70,7 +64,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
                     &config,
                     &pm.message_id,
                     &std::path::PathBuf::from_iter([
-                        Queue::Deliver.to_path(&config.delivery.spool_dir)?,
+                        Queue::Deliver.to_path(&config.server.queues.dirpath)?,
                         std::path::Path::new(&pm.message_id).to_path_buf(),
                     ]),
                     &rule_engine,
@@ -97,7 +91,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
 ///
 /// # Errors
 pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
-    config: &ServerConfig,
+    config: &Config,
     message_id: &str,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -194,7 +188,9 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
                     std::fs::rename(
                         path,
                         std::path::PathBuf::from_iter([
-                            Queue::Deferred.to_path(&config.delivery.spool_dir).unwrap(),
+                            Queue::Deferred
+                                .to_path(&config.server.queues.dirpath)
+                                .unwrap(),
                             std::path::Path::new(&message_id).to_path_buf(),
                         ]),
                     )
@@ -203,7 +199,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
                 vsmtp_common::transfer::EmailTransferStatus::Failed(_) => std::fs::rename(
                     path,
                     std::path::PathBuf::from_iter([
-                        Queue::Dead.to_path(&config.delivery.spool_dir).unwrap(),
+                        Queue::Dead.to_path(&config.server.queues.dirpath).unwrap(),
                         std::path::Path::new(&message_id).to_path_buf(),
                     ]),
                 )
@@ -221,7 +217,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
 }
 
 async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
-    config: &ServerConfig,
+    config: &Config,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: &mut std::collections::HashMap<
         vsmtp_common::transfer::Transfer,
@@ -229,7 +225,7 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
         S,
     >,
 ) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deliver.to_path(&config.delivery.spool_dir)?)? {
+    for path in std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)? {
         let path = path.context("could not flush delivery queue")?;
         let message_id = path.file_name();
 
@@ -258,7 +254,7 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
         S,
     >,
     path: &std::path::Path,
-    config: &ServerConfig,
+    config: &Config,
 ) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
@@ -276,7 +272,7 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
 
     let ctx: MailContext = serde_json::from_str(&raw)?;
 
-    let max_retry_deferred = config.delivery.queues.deferred.retry_max.unwrap_or(100);
+    let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
 
     if ctx.metadata.is_none() {
         anyhow::bail!("email metadata is missing")
@@ -350,9 +346,9 @@ async fn flush_deferred_queue<S: std::hash::BuildHasher + Send>(
         Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
         S,
     >,
-    config: &ServerConfig,
+    config: &Config,
 ) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deferred.to_path(&config.delivery.spool_dir)?)? {
+    for path in std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)? {
         handle_one_in_deferred_queue(resolvers, &path?.path(), config).await?;
     }
 
@@ -397,7 +393,7 @@ fn filter_recipients<S: std::hash::BuildHasher + Send>(
 /// prepend trace informations to headers.
 /// see https://datatracker.ietf.org/doc/html/rfc5321#section-4.4
 // TODO: add Return-Path header.
-fn add_trace_information(ctx: &mut MailContext, config: &ServerConfig) -> anyhow::Result<()> {
+fn add_trace_information(ctx: &mut MailContext, config: &Config) -> anyhow::Result<()> {
     let metadata = ctx
         .metadata
         .as_ref()

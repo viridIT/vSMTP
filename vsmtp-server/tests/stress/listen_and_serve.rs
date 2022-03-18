@@ -15,8 +15,8 @@
  *
 **/
 use anyhow::Context;
-use vsmtp_common::{collection, mail_context::MailContext, rcpt::Rcpt};
-use vsmtp_config::{get_logger_config, ServerConfig};
+use vsmtp_common::mail_context::MailContext;
+use vsmtp_config::{log4rs_helper::get_log4rs_config, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP};
 
@@ -39,37 +39,33 @@ const SERVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 async fn listen_and_serve() {
     println!("{:?}", *STRESS_CONFIG);
 
-    let mut config = ServerConfig::builder()
-        .with_version_str(">=0.9.0")
+    let mut config = Config::builder()
+        .with_version_str("<1.0.0")
         .unwrap()
-        .with_server(
-            "stress.server.com",
-            "root",
-            "root",
-            "0.0.0.0:10027".parse().expect("valid address"),
-            "0.0.0.0:10589".parse().expect("valid address"),
-            "0.0.0.0:10467".parse().expect("valid address"),
-            8,
+        .with_server_name_and_client_count("stress.server.com", STRESS_CONFIG.client_count_max)
+        .with_default_system()
+        .with_interfaces(
+            &["0.0.0.0:10027".parse().expect("valid")],
+            &["0.0.0.0:10589".parse().expect("valid")],
+            &["0.0.0.0:10467".parse().expect("valid")],
         )
-        .with_logging(
-            "./tmp/tests/stress/output.log",
-            collection! {"default".to_string() => log::LevelFilter::Info},
-        )
-        .without_smtps()
-        .with_default_smtp()
-        .with_delivery("./tmp/tests/stress/spool", "none")
-        .with_rules("./tests/stress/main.vsl", vec![])
-        .with_default_reply_codes()
-        .build()
+        .with_default_logs_settings()
+        .with_spool_dir_and_default_queues("./tmp/stress/spool")
+        .without_tls_support()
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .with_app_at_location("./tmp/stress")
+        .with_vsl("./tests/stress/main.vsl")
+        .with_app_logs("./tmp/stress/app.log")
+        .without_services()
+        .validate()
         .unwrap();
 
-    config.rules.logs.file = "./tmp/tests/stress/app.log".into();
-    config.smtp.client_count_max = STRESS_CONFIG.client_count_max;
-    config.delivery.queues.working.capacity = 1;
-    config.delivery.queues.deliver.capacity = 1;
-    config.delivery.queues.deferred.capacity = 1;
+    config.server.queues.working.channel_size = 1;
+    config.server.queues.delivery.channel_size = 1;
 
-    get_logger_config(&config, true)
+    get_log4rs_config(&config, true)
         .context("Logs configuration contain error")
         .map(log4rs::init_config)
         .context("Cannot initialize logs")
@@ -77,16 +73,16 @@ async fn listen_and_serve() {
         .unwrap();
 
     let sockets = (
-        std::net::TcpListener::bind(&config.server.addr[..]).unwrap(),
-        std::net::TcpListener::bind(&config.server.addr_submission[..]).unwrap(),
-        std::net::TcpListener::bind(&config.server.addr_submissions[..]).unwrap(),
+        std::net::TcpListener::bind(&config.server.interfaces.addr[..]).unwrap(),
+        std::net::TcpListener::bind(&config.server.interfaces.addr_submission[..]).unwrap(),
+        std::net::TcpListener::bind(&config.server.interfaces.addr_submissions[..]).unwrap(),
     );
 
     let (delivery_sender, _delivery_receiver) =
-        tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
+        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
 
     let (working_sender, _working_receiver) =
-        tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.working.capacity);
+        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
 

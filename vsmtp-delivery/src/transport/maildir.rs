@@ -23,7 +23,7 @@ use vsmtp_common::{
     rcpt::Rcpt,
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::{log_channel::DELIVER, ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, Config};
 
 /// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
@@ -35,7 +35,7 @@ impl Transport for MailDir {
     //       and https://en.wikipedia.org/wiki/Maildir
     async fn deliver(
         &mut self,
-        _: &ServerConfig,
+        _: &Config,
         metadata: &MessageMetadata,
         _: &vsmtp_common::address::Address,
         to: &mut [Rcpt],

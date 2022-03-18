@@ -21,7 +21,7 @@ use vsmtp_common::{
     libc_abstraction::chown_file, mail_context::MessageMetadata, rcpt::Rcpt,
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::{log_channel::DELIVER, ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, Config};
 
 const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
     "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"
@@ -37,7 +37,7 @@ pub struct MBox;
 impl Transport for MBox {
     async fn deliver(
         &mut self,
-        _: &ServerConfig,
+        _: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],

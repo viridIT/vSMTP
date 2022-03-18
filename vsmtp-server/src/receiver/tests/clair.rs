@@ -23,7 +23,7 @@ use vsmtp_common::{
     mail_context::{Body, MailContext},
     rcpt::Rcpt,
 };
-use vsmtp_config::{ServerConfig, TlsSecurityLevel};
+use vsmtp_config::{config::ConfigServerTls, Config, TlsSecurityLevel};
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
@@ -33,12 +33,7 @@ async fn test_receiver_1() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-            _: &Rcpt,
-        ) -> anyhow::Result<()> {
+        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foobar");
             assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
             assert_eq!(
@@ -69,7 +64,7 @@ async fn test_receiver_1() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -79,7 +74,7 @@ async fn test_receiver_1() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -92,12 +87,12 @@ async fn test_receiver_2() {
         DefaultResolverTest,
         ["foo\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "501 Syntax error in parameters or arguments\r\n",
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -110,12 +105,12 @@ async fn test_receiver_3() {
         DefaultResolverTest,
         ["MAIL FROM:<john@doe>\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -128,12 +123,12 @@ async fn test_receiver_4() {
         DefaultResolverTest,
         ["RCPT TO:<john@doe>\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -148,13 +143,13 @@ async fn test_receiver_5() {
             .concat()
             .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -167,13 +162,13 @@ async fn test_receiver_6() {
         DefaultResolverTest,
         ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -181,16 +176,28 @@ async fn test_receiver_6() {
 
 #[tokio::test]
 async fn test_receiver_10() {
+    let mut config = get_regular_config();
+    config.server.tls = Some(ConfigServerTls {
+        security_level: TlsSecurityLevel::Encrypt,
+        preempt_cipherlist: false,
+        handshake_timeout: std::time::Duration::from_millis(200),
+        protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
+        certificate: rustls::Certificate(vec![]),
+        private_key: rustls::PrivateKey(vec![]),
+        sni: vec![],
+    });
+
     match test_receiver(
         "127.0.0.1:0",
         DefaultResolverTest,
         ["HELP\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "214 joining us https://viridit.com/support\r\n",
         ]
         .concat()
         .as_bytes(),
+<<<<<<< HEAD
         std::sync::Arc::new(
             ServerConfig::builder()
                 .with_version_str("<1.0.0")
@@ -199,21 +206,7 @@ async fn test_receiver_10() {
                 .without_log()
                 .with_safe_default_smtps(TlsSecurityLevel::Encrypt, "dummy", "dummy", None)
                 .with_default_smtp()
-                .with_delivery("./tmp/delivery", "none")
-                .with_rules("./src/receiver/tests/main.vsl", vec![])
-                .with_default_reply_codes()
-                .build()
-                .expect("could not build the server config"),
-        ),
-    )
-    .await
-    {
-        Ok(_) => {}
-        Err(err) => {
-            panic!("{}", err)
-        }
     };
-}
 
 #[tokio::test]
 async fn test_receiver_11() {
@@ -232,7 +225,7 @@ async fn test_receiver_11() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -243,7 +236,7 @@ async fn test_receiver_11() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -266,7 +259,7 @@ async fn test_receiver_11_bis() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -277,7 +270,7 @@ async fn test_receiver_11_bis() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -285,15 +278,15 @@ async fn test_receiver_11_bis() {
 
 #[tokio::test]
 async fn test_receiver_12() {
-    let mut config = get_regular_config().unwrap();
-    config.smtp.disable_ehlo = true;
+    let mut config = get_regular_config();
+    config.server.smtp.disable_ehlo = true;
 
     assert!(test_receiver(
         "127.0.0.1:0",
         DefaultResolverTest,
         ["EHLO postmaster\r\n"].concat().as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "502 Command not implemented\r\n",
         ]
         .concat()
@@ -312,12 +305,16 @@ async fn test_receiver_13() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
+<<<<<<< HEAD
         async fn deliver(
             &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
             _: &Rcpt,
         ) -> anyhow::Result<()> {
+=======
+        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
+>>>>>>> develop
             match self.count {
                 0 => {
                     assert_eq!(ctx.envelop.helo, "foobar");
@@ -379,7 +376,7 @@ async fn test_receiver_13() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -393,7 +390,7 @@ async fn test_receiver_13() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());
@@ -407,12 +404,16 @@ async fn test_receiver_14() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
+<<<<<<< HEAD
         async fn deliver(
             &mut self,
             _: &ServerConfig,
             ctx: &MailContext,
             _: &Rcpt,
         ) -> anyhow::Result<()> {
+=======
+        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
+>>>>>>> develop
             match self.count {
                 0 => {
                     assert_eq!(ctx.envelop.helo, "foobar");
@@ -473,7 +474,7 @@ async fn test_receiver_14() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -488,7 +489,7 @@ async fn test_receiver_14() {
         ]
         .concat()
         .as_bytes(),
-        std::sync::Arc::new(get_regular_config().unwrap()),
+        std::sync::Arc::new(get_regular_config()),
     )
     .await
     .is_ok());

@@ -16,7 +16,7 @@
 **/
 use anyhow::Context;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::{log_channel::RECEIVER, ServerConfig};
+use vsmtp_config::{log_channel::RECEIVER, Config};
 
 /// identifiers for all mail queues.
 pub(crate) enum Queue {
@@ -55,7 +55,7 @@ impl Queue {
         Ok(dir)
     }
 
-    pub fn write_to_queue(&self, config: &ServerConfig, ctx: &MailContext) -> anyhow::Result<()> {
+    pub fn write_to_queue(&self, config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
         let message_id = match ctx.metadata.as_ref() {
             Some(metadata) => &metadata.message_id,
             None => anyhow::bail!(
@@ -64,7 +64,9 @@ impl Queue {
             ),
         };
 
-        let to_deliver = self.to_path(&config.delivery.spool_dir)?.join(message_id);
+        let to_deliver = self
+            .to_path(&config.server.queues.dirpath)?
+            .join(message_id);
 
         // TODO: should loop if a file name is conflicting.
         let mut file = std::fs::OpenOptions::new()

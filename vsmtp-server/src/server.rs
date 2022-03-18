@@ -19,10 +19,9 @@ use crate::{
     receiver::{
         handle_connection, handle_connection_secured, IoService, {Connection, ConnectionKind},
     },
-    tls_helpers::get_rustls_config,
 };
 use vsmtp_common::code::SMTPReplyCode;
-use vsmtp_config::ServerConfig;
+use vsmtp_config::{rustls_helper::get_rustls_config, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// TCP/IP server
@@ -32,7 +31,7 @@ pub struct ServerVSMTP {
     listener_submission: tokio::net::TcpListener,
     listener_submissions: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    config: std::sync::Arc<ServerConfig>,
+    config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -47,7 +46,7 @@ impl ServerVSMTP {
     /// * cannot convert sockets to [tokio::net::TcpListener]
     /// * cannot initialize [rustls] config
     pub fn new(
-        config: std::sync::Arc<ServerConfig>,
+        config: std::sync::Arc<Config>,
         sockets: (
             std::net::TcpListener,
             std::net::TcpListener,
@@ -57,18 +56,18 @@ impl ServerVSMTP {
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<Self> {
-        // TODO: move that in config builder ?
-        if !config.delivery.spool_dir.exists() {
+        // NOTE: move that in config builder ?
+        if !config.server.queues.dirpath.exists() {
             std::fs::DirBuilder::new()
                 .recursive(true)
-                .create(&config.delivery.spool_dir)?;
+                .create(&config.server.queues.dirpath)?;
         }
 
         Ok(Self {
             listener: tokio::net::TcpListener::from_std(sockets.0)?,
             listener_submission: tokio::net::TcpListener::from_std(sockets.1)?,
             listener_submissions: tokio::net::TcpListener::from_std(sockets.2)?,
-            tls_config: if let Some(smtps) = &config.smtps {
+            tls_config: if let Some(smtps) = &config.server.tls {
                 Some(std::sync::Arc::new(get_rustls_config(smtps)?))
             } else {
                 None
@@ -123,15 +122,18 @@ impl ServerVSMTP {
             };
             log::warn!("Connection from: {:?}, {}", kind, client_addr);
 
-            if self.config.smtp.client_count_max != -1
+            if self.config.server.client_count_max != -1
                 && client_counter.load(std::sync::atomic::Ordering::SeqCst)
-                    >= self.config.smtp.client_count_max
+                    >= self.config.server.client_count_max
             {
                 if let Err(e) = tokio::io::AsyncWriteExt::write_all(
                     &mut stream,
                     self.config
-                        .reply_codes
+                        .server
+                        .smtp
+                        .codes
                         .get(&SMTPReplyCode::ConnectionMaxReached)
+                        .unwrap()
                         .as_bytes(),
                 )
                 .await
@@ -173,7 +175,7 @@ impl ServerVSMTP {
         stream: tokio::net::TcpStream,
         client_addr: std::net::SocketAddr,
         kind: ConnectionKind,
-        config: std::sync::Arc<ServerConfig>,
+        config: std::sync::Arc<Config>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -230,131 +232,5 @@ impl ServerVSMTP {
             );
             error
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use vsmtp_config::TlsSecurityLevel;
-
-    use super::*;
-
-    #[tokio::test]
-    async fn init_server_valid() -> anyhow::Result<()> {
-        // NOTE: using debug port + 1 in case of a debug server running elsewhere
-        let (addr, addr_submission, addr_submissions) = (
-            "0.0.0.0:10026".parse().expect("valid address"),
-            "0.0.0.0:10588".parse().expect("valid address"),
-            "0.0.0.0:10466".parse().expect("valid address"),
-        );
-
-        let config = std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_version_str("<1.0.0")
-                .unwrap()
-                .with_server(
-                    "test.server.com",
-                    "root",
-                    "root",
-                    addr,
-                    addr_submission,
-                    addr_submissions,
-                    num_cpus::get(),
-                )
-                .without_log()
-                .without_smtps()
-                .with_default_smtp()
-                .with_delivery("./tmp/trash", "none")
-                .with_rules("./tmp/no_rules", vec![])
-                .with_default_reply_codes()
-                .build()
-                .unwrap(),
-        );
-
-        let (delivery_sender, _delivery_receiver) =
-            tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
-
-        let (working_sender, _working_receiver) =
-            tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.working.capacity);
-
-        let rule_engine =
-            std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
-
-        let s = ServerVSMTP::new(
-            config.clone(),
-            (
-                std::net::TcpListener::bind(&config.server.addr[..])?,
-                std::net::TcpListener::bind(&config.server.addr_submission[..])?,
-                std::net::TcpListener::bind(&config.server.addr_submissions[..])?,
-            ),
-            rule_engine,
-            working_sender,
-            delivery_sender,
-        )
-        .unwrap();
-        assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn init_server_secured_valid() -> anyhow::Result<()> {
-        // NOTE: using debug port + 1 in case of a debug server running elsewhere
-        let (addr, addr_submission, addr_submissions) = (
-            "0.0.0.0:10027".parse().expect("valid address"),
-            "0.0.0.0:10589".parse().expect("valid address"),
-            "0.0.0.0:10467".parse().expect("valid address"),
-        );
-
-        let config = std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_version_str("<1.0.0")
-                .unwrap()
-                .with_server(
-                    "test.server.com",
-                    "root",
-                    "root",
-                    addr,
-                    addr_submission,
-                    addr_submissions,
-                    num_cpus::get(),
-                )
-                .without_log()
-                .with_safe_default_smtps(
-                    TlsSecurityLevel::May,
-                    "./src/receiver/tests/certs/certificate.crt",
-                    "./src/receiver/tests/certs/privateKey.key",
-                    None,
-                )
-                .with_default_smtp()
-                .with_delivery("./tmp/trash", "none")
-                .with_rules("./tmp/no_rules", vec![])
-                .with_default_reply_codes()
-                .build()
-                .unwrap(),
-        );
-
-        let (delivery_sender, _delivery_receiver) =
-            tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
-
-        let (working_sender, _working_receiver) =
-            tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.working.capacity);
-
-        let rule_engine =
-            std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
-
-        let s = ServerVSMTP::new(
-            config.clone(),
-            (
-                std::net::TcpListener::bind(&config.server.addr[..])?,
-                std::net::TcpListener::bind(&config.server.addr_submission[..])?,
-                std::net::TcpListener::bind(&config.server.addr_submissions[..])?,
-            ),
-            rule_engine,
-            working_sender,
-            delivery_sender,
-        )
-        .unwrap();
-        assert_eq!(s.addr(), vec![addr, addr_submission, addr_submissions]);
-        Ok(())
     }
 }

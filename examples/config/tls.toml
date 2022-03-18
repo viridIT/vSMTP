@@ -1,0 +1,22 @@
+version_requirement = "<1.0.0"
+
+[server]
+domain = "testserver.com"
+
+[server.tls]
+security_level = "May"
+preempt_cipherlist = false
+handshake_timeout = "200ms"
+protocol_version = "TLSv1.3"
+certificate = "../examples/config/tls/certificate.crt"
+private_key = "../examples/config/tls/private_key.key"
+
+[[server.tls.sni]]
+domain = "testserver2.com"
+certificate = "../examples/config/tls/certificate.crt"
+private_key = "../examples/config/tls/private_key.key"
+
+[[server.tls.sni]]
+domain = "testserver3.com"
+certificate = "../examples/config/tls/certificate.crt"
+private_key = "../examples/config/tls/private_key.key"

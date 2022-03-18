@@ -15,7 +15,7 @@
  *
 **/
 use crate::{
-    receiver::test_helpers::{test_receiver, DefaultResolverTest},
+    receiver::test_helpers::{get_regular_config, test_receiver, DefaultResolverTest},
     resolver::Resolver,
 };
 use vsmtp_common::{
@@ -23,22 +23,7 @@ use vsmtp_common::{
     mail_context::{Body, MailContext},
     rcpt::Rcpt,
 };
-use vsmtp_config::ServerConfig;
-
-fn get_regular_config() -> ServerConfig {
-    ServerConfig::builder()
-        .with_version_str("<1.0.0")
-        .unwrap()
-        .with_rfc_port("test.server.com", "root", "root", None)
-        .without_log()
-        .without_smtps()
-        .with_default_smtp()
-        .with_delivery("./tmp/delivery", "none")
-        .with_rules("./src/receiver/tests/main.vsl", vec![])
-        .with_default_reply_codes()
-        .build()
-        .unwrap()
-}
+use vsmtp_config::Config;
 
 #[tokio::test]
 async fn reset_helo() {
@@ -46,12 +31,7 @@ async fn reset_helo() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-            _: &Rcpt,
-        ) -> anyhow::Result<()> {
+        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo");
             assert_eq!(ctx.envelop.mail_from.full(), "a@b");
             assert_eq!(
@@ -84,7 +64,7 @@ async fn reset_helo() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -114,7 +94,7 @@ async fn reset_mail_from_error() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -143,7 +123,7 @@ async fn reset_mail_ok() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -164,12 +144,7 @@ async fn reset_rcpt_to_ok() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-            _: &Rcpt,
-        ) -> anyhow::Result<()> {
+        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo2");
             assert_eq!(ctx.envelop.mail_from.full(), "d@e");
             assert_eq!(
@@ -201,7 +176,7 @@ async fn reset_rcpt_to_ok() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -234,7 +209,7 @@ async fn reset_rcpt_to_error() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -255,12 +230,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
 
     #[async_trait::async_trait]
     impl Resolver for T {
-        async fn deliver(
-            &mut self,
-            _: &ServerConfig,
-            ctx: &MailContext,
-            _: &Rcpt,
-        ) -> anyhow::Result<()> {
+        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
             assert_eq!(ctx.envelop.helo, "foo");
             assert_eq!(ctx.envelop.mail_from.full(), "foo2@foo");
             assert_eq!(
@@ -298,7 +268,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
         .concat()
         .as_bytes(),
         [
-            "220 test.server.com Service ready\r\n",
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",

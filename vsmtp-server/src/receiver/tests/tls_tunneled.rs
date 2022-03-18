@@ -18,17 +18,18 @@ use crate::{
     processes::ProcessMessage,
     receiver::{connection::ConnectionKind, io_service::IoService},
     server::ServerVSMTP,
-    tls_helpers::{get_cert_from_file, get_rustls_config},
 };
-use vsmtp_config::{ServerConfig, SniKey, TlsSecurityLevel};
+use vsmtp_config::{
+    config::ConfigServerTlsSni, rustls_helper::get_rustls_config, Config, TlsSecurityLevel,
+};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-const SERVER_CERT: &str = "./src/receiver/tests/certs/certificate.crt";
+use super::{get_tls_config, TEST_SERVER_CERT};
 
 // using sockets on 2 thread to make the handshake concurrently
 async fn test_tls_tunneled(
     server_name: &str,
-    server_config: std::sync::Arc<ServerConfig>,
+    server_config: std::sync::Arc<Config>,
     smtp_input: &'static [&str],
     expected_output: &'static [&str],
     port: u32,
@@ -40,12 +41,12 @@ async fn test_tls_tunneled(
     let (working_sender, _working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
     let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-        &server_config.rules.main_filepath.clone(),
-    )?));
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+        RuleEngine::new(&Some(server_config.app.vsl.filepath.clone())).unwrap(),
+    ));
 
     let server = tokio::spawn(async move {
-        let tls_config = get_rustls_config(server_config.smtps.as_ref().unwrap()).unwrap();
+        let tls_config = get_rustls_config(server_config.server.tls.as_ref().unwrap()).unwrap();
 
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
@@ -63,9 +64,17 @@ async fn test_tls_tunneled(
         .unwrap();
     });
 
+    let mut reader = std::io::BufReader::new(std::fs::File::open(&TEST_SERVER_CERT)?);
+
+    let pem = rustls_pemfile::certs(&mut reader)
+        .unwrap()
+        .into_iter()
+        .map(rustls::Certificate)
+        .collect::<Vec<_>>();
+
     let mut root_store = rustls::RootCertStore::empty();
-    for i in &get_cert_from_file(&std::path::PathBuf::from(SERVER_CERT)).unwrap() {
-        root_store.add(i).unwrap();
+    for i in pem {
+        root_store.add(&i).unwrap();
     }
 
     let config = rustls::ClientConfig::builder()
@@ -114,27 +123,12 @@ async fn test_tls_tunneled(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn simple() -> anyhow::Result<()> {
+    let mut config = get_tls_config();
+    config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
+
     test_tls_tunneled(
         "testserver.com",
-        std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_version_str("<1.0.0")
-                .unwrap()
-                .with_rfc_port("testserver.com", "root", "root", None)
-                .without_log()
-                .with_safe_default_smtps(
-                    TlsSecurityLevel::Encrypt,
-                    SERVER_CERT,
-                    "./src/receiver/tests/certs/privateKey.key",
-                    None,
-                )
-                .with_default_smtp()
-                .with_delivery("./tmp/trash", "none")
-                .with_rules("./src/receiver/tests/main.vsl", vec![])
-                .with_default_reply_codes()
-                .build()
-                .unwrap(),
-        ),
+        std::sync::Arc::new(config),
         &[
             "NOOP\r\n",
             "HELO client.com\r\n",
@@ -161,32 +155,20 @@ async fn simple() -> anyhow::Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn sni() -> anyhow::Result<()> {
+    let mut config = get_tls_config();
+    config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
+    config.server.tls.as_mut().unwrap().sni.push(
+        ConfigServerTlsSni::from_path(
+            "second.testserver.com",
+            "./src/receiver/tests/certs/sni/second.certificate.crt",
+            "./src/receiver/tests/certs/sni/second.privateKey.key",
+        )
+        .unwrap(),
+    );
+
     test_tls_tunneled(
         "second.testserver.com",
-        std::sync::Arc::new(
-            ServerConfig::builder()
-                .with_version_str("<1.0.0")
-                .unwrap()
-                .with_rfc_port("testserver.com", "root", "root", None)
-                .without_log()
-                .with_safe_default_smtps(
-                    TlsSecurityLevel::Encrypt,
-                    SERVER_CERT,
-                    "./src/receiver/tests/certs/privateKey.key",
-                    Some(vec![SniKey {
-                        domain: "second.testserver.com".to_string(),
-                        fullchain: "./src/receiver/tests/certs/sni/second.certificate.crt".into(),
-                        private_key: "./src/receiver/tests/certs/sni/second.privateKey.key".into(),
-                        protocol_version: None,
-                    }]),
-                )
-                .with_default_smtp()
-                .with_delivery("./tmp/trash", "none")
-                .with_rules("./src/receiver/tests/main.vsl", vec![])
-                .with_default_reply_codes()
-                .build()
-                .unwrap(),
-        ),
+        std::sync::Arc::new(config),
         &["NOOP\r\n", "QUIT\r\n"],
         &[
             "220 testserver.com Service ready",

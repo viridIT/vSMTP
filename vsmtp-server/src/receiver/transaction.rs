@@ -27,7 +27,7 @@ use vsmtp_common::{
 };
 use vsmtp_config::{
     log_channel::RECEIVER,
-    {ServerConfig, TlsSecurityLevel},
+    {Config, TlsSecurityLevel},
 };
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
@@ -83,7 +83,7 @@ impl Transaction<'_> {
         match (&self.state, event) {
             (_, Event::NoopCmd) => ProcessedEvent::Reply(SMTPReplyCode::Code250),
 
-            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Code214),
+            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Help),
 
             (_, Event::RsetCmd) => {
                 {
@@ -123,7 +123,7 @@ impl Transaction<'_> {
                 }
             }
 
-            (_, Event::EhloCmd(_)) if conn.config.smtp.disable_ehlo => {
+            (_, Event::EhloCmd(_)) if conn.config.server.smtp.disable_ehlo => {
                 ProcessedEvent::Reply(SMTPReplyCode::Code502unimplemented)
             }
 
@@ -150,17 +150,25 @@ impl Transaction<'_> {
                 }
             }
 
-            (StateSMTP::Helo, Event::StartTls) if conn.config.smtps.is_none() => {
+            (StateSMTP::Helo, Event::StartTls) if conn.config.server.tls.is_none() => {
                 ProcessedEvent::Reply(SMTPReplyCode::Code454)
             }
 
-            (StateSMTP::Helo, Event::StartTls) if conn.config.smtps.is_some() => {
-                ProcessedEvent::ReplyChangeState(StateSMTP::NegotiationTLS, SMTPReplyCode::Code220)
+            (StateSMTP::Helo, Event::StartTls) if conn.config.server.tls.is_some() => {
+                ProcessedEvent::ReplyChangeState(
+                    StateSMTP::NegotiationTLS,
+                    SMTPReplyCode::Greetings,
+                )
             }
 
             (StateSMTP::Helo, Event::MailCmd(_, _))
                 if !conn.is_secured
-                    && conn.config.smtps.as_ref().map(|smtps| smtps.security_level)
+                    && conn
+                        .config
+                        .server
+                        .tls
+                        .as_ref()
+                        .map(|smtps| smtps.security_level)
                         == Some(TlsSecurityLevel::Encrypt) =>
             {
                 ProcessedEvent::Reply(SMTPReplyCode::Code530)
@@ -206,7 +214,7 @@ impl Transaction<'_> {
                         .envelop
                         .rcpt
                         .len()
-                        >= conn.config.smtp.rcpt_count_max =>
+                        >= conn.config.server.smtp.rcpt_count_max =>
                     {
                         ProcessedEvent::ReplyChangeState(
                             StateSMTP::RcptTo,
@@ -358,14 +366,15 @@ impl Transaction<'_> {
     }
 }
 
-fn get_timeout_for_state(
-    config: &std::sync::Arc<ServerConfig>,
-    state: StateSMTP,
-) -> std::time::Duration {
-    config.smtp.timeout_client.get(&state).map_or_else(
-        || std::time::Duration::from_millis(TIMEOUT_DEFAULT),
-        |t| t.alias,
-    )
+fn get_timeout_for_state(config: &std::sync::Arc<Config>, state: StateSMTP) -> std::time::Duration {
+    match state {
+        StateSMTP::Connect => config.server.smtp.timeout_client.connect,
+        StateSMTP::Helo => config.server.smtp.timeout_client.helo,
+        StateSMTP::MailFrom => config.server.smtp.timeout_client.mail_from,
+        StateSMTP::RcptTo => config.server.smtp.timeout_client.rcpt_to,
+        StateSMTP::Data => config.server.smtp.timeout_client.data,
+        _ => std::time::Duration::from_millis(TIMEOUT_DEFAULT),
+    }
 }
 
 impl Transaction<'_> {

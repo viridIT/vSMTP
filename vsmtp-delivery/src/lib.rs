@@ -30,7 +30,7 @@
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
     use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
-    use vsmtp_config::ServerConfig;
+    use vsmtp_config::Config;
 
     /// allowing the [ServerVSMTP] to deliver a mail.
     #[async_trait::async_trait]
@@ -38,7 +38,7 @@ pub mod transport {
         /// the deliver method of the [Resolver] trait
         async fn deliver(
             &mut self,
-            config: &ServerConfig,
+            config: &Config,
             metadata: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
@@ -58,7 +58,7 @@ pub mod transport {
     impl Transport for NoTransfer {
         async fn deliver(
             &mut self,
-            _: &ServerConfig,
+            _: &Config,
             _: &MessageMetadata,
             _: &Address,
             _: &mut [Rcpt],

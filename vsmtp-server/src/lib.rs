@@ -10,11 +10,8 @@
 //
 #![allow(clippy::doc_markdown)]
 
-use processes::ProcessMessage;
-use vsmtp_config::ServerConfig;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
-
-use crate::server::ServerVSMTP;
+#[cfg(test)]
+mod tests;
 
 ///
 pub mod processes;
@@ -24,11 +21,17 @@ pub mod queue;
 pub mod receiver;
 ///
 pub mod server;
-mod tls_helpers;
+// mod tls_helpers;
+
+use processes::ProcessMessage;
+use vsmtp_config::Config;
+use vsmtp_rule_engine::rule_engine::RuleEngine;
+
+use crate::server::ServerVSMTP;
 
 #[doc(hidden)]
 pub fn start_runtime(
-    config: std::sync::Arc<ServerConfig>,
+    config: std::sync::Arc<Config>,
     sockets: (
         std::net::TcpListener,
         std::net::TcpListener,
@@ -38,20 +41,20 @@ pub fn start_runtime(
     let resolvers = vsmtp_delivery::transport::create_transports();
 
     let (delivery_sender, delivery_receiver) =
-        tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.deliver.capacity);
+        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
 
     let (working_sender, working_receiver) =
-        tokio::sync::mpsc::channel::<ProcessMessage>(config.delivery.queues.working.capacity);
+        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-        &config.rules.main_filepath.clone(),
-    )?));
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&Some(
+        config.app.vsl.filepath.clone(),
+    ))?));
 
     let config_copy = config.clone();
     let rule_engine_copy = rule_engine.clone();
     let tasks_delivery = std::thread::spawn(|| {
         tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(config_copy.server.thread_count)
+            .worker_threads(config_copy.server.system.thread_pool.delivery)
             .enable_all()
             .thread_name("vsmtp-delivery")
             .build()?
@@ -73,7 +76,7 @@ pub fn start_runtime(
     let mime_delivery_sender = delivery_sender.clone();
     let tasks_processing = std::thread::spawn(|| {
         tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(config_copy.server.thread_count)
+            .worker_threads(config_copy.server.system.thread_pool.processing)
             .enable_all()
             .thread_name("vsmtp-processing")
             .build()?
@@ -92,7 +95,7 @@ pub fn start_runtime(
 
     let tasks_receiver = std::thread::spawn(|| {
         let res = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(config.server.thread_count)
+            .worker_threads(config.server.system.thread_pool.receiver)
             .enable_all()
             .thread_name("vsmtp-receiver")
             .build()?
@@ -127,23 +130,4 @@ pub fn start_runtime(
     .collect::<std::io::Result<Vec<()>>>()?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-
-    #[test]
-    fn test_build_lettre_envelop() {
-        let mut ctx = vsmtp_delivery::test::get_default_context();
-
-        // assert!(build_envelop(&ctx).is_err());
-
-        ctx.envelop.rcpt.push(
-            vsmtp_common::address::Address::try_from("john@doe.com")
-                .unwrap()
-                .into(),
-        );
-
-        // build_envelop(&ctx).expect("failed to build the envelop");
-    }
 }

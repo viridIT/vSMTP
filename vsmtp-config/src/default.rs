@@ -1,150 +1,212 @@
-/**
- * vSMTP mail transfer agent
- * Copyright (C) 2022 viridIT SAS
- *
- * This program is free software: you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or any later version.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see https://www.gnu.org/licenses/.
- *
-**/
+#![allow(clippy::module_name_repetitions)]
+
 use vsmtp_common::{code::SMTPReplyCode, collection};
 
-use super::server_config::{
-    Codes, InnerDeliveryConfig, InnerLogConfig, InnerQueuesConfig, InnerSMTPConfig,
-    InnerSMTPErrorConfig, InnerServerConfig, InnerUserLogConfig, QueueConfig,
+use crate::{
+    config::{
+        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
+        ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
+        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
+        ConfigServerSystemThreadPool,
+    },
+    Builder, Config, Service,
 };
 
-impl Default for InnerServerConfig {
+impl Default for Config {
+    fn default() -> Self {
+        Builder::ensure(Self {
+            version_requirement: semver::VersionReq::parse("<1.0.0").unwrap(),
+            server: ConfigServer::default(),
+            app: ConfigApp::default(),
+        })
+        .unwrap()
+    }
+}
+
+impl Default for ConfigServer {
     fn default() -> Self {
         Self {
-            domain: String::default(),
-            vsmtp_user: "vsmtp".to_string(),
-            vsmtp_group: "vsmtp".to_string(),
-            addr: Self::default_addr(),
-            addr_submission: Self::default_addr_submission(),
-            addr_submissions: Self::default_addr_submissions(),
-            thread_count: num_cpus::get(),
-        }
-    }
-}
-
-impl InnerServerConfig {
-    pub(crate) fn default_addr() -> Vec<std::net::SocketAddr> {
-        vec!["0.0.0.0:25".parse().expect("valid address")]
-    }
-
-    pub(crate) fn default_addr_submission() -> Vec<std::net::SocketAddr> {
-        vec!["0.0.0.0:587".parse().expect("valid address")]
-    }
-
-    pub(crate) fn default_addr_submissions() -> Vec<std::net::SocketAddr> {
-        vec!["0.0.0.0:465".parse().expect("valid address")]
-    }
-}
-
-impl Default for InnerLogConfig {
-    fn default() -> Self {
-        Self {
-            file: Self::default_file(),
-            level: std::collections::BTreeMap::default(),
-        }
-    }
-}
-
-impl InnerLogConfig {
-    pub(crate) fn default_file() -> std::path::PathBuf {
-        std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "app.log"])
-    }
-}
-
-impl Default for InnerUserLogConfig {
-    fn default() -> Self {
-        Self {
-            file: std::path::PathBuf::from_iter(["/", "var", "log", "vsmtp", "rules.log"]),
-            level: log::LevelFilter::Warn,
-            format: None,
-        }
-    }
-}
-
-impl Default for InnerSMTPErrorConfig {
-    fn default() -> Self {
-        Self {
-            soft_count: 5,
-            hard_count: 10,
-            delay: std::time::Duration::from_millis(1000),
-        }
-    }
-}
-
-impl Default for InnerSMTPConfig {
-    fn default() -> Self {
-        Self {
-            disable_ehlo: false,
-            timeout_client: std::collections::BTreeMap::default(),
-            error: InnerSMTPErrorConfig::default(),
-            rcpt_count_max: Self::default_rcpt_count_max(),
+            domain: Self::hostname(),
             client_count_max: Self::default_client_count_max(),
+            system: ConfigServerSystem::default(),
+            interfaces: ConfigServerInterfaces::default(),
+            logs: ConfigServerLogs::default(),
+            queues: ConfigServerQueues::default(),
+            tls: None,
+            smtp: ConfigServerSMTP::default(),
         }
     }
 }
 
-impl InnerSMTPConfig {
-    pub(crate) const fn default_client_count_max() -> i64 {
-        -1
+impl ConfigServer {
+    pub(crate) fn hostname() -> String {
+        hostname::get().unwrap().to_str().unwrap().to_string()
     }
 
-    pub(super) const fn default_rcpt_count_max() -> usize {
+    pub(crate) const fn default_client_count_max() -> i64 {
+        16
+    }
+}
+
+impl Default for ConfigServerSystem {
+    fn default() -> Self {
+        Self {
+            user: Self::default_user(),
+            group: Self::default_group(),
+            thread_pool: ConfigServerSystemThreadPool::default(),
+        }
+    }
+}
+
+impl ConfigServerSystem {
+    pub(crate) fn default_user() -> String {
+        match option_env!("CI") {
+            Some(_) => "root",
+            None => "vsmtp",
+        }
+        .to_string()
+    }
+
+    pub(crate) fn default_group() -> String {
+        match option_env!("CI") {
+            Some(_) => "root",
+            None => "vsmtp",
+        }
+        .to_string()
+    }
+}
+
+impl Default for ConfigServerSystemThreadPool {
+    fn default() -> Self {
+        Self {
+            receiver: Self::default_receiver(),
+            processing: Self::default_processing(),
+            delivery: Self::default_delivery(),
+        }
+    }
+}
+
+impl ConfigServerSystemThreadPool {
+    pub(crate) const fn default_receiver() -> usize {
+        6
+    }
+
+    pub(crate) const fn default_processing() -> usize {
+        6
+    }
+
+    pub(crate) const fn default_delivery() -> usize {
+        6
+    }
+}
+
+impl Default for ConfigServerInterfaces {
+    fn default() -> Self {
+        Self::ipv4_localhost()
+    }
+}
+
+impl ConfigServerInterfaces {
+    pub(crate) fn ipv4_localhost() -> Self {
+        Self {
+            addr: vec!["127.0.0.1:25".parse().expect("valid")],
+            addr_submission: vec!["127.0.0.1:587".parse().expect("valid")],
+            addr_submissions: vec!["127.0.0.1:465".parse().expect("valid")],
+        }
+    }
+}
+
+impl Default for ConfigServerLogs {
+    fn default() -> Self {
+        Self {
+            filepath: Self::default_filepath(),
+            format: Self::default_format(),
+            level: Self::default_level(),
+        }
+    }
+}
+
+impl ConfigServerLogs {
+    pub(crate) fn default_filepath() -> std::path::PathBuf {
+        "/var/log/vsmtp/vsmtp.log".into()
+    }
+
+    pub(crate) fn default_format() -> String {
+        "{d} {l} - ".to_string()
+    }
+
+    pub(crate) fn default_level() -> std::collections::BTreeMap<String, log::LevelFilter> {
+        collection! {
+            "default".to_string() => log::LevelFilter::Warn
+        }
+    }
+}
+
+impl Default for ConfigServerQueues {
+    fn default() -> Self {
+        Self {
+            dirpath: Self::default_dirpath(),
+            working: ConfigQueueWorking::default(),
+            delivery: ConfigQueueDelivery::default(),
+        }
+    }
+}
+
+impl ConfigServerQueues {
+    pub(crate) fn default_dirpath() -> std::path::PathBuf {
+        "/var/spool/vsmtp".into()
+    }
+}
+
+impl Default for ConfigQueueWorking {
+    fn default() -> Self {
+        Self { channel_size: 32 }
+    }
+}
+
+impl Default for ConfigQueueDelivery {
+    fn default() -> Self {
+        Self {
+            channel_size: 32,
+            deferred_retry_max: 100,
+            deferred_retry_period: std::time::Duration::from_secs(300),
+        }
+    }
+}
+
+impl Default for ConfigServerSMTP {
+    fn default() -> Self {
+        Self {
+            rcpt_count_max: Self::default_rcpt_count_max(),
+            disable_ehlo: Self::default_disable_ehlo(),
+            required_extension: Self::default_required_extension(),
+            error: ConfigServerSMTPError::default(),
+            timeout_client: ConfigServerSMTPTimeoutClient::default(),
+            codes: Self::default_smtp_codes(),
+        }
+    }
+}
+
+impl ConfigServerSMTP {
+    pub(crate) const fn default_rcpt_count_max() -> usize {
         1000
     }
-}
 
-impl InnerDeliveryConfig {
-    pub(crate) fn default_transfer_method() -> String {
-        "none".to_string()
+    pub(crate) const fn default_disable_ehlo() -> bool {
+        false
     }
-}
 
-impl Default for InnerQueuesConfig {
-    fn default() -> Self {
-        Self {
-            working: QueueConfig {
-                capacity: QueueConfig::default_capacity(),
-                retry_max: None,
-                cron_period: None,
-            },
-            deliver: QueueConfig {
-                capacity: QueueConfig::default_capacity(),
-                retry_max: None,
-                cron_period: None,
-            },
-            deferred: QueueConfig {
-                capacity: QueueConfig::default_capacity(),
-                retry_max: None,
-                cron_period: None,
-            },
-        }
+    pub(crate) fn default_required_extension() -> Vec<String> {
+        ["STARTTLS", "SMTPUTF8", "8BITMIME", "AUTH"]
+            .into_iter()
+            .map(str::to_string)
+            .collect()
     }
-}
 
-impl QueueConfig {
-    pub(crate) const fn default_capacity() -> usize {
-        32
-    }
-}
-
-impl Default for Codes {
-    fn default() -> Self {
-        let codes: std::collections::HashMap<SMTPReplyCode, &'static str> = collection! {
-            SMTPReplyCode::Code214 => "214 joining us https://viridit.com/support\r\n",
-            SMTPReplyCode::Code220 => "220 {domain} Service ready\r\n",
+    pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
+        let codes: std::collections::BTreeMap<SMTPReplyCode, &'static str> = collection! {
+            SMTPReplyCode::Help => "214 joining us https://viridit.com/support\r\n",
+            SMTPReplyCode::Greetings => "220 {domain} Service ready\r\n",
             SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
             SMTPReplyCode::Code250 => "250 Ok\r\n",
             SMTPReplyCode::Code250PlainEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS\r\n",
@@ -167,32 +229,92 @@ impl Default for Codes {
             SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
         };
 
-        let out = Self {
-            codes: codes
-                .into_iter()
-                .map(|(k, v)| (k, v.to_string()))
-                .collect::<_>(),
-        };
-        assert!(out.is_not_ill_formed(), "missing codes in default values");
-        out
+        assert!(
+            <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter()
+                .all(|i| codes.contains_key(&i)),
+            "default SMTPReplyCode are ill-formed "
+        );
+
+        codes
+            .into_iter()
+            .map(|(k, v)| (k, v.to_string()))
+            .collect::<_>()
     }
 }
 
-impl Codes {
-    fn is_not_ill_formed(&self) -> bool {
-        <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter()
-            .all(|i| self.codes.contains_key(&i))
+impl Default for ConfigServerSMTPError {
+    fn default() -> Self {
+        Self {
+            soft_count: 10,
+            hard_count: 20,
+            delay: std::time::Duration::from_millis(5000),
+        }
+    }
+}
+
+impl Default for ConfigServerSMTPTimeoutClient {
+    fn default() -> Self {
+        Self {
+            connect: std::time::Duration::from_secs(5 * 60),
+            helo: std::time::Duration::from_secs(5 * 60),
+            mail_from: std::time::Duration::from_secs(5 * 60),
+            rcpt_to: std::time::Duration::from_secs(5 * 60),
+            data: std::time::Duration::from_secs(5 * 60),
+        }
+    }
+}
+
+impl Default for ConfigApp {
+    fn default() -> Self {
+        Self {
+            dirpath: Self::default_dirpath(),
+            vsl: ConfigAppVSL::default(),
+            logs: ConfigAppLogs::default(),
+            services: std::collections::BTreeMap::<String, Service>::new(),
+        }
+    }
+}
+
+impl ConfigApp {
+    pub(crate) fn default_dirpath() -> std::path::PathBuf {
+        "/var/spool/vsmtp/app".into()
+    }
+}
+
+impl Default for ConfigAppVSL {
+    fn default() -> Self {
+        Self {
+            filepath: Self::default_filepath(),
+        }
+    }
+}
+
+impl ConfigAppVSL {
+    pub(crate) fn default_filepath() -> std::path::PathBuf {
+        "/etc/vsmtp/main.vsl".into()
+    }
+}
+
+impl Default for ConfigAppLogs {
+    fn default() -> Self {
+        Self {
+            filepath: Self::default_filepath(),
+            level: Self::default_level(),
+            format: Self::default_format(),
+        }
+    }
+}
+
+impl ConfigAppLogs {
+    pub(crate) fn default_filepath() -> std::path::PathBuf {
+        "/var/log/vsmtp/app.log".into()
     }
 
-    /// return the message associated with a [SMTPReplyCode].
-    ///
-    /// # Panics
-    ///
-    /// * the config is ill-formed
-    #[must_use]
-    pub fn get(&self, code: &SMTPReplyCode) -> &String {
-        self.codes
-            .get(code)
-            .unwrap_or_else(|| panic!("ill-formed '{:?}'", code))
+    pub(crate) const fn default_level() -> log::LevelFilter {
+        log::LevelFilter::Warn
+    }
+
+    pub(crate) fn default_format() -> String {
+        "{d} - {m}{n}".to_string()
     }
 }

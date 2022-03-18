@@ -16,7 +16,7 @@
 **/
 use super::io_service::{IoService, ReadError};
 use vsmtp_common::code::SMTPReplyCode;
-use vsmtp_config::{log_channel::RECEIVER, ServerConfig};
+use vsmtp_config::{log_channel::RECEIVER, Config};
 
 /// how the server would react to tls interaction for this connection
 #[allow(clippy::module_name_repetitions)]
@@ -42,7 +42,7 @@ where
     /// is still alive
     pub is_alive: bool,
     /// server's configuration
-    pub config: std::sync::Arc<ServerConfig>,
+    pub config: std::sync::Arc<Config>,
     /// peer socket address
     pub client_addr: std::net::SocketAddr,
     /// number of error the client made so far
@@ -61,7 +61,7 @@ where
     pub fn from_plain<'a>(
         kind: ConnectionKind,
         client_addr: std::net::SocketAddr,
-        config: std::sync::Arc<ServerConfig>,
+        config: std::sync::Arc<Config>,
         io_stream: &'a mut IoService<'a, S>,
     ) -> Connection<S> {
         Connection {
@@ -84,22 +84,36 @@ where
     /// send a reply code to the client
     ///
     /// # Errors
+    ///
+    /// # Panics
+    ///
+    /// * a smtp code is missing, and thus config is ill-formed
     pub fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> anyhow::Result<()> {
         log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
 
         if reply_to_send.is_error() {
             self.error_count += 1;
 
-            let hard_error = self.config.smtp.error.hard_count;
-            let soft_error = self.config.smtp.error.soft_count;
+            let hard_error = self.config.server.smtp.error.hard_count;
+            let soft_error = self.config.server.smtp.error.soft_count;
 
             if hard_error != -1 && self.error_count >= hard_error {
-                let mut response_begin = self.config.reply_codes.get(&reply_to_send).to_string();
+                let mut response_begin = self
+                    .config
+                    .server
+                    .smtp
+                    .codes
+                    .get(&reply_to_send)
+                    .unwrap()
+                    .to_string();
                 response_begin.replace_range(3..4, "-");
                 response_begin.push_str(
                     self.config
-                        .reply_codes
-                        .get(&SMTPReplyCode::Code451TooManyError),
+                        .server
+                        .smtp
+                        .codes
+                        .get(&SMTPReplyCode::Code451TooManyError)
+                        .unwrap(),
                 );
                 std::io::Write::write_all(&mut self.io_stream, response_begin.as_bytes())?;
 
@@ -108,16 +122,28 @@ where
 
             std::io::Write::write_all(
                 &mut self.io_stream,
-                self.config.reply_codes.get(&reply_to_send).as_bytes(),
+                self.config
+                    .server
+                    .smtp
+                    .codes
+                    .get(&reply_to_send)
+                    .unwrap()
+                    .as_bytes(),
             )?;
 
             if soft_error != -1 && self.error_count >= soft_error {
-                std::thread::sleep(self.config.smtp.error.delay);
+                std::thread::sleep(self.config.server.smtp.error.delay);
             }
         } else {
             std::io::Write::write_all(
                 &mut self.io_stream,
-                self.config.reply_codes.get(&reply_to_send).as_bytes(),
+                self.config
+                    .server
+                    .smtp
+                    .codes
+                    .get(&reply_to_send)
+                    .unwrap()
+                    .as_bytes(),
             )?;
         }
         Ok(())

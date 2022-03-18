@@ -19,7 +19,7 @@ use super::Transport;
 use anyhow::Context;
 // use anyhow::Context;
 use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus};
-use vsmtp_config::ServerConfig;
+use vsmtp_config::Config;
 
 /// the email will be directly delivered to the server, without mx lookup.
 #[derive(Default)]
@@ -30,7 +30,7 @@ impl Transport for Forward {
     // NOTE: should the function short circuit when sending an email failed ?
     async fn deliver(
         &mut self,
-        _: &ServerConfig,
+        _: &Config,
         _: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],

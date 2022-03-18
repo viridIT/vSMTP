@@ -1,4 +1,3 @@
-use anyhow::Context;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -15,7 +14,7 @@ use anyhow::Context;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
-// use anyhow::Context;
+use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::{
     exported_module,
@@ -26,7 +25,7 @@ use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::SRULES;
-use vsmtp_config::ServerConfig;
+use vsmtp_config::Config;
 
 use crate::error::RuleEngineError;
 use crate::modules;
@@ -51,7 +50,7 @@ pub struct RuleState<'a> {
 impl<'a> RuleState<'a> {
     /// creates a new rule engine with an empty scope.
     #[must_use]
-    pub fn new(config: &ServerConfig) -> Self {
+    pub fn new(config: &Config) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
             // FIXME: set config in Arc.
@@ -86,7 +85,7 @@ impl<'a> RuleState<'a> {
 
     ///
     #[must_use]
-    pub fn with_context(config: &ServerConfig, mail_context: MailContext) -> Self {
+    pub fn with_context(config: &Config, mail_context: MailContext) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
             // FIXME: set config in Arc.

@@ -18,7 +18,7 @@ use super::Transport;
 
 use anyhow::Context;
 use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus};
-use vsmtp_config::ServerConfig;
+use vsmtp_config::Config;
 
 /// the email will be forwarded to another mail exchanger via mx record resolution & smtp.
 #[derive(Default)]
@@ -29,7 +29,7 @@ impl Transport for Deliver {
     // NOTE: should the function short circuit when sending an email failed ?
     async fn deliver(
         &mut self,
-        _: &ServerConfig,
+        _: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],

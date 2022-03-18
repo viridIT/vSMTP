@@ -60,9 +60,9 @@ pub enum SMTPReplyCode {
     /// system status, or system help reply
     // Code211,
     /// help message
-    Code214,
+    Help,
     /// service ready
-    Code220,
+    Greetings,
     /// service closing transmission channel
     Code221,
     /// requested mail action okay, completed
@@ -139,8 +139,8 @@ impl SMTPReplyCode {
     #[must_use]
     pub const fn is_error(self) -> bool {
         match self {
-            SMTPReplyCode::Code214
-            | SMTPReplyCode::Code220
+            SMTPReplyCode::Help
+            | SMTPReplyCode::Greetings
             | SMTPReplyCode::Code221
             | SMTPReplyCode::Code250
             | SMTPReplyCode::Code250PlainEsmtp
@@ -170,8 +170,8 @@ impl SMTPReplyCode {
 impl std::fmt::Display for SMTPReplyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            SMTPReplyCode::Code214 => "Code214",
-            SMTPReplyCode::Code220 => "Code220",
+            SMTPReplyCode::Help => "Help",
+            SMTPReplyCode::Greetings => "Greetings",
             SMTPReplyCode::Code221 => "Code221",
             SMTPReplyCode::Code250 => "Code250",
             SMTPReplyCode::Code250PlainEsmtp => "Code250PlainEsmtp",
@@ -202,23 +202,13 @@ impl From<SMTPReplyCode> for String {
     }
 }
 
-/// Error return type of SMTPReplyCode::from_str
-#[derive(Debug, PartialEq, Eq)]
-pub struct SMTPReplyCodeFromStrError;
-
-impl std::fmt::Display for SMTPReplyCodeFromStrError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str("SMTPReplyCodeFromStrError")
-    }
-}
-
 impl std::str::FromStr for SMTPReplyCode {
-    type Err = SMTPReplyCodeFromStrError;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Code214" => Ok(Self::Code214),
-            "Code220" => Ok(Self::Code220),
+            "Help" => Ok(Self::Help),
+            "Greetings" => Ok(Self::Greetings),
             "Code221" => Ok(Self::Code221),
             "Code250" => Ok(Self::Code250),
             "Code250PlainEsmtp" => Ok(Self::Code250PlainEsmtp),
@@ -239,13 +229,13 @@ impl std::str::FromStr for SMTPReplyCode {
             "Code554" => Ok(Self::Code554),
             "Code554tls" => Ok(Self::Code554tls),
             "ConnectionMaxReached" => Ok(Self::ConnectionMaxReached),
-            _ => Err(SMTPReplyCodeFromStrError),
+            _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }
 }
 
 impl TryFrom<String> for SMTPReplyCode {
-    type Error = SMTPReplyCodeFromStrError;
+    type Error = anyhow::Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         <Self as std::str::FromStr>::from_str(&value)
@@ -261,15 +251,17 @@ mod tests {
     #[test]
     fn error() {
         assert_eq!(
-            format!("{}", SMTPReplyCode::from_str("root").unwrap_err()),
-            "SMTPReplyCodeFromStrError"
+            format!("{}", SMTPReplyCode::from_str("foobar").unwrap_err()),
+            "not a valid SMTPReplyCode: 'foobar'"
         );
     }
 
     #[test]
     fn same() {
         for s in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+            println!("{:?} error={}", s, s.is_error());
             assert_eq!(SMTPReplyCode::from_str(&format!("{}", s)).unwrap(), s);
+            assert_eq!(String::try_from(s).unwrap(), format!("{}", s));
         }
     }
 }

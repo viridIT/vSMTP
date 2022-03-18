@@ -18,8 +18,8 @@ use crate::{
     rule_engine::{RuleEngine, RuleState},
     tests::helpers::get_default_state,
 };
-use vsmtp_common::{address::Address, mail_context::Body, status::Status};
-use vsmtp_config::{service::Service, ServerConfig};
+use vsmtp_common::{address::Address, collection, mail_context::Body, status::Status};
+use vsmtp_config::{Config, Service};
 
 #[test]
 fn test_status() {
@@ -76,28 +76,30 @@ fn test_objects() {
 fn test_services() {
     let re = RuleEngine::new(&Some(rules_path!["service", "main.vsl"])).unwrap();
 
-    let config = ServerConfig::builder()
+    let config = Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
-        .with_rfc_port("test.server.com", "root", "root", None)
-        .without_log()
-        .without_smtps()
-        .with_default_smtp()
-        .with_delivery("./tmp/delivery", "none")
-        .with_rules(
-            "./tmp/nothing",
-            vec![Service::UnixShell {
-                name: "shell".to_string(),
-                timeout: std::time::Duration::from_secs(2),
-                user: None,
-                group: None,
-                command: "echo".to_string(),
-                args: Some("test".to_string()),
-            }],
-        )
-        .with_default_reply_codes()
-        .build()
-        .expect("could not build the default rule state");
+        .with_server_name("testserver.com")
+        .with_user_group_and_default_system("root", "root")
+        .with_ipv4_localhost()
+        .with_default_logs_settings()
+        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .without_tls_support()
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .with_app_at_location("./tmp/app")
+        .with_vsl("./tmp/nothing")
+        .with_default_app_logs()
+        .with_services(collection! {"shell".to_string() => Service::UnixShell {
+            timeout: std::time::Duration::from_secs(2),
+            user: None,
+            group: None,
+            command: "echo".to_string(),
+            args: Some("test".to_string()),
+        }})
+        .validate()
+        .unwrap();
 
     let mut state = RuleState::new(&config);
 

@@ -19,7 +19,7 @@ use vsmtp_common::{
     mail_context::{Body, MailContext},
     status::Status,
 };
-use vsmtp_config::{log_channel::DELIVER, ServerConfig};
+use vsmtp_config::{log_channel::DELIVER, Config};
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
@@ -27,7 +27,7 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 ///
 /// # Errors
 pub async fn start(
-    config: std::sync::Arc<ServerConfig>,
+    config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -53,7 +53,7 @@ pub async fn start(
 ///
 /// # Panics
 pub async fn handle_one_in_working_queue(
-    config: std::sync::Arc<ServerConfig>,
+    config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -65,7 +65,7 @@ pub async fn handle_one_in_working_queue(
     );
 
     let file_to_process = Queue::Working
-        .to_path(&config.delivery.spool_dir)?
+        .to_path(&config.server.queues.dirpath)?
         .join(&process_message.message_id);
 
     log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
