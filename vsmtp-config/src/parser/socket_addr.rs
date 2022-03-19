@@ -47,6 +47,11 @@ mod test {
     }
 
     #[test]
+    fn error() {
+        assert!(serde_json::from_str::<S>(r#"{"v": ["foobar"]}"#).is_err());
+    }
+
+    #[test]
     fn socket_addr_ipv4() {
         assert_eq!(
             vec![std::net::SocketAddr::new(

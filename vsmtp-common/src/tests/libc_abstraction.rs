@@ -68,4 +68,6 @@ fn test_chown_file() {
         .unwrap();
 
     assert!(chown_file(std::path::Path::new(file_to_create), &user,).is_ok());
+
+    std::fs::remove_file(file_to_create).unwrap();
 }

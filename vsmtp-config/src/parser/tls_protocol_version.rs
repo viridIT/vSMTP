@@ -3,7 +3,6 @@ const ALL_PROTOCOL_VERSION: [rustls::ProtocolVersion; 2] = [
     rustls::ProtocolVersion::TLSv1_3,
 ];
 
-#[derive(PartialEq, Eq)]
 struct ProtocolVersion(rustls::ProtocolVersion);
 
 impl std::str::FromStr for ProtocolVersion {
@@ -26,7 +25,12 @@ impl serde::Serialize for ProtocolVersion {
         serializer.serialize_str(match self.0 {
             rustls::ProtocolVersion::TLSv1_2 => "TLSv1.2",
             rustls::ProtocolVersion::TLSv1_3 => "TLSv1.3",
-            _ => todo!(),
+            _ => {
+                return Err(serde::ser::Error::custom(format!(
+                    "cannot be serialized: '{:?}'",
+                    self.0
+                )))
+            }
         })
     }
 }
@@ -131,7 +135,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    #[derive(Debug, serde::Deserialize)]
+    #[derive(serde::Serialize, serde::Deserialize)]
     struct S {
         #[serde(
             serialize_with = "crate::parser::tls_protocol_version::serialize",
@@ -141,23 +145,41 @@ mod tests {
     }
 
     #[test]
-    fn one_string() {
-        let s = toml::from_str::<S>(r#"v = "TLSv1.2""#).unwrap();
-        assert_eq!(s.v, vec![rustls::ProtocolVersion::TLSv1_2]);
-        let s = toml::from_str::<S>(r#"v = "0x0303""#).unwrap();
-        assert_eq!(s.v, vec![rustls::ProtocolVersion::TLSv1_2]);
+    fn error() {
+        assert!(toml::from_str::<S>(r#"v = "SSL1.1""#).is_err());
+        assert!(toml::from_str::<S>(r#"v = ">=SSL1.2""#).is_err());
+        assert!(toml::from_str::<S>(r#"v = "^foobar""#).is_err());
+        assert!(toml::from_str::<S>(r#"v = "foobar""#).is_err());
+        assert!(toml::from_str::<S>(r#"v = 100"#).is_err());
+    }
 
-        let s = toml::from_str::<S>(r#"v = "TLSv1.3""#).unwrap();
-        assert_eq!(s.v, vec![rustls::ProtocolVersion::TLSv1_3]);
-        let s = toml::from_str::<S>(r#"v = "0x0304""#).unwrap();
-        assert_eq!(s.v, vec![rustls::ProtocolVersion::TLSv1_3]);
+    #[test]
+    fn one_string() {
+        assert_eq!(
+            toml::from_str::<S>(r#"v = "TLSv1.2""#).unwrap().v,
+            vec![rustls::ProtocolVersion::TLSv1_2]
+        );
+        assert_eq!(
+            toml::from_str::<S>(r#"v = "0x0303""#).unwrap().v,
+            vec![rustls::ProtocolVersion::TLSv1_2]
+        );
+
+        assert_eq!(
+            toml::from_str::<S>(r#"v = "TLSv1.3""#).unwrap().v,
+            vec![rustls::ProtocolVersion::TLSv1_3]
+        );
+        assert_eq!(
+            toml::from_str::<S>(r#"v = "0x0304""#).unwrap().v,
+            vec![rustls::ProtocolVersion::TLSv1_3]
+        );
     }
 
     #[test]
     fn array() {
-        let s = toml::from_str::<S>(r#"v = ["TLSv1.2", "TLSv1.3"]"#).unwrap();
         assert_eq!(
-            s.v,
+            toml::from_str::<S>(r#"v = ["TLSv1.2", "TLSv1.3"]"#)
+                .unwrap()
+                .v,
             vec![
                 rustls::ProtocolVersion::TLSv1_2,
                 rustls::ProtocolVersion::TLSv1_3,
@@ -167,22 +189,39 @@ mod tests {
 
     #[test]
     fn pattern() {
-        let s = toml::from_str::<S>(r#"v = "^TLSv1.2""#).unwrap();
         assert_eq!(
-            s.v,
+            toml::from_str::<S>(r#"v = "^TLSv1.2""#).unwrap().v,
             vec![
                 rustls::ProtocolVersion::TLSv1_2,
                 rustls::ProtocolVersion::TLSv1_3,
             ]
         );
 
-        let s = toml::from_str::<S>(r#"v = ">=TLSv1.2""#).unwrap();
         assert_eq!(
-            s.v,
+            toml::from_str::<S>(r#"v = ">=TLSv1.2""#).unwrap().v,
             vec![
                 rustls::ProtocolVersion::TLSv1_2,
                 rustls::ProtocolVersion::TLSv1_3,
             ]
         );
+    }
+
+    #[test]
+    fn serialize() {
+        assert_eq!(
+            toml::to_string(&S {
+                v: vec![
+                    rustls::ProtocolVersion::TLSv1_2,
+                    rustls::ProtocolVersion::TLSv1_3,
+                ]
+            })
+            .unwrap(),
+            "v = [\"TLSv1.2\", \"TLSv1.3\"]\n"
+        );
+
+        assert!(toml::to_string(&S {
+            v: vec![rustls::ProtocolVersion::SSLv2,]
+        })
+        .is_err());
     }
 }
