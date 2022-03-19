@@ -46,20 +46,16 @@ jobs:
           key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          path: target/cov
+          key: ${{ runner.os }}-cargo-build-test-target-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          command: run
-          args: "-- -h"
-      - uses: actions-rs/cargo@v1
-        with:
           command: test
-          args: --all-features --no-fail-fast
+          args: --target-dir target/cov --all-features --no-fail-fast
         env:
           CARGO_INCREMENTAL: "0"
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
@@ -115,8 +111,8 @@ jobs:
           key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          path: target/bench
+          key: ${{ runner.os }}-cargo-build-bench-target-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
