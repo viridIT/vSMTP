@@ -121,6 +121,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: bench
+          args: --target-dir target/bench
       - uses: actions/upload-artifact@v2
         with:
           name: benchmark-report
