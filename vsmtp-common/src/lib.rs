@@ -61,6 +61,8 @@ pub mod status;
 #[cfg(test)]
 mod tests {
     mod event;
+
+    mod libc_abstraction;
 }
 
 #[doc(hidden)]

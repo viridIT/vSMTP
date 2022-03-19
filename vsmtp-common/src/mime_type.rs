@@ -166,13 +166,13 @@ mod tests {
             ]),
         };
 
-        assert!(
-            // arguments can be in any order.
-            input.to_string()
-                == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\""
-                || input.to_string()
-                    == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\""
-        );
+        let order1 = input.to_string()
+            == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\"";
+        let order2 = input.to_string()
+            == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\"";
+
+        // arguments can be in any order.
+        assert!(order1 || order2);
 
         let input = MimeHeader {
             name: "Content-Type".to_string(),

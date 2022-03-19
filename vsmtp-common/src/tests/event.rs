@@ -133,6 +133,8 @@ fn ehlo_command() {
         Event::parse_cmd("EHLO   [127.0.0.1]  "),
         Ok(Event::EhloCmd("127.0.0.1".to_string()))
     );
+
+    assert!(Event::parse_cmd("EHLO   [foobar]  ").is_err(),);
     assert_eq!(
         Event::parse_cmd("ehlo   [0011:2233:4455:6677:8899:aabb:ccdd:eeff]  "),
         Ok(Event::EhloCmd(
@@ -187,6 +189,8 @@ fn command_mail_from() {
         Event::parse_cmd("Mail From ko"),
         Err(SMTPReplyCode::Code501)
     );
+
+    assert_eq!(Event::parse_cmd("Mail"), Err(SMTPReplyCode::Code501));
 }
 
 #[test]
@@ -275,6 +279,8 @@ fn command_rcpt_to() {
     );
     assert_eq!(Event::parse_cmd("RcpT  TO:  "), Err(SMTPReplyCode::Code501));
     assert_eq!(Event::parse_cmd("RCPT TO ko"), Err(SMTPReplyCode::Code501));
+
+    assert_eq!(Event::parse_cmd("RCPT"), Err(SMTPReplyCode::Code501));
 }
 
 #[test]

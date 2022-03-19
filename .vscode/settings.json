@@ -19,6 +19,7 @@
         "getpwuid",
         "helo",
         "humantime",
+        "indextoname",
         "iprange",
         "lettre",
         "libc",

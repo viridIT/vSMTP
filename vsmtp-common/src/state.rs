@@ -131,6 +131,8 @@ mod tests {
             println!("{:?}", s);
             assert_eq!(StateSMTP::from_str(&format!("{}", s)).unwrap(), s);
             assert_eq!(String::try_from(s).unwrap(), format!("{}", s));
+            let str: String = s.into();
+            assert_eq!(str, format!("{}", s));
         }
     }
 }
