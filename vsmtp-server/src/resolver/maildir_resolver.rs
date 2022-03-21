@@ -18,7 +18,7 @@ use super::Resolver;
 
 use anyhow::Context;
 use vsmtp_common::{
-    libc_abstraction::{chown_file, getpwuid},
+    libc_abstraction::{chown, getpwuid},
     mail_context::{Body, MailContext, MessageMetadata},
 };
 use vsmtp_config::{log_channel::DELIVER, Config};
@@ -77,7 +77,7 @@ fn create_maildir(
     let create_and_chown = |path: &std::path::PathBuf, user: &users::User| -> anyhow::Result<()> {
         if !path.exists() {
             std::fs::create_dir(&path).with_context(|| format!("failed to create {:?}", path))?;
-            chown_file(path, user)
+            chown(path, Some(user), None)
                 .with_context(|| format!("failed to set user rights to {:?}", path))?;
         }
 
@@ -107,7 +107,7 @@ fn write_to_maildir(
 
     std::io::Write::write_all(&mut email, content.as_bytes())?;
 
-    chown_file(&maildir, user)?;
+    chown(&maildir, Some(user), None)?;
 
     log::debug!(
         target: DELIVER,

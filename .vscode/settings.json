@@ -34,6 +34,7 @@
         "postq",
         "preq",
         "rcpts",
+        "repr",
         "rhai",
         "roadmap",
         "Rset",

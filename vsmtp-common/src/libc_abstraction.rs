@@ -108,13 +108,16 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
 ///
 /// * `@path` cannot be convert to CString
 /// * see chown(2) ERRORS
-pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<()> {
+pub fn chown(
+    path: &std::path::Path,
+    user: Option<&users::User>,
+    group: Option<&users::Group>,
+) -> anyhow::Result<()> {
     match unsafe {
         libc::chown(
             std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr(),
-            user.uid(),
-            // FIXME: use primary gid ?
-            user.primary_group_id(),
+            user.map_or(u32::MAX, users::User::uid),
+            group.map_or(u32::MAX, users::Group::gid),
         )
     } {
         0 => Ok(()),

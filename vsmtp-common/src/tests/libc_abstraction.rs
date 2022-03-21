@@ -1,5 +1,5 @@
 use crate::libc_abstraction::{
-    chown_file, fork, if_indextoname, if_nametoindex, setgid, setsid, setuid, ForkResult,
+    chown, fork, if_indextoname, if_nametoindex, setgid, setsid, setuid, ForkResult,
 };
 
 #[test]
@@ -58,7 +58,12 @@ fn test_if_nametoindex() {
 fn test_chown_file() {
     let user = users::get_user_by_uid(users::get_current_uid()).unwrap();
 
-    assert!(chown_file(std::path::Path::new("./no_such_file_exist"), &user,).is_err());
+    assert!(chown(
+        std::path::Path::new("./no_such_file_exist"),
+        Some(&user),
+        None
+    )
+    .is_err());
 
     let file_to_create = "./toto";
     let _file = std::fs::OpenOptions::new()
@@ -67,7 +72,7 @@ fn test_chown_file() {
         .open(file_to_create)
         .unwrap();
 
-    assert!(chown_file(std::path::Path::new(file_to_create), &user,).is_ok());
+    assert!(chown(std::path::Path::new(file_to_create), Some(&user), None).is_ok());
 
     std::fs::remove_file(file_to_create).unwrap();
 }

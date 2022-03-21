@@ -18,7 +18,7 @@ use super::Resolver;
 
 use anyhow::Context;
 use vsmtp_common::{
-    libc_abstraction::chown_file,
+    libc_abstraction::chown,
     mail_context::{Body, MailContext, MessageMetadata},
 };
 use vsmtp_config::{log_channel::DELIVER, Config};
@@ -94,7 +94,8 @@ fn write_content_to_mbox(
         .open(&mbox)
         .with_context(|| format!("could not open '{:?}' mbox", mbox))?;
 
-    chown_file(mbox, user).with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
+    chown(mbox, Some(user), None)
+        .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
     std::io::Write::write_all(&mut file, content.as_bytes())
         .with_context(|| format!("could not write email to '{:?}' mbox", mbox))?;
