@@ -15,7 +15,7 @@
  *
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::{address::Address, mail_context::Body, status::Status};
+use vsmtp_common::{address::Address, mail_context::Body, state::StateSMTP, status::Status};
 use vsmtp_mail_parser::MailMimeParser;
 
 #[test]
@@ -25,10 +25,10 @@ fn test_connect_rules() {
 
     // ctx.client_addr is 0.0.0.0 by default.
     state.get_context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
 
     state.get_context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
 }
 
 #[test]
@@ -37,8 +37,8 @@ fn test_helo_rules() {
     let mut state = get_default_state();
     state.get_context().write().unwrap().envelop.helo = "viridit.com".to_string();
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Next);
-    assert_eq!(re.run_when(&mut state, "helo"), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
 }
 
 #[test]
@@ -63,8 +63,11 @@ This is a reply to your hello."#,
         ));
     }
 
-    assert_eq!(re.run_when(&mut state, "mail"), Status::Accept);
-    assert_eq!(re.run_when(&mut state, "postq"), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::MailFrom),
+        Status::Accept
+    );
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
     assert_eq!(
         state.get_context().read().unwrap().envelop.mail_from.full(),
         "no-reply@viridit.com"
@@ -104,8 +107,8 @@ This is a reply to your hello."#,
         ));
     }
 
-    assert_eq!(re.run_when(&mut state, "rcpt"), Status::Accept);
-    assert_eq!(re.run_when(&mut state, "postq"), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Next);
     assert_eq!(
         state.get_context().read().unwrap().envelop.rcpt,
         vec![

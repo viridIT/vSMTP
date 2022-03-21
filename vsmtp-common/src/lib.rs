@@ -65,7 +65,11 @@ pub mod rcpt;
 pub mod transfer;
 
 #[cfg(test)]
-mod event_tests;
+mod tests {
+    mod event;
+
+    mod libc_abstraction;
+}
 
 #[doc(hidden)]
 #[macro_export]

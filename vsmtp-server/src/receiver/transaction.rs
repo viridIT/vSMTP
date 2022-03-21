@@ -114,7 +114,7 @@ impl Transaction<'_> {
                     .rule_engine
                     .read()
                     .unwrap()
-                    .run_when(&mut self.rule_state, "helo")
+                    .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
@@ -134,7 +134,7 @@ impl Transaction<'_> {
                     .rule_engine
                     .read()
                     .unwrap()
-                    .run_when(&mut self.rule_state, "helo")
+                    .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
@@ -182,7 +182,7 @@ impl Transaction<'_> {
                     .rule_engine
                     .read()
                     .unwrap()
-                    .run_when(&mut self.rule_state, "mail")
+                    .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
                 {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
@@ -201,7 +201,7 @@ impl Transaction<'_> {
                     .rule_engine
                     .read()
                     .unwrap()
-                    .run_when(&mut self.rule_state, "rcpt")
+                    .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
                 {
                     Status::Deny => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
@@ -247,7 +247,7 @@ impl Transaction<'_> {
                     .rule_engine
                     .read()
                     .unwrap()
-                    .run_when(&mut self.rule_state, "preq")
+                    .run_when(&mut self.rule_state, &StateSMTP::PreQ)
                     == Status::Deny
                 {
                     return ProcessedEvent::ReplyChangeState(
@@ -393,24 +393,23 @@ impl Transaction<'_> {
             rule_engine,
         };
 
-        transaction.set_connect(conn);
-
         if let Some(helo) = helo_domain.as_ref().cloned() {
             transaction.set_helo(helo);
-        }
+        } else {
+            transaction.set_connect(conn);
 
-        if transaction
-            .rule_engine
-            .read()
-            .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
-            .run_when(&mut transaction.rule_state, "connect")
-            == Status::Deny
-        {
-            anyhow::bail!(
-                "connection at '{}' has been denied when connecting.",
-                conn.client_addr
-            )
-        };
+            let rule_result_connect = transaction
+                .rule_engine
+                .read()
+                .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
+                .run_when(&mut transaction.rule_state, &StateSMTP::Connect);
+            if rule_result_connect == Status::Deny {
+                anyhow::bail!(
+                    "connection at '{}' has been denied when connecting.",
+                    conn.client_addr
+                )
+            };
+        }
 
         let mut read_timeout = get_timeout_for_state(&conn.config, transaction.state);
 

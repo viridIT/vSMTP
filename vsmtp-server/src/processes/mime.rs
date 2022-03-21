@@ -17,6 +17,7 @@
 use crate::{processes::ProcessMessage, queue::Queue};
 use vsmtp_common::{
     mail_context::{Body, MailContext},
+    state::StateSMTP,
     status::Status,
 };
 use vsmtp_config::{log_channel::DELIVER, Config};
@@ -80,7 +81,7 @@ pub async fn handle_one_in_working_queue(
     let result = rule_engine
         .read()
         .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
-        .run_when(&mut state, "postq");
+        .run_when(&mut state, &StateSMTP::PostQ);
 
     if result == Status::Deny {
         Queue::Dead.write_to_queue(config.as_ref(), &state.get_context().read().unwrap())?;

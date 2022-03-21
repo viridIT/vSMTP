@@ -15,14 +15,14 @@
  *
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::status::Status;
+use vsmtp_common::{state::StateSMTP, status::Status};
 
 #[test]
 fn test_logs() {
     let re = RuleEngine::new(&Some(rules_path!["logs", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Deny);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
 }
 
 #[test]
@@ -30,7 +30,10 @@ fn test_users() {
     let re = RuleEngine::new(&Some(rules_path!["users", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(re.run_when(&mut state, "delivery"), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Delivery),
+        Status::Accept
+    );
 }
 
 #[test]
@@ -39,5 +42,5 @@ fn test_send_mail() {
     let mut state = get_default_state();
 
     // TODO: add test to send a valid email.
-    assert_eq!(re.run_when(&mut state, "connect"), Status::Accept);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }

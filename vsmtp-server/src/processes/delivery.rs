@@ -117,7 +117,7 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     let result = rule_engine
         .read()
         .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
-        .run_when(&mut state, "delivery");
+        .run_when(&mut state, &vsmtp_common::state::StateSMTP::Delivery);
 
     // NOTE: should the engine able to return a status for a particular recipient ?
     if result == Status::Deny {

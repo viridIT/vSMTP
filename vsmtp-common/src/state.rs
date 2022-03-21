@@ -14,6 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+
+/// State of the pipeline SMTP
 #[derive(
     Debug,
     Eq,
@@ -44,20 +46,31 @@ pub enum StateSMTP {
     RcptTo,
     /// After receiving DATA command
     Data,
+    /// Before write on disk
+    PreQ,
     /// After receiving QUIT command
     Stop,
+    /// After connection closed
+    PostQ,
+    /// Right before sending to recipient
+    Delivery,
 }
 
 impl std::fmt::Display for StateSMTP {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            StateSMTP::Connect => "Connect",
-            StateSMTP::Helo => "Helo",
-            StateSMTP::NegotiationTLS => "NegotiationTLS",
-            StateSMTP::MailFrom => "MailFrom",
-            StateSMTP::RcptTo => "RcptTo",
+            // format used by vSL
+            StateSMTP::Connect => "connect",
+            StateSMTP::Helo => "helo",
+            StateSMTP::MailFrom => "mail",
+            StateSMTP::RcptTo => "rcpt",
+            StateSMTP::PreQ => "preq",
+            StateSMTP::PostQ => "postq",
+            StateSMTP::Delivery => "delivery",
+            // others
             StateSMTP::Data => "Data",
             StateSMTP::Stop => "Stop",
+            StateSMTP::NegotiationTLS => "NegotiationTLS",
         })
     }
 }
@@ -73,13 +86,18 @@ impl std::str::FromStr for StateSMTP {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Connect" => Ok(Self::Connect),
-            "Helo" => Ok(Self::Helo),
-            "MailFrom" => Ok(Self::MailFrom),
-            "NegotiationTLS" => Ok(Self::NegotiationTLS),
-            "RcptTo" => Ok(Self::RcptTo),
+            // format used by vSL
+            "connect" => Ok(Self::Connect),
+            "helo" => Ok(Self::Helo),
+            "mail" => Ok(Self::MailFrom),
+            "rcpt" => Ok(Self::RcptTo),
+            "preq" => Ok(Self::PreQ),
+            "postq" => Ok(Self::PostQ),
+            "delivery" => Ok(Self::Delivery),
+            // others
             "Data" => Ok(Self::Data),
             "Stop" => Ok(Self::Stop),
+            "NegotiationTLS" => Ok(Self::NegotiationTLS),
             _ => Err(anyhow::anyhow!("not a valid SMTP state: '{}'", s)),
         }
     }
@@ -113,6 +131,8 @@ mod tests {
             println!("{:?}", s);
             assert_eq!(StateSMTP::from_str(&format!("{}", s)).unwrap(), s);
             assert_eq!(String::try_from(s).unwrap(), format!("{}", s));
+            let str: String = s.into();
+            assert_eq!(str, format!("{}", s));
         }
     }
 }

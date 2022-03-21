@@ -46,16 +46,12 @@ jobs:
           key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cargo/bin
+          key: "${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: "-- -h"
       - uses: actions-rs/cargo@v1
         with:
           command: test

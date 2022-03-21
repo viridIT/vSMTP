@@ -1,4 +1,4 @@
-/// return type of [fork]
+/// Return type of [fork]
 pub enum ForkResult {
     /// to the parent, with the pid of the child process
     Parent(libc::pid_t),
@@ -6,14 +6,27 @@ pub enum ForkResult {
     Child,
 }
 
-/// create a child process
+/// Create a child process
 ///
 /// # Errors
 ///
 /// see fork(2) ERRORS
+///
+/// * A system-imposed limit on the number of threads was encountered
+///   * the RLIMIT_NPROC soft resource limit was reached
+///   * the kernel's system-wide limit on the number of processes and threads was reached
+///   * the maximum number of PIDs was reached
+///   * the PID limit imposed by the cgroup "process number" controller was reached.
+/// * The caller is operating under the SCHED_DEADLINE scheduling policy
+///   and does not have the reset-on-fork flagset.
+/// * fork() is not supported on this platform
+/// * fork() failed to allocate the necessary kernel structures because memory is tight
+/// * An attempt was made to create a child process in a PID namespace whose "init" process has terminated
+/// * System call was interrupted by a signal and will be restarted (only during a trace)
 #[inline]
 pub fn fork() -> anyhow::Result<ForkResult> {
     match unsafe { libc::fork() } {
+        // [coverage] hard to test (other than bomb fork)
         -1 => Err(anyhow::anyhow!(
             "fork: '{}'",
             std::io::Error::last_os_error()
@@ -23,13 +36,14 @@ pub fn fork() -> anyhow::Result<ForkResult> {
     }
 }
 
-/// run a program as a background process
+/// Run a program as a background process
 ///
 /// # Errors
 ///
-/// see daemon(2) ERRORS
+/// see daemon(2) ERRORS, see setsid(2) and [fork]
 pub fn daemon() -> anyhow::Result<ForkResult> {
     match fork()? {
+        // [coverage] exit make it annoying to test
         ForkResult::Parent(_) => std::process::exit(0),
         ForkResult::Child => {
             setsid()?;
@@ -38,11 +52,14 @@ pub fn daemon() -> anyhow::Result<ForkResult> {
     }
 }
 
-/// run a program in a new session
+/// Run a program in a new session
 ///
 /// # Errors
 ///
 /// see setsid(2) ERRORS
+///
+/// EPERM: The process group ID of any process equals the PID of the calling process.
+/// Thus, in particular, setsid() fails if the calling process is already a process group leader.
 pub fn setsid() -> anyhow::Result<libc::pid_t> {
     match unsafe { libc::setsid() } {
         -1 => Err(anyhow::anyhow!(
@@ -53,7 +70,7 @@ pub fn setsid() -> anyhow::Result<libc::pid_t> {
     }
 }
 
-/// set user identity
+/// Set user identity
 ///
 /// # Errors
 ///
@@ -69,7 +86,7 @@ pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
     }
 }
 
-/// set group identity
+/// Set group identity
 ///
 /// # Errors
 ///
@@ -85,22 +102,22 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
     }
 }
 
-/// change ownership of a file
+/// Change ownership of a file
 ///
 /// # Errors
 ///
-/// * `path` cannot be convert to CString
+/// * `@path` cannot be convert to CString
 /// * see chown(2) ERRORS
-pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<()> {
-    // NOTE: to_string_lossy().as_bytes() isn't the right way of converting a PathBuf
-    //       to a CString because it is platform independent.
-
+pub fn chown(
+    path: &std::path::Path,
+    user: Option<&users::User>,
+    group: Option<&users::Group>,
+) -> anyhow::Result<()> {
     match unsafe {
         libc::chown(
             std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr(),
-            user.uid(),
-            // FIXME: uid as gid ?
-            user.uid(),
+            user.map_or(u32::MAX, users::User::uid),
+            group.map_or(u32::MAX, users::Group::gid),
         )
     } {
         0 => Ok(()),
@@ -112,14 +129,16 @@ pub fn chown_file(path: &std::path::Path, user: &users::User) -> anyhow::Result<
     }
 }
 
-/// returns the index of the network interface corresponding to the name @ifname
+/// Returns the index of the network interface corresponding to the name `@name`
 ///
 /// # Errors
 ///
-/// * @name contain null bytes
-/// * No index found for the @ifname
-pub fn if_nametoindex(ifname: &str) -> anyhow::Result<u32> {
-    match unsafe { libc::if_nametoindex(std::ffi::CString::new(ifname)?.as_ptr()) } {
+/// * `@name` contain an internal 0 byte
+///
+/// see if_nametoindex(2) ERRORS
+/// * ENXIO: No index found for the @name
+pub fn if_nametoindex(name: &str) -> anyhow::Result<u32> {
+    match unsafe { libc::if_nametoindex(std::ffi::CString::new(name)?.as_ptr()) } {
         0 => Err(anyhow::anyhow!(
             "if_nametoindex: '{}'",
             std::io::Error::last_os_error()
@@ -128,34 +147,32 @@ pub fn if_nametoindex(ifname: &str) -> anyhow::Result<u32> {
     }
 }
 
-/// returns the name of the network interface corresponding to the interface index @ifindex
+/// Returns the name of the network interface corresponding to the interface `@index`
 ///
 /// # Errors
 ///
-/// * No interface found for the @ifindex
+/// * No interface found for the `@index`
 /// * Interface name is not utf8
-pub fn if_indextoname(ifindex: u32) -> anyhow::Result<String> {
+pub fn if_indextoname(index: u32) -> anyhow::Result<String> {
     let mut buf = [0; libc::IF_NAMESIZE];
 
-    match unsafe { libc::if_indextoname(ifindex, buf.as_mut_ptr()) } {
+    match unsafe { libc::if_indextoname(index, buf.as_mut_ptr()) } {
         null if null.is_null() => Err(anyhow::anyhow!(
             "if_indextoname: '{}'",
             std::io::Error::last_os_error()
         )),
-        _ => Ok(std::str::from_utf8(
-            &buf.into_iter()
-                .filter_map(|x| match u8::try_from(x) {
-                    Ok(i) if i == b'\0' => None,
-                    Ok(i) => Some(i),
-                    Err(_) => None,
+        _ => Ok(String::from_utf8(
+            buf.into_iter()
+                .map_while(|c| match c {
+                    0 => None,
+                    otherwise => Some(u8::try_from(otherwise).ok()?),
                 })
-                .collect::<Vec<u8>>(),
-        )?
-        .to_string()),
+                .collect::<Vec<_>>(),
+        )?),
     }
 }
 
-/// get user's home directory
+/// Get user's home directory
 ///
 /// # Errors
 ///
