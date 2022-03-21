@@ -2042,6 +2042,7 @@ dependencies = [
  "criterion",
  "fastrand",
  "lazy_static",
+ "lettre",
  "log",
  "log4rs",
  "num_cpus",

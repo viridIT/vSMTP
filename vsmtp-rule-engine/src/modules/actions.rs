@@ -33,7 +33,6 @@ use vsmtp_config::log_channel::URULES;
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod actions {
-
     /// the transaction if forced accepted, skipping rules of next stages and going the pre-queue
     #[must_use]
     pub const fn faccept() -> Status {
@@ -78,12 +77,7 @@ pub mod actions {
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.
     #[rhai_fn(return_raw)]
-    pub fn send_mail(
-        from: &str,
-        to: rhai::Array,
-        path: &str,
-        relay: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
+    pub fn send_mail(from: &str, to: rhai::Array, path: &str, relay: &str) -> EngineResult<()> {
         // TODO: email could be cached using an object. (obj mail "my_mail" "/path/to/mail")
         let email = std::fs::read_to_string(path).map_err::<Box<EvalAltResult>, _>(|err| {
             format!("vsl::send_mail failed, email path to send unavailable: {err:?}").into()
@@ -390,7 +384,7 @@ pub mod actions {
             .open(queue)
         {
             Ok(mut file) => {
-                disable_delivery(this)?;
+                disable_delivery_all(this)?;
 
                 std::io::Write::write_all(
                     &mut file,
@@ -408,46 +402,159 @@ pub mod actions {
         }
     }
 
-    /// set the delivery method
+    /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, return_raw)]
-    pub fn deliver(
+    pub fn forward(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
-        method: &str,
+        forward: &str,
     ) -> EngineResult<()> {
-        internal_delivery(
+        set_transport_for(
             &mut *this
                 .write()
                 .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
             rcpt,
-            method,
+            &vsmtp_common::transfer::Transfer::Forward(forward.to_string()),
         )
-        .map_err(|err| {
-            format!("failed to set transfer method '{method}' to '{rcpt}': {err}").into()
-        })
+        .map_err(|err| err.to_string().into())
     }
 
-    /// remove the delivery method
+    /// set the delivery method to "Forward" for all recipients.
     #[rhai_fn(global, return_raw)]
-    pub fn disable_delivery(
+    pub fn forward_all(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        forward: &str,
     ) -> EngineResult<()> {
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?
-            .envelop
-            .rcpt
-            .iter_mut()
-            .for_each(|rcpt| rcpt.transfer_method = vsmtp_common::transfer::Transfer::None);
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::Forward(forward.to_string()),
+        );
+
         Ok(())
     }
 
-    /// remove the delivery method
+    /// set the delivery method to "Deliver" for a single recipient.
     #[rhai_fn(global, return_raw)]
-    pub fn disable_delivery_for(
+    pub fn deliver(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
     ) -> EngineResult<()> {
-        deliver(this, rcpt, "none")
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::Deliver,
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Deliver" for all recipients.
+    #[rhai_fn(global, return_raw)]
+    pub fn deliver_all(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::Deliver,
+        );
+
+        Ok(())
+    }
+
+    /// set the delivery method to "Mbox" for a single recipient.
+    #[rhai_fn(global, return_raw)]
+    pub fn mbox(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::Mbox,
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Mbox" for all recipients.
+    #[rhai_fn(global, return_raw)]
+    pub fn mbox_all(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::Mbox,
+        );
+
+        Ok(())
+    }
+
+    /// set the delivery method to "Maildir" for a single recipient.
+    #[rhai_fn(global, return_raw)]
+    pub fn maildir(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::Maildir,
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Maildir" for all recipients.
+    #[rhai_fn(global, return_raw)]
+    pub fn maildir_all(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::Maildir,
+        );
+
+        Ok(())
+    }
+
+    /// remove the delivery method for a specific recipient.
+    #[rhai_fn(global, return_raw)]
+    pub fn disable_delivery(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::None,
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// remove the delivery method for all recipient.
+    #[rhai_fn(global, return_raw)]
+    pub fn disable_delivery_all(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::None,
+        );
+
+        Ok(())
     }
 
     /// check if a given header exists in the top level headers.
@@ -577,14 +684,24 @@ pub mod actions {
     }
 }
 
-fn internal_delivery(ctx: &mut MailContext, search: &str, method: &str) -> anyhow::Result<()> {
+/// set the transport method of a single recipient.
+fn set_transport_for(
+    ctx: &mut MailContext,
+    search: &str,
+    method: &vsmtp_common::transfer::Transfer,
+) -> anyhow::Result<()> {
     ctx.envelop
         .rcpt
         .iter_mut()
         .find(|rcpt| rcpt.address.full() == search)
         .ok_or_else(|| anyhow::anyhow!("could not find rcpt '{}'", search))
-        .and_then(|rcpt| {
-            rcpt.transfer_method = vsmtp_common::transfer::Transfer::try_from(method)?;
-            Ok(())
-        })
+        .map(|rcpt| rcpt.transfer_method = method.clone())
+}
+
+/// set the transport method of all recipients.
+fn set_transport(ctx: &mut MailContext, method: &vsmtp_common::transfer::Transfer) {
+    ctx.envelop
+        .rcpt
+        .iter_mut()
+        .for_each(|rcpt| rcpt.transfer_method = method.clone());
 }

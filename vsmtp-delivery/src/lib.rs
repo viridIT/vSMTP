@@ -92,7 +92,7 @@ pub mod transport {
             Box<dyn Transport + Send + Sync>,
         >::new();
         resolvers.insert(
-            vsmtp_common::transfer::Transfer::Forward,
+            vsmtp_common::transfer::Transfer::Forward("".to_string()),
             Box::new(forward::Forward::default()),
         );
         resolvers.insert(

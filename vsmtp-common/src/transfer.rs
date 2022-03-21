@@ -35,10 +35,10 @@ pub enum EmailTransferStatus {
 }
 
 /// the delivery method / protocol used for a specific recipient.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Transfer {
     /// forward email via the smtp protocol and mx record resolution.
-    Forward,
+    Forward(String),
     /// deliver the email via the smtp protocol.
     Deliver,
     /// local delivery via the mbox protocol.
@@ -54,7 +54,7 @@ impl Transfer {
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
-            Self::Forward => "forward",
+            Self::Forward(..) => "forward",
             Self::Deliver => "deliver",
             Self::Mbox => "mbox",
             Self::Maildir => "maildir",
@@ -74,7 +74,7 @@ impl TryFrom<&str> for Transfer {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "forward" => Ok(Self::Forward),
+            "forward" => Ok(Self::Forward(String::default())),
             "deliver" => Ok(Self::Deliver),
             "mbox" => Ok(Self::Mbox),
             "maildir" => Ok(Self::Maildir),
