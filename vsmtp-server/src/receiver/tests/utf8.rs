@@ -26,11 +26,11 @@ macro_rules! test_lang {
         impl vsmtp_delivery::transport::Transport for T {
             async fn deliver(
                 &mut self,
-                config: &Config,
-                metadata: &vsmtp_common::mail_context::MessageMetadata,
+                _: &Config,
+                _: &vsmtp_common::mail_context::MessageMetadata,
                 from: &Address,
                 to: &mut [Rcpt],
-                content: &str,
+                _: &str,
             ) -> anyhow::Result<()> {
                 // assert_eq!(ctx.envelop.helo, "foobar".to_string());
                 assert_eq!(from.full(), "john@doe".to_string());

@@ -27,10 +27,10 @@ use vsmtp_config::{log_channel::DELIVER, Config};
 
 /// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
-pub struct MailDir;
+pub struct Maildir;
 
 #[async_trait::async_trait]
-impl Transport for MailDir {
+impl Transport for Maildir {
     // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
     //       and https://en.wikipedia.org/wiki/Maildir
     async fn deliver(

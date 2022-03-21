@@ -46,13 +46,17 @@ pub mod transport {
         ) -> anyhow::Result<()>;
     }
 
-    pub(super) mod deliver;
-    pub(super) mod forward;
-    pub(super) mod maildir;
-    pub(super) mod mbox;
+    /// delivery transport.
+    pub mod deliver;
+    /// forwarding transport.
+    pub mod forward;
+    /// maildir transport.
+    pub mod maildir;
+    /// mbox transport.
+    pub mod mbox;
 
     /// no transfer will be made if this resolver is selected.
-    pub(super) struct NoTransfer;
+    pub struct NoTransfer;
 
     #[async_trait::async_trait]
     impl Transport for NoTransfer {
@@ -80,38 +84,6 @@ pub mod transport {
                 .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
                 .collect(),
         )?)
-    }
-
-    /// create a list of transports identified by their Transfer key metadata.
-    #[must_use]
-    pub fn create_transports(
-    ) -> std::collections::HashMap<vsmtp_common::transfer::Transfer, Box<dyn Transport + Send + Sync>>
-    {
-        let mut resolvers = std::collections::HashMap::<
-            vsmtp_common::transfer::Transfer,
-            Box<dyn Transport + Send + Sync>,
-        >::new();
-        resolvers.insert(
-            vsmtp_common::transfer::Transfer::Forward("".to_string()),
-            Box::new(forward::Forward::default()),
-        );
-        resolvers.insert(
-            vsmtp_common::transfer::Transfer::Deliver,
-            Box::new(deliver::Deliver::default()),
-        );
-        resolvers.insert(
-            vsmtp_common::transfer::Transfer::Maildir,
-            Box::new(maildir::MailDir::default()),
-        );
-        resolvers.insert(
-            vsmtp_common::transfer::Transfer::Mbox,
-            Box::new(mbox::MBox::default()),
-        );
-        resolvers.insert(
-            vsmtp_common::transfer::Transfer::None,
-            Box::new(NoTransfer {}),
-        );
-        resolvers
     }
 }
 

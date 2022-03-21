@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
- **/
+ */
 use super::ProcessMessage;
 use crate::queue::Queue;
 use anyhow::Context;
@@ -36,21 +36,16 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 /// # Panics
 ///
 /// * tokio::select!
-pub async fn start<S: std::hash::BuildHasher + Send>(
+pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    mut transports: std::collections::HashMap<
-        vsmtp_common::transfer::Transfer,
-        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
-        S,
-    >,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> anyhow::Result<()> {
     log::info!(
         target: DELIVER,
         "vDeliver (delivery) booting, flushing queue.",
     );
-    flush_deliver_queue(&config, &rule_engine, &mut transports).await?;
+    flush_deliver_queue(&config, &rule_engine).await?;
 
     let mut flush_deferred_interval =
         tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
@@ -68,7 +63,6 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
                         std::path::Path::new(&pm.message_id).to_path_buf(),
                     ]),
                     &rule_engine,
-                    &mut transports,
                 )
                 .await {
                     log::error!(target: DELIVER, "could not deliver email '{}': {error:?}", pm.message_id);
@@ -79,7 +73,7 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
                     target: DELIVER,
                     "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
                 );
-                flush_deferred_queue(&mut transports, &config).await?;
+                flush_deferred_queue(&config).await?;
             }
         };
     }
@@ -90,16 +84,11 @@ pub async fn start<S: std::hash::BuildHasher + Send>(
 /// # Panics
 ///
 /// # Errors
-pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
+pub async fn handle_one_in_delivery_queue(
     config: &Config,
     message_id: &str,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    transports: &mut std::collections::HashMap<
-        vsmtp_common::transfer::Transfer,
-        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
-        S,
-    >,
 ) -> anyhow::Result<()> {
     log::trace!(
         target: DELIVER,
@@ -144,10 +133,8 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
 
                 add_trace_information(&mut ctx, config, result)?;
 
-                println!("{:#?}", *ctx);
-
                 // filtering recipients by domains and delivery method.
-                let triage = filter_recipients(&*ctx, transports);
+                let triage = filter_recipients(&*ctx);
 
                 // getting a raw copy of the email.
                 let content = match &ctx.body {
@@ -167,9 +154,24 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
 
         for (method, rcpt) in &mut triage {
             println!("'{method}' for '{rcpt:?}'");
-            transports
-                .get_mut(method)
-                .unwrap()
+
+            let mut transport: Box<dyn vsmtp_delivery::transport::Transport + Send> = match method {
+                vsmtp_common::transfer::Transfer::Forward(to) => {
+                    Box::new(vsmtp_delivery::transport::forward::Forward(to.clone()))
+                }
+                vsmtp_common::transfer::Transfer::Deliver => {
+                    Box::new(vsmtp_delivery::transport::deliver::Deliver)
+                }
+                vsmtp_common::transfer::Transfer::Mbox => {
+                    Box::new(vsmtp_delivery::transport::mbox::MBox)
+                }
+                vsmtp_common::transfer::Transfer::Maildir => {
+                    Box::new(vsmtp_delivery::transport::maildir::Maildir)
+                }
+                vsmtp_common::transfer::Transfer::None => continue,
+            };
+
+            transport
                 .deliver(config, &metadata, &from, &mut rcpt[..], &content)
                 .await
                 .with_context(|| {
@@ -218,14 +220,9 @@ pub async fn handle_one_in_delivery_queue<S: std::hash::BuildHasher + Send>(
     Ok(())
 }
 
-async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
+async fn flush_deliver_queue(
     config: &Config,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    resolvers: &mut std::collections::HashMap<
-        vsmtp_common::transfer::Transfer,
-        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
-        S,
-    >,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)? {
         let path = path.context("could not flush delivery queue")?;
@@ -238,7 +235,6 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
                 .context("could not fetch message id in delivery queue")?,
             &path.path(),
             rule_engine,
-            resolvers,
         )
         .await?;
     }
@@ -246,15 +242,10 @@ async fn flush_deliver_queue<S: std::hash::BuildHasher + Send>(
     Ok(())
 }
 
-// NOTE: emails stored in the deferred queue are lickly to slow down the process.
+// NOTE: emails stored in the deferred queue are likely to slow down the process.
 //       the pickup process of this queue should be slower than pulling from the delivery queue.
 //       https://www.postfix.org/QSHAPE_README.html#queues
-async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
-    resolvers: &mut std::collections::HashMap<
-        vsmtp_common::transfer::Transfer,
-        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
-        S,
-    >,
+async fn handle_one_in_deferred_queue(
     path: &std::path::Path,
     config: &Config,
 ) -> anyhow::Result<()> {
@@ -342,16 +333,9 @@ async fn handle_one_in_deferred_queue<S: std::hash::BuildHasher + Send>(
     Ok(())
 }
 
-async fn flush_deferred_queue<S: std::hash::BuildHasher + Send>(
-    resolvers: &mut std::collections::HashMap<
-        vsmtp_common::transfer::Transfer,
-        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
-        S,
-    >,
-    config: &Config,
-) -> anyhow::Result<()> {
+async fn flush_deferred_queue(config: &Config) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)? {
-        handle_one_in_deferred_queue(resolvers, &path?.path(), config).await?;
+        handle_one_in_deferred_queue(&path?.path(), config).await?;
     }
 
     Ok(())
@@ -359,29 +343,14 @@ async fn flush_deferred_queue<S: std::hash::BuildHasher + Send>(
 
 /// filter recipients by their transfer method.
 /// the context is mutable because transports could not be correctly setup.
-/// FIXME: find a better to couple Transfer methods with Transport.
-///        that way, the email status would never be failed at this stage.
-fn filter_recipients<S: std::hash::BuildHasher + Send>(
+fn filter_recipients(
     ctx: &MailContext,
-    transports: &std::collections::HashMap<
-        vsmtp_common::transfer::Transfer,
-        Box<dyn vsmtp_delivery::transport::Transport + Send + Sync>,
-        S,
-    >,
 ) -> std::collections::HashMap<vsmtp_common::transfer::Transfer, Vec<vsmtp_common::rcpt::Rcpt>> {
     ctx.envelop
         .rcpt
         .iter()
         .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-            let mut rcpt = rcpt.clone();
-            if !transports.contains_key(&rcpt.transfer_method) {
-                rcpt.email_status = vsmtp_common::transfer::EmailTransferStatus::Failed(format!(
-                    "{} transfer method does not have a transfer system setup",
-                    rcpt.transfer_method.as_str()
-                ));
-                return acc;
-            }
-
+            let rcpt = rcpt.clone();
             if let Some(group) = acc.get_mut(&rcpt.transfer_method) {
                 group.push(rcpt);
             } else {

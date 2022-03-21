@@ -88,7 +88,7 @@ impl vsmtp_delivery::transport::Transport for DefaultResolverTest {
 /// # Panics
 pub async fn test_receiver<T>(
     address: &str,
-    resolver: T,
+    _resolver: T,
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<Config>,
@@ -119,9 +119,6 @@ where
     let config_deliver = config.clone();
 
     let delivery_handle = tokio::spawn(async move {
-        let mut resolvers = vsmtp_delivery::transport::create_transports();
-        resolvers.insert(vsmtp_common::transfer::Transfer::None, Box::new(resolver));
-
         while let Some(pm) = delivery_receiver.recv().await {
             handle_one_in_delivery_queue(
                 &config_deliver,
@@ -133,7 +130,6 @@ where
                     std::path::Path::new(&pm.message_id).to_path_buf(),
                 ]),
                 &re_delivery,
-                &mut resolvers,
             )
             .await
             .expect("delivery process failed");

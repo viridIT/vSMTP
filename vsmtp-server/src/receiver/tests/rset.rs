@@ -27,11 +27,11 @@ async fn reset_helo() {
     impl Transport for T {
         async fn deliver(
             &mut self,
-            config: &Config,
-            metadata: &MessageMetadata,
+            _: &Config,
+            _: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
-            content: &str,
+            _: &str,
         ) -> anyhow::Result<()> {
             // assert_eq!(ctx.envelop.helo, "foo");
             assert_eq!(from.full(), "a@b");
@@ -147,11 +147,11 @@ async fn reset_rcpt_to_ok() {
     impl Transport for T {
         async fn deliver(
             &mut self,
-            config: &Config,
-            metadata: &MessageMetadata,
+            _: &Config,
+            _: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
-            content: &str,
+            _: &str,
         ) -> anyhow::Result<()> {
             // assert_eq!(ctx.envelop.helo, "foo2");
             assert_eq!(from.full(), "d@e");

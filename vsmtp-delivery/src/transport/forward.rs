@@ -23,7 +23,7 @@ use vsmtp_config::Config;
 
 /// the email will be directly delivered to the server, without mx lookup.
 #[derive(Default)]
-pub struct Forward;
+pub struct Forward(pub String);
 
 #[async_trait::async_trait]
 impl Transport for Forward {

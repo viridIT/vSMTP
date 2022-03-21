@@ -38,8 +38,6 @@ pub fn start_runtime(
         std::net::TcpListener,
     ),
 ) -> anyhow::Result<()> {
-    let resolvers = vsmtp_delivery::transport::create_transports();
-
     let (delivery_sender, delivery_receiver) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
 
@@ -62,7 +60,6 @@ pub fn start_runtime(
                 let result = crate::processes::delivery::start(
                     config_copy,
                     rule_engine_copy,
-                    resolvers,
                     delivery_receiver,
                 )
                 .await;
