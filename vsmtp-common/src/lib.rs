@@ -9,7 +9,6 @@
 #![warn(clippy::cargo)]
 //
 #![allow(clippy::doc_markdown)]
-#![allow(clippy::copy_iterator)]
 
 /**
  * vSMTP mail transfer agent
@@ -63,6 +62,12 @@ mod tests {
     mod event;
 
     mod libc_abstraction;
+}
+
+///
+pub mod re {
+    pub use libc;
+    pub use strum;
 }
 
 #[doc(hidden)]

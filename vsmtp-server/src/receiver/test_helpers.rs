@@ -94,7 +94,7 @@ where
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = Connection::from_plain(
+    let mut conn = Connection::new(
         ConnectionKind::Opportunistic,
         address.parse().unwrap(),
         config.clone(),

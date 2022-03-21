@@ -39,6 +39,7 @@
         "roadmap",
         "Rset",
         "rustls",
+        "SASL",
         "setgid",
         "setsid",
         "setuid",

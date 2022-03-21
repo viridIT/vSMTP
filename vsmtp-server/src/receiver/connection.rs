@@ -49,6 +49,8 @@ where
     pub error_count: i64,
     /// is under tls (tunneled or opportunistic)
     pub is_secured: bool,
+    /// has completed SASL challenge (AUTH)
+    pub is_authenticated: bool,
     /// abstraction of the stream
     pub io_stream: &'stream mut IoService<'stream, S>,
 }
@@ -58,7 +60,7 @@ where
     S: std::io::Read + std::io::Write + Send,
 {
     ///
-    pub fn from_plain<'a>(
+    pub fn new<'a>(
         kind: ConnectionKind,
         client_addr: std::net::SocketAddr,
         config: std::sync::Arc<Config>,
@@ -73,6 +75,7 @@ where
             error_count: 0,
             is_secured: false,
             io_stream,
+            is_authenticated: false,
         }
     }
 }

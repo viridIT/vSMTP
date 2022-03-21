@@ -75,8 +75,11 @@ pub struct ConfigServerInterfaces {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerLogs {
+    #[serde(default = "ConfigServerLogs::default_filepath")]
     pub filepath: std::path::PathBuf,
+    #[serde(default = "ConfigServerLogs::default_format")]
     pub format: String,
+    #[serde(default = "ConfigServerLogs::default_level")]
     pub level: std::collections::BTreeMap<String, log::LevelFilter>,
 }
 
@@ -99,7 +102,9 @@ pub struct ConfigQueueDelivery {
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerQueues {
     pub dirpath: std::path::PathBuf,
+    #[serde(default)]
     pub working: ConfigQueueWorking,
+    #[serde(default)]
     pub delivery: ConfigQueueDelivery,
 }
 
@@ -224,8 +229,11 @@ pub struct ConfigAppVSL {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigAppLogs {
+    #[serde(default = "ConfigAppLogs::default_filepath")]
     pub filepath: std::path::PathBuf,
+    #[serde(default = "ConfigAppLogs::default_level")]
     pub level: log::LevelFilter,
+    #[serde(default = "ConfigAppLogs::default_format")]
     pub format: String,
 }
 

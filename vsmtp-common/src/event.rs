@@ -103,13 +103,18 @@ pub enum Event {
 
     /// See "Transport Layer Security"
     /// https://datatracker.ietf.org/doc/html/rfc3207
+    /// Syntax = `"STARTTLS" CRLF`
     StartTls,
     //
     // TODO:
     // PrivCmd,
-
+    //
+    /// Authentication with SASL protocol
+    /// https://datatracker.ietf.org/doc/html/rfc4954
+    /// Syntax = `"AUTH" mechanism [initial-response] CRLF`
+    Auth(String, Option<String>),
+    //
     // Authenticated TURN for On-Demand Mail Relay // https://datatracker.ietf.org/doc/html/rfc2645
-    // Authenticated SMTP // https://datatracker.ietf.org/doc/html/rfc4954
     // Chunking // https://datatracker.ietf.org/doc/html/rfc3030
     // Delivery status notification // https://datatracker.ietf.org/doc/html/rfc3461
     // https://en.wikipedia.org/wiki/Variable_envelope_return_path
@@ -170,6 +175,10 @@ impl Event {
             ("NOOP", [..]) => Ok(Self::NoopCmd),
 
             ("STARTTLS", []) => Ok(Self::StartTls),
+            ("AUTH", [mechanism]) => Self::parse_arg_auth(mechanism, None),
+            ("AUTH", [mechanism, initial_response]) => {
+                Self::parse_arg_auth(mechanism, Some(initial_response))
+            }
 
             _ => Err(SMTPReplyCode::Code501),
         }
@@ -295,6 +304,23 @@ impl Event {
             }
             _ => Err(SMTPReplyCode::Code501),
         }
+    }
+
+    fn parse_arg_auth(
+        mechanism: &str,
+        initial_response: Option<&str>,
+    ) -> Result<Self, SMTPReplyCode> {
+        const SUPPORTED: [&str; 2] = ["PLAIN", "LOGIN"];
+
+        if !SUPPORTED.iter().any(|i| *i == mechanism) {
+            return Err(SMTPReplyCode::AuthMechanismNotSupported);
+        }
+
+        Ok(Self::Auth(
+            mechanism.to_string(),
+            // TODO: must be valid base64
+            initial_response.map(str::to_string),
+        ))
     }
 
     /// Parse a smtp input receive between DATA and <CRLF>.<CRLF> (DATA END)

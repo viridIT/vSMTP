@@ -21,13 +21,12 @@
     Eq,
     PartialEq,
     Hash,
-    Copy,
     Clone,
     Ord,
     PartialOrd,
-    enum_iterator::IntoEnumIterator,
     serde::Deserialize,
     serde::Serialize,
+    strum::EnumIter,
 )]
 #[serde(untagged)]
 #[serde(into = "String")]
@@ -40,6 +39,8 @@ pub enum StateSMTP {
     Helo,
     /// After receiving STARTTLS command
     NegotiationTLS,
+    /// After receiving AUTH command
+    Authentication(String, Option<String>),
     /// After receiving MAIL FROM command
     MailFrom,
     /// After receiving RCPT TO command
@@ -56,21 +57,28 @@ pub enum StateSMTP {
     Delivery,
 }
 
+impl Default for StateSMTP {
+    fn default() -> Self {
+        Self::Connect
+    }
+}
+
 impl std::fmt::Display for StateSMTP {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             // format used by vSL
-            StateSMTP::Connect => "connect",
-            StateSMTP::Helo => "helo",
-            StateSMTP::MailFrom => "mail",
-            StateSMTP::RcptTo => "rcpt",
-            StateSMTP::PreQ => "preq",
-            StateSMTP::PostQ => "postq",
-            StateSMTP::Delivery => "delivery",
+            Self::Connect => "connect",
+            Self::Helo => "helo",
+            Self::MailFrom => "mail",
+            Self::RcptTo => "rcpt",
+            Self::PreQ => "preq",
+            Self::PostQ => "postq",
+            Self::Delivery => "delivery",
             // others
-            StateSMTP::Data => "Data",
-            StateSMTP::Stop => "Stop",
-            StateSMTP::NegotiationTLS => "NegotiationTLS",
+            Self::Data => "Data",
+            Self::Stop => "Stop",
+            Self::NegotiationTLS => "NegotiationTLS",
+            Self::Authentication(_, _) => "Authentication",
         })
     }
 }
@@ -98,6 +106,10 @@ impl std::str::FromStr for StateSMTP {
             "Data" => Ok(Self::Data),
             "Stop" => Ok(Self::Stop),
             "NegotiationTLS" => Ok(Self::NegotiationTLS),
+            "Authentication" => Ok(Self::Authentication(
+                String::default(),
+                Option::<String>::default(),
+            )),
             _ => Err(anyhow::anyhow!("not a valid SMTP state: '{}'", s)),
         }
     }
@@ -127,11 +139,11 @@ mod tests {
 
     #[test]
     fn same() {
-        for s in <StateSMTP as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+        for s in <StateSMTP as strum::IntoEnumIterator>::iter() {
             println!("{:?}", s);
             assert_eq!(StateSMTP::from_str(&format!("{}", s)).unwrap(), s);
-            assert_eq!(String::try_from(s).unwrap(), format!("{}", s));
-            let str: String = s.into();
+            assert_eq!(String::try_from(s.clone()).unwrap(), format!("{}", s));
+            let str: String = s.clone().into();
             assert_eq!(str, format!("{}", s));
         }
     }

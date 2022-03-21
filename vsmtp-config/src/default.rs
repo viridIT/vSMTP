@@ -1,6 +1,6 @@
 #![allow(clippy::module_name_repetitions)]
 
-use vsmtp_common::{code::SMTPReplyCode, collection};
+use vsmtp_common::{code::SMTPReplyCode, collection, re::strum};
 
 use crate::{
     config::{
@@ -209,8 +209,10 @@ impl ConfigServerSMTP {
             SMTPReplyCode::Greetings => "220 {domain} Service ready\r\n",
             SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
             SMTPReplyCode::Code250 => "250 Ok\r\n",
-            SMTPReplyCode::Code250PlainEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS\r\n",
-            SMTPReplyCode::Code250SecuredEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250 SMTPUTF8\r\n",
+            SMTPReplyCode::Code250PlainEsmtp =>
+                "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250-AUTH PLAIN LOGIN\r\n250 STARTTLS\r\n",
+            SMTPReplyCode::Code250SecuredEsmtp =>
+                "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 AUTH PLAIN LOGIN\r\n",
             SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n",
             SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n",
@@ -221,17 +223,17 @@ impl ConfigServerSMTP {
             SMTPReplyCode::Code500 => "500 Syntax error command unrecognized\r\n",
             SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments\r\n",
             SMTPReplyCode::Code502unimplemented => "502 Command not implemented\r\n",
-            SMTPReplyCode::Code503 => "503 Bad sequence of commands\r\n",
+            SMTPReplyCode::BadSequence => "503 Bad sequence of commands\r\n",
             SMTPReplyCode::Code504 => "504 Command parameter not implemented\r\n",
             SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n",
             SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
             SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
             SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
+            SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported\r\n"
         };
 
         assert!(
-            <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter()
-                .all(|i| codes.contains_key(&i)),
+            <SMTPReplyCode as strum::IntoEnumIterator>::iter().all(|i| codes.contains_key(&i)),
             "default SMTPReplyCode are ill-formed "
         );
 

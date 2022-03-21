@@ -1,4 +1,4 @@
-use vsmtp_common::code::SMTPReplyCode;
+use vsmtp_common::{code::SMTPReplyCode, re::strum};
 
 use crate::{
     config::{
@@ -112,7 +112,7 @@ impl Builder<WantsValidate> {
         {
             let default_values = ConfigServerSMTP::default_smtp_codes();
             let reply_codes = &mut config.server.smtp.codes;
-            for i in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+            for i in <SMTPReplyCode as strum::IntoEnumIterator>::iter() {
                 reply_codes.insert(
                     i,
                     reply_codes

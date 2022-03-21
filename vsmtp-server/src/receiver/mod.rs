@@ -98,6 +98,7 @@ async fn on_mail<S: std::io::Read + std::io::Write + Send>(
 /// * server failed to send a message
 /// * a transaction failed
 /// * the pre-queue processing of the mail failed
+#[allow(clippy::missing_panics_doc)]
 pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -140,6 +141,10 @@ where
                 )
                 .await;
             }
+            TransactionResult::Authentication => {
+                println!("authenticate");
+                todo!();
+            }
         }
     }
 
@@ -172,10 +177,11 @@ where
     let mut secured_conn = Connection {
         kind: conn.kind,
         timestamp: conn.timestamp,
-        is_alive: true,
         config: conn.config.clone(),
         client_addr: conn.client_addr,
         error_count: conn.error_count,
+        is_authenticated: conn.is_authenticated,
+        is_alive: true,
         is_secured: true,
         io_stream: &mut io_tls_stream,
     };
@@ -198,6 +204,10 @@ where
                     delivery_sender.clone(),
                 )
                 .await?;
+            }
+            TransactionResult::Authentication => {
+                println!("authenticate secured");
+                todo!();
             }
             TransactionResult::TlsUpgrade => todo!(),
         }

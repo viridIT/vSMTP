@@ -49,9 +49,9 @@
     Hash,
     Copy,
     Clone,
-    enum_iterator::IntoEnumIterator,
     serde::Serialize,
     serde::Deserialize,
+    strum::EnumIter,
 )]
 #[serde(untagged)]
 #[serde(into = "String")]
@@ -105,7 +105,7 @@ pub enum SMTPReplyCode {
     /// command not implemented
     Code502unimplemented,
     /// bad sequence of commands
-    Code503,
+    BadSequence,
     /// command parameter is not implemented
     Code504,
     /// server does not accept mail
@@ -132,6 +132,9 @@ pub enum SMTPReplyCode {
     // Code556,
     /// 554
     ConnectionMaxReached,
+
+    /// 504 5.5.4
+    AuthMechanismNotSupported,
 }
 
 impl SMTPReplyCode {
@@ -139,30 +142,29 @@ impl SMTPReplyCode {
     #[must_use]
     pub const fn is_error(self) -> bool {
         match self {
-            SMTPReplyCode::Help
-            | SMTPReplyCode::Greetings
-            | SMTPReplyCode::Code221
-            | SMTPReplyCode::Code250
-            | SMTPReplyCode::Code250PlainEsmtp
-            | SMTPReplyCode::Code250SecuredEsmtp
-            | SMTPReplyCode::Code354 => false,
-            //
-            SMTPReplyCode::Code451Timeout
-            | SMTPReplyCode::Code451
-            | SMTPReplyCode::Code452
-            | SMTPReplyCode::Code452TooManyRecipients
-            | SMTPReplyCode::Code454
-            | SMTPReplyCode::Code500
-            | SMTPReplyCode::Code501
-            | SMTPReplyCode::Code502unimplemented
-            | SMTPReplyCode::Code503
-            | SMTPReplyCode::Code530
-            | SMTPReplyCode::Code554
-            | SMTPReplyCode::Code554tls
-            | SMTPReplyCode::ConnectionMaxReached
-            | SMTPReplyCode::Code451TooManyError
-            | SMTPReplyCode::Code504 => true,
-            //
+            Self::Help
+            | Self::Greetings
+            | Self::Code221
+            | Self::Code250
+            | Self::Code250PlainEsmtp
+            | Self::Code250SecuredEsmtp
+            | Self::Code354 => false,
+            Self::Code451Timeout
+            | Self::Code451
+            | Self::Code452
+            | Self::Code452TooManyRecipients
+            | Self::Code454
+            | Self::Code500
+            | Self::Code501
+            | Self::Code502unimplemented
+            | Self::BadSequence
+            | Self::Code530
+            | Self::Code554
+            | Self::Code554tls
+            | Self::ConnectionMaxReached
+            | Self::Code451TooManyError
+            | Self::Code504
+            | Self::AuthMechanismNotSupported => true,
         }
     }
 }
@@ -170,28 +172,29 @@ impl SMTPReplyCode {
 impl std::fmt::Display for SMTPReplyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            SMTPReplyCode::Help => "Help",
-            SMTPReplyCode::Greetings => "Greetings",
-            SMTPReplyCode::Code221 => "Code221",
-            SMTPReplyCode::Code250 => "Code250",
-            SMTPReplyCode::Code250PlainEsmtp => "Code250PlainEsmtp",
-            SMTPReplyCode::Code250SecuredEsmtp => "Code250SecuredEsmtp",
-            SMTPReplyCode::Code354 => "Code354",
-            SMTPReplyCode::Code451 => "Code451",
-            SMTPReplyCode::Code451Timeout => "Code451Timeout",
-            SMTPReplyCode::Code451TooManyError => "Code451TooManyError",
-            SMTPReplyCode::Code452 => "Code452",
-            SMTPReplyCode::Code452TooManyRecipients => "Code452TooManyRecipients",
-            SMTPReplyCode::Code454 => "Code454",
-            SMTPReplyCode::Code500 => "Code500",
-            SMTPReplyCode::Code501 => "Code501",
-            SMTPReplyCode::Code502unimplemented => "Code502unimplemented",
-            SMTPReplyCode::Code503 => "Code503",
-            SMTPReplyCode::Code504 => "Code504",
-            SMTPReplyCode::Code530 => "Code530",
-            SMTPReplyCode::Code554 => "Code554",
-            SMTPReplyCode::Code554tls => "Code554tls",
-            SMTPReplyCode::ConnectionMaxReached => "ConnectionMaxReached",
+            Self::Help => "Help",
+            Self::Greetings => "Greetings",
+            Self::Code221 => "Code221",
+            Self::Code250 => "Code250",
+            Self::Code250PlainEsmtp => "Code250PlainEsmtp",
+            Self::Code250SecuredEsmtp => "Code250SecuredEsmtp",
+            Self::Code354 => "Code354",
+            Self::Code451 => "Code451",
+            Self::Code451Timeout => "Code451Timeout",
+            Self::Code451TooManyError => "Code451TooManyError",
+            Self::Code452 => "Code452",
+            Self::Code452TooManyRecipients => "Code452TooManyRecipients",
+            Self::Code454 => "Code454",
+            Self::Code500 => "Code500",
+            Self::Code501 => "Code501",
+            Self::Code502unimplemented => "Code502unimplemented",
+            Self::BadSequence => "BadSequence",
+            Self::Code504 => "Code504",
+            Self::Code530 => "Code530",
+            Self::Code554 => "Code554",
+            Self::Code554tls => "Code554tls",
+            Self::ConnectionMaxReached => "ConnectionMaxReached",
+            Self::AuthMechanismNotSupported => "AuthMechanismNotSupported",
         })
     }
 }
@@ -223,12 +226,13 @@ impl std::str::FromStr for SMTPReplyCode {
             "Code500" => Ok(Self::Code500),
             "Code501" => Ok(Self::Code501),
             "Code502unimplemented" => Ok(Self::Code502unimplemented),
-            "Code503" => Ok(Self::Code503),
+            "BadSequence" => Ok(Self::BadSequence),
             "Code504" => Ok(Self::Code504),
             "Code530" => Ok(Self::Code530),
             "Code554" => Ok(Self::Code554),
             "Code554tls" => Ok(Self::Code554tls),
             "ConnectionMaxReached" => Ok(Self::ConnectionMaxReached),
+            "AuthMechanismNotSupported" => Ok(Self::AuthMechanismNotSupported),
             _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }
@@ -258,7 +262,7 @@ mod tests {
 
     #[test]
     fn same() {
-        for s in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+        for s in <SMTPReplyCode as strum::IntoEnumIterator>::iter() {
             println!("{:?} error={}", s, s.is_error());
             assert_eq!(SMTPReplyCode::from_str(&format!("{}", s)).unwrap(), s);
             assert_eq!(String::try_from(s).unwrap(), format!("{}", s));

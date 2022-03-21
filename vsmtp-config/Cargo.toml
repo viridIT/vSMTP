@@ -15,8 +15,6 @@ publish = false
 [dependencies]
 vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 
-libc = "0.2.109"
-
 log = "0.4.14"
 log4rs = { version = "1.0.0" }
 
@@ -31,8 +29,6 @@ humantime-serde = "1.1.1"
 
 toml = "0.5.8"
 
-enum-iterator = "0.7.0"
-
 rustls = { version = "0.20.4", features = ["tls12", "logging"] }
 rustls-pemfile = "0.3.0"
 
@@ -40,7 +36,6 @@ num_cpus = "1.13.1"
 hostname = "0.3.1"
 
 semver = "1.0.6"
-
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"

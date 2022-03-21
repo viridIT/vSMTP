@@ -104,7 +104,6 @@ impl ServerVSMTP {
     ///
     /// * [tokio::spawn]
     /// * [tokio::select]
-    #[allow(clippy::too_many_lines)]
     pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
@@ -188,7 +187,7 @@ impl ServerVSMTP {
 
         let mut io_plain = IoService::new(&mut stream);
 
-        let mut conn = Connection::<std::net::TcpStream>::from_plain(
+        let mut conn = Connection::<std::net::TcpStream>::new(
             kind,
             client_addr,
             config.clone(),
@@ -205,6 +204,8 @@ impl ServerVSMTP {
                 )
                 .await
             }
+            // TODO: tls not supported
+            // ConnectionKind::Tunneled if config.server.tls.is_none() => {}
             ConnectionKind::Tunneled => {
                 handle_connection_secured(
                     &mut conn,
