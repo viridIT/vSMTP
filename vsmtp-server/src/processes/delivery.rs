@@ -385,7 +385,7 @@ fn filter_recipients<S: std::hash::BuildHasher + Send>(
             if let Some(group) = acc.get_mut(&rcpt.transfer_method) {
                 group.push(rcpt);
             } else {
-                acc.insert(rcpt.transfer_method, vec![rcpt]);
+                acc.insert(rcpt.transfer_method.clone(), vec![rcpt]);
             }
 
             acc

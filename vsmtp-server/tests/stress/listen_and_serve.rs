@@ -15,10 +15,9 @@
  *
 **/
 use anyhow::Context;
-use vsmtp_common::mail_context::MailContext;
 use vsmtp_config::{log4rs_helper::get_log4rs_config, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP};
+use vsmtp_server::{processes::ProcessMessage, server::ServerVSMTP};
 
 #[derive(Debug, serde::Deserialize)]
 struct StressConfig {
@@ -94,20 +93,6 @@ async fn listen_and_serve() {
         delivery_sender,
     )
     .unwrap();
-
-    struct Nothing;
-
-    #[async_trait::async_trait]
-    impl Resolver for Nothing {
-        async fn deliver(
-            &mut self,
-            _: &ServerConfig,
-            _: &MailContext,
-            _: &Rcpt,
-        ) -> anyhow::Result<()> {
-            Ok(())
-        }
-    }
 
     tokio::time::timeout(SERVER_TIMEOUT, server.listen_and_serve())
         .await

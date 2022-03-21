@@ -58,7 +58,12 @@ serde = { version = "1.0.136", features = ["derive"] }
 serde_derive = "1.0.136"
 lazy_static = "1.4.0"
 log4rs = { version = "1.0.0" }
-
+lettre = { version = "0.10.0-rc.4", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }
 
 [[bench]]
 name = "receiver"
