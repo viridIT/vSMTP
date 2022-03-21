@@ -17,21 +17,24 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp_common::{
-    address::Address,
-    mail::BodyType,
-    mail_context::{Body, MailContext},
-    rcpt::Rcpt,
-};
+use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
 use vsmtp_config::Config;
-use vsmtp_server::{receiver::test_helpers::test_receiver, resolver::Resolver};
+use vsmtp_delivery::transport::Transport;
+use vsmtp_server::receiver::test_helpers::test_receiver;
 
 #[derive(Clone)]
 struct DefaultResolverTest;
 
 #[async_trait::async_trait]
-impl Resolver for DefaultResolverTest {
-    async fn deliver(&mut self, _: &Config, _: &MailContext) -> anyhow::Result<()> {
+impl Transport for DefaultResolverTest {
+    async fn deliver(
+        &mut self,
+        _: &Config,
+        _: &MessageMetadata,
+        _: &Address,
+        _: &mut [Rcpt],
+        _: &str,
+    ) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -64,7 +67,7 @@ fn make_bench<R>(
     b: &mut Bencher<WallTime>,
     (input, output, config): &(&[u8], &[u8], std::sync::Arc<Config>),
 ) where
-    R: Resolver + Clone + Send + Sync + 'static,
+    R: Transport + Clone + Send + Sync + 'static,
 {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
@@ -85,18 +88,22 @@ fn criterion_benchmark(c: &mut Criterion) {
         struct T;
 
         #[async_trait::async_trait]
-        impl Resolver for T {
-            async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-                assert_eq!(ctx.envelop.helo, "foobar");
-                assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
+        impl Transport for T {
+            async fn deliver(
+                &mut self,
+                _: &Config,
+                _: &MessageMetadata,
+                from: &Address,
+                rcpt: &mut [Rcpt],
+                body: &str,
+            ) -> anyhow::Result<()> {
+                // assert_eq!(ctx.envelop.helo, "foobar");
+                assert_eq!(from.full(), "john@doe");
                 assert_eq!(
-                    ctx.envelop.rcpt,
-                    vec![Address::try_from("aa@bb").unwrap().into()]
+                    rcpt,
+                    vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                 );
-                assert!(match &ctx.body {
-                    Body::Parsed(mail) => mail.body == BodyType::Undefined,
-                    _ => false,
-                });
+                assert!(body.is_empty());
 
                 Ok(())
             }

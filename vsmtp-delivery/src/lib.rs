@@ -1,15 +1,3 @@
-//! vSMTP delivery system
-
-#![doc(html_no_source)]
-#![deny(missing_docs)]
-//
-#![warn(clippy::all)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::nursery)]
-#![warn(clippy::cargo)]
-//
-#![allow(clippy::doc_markdown)]
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -26,6 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+//! vSMTP delivery system
+
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::doc_markdown)]
 
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {

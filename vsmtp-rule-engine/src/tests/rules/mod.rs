@@ -50,7 +50,7 @@ fn test_mail_from_rules() {
         let email = state.get_context();
         let mut email = email.write().unwrap();
 
-        email.envelop.mail_from = Address::try_from("staff@viridit.com").unwrap();
+        email.envelop.mail_from = Address::try_from("staff@viridit.com".to_string()).unwrap();
         email.body = Body::Parsed(Box::new(
             MailMimeParser::default()
                 .parse(
@@ -81,9 +81,15 @@ fn test_rcpt_rules() {
         let mut email = email.write().unwrap();
 
         email.envelop.rcpt = vec![
-            vsmtp_common::rcpt::Rcpt::new(Address::try_from("johndoe@compagny.com").unwrap()),
-            vsmtp_common::rcpt::Rcpt::new(Address::try_from("user@viridit.com").unwrap()),
-            vsmtp_common::rcpt::Rcpt::new(Address::try_from("customer@company.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(
+                Address::try_from("johndoe@compagny.com".to_string()).unwrap(),
+            ),
+            vsmtp_common::rcpt::Rcpt::new(
+                Address::try_from("user@viridit.com".to_string()).unwrap(),
+            ),
+            vsmtp_common::rcpt::Rcpt::new(
+                Address::try_from("customer@company.com".to_string()).unwrap(),
+            ),
         ];
 
         email.body = Body::Parsed(Box::new(
@@ -103,9 +109,15 @@ This is a reply to your hello."#,
     assert_eq!(
         state.get_context().read().unwrap().envelop.rcpt,
         vec![
-            vsmtp_common::rcpt::Rcpt::new(Address::try_from("johndoe@viridit.com").unwrap()),
-            vsmtp_common::rcpt::Rcpt::new(Address::try_from("user@viridit.com").unwrap()),
-            vsmtp_common::rcpt::Rcpt::new(Address::try_from("no-reply@viridit.com").unwrap()),
+            vsmtp_common::rcpt::Rcpt::new(
+                Address::try_from("johndoe@viridit.com".to_string()).unwrap()
+            ),
+            vsmtp_common::rcpt::Rcpt::new(
+                Address::try_from("user@viridit.com".to_string()).unwrap()
+            ),
+            vsmtp_common::rcpt::Rcpt::new(
+                Address::try_from("no-reply@viridit.com".to_string()).unwrap()
+            ),
         ]
     );
 }
