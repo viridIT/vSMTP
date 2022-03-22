@@ -69,6 +69,8 @@ mod builder {
 pub mod log4rs_helper;
 #[doc(hidden)]
 pub mod rustls_helper;
+#[doc(hidden)]
+pub mod trust_dns_helper;
 
 pub use parser::{tls_certificate, tls_private_key};
 

@@ -221,7 +221,7 @@ pub struct ConfigServerSMTP {
 #[serde(deny_unknown_fields)]
 pub enum ConfigDNS {
     Google,
-    CloudFare,
+    CloudFlare,
     System,
     Custom {
         config: trust_dns_resolver::config::ResolverConfig,

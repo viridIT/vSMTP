@@ -18,6 +18,7 @@ use super::ProcessMessage;
 use crate::queue::Queue;
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
+use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
     status::Status,
@@ -46,14 +47,10 @@ pub async fn start(
         "vDeliver (delivery) booting, flushing queue.",
     );
 
-    // TODO: ask in config for dns type = google, cloudfare, or custom with all options specified.
-    // let dns = trust_dns_resolver::AsyncResolver::tokio(
-    //     trust_dns_resolver::config::ResolverConfig::from_parts(domain, search, name_servers)
-    //     options
-    // )
-    //     .context("could not initialize the delivery dns")?;
+    let dns = vsmtp_config::trust_dns_helper::build_dns(&config)
+        .context("could not initialize the delivery dns")?;
 
-    flush_deliver_queue(&config, &rule_engine).await?;
+    flush_deliver_queue(&config, &dns, &rule_engine).await?;
 
     let mut flush_deferred_interval =
         tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
@@ -65,6 +62,7 @@ pub async fn start(
                 // for a delivery in a separated thread...
                 if let Err(error) = handle_one_in_delivery_queue(
                     &config,
+                    &dns,
                     &pm.message_id,
                     &std::path::PathBuf::from_iter([
                         Queue::Deliver.to_path(&config.server.queues.dirpath)?,
@@ -81,7 +79,7 @@ pub async fn start(
                     target: DELIVER,
                     "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
                 );
-                flush_deferred_queue(&config).await?;
+                flush_deferred_queue(&config, &dns).await?;
             }
         };
     }
@@ -94,6 +92,7 @@ pub async fn start(
 /// # Errors
 pub async fn handle_one_in_delivery_queue(
     config: &Config,
+    dns: &TokioAsyncResolver,
     message_id: &str,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -180,7 +179,7 @@ pub async fn handle_one_in_delivery_queue(
             };
 
             transport
-                .deliver(config, &metadata, &from, &mut rcpt[..], &content)
+                .deliver(config, dns, &metadata, &from, &mut rcpt[..], &content)
                 .await
                 .with_context(|| {
                     format!("failed to deliver email using '{method}' for '{rcpt:?}'")
@@ -230,6 +229,7 @@ pub async fn handle_one_in_delivery_queue(
 
 async fn flush_deliver_queue(
     config: &Config,
+    dns: &TokioAsyncResolver,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)? {
@@ -238,6 +238,7 @@ async fn flush_deliver_queue(
 
         handle_one_in_delivery_queue(
             config,
+            dns,
             message_id
                 .to_str()
                 .context("could not fetch message id in delivery queue")?,
@@ -254,8 +255,9 @@ async fn flush_deliver_queue(
 //       the pickup process of this queue should be slower than pulling from the delivery queue.
 //       https://www.postfix.org/QSHAPE_README.html#queues
 async fn handle_one_in_deferred_queue(
-    path: &std::path::Path,
     config: &Config,
+    _dns: &TokioAsyncResolver,
+    path: &std::path::Path,
 ) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
@@ -273,7 +275,7 @@ async fn handle_one_in_deferred_queue(
 
     let ctx: MailContext = serde_json::from_str(&raw)?;
 
-    let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
+    let _max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
 
     if ctx.metadata.is_none() {
         anyhow::bail!("email metadata is missing")
@@ -341,9 +343,9 @@ async fn handle_one_in_deferred_queue(
     Ok(())
 }
 
-async fn flush_deferred_queue(config: &Config) -> anyhow::Result<()> {
+async fn flush_deferred_queue(config: &Config, dns: &TokioAsyncResolver) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)? {
-        handle_one_in_deferred_queue(&path?.path(), config).await?;
+        handle_one_in_deferred_queue(config, dns, &path?.path()).await?;
     }
 
     Ok(())

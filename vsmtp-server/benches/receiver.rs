@@ -17,6 +17,7 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
+use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
 use vsmtp_config::Config;
 use vsmtp_delivery::transport::Transport;
@@ -30,6 +31,7 @@ impl Transport for DefaultResolverTest {
     async fn deliver(
         &mut self,
         _: &Config,
+        _: &TokioAsyncResolver,
         _: &MessageMetadata,
         _: &Address,
         _: &mut [Rcpt],
@@ -57,6 +59,7 @@ fn get_test_config() -> std::sync::Arc<Config> {
             .with_vsl("./benches/main.vsl")
             .with_default_app_logs()
             .without_services()
+            .with_system_dns()
             .validate()
             .unwrap(),
     )
@@ -92,6 +95,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             async fn deliver(
                 &mut self,
                 _: &Config,
+                _: &TokioAsyncResolver,
                 _: &MessageMetadata,
                 from: &Address,
                 rcpt: &mut [Rcpt],

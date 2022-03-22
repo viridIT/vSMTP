@@ -561,11 +561,11 @@ impl Builder<WantsServerDNS> {
     /// dns resolutions will be made using couldfare's service.
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
-    pub fn with_cloudfare_dns(self) -> Builder<WantsValidate> {
+    pub fn with_cloudflare_dns(self) -> Builder<WantsValidate> {
         Builder::<WantsValidate> {
             state: WantsValidate {
                 parent: self.state,
-                config: ConfigDNS::CloudFare,
+                config: ConfigDNS::CloudFlare,
             },
         }
     }

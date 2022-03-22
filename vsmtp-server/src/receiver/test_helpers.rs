@@ -123,6 +123,8 @@ where
         while let Some(pm) = delivery_receiver.recv().await {
             handle_one_in_delivery_queue(
                 &config_deliver,
+                &vsmtp_config::trust_dns_helper::build_dns(&config_deliver)
+                    .expect("could not build dns from config"),
                 &pm.message_id,
                 &std::path::PathBuf::from_iter([
                     Queue::Deliver
