@@ -154,6 +154,7 @@ where
     handle_connection(
         &mut conn,
         None,
+        None,
         rule_engine,
         working_sender,
         delivery_sender,

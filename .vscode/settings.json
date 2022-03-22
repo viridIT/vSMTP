@@ -37,6 +37,7 @@
         "repr",
         "rhai",
         "roadmap",
+        "rsasl",
         "Rset",
         "rustls",
         "SASL",

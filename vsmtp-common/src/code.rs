@@ -135,6 +135,8 @@ pub enum SMTPReplyCode {
 
     /// 504 5.5.4
     AuthMechanismNotSupported,
+    /// 235 2.7.0
+    AuthenticationSucceeded,
 }
 
 impl SMTPReplyCode {
@@ -148,7 +150,8 @@ impl SMTPReplyCode {
             | Self::Code250
             | Self::Code250PlainEsmtp
             | Self::Code250SecuredEsmtp
-            | Self::Code354 => false,
+            | Self::Code354
+            | Self::AuthenticationSucceeded => false,
             Self::Code451Timeout
             | Self::Code451
             | Self::Code452
@@ -195,6 +198,7 @@ impl std::fmt::Display for SMTPReplyCode {
             Self::Code554tls => "Code554tls",
             Self::ConnectionMaxReached => "ConnectionMaxReached",
             Self::AuthMechanismNotSupported => "AuthMechanismNotSupported",
+            Self::AuthenticationSucceeded => "AuthenticationSucceeded",
         })
     }
 }
@@ -233,6 +237,7 @@ impl std::str::FromStr for SMTPReplyCode {
             "Code554tls" => Ok(Self::Code554tls),
             "ConnectionMaxReached" => Ok(Self::ConnectionMaxReached),
             "AuthMechanismNotSupported" => Ok(Self::AuthMechanismNotSupported),
+            "AuthenticationSucceeded" => Ok(Self::AuthenticationSucceeded),
             _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }

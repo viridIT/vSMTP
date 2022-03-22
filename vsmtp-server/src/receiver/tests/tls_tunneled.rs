@@ -56,6 +56,7 @@ async fn test_tls_tunneled(
             ConnectionKind::Tunneled,
             server_config,
             Some(std::sync::Arc::new(tls_config)),
+            None,
             rule_engine,
             working_sender,
             delivery_sender,

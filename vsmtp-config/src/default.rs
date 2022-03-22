@@ -229,7 +229,8 @@ impl ConfigServerSMTP {
             SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
             SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
             SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
-            SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported\r\n"
+            SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported\r\n",
+            SMTPReplyCode::AuthenticationSucceeded => "235 2.7.0 Authentication succeeded\r\n",
         };
 
         assert!(

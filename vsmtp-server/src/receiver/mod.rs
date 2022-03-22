@@ -15,7 +15,7 @@
  *
 **/
 use self::transaction::{Transaction, TransactionResult};
-use crate::{processes::ProcessMessage, queue::Queue};
+use crate::{processes::ProcessMessage, queue::Queue, server::SaslBackend};
 use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
@@ -91,6 +91,45 @@ async fn on_mail<S: std::io::Read + std::io::Write + Send>(
     }
 }
 
+async fn on_authentication<S>(
+    conn: &mut Connection<'_, S>,
+    rsasl: std::sync::Arc<tokio::sync::Mutex<SaslBackend>>,
+    mechanism: String,
+    initial_response: Option<String>,
+) -> anyhow::Result<()>
+where
+    S: std::io::Read + std::io::Write + Send,
+{
+    // TODO: if mechanism require initiale data , but omitted error
+    // TODO: if initiale data == "=" ; it mean empty ""
+
+    println!("authenticate");
+    let mut guard = rsasl.lock().await;
+    let mut session = guard.server_start(&mechanism).unwrap();
+
+    if let Some(initial_response) = &initial_response {
+        let bytes64decoded = base64::decode(initial_response).unwrap(); // 501 5.5.2
+
+        match session.step(&bytes64decoded) {
+            Ok(rsasl::Step::Done(buffer)) => {
+                println!(
+                    "Authentication successful, bytes to return to client: {:?}",
+                    buffer.as_ref()
+                );
+                conn.send_code(SMTPReplyCode::AuthenticationSucceeded)?;
+                Ok(())
+            }
+            Ok(rsasl::Step::NeedsMore(_)) => todo!("NeedsMore"),
+            Err(e) if e.matches(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
+                panic!("Authentication failed, bad username or password");
+            }
+            Err(e) => panic!("Authentication errored: {}", e),
+        }
+    } else {
+        todo!();
+    }
+}
+
 /// Receives the incomings mail of a connection
 ///
 /// # Errors
@@ -102,6 +141,7 @@ async fn on_mail<S: std::io::Read + std::io::Write + Send>(
 pub async fn handle_connection<S>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -114,6 +154,7 @@ where
     conn.send_code(SMTPReplyCode::Greetings)?;
 
     while conn.is_alive {
+        println!("helo_domain: {:?}", helo_domain);
         match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
@@ -135,15 +176,29 @@ where
                 return handle_connection_secured(
                     conn,
                     tls_config.clone(),
+                    rsasl,
                     rule_engine,
-                    working_sender.clone(),
-                    delivery_sender.clone(),
+                    working_sender,
+                    delivery_sender,
                 )
                 .await;
             }
-            TransactionResult::Authentication => {
-                println!("authenticate");
+            TransactionResult::Authentication(_, _, _) if rsasl.as_ref().is_none() => {
                 todo!();
+            }
+            TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
+                on_authentication(
+                    conn,
+                    rsasl.as_ref().unwrap().clone(),
+                    mechanism,
+                    initial_response,
+                )
+                .await?;
+                conn.is_authenticated = true;
+                // TODO:  When a security layer takes effect
+                // helo_domain = None;
+
+                helo_domain = Some(helo_pre_auth);
             }
         }
     }
@@ -153,7 +208,9 @@ where
 
 pub(crate) async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
+    // TODO: should not be an option at this point
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -205,9 +262,22 @@ where
                 )
                 .await?;
             }
-            TransactionResult::Authentication => {
-                println!("authenticate secured");
+            TransactionResult::Authentication(_, _, _) if rsasl.as_ref().is_none() => {
                 todo!();
+            }
+            TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
+                on_authentication(
+                    &mut secured_conn,
+                    rsasl.as_ref().unwrap().clone(),
+                    mechanism,
+                    initial_response,
+                )
+                .await?;
+                secured_conn.is_authenticated = true;
+                // TODO:  When a security layer takes effect
+                // helo_domain = None;
+
+                helo_domain = Some(helo_pre_auth);
             }
             TransactionResult::TlsUpgrade => todo!(),
         }

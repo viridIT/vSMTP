@@ -43,7 +43,7 @@ pub enum TransactionResult {
     Nothing,
     Mail(Box<MailContext>),
     TlsUpgrade,
-    Authentication,
+    Authentication(String, String, Option<String>),
 }
 
 // Generated from a string received
@@ -435,7 +435,20 @@ impl Transaction<'_> {
         loop {
             match transaction.state {
                 StateSMTP::NegotiationTLS => return Ok(TransactionResult::TlsUpgrade),
-                StateSMTP::Authentication(_, _) => return Ok(TransactionResult::Authentication),
+                StateSMTP::Authentication(mechanism, initial_response) => {
+                    return Ok(TransactionResult::Authentication(
+                        transaction
+                            .rule_state
+                            .get_context()
+                            .read()
+                            .unwrap()
+                            .envelop
+                            .helo
+                            .clone(),
+                        mechanism,
+                        initial_response,
+                    ));
+                }
                 StateSMTP::Stop => {
                     conn.is_alive = false;
                     return Ok(TransactionResult::Nothing);
