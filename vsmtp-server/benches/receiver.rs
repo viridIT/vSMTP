@@ -60,6 +60,7 @@ fn get_test_config() -> std::sync::Arc<Config> {
             .with_default_app_logs()
             .without_services()
             .with_system_dns()
+            .without_delivery_targets()
             .validate()
             .unwrap(),
     )

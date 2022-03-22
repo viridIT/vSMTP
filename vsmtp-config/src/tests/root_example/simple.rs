@@ -26,6 +26,7 @@ fn parse() {
             .with_default_app_logs()
             .without_services()
             .with_system_dns()
+            .without_delivery_targets()
             .validate()
             .unwrap()
     );

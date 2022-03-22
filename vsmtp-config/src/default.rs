@@ -4,10 +4,10 @@ use vsmtp_common::{code::SMTPReplyCode, collection};
 
 use crate::{
     config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigDNS, ConfigQueueDelivery, ConfigQueueWorking,
-        ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
-        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
-        ConfigServerSystemThreadPool,
+        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigDNS, ConfigDeliveryTarget,
+        ConfigQueueDelivery, ConfigQueueWorking, ConfigServer, ConfigServerInterfaces,
+        ConfigServerLogs, ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError,
+        ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
     },
     Builder, Config, Service,
 };
@@ -35,6 +35,7 @@ impl Default for ConfigServer {
             tls: None,
             smtp: ConfigServerSMTP::default(),
             dns: ConfigDNS::default(),
+            delivery_targets: Self::default_delivery_targets(),
         }
     }
 }
@@ -46,6 +47,11 @@ impl ConfigServer {
 
     pub(crate) const fn default_client_count_max() -> i64 {
         16
+    }
+
+    pub(crate) fn default_delivery_targets(
+    ) -> std::collections::HashMap<String, ConfigDeliveryTarget> {
+        std::collections::HashMap::<String, ConfigDeliveryTarget>::default()
     }
 }
 
