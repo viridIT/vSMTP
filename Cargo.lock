@@ -1823,6 +1823,7 @@ dependencies = [
  "lazy_static",
  "log",
  "rand",
+ "serde",
  "smallvec",
  "thiserror",
  "tinyvec",
@@ -1844,6 +1845,7 @@ dependencies = [
  "lru-cache",
  "parking_lot 0.12.0",
  "resolv-conf",
+ "serde",
  "smallvec",
  "thiserror",
  "tokio",
@@ -1911,6 +1913,7 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
@@ -1980,6 +1983,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "toml",
+ "trust-dns-resolver",
  "users",
  "vsmtp-common",
 ]

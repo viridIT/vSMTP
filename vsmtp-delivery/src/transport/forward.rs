@@ -17,6 +17,7 @@
 use super::Transport;
 
 use anyhow::Context;
+use trust_dns_resolver::TokioAsyncResolver;
 // use anyhow::Context;
 use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus};
 use vsmtp_config::Config;
@@ -31,13 +32,14 @@ impl Transport for Forward {
     async fn deliver(
         &mut self,
         _: &Config,
+        _: &TokioAsyncResolver,
         _: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
         let envelop = super::build_lettre_envelop(from, &to[..])
-            .context("failed to build envelop to deliver email")?;
+            .context("failed to build envelop to forward email")?;
 
         for rcpt in to {
             match send_email(rcpt.address.domain(), &envelop, content) {

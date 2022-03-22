@@ -28,6 +28,7 @@ async fn reset_helo() {
         async fn deliver(
             &mut self,
             _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
             _: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
@@ -148,6 +149,7 @@ async fn reset_rcpt_to_ok() {
         async fn deliver(
             &mut self,
             _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
             _: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
@@ -241,6 +243,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
         async fn deliver(
             &mut self,
             _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
             _: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],

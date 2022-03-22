@@ -30,6 +30,7 @@ async fn test_receiver_1() {
         async fn deliver(
             &mut self,
             _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
             _: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
@@ -304,6 +305,7 @@ async fn test_receiver_13() {
         async fn deliver(
             &mut self,
             _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
             _: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
@@ -401,6 +403,7 @@ async fn test_receiver_14() {
         async fn deliver(
             &mut self,
             _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
             _: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],

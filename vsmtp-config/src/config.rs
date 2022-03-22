@@ -38,6 +38,7 @@ pub struct ConfigServer {
     pub tls: Option<ConfigServerTls>,
     #[serde(default)]
     pub smtp: ConfigServerSMTP,
+    pub dns: ConfigDNS,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -213,6 +214,19 @@ pub struct ConfigServerSMTP {
     #[serde(default)]
     pub codes: std::collections::BTreeMap<SMTPReplyCode, String>,
     // NOTE: extension settings here
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[allow(clippy::large_enum_variant)]
+#[serde(deny_unknown_fields)]
+pub enum ConfigDNS {
+    Google,
+    CloudFare,
+    System,
+    Custom {
+        config: trust_dns_resolver::config::ResolverConfig,
+        options: trust_dns_resolver::config::ResolverOpts,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

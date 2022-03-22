@@ -29,6 +29,7 @@
 
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
+    use trust_dns_resolver::TokioAsyncResolver;
     use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
     use vsmtp_config::Config;
 
@@ -39,6 +40,7 @@ pub mod transport {
         async fn deliver(
             &mut self,
             config: &Config,
+            dns: &TokioAsyncResolver,
             metadata: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
@@ -63,6 +65,7 @@ pub mod transport {
         async fn deliver(
             &mut self,
             _: &Config,
+            _: &TokioAsyncResolver,
             _: &MessageMetadata,
             _: &Address,
             _: &mut [Rcpt],

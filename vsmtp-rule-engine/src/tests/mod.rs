@@ -55,6 +55,7 @@ pub mod helpers {
             .with_vsl("./src/receiver/tests/main.vsl")
             .with_default_app_logs()
             .without_services()
+            .with_system_dns()
             .validate()
             .unwrap();
 

@@ -17,6 +17,7 @@
 use super::Transport;
 
 use anyhow::Context;
+use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
     mail_context::MessageMetadata,
@@ -36,6 +37,7 @@ impl Transport for Maildir {
     async fn deliver(
         &mut self,
         _: &Config,
+        _: &TokioAsyncResolver,
         metadata: &MessageMetadata,
         _: &vsmtp_common::address::Address,
         to: &mut [Rcpt],

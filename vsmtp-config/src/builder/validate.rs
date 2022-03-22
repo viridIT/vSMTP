@@ -18,7 +18,8 @@ impl Builder<WantsValidate> {
     ///
     /// *
     pub fn validate(self) -> anyhow::Result<Config> {
-        let app_services = self.state;
+        let dns = self.state;
+        let app_services = dns.parent;
         let app_logs = app_services.parent;
         let app_vsl = app_logs.parent;
         let app = app_vsl.parent;
@@ -81,6 +82,7 @@ impl Builder<WantsValidate> {
                     },
                     codes: smtp_codes.codes,
                 },
+                dns: dns.config,
             },
             app: ConfigApp {
                 dirpath: app.dirpath,
@@ -149,6 +151,7 @@ mod tests {
             .with_default_vsl_settings()
             .with_default_app_logs()
             .without_services()
+            .with_system_dns()
             .validate();
         assert!(config.is_ok(), "{:?}", config);
     }

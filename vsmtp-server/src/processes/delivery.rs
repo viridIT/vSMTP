@@ -45,6 +45,14 @@ pub async fn start(
         target: DELIVER,
         "vDeliver (delivery) booting, flushing queue.",
     );
+
+    // TODO: ask in config for dns type = google, cloudfare, or custom with all options specified.
+    // let dns = trust_dns_resolver::AsyncResolver::tokio(
+    //     trust_dns_resolver::config::ResolverConfig::from_parts(domain, search, name_servers)
+    //     options
+    // )
+    //     .context("could not initialize the delivery dns")?;
+
     flush_deliver_queue(&config, &rule_engine).await?;
 
     let mut flush_deferred_interval =

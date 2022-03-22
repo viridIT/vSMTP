@@ -27,6 +27,7 @@ macro_rules! test_lang {
             async fn deliver(
                 &mut self,
                 _: &Config,
+                _: &trust_dns_resolver::TokioAsyncResolver,
                 _: &vsmtp_common::mail_context::MessageMetadata,
                 from: &Address,
                 to: &mut [Rcpt],

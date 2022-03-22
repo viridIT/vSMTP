@@ -68,6 +68,7 @@ impl vsmtp_delivery::transport::Transport for DefaultResolverTest {
     async fn deliver(
         &mut self,
         _: &Config,
+        _: &trust_dns_resolver::TokioAsyncResolver,
         _: &vsmtp_common::mail_context::MessageMetadata,
         _: &vsmtp_common::address::Address,
         _: &mut [vsmtp_common::rcpt::Rcpt],
@@ -193,6 +194,7 @@ pub(crate) fn get_regular_config() -> Config {
         .with_vsl("./src/receiver/tests/main.vsl")
         .with_default_app_logs()
         .without_services()
+        .with_system_dns()
         .validate()
         .unwrap()
 }

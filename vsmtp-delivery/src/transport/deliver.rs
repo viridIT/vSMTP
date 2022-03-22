@@ -17,6 +17,7 @@
 use super::Transport;
 
 use anyhow::Context;
+use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus};
 use vsmtp_config::Config;
 
@@ -30,6 +31,7 @@ impl Transport for Deliver {
     async fn deliver(
         &mut self,
         _: &Config,
+        dns: &TokioAsyncResolver,
         metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
@@ -37,12 +39,11 @@ impl Transport for Deliver {
     ) -> anyhow::Result<()> {
         let envelop = super::build_lettre_envelop(from, &to[..])
             .context("failed to build envelop to deliver email")?;
-        let resolver = build_resolver().context("failed to build resolver to deliver email")?;
 
         let mut rcpt = rcpt_by_domain(to);
 
         for (query, rcpt) in &mut rcpt {
-            let records = match get_mx_records(&resolver, query).await {
+            let records = match get_mx_records(dns, query).await {
                 Ok(records) => records,
                 Err(err) => {
                     log::error!(
@@ -106,13 +107,6 @@ fn rcpt_by_domain(rcpt: &mut [Rcpt]) -> std::collections::HashMap<String, Vec<&m
         })
 }
 
-fn build_resolver() -> anyhow::Result<trust_dns_resolver::TokioAsyncResolver> {
-    Ok(trust_dns_resolver::TokioAsyncResolver::tokio(
-        trust_dns_resolver::config::ResolverConfig::default(),
-        trust_dns_resolver::config::ResolverOpts::default(),
-    )?)
-}
-
 async fn get_mx_records(
     resolver: &trust_dns_resolver::TokioAsyncResolver,
     query: &str,
@@ -152,24 +146,18 @@ mod test {
 
     use crate::test::get_default_context;
 
-    use super::*;
-
-    #[test]
-    fn test_build_resolver() {
-        // FIXME: find a way to make this function fail.
-        assert!(build_resolver().is_ok());
-    }
+    // use super::*;
 
     #[tokio::test]
     async fn test_get_mx_records() {
         // FIXME: find a way to guarantee that the mx records exists.
-        let resolver = build_resolver().expect("could not build resolver");
+        // let resolver = build_resolver().expect("could not build resolver");
 
-        get_mx_records(&resolver, "google.com")
-            .await
-            .expect("couldn't find any mx records for google.com");
+        // get_mx_records(&resolver, "google.com")
+        //     .await
+        //     .expect("couldn't find any mx records for google.com");
 
-        assert!(get_mx_records(&resolver, "invalid_query").await.is_err());
+        // assert!(get_mx_records(&resolver, "invalid_query").await.is_err());
     }
 
     #[tokio::test]
