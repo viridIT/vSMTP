@@ -16,7 +16,7 @@
 **/
 use self::transaction::{Transaction, TransactionResult};
 use crate::{processes::ProcessMessage, queue::Queue, server::SaslBackend};
-use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext};
+use vsmtp_common::{auth::Mechanism, code::SMTPReplyCode, mail_context::MailContext, re::rsasl};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod connection;
@@ -94,7 +94,7 @@ async fn on_mail<S: std::io::Read + std::io::Write + Send>(
 async fn on_authentication<S>(
     conn: &mut Connection<'_, S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<SaslBackend>>,
-    mechanism: String,
+    mechanism: Mechanism,
     initial_response: Option<String>,
 ) -> anyhow::Result<()>
 where
@@ -103,12 +103,11 @@ where
     // TODO: if mechanism require initiale data , but omitted error
     // TODO: if initiale data == "=" ; it mean empty ""
 
-    println!("authenticate");
     let mut guard = rsasl.lock().await;
-    let mut session = guard.server_start(&mechanism).unwrap();
+    let mut session = guard.server_start(&String::from(mechanism)).unwrap();
 
-    if let Some(initial_response) = &initial_response {
-        let bytes64decoded = base64::decode(initial_response).unwrap(); // 501 5.5.2
+    let mut step = |buffer| {
+        let bytes64decoded = base64::decode(buffer).unwrap(); // 501 5.5.2
 
         match session.step(&bytes64decoded) {
             Ok(rsasl::Step::Done(buffer)) => {
@@ -117,7 +116,7 @@ where
                     buffer.as_ref()
                 );
                 conn.send_code(SMTPReplyCode::AuthenticationSucceeded)?;
-                Ok(())
+                anyhow::Ok(())
             }
             Ok(rsasl::Step::NeedsMore(_)) => todo!("NeedsMore"),
             Err(e) if e.matches(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
@@ -125,9 +124,14 @@ where
             }
             Err(e) => panic!("Authentication errored: {}", e),
         }
-    } else {
-        todo!();
+    };
+
+    if let Some(initial_response) = &initial_response {
+        step(initial_response).unwrap();
+        return Ok(());
     }
+
+    todo!();
 }
 
 /// Receives the incomings mail of a connection

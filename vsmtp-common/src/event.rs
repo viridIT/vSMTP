@@ -1,3 +1,5 @@
+use crate::mechanism::Mechanism;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -112,7 +114,7 @@ pub enum Event {
     /// Authentication with SASL protocol
     /// https://datatracker.ietf.org/doc/html/rfc4954
     /// Syntax = `"AUTH" mechanism [initial-response] CRLF`
-    Auth(String, Option<String>),
+    Auth(Mechanism, Option<String>),
     //
     // Authenticated TURN for On-Demand Mail Relay // https://datatracker.ietf.org/doc/html/rfc2645
     // Chunking // https://datatracker.ietf.org/doc/html/rfc3030
@@ -310,14 +312,9 @@ impl Event {
         mechanism: &str,
         initial_response: Option<&str>,
     ) -> Result<Self, SMTPReplyCode> {
-        const SUPPORTED: [&str; 2] = ["PLAIN", "LOGIN"];
-
-        if !SUPPORTED.iter().any(|i| *i == mechanism) {
-            return Err(SMTPReplyCode::AuthMechanismNotSupported);
-        }
-
         Ok(Self::Auth(
-            mechanism.to_string(),
+            <Mechanism as std::str::FromStr>::from_str(mechanism)
+                .map_err(|_| SMTPReplyCode::AuthMechanismNotSupported)?,
             // TODO: must be valid base64
             initial_response.map(str::to_string),
         ))

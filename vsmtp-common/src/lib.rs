@@ -57,6 +57,13 @@ pub mod state;
 /// status of the mail context
 pub mod status;
 
+mod mechanism;
+
+/// Data related to ESMTP Authentication
+pub mod auth {
+    pub use crate::mechanism::Mechanism;
+}
+
 #[cfg(test)]
 mod tests {
     mod event;
@@ -67,6 +74,7 @@ mod tests {
 ///
 pub mod re {
     pub use libc;
+    pub use rsasl;
     pub use strum;
 }
 

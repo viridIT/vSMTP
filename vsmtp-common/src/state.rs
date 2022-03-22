@@ -1,3 +1,5 @@
+use crate::mechanism::Mechanism;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -40,7 +42,7 @@ pub enum StateSMTP {
     /// After receiving STARTTLS command
     NegotiationTLS,
     /// After receiving AUTH command
-    Authentication(String, Option<String>),
+    Authentication(Mechanism, Option<String>),
     /// After receiving MAIL FROM command
     MailFrom,
     /// After receiving RCPT TO command
@@ -107,10 +109,10 @@ impl std::str::FromStr for StateSMTP {
             "Stop" => Ok(Self::Stop),
             "NegotiationTLS" => Ok(Self::NegotiationTLS),
             "Authentication" => Ok(Self::Authentication(
-                String::default(),
+                Mechanism::default(),
                 Option::<String>::default(),
             )),
-            _ => Err(anyhow::anyhow!("not a valid SMTP state: '{}'", s)),
+            _ => anyhow::bail!("not a valid SMTP state: '{}'", s),
         }
     }
 }

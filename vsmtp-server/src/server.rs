@@ -20,7 +20,7 @@ use crate::{
         handle_connection, handle_connection_secured, IoService, {Connection, ConnectionKind},
     },
 };
-use vsmtp_common::code::SMTPReplyCode;
+use vsmtp_common::{code::SMTPReplyCode, re::rsasl};
 use vsmtp_config::{rustls_helper::get_rustls_config, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 

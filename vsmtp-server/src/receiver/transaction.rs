@@ -18,6 +18,7 @@ use super::connection::Connection;
 use super::io_service::ReadError;
 use vsmtp_common::{
     address::Address,
+    auth::Mechanism,
     code::SMTPReplyCode,
     envelop::Envelop,
     event::Event,
@@ -43,7 +44,7 @@ pub enum TransactionResult {
     Nothing,
     Mail(Box<MailContext>),
     TlsUpgrade,
-    Authentication(String, String, Option<String>),
+    Authentication(String, Mechanism, Option<String>),
 }
 
 // Generated from a string received

@@ -56,8 +56,6 @@ users = { version = "0.11.0", features = [] }
 
 num_cpus = "1.13.1"
 
-# rsasl = { git = "https://github.com/viridIT/rsasl.git", branch = "fix/async" }
-rsasl = { path = "../../rsasl" }
 base64 = "0.13.0"
 
 [dev-dependencies]
