@@ -27,10 +27,9 @@ pub struct Deliver;
 
 #[async_trait::async_trait]
 impl Transport for Deliver {
-    // NOTE: should the function short circuit when sending an email failed ?
     async fn deliver(
         &mut self,
-        _: &Config,
+        config: &Config,
         dns: &TokioAsyncResolver,
         metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
@@ -40,9 +39,10 @@ impl Transport for Deliver {
         let envelop = super::build_lettre_envelop(from, &to[..])
             .context("failed to build envelop to deliver email")?;
 
-        let mut rcpt = rcpt_by_domain(to);
+        let mut to = rcpt_by_domain(to);
 
-        for (query, rcpt) in &mut rcpt {
+        for (query, rcpt) in &mut to {
+            // getting mx records for a set of recipients.
             let records = match get_mx_records(dns, query).await {
                 Ok(records) => records,
                 Err(err) => {
@@ -52,10 +52,11 @@ impl Transport for Deliver {
                         metadata.message_id
                     );
 
+                    // could not find any mx records, we just skip all recipient in the group.
                     for rcpt in rcpt.iter_mut() {
                         rcpt.email_status = match rcpt.email_status {
                             EmailTransferStatus::HeldBack(count) => {
-                                EmailTransferStatus::HeldBack(count)
+                                EmailTransferStatus::HeldBack(count + 1)
                             }
                             _ => EmailTransferStatus::HeldBack(0),
                         };
@@ -65,14 +66,18 @@ impl Transport for Deliver {
                 }
             };
 
-            if records
-                .iter()
-                .any(|record| send_email(&record.exchange().to_ascii(), &envelop, content).is_ok())
-            {
-                for rcpt in rcpt.iter_mut() {
-                    rcpt.email_status = EmailTransferStatus::Sent;
+            let mut records = records.iter();
+
+            // we try to deliver the email to the recipients of the current group using found mail exchangers.
+            for record in records.by_ref() {
+                if (send_email(config, &record.exchange().to_ascii(), &envelop, content).await)
+                    .is_ok()
+                {
+                    break;
                 }
-            } else {
+            }
+
+            if records.next().is_none() {
                 log::error!(
                     target: vsmtp_config::log_channel::DELIVER,
                     "no valid mail exchanger found for '{}'",
@@ -82,10 +87,14 @@ impl Transport for Deliver {
                 for rcpt in rcpt.iter_mut() {
                     rcpt.email_status = match rcpt.email_status {
                         EmailTransferStatus::HeldBack(count) => {
-                            EmailTransferStatus::HeldBack(count)
+                            EmailTransferStatus::HeldBack(count + 1)
                         }
                         _ => EmailTransferStatus::HeldBack(0),
                     };
+                }
+            } else {
+                for rcpt in rcpt.iter_mut() {
+                    rcpt.email_status = EmailTransferStatus::Sent;
                 }
             }
         }
@@ -94,6 +103,7 @@ impl Transport for Deliver {
     }
 }
 
+/// filter recipients by domain name.
 fn rcpt_by_domain(rcpt: &mut [Rcpt]) -> std::collections::HashMap<String, Vec<&mut Rcpt>> {
     rcpt.iter_mut()
         .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
@@ -107,35 +117,36 @@ fn rcpt_by_domain(rcpt: &mut [Rcpt]) -> std::collections::HashMap<String, Vec<&m
         })
 }
 
+/// fetch mx records for a specific domain.
 async fn get_mx_records(
     resolver: &trust_dns_resolver::TokioAsyncResolver,
     query: &str,
 ) -> anyhow::Result<Vec<trust_dns_resolver::proto::rr::rdata::MX>> {
-    let mut mxs_by_priority = resolver
+    let mut records_by_priority = resolver
         .mx_lookup(query)
         .await?
         .into_iter()
         .collect::<Vec<_>>();
-    mxs_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
+    records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
 
-    Ok(mxs_by_priority)
+    Ok(records_by_priority)
 }
 
-fn send_email(
-    exchange: &str,
+/// send an email using [lettre].
+async fn send_email(
+    config: &Config,
+    target: &str,
     envelop: &lettre::address::Envelope,
     content: &str,
 ) -> anyhow::Result<()> {
-    let tls_parameters = lettre::transport::smtp::client::TlsParameters::new(exchange.into())?;
+    lettre::AsyncTransport::send_raw(
+        // TODO: transport should be cached.
+        &crate::transport::build_transport(config, target)?,
+        envelop,
+        content.as_bytes(),
+    )
+    .await?;
 
-    let mailer = lettre::SmtpTransport::builder_dangerous(exchange)
-        .port(25)
-        .tls(lettre::transport::smtp::client::Tls::Required(
-            tls_parameters,
-        ))
-        .build();
-
-    lettre::Transport::send_raw(&mailer, envelop, content.as_bytes())?;
     Ok(())
 }
 

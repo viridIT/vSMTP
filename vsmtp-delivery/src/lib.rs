@@ -29,6 +29,8 @@
 
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
+    use anyhow::Context;
+    use lettre::Tokio1Executor;
     use trust_dns_resolver::TokioAsyncResolver;
     use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
     use vsmtp_config::Config;
@@ -87,6 +89,19 @@ pub mod transport {
                 .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
                 .collect(),
         )?)
+    }
+
+    /// build a transport for the specified configuration.
+    /// TODO: resulting transport should be cached.
+    fn build_transport(
+        config: &Config,
+        target: &str,
+    ) -> anyhow::Result<lettre::AsyncSmtpTransport<Tokio1Executor>> {
+        Ok(
+            lettre::AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(target)
+                .context("failed to build smtp transport using starttls")?
+                .build(),
+        )
     }
 }
 

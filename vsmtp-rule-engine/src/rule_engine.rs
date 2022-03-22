@@ -119,7 +119,8 @@ impl<'a> RuleState<'a> {
     }
 
     /// fetch the email context (possibly) mutated by the user's rules.
-    pub fn get_context(&mut self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
+    #[must_use]
+    pub fn get_context(&self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
         self.mail_context.clone()
     }
 

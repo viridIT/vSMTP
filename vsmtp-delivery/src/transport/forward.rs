@@ -28,7 +28,6 @@ pub struct Forward(pub String);
 
 #[async_trait::async_trait]
 impl Transport for Forward {
-    // NOTE: should the function short circuit when sending an email failed ?
     async fn deliver(
         &mut self,
         _: &Config,
