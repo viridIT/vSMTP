@@ -30,8 +30,8 @@ pub struct Forward(pub String);
 impl Transport for Forward {
     async fn deliver(
         &mut self,
-        _: &Config,
-        _: &TokioAsyncResolver,
+        config: &Config,
+        dns: &TokioAsyncResolver,
         _: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
@@ -40,45 +40,50 @@ impl Transport for Forward {
         let envelop = super::build_lettre_envelop(from, &to[..])
             .context("failed to build envelop to forward email")?;
 
-        for rcpt in to {
-            match send_email(rcpt.address.domain(), &envelop, content) {
-                Ok(()) => rcpt.email_status = EmailTransferStatus::Sent,
+        // NOTE: multiple addresses could be mapped to the hostname, should we attempt to deliver to those if the first one fails ?
+        for destination in dns.lookup_ip(&self.0).await?.iter() {
+            match send_email(config, from, &destination.to_string(), &envelop, content).await {
+                Ok(()) => {
+                    to.iter_mut()
+                        .for_each(|rcpt| rcpt.email_status = EmailTransferStatus::Sent);
+                    return Ok(());
+                }
                 Err(err) => {
-                    log::error!(
+                    log::debug!(
                         target: vsmtp_config::log_channel::DELIVER,
-                        "no valid mail exchanger found for '{}': {}",
-                        rcpt.address.domain(),
+                        "failed to forward email to '{}': {}",
+                        destination,
                         err
                     );
-
-                    rcpt.email_status = match rcpt.email_status {
-                        EmailTransferStatus::HeldBack(count) => {
-                            EmailTransferStatus::HeldBack(count)
-                        }
-                        _ => EmailTransferStatus::HeldBack(0),
-                    };
                 }
             }
         }
 
-        Ok(())
+        for rcpt in to.iter_mut() {
+            rcpt.email_status = match rcpt.email_status {
+                EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count),
+                _ => EmailTransferStatus::HeldBack(0),
+            };
+        }
+
+        anyhow::bail!("failed to forward email to '{}'", self.0)
     }
 }
 
-fn send_email(
-    exchange: &str,
+async fn send_email(
+    config: &Config,
+    from: &vsmtp_common::address::Address,
+    target: &str,
     envelop: &lettre::address::Envelope,
     content: &str,
 ) -> anyhow::Result<()> {
-    let tls_parameters = lettre::transport::smtp::client::TlsParameters::new(exchange.into())?;
+    lettre::AsyncTransport::send_raw(
+        // TODO: transport should be cached.
+        &crate::transport::build_transport(config, from, target)?,
+        envelop,
+        content.as_bytes(),
+    )
+    .await?;
 
-    let mailer = lettre::SmtpTransport::builder_dangerous(exchange)
-        .port(25)
-        .tls(lettre::transport::smtp::client::Tls::Required(
-            tls_parameters,
-        ))
-        .build();
-
-    lettre::Transport::send_raw(&mailer, envelop, content.as_bytes())?;
     Ok(())
 }

@@ -223,9 +223,9 @@ pub struct ConfigServerSMTP {
 #[allow(clippy::large_enum_variant)]
 #[serde(deny_unknown_fields)]
 pub enum ConfigDNS {
+    System,
     Google,
     CloudFlare,
-    System,
     Custom {
         config: trust_dns_resolver::config::ResolverConfig,
         options: trust_dns_resolver::config::ResolverOpts,

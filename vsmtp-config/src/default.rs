@@ -51,7 +51,7 @@ impl ConfigServer {
 
     pub(crate) fn default_delivery_targets(
     ) -> std::collections::HashMap<String, ConfigDeliveryTarget> {
-        std::collections::HashMap::<String, ConfigDeliveryTarget>::default()
+        std::collections::HashMap::<String, ConfigDeliveryTarget>::new()
     }
 }
 
