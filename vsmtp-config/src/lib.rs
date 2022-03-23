@@ -27,9 +27,6 @@
  *
 **/
 
-// #[cfg(test)]
-// mod tests;
-
 /// targets for log! macro
 pub mod log_channel {
     /// receiver system
@@ -77,6 +74,7 @@ mod default;
 
 pub use builder::{validate, wants::*, with::*};
 pub use config::{Config, Service, TlsSecurityLevel};
+use vsmtp_common::re::anyhow;
 
 impl Config {
     ///

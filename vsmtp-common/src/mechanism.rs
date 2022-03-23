@@ -5,8 +5,6 @@ pub enum Mechanism {
     Plain,
     ///
     Login,
-    // Gssapi,
-
     /*
       ANONYMOUS
     - EXTERNAL
@@ -26,7 +24,7 @@ pub enum Mechanism {
 
 impl Default for Mechanism {
     fn default() -> Self {
-        // TODO:
+        // TODO: should it be ?
         Self::Plain
     }
 }
@@ -37,8 +35,7 @@ impl Mechanism {
     pub const fn client_first(self) -> bool {
         match self {
             Mechanism::Plain => true,
-            // Mechanism::Gssapi => todo!(),
-            Mechanism::Login => todo!(),
+            Mechanism::Login => false,
         }
     }
 
@@ -46,9 +43,7 @@ impl Mechanism {
     #[must_use]
     pub const fn must_be_under_tls(self) -> bool {
         match self {
-            Mechanism::Plain => true,
-            // Mechanism::Gssapi => todo!(),
-            Mechanism::Login => todo!(),
+            Mechanism::Plain | Mechanism::Login => true,
         }
     }
 }
@@ -57,7 +52,6 @@ impl std::fmt::Display for Mechanism {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Mechanism::Plain => "PLAIN",
-            // Mechanism::Gssapi => "GSSAPI",
             Mechanism::Login => "LOGIN",
         })
     }
@@ -131,8 +125,8 @@ mod tests {
         for s in <Mechanism as strum::IntoEnumIterator>::iter() {
             println!("{:?}", s);
             assert_eq!(Mechanism::from_str(&format!("{}", s)).unwrap(), s);
-            assert_eq!(String::try_from(s.clone()).unwrap(), format!("{}", s));
-            let str: String = s.clone().into();
+            assert_eq!(String::try_from(s).unwrap(), format!("{}", s));
+            let str: String = s.into();
             assert_eq!(str, format!("{}", s));
         }
     }

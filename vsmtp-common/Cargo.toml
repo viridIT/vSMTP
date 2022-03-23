@@ -25,8 +25,8 @@ addr = { version = "0.15.3" }
 
 strum = { version = "0.24.0", features = ["derive"] }
 
-# rsasl = { git = "https://github.com/viridIT/rsasl.git", branch = "fix/async" }
-rsasl = { path = "../../rsasl" }
+rsasl = { git = "https://github.com/viridIT/rsasl.git", branch = "fix/async" }
+# rsasl = { path = "../../rsasl" }
 
 [dev-dependencies]
 serde_json = "1.0.79"

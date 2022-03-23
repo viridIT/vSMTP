@@ -73,6 +73,7 @@ mod tests {
 
 ///
 pub mod re {
+    pub use anyhow;
     pub use libc;
     pub use rsasl;
     pub use strum;

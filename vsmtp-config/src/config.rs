@@ -1,8 +1,7 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(missing_docs)]
-use vsmtp_common::code::SMTPReplyCode;
-
 use crate::parser::{tls_certificate, tls_private_key};
+use vsmtp_common::{code::SMTPReplyCode, re::anyhow};
 
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

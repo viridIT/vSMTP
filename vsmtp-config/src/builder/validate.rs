@@ -1,4 +1,7 @@
-use vsmtp_common::{code::SMTPReplyCode, re::strum};
+use vsmtp_common::{
+    code::SMTPReplyCode,
+    re::{anyhow, strum},
+};
 
 use crate::{
     config::{

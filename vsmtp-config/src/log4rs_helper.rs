@@ -1,4 +1,5 @@
 use crate::{log_channel, Config};
+use vsmtp_common::re::anyhow;
 
 #[doc(hidden)]
 #[allow(clippy::module_name_repetitions)]
