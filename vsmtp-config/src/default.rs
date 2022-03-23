@@ -211,10 +211,10 @@ impl ConfigServerSMTP {
             SMTPReplyCode::Code250 => "250 Ok\r\n",
             // TODO: find a better way to generate this codes
             SMTPReplyCode::Code250PlainEsmtp =>
-                "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250-AUTH GSSAPI LOGIN\r\n250 STARTTLS\r\n",
+                "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250-AUTH LOGIN\r\n250 STARTTLS\r\n",
             // TODO: find a better way to generate this codes
             SMTPReplyCode::Code250SecuredEsmtp =>
-                "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 AUTH GSSAPI PLAIN LOGIN\r\n",
+                "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 AUTH PLAIN LOGIN\r\n",
             SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n",
             SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n",

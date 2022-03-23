@@ -3,9 +3,25 @@
 pub enum Mechanism {
     /// For interoperability
     Plain,
-    // Login,
     ///
-    Gssapi,
+    Login,
+    // Gssapi,
+
+    /*
+      ANONYMOUS
+    - EXTERNAL
+    - SECURID
+    - DIGEST-MD5
+    - CRAM-MD5
+    - SCRAM-SHA-1
+    - SCRAM-SHA-1-PLUS
+    - SCRAM-SHA-256
+    - SCRAM-SHA-256-PLUS
+    - SAML20
+    - OPENID20
+    - GSSAPI
+    - GS2-KRB5
+    */
 }
 
 impl Default for Mechanism {
@@ -21,8 +37,8 @@ impl Mechanism {
     pub const fn client_first(self) -> bool {
         match self {
             Mechanism::Plain => true,
-            Mechanism::Gssapi => true,
-            // Mechanism::Login => todo!(),
+            // Mechanism::Gssapi => todo!(),
+            Mechanism::Login => todo!(),
         }
     }
 
@@ -31,20 +47,25 @@ impl Mechanism {
     pub const fn must_be_under_tls(self) -> bool {
         match self {
             Mechanism::Plain => true,
-            Mechanism::Gssapi => true,
-            // Mechanism::Login => todo!(),
+            // Mechanism::Gssapi => todo!(),
+            Mechanism::Login => todo!(),
         }
+    }
+}
+
+impl std::fmt::Display for Mechanism {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Mechanism::Plain => "PLAIN",
+            // Mechanism::Gssapi => "GSSAPI",
+            Mechanism::Login => "LOGIN",
+        })
     }
 }
 
 impl From<Mechanism> for String {
     fn from(this: Mechanism) -> Self {
-        match this {
-            Mechanism::Plain => "PLAIN",
-            Mechanism::Gssapi => "GSSAPI",
-            // Mechanism::Login => "LOGIN",
-        }
-        .to_string()
+        format!("{}", this)
     }
 }
 
@@ -54,7 +75,8 @@ impl std::str::FromStr for Mechanism {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "PLAIN" => Ok(Self::Plain),
-            "GSSAPI" => Ok(Self::Gssapi),
+            // "GSSAPI" => Ok(Self::Gssapi),
+            "LOGIN" => Ok(Self::Login),
             _ => anyhow::bail!("not a valid AUTH Mechanism: '{}'", s),
         }
     }
@@ -72,6 +94,7 @@ impl TryFrom<String> for Mechanism {
 mod tests {
 
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn supported() {
@@ -92,6 +115,25 @@ mod tests {
                 "{:?} is declared but not supported",
                 i
             );
+        }
+    }
+
+    #[test]
+    fn error() {
+        assert_eq!(
+            format!("{}", Mechanism::from_str("foobar").unwrap_err()),
+            "not a valid SMTP state: 'foobar'"
+        );
+    }
+
+    #[test]
+    fn same() {
+        for s in <Mechanism as strum::IntoEnumIterator>::iter() {
+            println!("{:?}", s);
+            assert_eq!(Mechanism::from_str(&format!("{}", s)).unwrap(), s);
+            assert_eq!(String::try_from(s.clone()).unwrap(), format!("{}", s));
+            let str: String = s.clone().into();
+            assert_eq!(str, format!("{}", s));
         }
     }
 }

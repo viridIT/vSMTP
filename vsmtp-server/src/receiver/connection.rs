@@ -92,8 +92,6 @@ where
     ///
     /// * a smtp code is missing, and thus config is ill-formed
     pub fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> anyhow::Result<()> {
-        log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
-
         if reply_to_send.is_error() {
             self.error_count += 1;
 
@@ -118,10 +116,11 @@ where
                         .get(&SMTPReplyCode::Code451TooManyError)
                         .unwrap(),
                 );
-                std::io::Write::write_all(&mut self.io_stream, response_begin.as_bytes())?;
+                self.send(&response_begin)?;
 
                 anyhow::bail!("too many errors")
             }
+            log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
 
             std::io::Write::write_all(
                 &mut self.io_stream,
@@ -138,6 +137,8 @@ where
                 std::thread::sleep(self.config.server.smtp.error.delay);
             }
         } else {
+            log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
+
             std::io::Write::write_all(
                 &mut self.io_stream,
                 self.config
@@ -149,6 +150,19 @@ where
                     .as_bytes(),
             )?;
         }
+        Ok(())
+    }
+
+    /// Send a buffer
+    ///
+    /// # Errors
+    ///
+    /// * internal connection writer error
+    pub fn send(&mut self, reply: &str) -> anyhow::Result<()> {
+        log::info!(target: RECEIVER, "send=\"{}\"", reply);
+
+        std::io::Write::write_all(&mut self.io_stream, reply.as_bytes())?;
+
         Ok(())
     }
 

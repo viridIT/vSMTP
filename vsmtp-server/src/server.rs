@@ -151,31 +151,6 @@ impl ServerVSMTP {
     /// * [tokio::spawn]
     /// * [tokio::select]
     pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
-        {
-            let mut lock = self.rsasl.as_ref().unwrap().lock().await;
-
-            let client_mechlist = lock.client_mech_list().unwrap();
-
-            println!("List of enabled CLIENT mechanisms:");
-            for m in client_mechlist.iter() {
-                println!(
-                    " - {} ; supported={}",
-                    m,
-                    lock.client_supports(&std::ffi::CString::new(m).unwrap())
-                );
-            }
-            let server_mechlist = lock.server_mech_list().unwrap();
-
-            println!("\n\nList of enabled SERVER mechanisms:");
-            for m in server_mechlist.iter() {
-                println!(
-                    " - {} ; supported={}",
-                    m,
-                    lock.server_supports(&std::ffi::CString::new(m).unwrap())
-                );
-            }
-        }
-
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
         loop {
