@@ -83,7 +83,11 @@ pub mod transport {
         rcpt: &[Rcpt],
     ) -> anyhow::Result<lettre::address::Envelope> {
         Ok(lettre::address::Envelope::new(
-            Some(from.full().parse()?),
+            Some(
+                from.full()
+                    .parse()
+                    .context("failed to parse from address")?,
+            ),
             rcpt.iter()
                 // NOTE: address that couldn't be converted will be silently dropped.
                 .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
@@ -95,12 +99,66 @@ pub mod transport {
     /// TODO: resulting transport should be cached.
     fn build_transport(
         config: &Config,
+        from: &vsmtp_common::address::Address,
         target: &str,
     ) -> anyhow::Result<lettre::AsyncSmtpTransport<Tokio1Executor>> {
+        let mut builder = lettre::AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target);
+
         Ok(
-            lettre::AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(target)
-                .context("failed to build smtp transport using starttls")?
-                .build(),
+            if let Some(target_config) = config.server.delivery_targets.get(target) {
+                builder = builder.port(target_config.port);
+
+                if let Some(security_level) = &target_config.security_level {
+                    let parameters =
+                        lettre::transport::smtp::client::TlsParameters::builder(target.to_string())
+                            .add_root_certificate(
+                                // from's domain could match the root domain of the server.
+                                if config.server.domain == from.domain() {
+                                    lettre::transport::smtp::client::Certificate::from_der(
+                                        config.server.tls.as_ref().unwrap().certificate.0.clone(),
+                                    )
+                                    .context("failed to parse certificate as der")?
+                                }
+                                // or a domain from one of the sni.
+                                else if let Some(sni) =
+                                    config.server.tls.as_ref().and_then(|tls| {
+                                        tls.sni.iter().find(|sni| sni.domain == from.domain())
+                                    })
+                                {
+                                    lettre::transport::smtp::client::Certificate::from_der(
+                                        sni.certificate.0.clone(),
+                                    )
+                                    .context("failed to parse certificate as der")?
+                                } else {
+                                    anyhow::bail!("no certificate found for '{}'", from.domain());
+                                },
+                            )
+                            .build_rustls()
+                            .context("failed ot build tls parameters")?;
+
+                    builder = match security_level {
+                        vsmtp_config::TlsSecurityLevel::May => builder.tls(
+                            lettre::transport::smtp::client::Tls::Opportunistic(parameters),
+                        ),
+                        vsmtp_config::TlsSecurityLevel::Encrypt => {
+                            builder.tls(lettre::transport::smtp::client::Tls::Required(parameters))
+                        }
+                    };
+                }
+
+                if let Some(credentials) = &target_config.credentials {
+                    builder = builder.credentials(credentials.clone());
+                }
+
+                if let Some(authentication) = &target_config.authentication {
+                    builder = builder.authentication(authentication.clone());
+                }
+
+                builder.build()
+            } else {
+                // NOTE: should we use receiving config by default instead of error ?
+                anyhow::bail!("no delivery target configuration found")
+            },
         )
     }
 }

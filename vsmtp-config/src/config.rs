@@ -236,7 +236,7 @@ pub enum ConfigDNS {
 #[serde(deny_unknown_fields)]
 pub struct ConfigDeliveryTarget {
     pub port: u16,
-    pub tls: bool,
+    pub security_level: Option<TlsSecurityLevel>,
     pub credentials: Option<lettre::transport::smtp::authentication::Credentials>,
     pub authentication: Option<Vec<lettre::transport::smtp::authentication::Mechanism>>,
     #[serde(with = "humantime_serde")]

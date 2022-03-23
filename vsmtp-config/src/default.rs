@@ -255,6 +255,18 @@ impl Default for ConfigDNS {
     }
 }
 
+impl Default for ConfigDeliveryTarget {
+    fn default() -> Self {
+        Self {
+            port: 25,
+            security_level: None,
+            credentials: None,
+            authentication: None,
+            timeout: Some(std::time::Duration::from_secs(60)),
+        }
+    }
+}
+
 impl Default for ConfigServerSMTPError {
     fn default() -> Self {
         Self {

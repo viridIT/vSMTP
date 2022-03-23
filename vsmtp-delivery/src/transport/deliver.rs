@@ -48,7 +48,7 @@ impl Transport for Deliver {
                 Err(err) => {
                     log::error!(
                         target: vsmtp_config::log_channel::DELIVER,
-                        "failed to relay email '{}' to '{query}': {err}",
+                        "failed to deliver email '{}' to '{query}': {err}",
                         metadata.message_id
                     );
 
@@ -70,7 +70,14 @@ impl Transport for Deliver {
 
             // we try to deliver the email to the recipients of the current group using found mail exchangers.
             for record in records.by_ref() {
-                if (send_email(config, &record.exchange().to_ascii(), &envelop, content).await)
+                if (send_email(
+                    config,
+                    &record.exchange().to_ascii(),
+                    &envelop,
+                    from,
+                    content,
+                )
+                .await)
                     .is_ok()
                 {
                     break;
@@ -137,11 +144,12 @@ async fn send_email(
     config: &Config,
     target: &str,
     envelop: &lettre::address::Envelope,
+    from: &vsmtp_common::address::Address,
     content: &str,
 ) -> anyhow::Result<()> {
     lettre::AsyncTransport::send_raw(
         // TODO: transport should be cached.
-        &crate::transport::build_transport(config, target)?,
+        &crate::transport::build_transport(config, from, target)?,
         envelop,
         content.as_bytes(),
     )
