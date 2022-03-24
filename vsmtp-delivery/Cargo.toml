@@ -31,6 +31,7 @@ users = { version = "0.11.0", features = [] }
 trust-dns-resolver = "0.21.1"
 lettre = { version = "0.10.0-rc.4", default-features = false, features = [
     "smtp-transport",
+    "pool",
     "builder",
     "tokio1-rustls-tls",
     "tracing",

@@ -169,12 +169,13 @@ This is a raw email."#;
         let message = build_mbox_message(&from, &timestamp, content);
 
         assert_eq!(
-            r#"From 0 john@doe.com
+            r#"From john@doe.com Thu Jan  1 00:00:00 1970
 from: john doe <john@doe.com>
 to: green@foo.net
 subject: test email
 
-This is a raw email."#,
+This is a raw email.
+"#,
             message
         );
     }

@@ -132,6 +132,9 @@ pub mod transport {
 
         Ok(
             lettre::AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target)
+                .hello_name(lettre::transport::smtp::extension::ClientId::Domain(
+                    from.domain().to_string(),
+                ))
                 .port(lettre::transport::smtp::SMTP_PORT)
                 .tls(lettre::transport::smtp::client::Tls::Opportunistic(
                     parameters,

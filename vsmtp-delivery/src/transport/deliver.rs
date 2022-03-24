@@ -41,7 +41,6 @@ impl Transport for Deliver {
 
         let mut to = rcpt_by_domain(to);
 
-        // NOTE: should we return an error if one of the groups cannot be sent ?
         for (query, rcpt) in &mut to {
             // getting mx records for a set of recipients.
             let records = match get_mx_records(dns, query).await {
