@@ -95,8 +95,6 @@ fn test_context_write() {
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
-        retry: 0,
-        resolver: "default".to_string(),
         skipped: None,
     });
     assert_eq!(
@@ -146,8 +144,6 @@ fn test_context_dump() {
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
-        retry: 0,
-        resolver: "default".to_string(),
         skipped: None,
     });
     assert_eq!(

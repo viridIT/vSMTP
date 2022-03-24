@@ -116,20 +116,6 @@ pub mod mail_context {
             .clone())
     }
 
-    #[rhai_fn(global, get = "retry", return_raw)]
-    pub fn retry(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<u64> {
-        this.read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .metadata
-            .as_ref()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "metadata are not available in this stage".into()
-            })?
-            .retry
-            .try_into()
-            .map_err::<Box<EvalAltResult>, _>(|e: std::num::TryFromIntError| e.to_string().into())
-    }
-
     #[rhai_fn(global, return_raw)]
     pub fn to_string(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,

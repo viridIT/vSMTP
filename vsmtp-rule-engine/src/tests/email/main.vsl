@@ -54,15 +54,6 @@
             }
         },
 
-        rule "unavailable mail retries" || {
-            try {
-                print(ctx.retry);
-                return vsl::deny();
-            } catch (err) {
-                if "metadata are not available in this stage" in err { return vsl::next(); } else { return vsl::deny(); }
-            }
-        },
-
         rule "trailing" || vsl::accept(),
     ],
 
@@ -113,7 +104,7 @@
             vsl::log("debug", `ip: ${ctx.client_addr}`);
             vsl::log("debug", `helo: ${ctx.helo}`);
             vsl::log("debug", `mail_from: ${ctx.mail_from}`);
-            vsl::log("debug", `metadata {\n  mail timestamp: ${ctx.mail_timestamp}\n  message id: ${ctx.message_id}\n  retries: ${ctx.retry}\n}`);
+            vsl::log("debug", `metadata {\n  mail timestamp: ${ctx.mail_timestamp}\n  message id: ${ctx.message_id}\n}`);
 
             vsl::log("trace", ctx.to_string());
             vsl::log("trace", ctx.to_debug());

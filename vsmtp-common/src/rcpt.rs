@@ -28,8 +28,6 @@ pub struct Rcpt {
     pub transfer_method: Transfer,
     /// delivery status of the email bound to this recipient.
     pub email_status: EmailTransferStatus,
-    /// number of times the mta tried to send an email for this rcpt.
-    pub retry: usize,
 }
 
 impl Rcpt {
@@ -41,7 +39,6 @@ impl Rcpt {
             address,
             transfer_method: Transfer::None,
             email_status: EmailTransferStatus::Waiting,
-            retry: 0,
         }
     }
 }

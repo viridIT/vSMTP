@@ -28,10 +28,6 @@ pub struct MessageMetadata {
     /// unique id generated when the "MAIL FROM" has been received.
     /// format: {mail timestamp}{connection timestamp}{process id}
     pub message_id: String,
-    /// number of times the mta tried to send the email.
-    pub retry: usize,
-    /// the resolver chosen to deliver the message.
-    pub resolver: String,
     /// whether further rule analysis has been skipped.
     pub skipped: Option<Status>,
 }
@@ -41,8 +37,6 @@ impl Default for MessageMetadata {
         Self {
             timestamp: std::time::SystemTime::now(),
             message_id: String::default(),
-            retry: Default::default(),
-            resolver: "default".to_string(),
             skipped: None,
         }
     }

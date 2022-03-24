@@ -340,8 +340,6 @@ impl Transaction<'_> {
                             .collect::<String>(),
                         std::process::id()
                     ),
-                    retry: 0,
-                    resolver: "default".to_string(),
                     skipped: self.rule_state.skipped(),
                 });
 

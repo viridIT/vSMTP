@@ -42,14 +42,19 @@ async fn on_mail<S: std::io::Read + std::io::Write + Send>(
 ) -> anyhow::Result<()> {
     *helo_domain = Some(mail.envelop.helo.clone());
 
+    if mail
+        .envelop
+        .rcpt
+        .iter()
+        .all(|rcpt| rcpt.transfer_method == vsmtp_common::transfer::Transfer::None)
+    {
+        // quietly skipping mime & delivery processes when all recipients .
+        log::warn!("delivery skipped because all recipient's transfer method is set to None.");
+        conn.send_code(SMTPReplyCode::Code250)?;
+        return Ok(());
+    }
+
     match &mail.metadata {
-        // quietly skipping mime & delivery processes when there is no resolver.
-        // (in case of a quarantine for example)
-        Some(metadata) if metadata.resolver == "none" => {
-            log::warn!("delivery skipped due to NO_DELIVERY action call.");
-            conn.send_code(SMTPReplyCode::Code250)?;
-            Ok(())
-        }
         Some(metadata) if metadata.skipped.is_some() => {
             log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
             match Queue::Deliver.write_to_queue(&conn.config, &mail) {
