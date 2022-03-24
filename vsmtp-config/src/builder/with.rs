@@ -3,14 +3,13 @@ use vsmtp_common::{code::SMTPReplyCode, state::StateSMTP};
 
 use crate::{
     config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigDNS, ConfigDeliveryTarget,
-        ConfigQueueDelivery, ConfigQueueWorking, ConfigServer, ConfigServerInterfaces,
-        ConfigServerLogs, ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError,
-        ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
-        ConfigServerTls, ConfigServerTlsSni, TlsSecurityLevel,
+        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigDNS, ConfigQueueDelivery, ConfigQueueWorking,
+        ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
+        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
+        ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerTlsSni, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
-    Service, WantsDeliveryTargets, WantsServerDNS,
+    Service, WantsServerDNS,
 };
 
 use super::wants::{
@@ -550,9 +549,9 @@ impl Builder<WantsServerDNS> {
     /// dns resolutions will be made using google's service.
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
-    pub fn with_google_dns(self) -> Builder<WantsDeliveryTargets> {
-        Builder::<WantsDeliveryTargets> {
-            state: WantsDeliveryTargets {
+    pub fn with_google_dns(self) -> Builder<WantsValidate> {
+        Builder::<WantsValidate> {
+            state: WantsValidate {
                 parent: self.state,
                 config: ConfigDNS::Google,
             },
@@ -562,9 +561,9 @@ impl Builder<WantsServerDNS> {
     /// dns resolutions will be made using couldflare's service.
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
-    pub fn with_cloudflare_dns(self) -> Builder<WantsDeliveryTargets> {
-        Builder::<WantsDeliveryTargets> {
-            state: WantsDeliveryTargets {
+    pub fn with_cloudflare_dns(self) -> Builder<WantsValidate> {
+        Builder::<WantsValidate> {
+            state: WantsValidate {
                 parent: self.state,
                 config: ConfigDNS::CloudFlare,
             },
@@ -575,9 +574,9 @@ impl Builder<WantsServerDNS> {
     /// (/etc/resolv.conf on unix systems & the registry on Windows).
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
-    pub fn with_system_dns(self) -> Builder<WantsDeliveryTargets> {
-        Builder::<WantsDeliveryTargets> {
-            state: WantsDeliveryTargets {
+    pub fn with_system_dns(self) -> Builder<WantsValidate> {
+        Builder::<WantsValidate> {
+            state: WantsValidate {
                 parent: self.state,
                 config: ConfigDNS::System,
             },
@@ -591,39 +590,11 @@ impl Builder<WantsServerDNS> {
         self,
         config: trust_dns_resolver::config::ResolverConfig,
         options: trust_dns_resolver::config::ResolverOpts,
-    ) -> Builder<WantsDeliveryTargets> {
-        Builder::<WantsDeliveryTargets> {
-            state: WantsDeliveryTargets {
-                parent: self.state,
-                config: ConfigDNS::Custom { config, options },
-            },
-        }
-    }
-}
-
-impl Builder<WantsDeliveryTargets> {
-    /// emails will be delivered using the default transport.
-    #[must_use]
-    pub fn without_delivery_targets(self) -> Builder<WantsValidate> {
-        Builder::<WantsValidate> {
-            state: WantsValidate {
-                parent: self.state,
-                delivery_targets: std::collections::HashMap::new(),
-            },
-        }
-    }
-
-    /// emails will be delivered using the targets passed as arguments.
-    #[allow(clippy::missing_const_for_fn)]
-    #[must_use]
-    pub fn with_delivery_targets(
-        self,
-        delivery_targets: std::collections::HashMap<String, ConfigDeliveryTarget>,
     ) -> Builder<WantsValidate> {
         Builder::<WantsValidate> {
             state: WantsValidate {
                 parent: self.state,
-                delivery_targets,
+                config: ConfigDNS::Custom { config, options },
             },
         }
     }

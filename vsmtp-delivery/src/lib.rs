@@ -95,70 +95,48 @@ pub mod transport {
         )?)
     }
 
-    /// build a transport for the specified configuration.
+    /// build a transport using opportunistic tls and toml specified certificates.
     /// TODO: resulting transport should be cached.
     fn build_transport(
         config: &Config,
         from: &vsmtp_common::address::Address,
         target: &str,
     ) -> anyhow::Result<lettre::AsyncSmtpTransport<Tokio1Executor>> {
-        let mut builder = lettre::AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target);
+        let parameters =
+            lettre::transport::smtp::client::TlsParameters::builder(target.to_string())
+                .add_root_certificate(
+                    // from's domain could match the root domain of the server.
+                    if config.server.domain == from.domain() {
+                        lettre::transport::smtp::client::Certificate::from_der(
+                            config.server.tls.as_ref().unwrap().certificate.0.clone(),
+                        )
+                        .context("failed to parse certificate as der")?
+                    }
+                    // or a domain from one of the sni.
+                    else if let Some(sni) = config
+                        .server
+                        .tls
+                        .as_ref()
+                        .and_then(|tls| tls.sni.iter().find(|sni| sni.domain == from.domain()))
+                    {
+                        lettre::transport::smtp::client::Certificate::from_der(
+                            sni.certificate.0.clone(),
+                        )
+                        .context("failed to parse certificate as der")?
+                    } else {
+                        anyhow::bail!("no certificate found for '{}'", from.domain());
+                    },
+                )
+                .build_rustls()
+                .context("failed to build tls parameters")?;
 
         Ok(
-            if let Some(target_config) = config.server.delivery_targets.get(target) {
-                builder = builder.port(target_config.port);
-
-                if let Some(security_level) = &target_config.security_level {
-                    let parameters =
-                        lettre::transport::smtp::client::TlsParameters::builder(target.to_string())
-                            .add_root_certificate(
-                                // from's domain could match the root domain of the server.
-                                if config.server.domain == from.domain() {
-                                    lettre::transport::smtp::client::Certificate::from_der(
-                                        config.server.tls.as_ref().unwrap().certificate.0.clone(),
-                                    )
-                                    .context("failed to parse certificate as der")?
-                                }
-                                // or a domain from one of the sni.
-                                else if let Some(sni) =
-                                    config.server.tls.as_ref().and_then(|tls| {
-                                        tls.sni.iter().find(|sni| sni.domain == from.domain())
-                                    })
-                                {
-                                    lettre::transport::smtp::client::Certificate::from_der(
-                                        sni.certificate.0.clone(),
-                                    )
-                                    .context("failed to parse certificate as der")?
-                                } else {
-                                    anyhow::bail!("no certificate found for '{}'", from.domain());
-                                },
-                            )
-                            .build_rustls()
-                            .context("failed ot build tls parameters")?;
-
-                    builder = match security_level {
-                        vsmtp_config::TlsSecurityLevel::May => builder.tls(
-                            lettre::transport::smtp::client::Tls::Opportunistic(parameters),
-                        ),
-                        vsmtp_config::TlsSecurityLevel::Encrypt => {
-                            builder.tls(lettre::transport::smtp::client::Tls::Required(parameters))
-                        }
-                    };
-                }
-
-                if let Some(credentials) = &target_config.credentials {
-                    builder = builder.credentials(credentials.clone());
-                }
-
-                if let Some(authentication) = &target_config.authentication {
-                    builder = builder.authentication(authentication.clone());
-                }
-
-                builder.build()
-            } else {
-                // NOTE: should we use receiving config by default instead of error ?
-                anyhow::bail!("no delivery target configuration found")
-            },
+            lettre::AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target)
+                .port(lettre::transport::smtp::SMTP_PORT)
+                .tls(lettre::transport::smtp::client::Tls::Opportunistic(
+                    parameters,
+                ))
+                .build(),
         )
     }
 }

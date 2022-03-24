@@ -47,7 +47,7 @@ impl Transport for Deliver {
             let records = match get_mx_records(dns, query).await {
                 Ok(records) => records,
                 Err(err) => {
-                    log::debug!(
+                    log::warn!(
                         target: vsmtp_config::log_channel::DELIVER,
                         "failed to deliver email '{}' to '{query}': {err}",
                         metadata.message_id

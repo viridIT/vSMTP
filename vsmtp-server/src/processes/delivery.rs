@@ -190,6 +190,7 @@ pub async fn handle_one_in_delivery_queue(
         let mut ctx = ctx.write().unwrap();
 
         // recipient email transfer status could have been updated.
+        // TODO: remove rcpt SENT.
         ctx.envelop.rcpt = triage.into_iter().flat_map(|(_, rcpt)| rcpt).collect();
 
         // FIXME: disk i/o could be avoided here by filtering rcpt statuses.

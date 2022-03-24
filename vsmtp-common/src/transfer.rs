@@ -27,6 +27,7 @@ pub enum EmailTransferStatus {
     Sent,
     /// the delivery failed, the system is trying to re-send the email.
     /// the email is located in the deferred queue at this point.
+    /// TODO: add error on deferred.
     HeldBack(usize),
     /// the email failed to be sent. the argument is the reason of the failure.
     /// the email is probably written in the dead or quarantine queues at this point.

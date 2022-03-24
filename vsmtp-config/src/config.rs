@@ -40,8 +40,6 @@ pub struct ConfigServer {
     pub smtp: ConfigServerSMTP,
     #[serde(default)]
     pub dns: ConfigDNS,
-    #[serde(default)]
-    pub delivery_targets: std::collections::HashMap<String, ConfigDeliveryTarget>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -221,26 +219,19 @@ pub struct ConfigServerSMTP {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::large_enum_variant)]
-#[serde(deny_unknown_fields)]
+#[serde(tag = "type", deny_unknown_fields)]
 pub enum ConfigDNS {
+    #[serde(rename = "system")]
     System,
+    #[serde(rename = "google")]
     Google,
+    #[serde(rename = "cloudflare")]
     CloudFlare,
+    #[serde(rename = "custom")]
     Custom {
         config: trust_dns_resolver::config::ResolverConfig,
         options: trust_dns_resolver::config::ResolverOpts,
     },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct ConfigDeliveryTarget {
-    pub port: u16,
-    pub security_level: Option<TlsSecurityLevel>,
-    pub credentials: Option<lettre::transport::smtp::authentication::Credentials>,
-    pub authentication: Option<Vec<lettre::transport::smtp::authentication::Mechanism>>,
-    #[serde(with = "humantime_serde")]
-    pub timeout: Option<std::time::Duration>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

@@ -80,7 +80,6 @@ fn construct() {
                 codes: std::collections::BTreeMap::new(),
             },
             dns: ConfigDNS::default(),
-            delivery_targets: std::collections::HashMap::new(),
         },
         app: ConfigApp {
             dirpath: "/var/spool/vsmtp/app".into(),

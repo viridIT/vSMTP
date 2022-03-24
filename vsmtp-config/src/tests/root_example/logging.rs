@@ -40,7 +40,6 @@ fn parse() {
             )
             .without_services()
             .with_system_dns()
-            .without_delivery_targets()
             .validate()
             .unwrap()
     );

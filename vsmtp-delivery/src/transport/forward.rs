@@ -40,7 +40,6 @@ impl Transport for Forward {
         let envelop = super::build_lettre_envelop(from, &to[..])
             .context("failed to build envelop to forward email")?;
 
-        // NOTE: multiple addresses could be mapped to the hostname, should we attempt to deliver to those if the first one fails ?
         for destination in dns.lookup_ip(&self.0).await?.iter() {
             match send_email(config, from, &destination.to_string(), &envelop, content).await {
                 Ok(()) => {

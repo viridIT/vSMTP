@@ -101,7 +101,6 @@ fn test_services() {
             args: Some("test".to_string()),
         }})
         .with_system_dns()
-        .without_delivery_targets()
         .validate()
         .unwrap();
 
