@@ -59,7 +59,6 @@ async fn listen_and_serve() {
         .with_app_logs("./tmp/stress/app.log")
         .without_services()
         .with_system_dns()
-        .without_delivery_targets()
         .validate()
         .unwrap();
 
