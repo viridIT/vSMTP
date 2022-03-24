@@ -211,7 +211,7 @@ impl ConfigServerSMTP {
             SMTPReplyCode::Code250 => "250 Ok\r\n",
             // TODO: find a better way to generate this codes
             SMTPReplyCode::Code250PlainEsmtp =>
-                "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250-AUTH LOGIN\r\n250 STARTTLS\r\n",
+                "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250-AUTH \r\n250 STARTTLS\r\n",
             // TODO: find a better way to generate this codes
             SMTPReplyCode::Code250SecuredEsmtp =>
                 "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 AUTH PLAIN LOGIN\r\n",
