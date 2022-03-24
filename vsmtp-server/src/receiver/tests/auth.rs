@@ -106,7 +106,8 @@ async fn plain_in_clair_secured() {
             "250-8BITMIME\r\n",
             "250-SMTPUTF8\r\n",
             "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n"
+            "250 STARTTLS\r\n",
+            "538 5.7.11 Encryption required for requested authentication mechanism\r\n",
         ].concat()
     }
     .is_err());
@@ -136,6 +137,7 @@ async fn plain_in_clair_unsecured() {
     config.server.smtp.auth = Some(ConfigServerSMTPAuth {
         enable_dangerous_mechanism_in_clair: true,
         mechanisms: vec![],
+        retries_count: -1,
     });
 
     assert!(test_receiver! {
@@ -179,6 +181,7 @@ async fn plain_in_clair_unsecured_bad_base64() {
     config.server.smtp.auth = Some(ConfigServerSMTPAuth {
         enable_dangerous_mechanism_in_clair: true,
         mechanisms: vec![],
+        retries_count: -1,
     });
 
     assert!(test_receiver! {
@@ -200,12 +203,8 @@ async fn plain_in_clair_unsecured_bad_base64() {
             "250-SMTPUTF8\r\n",
             "250-AUTH PLAIN\r\n",
             "250 STARTTLS\r\n",
-            "235 2.7.0 Authentication succeeded\r\n",
-            "250 Ok\r\n",
-            "250 Ok\r\n",
-            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            "250 Ok\r\n",
-            "221 Service closing transmission channel\r\n"
+            "501 5.5.2 Invalid, not base64\r\n",
+            "503 Bad sequence of commands\r\n",
         ].concat()
     }
     .is_ok());
@@ -235,6 +234,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
     config.server.smtp.auth = Some(ConfigServerSMTPAuth {
         enable_dangerous_mechanism_in_clair: true,
         mechanisms: vec![],
+        retries_count: -1,
     });
 
     assert!(test_receiver! {

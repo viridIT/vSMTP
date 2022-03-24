@@ -205,6 +205,7 @@ pub struct ConfigServerSMTPTimeoutClient {
 pub struct ConfigServerSMTPAuth {
     pub enable_dangerous_mechanism_in_clair: bool,
     pub mechanisms: Vec<Mechanism>,
+    pub retries_count: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

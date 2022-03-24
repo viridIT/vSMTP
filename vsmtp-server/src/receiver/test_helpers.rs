@@ -171,8 +171,8 @@ where
     // NOTE: could it be a good idea to remove the queue when all tests are done ?
 
     pretty_assertions::assert_eq!(
+        std::str::from_utf8(expected_output),
         std::str::from_utf8(&written_data),
-        std::str::from_utf8(expected_output)
     );
 
     result

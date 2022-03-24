@@ -179,6 +179,7 @@ impl Default for ConfigServerSMTPAuth {
         Self {
             enable_dangerous_mechanism_in_clair: false,
             mechanisms: <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
+            retries_count: -1,
         }
     }
 }
@@ -257,7 +258,9 @@ impl ConfigServerSMTP {
             SMTPReplyCode::AuthMechanismMustBeEncrypted =>
                 "538 5.7.11 Encryption required for requested authentication mechanism\r\n".to_string(),
             SMTPReplyCode::AuthClientMustNotStart =>
-                "501 5.7.0 Client must not start with this mechanism\r\n".to_string()
+                "501 5.7.0 Client must not start with this mechanism\r\n".to_string(),
+            SMTPReplyCode::AuthErrorDecode64 => "501 5.5.2 Invalid, not base64\r\n".to_string(),
+            SMTPReplyCode::AuthInvalidCredentials => "535 5.7.8 Authentication credentials invalid\r\n".to_string()
         };
 
         assert!(

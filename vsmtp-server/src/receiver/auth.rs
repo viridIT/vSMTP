@@ -9,9 +9,10 @@ pub enum AuthExchangeError {
     /// authentication invalid
     Failed,
     /// the client stopped the exchange
+    #[allow(unused)]
     Canceled,
     /// timeout of the server
-    Timeout,
+    Timeout(tokio::time::error::Elapsed),
     ///
     InvalidBase64,
     ///
@@ -26,14 +27,12 @@ pub enum AuthExchangeError {
 fn auth_step<S>(
     conn: &mut Connection<'_, S>,
     session: &mut rsasl::DiscardOnDrop<rsasl::Session<()>>,
-    buffer: String,
+    buffer: &str,
 ) -> Result<bool, AuthExchangeError>
 where
     S: std::io::Read + std::io::Write + Send,
 {
     let bytes64decoded = base64::decode(buffer).map_err(|_| AuthExchangeError::InvalidBase64)?;
-
-    // .unwrap(); // 501 5.5.2
 
     match session.step(&bytes64decoded) {
         Ok(rsasl::Step::Done(buffer)) => {
@@ -42,6 +41,7 @@ where
                 std::str::from_utf8(&*buffer)
             );
             // TODO: send buffer ?
+
             conn.send_code(SMTPReplyCode::AuthenticationSucceeded)
                 .map_err(AuthExchangeError::Other)?;
             Ok(true)
@@ -51,6 +51,7 @@ where
                 "334 {}\r\n",
                 base64::encode(std::str::from_utf8(&*buffer).unwrap())
             );
+
             conn.send(&reply).map_err(AuthExchangeError::Other)?;
             Ok(false)
         }
@@ -90,6 +91,7 @@ where
         } else {
             conn.send_code(SMTPReplyCode::AuthMechanismMustBeEncrypted)
                 .map_err(AuthExchangeError::Other)?;
+
             return Err(AuthExchangeError::Other(anyhow::anyhow!(
                 SMTPReplyCode::AuthMechanismMustBeEncrypted.to_string()
             )));
@@ -99,6 +101,7 @@ where
     if !mechanism.client_first() && initial_response.is_some() {
         conn.send_code(SMTPReplyCode::AuthClientMustNotStart)
             .map_err(AuthExchangeError::Other)?;
+
         return Err(AuthExchangeError::Other(anyhow::anyhow!(
             SMTPReplyCode::AuthClientMustNotStart.to_string()
         )));
@@ -109,20 +112,21 @@ where
     let mut succeeded = auth_step(
         conn,
         &mut session,
-        initial_response.unwrap_or_else(|| "".to_string()),
+        &initial_response.unwrap_or_else(|| "".to_string()),
     )?;
 
     while !succeeded {
         succeeded = match conn.read(std::time::Duration::from_secs(1)).await {
             Ok(Ok(buffer)) => {
                 log::trace!("{}", buffer);
-                auth_step(conn, &mut session, buffer)
+                auth_step(conn, &mut session, &buffer)
             }
             Ok(Err(e)) => Err(AuthExchangeError::Other(anyhow::anyhow!("{:?}", e))),
-            Err(_) => Err(AuthExchangeError::Timeout),
+            Err(e) => Err(AuthExchangeError::Timeout(e)),
         }?;
     }
 
     // TODO: if success get session property
+
     Ok(())
 }

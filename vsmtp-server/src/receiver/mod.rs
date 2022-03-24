@@ -94,6 +94,9 @@ async fn on_mail<S: std::io::Read + std::io::Write + Send>(
     }
 }
 
+// NOTE: handle_connection and handle_connection_secured do the same things..
+// but i struggle to unify these function because of recursive type
+
 /// Receives the incomings mail of a connection
 ///
 /// # Errors
@@ -130,7 +133,6 @@ where
     conn.send_code(SMTPReplyCode::Greetings)?;
 
     while conn.is_alive {
-        println!("helo_domain: {:?}", helo_domain);
         match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
@@ -163,7 +165,7 @@ where
                 todo!();
             }
             TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
-                if let Err(auth_error) = on_authentication(
+                match on_authentication(
                     conn,
                     rsasl.as_ref().unwrap().clone(),
                     mechanism,
@@ -171,19 +173,35 @@ where
                 )
                 .await
                 {
-                    match auth_error {
-                        auth::AuthExchangeError::Failed => todo!(),
-                        auth::AuthExchangeError::Canceled => todo!(),
-                        auth::AuthExchangeError::Timeout => todo!(),
-                        auth::AuthExchangeError::InvalidBase64 => todo!(),
-                        auth::AuthExchangeError::Other(_) => todo!(),
+                    Err(auth::AuthExchangeError::Failed) => {
+                        conn.send_code(SMTPReplyCode::AuthInvalidCredentials)?;
+                        anyhow::bail!("Auth: Credentials invalid, closing connection");
                     }
-                } else {
-                    conn.is_authenticated = true;
-                    // TODO:  When a security layer takes effect
-                    // helo_domain = None;
+                    Err(auth::AuthExchangeError::Canceled) => {
+                        conn.authentication_attempt += 1;
+                        let retries_max =
+                            conn.config.server.smtp.auth.as_ref().unwrap().retries_count;
+                        if retries_max != -1 && conn.authentication_attempt > retries_max {
+                            conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                        }
+                        anyhow::bail!("Auth: Attempt max {} reached", retries_max);
+                    }
+                    Err(auth::AuthExchangeError::Timeout(e)) => {
+                        conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                        anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
+                    }
+                    Err(auth::AuthExchangeError::InvalidBase64) => {
+                        conn.send_code(SMTPReplyCode::AuthErrorDecode64)?;
+                    }
+                    Err(auth::AuthExchangeError::Other(e)) => anyhow::bail!("{}", e),
+                    Ok(_) => {
+                        conn.is_authenticated = true;
 
-                    helo_domain = Some(helo_pre_auth);
+                        // TODO: When a security layer takes effect
+                        // helo_domain = None;
+
+                        helo_domain = Some(helo_pre_auth);
+                    }
                 }
             }
         }
@@ -194,7 +212,6 @@ where
 
 async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
-    // TODO: should not be an option at this point
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -224,6 +241,7 @@ where
         client_addr: conn.client_addr,
         error_count: conn.error_count,
         is_authenticated: conn.is_authenticated,
+        authentication_attempt: conn.authentication_attempt,
         is_alive: true,
         is_secured: true,
         io_stream: &mut io_tls_stream,
@@ -248,11 +266,12 @@ where
                 )
                 .await?;
             }
+            TransactionResult::TlsUpgrade => todo!(),
             TransactionResult::Authentication(_, _, _) if rsasl.as_ref().is_none() => {
                 todo!();
             }
             TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
-                if let Err(auth_error) = on_authentication(
+                match on_authentication(
                     &mut secured_conn,
                     rsasl.as_ref().unwrap().clone(),
                     mechanism,
@@ -260,22 +279,37 @@ where
                 )
                 .await
                 {
-                    match auth_error {
-                        auth::AuthExchangeError::Failed => todo!(),
-                        auth::AuthExchangeError::Canceled => todo!(),
-                        auth::AuthExchangeError::Timeout => todo!(),
-                        auth::AuthExchangeError::InvalidBase64 => todo!(),
-                        auth::AuthExchangeError::Other(_) => todo!(),
+                    Err(auth::AuthExchangeError::Failed) => {
+                        secured_conn.send_code(SMTPReplyCode::AuthInvalidCredentials)?;
+                        anyhow::bail!("Auth: Credentials invalid, closing connection");
                     }
-                } else {
-                    conn.is_authenticated = true;
-                    // TODO:  When a security layer takes effect
-                    // helo_domain = None;
+                    Err(auth::AuthExchangeError::Canceled) => {
+                        conn.authentication_attempt += 1;
+                        let retries_max =
+                            conn.config.server.smtp.auth.as_ref().unwrap().retries_count;
+                        if retries_max != -1 && conn.authentication_attempt > retries_max {
+                            conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                        }
+                        anyhow::bail!("Auth: Attempt max {} reached", retries_max);
+                    }
+                    Err(auth::AuthExchangeError::Timeout(e)) => {
+                        conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                        anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
+                    }
+                    Err(auth::AuthExchangeError::InvalidBase64) => {
+                        secured_conn.send_code(SMTPReplyCode::AuthErrorDecode64)?;
+                    }
+                    Err(auth::AuthExchangeError::Other(e)) => anyhow::bail!("{}", e),
+                    Ok(_) => {
+                        conn.is_authenticated = true;
 
-                    helo_domain = Some(helo_pre_auth);
+                        // TODO: When a security layer takes effect
+                        // helo_domain = None;
+
+                        helo_domain = Some(helo_pre_auth);
+                    }
                 }
             }
-            TransactionResult::TlsUpgrade => todo!(),
         }
     }
     Ok(())

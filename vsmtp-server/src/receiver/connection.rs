@@ -51,6 +51,8 @@ where
     pub is_secured: bool,
     /// has completed SASL challenge (AUTH)
     pub is_authenticated: bool,
+    /// number of time the AUTH command has been received (and failed)
+    pub authentication_attempt: i64,
     /// abstraction of the stream
     pub io_stream: &'stream mut IoService<'stream, S>,
 }
@@ -76,6 +78,7 @@ where
             is_secured: false,
             io_stream,
             is_authenticated: false,
+            authentication_attempt: 0,
         }
     }
 }

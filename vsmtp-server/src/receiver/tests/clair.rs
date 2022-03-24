@@ -399,3 +399,60 @@ async fn test_receiver_14() {
     }
     .is_ok());
 }
+
+#[tokio::test]
+async fn test_receiver_9() {
+    let mut config = get_regular_config();
+    config.server.smtp.error.delay = std::time::Duration::from_millis(100);
+    config.server.smtp.error.soft_count = 5;
+    config.server.smtp.error.hard_count = 10;
+
+    let config = config;
+
+    let before_test = std::time::Instant::now();
+    assert!(test_receiver! {
+        with_config => config.clone(),
+        [
+            "RCPT TO:<bar@foo>\r\n",
+            "MAIL FROM: <foo@bar>\r\n",
+            "EHLO\r\n",
+            "NOOP\r\n",
+            "azeai\r\n",
+            "STARTTLS\r\n",
+            "MAIL FROM:<john@doe>\r\n",
+            "EHLO\r\n",
+            "EHLO\r\n",
+            "HELP\r\n",
+            "aieari\r\n",
+            "not a valid smtp command\r\n",
+        ]
+        .concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "503 Bad sequence of commands\r\n",
+            "503 Bad sequence of commands\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "250 Ok\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "503 Bad sequence of commands\r\n",
+            "503 Bad sequence of commands\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "214 joining us https://viridit.com/support\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "501-Syntax error in parameters or arguments\r\n",
+            "451 Too many errors from the client\r\n"
+        ]
+        .concat()
+    }
+    .is_err());
+
+    assert!(
+        before_test.elapsed().as_millis()
+            >= config.server.smtp.error.delay.as_millis()
+                * u128::try_from(
+                    config.server.smtp.error.hard_count - config.server.smtp.error.soft_count
+                )
+                .unwrap()
+    );
+}

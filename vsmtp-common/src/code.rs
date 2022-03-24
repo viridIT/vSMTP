@@ -137,10 +137,14 @@ pub enum SMTPReplyCode {
     AuthMechanismNotSupported,
     /// 235 2.7.0
     AuthenticationSucceeded,
-    /// "538 5.7.11 Encryption required for requested authentication mechanism\r\n"
+    /// 538 5.7.11 Encryption required for requested authentication mechanism
     AuthMechanismMustBeEncrypted,
-    /// "501 5.7.0 Client must not start with this mechanism\r\n"
+    /// 501 5.7.0 Client must not start with this mechanism
     AuthClientMustNotStart,
+    /// 501 5.5.2
+    AuthErrorDecode64,
+    /// 535 5.7.8 Authentication credentials invalid
+    AuthInvalidCredentials,
 }
 
 impl SMTPReplyCode {
@@ -173,7 +177,9 @@ impl SMTPReplyCode {
             | Self::Code504
             | Self::AuthMechanismNotSupported
             | Self::AuthMechanismMustBeEncrypted
-            | Self::AuthClientMustNotStart => true,
+            | Self::AuthClientMustNotStart
+            | Self::AuthErrorDecode64
+            | Self::AuthInvalidCredentials => true,
         }
     }
 }
@@ -207,6 +213,8 @@ impl std::fmt::Display for SMTPReplyCode {
             Self::AuthenticationSucceeded => "AuthenticationSucceeded",
             Self::AuthMechanismMustBeEncrypted => "AuthMechanismMustBeEncrypted",
             Self::AuthClientMustNotStart => "AuthClientMustNotStart",
+            Self::AuthErrorDecode64 => "AuthErrorDecode64",
+            Self::AuthInvalidCredentials => "AuthInvalidCredentials",
         })
     }
 }
@@ -248,6 +256,8 @@ impl std::str::FromStr for SMTPReplyCode {
             "AuthenticationSucceeded" => Ok(Self::AuthenticationSucceeded),
             "AuthMechanismMustBeEncrypted" => Ok(Self::AuthMechanismMustBeEncrypted),
             "AuthClientMustNotStart" => Ok(Self::AuthClientMustNotStart),
+            "AuthErrorDecode64" => Ok(Self::AuthErrorDecode64),
+            "AuthInvalidCredentials" => Ok(Self::AuthInvalidCredentials),
             _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }
