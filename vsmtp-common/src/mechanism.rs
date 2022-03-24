@@ -19,6 +19,7 @@ pub enum Mechanism {
     - OPENID20
     - GSSAPI
     - GS2-KRB5
+    - XOAUTH-2
     */
 }
 
@@ -116,7 +117,7 @@ mod tests {
     fn error() {
         assert_eq!(
             format!("{}", Mechanism::from_str("foobar").unwrap_err()),
-            "not a valid SMTP state: 'foobar'"
+            "not a valid AUTH Mechanism: 'foobar'"
         );
     }
 

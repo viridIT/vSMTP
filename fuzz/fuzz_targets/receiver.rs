@@ -34,7 +34,7 @@ fuzz_target!(|data: &[u8]| {
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(data.to_vec()), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = Connection::from_plain(
+    let mut conn = Connection::new(
         ConnectionKind::Opportunistic,
         "0.0.0.0:0".parse().unwrap(),
         config,
@@ -52,6 +52,7 @@ fuzz_target!(|data: &[u8]| {
         .unwrap()
         .block_on(handle_connection(
             &mut conn,
+            None,
             None,
             re,
             working_sender,

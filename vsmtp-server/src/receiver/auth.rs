@@ -60,7 +60,10 @@ where
     .unwrap();
     while !authenticated {
         authenticated = match conn.read(std::time::Duration::from_secs(1)).await {
-            Ok(Ok(buffer)) => auth_step(conn, &mut session, buffer).unwrap(),
+            Ok(Ok(buffer)) => {
+                println!("{}", buffer);
+                auth_step(conn, &mut session, buffer).unwrap()
+            }
             Ok(Err(e)) => todo!("error {e:?}"),
             Err(e) => todo!("timeout {e}"),
         };
