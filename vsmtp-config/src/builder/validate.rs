@@ -83,6 +83,7 @@ impl Builder<WantsValidate> {
                         data: smtp_error.timeout_client.data,
                     },
                     codes: smtp_codes.codes,
+                    auth: None,
                 },
             },
             app: ConfigApp {
@@ -106,6 +107,8 @@ impl Builder<WantsValidate> {
             "rules and application logs cannot both be written in '{}' !",
             config.app.logs.filepath.display()
         );
+
+        // TODO: generated code EHLO here
 
         users::get_user_by_name(&config.server.system.user)
             .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.system.user))?;

@@ -22,6 +22,8 @@ pub mod receiver;
 ///
 pub mod server;
 
+mod auth;
+
 ///
 pub mod resolver {
 

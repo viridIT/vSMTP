@@ -23,7 +23,7 @@ use vsmtp_common::{
     mail_context::{Body, MailContext},
 };
 use vsmtp_config::Config;
-use vsmtp_server::{receiver::test_helpers::test_receiver, resolver::Resolver};
+use vsmtp_server::{resolver::Resolver, test_receiver};
 
 #[derive(Clone)]
 struct DefaultResolverTest;
@@ -61,20 +61,18 @@ fn get_test_config() -> std::sync::Arc<Config> {
 fn make_bench<R>(
     resolver: R,
     b: &mut Bencher<WallTime>,
-    (input, output, config): &(&[u8], &[u8], std::sync::Arc<Config>),
+    (input, output, config): &(String, String, std::sync::Arc<Config>),
 ) where
     R: Resolver + Clone + Send + Sync + 'static,
 {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
-            let _ = test_receiver(
-                "127.0.0.1:0",
-                resolver.clone(),
+            let _ = test_receiver! {
+                on_mail => resolver.clone(),
+                with_config => config.clone().as_ref().clone(),
                 input,
-                output,
-                config.clone(),
-            )
-            .await;
+                output
+            };
         })
 }
 
@@ -114,8 +112,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                     ".\r\n",
                     "QUIT\r\n",
                 ]
-                .concat()
-                .as_bytes(),
+                .concat(),
                 [
                     "220 testserver.com Service ready\r\n",
                     "250 Ok\r\n",
@@ -125,8 +122,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                     "250 Ok\r\n",
                     "221 Service closing transmission channel\r\n",
                 ]
-                .concat()
-                .as_bytes(),
+                .concat(),
                 get_test_config(),
             ),
             |b, input| make_bench(T, b, input),
@@ -136,13 +132,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_with_input(
         BenchmarkId::new("receiver", 1),
         &(
-            ["foo\r\n"].concat().as_bytes(),
+            ["foo\r\n"].concat(),
             [
                 "220 testserver.com Service ready\r\n",
                 "501 Syntax error in parameters or arguments\r\n",
             ]
-            .concat()
-            .as_bytes(),
+            .concat(),
             get_test_config(),
         ),
         |b, input| make_bench(DefaultResolverTest, b, input),

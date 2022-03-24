@@ -137,6 +137,10 @@ pub enum SMTPReplyCode {
     AuthMechanismNotSupported,
     /// 235 2.7.0
     AuthenticationSucceeded,
+    /// "538 5.7.11 Encryption required for requested authentication mechanism\r\n"
+    AuthMechanismMustBeEncrypted,
+    /// "501 5.7.0 Client must not start with this mechanism\r\n"
+    AuthClientMustNotStart,
 }
 
 impl SMTPReplyCode {
@@ -167,7 +171,9 @@ impl SMTPReplyCode {
             | Self::ConnectionMaxReached
             | Self::Code451TooManyError
             | Self::Code504
-            | Self::AuthMechanismNotSupported => true,
+            | Self::AuthMechanismNotSupported
+            | Self::AuthMechanismMustBeEncrypted
+            | Self::AuthClientMustNotStart => true,
         }
     }
 }
@@ -199,6 +205,8 @@ impl std::fmt::Display for SMTPReplyCode {
             Self::ConnectionMaxReached => "ConnectionMaxReached",
             Self::AuthMechanismNotSupported => "AuthMechanismNotSupported",
             Self::AuthenticationSucceeded => "AuthenticationSucceeded",
+            Self::AuthMechanismMustBeEncrypted => "AuthMechanismMustBeEncrypted",
+            Self::AuthClientMustNotStart => "AuthClientMustNotStart",
         })
     }
 }
@@ -238,6 +246,8 @@ impl std::str::FromStr for SMTPReplyCode {
             "ConnectionMaxReached" => Ok(Self::ConnectionMaxReached),
             "AuthMechanismNotSupported" => Ok(Self::AuthMechanismNotSupported),
             "AuthenticationSucceeded" => Ok(Self::AuthenticationSucceeded),
+            "AuthMechanismMustBeEncrypted" => Ok(Self::AuthMechanismMustBeEncrypted),
+            "AuthClientMustNotStart" => Ok(Self::AuthClientMustNotStart),
             _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }

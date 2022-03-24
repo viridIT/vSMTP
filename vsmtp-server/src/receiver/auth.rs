@@ -2,15 +2,38 @@ use super::Connection;
 use crate::server::SaslBackend;
 use vsmtp_common::{auth::Mechanism, code::SMTPReplyCode, re::rsasl};
 
+/// Result of the AUTH command
+#[allow(clippy::pedantic)]
+#[must_use]
+pub enum AuthExchangeError {
+    /// authentication invalid
+    Failed,
+    /// the client stopped the exchange
+    Canceled,
+    /// timeout of the server
+    Timeout,
+    ///
+    InvalidBase64,
+    ///
+    Other(anyhow::Error),
+}
+
+// /// authentication exchange is still processing
+// Processing,
+// /// authentication valid
+// Success,
+
 fn auth_step<S>(
     conn: &mut Connection<'_, S>,
     session: &mut rsasl::DiscardOnDrop<rsasl::Session<()>>,
     buffer: String,
-) -> anyhow::Result<bool>
+) -> Result<bool, AuthExchangeError>
 where
     S: std::io::Read + std::io::Write + Send,
 {
-    let bytes64decoded = base64::decode(buffer).unwrap(); // 501 5.5.2
+    let bytes64decoded = base64::decode(buffer).map_err(|_| AuthExchangeError::InvalidBase64)?;
+
+    // .unwrap(); // 501 5.5.2
 
     match session.step(&bytes64decoded) {
         Ok(rsasl::Step::Done(buffer)) => {
@@ -19,21 +42,23 @@ where
                 std::str::from_utf8(&*buffer)
             );
             // TODO: send buffer ?
-            conn.send_code(SMTPReplyCode::AuthenticationSucceeded)?;
-            anyhow::Ok(true)
+            conn.send_code(SMTPReplyCode::AuthenticationSucceeded)
+                .map_err(AuthExchangeError::Other)?;
+            Ok(true)
         }
         Ok(rsasl::Step::NeedsMore(buffer)) => {
             let reply = format!(
                 "334 {}\r\n",
                 base64::encode(std::str::from_utf8(&*buffer).unwrap())
-            ); // 501 5.5.2
-            conn.send(&reply)?;
+            );
+            conn.send(&reply).map_err(AuthExchangeError::Other)?;
             Ok(false)
         }
         Err(e) if e.matches(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
-            panic!("Authentication failed, bad username or password");
+            println!("Authentication failed, bad username or password");
+            Err(AuthExchangeError::Failed)
         }
-        Err(e) => panic!("Authentication errored: {}", e),
+        Err(e) => Err(AuthExchangeError::Other(anyhow::anyhow!("{}", e))),
     }
 }
 
@@ -42,33 +67,62 @@ pub async fn on_authentication<S>(
     rsasl: std::sync::Arc<tokio::sync::Mutex<SaslBackend>>,
     mechanism: Mechanism,
     initial_response: Option<String>,
-) -> anyhow::Result<()>
+) -> Result<(), AuthExchangeError>
 where
     S: std::io::Read + std::io::Write + Send,
 {
-    // TODO: if mechanism require initial data , but omitted => error
     // TODO: if initial data == "=" ; it mean empty ""
 
+    // TODO: if "*" (=client cancel) => reject the AUTH command by sending a 501 reply.
+
+    if mechanism.must_be_under_tls() && !conn.is_secured {
+        if conn
+            .config
+            .server
+            .smtp
+            .auth
+            .as_ref()
+            .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
+        {
+            log::warn!(
+                "An unsecured AUTH mechanism ({mechanism}) is used on a non-encrypted connection!"
+            );
+        } else {
+            conn.send_code(SMTPReplyCode::AuthMechanismMustBeEncrypted)
+                .map_err(AuthExchangeError::Other)?;
+            return Err(AuthExchangeError::Other(anyhow::anyhow!(
+                SMTPReplyCode::AuthMechanismMustBeEncrypted.to_string()
+            )));
+        }
+    }
+
+    if !mechanism.client_first() && initial_response.is_some() {
+        conn.send_code(SMTPReplyCode::AuthClientMustNotStart)
+            .map_err(AuthExchangeError::Other)?;
+        return Err(AuthExchangeError::Other(anyhow::anyhow!(
+            SMTPReplyCode::AuthClientMustNotStart.to_string()
+        )));
+    }
     let mut guard = rsasl.lock().await;
     let mut session = guard.server_start(&String::from(mechanism)).unwrap();
 
-    let mut authenticated = auth_step(
+    let mut succeeded = auth_step(
         conn,
         &mut session,
         initial_response.unwrap_or_else(|| "".to_string()),
-    )
-    .unwrap();
-    while !authenticated {
-        authenticated = match conn.read(std::time::Duration::from_secs(1)).await {
+    )?;
+
+    while !succeeded {
+        succeeded = match conn.read(std::time::Duration::from_secs(1)).await {
             Ok(Ok(buffer)) => {
-                println!("{}", buffer);
-                auth_step(conn, &mut session, buffer).unwrap()
+                log::trace!("{}", buffer);
+                auth_step(conn, &mut session, buffer)
             }
-            Ok(Err(e)) => todo!("error {e:?}"),
-            Err(e) => todo!("timeout {e}"),
-        };
+            Ok(Err(e)) => Err(AuthExchangeError::Other(anyhow::anyhow!("{:?}", e))),
+            Err(_) => Err(AuthExchangeError::Timeout),
+        }?;
     }
 
-    // TODO: get session property
+    // TODO: if success get session property
     Ok(())
 }

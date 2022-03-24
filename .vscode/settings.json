@@ -17,6 +17,7 @@
         "fastrand",
         "fullchain",
         "getpwuid",
+        "GSASL",
         "helo",
         "humantime",
         "indextoname",

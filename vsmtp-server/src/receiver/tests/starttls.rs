@@ -4,11 +4,10 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 use crate::{
     processes::ProcessMessage,
     receiver::{
-        connection::ConnectionKind,
-        io_service::IoService,
-        test_helpers::{get_regular_config, test_receiver, DefaultResolverTest},
+        connection::ConnectionKind, io_service::IoService, test_helpers::get_regular_config,
     },
     server::ServerVSMTP,
+    test_receiver,
 };
 
 use super::{get_tls_config, TEST_SERVER_CERT};
@@ -186,12 +185,13 @@ async fn simple() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_receiver_7() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
-            .concat()
-            .as_bytes(),
+    assert!(test_receiver! {
+        [
+            "EHLO foobar\r\n",
+            "STARTTLS\r\n",
+            "QUIT\r\n"
+        ]
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
@@ -203,10 +203,7 @@ async fn test_receiver_7() {
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
@@ -217,12 +214,11 @@ async fn test_receiver_9() {
     config.server.smtp.error.soft_count = 5;
     config.server.smtp.error.hard_count = 10;
 
-    let config = std::sync::Arc::new(config);
+    let config = config;
 
     let before_test = std::time::Instant::now();
-    let res = test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
+    assert!(test_receiver! {
+        with_config => config.clone(),
         [
             "RCPT TO:<bar@foo>\r\n",
             "MAIL FROM: <foo@bar>\r\n",
@@ -237,8 +233,7 @@ async fn test_receiver_9() {
             "aieari\r\n",
             "not a valid smtp command\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
@@ -250,12 +245,8 @@ async fn test_receiver_9() {
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
-        .as_bytes(),
-        config.clone(),
-    )
-    .await;
-
-    assert!(res.is_err());
+    }
+    .is_err());
 
     assert!(
         before_test.elapsed().as_millis()
@@ -272,12 +263,10 @@ async fn test_receiver_8() -> anyhow::Result<()> {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
+    assert!(test_receiver! {
+        with_config => config,
         ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
-            .concat()
-            .as_bytes(),
+            .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
@@ -289,10 +278,7 @@ async fn test_receiver_8() -> anyhow::Result<()> {
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(config)
-    )
-    .await
+    }
     .is_ok());
 
     Ok(())

@@ -15,9 +15,10 @@
  *
 **/
 use crate::{
+    auth::AuthCallback,
     processes::ProcessMessage,
     receiver::{
-        handle_connection, handle_connection_secured, IoService, {Connection, ConnectionKind},
+        handle_connection, IoService, {Connection, ConnectionKind},
     },
 };
 use vsmtp_common::{code::SMTPReplyCode, re::rsasl};
@@ -38,44 +39,6 @@ pub struct ServerVSMTP {
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-}
-
-struct OurCallback;
-
-impl rsasl::Callback<(), ()> for OurCallback {
-    fn callback(
-        _sasl: &mut rsasl::SASL<(), ()>,
-        session: &mut rsasl::Session<()>,
-        prop: rsasl::Property,
-    ) -> Result<(), rsasl::ReturnCode> {
-        match prop {
-            rsasl::Property::GSASL_VALIDATE_SIMPLE => {
-                // Access the authentication id, i.e. the username to check the password for
-                let authcid = session
-                    .get_property(rsasl::Property::GSASL_AUTHID)
-                    .ok_or(rsasl::ReturnCode::GSASL_NO_AUTHID)?
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-
-                // Access the password itself
-                let password = session
-                    .get_property(rsasl::Property::GSASL_PASSWORD)
-                    .ok_or(rsasl::ReturnCode::GSASL_NO_PASSWORD)?
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-
-                // For brevity sake we use hard-coded credentials here.
-                if authcid == "hello" && password == "world" {
-                    Ok(())
-                } else {
-                    Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR)
-                }
-            }
-            _ => Err(rsasl::ReturnCode::GSASL_NO_CALLBACK),
-        }
-    }
 }
 
 impl ServerVSMTP {
@@ -115,7 +78,7 @@ impl ServerVSMTP {
             },
             rsasl: Some(std::sync::Arc::new(tokio::sync::Mutex::new({
                 let mut rsasl = rsasl::SASL::new_untyped().map_err(|e| anyhow::anyhow!("{}", e))?;
-                rsasl.install_callback::<OurCallback>();
+                rsasl.install_callback::<AuthCallback>();
                 rsasl
             }))),
             config,
@@ -241,32 +204,15 @@ impl ServerVSMTP {
             config.clone(),
             &mut io_plain,
         );
-        match conn.kind {
-            ConnectionKind::Opportunistic | ConnectionKind::Submission => {
-                handle_connection(
-                    &mut conn,
-                    tls_config,
-                    rsasl,
-                    rule_engine,
-                    working_sender,
-                    delivery_sender,
-                )
-                .await
-            }
-            // TODO: tls not supported
-            // ConnectionKind::Tunneled if config.server.tls.is_none() => {}
-            ConnectionKind::Tunneled => {
-                handle_connection_secured(
-                    &mut conn,
-                    tls_config,
-                    rsasl,
-                    rule_engine,
-                    working_sender,
-                    delivery_sender,
-                )
-                .await
-            }
-        }
+        handle_connection(
+            &mut conn,
+            tls_config,
+            rsasl,
+            rule_engine,
+            working_sender,
+            delivery_sender,
+        )
+        .await
         .map(|_| {
             log::warn!(
                 "{{ elapsed: {:?} }} Connection {} closed cleanly",

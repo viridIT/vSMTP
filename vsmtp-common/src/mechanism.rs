@@ -1,9 +1,24 @@
 /// List of supported SASL Mechanism
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord, strum::EnumIter)]
+/// See https://www.iana.org/assignments/sasl-mechanisms/sasl-mechanisms.xhtml
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Copy,
+    Clone,
+    Hash,
+    PartialOrd,
+    Ord,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(try_from = "String")]
+#[serde(into = "String")]
 pub enum Mechanism {
     /// For interoperability
     Plain,
-    ///
+    /// OBSOLETE
     Login,
     /*
       ANONYMOUS

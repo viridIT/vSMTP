@@ -1,7 +1,7 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(missing_docs)]
 use crate::parser::{tls_certificate, tls_private_key};
-use vsmtp_common::{code::SMTPReplyCode, re::anyhow};
+use vsmtp_common::{auth::Mechanism, code::SMTPReplyCode, re::anyhow};
 
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -202,6 +202,13 @@ pub struct ConfigServerSMTPTimeoutClient {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct ConfigServerSMTPAuth {
+    pub enable_dangerous_mechanism_in_clair: bool,
+    pub mechanisms: Vec<Mechanism>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfigServerSMTP {
     #[serde(default = "ConfigServerSMTP::default_rcpt_count_max")]
     pub rcpt_count_max: usize,
@@ -217,6 +224,7 @@ pub struct ConfigServerSMTP {
     #[serde(default)]
     pub codes: std::collections::BTreeMap<SMTPReplyCode, String>,
     // NOTE: extension settings here
+    pub auth: Option<ConfigServerSMTPAuth>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

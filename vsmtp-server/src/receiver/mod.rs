@@ -113,6 +113,18 @@ pub async fn handle_connection<S>(
 where
     S: std::io::Read + std::io::Write + Send,
 {
+    if let ConnectionKind::Tunneled = conn.kind {
+        return handle_connection_secured(
+            conn,
+            tls_config.clone(),
+            rsasl,
+            rule_engine,
+            working_sender,
+            delivery_sender,
+        )
+        .await;
+    }
+
     let mut helo_domain = None;
 
     conn.send_code(SMTPReplyCode::Greetings)?;
@@ -151,18 +163,28 @@ where
                 todo!();
             }
             TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
-                on_authentication(
+                if let Err(auth_error) = on_authentication(
                     conn,
                     rsasl.as_ref().unwrap().clone(),
                     mechanism,
                     initial_response,
                 )
-                .await?;
-                conn.is_authenticated = true;
-                // TODO:  When a security layer takes effect
-                // helo_domain = None;
+                .await
+                {
+                    match auth_error {
+                        auth::AuthExchangeError::Failed => todo!(),
+                        auth::AuthExchangeError::Canceled => todo!(),
+                        auth::AuthExchangeError::Timeout => todo!(),
+                        auth::AuthExchangeError::InvalidBase64 => todo!(),
+                        auth::AuthExchangeError::Other(_) => todo!(),
+                    }
+                } else {
+                    conn.is_authenticated = true;
+                    // TODO:  When a security layer takes effect
+                    // helo_domain = None;
 
-                helo_domain = Some(helo_pre_auth);
+                    helo_domain = Some(helo_pre_auth);
+                }
             }
         }
     }
@@ -170,7 +192,7 @@ where
     Ok(())
 }
 
-pub(crate) async fn handle_connection_secured<S>(
+async fn handle_connection_secured<S>(
     conn: &mut Connection<'_, S>,
     // TODO: should not be an option at this point
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -230,18 +252,28 @@ where
                 todo!();
             }
             TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
-                on_authentication(
+                if let Err(auth_error) = on_authentication(
                     &mut secured_conn,
                     rsasl.as_ref().unwrap().clone(),
                     mechanism,
                     initial_response,
                 )
-                .await?;
-                secured_conn.is_authenticated = true;
-                // TODO:  When a security layer takes effect
-                // helo_domain = None;
+                .await
+                {
+                    match auth_error {
+                        auth::AuthExchangeError::Failed => todo!(),
+                        auth::AuthExchangeError::Canceled => todo!(),
+                        auth::AuthExchangeError::Timeout => todo!(),
+                        auth::AuthExchangeError::InvalidBase64 => todo!(),
+                        auth::AuthExchangeError::Other(_) => todo!(),
+                    }
+                } else {
+                    conn.is_authenticated = true;
+                    // TODO:  When a security layer takes effect
+                    // helo_domain = None;
 
-                helo_domain = Some(helo_pre_auth);
+                    helo_domain = Some(helo_pre_auth);
+                }
             }
             TransactionResult::TlsUpgrade => todo!(),
         }
