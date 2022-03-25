@@ -56,7 +56,6 @@ users = { version = "0.11.0", features = [] }
 
 num_cpus = "1.13.1"
 
-base64 = "0.13.0"
 
 ## TODO: move in dev-deps ; Protocol
 pretty_assertions = "1.2.0"

@@ -81,7 +81,8 @@ fn construct() {
                 auth: Some(ConfigServerSMTPAuth {
                     enable_dangerous_mechanism_in_clair: false,
                     mechanisms: vec![],
-                    retries_count: -1,
+                    attempt_count_max: -1,
+                    must_be_authenticated: false,
                 }),
             },
         },

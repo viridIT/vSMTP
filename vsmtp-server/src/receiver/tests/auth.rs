@@ -1,4 +1,9 @@
-use vsmtp_common::{address::Address, code::SMTPReplyCode, mail_context::MailContext, re::rsasl};
+use vsmtp_common::{
+    address::Address,
+    code::SMTPReplyCode,
+    mail_context::MailContext,
+    re::{base64, rsasl},
+};
 use vsmtp_config::{config::ConfigServerSMTPAuth, Config};
 
 use crate::{receiver::test_helpers::get_regular_config, resolver::Resolver, test_receiver};
@@ -61,7 +66,7 @@ impl rsasl::Callback<(), ()> for TestAuth {
     ) -> Result<(), rsasl::ReturnCode> {
         match prop {
             rsasl::Property::GSASL_VALIDATE_SIMPLE => {
-                let (authcid, password) = (
+                let (authid, password) = (
                     session
                         .get_property(rsasl::Property::GSASL_AUTHID)
                         .ok_or(rsasl::ReturnCode::GSASL_NO_AUTHID)?
@@ -81,7 +86,7 @@ impl rsasl::Callback<(), ()> for TestAuth {
                     .map(|(k, v)| (k.to_string(), v.to_string()))
                     .collect::<std::collections::HashMap<String, String>>();
 
-                if db.get(&authcid).map_or(false, |p| *p == password) {
+                if db.get(&authid).map_or(false, |p| *p == password) {
                     Ok(())
                 } else {
                     Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR)
@@ -125,7 +130,7 @@ async fn plain_in_clair_unsecured() {
     #[async_trait::async_trait]
     impl Resolver for T {
         async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "authclient.com");
+            assert_eq!(ctx.envelop.helo, "client.com");
             assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
             assert_eq!(
                 ctx.envelop.rcpt,
@@ -142,7 +147,8 @@ async fn plain_in_clair_unsecured() {
     config.server.smtp.auth = Some(ConfigServerSMTPAuth {
         enable_dangerous_mechanism_in_clair: true,
         mechanisms: vec![],
-        retries_count: -1,
+        attempt_count_max: -1,
+        must_be_authenticated: false,
     });
 
     assert!(test_receiver! {
@@ -154,7 +160,7 @@ async fn plain_in_clair_unsecured() {
         with_config => config,
         on_mail => T,
         [
-            "EHLO authclient.com\r\n",
+            "EHLO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "hello", "world"))),
             "MAIL FROM:<foo@bar>\r\n",
             "RCPT TO:<joe@doe>\r\n",
@@ -186,7 +192,8 @@ async fn plain_in_clair_invalid_credentials() {
     config.server.smtp.auth = Some(ConfigServerSMTPAuth {
         enable_dangerous_mechanism_in_clair: true,
         mechanisms: vec![],
-        retries_count: -1,
+        attempt_count_max: -1,
+        must_be_authenticated: false,
     });
 
     assert!(test_receiver! {
@@ -197,7 +204,7 @@ async fn plain_in_clair_invalid_credentials() {
         },
         with_config => config,
         [
-            "EHLO authclient.com\r\n",
+            "EHLO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "foo", "bar"))),
             "MAIL FROM:<foo@bar>\r\n",
             "RCPT TO:<joe@doe>\r\n",
@@ -226,7 +233,8 @@ async fn plain_in_clair_unsecured_cancel() {
     config.server.smtp.auth = Some(ConfigServerSMTPAuth {
         enable_dangerous_mechanism_in_clair: true,
         mechanisms: vec![],
-        retries_count: 3,
+        attempt_count_max: 3,
+        must_be_authenticated: false,
     });
 
     assert!(test_receiver! {
@@ -237,7 +245,7 @@ async fn plain_in_clair_unsecured_cancel() {
         },
         with_config => config,
         [
-            "EHLO authclient.com\r\n",
+            "EHLO client.com\r\n",
             "AUTH PLAIN\r\n",
             "*\r\n",
             "AUTH PLAIN\r\n",
@@ -273,7 +281,8 @@ async fn plain_in_clair_unsecured_bad_base64() {
     config.server.smtp.auth = Some(ConfigServerSMTPAuth {
         enable_dangerous_mechanism_in_clair: true,
         mechanisms: vec![],
-        retries_count: -1,
+        attempt_count_max: -1,
+        must_be_authenticated: false,
     });
 
     assert!(test_receiver! {
@@ -284,7 +293,7 @@ async fn plain_in_clair_unsecured_bad_base64() {
         },
         with_config => config,
         [
-            "EHLO authclient.com\r\n",
+            "EHLO client.com\r\n",
             "AUTH PLAIN foobar\r\n",
             "MAIL FROM:<foo@bar>\r\n",
         ].concat(),
@@ -309,7 +318,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
     #[async_trait::async_trait]
     impl Resolver for T {
         async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "authclient.com");
+            assert_eq!(ctx.envelop.helo, "client.com");
             assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
             assert_eq!(
                 ctx.envelop.rcpt,
@@ -326,7 +335,8 @@ async fn plain_in_clair_unsecured_without_initial_response() {
     config.server.smtp.auth = Some(ConfigServerSMTPAuth {
         enable_dangerous_mechanism_in_clair: true,
         mechanisms: vec![],
-        retries_count: -1,
+        attempt_count_max: -1,
+        must_be_authenticated: false,
     });
 
     assert!(test_receiver! {
@@ -338,7 +348,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
         with_config => config,
         on_mail => T,
         [
-            "EHLO authclient.com\r\n",
+            "EHLO client.com\r\n",
             "AUTH PLAIN\r\n",
             &format!("{}\r\n", base64::encode(format!("\0{}\0{}", "hello", "world"))),
             "MAIL FROM:<foo@bar>\r\n",
@@ -362,6 +372,35 @@ async fn plain_in_clair_unsecured_without_initial_response() {
             "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
             "250 Ok\r\n",
             "221 Service closing transmission channel\r\n"
+        ].concat()
+    }
+    .is_ok());
+}
+
+#[tokio::test]
+async fn no_auth_with_authenticated_policy() {
+    let mut config = get_auth_config();
+    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
+        enable_dangerous_mechanism_in_clair: true,
+        mechanisms: vec![],
+        attempt_count_max: -1,
+        must_be_authenticated: true,
+    });
+
+    assert!(test_receiver! {
+        with_config => config,
+        [
+            "EHLO client.com\r\n",
+            "MAIL FROM:<foo@bar>\r\n",
+        ].concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-8BITMIME\r\n",
+            "250-SMTPUTF8\r\n",
+            "250-AUTH PLAIN\r\n",
+            "250 STARTTLS\r\n",
+            "530 5.7.0 Authentication required\r\n",
         ].concat()
     }
     .is_ok());

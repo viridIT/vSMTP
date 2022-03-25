@@ -2,6 +2,7 @@
     "cSpell.words": [
         "alpn",
         "appender",
+        "authid",
         "BITMIME",
         "capath",
         "chrono",
@@ -54,7 +55,8 @@
         "viridit",
         "vmta",
         "Vrfy",
-        "VSMTP"
+        "VSMTP",
+        "Xoauth"
     ],
     "todohighlight.isCaseSensitive": false,
     "todohighlight.keywords": [

@@ -44,7 +44,7 @@ pub enum TransactionResult {
     Nothing,
     Mail(Box<MailContext>),
     TlsUpgrade,
-    Authentication(String, Mechanism, Option<String>),
+    Authentication(String, Mechanism, Option<Vec<u8>>),
 }
 
 // Generated from a string received
@@ -164,18 +164,12 @@ impl Transaction<'_> {
                 )
             }
 
-            // TODO: for mechanism requiring under TLS
-            // 538 5.7.11 (for documentation purpose)
-            // 535 (for production)
             (StateSMTP::Helo, Event::Auth(mechanism, initial_response))
                 if !conn.is_authenticated =>
             {
                 ProcessedEvent::ChangeState(StateSMTP::Authentication(mechanism, initial_response))
             }
 
-            // TODO: if policy require authentication
-            // 530 5.7.0 Authentication required
-            //
             (StateSMTP::Helo, Event::MailCmd(_, _))
                 if !conn.is_secured
                     && conn
@@ -187,6 +181,19 @@ impl Transaction<'_> {
                         == Some(TlsSecurityLevel::Encrypt) =>
             {
                 ProcessedEvent::Reply(SMTPReplyCode::Code530)
+            }
+
+            (StateSMTP::Helo, Event::MailCmd(_, _))
+                if !conn.is_authenticated
+                    && conn
+                        .config
+                        .server
+                        .smtp
+                        .auth
+                        .as_ref()
+                        .map_or(false, |auth| auth.must_be_authenticated) =>
+            {
+                ProcessedEvent::Reply(SMTPReplyCode::AuthRequired)
             }
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {

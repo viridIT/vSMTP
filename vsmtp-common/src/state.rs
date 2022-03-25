@@ -42,7 +42,7 @@ pub enum StateSMTP {
     /// After receiving STARTTLS command
     NegotiationTLS,
     /// After receiving AUTH command
-    Authentication(Mechanism, Option<String>),
+    Authentication(Mechanism, Option<Vec<u8>>),
     /// After receiving MAIL FROM command
     MailFrom,
     /// After receiving RCPT TO command
@@ -110,7 +110,7 @@ impl std::str::FromStr for StateSMTP {
             "NegotiationTLS" => Ok(Self::NegotiationTLS),
             "Authentication" => Ok(Self::Authentication(
                 Mechanism::default(),
-                Option::<String>::default(),
+                Option::<Vec<u8>>::default(),
             )),
             _ => anyhow::bail!("not a valid SMTP state: '{}'", s),
         }

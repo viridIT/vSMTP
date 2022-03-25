@@ -17,6 +17,7 @@
 use crate::{
     code::SMTPReplyCode,
     event::{Event, MimeBodyType},
+    mechanism::Mechanism,
 };
 
 #[test]
@@ -386,6 +387,25 @@ fn command_starttls() {
     assert_eq!(
         Event::parse_cmd("STARTTLS dummy"),
         Err(SMTPReplyCode::Code501)
+    );
+}
+
+#[test]
+fn command_auth() {
+    assert_eq!(Event::parse_cmd("AUTH"), Err(SMTPReplyCode::Code501));
+    assert_eq!(
+        Event::parse_cmd("auth not_supported"),
+        Err(SMTPReplyCode::AuthMechanismNotSupported)
+    );
+    assert_eq!(
+        Event::parse_cmd("auth PLAIN"),
+        Ok(Event::Auth(Mechanism::Plain, None))
+    );
+
+    // the parsing of the base64 is not done in the parse_cmd
+    assert_eq!(
+        Event::parse_cmd("auth PLAIN foobar"),
+        Ok(Event::Auth(Mechanism::Plain, Some(b"foobar".to_vec())))
     );
 }
 

@@ -179,7 +179,8 @@ impl Default for ConfigServerSMTPAuth {
         Self {
             enable_dangerous_mechanism_in_clair: false,
             mechanisms: <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
-            retries_count: -1,
+            attempt_count_max: -1,
+            must_be_authenticated: false,
         }
     }
 }
@@ -255,6 +256,8 @@ impl ConfigServerSMTP {
             SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n".to_string(),
             SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported\r\n".to_string(),
             SMTPReplyCode::AuthSucceeded => "235 2.7.0 Authentication succeeded\r\n".to_string(),
+            // 538 5.7.11 (for documentation purpose)
+            // 535 (for production)
             SMTPReplyCode::AuthMechanismMustBeEncrypted =>
                 "538 5.7.11 Encryption required for requested authentication mechanism\r\n".to_string(),
             SMTPReplyCode::AuthClientMustNotStart =>

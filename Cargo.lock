@@ -2113,6 +2113,7 @@ version = "0.9.2"
 dependencies = [
  "addr",
  "anyhow",
+ "base64",
  "libc",
  "rsasl",
  "serde",
@@ -2182,7 +2183,6 @@ version = "0.9.2"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64",
  "criterion",
  "fastrand",
  "lazy_static",

@@ -1,6 +1,10 @@
 use super::Connection;
 use crate::server::SaslBackend;
-use vsmtp_common::{auth::Mechanism, code::SMTPReplyCode, re::rsasl};
+use vsmtp_common::{
+    auth::Mechanism,
+    code::SMTPReplyCode,
+    re::{base64, rsasl},
+};
 
 /// Result of the AUTH command
 #[allow(clippy::pedantic)]
@@ -26,12 +30,12 @@ pub enum AuthExchangeError {
 fn auth_step<S>(
     conn: &mut Connection<'_, S>,
     session: &mut rsasl::DiscardOnDrop<rsasl::Session<()>>,
-    buffer: &str,
+    buffer: &[u8],
 ) -> Result<bool, AuthExchangeError>
 where
     S: std::io::Read + std::io::Write + Send,
 {
-    if buffer == "*" {
+    if buffer == [b'*'] {
         return Err(AuthExchangeError::Canceled);
     }
 
@@ -69,7 +73,7 @@ pub async fn on_authentication<S>(
     conn: &mut Connection<'_, S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<SaslBackend>>,
     mechanism: Mechanism,
-    initial_response: Option<String>,
+    initial_response: Option<Vec<u8>>,
 ) -> Result<(), AuthExchangeError>
 where
     S: std::io::Read + std::io::Write + Send,
@@ -109,17 +113,13 @@ where
     let mut guard = rsasl.lock().await;
     let mut session = guard.server_start(&String::from(mechanism)).unwrap();
 
-    let mut succeeded = auth_step(
-        conn,
-        &mut session,
-        &initial_response.unwrap_or_else(|| "".to_string()),
-    )?;
+    let mut succeeded = auth_step(conn, &mut session, &initial_response.unwrap_or_default())?;
 
     while !succeeded {
         succeeded = match conn.read(std::time::Duration::from_secs(1)).await {
             Ok(Ok(buffer)) => {
                 log::trace!("{}", buffer);
-                auth_step(conn, &mut session, &buffer)
+                auth_step(conn, &mut session, buffer.as_bytes())
             }
             Ok(Err(e)) => Err(AuthExchangeError::Other(anyhow::anyhow!("{:?}", e))),
             Err(e) => Err(AuthExchangeError::Timeout(e)),

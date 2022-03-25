@@ -203,9 +203,10 @@ pub struct ConfigServerSMTPTimeoutClient {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerSMTPAuth {
+    pub must_be_authenticated: bool,
     pub enable_dangerous_mechanism_in_clair: bool,
     pub mechanisms: Vec<Mechanism>,
-    pub retries_count: i64,
+    pub attempt_count_max: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
