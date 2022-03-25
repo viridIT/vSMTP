@@ -177,11 +177,30 @@ impl Default for ConfigQueueDelivery {
 impl Default for ConfigServerSMTPAuth {
     fn default() -> Self {
         Self {
-            enable_dangerous_mechanism_in_clair: false,
-            mechanisms: <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
-            attempt_count_max: -1,
-            must_be_authenticated: false,
+            enable_dangerous_mechanism_in_clair: Self::default_enable_dangerous_mechanism_in_clair(
+            ),
+            mechanisms: Self::default_mechanisms(),
+            attempt_count_max: Self::default_attempt_count_max(),
+            must_be_authenticated: Self::default_must_be_authenticated(),
         }
+    }
+}
+
+impl ConfigServerSMTPAuth {
+    pub(crate) const fn default_enable_dangerous_mechanism_in_clair() -> bool {
+        false
+    }
+
+    pub(crate) fn default_mechanisms() -> Vec<Mechanism> {
+        <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>()
+    }
+
+    pub(crate) const fn default_attempt_count_max() -> i64 {
+        -1
+    }
+
+    pub(crate) const fn default_must_be_authenticated() -> bool {
+        false
     }
 }
 

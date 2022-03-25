@@ -28,7 +28,7 @@ impl rsasl::Callback<(), ()> for AuthCallback {
                     .to_string();
 
                 // For brevity sake we use hard-coded credentials here.
-                if authcid == "hello" && password == "world" {
+                if authcid == "hél=lo" && password == "wÖrld" {
                     Ok(())
                 } else {
                     Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR)

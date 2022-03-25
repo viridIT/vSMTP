@@ -173,6 +173,7 @@ pub struct ConfigServerTls {
         deserialize_with = "crate::parser::tls_private_key::deserialize"
     )]
     pub private_key: rustls::PrivateKey,
+    #[serde(default)]
     pub sni: Vec<ConfigServerTlsSni>,
 }
 
@@ -203,9 +204,13 @@ pub struct ConfigServerSMTPTimeoutClient {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerSMTPAuth {
+    #[serde(default = "ConfigServerSMTPAuth::default_must_be_authenticated")]
     pub must_be_authenticated: bool,
+    #[serde(default = "ConfigServerSMTPAuth::default_enable_dangerous_mechanism_in_clair")]
     pub enable_dangerous_mechanism_in_clair: bool,
+    #[serde(default = "ConfigServerSMTPAuth::default_mechanisms")]
     pub mechanisms: Vec<Mechanism>,
+    #[serde(default = "ConfigServerSMTPAuth::default_attempt_count_max")]
     pub attempt_count_max: i64,
 }
 

@@ -1,3 +1,4 @@
+use lettre::transport::smtp::client::TlsParametersBuilder;
 use vsmtp_common::{
     address::Address,
     code::SMTPReplyCode,
@@ -31,13 +32,19 @@ fn get_auth_config() -> Config {
 async fn auth() {
     let client =
         lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous("localhost")
+            .tls(lettre::transport::smtp::client::Tls::Required(
+                TlsParametersBuilder::new("localhost".to_string())
+                    .dangerous_accept_invalid_certs(true)
+                    .build()
+                    .unwrap(),
+            ))
             .authentication(vec![
                 lettre::transport::smtp::authentication::Mechanism::Plain,
                 lettre::transport::smtp::authentication::Mechanism::Login,
                 lettre::transport::smtp::authentication::Mechanism::Xoauth2,
             ])
             .credentials(lettre::transport::smtp::authentication::Credentials::from(
-                ("hello", "world"),
+                ("hél=lo", "wÖrld"),
             ))
             .port(10015)
             .build::<lettre::Tokio1Executor>();
@@ -81,7 +88,7 @@ impl rsasl::Callback<(), ()> for TestAuth {
                         .to_string(),
                 );
 
-                let db = [("hello", "world")]
+                let db = [("hello", "world"), ("héllo", "wÖrld")]
                     .into_iter()
                     .map(|(k, v)| (k.to_string(), v.to_string()))
                     .collect::<std::collections::HashMap<String, String>>();
@@ -162,6 +169,69 @@ async fn plain_in_clair_unsecured() {
         [
             "EHLO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "hello", "world"))),
+            "MAIL FROM:<foo@bar>\r\n",
+            "RCPT TO:<joe@doe>\r\n",
+            "DATA\r\n",
+            ".\r\n",
+            "QUIT\r\n"
+        ].concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-8BITMIME\r\n",
+            "250-SMTPUTF8\r\n",
+            "250-AUTH PLAIN\r\n",
+            "250 STARTTLS\r\n",
+            "235 2.7.0 Authentication succeeded\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+            "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n"
+        ].concat()
+    }
+    .is_ok());
+}
+
+#[tokio::test]
+async fn plain_in_clair_unsecured_utf8() {
+    struct T;
+
+    #[async_trait::async_trait]
+    impl Resolver for T {
+        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
+            assert_eq!(ctx.envelop.helo, "client.com");
+            assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
+            assert_eq!(
+                ctx.envelop.rcpt,
+                std::collections::HashSet::from(
+                    [Address::try_from("joe@doe".to_string()).unwrap()]
+                )
+            );
+
+            Ok(())
+        }
+    }
+
+    let mut config = get_auth_config();
+    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
+        enable_dangerous_mechanism_in_clair: true,
+        mechanisms: vec![],
+        attempt_count_max: -1,
+        must_be_authenticated: false,
+    });
+
+    assert!(test_receiver! {
+        with_auth => {
+            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            rsasl.install_callback::<TestAuth>();
+            rsasl
+        },
+        with_config => config,
+        on_mail => T,
+        [
+            "EHLO client.com\r\n",
+            &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "héllo", "wÖrld"))),
             "MAIL FROM:<foo@bar>\r\n",
             "RCPT TO:<joe@doe>\r\n",
             "DATA\r\n",

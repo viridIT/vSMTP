@@ -303,7 +303,7 @@ where
                             .unwrap()
                             .attempt_count_max;
                         if retries_max != -1 && secured_conn.authentication_attempt > retries_max {
-                            secured_conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                            secured_conn.send_code(SMTPReplyCode::AuthRequired)?;
                             anyhow::bail!("Auth: Attempt max {} reached", retries_max);
                         }
                         secured_conn.send_code(SMTPReplyCode::AuthClientCanceled)?;
@@ -317,7 +317,7 @@ where
                     }
                     Err(auth::AuthExchangeError::Other(e)) => anyhow::bail!("{}", e),
                     Ok(_) => {
-                        conn.is_authenticated = true;
+                        secured_conn.is_authenticated = true;
 
                         // TODO: When a security layer takes effect
                         // helo_domain = None;
