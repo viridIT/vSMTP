@@ -115,7 +115,6 @@ pub async fn handle_one_in_delivery_queue(
         .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
         .run_when(&mut state, &vsmtp_common::state::StateSMTP::Delivery);
 
-    // NOTE: should the engine able to return a status for a particular recipient ?
     if result == Status::Deny {
         // we update rcpt email status and write to dead queue in case of a deny.
         let ctx = state.get_context();
@@ -130,7 +129,7 @@ pub async fn handle_one_in_delivery_queue(
         Queue::Dead.write_to_queue(config, &ctx)?;
     } else {
         // we pickup a copy of the metadata and envelop of the context, so we can dispatch emails
-        // to send by groups of recipients (grouped by transfer + destination)
+        // to send by groups of recipients (grouped by transfer method)
         // NOTE: using a lambda here because extraction can fail & locking ctx needs to be scoped
         //       because of the async code below.
         let (from, mut triage, content, metadata) =
@@ -160,8 +159,6 @@ pub async fn handle_one_in_delivery_queue(
             })(&mut state)?;
 
         for (method, rcpt) in &mut triage {
-            println!("'{method}' for '{rcpt:?}'");
-
             let mut transport: Box<dyn vsmtp_delivery::transport::Transport + Send> = match method {
                 vsmtp_common::transfer::Transfer::Forward(to) => {
                     Box::new(vsmtp_delivery::transport::forward::Forward(to.clone()))
@@ -186,40 +183,16 @@ pub async fn handle_one_in_delivery_queue(
                 })?;
         }
 
-        let ctx = state.get_context();
-        let mut ctx = ctx.write().unwrap();
-
         // recipient email transfer status could have been updated.
-        // TODO: remove rcpt SENT.
-        ctx.envelop.rcpt = triage.into_iter().flat_map(|(_, rcpt)| rcpt).collect();
+        let rcpt = triage
+            .into_iter()
+            .flat_map(|(_, rcpt)| rcpt)
+            .filter(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent))
+            .collect::<Vec<_>>();
 
-        // FIXME: disk i/o could be avoided here by filtering rcpt statuses.
-        for rcpt in &mut ctx.envelop.rcpt {
-            match &rcpt.email_status {
-                vsmtp_common::transfer::EmailTransferStatus::HeldBack(_) => {
-                    std::fs::rename(
-                        path,
-                        std::path::PathBuf::from_iter([
-                            Queue::Deferred
-                                .to_path(&config.server.queues.dirpath)
-                                .unwrap(),
-                            std::path::Path::new(&message_id).to_path_buf(),
-                        ]),
-                    )
-                    .unwrap();
-                }
-                vsmtp_common::transfer::EmailTransferStatus::Failed(_) => std::fs::rename(
-                    path,
-                    std::path::PathBuf::from_iter([
-                        Queue::Dead.to_path(&config.server.queues.dirpath).unwrap(),
-                        std::path::Path::new(&message_id).to_path_buf(),
-                    ]),
-                )
-                .unwrap(),
-                // Sent or Waiting (waiting should never happen), we can remove the file later.
-                _ => {}
-            }
-        }
+        move_to_queue(config, message_id, path, &rcpt)?;
+
+        state.get_context().write().unwrap().envelop.rcpt = rcpt;
     };
 
     // after processing the email is removed from the delivery queue.
@@ -372,9 +345,50 @@ fn filter_recipients(
         })
 }
 
+/// copy the message into the deferred / dead queue if any recipient is held back or have failed delivery.
+fn move_to_queue(
+    config: &Config,
+    message_id: &str,
+    path: &std::path::Path,
+    rcpt: &[vsmtp_common::rcpt::Rcpt],
+) -> anyhow::Result<()> {
+    if rcpt.iter().any(|rcpt| {
+        matches!(
+            rcpt.email_status,
+            vsmtp_common::transfer::EmailTransferStatus::HeldBack(..)
+        )
+    }) {
+        std::fs::copy(
+            path,
+            std::path::PathBuf::from_iter([
+                Queue::Deferred.to_path(&config.server.queues.dirpath)?,
+                std::path::Path::new(&message_id).to_path_buf(),
+            ]),
+        )
+        .context("failed to move message from delivery queue to deferred queue")?;
+    }
+
+    if rcpt.iter().any(|rcpt| {
+        matches!(
+            rcpt.email_status,
+            vsmtp_common::transfer::EmailTransferStatus::Failed(..)
+        )
+    }) {
+        std::fs::copy(
+            path,
+            std::path::PathBuf::from_iter([
+                Queue::Dead.to_path(&config.server.queues.dirpath)?,
+                std::path::Path::new(&message_id).to_path_buf(),
+            ]),
+        )
+        .context("failed to move message from delivery queue to dead queue")?;
+    }
+
+    Ok(())
+}
+
 /// prepend trace informations to headers.
 /// see https://datatracker.ietf.org/doc/html/rfc5321#section-4.4
-// TODO: add Return-Path header.
 fn add_trace_information(
     ctx: &mut MailContext,
     config: &Config,
@@ -418,14 +432,13 @@ fn add_trace_information(
 }
 
 // NOTE: should this function moved to the email parser library ?
-/// create the "Received" header.
+/// create the "Received" header stamp.
 fn create_received_stamp(
     client_helo: &str,
     server_domain: &str,
     message_id: &str,
     received_timestamp: &std::time::SystemTime,
 ) -> anyhow::Result<String> {
-    // NOTE: after "for": potential Additional-Registered-Clauses
     Ok(format!(
         "from {client_helo}\n\tby {server_domain}\n\twith SMTP\n\tid {message_id};\n\t{}",
         {
@@ -437,7 +450,7 @@ fn create_received_stamp(
 }
 
 // NOTE: should this function moved to the email parser library ?
-/// create the "X-VSMTP" header.
+/// create the "X-VSMTP" header stamp.
 fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: Status) -> String {
     format!(
         "id='{}'\n\tversion='{}'\n\tstatus='{}'",
