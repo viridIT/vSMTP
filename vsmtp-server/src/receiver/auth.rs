@@ -9,7 +9,6 @@ pub enum AuthExchangeError {
     /// authentication invalid
     Failed,
     /// the client stopped the exchange
-    #[allow(unused)]
     Canceled,
     /// timeout of the server
     Timeout(tokio::time::error::Elapsed),
@@ -32,6 +31,10 @@ fn auth_step<S>(
 where
     S: std::io::Read + std::io::Write + Send,
 {
+    if buffer == "*" {
+        return Err(AuthExchangeError::Canceled);
+    }
+
     let bytes64decoded = base64::decode(buffer).map_err(|_| AuthExchangeError::InvalidBase64)?;
 
     match session.step(&bytes64decoded) {
@@ -42,7 +45,7 @@ where
             );
             // TODO: send buffer ?
 
-            conn.send_code(SMTPReplyCode::AuthenticationSucceeded)
+            conn.send_code(SMTPReplyCode::AuthSucceeded)
                 .map_err(AuthExchangeError::Other)?;
             Ok(true)
         }
@@ -56,7 +59,6 @@ where
             Ok(false)
         }
         Err(e) if e.matches(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
-            println!("Authentication failed, bad username or password");
             Err(AuthExchangeError::Failed)
         }
         Err(e) => Err(AuthExchangeError::Other(anyhow::anyhow!("{}", e))),
@@ -73,8 +75,6 @@ where
     S: std::io::Read + std::io::Write + Send,
 {
     // TODO: if initial data == "=" ; it mean empty ""
-
-    // TODO: if "*" (=client cancel) => reject the AUTH command by sending a 501 reply.
 
     if mechanism.must_be_under_tls() && !conn.is_secured {
         if conn

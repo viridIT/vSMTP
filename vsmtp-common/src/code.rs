@@ -136,7 +136,7 @@ pub enum SMTPReplyCode {
     /// 504 5.5.4
     AuthMechanismNotSupported,
     /// 235 2.7.0
-    AuthenticationSucceeded,
+    AuthSucceeded,
     /// 538 5.7.11 Encryption required for requested authentication mechanism
     AuthMechanismMustBeEncrypted,
     /// 501 5.7.0 Client must not start with this mechanism
@@ -145,6 +145,10 @@ pub enum SMTPReplyCode {
     AuthErrorDecode64,
     /// 535 5.7.8 Authentication credentials invalid
     AuthInvalidCredentials,
+    /// 501
+    AuthClientCanceled,
+    /// 530 5.7.0 Authentication required
+    AuthRequired,
 }
 
 impl SMTPReplyCode {
@@ -159,7 +163,7 @@ impl SMTPReplyCode {
             | Self::Code250PlainEsmtp
             | Self::Code250SecuredEsmtp
             | Self::Code354
-            | Self::AuthenticationSucceeded => false,
+            | Self::AuthSucceeded => false,
             Self::Code451Timeout
             | Self::Code451
             | Self::Code452
@@ -179,7 +183,9 @@ impl SMTPReplyCode {
             | Self::AuthMechanismMustBeEncrypted
             | Self::AuthClientMustNotStart
             | Self::AuthErrorDecode64
-            | Self::AuthInvalidCredentials => true,
+            | Self::AuthInvalidCredentials
+            | Self::AuthClientCanceled
+            | Self::AuthRequired => true,
         }
     }
 }
@@ -210,11 +216,13 @@ impl std::fmt::Display for SMTPReplyCode {
             Self::Code554tls => "Code554tls",
             Self::ConnectionMaxReached => "ConnectionMaxReached",
             Self::AuthMechanismNotSupported => "AuthMechanismNotSupported",
-            Self::AuthenticationSucceeded => "AuthenticationSucceeded",
+            Self::AuthSucceeded => "AuthSucceeded",
             Self::AuthMechanismMustBeEncrypted => "AuthMechanismMustBeEncrypted",
             Self::AuthClientMustNotStart => "AuthClientMustNotStart",
             Self::AuthErrorDecode64 => "AuthErrorDecode64",
             Self::AuthInvalidCredentials => "AuthInvalidCredentials",
+            Self::AuthClientCanceled => "AuthClientCanceled",
+            Self::AuthRequired => "AuthRequired",
         })
     }
 }
@@ -253,11 +261,13 @@ impl std::str::FromStr for SMTPReplyCode {
             "Code554tls" => Ok(Self::Code554tls),
             "ConnectionMaxReached" => Ok(Self::ConnectionMaxReached),
             "AuthMechanismNotSupported" => Ok(Self::AuthMechanismNotSupported),
-            "AuthenticationSucceeded" => Ok(Self::AuthenticationSucceeded),
+            "AuthSucceeded" => Ok(Self::AuthSucceeded),
             "AuthMechanismMustBeEncrypted" => Ok(Self::AuthMechanismMustBeEncrypted),
             "AuthClientMustNotStart" => Ok(Self::AuthClientMustNotStart),
             "AuthErrorDecode64" => Ok(Self::AuthErrorDecode64),
             "AuthInvalidCredentials" => Ok(Self::AuthInvalidCredentials),
+            "AuthClientCanceled" => Ok(Self::AuthClientCanceled),
+            "AuthRequired" => Ok(Self::AuthRequired),
             _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }

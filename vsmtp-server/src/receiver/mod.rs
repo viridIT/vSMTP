@@ -179,12 +179,15 @@ where
                     }
                     Err(auth::AuthExchangeError::Canceled) => {
                         conn.authentication_attempt += 1;
+                        helo_domain = Some(helo_pre_auth);
+
                         let retries_max =
                             conn.config.server.smtp.auth.as_ref().unwrap().retries_count;
                         if retries_max != -1 && conn.authentication_attempt > retries_max {
-                            conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                            conn.send_code(SMTPReplyCode::AuthRequired)?;
+                            anyhow::bail!("Auth: Attempt max {} reached", retries_max);
                         }
-                        anyhow::bail!("Auth: Attempt max {} reached", retries_max);
+                        conn.send_code(SMTPReplyCode::AuthClientCanceled)?;
                     }
                     Err(auth::AuthExchangeError::Timeout(e)) => {
                         conn.send_code(SMTPReplyCode::Code451Timeout)?;
@@ -284,16 +287,17 @@ where
                         anyhow::bail!("Auth: Credentials invalid, closing connection");
                     }
                     Err(auth::AuthExchangeError::Canceled) => {
-                        conn.authentication_attempt += 1;
+                        secured_conn.authentication_attempt += 1;
                         let retries_max =
                             conn.config.server.smtp.auth.as_ref().unwrap().retries_count;
-                        if retries_max != -1 && conn.authentication_attempt > retries_max {
-                            conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                        if retries_max != -1 && secured_conn.authentication_attempt > retries_max {
+                            secured_conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                            anyhow::bail!("Auth: Attempt max {} reached", retries_max);
                         }
-                        anyhow::bail!("Auth: Attempt max {} reached", retries_max);
+                        secured_conn.send_code(SMTPReplyCode::AuthClientCanceled)?;
                     }
                     Err(auth::AuthExchangeError::Timeout(e)) => {
-                        conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                        secured_conn.send_code(SMTPReplyCode::Code451Timeout)?;
                         anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
                     }
                     Err(auth::AuthExchangeError::InvalidBase64) => {

@@ -76,7 +76,12 @@ impl rsasl::Callback<(), ()> for TestAuth {
                         .to_string(),
                 );
 
-                if authcid == "hello" && password == "world" {
+                let db = [("hello", "world")]
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect::<std::collections::HashMap<String, String>>();
+
+                if db.get(&authcid).map_or(false, |p| *p == password) {
                     Ok(())
                 } else {
                     Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR)
@@ -173,6 +178,93 @@ async fn plain_in_clair_unsecured() {
         ].concat()
     }
     .is_ok());
+}
+
+#[tokio::test]
+async fn plain_in_clair_invalid_credentials() {
+    let mut config = get_auth_config();
+    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
+        enable_dangerous_mechanism_in_clair: true,
+        mechanisms: vec![],
+        retries_count: -1,
+    });
+
+    assert!(test_receiver! {
+        with_auth => {
+            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            rsasl.install_callback::<TestAuth>();
+            rsasl
+        },
+        with_config => config,
+        [
+            "EHLO authclient.com\r\n",
+            &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "foo", "bar"))),
+            "MAIL FROM:<foo@bar>\r\n",
+            "RCPT TO:<joe@doe>\r\n",
+            "DATA\r\n",
+            ".\r\n",
+            "QUIT\r\n"
+        ].concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-8BITMIME\r\n",
+            "250-SMTPUTF8\r\n",
+            "250-AUTH PLAIN\r\n",
+            "250 STARTTLS\r\n",
+            "535 5.7.8 Authentication credentials invalid\r\n"
+        ].concat()
+    }
+    .is_err());
+}
+
+// TODO: cancel and retry until count max
+
+#[tokio::test]
+async fn plain_in_clair_unsecured_cancel() {
+    let mut config = get_auth_config();
+    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
+        enable_dangerous_mechanism_in_clair: true,
+        mechanisms: vec![],
+        retries_count: 3,
+    });
+
+    assert!(test_receiver! {
+        with_auth => {
+            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            rsasl.install_callback::<TestAuth>();
+            rsasl
+        },
+        with_config => config,
+        [
+            "EHLO authclient.com\r\n",
+            "AUTH PLAIN\r\n",
+            "*\r\n",
+            "AUTH PLAIN\r\n",
+            "*\r\n",
+            "AUTH PLAIN\r\n",
+            "*\r\n",
+            "AUTH PLAIN\r\n",
+            "*\r\n",
+        ].concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-8BITMIME\r\n",
+            "250-SMTPUTF8\r\n",
+            "250-AUTH PLAIN\r\n",
+            "250 STARTTLS\r\n",
+            "334 \r\n",
+            "501 Authentication canceled by clients\r\n",
+            "334 \r\n",
+            "501 Authentication canceled by clients\r\n",
+            "334 \r\n",
+            "501 Authentication canceled by clients\r\n",
+            "334 \r\n",
+            "530 5.7.0 Authentication required\r\n"
+        ].concat()
+    }
+    .is_err());
 }
 
 #[tokio::test]

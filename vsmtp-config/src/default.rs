@@ -254,13 +254,15 @@ impl ConfigServerSMTP {
             SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n".to_string(),
             SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n".to_string(),
             SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported\r\n".to_string(),
-            SMTPReplyCode::AuthenticationSucceeded => "235 2.7.0 Authentication succeeded\r\n".to_string(),
+            SMTPReplyCode::AuthSucceeded => "235 2.7.0 Authentication succeeded\r\n".to_string(),
             SMTPReplyCode::AuthMechanismMustBeEncrypted =>
                 "538 5.7.11 Encryption required for requested authentication mechanism\r\n".to_string(),
             SMTPReplyCode::AuthClientMustNotStart =>
                 "501 5.7.0 Client must not start with this mechanism\r\n".to_string(),
             SMTPReplyCode::AuthErrorDecode64 => "501 5.5.2 Invalid, not base64\r\n".to_string(),
-            SMTPReplyCode::AuthInvalidCredentials => "535 5.7.8 Authentication credentials invalid\r\n".to_string()
+            SMTPReplyCode::AuthInvalidCredentials => "535 5.7.8 Authentication credentials invalid\r\n".to_string(),
+            SMTPReplyCode::AuthClientCanceled => "501 Authentication canceled by clients\r\n".to_string(),
+            SMTPReplyCode::AuthRequired => "530 5.7.0 Authentication required\r\n".to_string(),
         };
 
         assert!(
