@@ -161,15 +161,23 @@ fn ehlo_command() {
 fn command_mail_from() {
     assert_eq!(
         Event::parse_cmd("Mail FROM:<valid@reverse.path.com>"),
-        Ok(Event::MailCmd("valid@reverse.path.com".to_string(), None))
+        Ok(Event::MailCmd(
+            "valid@reverse.path.com".to_string(),
+            None,
+            None
+        ))
     );
     assert_eq!(
         Event::parse_cmd("Mail fRoM: <valid2@reverse.path.com>"),
-        Ok(Event::MailCmd("valid2@reverse.path.com".to_string(), None))
+        Ok(Event::MailCmd(
+            "valid2@reverse.path.com".to_string(),
+            None,
+            None
+        ))
     );
     assert_eq!(
         Event::parse_cmd("MaIl From:   <>  "),
-        Ok(Event::MailCmd("".to_string(), None))
+        Ok(Event::MailCmd("".to_string(), None, None))
     );
     // assert_eq!(
     //     Event::parse_cmd("MaIl From:   <local.part@[127.0.0.1]>  "),
@@ -179,6 +187,7 @@ fn command_mail_from() {
         Event::parse_cmd("MaIl From:   <\"john..doe\"@example.org>  "),
         Ok(Event::MailCmd(
             "\"john..doe\"@example.org".to_string(),
+            None,
             None
         ))
     );
@@ -200,7 +209,8 @@ fn command_mail_from_8bitmime() {
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=8BITMIME"),
         Ok(Event::MailCmd(
             "ned@ymir.claremont.edu".to_string(),
-            Some(MimeBodyType::EightBitMime)
+            Some(MimeBodyType::EightBitMime),
+            None
         ))
     );
 
@@ -208,7 +218,8 @@ fn command_mail_from_8bitmime() {
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=7BIT"),
         Ok(Event::MailCmd(
             "ned@ymir.claremont.edu".to_string(),
-            Some(MimeBodyType::SevenBit)
+            Some(MimeBodyType::SevenBit),
+            None
         ))
     );
 
@@ -238,7 +249,11 @@ fn command_mail_from_8bitmime() {
 fn command_mail_from_international() {
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> SMTPUTF8"),
-        Ok(Event::MailCmd("ned@ymir.claremont.edu".to_string(), None))
+        Ok(Event::MailCmd(
+            "ned@ymir.claremont.edu".to_string(),
+            None,
+            None
+        ))
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> SMTPUTF8=foo"),
@@ -246,7 +261,31 @@ fn command_mail_from_international() {
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<用户@例子.广告> SMTPUTF8"),
-        Ok(Event::MailCmd("用户@例子.广告".to_string(), None))
+        Ok(Event::MailCmd("用户@例子.广告".to_string(), None, None))
+    );
+}
+
+#[test]
+fn command_mail_from_auth() {
+    assert_eq!(
+        Event::parse_cmd("MAIL FROM:<e=mc2@example.com> AUTH=e+3Dmc2@example.com"),
+        Ok(Event::MailCmd(
+            "e=mc2@example.com".to_string(),
+            None,
+            Some("e+3Dmc2@example.com".to_string())
+        ))
+    );
+    assert_eq!(
+        Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> AUTH=<>"),
+        Ok(Event::MailCmd(
+            "ned@ymir.claremont.edu".to_string(),
+            None,
+            Some("<>".to_string())
+        ))
+    );
+    assert_eq!(
+        Event::parse_cmd("MAIL FROM:<用户@例子.广告> AUTH"),
+        Err(SMTPReplyCode::Code504)
     );
 }
 

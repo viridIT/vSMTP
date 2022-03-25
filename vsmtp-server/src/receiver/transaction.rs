@@ -170,7 +170,7 @@ impl Transaction<'_> {
                 ProcessedEvent::ChangeState(StateSMTP::Authentication(mechanism, initial_response))
             }
 
-            (StateSMTP::Helo, Event::MailCmd(_, _))
+            (StateSMTP::Helo, Event::MailCmd(..))
                 if !conn.is_secured
                     && conn
                         .config
@@ -183,7 +183,7 @@ impl Transaction<'_> {
                 ProcessedEvent::Reply(SMTPReplyCode::Code530)
             }
 
-            (StateSMTP::Helo, Event::MailCmd(_, _))
+            (StateSMTP::Helo, Event::MailCmd(..))
                 if !conn.is_authenticated
                     && conn
                         .config
@@ -196,8 +196,8 @@ impl Transaction<'_> {
                 ProcessedEvent::Reply(SMTPReplyCode::AuthRequired)
             }
 
-            (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {
-                // TODO: store in envelop _body_bit_mime
+            (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
+                // TODO: store in envelop _body_bit_mime & _auth_mailbox
                 self.set_mail_from(&mail_from, conn);
 
                 match self

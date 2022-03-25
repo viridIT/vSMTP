@@ -57,7 +57,10 @@ pub enum Event {
     /// one or more mailboxes or pass it on to another system (possibly using
     /// SMTP).
     /// Syntax = `"MAIL FROM:" Reverse-path [SP Mail-parameters] CRLF`
-    MailCmd(String, Option<MimeBodyType>),
+    ///
+    /// 3rd argument is an xtext of the identity of the submitter,
+    /// "<>" meaning not enough unknown or insufficiently authenticated
+    MailCmd(String, Option<MimeBodyType>, Option<String>),
     /// This command is used to identify an individual recipient of the mail
     /// data; multiple recipients are specified by multiple uses of this
     /// command.
@@ -232,6 +235,7 @@ impl Event {
     fn parse_arg_mail_from(args: &[&str]) -> Result<Self, SMTPReplyCode> {
         fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
             let mut bitmime = None;
+            let mut auth_mailbox = None;
 
             for arg in args {
                 if let Some(raw) = arg.strip_prefix("BODY=") {
@@ -243,12 +247,18 @@ impl Event {
                 } else if *arg == "SMTPUTF8" {
                     // TODO: ?
                     // do we want to set a flag in the envelope to force utf8 in the deliver/relay ?
+                } else if let Some(mailbox) = arg.strip_prefix("AUTH=") {
+                    if auth_mailbox.is_none() {
+                        auth_mailbox = Some(mailbox.to_string());
+                    } else {
+                        return Err(SMTPReplyCode::Code501);
+                    }
                 } else {
                     return Err(SMTPReplyCode::Code504);
                 }
             }
 
-            Ok(Event::MailCmd(path, bitmime))
+            Ok(Event::MailCmd(path, bitmime, auth_mailbox))
         }
 
         match args {
