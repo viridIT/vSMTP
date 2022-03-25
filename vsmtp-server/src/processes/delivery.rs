@@ -140,7 +140,7 @@ pub async fn handle_one_in_delivery_queue(
                 add_trace_information(&mut ctx, config, result)?;
 
                 // filtering recipients by domains and delivery method.
-                let triage = filter_recipients(&*ctx);
+                let triage = vsmtp_common::rcpt::filter_by_transfer_method(&ctx.envelop.rcpt);
 
                 // getting a raw copy of the email.
                 let content = match &ctx.body {
@@ -207,7 +207,7 @@ async fn flush_deliver_queue(
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)? {
-        let path = path.context("could not flush delivery queue")?;
+        let path = path?;
         let message_id = path.file_name();
 
         handle_one_in_delivery_queue(
@@ -325,26 +325,6 @@ async fn flush_deferred_queue(config: &Config, dns: &TokioAsyncResolver) -> anyh
     Ok(())
 }
 
-/// filter recipients by their transfer method.
-/// the context is mutable because transports could not be correctly setup.
-fn filter_recipients(
-    ctx: &MailContext,
-) -> std::collections::HashMap<vsmtp_common::transfer::Transfer, Vec<vsmtp_common::rcpt::Rcpt>> {
-    ctx.envelop
-        .rcpt
-        .iter()
-        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-            let rcpt = rcpt.clone();
-            if let Some(group) = acc.get_mut(&rcpt.transfer_method) {
-                group.push(rcpt);
-            } else {
-                acc.insert(rcpt.transfer_method.clone(), vec![rcpt]);
-            }
-
-            acc
-        })
-}
-
 /// copy the message into the deferred / dead queue if any recipient is held back or have failed delivery.
 fn move_to_queue(
     config: &Config,
@@ -431,7 +411,6 @@ fn add_trace_information(
     Ok(())
 }
 
-// NOTE: should this function moved to the email parser library ?
 /// create the "Received" header stamp.
 fn create_received_stamp(
     client_helo: &str,
@@ -449,7 +428,6 @@ fn create_received_stamp(
     ))
 }
 
-// NOTE: should this function moved to the email parser library ?
 /// create the "X-VSMTP" header stamp.
 fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: Status) -> String {
     format!(

@@ -54,3 +54,21 @@ impl PartialEq for Rcpt {
         self.address == other.address
     }
 }
+
+/// filter recipients by their transfer method.
+#[must_use]
+pub fn filter_by_transfer_method(
+    rcpt: &[Rcpt],
+) -> std::collections::HashMap<crate::transfer::Transfer, Vec<crate::rcpt::Rcpt>> {
+    rcpt.iter()
+        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
+            let rcpt = rcpt.clone();
+            if let Some(group) = acc.get_mut(&rcpt.transfer_method) {
+                group.push(rcpt);
+            } else {
+                acc.insert(rcpt.transfer_method.clone(), vec![rcpt]);
+            }
+
+            acc
+        })
+}
