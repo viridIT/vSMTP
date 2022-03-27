@@ -70,17 +70,12 @@ impl Transport for Deliver {
 
             // we try to deliver the email to the recipients of the current group using found mail exchangers.
             for record in records.by_ref() {
-                if (send_email(
-                    config,
-                    &record.exchange().to_ascii(),
-                    &envelop,
-                    from,
-                    content,
-                )
-                .await)
-                    .is_ok()
-                {
-                    break;
+                for destination in dns.lookup_ip(&record.exchange().to_ascii()).await?.iter() {
+                    if (send_email(config, &destination.to_string(), &envelop, from, content).await)
+                        .is_ok()
+                    {
+                        break;
+                    }
                 }
             }
 
