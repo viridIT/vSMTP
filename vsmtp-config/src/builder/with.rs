@@ -3,10 +3,11 @@ use vsmtp_common::{code::SMTPReplyCode, state::StateSMTP};
 
 use crate::{
     config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigDNS, ConfigQueueDelivery, ConfigQueueWorking,
-        ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
-        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
-        ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerTlsSni, TlsSecurityLevel,
+        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
+        ConfigServer, ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs,
+        ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
+        ConfigServerSystem, ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerTlsSni,
+        TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
     Service, WantsServerDNS,
@@ -553,7 +554,7 @@ impl Builder<WantsServerDNS> {
         Builder::<WantsValidate> {
             state: WantsValidate {
                 parent: self.state,
-                config: ConfigDNS::Google,
+                config: ConfigServerDNS::Google,
             },
         }
     }
@@ -565,7 +566,7 @@ impl Builder<WantsServerDNS> {
         Builder::<WantsValidate> {
             state: WantsValidate {
                 parent: self.state,
-                config: ConfigDNS::CloudFlare,
+                config: ConfigServerDNS::CloudFlare,
             },
         }
     }
@@ -578,7 +579,7 @@ impl Builder<WantsServerDNS> {
         Builder::<WantsValidate> {
             state: WantsValidate {
                 parent: self.state,
-                config: ConfigDNS::System,
+                config: ConfigServerDNS::System,
             },
         }
     }
@@ -594,7 +595,7 @@ impl Builder<WantsServerDNS> {
         Builder::<WantsValidate> {
             state: WantsValidate {
                 parent: self.state,
-                config: ConfigDNS::Custom { config, options },
+                config: ConfigServerDNS::Custom { config, options },
             },
         }
     }

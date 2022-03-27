@@ -3,7 +3,7 @@
 use vsmtp_common::code::SMTPReplyCode;
 
 use crate::config::{
-    ConfigDNS, ConfigQueueDelivery, ConfigQueueWorking, ConfigServerSMTPError,
+    ConfigQueueDelivery, ConfigQueueWorking, ConfigServerDNS, ConfigServerSMTPError,
     ConfigServerSMTPTimeoutClient, ConfigServerTls, Service,
 };
 
@@ -114,5 +114,5 @@ pub struct WantsServerDNS {
 ///
 pub struct WantsValidate {
     pub(crate) parent: WantsServerDNS,
-    pub(super) config: ConfigDNS,
+    pub(super) config: ConfigServerDNS,
 }

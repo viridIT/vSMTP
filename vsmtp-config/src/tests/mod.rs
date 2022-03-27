@@ -1,4 +1,4 @@
-use crate::config::ConfigDNS;
+use crate::config::ConfigServerDNS;
 
 use super::config::{
     Config, ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
@@ -79,7 +79,7 @@ fn construct() {
                 },
                 codes: std::collections::BTreeMap::new(),
             },
-            dns: ConfigDNS::default(),
+            dns: ConfigServerDNS::default(),
         },
         app: ConfigApp {
             dirpath: "/var/spool/vsmtp/app".into(),

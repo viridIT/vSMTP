@@ -4,10 +4,10 @@ use vsmtp_common::{code::SMTPReplyCode, collection};
 
 use crate::{
     config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigDNS, ConfigQueueDelivery, ConfigQueueWorking,
-        ConfigServer, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
-        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
-        ConfigServerSystemThreadPool,
+        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
+        ConfigServer, ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs,
+        ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
+        ConfigServerSystem, ConfigServerSystemThreadPool,
     },
     Builder, Config, Service,
 };
@@ -34,7 +34,7 @@ impl Default for ConfigServer {
             queues: ConfigServerQueues::default(),
             tls: None,
             smtp: ConfigServerSMTP::default(),
-            dns: ConfigDNS::default(),
+            dns: ConfigServerDNS::default(),
         }
     }
 }
@@ -243,7 +243,7 @@ impl ConfigServerSMTP {
     }
 }
 
-impl Default for ConfigDNS {
+impl Default for ConfigServerDNS {
     fn default() -> Self {
         Self::System
     }

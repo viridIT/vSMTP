@@ -26,15 +26,15 @@ use crate::Config;
 /// build an async dns using tokio & trust_dns from configuration.
 pub fn build_dns(config: &Config) -> Result<TokioAsyncResolver, ResolveError> {
     match &config.server.dns {
-        crate::config::ConfigDNS::Google => {
+        crate::config::ConfigServerDNS::Google => {
             TokioAsyncResolver::tokio(ResolverConfig::google(), ResolverOpts::default())
         }
 
-        crate::config::ConfigDNS::CloudFlare => {
+        crate::config::ConfigServerDNS::CloudFlare => {
             TokioAsyncResolver::tokio(ResolverConfig::cloudflare(), ResolverOpts::default())
         }
-        crate::config::ConfigDNS::System => TokioAsyncResolver::tokio_from_system_conf(),
-        crate::config::ConfigDNS::Custom { config, options } => {
+        crate::config::ConfigServerDNS::System => TokioAsyncResolver::tokio_from_system_conf(),
+        crate::config::ConfigServerDNS::Custom { config, options } => {
             TokioAsyncResolver::tokio(config.clone(), *options)
         }
     }
