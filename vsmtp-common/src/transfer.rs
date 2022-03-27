@@ -35,6 +35,25 @@ pub enum EmailTransferStatus {
     // NOTE: is Quarantined(String) useful, or we just use Failed(String) instead ?
 }
 
+impl EmailTransferStatus {
+    /// get the associated string slice of the variant.
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            EmailTransferStatus::Waiting => "waiting",
+            EmailTransferStatus::Sent => "sent",
+            EmailTransferStatus::HeldBack(_) => "held back",
+            EmailTransferStatus::Failed(_) => "failed",
+        }
+    }
+}
+
+impl std::fmt::Display for EmailTransferStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// the delivery method / protocol used for a specific recipient.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Transfer {
