@@ -16,16 +16,17 @@
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub enum Mechanism {
-    /// For interoperability
+    /// Common, but for interoperability
     Plain,
-    /// OBSOLETE
+    /// Obsolete
     Login,
+    /// Limited
+    CramMd5,
     /*
       ANONYMOUS
     - EXTERNAL
     - SECURID
     - DIGEST-MD5
-    - CRAM-MD5
     - SCRAM-SHA-1
     - SCRAM-SHA-1-PLUS
     - SCRAM-SHA-256
@@ -51,7 +52,7 @@ impl Mechanism {
     pub const fn client_first(self) -> bool {
         match self {
             Mechanism::Plain => true,
-            Mechanism::Login => false,
+            Mechanism::Login | Mechanism::CramMd5 => false,
         }
     }
 
@@ -59,7 +60,7 @@ impl Mechanism {
     #[must_use]
     pub const fn must_be_under_tls(self) -> bool {
         match self {
-            Mechanism::Plain | Mechanism::Login => true,
+            Mechanism::Plain | Mechanism::Login | Mechanism::CramMd5 => true,
         }
     }
 }
@@ -69,6 +70,7 @@ impl std::fmt::Display for Mechanism {
         f.write_str(match self {
             Mechanism::Plain => "PLAIN",
             Mechanism::Login => "LOGIN",
+            Mechanism::CramMd5 => "CRAM-MD5",
         })
     }
 }
@@ -85,8 +87,8 @@ impl std::str::FromStr for Mechanism {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "PLAIN" => Ok(Self::Plain),
-            // "GSSAPI" => Ok(Self::Gssapi),
             "LOGIN" => Ok(Self::Login),
+            "CRAM-MD5" => Ok(Self::CramMd5),
             _ => anyhow::bail!("not a valid AUTH Mechanism: '{}'", s),
         }
     }

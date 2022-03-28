@@ -85,18 +85,14 @@ async fn test_starttls(
         let mut input = clair_smtp_input.iter().copied();
 
         loop {
-            match io.get_next_line_async().await {
-                Ok(res) => {
-                    output.push(res);
-                    if output.last().unwrap().chars().nth(3) == Some('-') {
-                        continue;
-                    }
-                    match input.next() {
-                        Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
-                        None => break,
-                    }
-                }
-                Err(e) => println!("{:?}", e),
+            let res = io.get_next_line_async().await.unwrap();
+            output.push(res);
+            if output.last().unwrap().chars().nth(3) == Some('-') {
+                continue;
+            }
+            match input.next() {
+                Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
+                None => break,
             }
         }
 
@@ -118,18 +114,14 @@ async fn test_starttls(
         };
 
         loop {
-            match io.get_next_line_async().await {
-                Ok(res) => {
-                    output.push(res);
-                    if output.last().unwrap().chars().nth(3) == Some('-') {
-                        continue;
-                    }
-                    match input.next() {
-                        Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
-                        None => break,
-                    }
-                }
-                Err(e) => println!("{:?}", e),
+            let res = io.get_next_line_async().await.unwrap();
+            output.push(res);
+            if output.last().unwrap().chars().nth(3) == Some('-') {
+                continue;
+            }
+            match input.next() {
+                Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
+                None => break,
             }
         }
 
@@ -169,7 +161,7 @@ async fn simple() -> anyhow::Result<()> {
             "250-testserver.com",
             "250-8BITMIME",
             "250-SMTPUTF8",
-            "250 AUTH PLAIN LOGIN",
+            "250 AUTH PLAIN LOGIN CRAM-MD5",
             "250 Ok",
             "250 Ok",
             "354 Start mail input; end with <CRLF>.<CRLF>",

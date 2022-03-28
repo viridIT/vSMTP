@@ -1,117 +1,20 @@
-use lettre::transport::smtp::client::TlsParametersBuilder;
 use vsmtp_common::{
     address::Address,
-    code::SMTPReplyCode,
     mail_context::MailContext,
     re::{base64, rsasl},
 };
 use vsmtp_config::{config::ConfigServerSMTPAuth, Config};
 
-use crate::{receiver::test_helpers::get_regular_config, resolver::Resolver, test_receiver};
-
-fn get_auth_config() -> Config {
-    // TODO: make selection of SMTP extension and AUTH mechanism more simple
-
-    let mut config = get_regular_config();
-    config.server.smtp.codes.insert(
-        SMTPReplyCode::Code250PlainEsmtp,
-        [
-            "250-testserver.com\r\n",
-            "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
-        ]
-        .concat(),
-    );
-    config
-}
-
-#[ignore]
-#[tokio::test]
-async fn auth() {
-    let client =
-        lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous("localhost")
-            .tls(lettre::transport::smtp::client::Tls::Required(
-                TlsParametersBuilder::new("localhost".to_string())
-                    .dangerous_accept_invalid_certs(true)
-                    .build()
-                    .unwrap(),
-            ))
-            .authentication(vec![
-                lettre::transport::smtp::authentication::Mechanism::Plain,
-                lettre::transport::smtp::authentication::Mechanism::Login,
-                lettre::transport::smtp::authentication::Mechanism::Xoauth2,
-            ])
-            .credentials(lettre::transport::smtp::authentication::Credentials::from(
-                ("hél=lo", "wÖrld"),
-            ))
-            .port(10015)
-            .build::<lettre::Tokio1Executor>();
-
-    lettre::AsyncTransport::send(
-        &client,
-        lettre::Message::builder()
-            .from("NoBody <nobody@domain.tld>".parse().unwrap())
-            .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
-            .to("Hei <hei@domain.tld>".parse().unwrap())
-            .subject("Happy new year")
-            .body(String::from("Be happy!"))
-            .unwrap(),
-    )
-    .await
-    .unwrap();
-}
-
-struct TestAuth;
-
-impl rsasl::Callback<(), ()> for TestAuth {
-    fn callback(
-        _sasl: &mut rsasl::SASL<(), ()>,
-        session: &mut rsasl::Session<()>,
-        prop: rsasl::Property,
-    ) -> Result<(), rsasl::ReturnCode> {
-        match prop {
-            rsasl::Property::GSASL_VALIDATE_SIMPLE => {
-                let (authid, password) = (
-                    session
-                        .get_property(rsasl::Property::GSASL_AUTHID)
-                        .ok_or(rsasl::ReturnCode::GSASL_NO_AUTHID)?
-                        .to_str()
-                        .unwrap()
-                        .to_string(),
-                    session
-                        .get_property(rsasl::Property::GSASL_PASSWORD)
-                        .ok_or(rsasl::ReturnCode::GSASL_NO_PASSWORD)?
-                        .to_str()
-                        .unwrap()
-                        .to_string(),
-                );
-
-                let db = [("hello", "world"), ("héllo", "wÖrld")]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect::<std::collections::HashMap<String, String>>();
-
-                if db.get(&authid).map_or(false, |p| *p == password) {
-                    Ok(())
-                } else {
-                    Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR)
-                }
-            }
-            _ => Err(rsasl::ReturnCode::GSASL_NO_CALLBACK),
-        }
-    }
-}
+use crate::{
+    receiver::tests::auth::{get_auth_config, TestAuth},
+    resolver::Resolver,
+    test_receiver,
+};
 
 #[tokio::test]
 async fn plain_in_clair_secured() {
     assert!(test_receiver! {
-        with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
-            rsasl
-        },
+        with_auth => rsasl::SASL::new_untyped().unwrap(),
         with_config => get_auth_config(),
         [
             "EHLO foo\r\n",

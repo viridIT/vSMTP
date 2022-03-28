@@ -43,11 +43,13 @@ where
 
     match session.step(&bytes64decoded) {
         Ok(rsasl::Step::Done(buffer)) => {
-            println!(
-                "Authentication successful, bytes to return to client: {:?}",
-                std::str::from_utf8(&*buffer)
-            );
-            // TODO: send buffer ?
+            if !buffer.is_empty() {
+                // TODO: send buffer ?
+                println!(
+                    "Authentication successful, bytes to return to client: {:?}",
+                    std::str::from_utf8(&*buffer)
+                );
+            }
 
             conn.send_code(SMTPReplyCode::AuthSucceeded)
                 .map_err(AuthExchangeError::Other)?;
