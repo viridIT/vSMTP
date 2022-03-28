@@ -130,7 +130,11 @@ impl Mail {
             .iter_mut()
             .find(|(header, _)| header == "to")
             .and_then::<(), _>(|(_, rcpts)| {
-                *rcpts = rcpts.replace(format!(", {old}").as_str(), "");
+                if rcpts.find(old) == Some(0) {
+                    *rcpts = rcpts.replace(format!("{old}, ").as_str(), "");
+                } else {
+                    *rcpts = rcpts.replace(format!(", {old}").as_str(), "");
+                }
                 None
             });
     }
@@ -211,7 +215,10 @@ this is a regular mime body."#
 
     #[test]
     fn test_add_headers() {
-        let mut mail = Mail::default();
+        let mut mail = Mail {
+            body: BodyType::Regular(vec!["email content".to_string()]),
+            ..Default::default()
+        };
 
         mail.push_headers(vec![
             ("subject".to_string(), "testing an email".to_string()),
@@ -221,7 +228,9 @@ this is a regular mime body."#
         assert_eq!(
             mail.to_raw(),
             r#"subject: testing an email
-mime-version: 1.0"#
+mime-version: 1.0
+
+email content"#
                 .to_string()
         );
 
@@ -241,8 +250,9 @@ date: tue, 30 nov 2021 20:54:27 +0100
 to: john@doe.com, green@foo.bar
 subject: testing an email
 mime-version: 1.0
-"#
-            .to_string()
+
+email content"#
+                .to_string()
         );
     }
 

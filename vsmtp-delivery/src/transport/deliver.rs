@@ -157,36 +157,41 @@ async fn send_email(
 mod test {
 
     use vsmtp_common::address::Address;
+    use vsmtp_config::{config::ConfigServerDNS, Config};
 
-    use crate::test::get_default_context;
+    use crate::transport::deliver::{get_mx_records, send_email};
 
     // use super::*;
 
     #[tokio::test]
     async fn test_get_mx_records() {
         // FIXME: find a way to guarantee that the mx records exists.
-        // let resolver = build_resolver().expect("could not build resolver");
+        let mut config = Config::default();
+        config.server.dns = ConfigServerDNS::System;
+        let dns = vsmtp_config::trust_dns_helper::build_dns(&config).unwrap();
 
-        // get_mx_records(&resolver, "google.com")
-        //     .await
-        //     .expect("couldn't find any mx records for google.com");
+        get_mx_records(&dns, "google.com")
+            .await
+            .expect("couldn't find any mx records for google.com");
 
-        // assert!(get_mx_records(&resolver, "invalid_query").await.is_err());
+        assert!(get_mx_records(&dns, "invalid_query").await.is_err());
     }
 
     #[tokio::test]
     async fn test_delivery() {
-        let mut ctx = get_default_context();
-        ctx.envelop.mail_from = Address::try_from("john@doe.com".to_string()).unwrap();
-        ctx.envelop.rcpt.push(
-            Address::try_from("green@foo.com".to_string())
-                .unwrap()
-                .into(),
-        );
-
-        // let envelop = build_envelop(&ctx).expect("failed to build envelop to deliver email");
-
         // NOTE: for this to return ok, we would need to setup a test server running locally.
-        // assert!(send_email("127.0.0.1", &envelop, "content").is_err());
+        assert!(send_email(
+            &Config::default(),
+            "localhost",
+            &lettre::address::Envelope::new(
+                Some("a@a.a".parse().unwrap()),
+                vec!["b@b.b".parse().unwrap()]
+            )
+            .unwrap(),
+            &Address::try_from("a@a.a".to_string()).unwrap(),
+            "content"
+        )
+        .await
+        .is_err());
     }
 }
