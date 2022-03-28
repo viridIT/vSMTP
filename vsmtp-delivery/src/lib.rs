@@ -78,7 +78,7 @@ pub mod transport {
     }
 
     /// build a [lettre] envelop using from address & recipients.
-    fn build_lettre_envelop(
+    pub(super) fn build_lettre_envelop(
         from: &vsmtp_common::address::Address,
         rcpt: &[Rcpt],
     ) -> anyhow::Result<lettre::address::Envelope> {
@@ -162,5 +162,32 @@ pub mod test {
                 ..vsmtp_common::mail_context::MessageMetadata::default()
             }),
         }
+    }
+
+    use super::transport::build_lettre_envelop;
+    use vsmtp_common::{
+        address::Address,
+        rcpt::Rcpt,
+        transfer::{EmailTransferStatus, Transfer},
+    };
+
+    #[test]
+    fn test_build_lettre_envelop() {
+        assert_eq!(
+            build_lettre_envelop(
+                &Address::try_from("a@a.a".to_string()).unwrap(),
+                &[Rcpt {
+                    address: Address::try_from("b@b.b".to_string()).unwrap(),
+                    transfer_method: Transfer::None,
+                    email_status: EmailTransferStatus::Sent
+                }]
+            )
+            .expect("failed to build lettre envelop"),
+            lettre::address::Envelope::new(
+                Some("a@a.a".parse().unwrap()),
+                vec!["b@b.b".parse().unwrap()]
+            )
+            .unwrap()
+        );
     }
 }
