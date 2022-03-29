@@ -21,7 +21,7 @@ use vsmtp_common::{
     libc_abstraction::chown,
     mail_context::{Body, MailContext, MessageMetadata},
 };
-use vsmtp_config::{log_channel::DELIVER, Config};
+use vsmtp_config::{log_channel::DELIVER, re::users, Config};
 
 const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
     "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"
@@ -94,7 +94,7 @@ fn write_content_to_mbox(
         .open(&mbox)
         .with_context(|| format!("could not open '{:?}' mbox", mbox))?;
 
-    chown(mbox, Some(user), None)
+    chown(mbox, Some(user.uid()), None)
         .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
     std::io::Write::write_all(&mut file, content.as_bytes())

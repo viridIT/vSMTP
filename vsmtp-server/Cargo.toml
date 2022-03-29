@@ -25,8 +25,8 @@ serde_json = "1.0.79"
 async-trait = "0.1.52"
 fastrand = "1.7.0"
 
-rustls = { version = "0.20.4", features = ["tls12", "logging"] }
-rustls-pemfile = "0.3.0"
+# rustls = { version = "0.20.4", features = ["tls12", "logging"] }
+# rustls-pemfile = "0.3.0"
 
 tokio = { version = "1.17.0", features = [
     "macros",
@@ -51,8 +51,6 @@ lettre = { version = "0.10.0-rc.4", default-features = false, features = [
 ] }
 
 trust-dns-resolver = "0.21.1"
-
-users = { version = "0.11.0", features = [] }
 
 num_cpus = "1.13.1"
 

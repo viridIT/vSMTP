@@ -73,6 +73,16 @@ pub use config::*;
 pub use log4rs_helper::get_log4rs_config;
 pub use rustls_helper::get_rustls_config;
 
+/// Re-exported dependencies
+pub mod re {
+    pub use log;
+    pub use log4rs;
+    pub use rustls;
+    // NOTE: this one should not be re-exported (because tests only)
+    pub use rustls_pemfile;
+    pub use users;
+}
+
 use builder::{Builder, WantsVersion};
 use vsmtp_common::re::anyhow;
 

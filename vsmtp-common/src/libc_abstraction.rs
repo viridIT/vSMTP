@@ -108,16 +108,12 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
 ///
 /// * `@path` cannot be convert to CString
 /// * see chown(2) ERRORS
-pub fn chown(
-    path: &std::path::Path,
-    user: Option<&users::User>,
-    group: Option<&users::Group>,
-) -> anyhow::Result<()> {
+pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> anyhow::Result<()> {
     match unsafe {
         libc::chown(
             std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr(),
-            user.map_or(u32::MAX, users::User::uid),
-            group.map_or(u32::MAX, users::Group::gid),
+            user.unwrap_or(u32::MAX),
+            group.unwrap_or(u32::MAX),
         )
     } {
         0 => Ok(()),

@@ -123,7 +123,7 @@ pub mod actions {
     /// use the user cache to check if a user exists on the system.
     #[must_use]
     pub fn user_exist(name: &str) -> bool {
-        users::get_user_by_name(name).is_some()
+        vsmtp_config::re::users::get_user_by_name(name).is_some()
     }
 
     /// execute the service named @service_name from the vSMTP configuration definition

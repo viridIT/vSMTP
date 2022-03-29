@@ -1,4 +1,8 @@
-use vsmtp_config::{get_rustls_config, Config, TlsSecurityLevel};
+use vsmtp_config::{
+    get_rustls_config,
+    re::{rustls, rustls_pemfile},
+    Config, TlsSecurityLevel,
+};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use crate::{
@@ -108,10 +112,8 @@ async fn test_starttls(
         // TODO: assert on negotiated cipher ... ?
 
         let mut input = secured_smtp_input.iter().copied();
-        match input.next() {
-            Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
-            None => panic!(),
-        };
+
+        std::io::Write::write_all(&mut io, input.next().unwrap().as_bytes()).unwrap();
 
         loop {
             let res = io.get_next_line_async().await.unwrap();
