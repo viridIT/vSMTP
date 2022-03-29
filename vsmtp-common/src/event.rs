@@ -1,5 +1,3 @@
-use crate::mechanism::Mechanism;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -17,6 +15,7 @@ use crate::mechanism::Mechanism;
  *
  **/
 use super::code::SMTPReplyCode;
+use crate::mechanism::Mechanism;
 
 /// See "SMTP Service Extension for 8-bit MIME Transport"
 /// https://datatracker.ietf.org/doc/html/rfc6152

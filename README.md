@@ -36,6 +36,10 @@
     <img src="https://deps.rs/repo/github/viridIT/vSMTP/status.svg"
       alt="dependency status" />
   </a>
+  <a href="https://github.com/rust-lang/rust/tree/1.58+">
+    <img src="https://img.shields.io/badge/rustc-1.58%2B-informational.svg"
+      alt="Rustc Version 1.58.0" />
+  </a>
 </div>
 
 ---

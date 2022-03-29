@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-common"
-version = "0.9.2"
+version = "0.9.7"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -26,7 +26,6 @@ addr = { version = "0.15.3" }
 strum = { version = "0.24.0", features = ["derive"] }
 
 rsasl = { git = "https://github.com/viridIT/rsasl.git", branch = "fix/async" }
-# rsasl = { path = "../../rsasl" }
 
 base64 = "0.13.0"
 

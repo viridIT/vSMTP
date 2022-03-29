@@ -59,7 +59,6 @@ pub enum Body {
 }
 
 /// Representation of one mail obtained by a transaction SMTP
-#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
     /// time of connection by the client.

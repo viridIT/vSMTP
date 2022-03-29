@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-config"
-version = "0.9.5"
+version = "0.9.7"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -22,7 +22,6 @@ users = { version = "0.11.0", features = [] }
 
 serde = { version = "1.0.136", features = ["derive"] }
 serde_derive = "1.0.136"
-serde_with = { version = "1.12.0", features = ["macros"] }
 humantime-serde = "1.1.1"
 
 toml = "0.5.8"
@@ -30,7 +29,6 @@ toml = "0.5.8"
 rustls = { version = "0.20.4", features = ["tls12", "logging"] }
 rustls-pemfile = "0.3.0"
 
-num_cpus = "1.13.1"
 hostname = "0.3.1"
 
 semver = "1.0.6"

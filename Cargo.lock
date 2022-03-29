@@ -367,41 +367,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "darling"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0d720b8683f8dd83c65155f0530560cba68cd2bf395f6513a483caee57ff7f4"
-dependencies = [
- "darling_core",
- "darling_macro",
-]
-
-[[package]]
-name = "darling_core"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a340f241d2ceed1deb47ae36c4144b2707ec7dd0b649f894cb39bb595986324"
-dependencies = [
- "fnv",
- "ident_case",
- "proc-macro2",
- "quote",
- "strsim 0.10.0",
- "syn",
-]
-
-[[package]]
-name = "darling_macro"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72c41b3b7352feb3211a0d743dc5700a4e3b60f51bd2b368892d1e0f9a95f44b"
-dependencies = [
- "darling_core",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "dashmap"
 version = "4.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -664,12 +629,6 @@ dependencies = [
  "humantime 2.1.0",
  "serde",
 ]
-
-[[package]]
-name = "ident_case"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "idna"
@@ -1608,29 +1567,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_with"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec1e6ec4d8950e5b1e894eac0d360742f3b1407a6078a604a731c4b3f49cefbc"
-dependencies = [
- "rustversion",
- "serde",
- "serde_with_macros",
-]
-
-[[package]]
-name = "serde_with_macros"
-version = "1.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12e47be9471c72889ebafb5e14d5ff930d89ae7a67bbdb5f8abb564f845a927e"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "serde_yaml"
 version = "0.8.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2094,7 +2030,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vsmtp"
-version = "0.9.2"
+version = "0.9.7"
 dependencies = [
  "clap 3.1.6",
  "diff",
@@ -2109,7 +2045,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "0.9.2"
+version = "0.9.7"
 dependencies = [
  "addr",
  "anyhow",
@@ -2125,13 +2061,12 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-config"
-version = "0.9.5"
+version = "0.9.7"
 dependencies = [
  "hostname",
  "humantime-serde",
  "log",
  "log4rs",
- "num_cpus",
  "pretty_assertions",
  "rustls",
  "rustls-pemfile 0.3.0",
@@ -2139,7 +2074,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "serde_with",
  "toml",
  "users",
  "vsmtp-common",
@@ -2147,7 +2081,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "0.9.2"
+version = "0.9.7"
 dependencies = [
  "anyhow",
  "log",
@@ -2157,7 +2091,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "0.9.2"
+version = "0.9.7"
 dependencies = [
  "addr",
  "anyhow",
@@ -2179,7 +2113,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "0.9.2"
+version = "0.9.7"
 dependencies = [
  "anyhow",
  "async-trait",

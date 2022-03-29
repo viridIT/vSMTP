@@ -61,17 +61,35 @@
     "todohighlight.isCaseSensitive": false,
     "todohighlight.keywords": [
         {
+            "text": "todo!",
+            "color": "grey",
+            "backgroundColor": "gold",
+            "overviewRulerColor": "grey"
+        },
+        {
             "text": "NOTE:",
-            "color": "#000000",
+            "color": "black",
             "backgroundColor": "cyan",
             "overviewRulerColor": "grey"
         },
         {
             "text": "https://datatracker.ietf.org/doc/html/rfc",
-            "color": "#000000",
+            "color": "black",
             "backgroundColor": "olive",
             "overviewRulerColor": "grey",
             "cursor": "pointer",
+        },
+        {
+            "text": "unwrap()",
+            "color": "black",
+            "backgroundColor": "red",
+            "overviewRulerColor": "grey",
+        },
+        {
+            "text": "[allow(",
+            "color": "black",
+            "backgroundColor": "red",
+            "overviewRulerColor": "grey",
         }
     ],
     "rust-analyzer.checkOnSave.command": "clippy",

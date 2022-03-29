@@ -1,4 +1,3 @@
-use anyhow::Context;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -15,6 +14,7 @@ use anyhow::Context;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  **/
+use anyhow::Context;
 use vsmtp::{Args, Commands};
 use vsmtp_common::{
     libc_abstraction::{daemon, setgid, setuid, ForkResult},

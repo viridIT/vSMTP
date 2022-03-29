@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp"
-version = "0.9.2"
+version = "0.9.7"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -11,6 +11,8 @@ homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 
 publish = false
+
+rust-version = "1.58"
 
 [dependencies]
 vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
