@@ -433,3 +433,67 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: Status) ->
         message_id, version, status
     )
 }
+
+#[cfg(test)]
+mod test {
+    use vsmtp_common::mail_context::Body;
+
+    use super::add_trace_information;
+
+    #[test]
+    fn test_add_trace_information() {
+        let mut ctx = vsmtp_common::mail_context::MailContext {
+            body: vsmtp_common::mail_context::Body::Empty,
+            connection_timestamp: std::time::SystemTime::UNIX_EPOCH,
+            client_addr: std::net::SocketAddr::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
+                0,
+            ),
+            envelop: vsmtp_common::envelop::Envelop {
+                helo: "localhost".to_string(),
+                mail_from: vsmtp_common::address::Address::try_from("a@a.a".to_string()).unwrap(),
+                rcpt: vec![],
+            },
+            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
+                timestamp: std::time::SystemTime::UNIX_EPOCH,
+                ..vsmtp_common::mail_context::MessageMetadata::default()
+            }),
+        };
+
+        let config = vsmtp_config::Config::default();
+
+        if let Err(error) =
+            add_trace_information(&config, &mut ctx, vsmtp_common::status::Status::Next)
+        {
+            assert_eq!(
+                &error.to_string(),
+                "could not add trace information to email header: body is empty"
+            );
+        } else {
+            panic!("add_trace_information did not return an error on empty body");
+        }
+
+        ctx.body = Body::Raw("".to_string());
+        ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
+        add_trace_information(&config, &mut ctx, vsmtp_common::status::Status::Next).unwrap();
+
+        assert_eq!(
+            match &ctx.body {
+                Body::Raw(raw) => raw,
+                _ => unreachable!(),
+            },
+            &format!(
+                "Received: from localhost\n\tby {}\n\twith SMTP\n\tid {};\n\t{}\nX-VSMTP: id='{}'\n\tversion='{}'\n\tstatus='next'\n",
+                config.server.domain,
+                ctx.metadata.as_ref().unwrap().message_id,
+                {
+                    let odt: time::OffsetDateTime = ctx.metadata.as_ref().unwrap().timestamp.into();
+
+                    odt.format(&time::format_description::well_known::Rfc2822).unwrap()
+                },
+                ctx.metadata.as_ref().unwrap().message_id,
+                config.version_requirement,
+            )
+        );
+    }
+}
