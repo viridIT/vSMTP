@@ -84,8 +84,8 @@ impl<'a> RuleState<'a> {
         }
     }
 
-    ///
     #[must_use]
+    /// create a RuleState from an existing mail context (f.e. when deserializing a context)
     pub fn with_context(config: &Config, mail_context: MailContext) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
