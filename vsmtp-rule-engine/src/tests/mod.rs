@@ -44,6 +44,7 @@ pub mod helpers {
             .unwrap()
             .with_server_name_and_client_count("testserver.com", 32)
             .with_user_group_and_default_system("root", "root")
+            .unwrap()
             .with_ipv4_localhost()
             .with_default_logs_settings()
             .with_spool_dir_and_default_queues("./tmp/delivery")

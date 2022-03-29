@@ -19,9 +19,7 @@ use crate::{
     receiver::{connection::ConnectionKind, io_service::IoService},
     server::ServerVSMTP,
 };
-use vsmtp_config::{
-    config::ConfigServerTlsSni, rustls_helper::get_rustls_config, Config, TlsSecurityLevel,
-};
+use vsmtp_config::{get_rustls_config, Config, ConfigServerTlsSni, TlsSecurityLevel};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use super::{get_tls_config, TEST_SERVER_CERT};

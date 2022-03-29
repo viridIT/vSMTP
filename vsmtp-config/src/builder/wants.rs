@@ -27,8 +27,8 @@ pub struct WantsServerSystem {
 ///
 pub struct WantsServerInterfaces {
     pub(crate) parent: WantsServerSystem,
-    pub(super) user: String,
-    pub(super) group: String,
+    pub(super) user: users::User,
+    pub(super) group: users::Group,
     pub(super) thread_pool_receiver: usize,
     pub(super) thread_pool_processing: usize,
     pub(super) thread_pool_delivery: usize,

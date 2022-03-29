@@ -10,6 +10,7 @@ fn parse() {
             .unwrap()
             .with_server_name("my.fqdn.com")
             .with_user_group_and_default_system("root", "root")
+            .unwrap()
             .with_interfaces(
                 &["127.0.0.1:25".parse().unwrap()],
                 &["127.0.0.1:587".parse().unwrap()],

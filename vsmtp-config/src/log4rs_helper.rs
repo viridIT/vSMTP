@@ -2,7 +2,6 @@ use crate::{log_channel, Config};
 use vsmtp_common::re::anyhow;
 
 #[doc(hidden)]
-#[allow(clippy::module_name_repetitions)]
 pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log4rs::Config> {
     use anyhow::Context;
     use log4rs::{append, config, encode, Config};

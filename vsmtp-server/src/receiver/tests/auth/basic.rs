@@ -3,7 +3,7 @@ use vsmtp_common::{
     mail_context::MailContext,
     re::{base64, rsasl},
 };
-use vsmtp_config::{config::ConfigServerSMTPAuth, Config};
+use vsmtp_config::{Config, ConfigServerSMTPAuth};
 
 use crate::{
     receiver::tests::auth::{get_auth_config, TestAuth},

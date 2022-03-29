@@ -105,9 +105,12 @@ impl Builder<WantsServerSystem> {
     ///
     #[must_use]
     pub fn with_default_system(self) -> Builder<WantsServerInterfaces> {
-        self.with_user_group_and_default_system(
-            &ConfigServerSystem::default_user(),
-            &ConfigServerSystem::default_group(),
+        self.with_system(
+            ConfigServerSystem::default_user(),
+            ConfigServerSystem::default_group(),
+            ConfigServerSystemThreadPool::default_receiver(),
+            ConfigServerSystemThreadPool::default_processing(),
+            ConfigServerSystemThreadPool::default_delivery(),
         )
     }
 
@@ -120,22 +123,24 @@ impl Builder<WantsServerSystem> {
         thread_pool_delivery: usize,
     ) -> Builder<WantsServerInterfaces> {
         self.with_system(
-            &ConfigServerSystem::default_user(),
-            &ConfigServerSystem::default_group(),
+            ConfigServerSystem::default_user(),
+            ConfigServerSystem::default_group(),
             thread_pool_receiver,
             thread_pool_processing,
             thread_pool_delivery,
         )
     }
 
+    /// # Errors
     ///
-    #[must_use]
+    /// * `user` is not found
+    /// * `group` is not found
     pub fn with_user_group_and_default_system(
         self,
         user: &str,
         group: &str,
-    ) -> Builder<WantsServerInterfaces> {
-        self.with_system(
+    ) -> anyhow::Result<Builder<WantsServerInterfaces>> {
+        self.with_system_str(
             user,
             group,
             ConfigServerSystemThreadPool::default_receiver(),
@@ -146,10 +151,11 @@ impl Builder<WantsServerSystem> {
 
     ///
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn with_system(
         self,
-        user: &str,
-        group: &str,
+        user: users::User,
+        group: users::Group,
         thread_pool_receiver: usize,
         thread_pool_processing: usize,
         thread_pool_delivery: usize,
@@ -157,13 +163,39 @@ impl Builder<WantsServerSystem> {
         Builder::<WantsServerInterfaces> {
             state: WantsServerInterfaces {
                 parent: self.state,
-                user: user.to_string(),
-                group: group.to_string(),
+                user,
+                group,
                 thread_pool_receiver,
                 thread_pool_processing,
                 thread_pool_delivery,
             },
         }
+    }
+
+    /// # Errors
+    ///
+    /// * `user` is not found
+    /// * `group` is not found
+    pub fn with_system_str(
+        self,
+        user: &str,
+        group: &str,
+        thread_pool_receiver: usize,
+        thread_pool_processing: usize,
+        thread_pool_delivery: usize,
+    ) -> anyhow::Result<Builder<WantsServerInterfaces>> {
+        Ok(Builder::<WantsServerInterfaces> {
+            state: WantsServerInterfaces {
+                parent: self.state,
+                user: users::get_user_by_name(user)
+                    .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", user))?,
+                group: users::get_group_by_name(group)
+                    .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", group))?,
+                thread_pool_receiver,
+                thread_pool_processing,
+                thread_pool_delivery,
+            },
+        })
     }
 }
 

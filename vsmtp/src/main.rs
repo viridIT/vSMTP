@@ -20,7 +20,7 @@ use vsmtp_common::{
     libc_abstraction::{daemon, setgid, setuid, ForkResult},
     re::anyhow,
 };
-use vsmtp_config::{log4rs_helper::get_log4rs_config, Config};
+use vsmtp_config::{get_log4rs_config, Config};
 use vsmtp_server::start_runtime;
 
 fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
@@ -80,16 +80,8 @@ fn main() -> anyhow::Result<()> {
     } else {
         match daemon()? {
             ForkResult::Child => {
-                setgid(
-                    users::get_group_by_name(&config.server.system.group)
-                        .unwrap()
-                        .gid(),
-                )?;
-                setuid(
-                    users::get_user_by_name(&config.server.system.user)
-                        .unwrap()
-                        .uid(),
-                )?;
+                setgid(config.server.system.group.gid())?;
+                setuid(config.server.system.user.uid())?;
                 start_runtime(std::sync::Arc::new(config), sockets)
             }
             ForkResult::Parent(pid) => {

@@ -289,7 +289,6 @@ impl Event {
 
         // TODO: parse "<Postmaster@" Domain ">" / "<Postmaster>"
 
-        // FIXME: false positive ?
         #[allow(clippy::missing_const_for_fn)]
         fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
             if args.is_empty() {

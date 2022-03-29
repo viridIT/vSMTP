@@ -1,6 +1,6 @@
 use vsmtp_common::re::anyhow;
 
-pub(crate) fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
+pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
     let path = std::path::Path::new(&input);
     anyhow::ensure!(
         path.exists(),

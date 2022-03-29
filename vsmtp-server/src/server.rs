@@ -22,7 +22,7 @@ use crate::{
     },
 };
 use vsmtp_common::{code::SMTPReplyCode, re::rsasl};
-use vsmtp_config::{rustls_helper::get_rustls_config, Config};
+use vsmtp_config::{get_rustls_config, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 pub(crate) type SaslBackend = rsasl::DiscardOnDrop<rsasl::SASL<(), ()>>;

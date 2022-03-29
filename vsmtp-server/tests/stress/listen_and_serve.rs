@@ -16,7 +16,7 @@
 **/
 use anyhow::Context;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::{log4rs_helper::get_log4rs_config, Config};
+use vsmtp_config::{get_log4rs_config, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP};
 

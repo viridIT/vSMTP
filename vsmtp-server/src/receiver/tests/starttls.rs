@@ -1,4 +1,4 @@
-use vsmtp_config::{rustls_helper::get_rustls_config, Config, TlsSecurityLevel};
+use vsmtp_config::{get_rustls_config, Config, TlsSecurityLevel};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use crate::{

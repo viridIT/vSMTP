@@ -110,11 +110,6 @@ impl Builder<WantsValidate> {
 
         // TODO: generated code EHLO here
 
-        users::get_user_by_name(&config.server.system.user)
-            .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.system.user))?;
-        users::get_group_by_name(&config.server.system.group)
-            .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", config.server.system.group))?;
-
         {
             let default_values = ConfigServerSMTP::default_smtp_codes();
             let reply_codes = &mut config.server.smtp.codes;
