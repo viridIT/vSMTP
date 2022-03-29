@@ -1,4 +1,4 @@
-use vsmtp_common::libc_abstraction::if_nametoindex;
+use vsmtp_common::{libc_abstraction::if_nametoindex, re::anyhow};
 
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<std::net::SocketAddr>, D::Error>
 where

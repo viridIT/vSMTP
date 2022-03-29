@@ -21,7 +21,8 @@ pub mod queue;
 pub mod receiver;
 ///
 pub mod server;
-// mod tls_helpers;
+
+mod auth;
 
 use processes::ProcessMessage;
 use vsmtp_config::Config;

@@ -1,3 +1,5 @@
+use crate::mechanism::Mechanism;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -55,7 +57,10 @@ pub enum Event {
     /// one or more mailboxes or pass it on to another system (possibly using
     /// SMTP).
     /// Syntax = `"MAIL FROM:" Reverse-path [SP Mail-parameters] CRLF`
-    MailCmd(String, Option<MimeBodyType>),
+    ///
+    /// 3rd argument is an xtext of the identity of the submitter,
+    /// "<>" meaning not enough unknown or insufficiently authenticated
+    MailCmd(String, Option<MimeBodyType>, Option<String>),
     /// This command is used to identify an individual recipient of the mail
     /// data; multiple recipients are specified by multiple uses of this
     /// command.
@@ -103,13 +108,18 @@ pub enum Event {
 
     /// See "Transport Layer Security"
     /// https://datatracker.ietf.org/doc/html/rfc3207
+    /// Syntax = `"STARTTLS" CRLF`
     StartTls,
     //
     // TODO:
     // PrivCmd,
-
+    //
+    /// Authentication with SASL protocol
+    /// https://datatracker.ietf.org/doc/html/rfc4954
+    /// Syntax = `"AUTH" mechanism [initial-response] CRLF`
+    Auth(Mechanism, Option<Vec<u8>>),
+    //
     // Authenticated TURN for On-Demand Mail Relay // https://datatracker.ietf.org/doc/html/rfc2645
-    // Authenticated SMTP // https://datatracker.ietf.org/doc/html/rfc4954
     // Chunking // https://datatracker.ietf.org/doc/html/rfc3030
     // Delivery status notification // https://datatracker.ietf.org/doc/html/rfc3461
     // https://en.wikipedia.org/wiki/Variable_envelope_return_path
@@ -170,6 +180,10 @@ impl Event {
             ("NOOP", [..]) => Ok(Self::NoopCmd),
 
             ("STARTTLS", []) => Ok(Self::StartTls),
+            ("AUTH", [mechanism]) => Self::parse_arg_auth(mechanism, None),
+            ("AUTH", [mechanism, initial_response]) => {
+                Self::parse_arg_auth(mechanism, Some(initial_response))
+            }
 
             _ => Err(SMTPReplyCode::Code501),
         }
@@ -221,6 +235,7 @@ impl Event {
     fn parse_arg_mail_from(args: &[&str]) -> Result<Self, SMTPReplyCode> {
         fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
             let mut bitmime = None;
+            let mut auth_mailbox = None;
 
             for arg in args {
                 if let Some(raw) = arg.strip_prefix("BODY=") {
@@ -232,12 +247,18 @@ impl Event {
                 } else if *arg == "SMTPUTF8" {
                     // TODO: ?
                     // do we want to set a flag in the envelope to force utf8 in the deliver/relay ?
+                } else if let Some(mailbox) = arg.strip_prefix("AUTH=") {
+                    if auth_mailbox.is_none() {
+                        auth_mailbox = Some(mailbox.to_string());
+                    } else {
+                        return Err(SMTPReplyCode::Code501);
+                    }
                 } else {
                     return Err(SMTPReplyCode::Code504);
                 }
             }
 
-            Ok(Event::MailCmd(path, bitmime))
+            Ok(Event::MailCmd(path, bitmime, auth_mailbox))
         }
 
         match args {
@@ -295,6 +316,17 @@ impl Event {
             }
             _ => Err(SMTPReplyCode::Code501),
         }
+    }
+
+    fn parse_arg_auth(
+        mechanism: &str,
+        initial_response: Option<&str>,
+    ) -> Result<Self, SMTPReplyCode> {
+        Ok(Self::Auth(
+            <Mechanism as std::str::FromStr>::from_str(mechanism)
+                .map_err(|_| SMTPReplyCode::AuthMechanismNotSupported)?,
+            initial_response.map(|s| s.as_bytes().to_vec()),
+        ))
     }
 
     /// Parse a smtp input receive between DATA and <CRLF>.<CRLF> (DATA END)

@@ -14,8 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::receiver::test_helpers::{get_regular_config, test_receiver, DefaultResolverTest};
-use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
+use crate::{resolver::Resolver, test_receiver};
+use vsmtp_common::{
+    address::Address,
+    mail_context::{Body, MailContext},
+};
 use vsmtp_config::Config;
 use vsmtp_delivery::transport::Transport;
 
@@ -49,9 +52,8 @@ async fn reset_helo() {
         }
     }
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        T,
+    assert!(test_receiver! {
+        on_mail => T,
         [
             "HELO foo\r\n",
             "RSET\r\n",
@@ -63,8 +65,7 @@ async fn reset_helo() {
             "mail content wow\r\n",
             ".\r\n"
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -75,26 +76,20 @@ async fn reset_helo() {
             "250 Ok\r\n"
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config())
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn reset_mail_from_error() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
+    assert!(test_receiver! {
         [
             "HELO foo\r\n",
             "MAIL FROM:<a@b>\r\n",
             "RSET\r\n",
             "RCPT TO:<b@c>\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -103,18 +98,13 @@ async fn reset_mail_from_error() {
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config())
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn reset_mail_ok() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
+    assert!(test_receiver! {
         [
             "HELO foo\r\n",
             "MAIL FROM:<a@b>\r\n",
@@ -122,8 +112,7 @@ async fn reset_mail_ok() {
             "HELO foo2\r\n",
             "RCPT TO:<b@c>\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -133,10 +122,7 @@ async fn reset_mail_ok() {
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config())
-    )
-    .await
+    }
     .is_ok());
 }
 
@@ -170,9 +156,8 @@ async fn reset_rcpt_to_ok() {
         }
     }
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        T,
+    assert!(test_receiver! {
+        on_mail => T,
         [
             "HELO foo\r\n",
             "MAIL FROM:<a@b>\r\n",
@@ -183,8 +168,7 @@ async fn reset_rcpt_to_ok() {
             "DATA\r\n",
             ".\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -197,18 +181,13 @@ async fn reset_rcpt_to_ok() {
             "250 Ok\r\n"
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config())
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn reset_rcpt_to_error() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
+    assert!(test_receiver! {
         [
             "HELO foo\r\n",
             "MAIL FROM:<foo@foo>\r\n",
@@ -216,8 +195,7 @@ async fn reset_rcpt_to_error() {
             "RSET\r\n",
             "RCPT TO:<toto2@bar>\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -227,10 +205,7 @@ async fn reset_rcpt_to_error() {
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config())
-    )
-    .await
+    }
     .is_ok());
 }
 
@@ -267,9 +242,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
         }
     }
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        T,
+    assert!(test_receiver! {
+        on_mail => T,
         [
             "HELO foo\r\n",
             "MAIL FROM:<foo@foo>\r\n",
@@ -283,8 +257,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
             "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
             ".\r\n"
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -298,9 +271,6 @@ async fn reset_rcpt_to_multiple_rcpt() {
             "250 Ok\r\n"
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config())
-    )
-    .await
+    }
     .is_ok());
 }

@@ -15,12 +15,8 @@ publish = false
 [dependencies]
 vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 
-libc = "0.2.109"
-
 log = "0.4.14"
 log4rs = { version = "1.0.0" }
-
-anyhow = "1.0.56"
 
 users = { version = "0.11.0", features = [] }
 
@@ -35,8 +31,6 @@ lettre = { version = "0.10.0-rc.4", default-features = false, features = [
 
 toml = "0.5.8"
 
-enum-iterator = "0.7.0"
-
 rustls = { version = "0.20.4", features = ["tls12", "logging"] }
 rustls-pemfile = "0.3.0"
 
@@ -47,7 +41,6 @@ trust-dns-resolver = { version = "0.21.1", default-features = false, features = 
 ] }
 
 semver = "1.0.6"
-
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"

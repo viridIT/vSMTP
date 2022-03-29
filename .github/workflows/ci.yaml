@@ -9,6 +9,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/checkout@v2
       - uses: actions/cache@v1
         with:
@@ -35,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: check
     steps:
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/checkout@v2
       - uses: actions/cache@v1
         with:
@@ -67,6 +71,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: check
     steps:
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/checkout@v2
       - uses: actions/cache@v1
         with:
@@ -100,6 +106,8 @@ jobs:
     needs: check
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     steps:
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/checkout@v2
       - uses: actions/cache@v1
         with:

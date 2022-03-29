@@ -1,4 +1,5 @@
 use crate::config::ConfigServerDNS;
+use crate::config::ConfigServerSMTPAuth;
 
 use super::config::{
     Config, ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
@@ -78,6 +79,12 @@ fn construct() {
                     data: std::time::Duration::from_secs(5 * 60),
                 },
                 codes: std::collections::BTreeMap::new(),
+                auth: Some(ConfigServerSMTPAuth {
+                    enable_dangerous_mechanism_in_clair: false,
+                    mechanisms: vec![],
+                    attempt_count_max: -1,
+                    must_be_authenticated: false,
+                }),
             },
             dns: ConfigServerDNS::default(),
         },

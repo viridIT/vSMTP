@@ -15,14 +15,17 @@
  *
 **/
 use crate::{
+    auth::AuthCallback,
     processes::ProcessMessage,
     receiver::{
-        handle_connection, handle_connection_secured, IoService, {Connection, ConnectionKind},
+        handle_connection, IoService, {Connection, ConnectionKind},
     },
 };
-use vsmtp_common::code::SMTPReplyCode;
+use vsmtp_common::{code::SMTPReplyCode, re::rsasl};
 use vsmtp_config::{rustls_helper::get_rustls_config, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
+
+pub(crate) type SaslBackend = rsasl::DiscardOnDrop<rsasl::SASL<(), ()>>;
 
 /// TCP/IP server
 #[allow(clippy::module_name_repetitions)]
@@ -31,6 +34,7 @@ pub struct ServerVSMTP {
     listener_submission: tokio::net::TcpListener,
     listener_submissions: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -72,6 +76,11 @@ impl ServerVSMTP {
             } else {
                 None
             },
+            rsasl: Some(std::sync::Arc::new(tokio::sync::Mutex::new({
+                let mut rsasl = rsasl::SASL::new_untyped().map_err(|e| anyhow::anyhow!("{}", e))?;
+                rsasl.install_callback::<AuthCallback>();
+                rsasl
+            }))),
             config,
             rule_engine,
             working_sender,
@@ -104,7 +113,6 @@ impl ServerVSMTP {
     ///
     /// * [tokio::spawn]
     /// * [tokio::select]
-    #[allow(clippy::too_many_lines)]
     pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
@@ -155,6 +163,7 @@ impl ServerVSMTP {
                 kind,
                 self.config.clone(),
                 self.tls_config.clone(),
+                self.rsasl.clone(),
                 self.rule_engine.clone(),
                 self.working_sender.clone(),
                 self.delivery_sender.clone(),
@@ -177,6 +186,7 @@ impl ServerVSMTP {
         kind: ConnectionKind,
         config: std::sync::Arc<Config>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
+        rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -188,34 +198,21 @@ impl ServerVSMTP {
 
         let mut io_plain = IoService::new(&mut stream);
 
-        let mut conn = Connection::<std::net::TcpStream>::from_plain(
+        let mut conn = Connection::<std::net::TcpStream>::new(
             kind,
             client_addr,
             config.clone(),
             &mut io_plain,
         );
-        match conn.kind {
-            ConnectionKind::Opportunistic | ConnectionKind::Submission => {
-                handle_connection(
-                    &mut conn,
-                    tls_config,
-                    rule_engine,
-                    working_sender,
-                    delivery_sender,
-                )
-                .await
-            }
-            ConnectionKind::Tunneled => {
-                handle_connection_secured(
-                    &mut conn,
-                    tls_config,
-                    rule_engine,
-                    working_sender,
-                    delivery_sender,
-                )
-                .await
-            }
-        }
+        handle_connection(
+            &mut conn,
+            tls_config,
+            rsasl,
+            rule_engine,
+            working_sender,
+            delivery_sender,
+        )
+        .await
         .map(|_| {
             log::warn!(
                 "{{ elapsed: {:?} }} Connection {} closed cleanly",

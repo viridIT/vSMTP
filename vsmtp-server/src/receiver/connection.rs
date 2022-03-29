@@ -49,6 +49,10 @@ where
     pub error_count: i64,
     /// is under tls (tunneled or opportunistic)
     pub is_secured: bool,
+    /// has completed SASL challenge (AUTH)
+    pub is_authenticated: bool,
+    /// number of time the AUTH command has been received (and failed)
+    pub authentication_attempt: i64,
     /// abstraction of the stream
     pub io_stream: &'stream mut IoService<'stream, S>,
 }
@@ -58,7 +62,7 @@ where
     S: std::io::Read + std::io::Write + Send,
 {
     ///
-    pub fn from_plain<'a>(
+    pub fn new<'a>(
         kind: ConnectionKind,
         client_addr: std::net::SocketAddr,
         config: std::sync::Arc<Config>,
@@ -73,6 +77,8 @@ where
             error_count: 0,
             is_secured: false,
             io_stream,
+            is_authenticated: false,
+            authentication_attempt: 0,
         }
     }
 }
@@ -89,8 +95,6 @@ where
     ///
     /// * a smtp code is missing, and thus config is ill-formed
     pub fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> anyhow::Result<()> {
-        log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
-
         if reply_to_send.is_error() {
             self.error_count += 1;
 
@@ -115,10 +119,11 @@ where
                         .get(&SMTPReplyCode::Code451TooManyError)
                         .unwrap(),
                 );
-                std::io::Write::write_all(&mut self.io_stream, response_begin.as_bytes())?;
+                self.send(&response_begin)?;
 
                 anyhow::bail!("too many errors")
             }
+            log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
 
             std::io::Write::write_all(
                 &mut self.io_stream,
@@ -135,6 +140,8 @@ where
                 std::thread::sleep(self.config.server.smtp.error.delay);
             }
         } else {
+            log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
+
             std::io::Write::write_all(
                 &mut self.io_stream,
                 self.config
@@ -146,6 +153,19 @@ where
                     .as_bytes(),
             )?;
         }
+        Ok(())
+    }
+
+    /// Send a buffer
+    ///
+    /// # Errors
+    ///
+    /// * internal connection writer error
+    pub fn send(&mut self, reply: &str) -> anyhow::Result<()> {
+        log::info!(target: RECEIVER, "send=\"{}\"", reply);
+
+        std::io::Write::write_all(&mut self.io_stream, reply.as_bytes())?;
+
         Ok(())
     }
 

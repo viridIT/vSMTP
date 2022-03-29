@@ -1,3 +1,5 @@
+use vsmtp_common::re::anyhow;
+
 const ALL_PROTOCOL_VERSION: [rustls::ProtocolVersion; 2] = [
     rustls::ProtocolVersion::TLSv1_2,
     rustls::ProtocolVersion::TLSv1_3,

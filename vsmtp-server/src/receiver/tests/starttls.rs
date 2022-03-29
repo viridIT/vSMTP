@@ -3,12 +3,9 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use crate::{
     processes::ProcessMessage,
-    receiver::{
-        connection::ConnectionKind,
-        io_service::IoService,
-        test_helpers::{get_regular_config, test_receiver, DefaultResolverTest},
-    },
+    receiver::{connection::ConnectionKind, io_service::IoService},
     server::ServerVSMTP,
+    test_receiver,
 };
 
 use super::{get_tls_config, TEST_SERVER_CERT};
@@ -48,6 +45,7 @@ async fn test_starttls(
             ConnectionKind::Opportunistic,
             server_config,
             Some(std::sync::Arc::new(tls_config)),
+            None,
             rule_engine,
             working_sender,
             delivery_sender,
@@ -87,18 +85,14 @@ async fn test_starttls(
         let mut input = clair_smtp_input.iter().copied();
 
         loop {
-            match io.get_next_line_async().await {
-                Ok(res) => {
-                    output.push(res);
-                    if output.last().unwrap().chars().nth(3) == Some('-') {
-                        continue;
-                    }
-                    match input.next() {
-                        Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
-                        None => break,
-                    }
-                }
-                Err(e) => println!("{:?}", e),
+            let res = io.get_next_line_async().await.unwrap();
+            output.push(res);
+            if output.last().unwrap().chars().nth(3) == Some('-') {
+                continue;
+            }
+            match input.next() {
+                Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
+                None => break,
             }
         }
 
@@ -120,18 +114,14 @@ async fn test_starttls(
         };
 
         loop {
-            match io.get_next_line_async().await {
-                Ok(res) => {
-                    output.push(res);
-                    if output.last().unwrap().chars().nth(3) == Some('-') {
-                        continue;
-                    }
-                    match input.next() {
-                        Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
-                        None => break,
-                    }
-                }
-                Err(e) => println!("{:?}", e),
+            let res = io.get_next_line_async().await.unwrap();
+            output.push(res);
+            if output.last().unwrap().chars().nth(3) == Some('-') {
+                continue;
+            }
+            match input.next() {
+                Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
+                None => break,
             }
         }
 
@@ -165,11 +155,13 @@ async fn simple() -> anyhow::Result<()> {
             "250-testserver.com",
             "250-8BITMIME",
             "250-SMTPUTF8",
+            "250-AUTH ",
             "250 STARTTLS",
             "220 testserver.com Service ready",
             "250-testserver.com",
             "250-8BITMIME",
-            "250 SMTPUTF8",
+            "250-SMTPUTF8",
+            "250 AUTH PLAIN LOGIN CRAM-MD5",
             "250 Ok",
             "250 Ok",
             "354 Start mail input; end with <CRLF>.<CRLF>",
@@ -183,84 +175,26 @@ async fn simple() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_receiver_7() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["EHLO foobar\r\n", "STARTTLS\r\n", "QUIT\r\n"]
-            .concat()
-            .as_bytes(),
+    assert!(test_receiver! {
+        [
+            "EHLO foobar\r\n",
+            "STARTTLS\r\n",
+            "QUIT\r\n"
+        ]
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
             "250-8BITMIME\r\n",
             "250-SMTPUTF8\r\n",
+            "250-AUTH \r\n",
             "250 STARTTLS\r\n",
             "454 TLS not available due to temporary reason\r\n",
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
-}
-
-#[tokio::test]
-async fn test_receiver_9() {
-    let mut config = get_regular_config();
-    config.server.smtp.error.delay = std::time::Duration::from_millis(100);
-    config.server.smtp.error.soft_count = 5;
-    config.server.smtp.error.hard_count = 10;
-
-    let config = std::sync::Arc::new(config);
-
-    let before_test = std::time::Instant::now();
-    let res = test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        [
-            "RCPT TO:<bar@foo>\r\n",
-            "MAIL FROM: <foo@bar>\r\n",
-            "EHLO\r\n",
-            "NOOP\r\n",
-            "azeai\r\n",
-            "STARTTLS\r\n",
-            "MAIL FROM:<john@doe>\r\n",
-            "EHLO\r\n",
-            "EHLO\r\n",
-            "HELP\r\n",
-            "aieari\r\n",
-            "not a valid smtp command\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        [
-            "220 testserver.com Service ready\r\n",
-            "503 Bad sequence of commands\r\n",
-            "503 Bad sequence of commands\r\n",
-            "501 Syntax error in parameters or arguments\r\n",
-            "250 Ok\r\n",
-            "501 Syntax error in parameters or arguments\r\n",
-            "503 Bad sequence of commands\r\n",
-            "503 Bad sequence of commands\r\n",
-        ]
-        .concat()
-        .as_bytes(),
-        config.clone(),
-    )
-    .await;
-
-    assert!(res.is_err());
-
-    assert!(
-        before_test.elapsed().as_millis()
-            >= config.server.smtp.error.delay.as_millis()
-                * u128::try_from(
-                    config.server.smtp.error.hard_count - config.server.smtp.error.soft_count
-                )
-                .unwrap()
-    );
 }
 
 #[tokio::test]
@@ -268,26 +202,22 @@ async fn test_receiver_8() -> anyhow::Result<()> {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
+    assert!(test_receiver! {
+        with_config => config,
         ["EHLO foobar\r\n", "MAIL FROM: <foo@bar>\r\n", "QUIT\r\n"]
-            .concat()
-            .as_bytes(),
+            .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
             "250-8BITMIME\r\n",
             "250-SMTPUTF8\r\n",
+            "250-AUTH \r\n",
             "250 STARTTLS\r\n",
             "530 Must issue a STARTTLS command first\r\n",
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(config)
-    )
-    .await
+    }
     .is_ok());
 
     Ok(())

@@ -18,6 +18,7 @@ use super::connection::Connection;
 use super::io_service::ReadError;
 use vsmtp_common::{
     address::Address,
+    auth::Mechanism,
     code::SMTPReplyCode,
     envelop::Envelop,
     event::Event,
@@ -43,12 +44,14 @@ pub enum TransactionResult {
     Nothing,
     Mail(Box<MailContext>),
     TlsUpgrade,
+    Authentication(String, Mechanism, Option<Vec<u8>>),
 }
 
 // Generated from a string received
 enum ProcessedEvent {
     Nothing,
     Reply(SMTPReplyCode),
+    ChangeState(StateSMTP),
     ReplyChangeState(StateSMTP, SMTPReplyCode),
     TransactionCompleted(Box<MailContext>),
 }
@@ -161,7 +164,13 @@ impl Transaction<'_> {
                 )
             }
 
-            (StateSMTP::Helo, Event::MailCmd(_, _))
+            (StateSMTP::Helo, Event::Auth(mechanism, initial_response))
+                if !conn.is_authenticated =>
+            {
+                ProcessedEvent::ChangeState(StateSMTP::Authentication(mechanism, initial_response))
+            }
+
+            (StateSMTP::Helo, Event::MailCmd(..))
                 if !conn.is_secured
                     && conn
                         .config
@@ -174,8 +183,21 @@ impl Transaction<'_> {
                 ProcessedEvent::Reply(SMTPReplyCode::Code530)
             }
 
-            (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime)) => {
-                // TODO: store in envelop _body_bit_mime
+            (StateSMTP::Helo, Event::MailCmd(..))
+                if !conn.is_authenticated
+                    && conn
+                        .config
+                        .server
+                        .smtp
+                        .auth
+                        .as_ref()
+                        .map_or(false, |auth| auth.must_be_authenticated) =>
+            {
+                ProcessedEvent::Reply(SMTPReplyCode::AuthRequired)
+            }
+
+            (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
+                // TODO: store in envelop _body_bit_mime & _auth_mailbox
                 self.set_mail_from(&mail_from, conn);
 
                 match self
@@ -282,7 +304,8 @@ impl Transaction<'_> {
 
                 ProcessedEvent::TransactionCompleted(Box::new(output))
             }
-            _ => ProcessedEvent::Reply(SMTPReplyCode::Code503),
+
+            _ => ProcessedEvent::Reply(SMTPReplyCode::BadSequence),
         }
     }
 }
@@ -364,7 +387,10 @@ impl Transaction<'_> {
     }
 }
 
-fn get_timeout_for_state(config: &std::sync::Arc<Config>, state: StateSMTP) -> std::time::Duration {
+fn get_timeout_for_state(
+    config: &std::sync::Arc<Config>,
+    state: &StateSMTP,
+) -> std::time::Duration {
     match state {
         StateSMTP::Connect => config.server.smtp.timeout_client.connect,
         StateSMTP::Helo => config.server.smtp.timeout_client.helo,
@@ -409,52 +435,79 @@ impl Transaction<'_> {
             };
         }
 
-        let mut read_timeout = get_timeout_for_state(&conn.config, transaction.state);
+        let mut read_timeout = get_timeout_for_state(&conn.config, &transaction.state);
 
-        while transaction.state != StateSMTP::Stop {
-            if transaction.state == StateSMTP::NegotiationTLS {
-                return Ok(TransactionResult::TlsUpgrade);
-            }
-            match conn.read(read_timeout).await {
-                Ok(Ok(client_message)) => {
-                    match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
-                        ProcessedEvent::Reply(reply_to_send) => {
-                            conn.send_code(reply_to_send)?;
+        loop {
+            match transaction.state {
+                StateSMTP::NegotiationTLS => return Ok(TransactionResult::TlsUpgrade),
+                StateSMTP::Authentication(mechanism, initial_response) => {
+                    return Ok(TransactionResult::Authentication(
+                        transaction
+                            .rule_state
+                            .get_context()
+                            .read()
+                            .unwrap()
+                            .envelop
+                            .helo
+                            .clone(),
+                        mechanism,
+                        initial_response,
+                    ));
+                }
+                StateSMTP::Stop => {
+                    conn.is_alive = false;
+                    return Ok(TransactionResult::Nothing);
+                }
+                _ => match conn.read(read_timeout).await {
+                    Ok(Ok(client_message)) => {
+                        match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
+                            ProcessedEvent::Nothing => {}
+                            ProcessedEvent::Reply(reply_to_send) => {
+                                conn.send_code(reply_to_send)?;
+                            }
+                            ProcessedEvent::ChangeState(new_state) => {
+                                log::info!(
+                                    target: RECEIVER,
+                                    "================ STATE: /{:?}/ => /{:?}/",
+                                    transaction.state,
+                                    new_state
+                                );
+                                transaction.state = new_state;
+                                read_timeout =
+                                    get_timeout_for_state(&conn.config, &transaction.state);
+                            }
+                            ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
+                                log::info!(
+                                    target: RECEIVER,
+                                    "================ STATE: /{:?}/ => /{:?}/",
+                                    transaction.state,
+                                    new_state
+                                );
+                                transaction.state = new_state;
+                                read_timeout =
+                                    get_timeout_for_state(&conn.config, &transaction.state);
+                                conn.send_code(reply_to_send)?;
+                            }
+                            ProcessedEvent::TransactionCompleted(mail) => {
+                                return Ok(TransactionResult::Mail(mail))
+                            }
                         }
-                        ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
-                            log::info!(
-                                target: RECEIVER,
-                                "================ STATE: /{:?}/ => /{:?}/",
-                                transaction.state,
-                                new_state
-                            );
-                            transaction.state = new_state;
-                            read_timeout = get_timeout_for_state(&conn.config, transaction.state);
-                            conn.send_code(reply_to_send)?;
-                        }
-                        ProcessedEvent::TransactionCompleted(mail) => {
-                            return Ok(TransactionResult::Mail(mail))
-                        }
-                        ProcessedEvent::Nothing => {}
                     }
-                }
-                Ok(Err(ReadError::Blocking)) => {}
-                Ok(Err(ReadError::Eof)) => {
-                    log::info!(target: RECEIVER, "eof");
-                    transaction.state = StateSMTP::Stop;
-                }
-                Ok(Err(ReadError::Other(e))) => {
-                    // TODO: send error to client ?
-                    anyhow::bail!(e)
-                }
-                Err(e) => {
-                    conn.send_code(SMTPReplyCode::Code451Timeout)?;
-                    anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
-                }
+                    Ok(Err(ReadError::Blocking)) => {}
+                    Ok(Err(ReadError::Eof)) => {
+                        log::info!(target: RECEIVER, "eof");
+                        transaction.state = StateSMTP::Stop;
+                    }
+                    Ok(Err(ReadError::Other(e))) => {
+                        // TODO: send error to client ?
+                        anyhow::bail!(e)
+                    }
+                    Err(e) => {
+                        conn.send_code(SMTPReplyCode::Code451Timeout)?;
+                        anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
+                    }
+                },
             }
         }
-
-        conn.is_alive = false;
-        Ok(TransactionResult::Nothing)
     }
 }

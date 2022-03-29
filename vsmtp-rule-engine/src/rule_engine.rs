@@ -216,14 +216,14 @@ impl RuleEngine {
                 log::error!(
                     target: SRULES,
                     "{}",
-                    Self::parse_stage_error(error, *smtp_state)
+                    Self::parse_stage_error(error, smtp_state)
                 );
                 Status::Next
             }
         }
     }
 
-    fn parse_stage_error(error: Box<EvalAltResult>, smtp_state: StateSMTP) -> String {
+    fn parse_stage_error(error: Box<EvalAltResult>, smtp_state: &StateSMTP) -> String {
         match *error {
             // NOTE: since all errors are caught and thrown in "run_rules", errors
             //       are always wrapped in ErrorInFunctionCall.

@@ -1,13 +1,13 @@
 #![allow(clippy::module_name_repetitions)]
 
-use vsmtp_common::{code::SMTPReplyCode, collection};
+use vsmtp_common::{auth::Mechanism, code::SMTPReplyCode, collection, re::strum};
 
 use crate::{
     config::{
         ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
         ConfigServer, ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs,
-        ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
-        ConfigServerSystem, ConfigServerSystemThreadPool,
+        ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPAuth, ConfigServerSMTPError,
+        ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
     },
     Builder, Config, Service,
 };
@@ -175,6 +175,36 @@ impl Default for ConfigQueueDelivery {
     }
 }
 
+impl Default for ConfigServerSMTPAuth {
+    fn default() -> Self {
+        Self {
+            enable_dangerous_mechanism_in_clair: Self::default_enable_dangerous_mechanism_in_clair(
+            ),
+            mechanisms: Self::default_mechanisms(),
+            attempt_count_max: Self::default_attempt_count_max(),
+            must_be_authenticated: Self::default_must_be_authenticated(),
+        }
+    }
+}
+
+impl ConfigServerSMTPAuth {
+    pub(crate) const fn default_enable_dangerous_mechanism_in_clair() -> bool {
+        false
+    }
+
+    pub(crate) fn default_mechanisms() -> Vec<Mechanism> {
+        <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>()
+    }
+
+    pub(crate) const fn default_attempt_count_max() -> i64 {
+        -1
+    }
+
+    pub(crate) const fn default_must_be_authenticated() -> bool {
+        false
+    }
+}
+
 impl Default for ConfigServerSMTP {
     fn default() -> Self {
         Self {
@@ -184,6 +214,7 @@ impl Default for ConfigServerSMTP {
             error: ConfigServerSMTPError::default(),
             timeout_client: ConfigServerSMTPTimeoutClient::default(),
             codes: Self::default_smtp_codes(),
+            auth: None,
         }
     }
 }
@@ -205,41 +236,64 @@ impl ConfigServerSMTP {
     }
 
     pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
-        let codes: std::collections::BTreeMap<SMTPReplyCode, &'static str> = collection! {
-            SMTPReplyCode::Help => "214 joining us https://viridit.com/support\r\n",
-            SMTPReplyCode::Greetings => "220 {domain} Service ready\r\n",
-            SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n",
-            SMTPReplyCode::Code250 => "250 Ok\r\n",
-            SMTPReplyCode::Code250PlainEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS\r\n",
-            SMTPReplyCode::Code250SecuredEsmtp => "250-{domain}\r\n250-8BITMIME\r\n250 SMTPUTF8\r\n",
-            SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
-            SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n",
-            SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n",
-            SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client\r\n",
-            SMTPReplyCode::Code452 => "452 Requested action not taken: insufficient system storage\r\n",
-            SMTPReplyCode::Code452TooManyRecipients => "452 Requested action not taken: to many recipients\r\n",
-            SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason\r\n",
-            SMTPReplyCode::Code500 => "500 Syntax error command unrecognized\r\n",
-            SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments\r\n",
-            SMTPReplyCode::Code502unimplemented => "502 Command not implemented\r\n",
-            SMTPReplyCode::Code503 => "503 Bad sequence of commands\r\n",
-            SMTPReplyCode::Code504 => "504 Command parameter not implemented\r\n",
-            SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n",
-            SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n",
-            SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n",
-            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n",
+        let codes: std::collections::BTreeMap<SMTPReplyCode, String> = collection! {
+            SMTPReplyCode::Help => "214 joining us https://viridit.com/support\r\n".to_string(),
+            SMTPReplyCode::Greetings => "220 {domain} Service ready\r\n".to_string(),
+            SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n".to_string(),
+            SMTPReplyCode::Code250 => "250 Ok\r\n".to_string(),
+            SMTPReplyCode::Code250PlainEsmtp =>
+                format!("250-{{domain}}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250-AUTH {}\r\n250 STARTTLS\r\n",
+                    <Mechanism as strum::IntoEnumIterator>::iter()
+                        .filter(|m| !m.must_be_under_tls())
+                        .map(String::from)
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                    ),
+            SMTPReplyCode::Code250SecuredEsmtp =>
+                format!("250-{{domain}}\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 AUTH {}\r\n",
+                    <Mechanism as strum::IntoEnumIterator>::iter()
+                        .filter(|m| m.must_be_under_tls())
+                        .map(String::from)
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                ),
+            SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n".to_string(),
+            SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n".to_string(),
+            SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n".to_string(),
+            SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client\r\n".to_string(),
+            SMTPReplyCode::Code452 => "452 Requested action not taken: insufficient system storage\r\n".to_string(),
+            SMTPReplyCode::Code452TooManyRecipients =>
+                "452 Requested action not taken: to many recipients\r\n".to_string(),
+            SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason\r\n".to_string(),
+            SMTPReplyCode::Code500 => "500 Syntax error command unrecognized\r\n".to_string(),
+            SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments\r\n".to_string(),
+            SMTPReplyCode::Code502unimplemented => "502 Command not implemented\r\n".to_string(),
+            SMTPReplyCode::BadSequence => "503 Bad sequence of commands\r\n".to_string(),
+            SMTPReplyCode::Code504 => "504 Command parameter not implemented\r\n".to_string(),
+            SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n".to_string(),
+            SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n".to_string(),
+            SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n".to_string(),
+            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n".to_string(),
+            SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported\r\n".to_string(),
+            SMTPReplyCode::AuthSucceeded => "235 2.7.0 Authentication succeeded\r\n".to_string(),
+            // 538 5.7.11 (for documentation purpose)
+            // 535 (for production)
+            SMTPReplyCode::AuthMechanismMustBeEncrypted =>
+                "538 5.7.11 Encryption required for requested authentication mechanism\r\n".to_string(),
+            SMTPReplyCode::AuthClientMustNotStart =>
+                "501 5.7.0 Client must not start with this mechanism\r\n".to_string(),
+            SMTPReplyCode::AuthErrorDecode64 => "501 5.5.2 Invalid, not base64\r\n".to_string(),
+            SMTPReplyCode::AuthInvalidCredentials => "535 5.7.8 Authentication credentials invalid\r\n".to_string(),
+            SMTPReplyCode::AuthClientCanceled => "501 Authentication canceled by clients\r\n".to_string(),
+            SMTPReplyCode::AuthRequired => "530 5.7.0 Authentication required\r\n".to_string(),
         };
 
         assert!(
-            <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter()
-                .all(|i| codes.contains_key(&i)),
+            <SMTPReplyCode as strum::IntoEnumIterator>::iter().all(|i| codes.contains_key(&i)),
             "default SMTPReplyCode are ill-formed "
         );
 
         codes
-            .into_iter()
-            .map(|(k, v)| (k, v.to_string()))
-            .collect::<_>()
     }
 }
 

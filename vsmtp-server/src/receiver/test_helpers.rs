@@ -24,6 +24,7 @@ use crate::{
         handle_connection,
         io_service::IoService,
     },
+    server::SaslBackend,
 };
 use anyhow::Context;
 use vsmtp_config::Config;
@@ -87,12 +88,14 @@ impl vsmtp_delivery::transport::Transport for DefaultResolverTest {
 /// # Errors
 ///
 /// # Panics
-pub async fn test_receiver<T>(
+// #[deprecated]
+pub async fn test_receiver_deprecated<T>(
     address: &str,
     _resolver: T,
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<Config>,
+    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
 ) -> anyhow::Result<()>
 where
     T: vsmtp_delivery::transport::Transport + Send + Sync + 'static,
@@ -100,7 +103,7 @@ where
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
     let mut io = IoService::new(&mut mock);
-    let mut conn = Connection::from_plain(
+    let mut conn = Connection::new(
         ConnectionKind::Opportunistic,
         address.parse().unwrap(),
         config.clone(),
@@ -155,14 +158,15 @@ where
         }
     });
 
-    handle_connection(
+    let result = handle_connection(
         &mut conn,
         None,
+        rsasl,
         rule_engine,
         working_sender,
         delivery_sender,
     )
-    .await?;
+    .await;
     std::io::Write::flush(&mut conn.io_stream.inner)?;
 
     delivery_handle.await.unwrap();
@@ -170,12 +174,12 @@ where
 
     // NOTE: could it be a good idea to remove the queue when all tests are done ?
 
-    assert_eq!(
+    pretty_assertions::assert_eq!(
+        std::str::from_utf8(expected_output),
         std::str::from_utf8(&written_data),
-        std::str::from_utf8(expected_output)
     );
 
-    Ok(())
+    result
 }
 
 #[cfg(test)]
@@ -199,4 +203,65 @@ pub(crate) fn get_regular_config() -> Config {
         .with_system_dns()
         .validate()
         .unwrap()
+}
+
+/// should only be on test
+// #[cfg(test)]
+#[macro_export]
+macro_rules! test_receiver {
+    ($input:expr, $output:expr) => {
+        test_receiver! {
+            on_mail => $crate::receiver::test_helpers::DefaultResolverTest {},
+            with_config => $crate::receiver::test_helpers::get_regular_config(),
+            $input,
+            $output
+        }
+    };
+    (on_mail => $resolver:expr, $input:expr, $output:expr) => {
+        test_receiver! {
+            on_mail => $resolver,
+            with_config => $crate::receiver::test_helpers::get_regular_config(),
+            $input,
+            $output
+        }
+    };
+    (with_config => $config:expr, $input:expr, $output:expr) => {
+        test_receiver! {
+            on_mail => $crate::receiver::test_helpers::DefaultResolverTest {},
+            with_config => $config,
+            $input,
+            $output
+        }
+    };
+    (on_mail => $resolver:expr, with_config => $config:expr, $input:expr, $output:expr) => {
+        $crate::receiver::test_helpers::test_receiver_deprecated(
+            "127.0.0.1:0",
+            $resolver,
+            $input.as_bytes(),
+            $output.as_bytes(),
+            std::sync::Arc::new($config),
+            None,
+        )
+        .await
+    };
+    (with_auth => $auth:expr, with_config => $config:expr, $input:expr, $output:expr) => {
+        test_receiver! {
+            with_auth => $auth,
+            with_config => $config,
+            on_mail => $crate::receiver::test_helpers::DefaultResolverTest {},
+            $input,
+            $output
+        }
+    };
+    (with_auth => $auth:expr, with_config => $config:expr, on_mail => $resolver:expr, $input:expr, $output:expr) => {
+        $crate::receiver::test_helpers::test_receiver_deprecated(
+            "127.0.0.1:0",
+            $resolver,
+            $input.as_bytes(),
+            $output.as_bytes(),
+            std::sync::Arc::new($config),
+            Some(std::sync::Arc::new(tokio::sync::Mutex::new($auth))),
+        )
+        .await
+    };
 }

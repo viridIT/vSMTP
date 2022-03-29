@@ -1,6 +1,8 @@
-use anyhow::Context;
-use vsmtp_common::{code::SMTPReplyCode, state::StateSMTP};
-
+use super::wants::{
+    WantsApp, WantsAppLogs, WantsAppServices, WantsAppVSL, WantsServer, WantsServerInterfaces,
+    WantsServerLogs, WantsServerQueues, WantsServerSMTPConfig1, WantsServerSMTPConfig2,
+    WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig, WantsValidate, WantsVersion,
+};
 use crate::{
     config::{
         ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
@@ -12,11 +14,10 @@ use crate::{
     parser::{tls_certificate, tls_private_key},
     Service, WantsServerDNS,
 };
-
-use super::wants::{
-    WantsApp, WantsAppLogs, WantsAppServices, WantsAppVSL, WantsServer, WantsServerInterfaces,
-    WantsServerLogs, WantsServerQueues, WantsServerSMTPConfig1, WantsServerSMTPConfig2,
-    WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig, WantsValidate, WantsVersion,
+use vsmtp_common::{
+    code::SMTPReplyCode,
+    re::anyhow::{self, Context},
+    state::StateSMTP,
 };
 
 ///

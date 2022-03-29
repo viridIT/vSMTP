@@ -18,6 +18,7 @@
 const TEST_SERVER_CERT: &str = "./src/receiver/tests/certs/certificate.crt";
 const TEST_SERVER_KEY: &str = "./src/receiver/tests/certs/privateKey.key";
 
+mod auth;
 mod clair;
 mod rset;
 mod starttls;

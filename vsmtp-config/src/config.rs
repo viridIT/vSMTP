@@ -18,9 +18,9 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(missing_docs)]
 #![allow(clippy::use_self)]
-use vsmtp_common::code::SMTPReplyCode;
 
 use crate::parser::{tls_certificate, tls_private_key};
+use vsmtp_common::{auth::Mechanism, code::SMTPReplyCode, re::anyhow};
 
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -95,8 +95,11 @@ pub struct ConfigServerInterfaces {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerLogs {
+    #[serde(default = "ConfigServerLogs::default_filepath")]
     pub filepath: std::path::PathBuf,
+    #[serde(default = "ConfigServerLogs::default_format")]
     pub format: String,
+    #[serde(default = "ConfigServerLogs::default_level")]
     pub level: std::collections::BTreeMap<String, log::LevelFilter>,
 }
 
@@ -119,7 +122,9 @@ pub struct ConfigQueueDelivery {
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerQueues {
     pub dirpath: std::path::PathBuf,
+    #[serde(default)]
     pub working: ConfigQueueWorking,
+    #[serde(default)]
     pub delivery: ConfigQueueDelivery,
 }
 
@@ -189,6 +194,7 @@ pub struct ConfigServerTls {
         deserialize_with = "crate::parser::tls_private_key::deserialize"
     )]
     pub private_key: rustls::PrivateKey,
+    #[serde(default)]
     pub sni: Vec<ConfigServerTlsSni>,
 }
 
@@ -218,6 +224,19 @@ pub struct ConfigServerSMTPTimeoutClient {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct ConfigServerSMTPAuth {
+    #[serde(default = "ConfigServerSMTPAuth::default_must_be_authenticated")]
+    pub must_be_authenticated: bool,
+    #[serde(default = "ConfigServerSMTPAuth::default_enable_dangerous_mechanism_in_clair")]
+    pub enable_dangerous_mechanism_in_clair: bool,
+    #[serde(default = "ConfigServerSMTPAuth::default_mechanisms")]
+    pub mechanisms: Vec<Mechanism>,
+    #[serde(default = "ConfigServerSMTPAuth::default_attempt_count_max")]
+    pub attempt_count_max: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfigServerSMTP {
     #[serde(default = "ConfigServerSMTP::default_rcpt_count_max")]
     pub rcpt_count_max: usize,
@@ -233,6 +252,7 @@ pub struct ConfigServerSMTP {
     #[serde(default)]
     pub codes: std::collections::BTreeMap<SMTPReplyCode, String>,
     // NOTE: extension settings here
+    pub auth: Option<ConfigServerSMTPAuth>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -261,8 +281,11 @@ pub struct ConfigAppVSL {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigAppLogs {
+    #[serde(default = "ConfigAppLogs::default_filepath")]
     pub filepath: std::path::PathBuf,
+    #[serde(default = "ConfigAppLogs::default_level")]
     pub level: log::LevelFilter,
+    #[serde(default = "ConfigAppLogs::default_format")]
     pub format: String,
 }
 

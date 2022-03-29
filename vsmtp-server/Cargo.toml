@@ -47,6 +47,10 @@ time = { version = "0.3.7", default-features = false, features = [
 
 num_cpus = "1.13.1"
 
+
+## TODO: move in dev-deps ; Protocol
+pretty_assertions = "1.2.0"
+
 [dev-dependencies]
 ## Benchmark
 criterion = { version = "0.3.5", features = ["async_tokio"] }

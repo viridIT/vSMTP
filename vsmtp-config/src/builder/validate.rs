@@ -1,4 +1,7 @@
-use vsmtp_common::code::SMTPReplyCode;
+use vsmtp_common::{
+    code::SMTPReplyCode,
+    re::{anyhow, strum},
+};
 
 use crate::{
     config::{
@@ -81,6 +84,7 @@ impl Builder<WantsValidate> {
                         data: smtp_error.timeout_client.data,
                     },
                     codes: smtp_codes.codes,
+                    auth: None,
                 },
                 dns: dns.config,
             },
@@ -106,6 +110,8 @@ impl Builder<WantsValidate> {
             config.app.logs.filepath.display()
         );
 
+        // TODO: generated code EHLO here
+
         users::get_user_by_name(&config.server.system.user)
             .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", config.server.system.user))?;
         users::get_group_by_name(&config.server.system.group)
@@ -114,7 +120,7 @@ impl Builder<WantsValidate> {
         {
             let default_values = ConfigServerSMTP::default_smtp_codes();
             let reply_codes = &mut config.server.smtp.codes;
-            for i in <SMTPReplyCode as enum_iterator::IntoEnumIterator>::into_enum_iter() {
+            for i in <SMTPReplyCode as strum::IntoEnumIterator>::iter() {
                 reply_codes.insert(
                     i,
                     reply_codes

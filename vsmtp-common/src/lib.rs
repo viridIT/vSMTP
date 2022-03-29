@@ -9,7 +9,6 @@
 #![warn(clippy::cargo)]
 //
 #![allow(clippy::doc_markdown)]
-#![allow(clippy::copy_iterator)]
 
 /**
  * vSMTP mail transfer agent
@@ -64,11 +63,27 @@ pub mod rcpt;
 /// transfer method for delivery / forwarding.
 pub mod transfer;
 
+mod mechanism;
+
+/// Data related to ESMTP Authentication
+pub mod auth {
+    pub use crate::mechanism::Mechanism;
+}
+
 #[cfg(test)]
 mod tests {
     mod event;
 
     mod libc_abstraction;
+}
+
+///
+pub mod re {
+    pub use anyhow;
+    pub use base64;
+    pub use libc;
+    pub use rsasl;
+    pub use strum;
 }
 
 #[doc(hidden)]

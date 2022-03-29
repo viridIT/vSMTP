@@ -2,6 +2,7 @@
     "cSpell.words": [
         "alpn",
         "appender",
+        "authid",
         "BITMIME",
         "capath",
         "chrono",
@@ -17,6 +18,7 @@
         "fastrand",
         "fullchain",
         "getpwuid",
+        "GSASL",
         "helo",
         "humantime",
         "indextoname",
@@ -37,8 +39,10 @@
         "repr",
         "rhai",
         "roadmap",
+        "rsasl",
         "Rset",
         "rustls",
+        "SASL",
         "setgid",
         "setsid",
         "setuid",
@@ -51,7 +55,8 @@
         "viridit",
         "vmta",
         "Vrfy",
-        "VSMTP"
+        "VSMTP",
+        "Xoauth"
     ],
     "todohighlight.isCaseSensitive": false,
     "todohighlight.keywords": [

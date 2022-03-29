@@ -1,3 +1,5 @@
+use vsmtp_common::re::anyhow;
+
 pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
     let path = std::path::Path::new(input);
     anyhow::ensure!(

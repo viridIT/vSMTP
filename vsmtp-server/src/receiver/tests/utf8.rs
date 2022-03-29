@@ -14,8 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::receiver::test_helpers::{get_regular_config, test_receiver};
-use vsmtp_common::{address::Address, rcpt::Rcpt};
+use crate::{resolver::Resolver, test_receiver};
+use vsmtp_common::{
+    address::Address,
+    mail_context::{Body, MailContext},
+};
 use vsmtp_config::Config;
 
 macro_rules! test_lang {
@@ -50,9 +53,8 @@ macro_rules! test_lang {
             }
         }
 
-        assert!(test_receiver(
-            "127.0.0.1:0",
-            T,
+        test_receiver! {
+            on_mail => T,
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<john@doe>\r\n",
@@ -62,8 +64,7 @@ macro_rules! test_lang {
                 ".\r\n",
                 "QUIT\r\n",
             ]
-            .concat()
-            .as_bytes(),
+            .concat(),
             [
                 "220 testserver.com Service ready\r\n",
                 "250 Ok\r\n",
@@ -74,30 +75,26 @@ macro_rules! test_lang {
                 "221 Service closing transmission channel\r\n",
             ]
             .concat()
-            .as_bytes(),
-            std::sync::Arc::new(get_regular_config())
-        )
-        .await
-        .is_ok());
+        }
     }};
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_zh() {
-    test_lang!("mail/zh.txt");
+    assert!(test_lang!("mail/zh.txt").is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_el() {
-    test_lang!("mail/el.txt");
+    assert!(test_lang!("mail/el.txt").is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_ar() {
-    test_lang!("mail/ar.txt");
+    assert!(test_lang!("mail/ar.txt").is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_utf8_ko() {
-    test_lang!("mail/ko.txt");
+    assert!(test_lang!("mail/ko.txt").is_ok());
 }

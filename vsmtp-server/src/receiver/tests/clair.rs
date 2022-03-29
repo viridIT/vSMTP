@@ -14,10 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::receiver::test_helpers::{get_regular_config, test_receiver, DefaultResolverTest};
-use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
-use vsmtp_config::{config::ConfigServerTls, Config, TlsSecurityLevel};
-use vsmtp_delivery::transport::Transport;
+use crate::{receiver::test_helpers::get_regular_config, resolver::Resolver, test_receiver};
+use vsmtp_common::{
+    address::Address,
+    mail_context::{Body, MailContext},
+};
+use vsmtp_config::Config;
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
@@ -52,9 +54,8 @@ async fn test_receiver_1() {
         }
     }
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        T,
+    assert!(test_receiver! {
+        on_mail => T,
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john@doe>\r\n",
@@ -63,8 +64,7 @@ async fn test_receiver_1() {
             ".\r\n",
             "QUIT\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -75,141 +75,93 @@ async fn test_receiver_1() {
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_2() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["foo\r\n"].concat().as_bytes(),
+    assert!(test_receiver! {
+        ["foo\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "501 Syntax error in parameters or arguments\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_3() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["MAIL FROM:<john@doe>\r\n"].concat().as_bytes(),
+    assert!(test_receiver! {
+        ["MAIL FROM:<john@doe>\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_4() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["RCPT TO:<john@doe>\r\n"].concat().as_bytes(),
+    assert!(test_receiver! {
+        ["RCPT TO:<john@doe>\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_5() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n"]
-            .concat()
-            .as_bytes(),
+    assert!(test_receiver! {
+        ["HELO foo\r\n", "RCPT TO:<bar@foo>\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_6() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["HELO foobar\r\n", "QUIT\r\n"].concat().as_bytes(),
+    assert!(test_receiver! {
+        ["HELO foobar\r\n", "QUIT\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_10() {
-    let mut config = get_regular_config();
-    config.server.tls = Some(ConfigServerTls {
-        security_level: TlsSecurityLevel::Encrypt,
-        preempt_cipherlist: false,
-        handshake_timeout: std::time::Duration::from_millis(200),
-        protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
-        certificate: rustls::Certificate(vec![]),
-        private_key: rustls::PrivateKey(vec![]),
-        sni: vec![],
-    });
-
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["HELP\r\n"].concat().as_bytes(),
+    assert!(test_receiver! {
+        ["HELP\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "214 joining us https://viridit.com/support\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config())
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_11() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
+    assert!(test_receiver! {
         [
             "HELO postmaster\r\n",
             "MAIL FROM: <lala@foo>\r\n",
@@ -219,8 +171,7 @@ async fn test_receiver_11() {
             "DATA\r\n",
             "MAIL FROM:<b@b>\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -232,18 +183,13 @@ async fn test_receiver_11() {
             "250 Ok\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
 #[tokio::test]
 async fn test_receiver_11_bis() {
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
+    assert!(test_receiver! {
         [
             "HELO postmaster\r\n",
             "MAIL FROM: <lala@foo>\r\n",
@@ -253,8 +199,7 @@ async fn test_receiver_11_bis() {
             "DATA\r\n",
             "RCPT TO:<b@b>\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -266,10 +211,7 @@ async fn test_receiver_11_bis() {
             "503 Bad sequence of commands\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
@@ -278,19 +220,15 @@ async fn test_receiver_12() {
     let mut config = get_regular_config();
     config.server.smtp.disable_ehlo = true;
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        DefaultResolverTest,
-        ["EHLO postmaster\r\n"].concat().as_bytes(),
+    assert!(test_receiver! {
+        with_config => config,
+        ["EHLO postmaster\r\n"].concat(),
         [
             "220 testserver.com Service ready\r\n",
             "502 Command not implemented\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(config)
-    )
-    .await
+    }
     .is_ok());
 }
 
@@ -348,9 +286,8 @@ async fn test_receiver_13() {
         }
     }
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        T { count: 0 },
+    assert!(test_receiver! {
+        on_mail => T { count: 0 },
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john@doe>\r\n",
@@ -369,8 +306,7 @@ async fn test_receiver_13() {
             ".\r\n",
             "QUIT\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -385,10 +321,7 @@ async fn test_receiver_13() {
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
 }
 
@@ -444,9 +377,8 @@ async fn test_receiver_14() {
         }
     }
 
-    assert!(test_receiver(
-        "127.0.0.1:0",
-        T { count: 0 },
+    assert!(test_receiver! {
+        on_mail => T { count: 0 },
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john@doe>\r\n",
@@ -466,8 +398,7 @@ async fn test_receiver_14() {
             ".\r\n",
             "QUIT\r\n",
         ]
-        .concat()
-        .as_bytes(),
+        .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
@@ -483,9 +414,63 @@ async fn test_receiver_14() {
             "221 Service closing transmission channel\r\n",
         ]
         .concat()
-        .as_bytes(),
-        std::sync::Arc::new(get_regular_config()),
-    )
-    .await
+    }
     .is_ok());
+}
+
+#[tokio::test]
+async fn test_receiver_9() {
+    let mut config = get_regular_config();
+    config.server.smtp.error.delay = std::time::Duration::from_millis(100);
+    config.server.smtp.error.soft_count = 5;
+    config.server.smtp.error.hard_count = 10;
+
+    let config = config;
+
+    let before_test = std::time::Instant::now();
+    assert!(test_receiver! {
+        with_config => config.clone(),
+        [
+            "RCPT TO:<bar@foo>\r\n",
+            "MAIL FROM: <foo@bar>\r\n",
+            "EHLO\r\n",
+            "NOOP\r\n",
+            "azeai\r\n",
+            "STARTTLS\r\n",
+            "MAIL FROM:<john@doe>\r\n",
+            "EHLO\r\n",
+            "EHLO\r\n",
+            "HELP\r\n",
+            "aieari\r\n",
+            "not a valid smtp command\r\n",
+        ]
+        .concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "503 Bad sequence of commands\r\n",
+            "503 Bad sequence of commands\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "250 Ok\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "503 Bad sequence of commands\r\n",
+            "503 Bad sequence of commands\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "214 joining us https://viridit.com/support\r\n",
+            "501 Syntax error in parameters or arguments\r\n",
+            "501-Syntax error in parameters or arguments\r\n",
+            "451 Too many errors from the client\r\n"
+        ]
+        .concat()
+    }
+    .is_err());
+
+    assert!(
+        before_test.elapsed().as_millis()
+            >= config.server.smtp.error.delay.as_millis()
+                * u128::try_from(
+                    config.server.smtp.error.hard_count - config.server.smtp.error.soft_count
+                )
+                .unwrap()
+    );
 }
