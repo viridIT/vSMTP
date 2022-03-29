@@ -109,10 +109,8 @@ pub async fn handle_one_in_delivery_queue(
         message_id
     );
 
-    let file = std::fs::File::open(path).context("failed to open mail in delivery queue")?;
-    let reader = std::io::BufReader::new(file);
-    let ctx: MailContext =
-        serde_json::from_reader(reader).context("failed to read email from delivery queue")?;
+    let ctx = MailContext::from_file(path)
+        .with_context(|| format!("failed to deserialize email '{}'", &message_id))?;
 
     let mut state = RuleState::with_context(config, ctx);
 
@@ -206,10 +204,8 @@ async fn handle_one_in_deferred_queue(
         message_id
     );
 
-    let file = std::fs::File::open(path).context("failed to open mail in deferred queue")?;
-    let reader = std::io::BufReader::new(file);
-    let mut ctx: MailContext =
-        serde_json::from_reader(reader).context("failed to read email from deferred queue")?;
+    let mut ctx = MailContext::from_file(path)
+        .with_context(|| format!("failed to deserialize email '{}'", &message_id))?;
 
     let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
 

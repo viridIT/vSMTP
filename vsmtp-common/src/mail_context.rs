@@ -68,3 +68,17 @@ pub struct MailContext {
     /// metadata
     pub metadata: Option<MessageMetadata>,
 }
+
+impl MailContext {
+    /// serialize the mail context using serde.
+    ///
+    /// # Errors
+    /// * Failed to read the file
+    /// * Failed deserialize to the MailContext struct.
+    pub fn from_file<P>(file: P) -> anyhow::Result<Self>
+    where
+        P: AsRef<std::path::Path>,
+    {
+        Ok(serde_json::from_str(&std::fs::read_to_string(file)?)?)
+    }
+}

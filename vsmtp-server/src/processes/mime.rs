@@ -15,6 +15,7 @@
  *
 */
 use crate::{processes::ProcessMessage, queue::Queue};
+use anyhow::Context;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
     state::StateSMTP,
@@ -71,7 +72,12 @@ pub async fn handle_one_in_working_queue(
 
     log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
-    let mut ctx: MailContext = serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
+    let mut ctx = MailContext::from_file(&file_to_process).with_context(|| {
+        format!(
+            "failed to deserialize email '{}'",
+            &process_message.message_id
+        )
+    })?;
 
     if let Body::Raw(raw) = &ctx.body {
         ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
