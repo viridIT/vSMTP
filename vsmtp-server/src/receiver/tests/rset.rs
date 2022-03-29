@@ -14,43 +14,45 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::test_receiver;
-use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
-use vsmtp_config::Config;
-use vsmtp_delivery::transport::Transport;
+use crate::{
+    receiver::{Connection, OnMail},
+    test_receiver,
+};
+use vsmtp_common::{
+    address::Address,
+    mail_context::{Body, MailContext},
+};
 
 #[tokio::test]
 async fn reset_helo() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Transport for T {
-        async fn deliver(
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
             &mut self,
-            _: &Config,
-            _: &trust_dns_resolver::TokioAsyncResolver,
-            _: &MessageMetadata,
-            from: &Address,
-            to: &mut [Rcpt],
-            _: &str,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
         ) -> anyhow::Result<()> {
-            // assert_eq!(ctx.envelop.helo, "foo");
-            assert_eq!(from.full(), "a@b");
+            assert_eq!(mail.envelop.helo, "foo");
+            assert_eq!(mail.envelop.mail_from.full(), "a@b");
             assert_eq!(
-                to,
+                mail.envelop.rcpt,
                 vec![Address::try_from("b@c".to_string()).unwrap().into()]
             );
-            // assert!(match &ctx.body {
-            //     Body::Parsed(body) => body.headers.len() == 2,
-            //     _ => false,
-            // });
+            assert!(match &mail.body {
+                Body::Parsed(body) => body.headers.len() == 2,
+                _ => false,
+            });
 
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T,
+        on_mail => &mut T,
         [
             "HELO foo\r\n",
             "RSET\r\n",
@@ -128,33 +130,31 @@ async fn reset_rcpt_to_ok() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Transport for T {
-        async fn deliver(
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
             &mut self,
-            _: &Config,
-            _: &trust_dns_resolver::TokioAsyncResolver,
-            _: &MessageMetadata,
-            from: &Address,
-            to: &mut [Rcpt],
-            _: &str,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
         ) -> anyhow::Result<()> {
-            // assert_eq!(ctx.envelop.helo, "foo2");
-            assert_eq!(from.full(), "d@e");
+            assert_eq!(mail.envelop.helo, "foo2");
+            assert_eq!(mail.envelop.mail_from.full(), "d@e");
             assert_eq!(
-                to,
+                mail.envelop.rcpt,
                 vec![Address::try_from("b@c".to_string()).unwrap().into()]
             );
-            // assert!(match &ctx.body {
-            //     Body::Parsed(body) => body.headers.is_empty(),
-            //     _ => false,
-            // });
+            assert!(match &mail.body {
+                Body::Parsed(body) => body.headers.is_empty(),
+                _ => false,
+            });
 
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T,
+        on_mail => &mut T,
         [
             "HELO foo\r\n",
             "MAIL FROM:<a@b>\r\n",
@@ -211,36 +211,34 @@ async fn reset_rcpt_to_multiple_rcpt() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Transport for T {
-        async fn deliver(
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
             &mut self,
-            _: &Config,
-            _: &trust_dns_resolver::TokioAsyncResolver,
-            _: &MessageMetadata,
-            from: &Address,
-            to: &mut [Rcpt],
-            _: &str,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
         ) -> anyhow::Result<()> {
-            // assert_eq!(ctx.envelop.helo, "foo");
-            assert_eq!(from.full(), "foo2@foo");
+            assert_eq!(mail.envelop.helo, "foo");
+            assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");
             assert_eq!(
-                to,
+                mail.envelop.rcpt,
                 vec![
                     Address::try_from("toto2@bar".to_string()).unwrap().into(),
                     Address::try_from("toto3@bar".to_string()).unwrap().into()
                 ]
             );
-            // assert!(match &ctx.body {
-            //     Body::Parsed(body) => body.headers.len() == 2,
-            //     _ => false,
-            // });
+            assert!(match &mail.body {
+                Body::Parsed(body) => body.headers.len() == 2,
+                _ => false,
+            });
 
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T,
+        on_mail => &mut T,
         [
             "HELO foo\r\n",
             "MAIL FROM:<foo@foo>\r\n",

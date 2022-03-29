@@ -15,10 +15,6 @@
  *
 */
 use crate::{
-    processes::{
-        delivery::handle_one_in_delivery_queue, mime::handle_one_in_working_queue, ProcessMessage,
-    },
-    queue::Queue,
     receiver::{
         connection::{Connection, ConnectionKind},
         handle_connection,
@@ -62,25 +58,23 @@ impl<T: std::io::Write + std::io::Read> std::io::Read for Mock<'_, T> {
     }
 }
 
-pub(crate) struct DefaultResolverTest;
+/// used for testing, does not do anything once the email is received.
+pub(crate) struct DefaultMailHandler;
 
 #[async_trait::async_trait]
-impl vsmtp_delivery::transport::Transport for DefaultResolverTest {
-    async fn deliver(
+impl super::OnMail for DefaultMailHandler {
+    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
         &mut self,
-        _: &Config,
-        _: &trust_dns_resolver::TokioAsyncResolver,
-        _: &vsmtp_common::mail_context::MessageMetadata,
-        _: &vsmtp_common::address::Address,
-        _: &mut [vsmtp_common::rcpt::Rcpt],
-        _: &str,
+        conn: &mut Connection<'_, S>,
+        _: Box<vsmtp_common::mail_context::MailContext>,
+        _: &mut Option<String>,
     ) -> anyhow::Result<()> {
+        conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
         Ok(())
     }
 }
 
-// TODO: should be a macro instead of a function.
-//       also we should use a ReceiverTestParameters struct
+// TODO: we should use a ReceiverTestParameters struct
 //       because their could be a lot of parameters to tweak for tests.
 //       (the connection kind for example)
 /// this function mocks all of the server's processes.
@@ -89,16 +83,16 @@ impl vsmtp_delivery::transport::Transport for DefaultResolverTest {
 ///
 /// # Panics
 // #[deprecated]
-pub async fn test_receiver_deprecated<T>(
+pub async fn test_receiver_deprecated<M>(
     address: &str,
-    _resolver: T,
+    mail_handler: &mut M,
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<Config>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
 ) -> anyhow::Result<()>
 where
-    T: vsmtp_delivery::transport::Transport + Send + Sync + 'static,
+    M: super::OnMail + Send,
 {
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
@@ -116,63 +110,8 @@ where
             .unwrap(),
     ));
 
-    let (working_sender, mut working_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
-    let (delivery_sender, mut delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
-
-    let re_delivery = rule_engine.clone();
-    let config_deliver = config.clone();
-
-    let delivery_handle = tokio::spawn(async move {
-        while let Some(pm) = delivery_receiver.recv().await {
-            handle_one_in_delivery_queue(
-                &config_deliver,
-                &vsmtp_config::trust_dns_helper::build_dns(&config_deliver)
-                    .expect("could not build dns from config"),
-                &pm.message_id,
-                &std::path::PathBuf::from_iter([
-                    Queue::Deliver
-                        .to_path(&config_deliver.server.queues.dirpath)
-                        .unwrap(),
-                    std::path::Path::new(&pm.message_id).to_path_buf(),
-                ]),
-                &re_delivery,
-            )
-            .await
-            .expect("delivery process failed");
-        }
-    });
-
-    let re_mime = rule_engine.clone();
-    let config_mime = config.clone();
-    let mime_delivery_sender = delivery_sender.clone();
-    let mime_handle = tokio::spawn(async move {
-        while let Some(pm) = working_receiver.recv().await {
-            handle_one_in_working_queue(
-                config_mime.clone(),
-                re_mime.clone(),
-                pm,
-                mime_delivery_sender.clone(),
-            )
-            .await
-            .expect("mime process failed");
-        }
-    });
-
-    let result = handle_connection(
-        &mut conn,
-        None,
-        rsasl,
-        rule_engine,
-        working_sender,
-        delivery_sender,
-    )
-    .await;
+    let result = handle_connection(&mut conn, None, rsasl, rule_engine, mail_handler).await;
     std::io::Write::flush(&mut conn.io_stream.inner)?;
-
-    delivery_handle.await.unwrap();
-    mime_handle.await.unwrap();
-
-    // NOTE: could it be a good idea to remove the queue when all tests are done ?
 
     pretty_assertions::assert_eq!(
         std::str::from_utf8(expected_output),
@@ -211,7 +150,7 @@ pub(crate) fn get_regular_config() -> Config {
 macro_rules! test_receiver {
     ($input:expr, $output:expr) => {
         test_receiver! {
-            on_mail => $crate::receiver::test_helpers::DefaultResolverTest {},
+            on_mail => &mut $crate::receiver::test_helpers::DefaultMailHandler {},
             with_config => $crate::receiver::test_helpers::get_regular_config(),
             $input,
             $output
@@ -227,7 +166,7 @@ macro_rules! test_receiver {
     };
     (with_config => $config:expr, $input:expr, $output:expr) => {
         test_receiver! {
-            on_mail => $crate::receiver::test_helpers::DefaultResolverTest {},
+            on_mail => &mut $crate::receiver::test_helpers::DefaultMailHandler {},
             with_config => $config,
             $input,
             $output
@@ -248,7 +187,7 @@ macro_rules! test_receiver {
         test_receiver! {
             with_auth => $auth,
             with_config => $config,
-            on_mail => $crate::receiver::test_helpers::DefaultResolverTest {},
+            on_mail => &mut $crate::receiver::test_helpers::DefaultMailHandler {},
             $input,
             $output
         }

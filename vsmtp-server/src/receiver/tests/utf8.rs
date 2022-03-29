@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,45 +13,43 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
+use crate::receiver::{Connection, MailContext, OnMail};
 use crate::test_receiver;
-use vsmtp_common::{address::Address, rcpt::Rcpt};
-use vsmtp_config::Config;
+use vsmtp_common::{address::Address, mail_context::Body};
 
 macro_rules! test_lang {
     ($lang_code:expr) => {{
         struct T;
 
         #[async_trait::async_trait]
-        impl vsmtp_delivery::transport::Transport for T {
-            async fn deliver(
+        impl OnMail for T {
+            async fn on_mail<S: std::io::Read + std::io::Write + Send>(
                 &mut self,
-                _: &Config,
-                _: &trust_dns_resolver::TokioAsyncResolver,
-                _: &vsmtp_common::mail_context::MessageMetadata,
-                from: &Address,
-                to: &mut [Rcpt],
-                _: &str,
+                conn: &mut Connection<'_, S>,
+                mail: Box<MailContext>,
+                _: &mut Option<String>,
             ) -> anyhow::Result<()> {
-                // assert_eq!(ctx.envelop.helo, "foobar".to_string());
-                assert_eq!(from.full(), "john@doe".to_string());
+                assert_eq!(mail.envelop.helo, "foobar".to_string());
+                assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(
-                    to,
+                    mail.envelop.rcpt,
                     vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                 );
-                // assert!(match &ctx.body {
-                //     Body::Parsed(mail) => {
-                //         format!("{}\n", mail.to_raw()).as_str() == include_str!($lang_code)
-                //     }
-                //     _ => false,
-                // });
+                assert!(match &mail.body {
+                    Body::Parsed(mail) => {
+                        format!("{}\n", mail.to_raw()).as_str() == include_str!($lang_code)
+                    }
+                    _ => false,
+                });
 
+                conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
                 Ok(())
             }
         }
 
         test_receiver! {
-            on_mail => T,
+            on_mail => &mut T,
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<john@doe>\r\n",

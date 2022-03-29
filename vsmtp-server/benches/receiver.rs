@@ -17,26 +17,25 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use trust_dns_resolver::TokioAsyncResolver;
-use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
+use vsmtp_common::{address::Address, mail_context::MailContext};
 use vsmtp_config::Config;
-use vsmtp_delivery::transport::Transport;
-use vsmtp_server::test_receiver;
+use vsmtp_server::{
+    receiver::{Connection, OnMail},
+    test_receiver,
+};
 
 #[derive(Clone)]
-struct DefaultResolverTest;
+struct DefaultMailHandler;
 
 #[async_trait::async_trait]
-impl Transport for DefaultResolverTest {
-    async fn deliver(
+impl OnMail for DefaultMailHandler {
+    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
         &mut self,
-        _: &Config,
-        _: &TokioAsyncResolver,
-        _: &MessageMetadata,
-        _: &Address,
-        _: &mut [Rcpt],
-        _: &str,
+        conn: &mut Connection<'_, S>,
+        _: Box<MailContext>,
+        _: &mut Option<String>,
     ) -> anyhow::Result<()> {
+        conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
         Ok(())
     }
 }
@@ -65,17 +64,17 @@ fn get_test_config() -> std::sync::Arc<Config> {
     )
 }
 
-fn make_bench<R>(
-    resolver: R,
+fn make_bench<M>(
+    mail_handler: M,
     b: &mut Bencher<WallTime>,
     (input, output, config): &(String, String, std::sync::Arc<Config>),
 ) where
-    R: Transport + Clone + Send + Sync + 'static,
+    M: OnMail + Clone + Send,
 {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
             let _ = test_receiver! {
-                on_mail => resolver.clone(),
+                on_mail => &mut mail_handler.clone(),
                 with_config => config.clone().as_ref().clone(),
                 input,
                 output
@@ -89,23 +88,25 @@ fn criterion_benchmark(c: &mut Criterion) {
         struct T;
 
         #[async_trait::async_trait]
-        impl Transport for T {
-            async fn deliver(
+        impl OnMail for T {
+            async fn on_mail<S: std::io::Read + std::io::Write + Send>(
                 &mut self,
-                _: &Config,
-                _: &TokioAsyncResolver,
-                _: &MessageMetadata,
-                from: &Address,
-                rcpt: &mut [Rcpt],
-                body: &str,
+                conn: &mut Connection<'_, S>,
+                mail: Box<MailContext>,
+                _: &mut Option<String>,
             ) -> anyhow::Result<()> {
-                // assert_eq!(ctx.envelop.helo, "foobar");
-                assert_eq!(from.full(), "john@doe");
+                assert_eq!(mail.envelop.helo, "foobar");
+                assert_eq!(mail.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
-                    rcpt,
+                    mail.envelop.rcpt,
                     vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                 );
-                assert!(body.is_empty());
+
+                if matches!(mail.body, vsmtp_common::mail_context::Body::Empty) {
+                    panic!("the email is not empty");
+                }
+
+                conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
 
                 Ok(())
             }
@@ -150,7 +151,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             .concat(),
             get_test_config(),
         ),
-        |b, input| make_bench(DefaultResolverTest, b, input),
+        |b, input| make_bench(DefaultMailHandler, b, input),
     );
 }
 

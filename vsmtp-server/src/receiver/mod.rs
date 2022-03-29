@@ -36,66 +36,86 @@ mod tests;
 /// boilerplate for the tests
 pub mod test_helpers;
 
-async fn on_mail<S: std::io::Read + std::io::Write + Send>(
-    conn: &mut Connection<'_, S>,
-    mail: Box<MailContext>,
-    helo_domain: &mut Option<String>,
-    working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-) -> anyhow::Result<()> {
-    *helo_domain = Some(mail.envelop.helo.clone());
+/// will be executed once the email is received.
+#[async_trait::async_trait]
+pub trait OnMail {
+    /// the server executes this function once the email as been received.
+    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        &mut self,
+        conn: &mut Connection<'_, S>,
+        mail: Box<MailContext>,
+        helo_domain: &mut Option<String>,
+    ) -> anyhow::Result<()>;
+}
 
-    if mail
-        .envelop
-        .rcpt
-        .iter()
-        .all(|rcpt| rcpt.transfer_method == vsmtp_common::transfer::Transfer::None)
-    {
-        // quietly skipping mime & delivery processes when all recipients .
-        log::warn!("delivery skipped because all recipient's transfer method is set to None.");
-        conn.send_code(SMTPReplyCode::Code250)?;
-        return Ok(());
-    }
+/// default mail handler for production.
+pub(crate) struct MailHandler {
+    pub working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    pub delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+}
 
-    match &mail.metadata {
-        Some(metadata) if metadata.skipped.is_some() => {
-            log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
-            match Queue::Deliver.write_to_queue(&conn.config, &mail) {
-                Ok(_) => {
-                    delivery_sender
-                        .send(ProcessMessage {
-                            message_id: metadata.message_id.clone(),
-                        })
-                        .await?;
+#[async_trait::async_trait]
+impl OnMail for MailHandler {
+    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        &mut self,
+        conn: &mut Connection<'_, S>,
+        mail: Box<MailContext>,
+        helo_domain: &mut Option<String>,
+    ) -> anyhow::Result<()> {
+        *helo_domain = Some(mail.envelop.helo.clone());
 
-                    conn.send_code(SMTPReplyCode::Code250)?;
-                }
-                Err(error) => {
-                    log::error!("couldn't write to delivery queue: {}", error);
-                    conn.send_code(SMTPReplyCode::Code554)?;
-                }
-            };
-            Ok(())
+        if mail
+            .envelop
+            .rcpt
+            .iter()
+            .all(|rcpt| rcpt.transfer_method == vsmtp_common::transfer::Transfer::None)
+        {
+            // quietly skipping mime & delivery processes when all recipients .
+            log::warn!("delivery skipped because all recipient's transfer method is set to None.");
+            conn.send_code(SMTPReplyCode::Code250)?;
+            return Ok(());
         }
-        Some(metadata) => {
-            match Queue::Working.write_to_queue(&conn.config, &mail) {
-                Ok(_) => {
-                    working_sender
-                        .send(ProcessMessage {
-                            message_id: metadata.message_id.clone(),
-                        })
-                        .await?;
 
-                    conn.send_code(SMTPReplyCode::Code250)?;
-                }
-                Err(error) => {
-                    log::error!("couldn't write to queue: {}", error);
-                    conn.send_code(SMTPReplyCode::Code554)?;
-                }
-            };
-            Ok(())
+        match &mail.metadata {
+            Some(metadata) if metadata.skipped.is_some() => {
+                log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
+                match Queue::Deliver.write_to_queue(&conn.config, &mail) {
+                    Ok(_) => {
+                        self.delivery_sender
+                            .send(ProcessMessage {
+                                message_id: metadata.message_id.clone(),
+                            })
+                            .await?;
+
+                        conn.send_code(SMTPReplyCode::Code250)?;
+                    }
+                    Err(error) => {
+                        log::error!("couldn't write to delivery queue: {}", error);
+                        conn.send_code(SMTPReplyCode::Code554)?;
+                    }
+                };
+                Ok(())
+            }
+            Some(metadata) => {
+                match Queue::Working.write_to_queue(&conn.config, &mail) {
+                    Ok(_) => {
+                        self.working_sender
+                            .send(ProcessMessage {
+                                message_id: metadata.message_id.clone(),
+                            })
+                            .await?;
+
+                        conn.send_code(SMTPReplyCode::Code250)?;
+                    }
+                    Err(error) => {
+                        log::error!("couldn't write to queue: {}", error);
+                        conn.send_code(SMTPReplyCode::Code554)?;
+                    }
+                };
+                Ok(())
+            }
+            _ => unreachable!(),
         }
-        _ => unreachable!(),
     }
 }
 
@@ -109,17 +129,19 @@ async fn on_mail<S: std::io::Read + std::io::Write + Send>(
 /// * server failed to send a message
 /// * a transaction failed
 /// * the pre-queue processing of the mail failed
-#[allow(clippy::missing_panics_doc)]
-pub async fn handle_connection<S>(
+///
+/// # Panics
+/// * the authentification is issued but gsasl was not found.
+pub async fn handle_connection<S, M>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    mail_handler: &mut M,
 ) -> anyhow::Result<()>
 where
     S: std::io::Read + std::io::Write + Send,
+    M: OnMail + Send,
 {
     if let ConnectionKind::Tunneled = conn.kind {
         return handle_connection_secured(
@@ -127,8 +149,7 @@ where
             tls_config.clone(),
             rsasl,
             rule_engine,
-            working_sender,
-            delivery_sender,
+            mail_handler,
         )
         .await;
     }
@@ -141,14 +162,7 @@ where
         match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
-                on_mail(
-                    conn,
-                    mail,
-                    &mut helo_domain,
-                    working_sender.clone(),
-                    delivery_sender.clone(),
-                )
-                .await?;
+                mail_handler.on_mail(conn, mail, &mut helo_domain).await?;
             }
             TransactionResult::TlsUpgrade if tls_config.is_none() => {
                 conn.send_code(SMTPReplyCode::Code454)?;
@@ -161,8 +175,7 @@ where
                     tls_config.clone(),
                     rsasl,
                     rule_engine,
-                    working_sender,
-                    delivery_sender,
+                    mail_handler,
                 )
                 .await;
             }
@@ -224,16 +237,16 @@ where
     Ok(())
 }
 
-async fn handle_connection_secured<S>(
+async fn handle_connection_secured<S, M>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-    working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    mail_handler: &mut M,
 ) -> anyhow::Result<()>
 where
     S: std::io::Read + std::io::Write + Send,
+    M: OnMail + Send,
 {
     let smtps_config = conn.config.server.tls.as_ref().ok_or_else(|| {
         anyhow::anyhow!("server accepted tls encrypted transaction, but not tls config provided")
@@ -271,14 +284,9 @@ where
         match Transaction::receive(&mut secured_conn, &helo_domain, rule_engine.clone()).await? {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
-                on_mail(
-                    &mut secured_conn,
-                    mail,
-                    &mut helo_domain,
-                    working_sender.clone(),
-                    delivery_sender.clone(),
-                )
-                .await?;
+                mail_handler
+                    .on_mail(&mut secured_conn, mail, &mut helo_domain)
+                    .await?;
             }
             TransactionResult::TlsUpgrade => todo!(),
             TransactionResult::Authentication(_, _, _) if rsasl.as_ref().is_none() => {

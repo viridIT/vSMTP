@@ -283,9 +283,6 @@ async fn send_email(
     to: &[vsmtp_common::rcpt::Rcpt],
     body: &Body,
 ) -> anyhow::Result<Vec<vsmtp_common::rcpt::Rcpt>> {
-    // we pickup a copy of the metadata and envelop of the context, so we can dispatch emails
-    // to send by groups of recipients (grouped by transfer method)
-
     // filtering recipients by domains and delivery method.
     let mut triage = vsmtp_common::rcpt::filter_by_transfer_method(to);
 
@@ -325,10 +322,10 @@ async fn send_email(
     }
 
     // recipient email transfer status could have been updated.
+    // we also filter out recipients if they have been sent the message already.
     Ok(triage
         .into_iter()
         .flat_map(|(_, rcpt)| rcpt)
-        // filter out recipients if they have been sent the message already.
         .filter(|rcpt| !matches!(rcpt.email_status, EmailTransferStatus::Sent))
         .collect::<Vec<_>>())
 }
