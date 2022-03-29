@@ -26,8 +26,8 @@ fn construct() {
             domain: "domain.com".to_string(),
             client_count_max: 100,
             system: ConfigServerSystem {
-                user: users::get_user_by_name("vsmtp").unwrap(),
-                group: users::get_group_by_name("vsmtp").unwrap(),
+                user: users::get_user_by_name("root").unwrap(),
+                group: users::get_group_by_name("root").unwrap(),
                 thread_pool: ConfigServerSystemThreadPool {
                     receiver: 6,
                     processing: 6,
