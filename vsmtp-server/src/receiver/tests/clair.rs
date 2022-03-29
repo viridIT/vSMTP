@@ -14,12 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{receiver::test_helpers::get_regular_config, resolver::Resolver, test_receiver};
-use vsmtp_common::{
-    address::Address,
-    mail_context::{Body, MailContext},
-};
+use crate::{receiver::test_helpers::get_regular_config, test_receiver};
+use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
 use vsmtp_config::Config;
+use vsmtp_delivery::transport::Transport;
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 

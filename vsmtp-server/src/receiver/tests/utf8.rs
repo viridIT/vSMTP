@@ -14,11 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{resolver::Resolver, test_receiver};
-use vsmtp_common::{
-    address::Address,
-    mail_context::{Body, MailContext},
-};
+use crate::test_receiver;
+use vsmtp_common::{address::Address, rcpt::Rcpt};
 use vsmtp_config::Config;
 
 macro_rules! test_lang {

@@ -21,7 +21,7 @@ use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
 use vsmtp_config::Config;
 use vsmtp_delivery::transport::Transport;
-use vsmtp_server::receiver::test_helpers::test_receiver;
+use vsmtp_server::test_receiver;
 
 #[derive(Clone)]
 struct DefaultResolverTest;

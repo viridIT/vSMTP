@@ -1,13 +1,14 @@
 use vsmtp_common::{
     address::Address,
-    mail_context::MailContext,
+    mail_context::MessageMetadata,
+    rcpt::Rcpt,
     re::{base64, rsasl},
 };
 use vsmtp_config::{config::ConfigServerSMTPAuth, Config};
+use vsmtp_delivery::transport::Transport;
 
 use crate::{
     receiver::tests::auth::{get_auth_config, TestAuth},
-    resolver::Resolver,
     test_receiver,
 };
 
@@ -38,15 +39,21 @@ async fn plain_in_clair_unsecured() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "client.com");
-            assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
+    impl Transport for T {
+        async fn deliver(
+            &mut self,
+            _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
+            _: &MessageMetadata,
+            from: &Address,
+            to: &mut [Rcpt],
+            _: &str,
+        ) -> anyhow::Result<()> {
+            // assert_eq!(ctx.envelop.helo, "client.com");
+            assert_eq!(from.full(), "foo@bar");
             assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from(
-                    [Address::try_from("joe@doe".to_string()).unwrap()]
-                )
+                to,
+                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
             Ok(())
@@ -101,15 +108,21 @@ async fn plain_in_clair_unsecured_utf8() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "client.com");
-            assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
+    impl Transport for T {
+        async fn deliver(
+            &mut self,
+            _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
+            _: &MessageMetadata,
+            from: &Address,
+            to: &mut [Rcpt],
+            _: &str,
+        ) -> anyhow::Result<()> {
+            // assert_eq!(ctx.envelop.helo, "client.com");
+            assert_eq!(from.full(), "foo@bar");
             assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from(
-                    [Address::try_from("joe@doe".to_string()).unwrap()]
-                )
+                to,
+                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
             Ok(())
@@ -287,15 +300,21 @@ async fn plain_in_clair_unsecured_without_initial_response() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "client.com");
-            assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
+    impl Transport for T {
+        async fn deliver(
+            &mut self,
+            _: &Config,
+            _: &trust_dns_resolver::TokioAsyncResolver,
+            _: &MessageMetadata,
+            from: &Address,
+            to: &mut [Rcpt],
+            _: &str,
+        ) -> anyhow::Result<()> {
+            // assert_eq!(ctx.envelop.helo, "client.com");
+            assert_eq!(from.full(), "foo@bar");
             assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from(
-                    [Address::try_from("joe@doe".to_string()).unwrap()]
-                )
+                to,
+                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
             Ok(())
