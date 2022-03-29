@@ -1,3 +1,4 @@
+use vsmtp_common::re::anyhow;
 use vsmtp_config::{
     get_rustls_config,
     re::{rustls, rustls_pemfile},

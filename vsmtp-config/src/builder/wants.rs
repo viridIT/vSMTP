@@ -1,6 +1,6 @@
 #![allow(clippy::module_name_repetitions)]
 
-use vsmtp_common::code::SMTPReplyCode;
+use vsmtp_common::{code::SMTPReplyCode, re::log};
 
 use crate::config::{
     ConfigQueueDelivery, ConfigQueueWorking, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,

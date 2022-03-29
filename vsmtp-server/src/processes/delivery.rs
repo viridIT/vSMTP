@@ -16,7 +16,12 @@
  **/
 use super::ProcessMessage;
 use crate::{queue::Queue, resolver::Resolver};
-use vsmtp_common::{mail_context::MailContext, state::StateSMTP, status::Status};
+use vsmtp_common::{
+    mail_context::MailContext,
+    re::{anyhow, log},
+    state::StateSMTP,
+    status::Status,
+};
 use vsmtp_config::{log_channel::DELIVER, Config};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 

@@ -1,7 +1,7 @@
 use vsmtp_common::{
     address::Address,
     mail_context::MailContext,
-    re::{base64, rsasl},
+    re::{anyhow, rsasl},
 };
 use vsmtp_config::{Config, ConfigServerSMTPAuth};
 

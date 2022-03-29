@@ -23,6 +23,7 @@ use vsmtp_common::{
     envelop::Envelop,
     event::Event,
     mail_context::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
+    re::{anyhow, log},
     state::StateSMTP,
     status::Status,
 };

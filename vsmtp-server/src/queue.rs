@@ -15,7 +15,10 @@
  *
 **/
 use anyhow::Context;
-use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::{
+    mail_context::MailContext,
+    re::{anyhow, log},
+};
 use vsmtp_config::{log_channel::RECEIVER, Config};
 
 /// identifiers for all mail queues.

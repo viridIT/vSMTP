@@ -18,6 +18,7 @@ use crate::{resolver::Resolver, test_receiver};
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
+    re::anyhow,
 };
 use vsmtp_config::Config;
 

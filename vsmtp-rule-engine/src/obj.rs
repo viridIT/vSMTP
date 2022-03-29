@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use vsmtp_common::address::Address;
+use vsmtp_common::{
+    address::Address,
+    re::{anyhow, log},
+};
 
 /// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.

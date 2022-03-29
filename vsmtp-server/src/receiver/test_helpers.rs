@@ -28,7 +28,7 @@ use crate::{
     server::SaslBackend,
 };
 use anyhow::Context;
-use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::{mail_context::MailContext, re::anyhow};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 

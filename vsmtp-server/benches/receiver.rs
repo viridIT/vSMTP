@@ -21,6 +21,7 @@ use vsmtp_common::{
     address::Address,
     mail::BodyType,
     mail_context::{Body, MailContext},
+    re::anyhow,
 };
 use vsmtp_config::Config;
 use vsmtp_server::{resolver::Resolver, test_receiver};

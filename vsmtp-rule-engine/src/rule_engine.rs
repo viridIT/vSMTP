@@ -23,6 +23,7 @@ use rhai::{
 };
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
+use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::SRULES;

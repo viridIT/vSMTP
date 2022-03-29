@@ -18,7 +18,11 @@ use self::transaction::{Transaction, TransactionResult};
 use crate::{
     processes::ProcessMessage, queue::Queue, receiver::auth::on_authentication, server::SaslBackend,
 };
-use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext};
+use vsmtp_common::{
+    code::SMTPReplyCode,
+    mail_context::MailContext,
+    re::{anyhow, log},
+};
 use vsmtp_config::re::rustls;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 

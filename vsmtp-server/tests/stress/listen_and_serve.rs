@@ -13,10 +13,11 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+ **/
 use anyhow::Context;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::{get_log4rs_config, Config};
+use vsmtp_common::re::anyhow;
+use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP};
 

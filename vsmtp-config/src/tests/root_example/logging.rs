@@ -1,4 +1,4 @@
-use vsmtp_common::{code::SMTPReplyCode, collection};
+use vsmtp_common::{code::SMTPReplyCode, collection, re::log};
 
 use crate::Config;
 

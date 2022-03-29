@@ -17,7 +17,10 @@
 use super::Resolver;
 
 use anyhow::Context;
-use vsmtp_common::mail_context::{Body, MailContext};
+use vsmtp_common::{
+    mail_context::{Body, MailContext},
+    re::{anyhow, log},
+};
 use vsmtp_config::Config;
 
 /// This delivery will send the mail to another MTA (relaying)

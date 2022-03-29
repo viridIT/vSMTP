@@ -1,4 +1,4 @@
-use vsmtp_common::mime_type::MimeHeader;
+use vsmtp_common::{mime_type::MimeHeader, re::anyhow};
 
 use crate::error::{ParserError, ParserResult};
 

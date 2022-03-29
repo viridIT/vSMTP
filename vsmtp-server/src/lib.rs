@@ -27,7 +27,7 @@ mod auth;
 ///
 pub mod resolver {
 
-    use vsmtp_common::mail_context::MailContext;
+    use vsmtp_common::{mail_context::MailContext, re::anyhow};
     use vsmtp_config::Config;
 
     /// A trait allowing the [ServerVSMTP] to deliver a mail
@@ -66,6 +66,7 @@ pub mod resolver {
 }
 
 use processes::ProcessMessage;
+use vsmtp_common::re::{anyhow, log};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 

@@ -15,7 +15,10 @@
  *
 **/
 use super::io_service::{IoService, ReadError};
-use vsmtp_common::code::SMTPReplyCode;
+use vsmtp_common::{
+    code::SMTPReplyCode,
+    re::{anyhow, log},
+};
 use vsmtp_config::{log_channel::RECEIVER, re::rustls, Config};
 
 /// how the server would react to tls interaction for this connection

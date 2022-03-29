@@ -74,8 +74,8 @@ mod tests {
 ///
 pub mod re {
     pub use anyhow;
-    pub use base64;
     pub use libc;
+    pub use log;
     pub use rsasl;
     pub use strum;
 }

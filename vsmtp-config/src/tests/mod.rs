@@ -1,3 +1,5 @@
+use vsmtp_common::re::log;
+
 use crate::config::ConfigServerSMTPAuth;
 
 use super::config::{

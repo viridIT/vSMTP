@@ -1,4 +1,4 @@
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::{anyhow, log};
 
 use crate::config::ConfigServerTls;
 

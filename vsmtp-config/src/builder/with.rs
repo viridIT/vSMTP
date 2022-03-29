@@ -15,7 +15,10 @@ use crate::{
 };
 use vsmtp_common::{
     code::SMTPReplyCode,
-    re::anyhow::{self, Context},
+    re::{
+        anyhow::{self, Context},
+        log,
+    },
     state::StateSMTP,
 };
 

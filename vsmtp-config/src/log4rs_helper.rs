@@ -1,5 +1,5 @@
 use crate::{log_channel, Config};
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::{anyhow, log};
 
 #[doc(hidden)]
 pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log4rs::Config> {

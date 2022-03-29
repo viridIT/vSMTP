@@ -18,13 +18,9 @@ use anyhow::Context;
 use vsmtp::{Args, Commands};
 use vsmtp_common::{
     libc_abstraction::{daemon, setgid, setuid, ForkResult},
-    re::anyhow,
+    re::{anyhow, log},
 };
-use vsmtp_config::{
-    get_log4rs_config,
-    re::{log, log4rs},
-    Config,
-};
+use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
 use vsmtp_server::start_runtime;
 
 fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(

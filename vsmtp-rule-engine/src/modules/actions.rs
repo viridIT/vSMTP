@@ -26,6 +26,7 @@ use rhai::plugin::{
 use vsmtp_common::address::Address;
 use vsmtp_common::mail_context::Body;
 use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::re::log;
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::URULES;
 

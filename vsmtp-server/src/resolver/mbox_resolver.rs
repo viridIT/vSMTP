@@ -20,6 +20,7 @@ use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::chown,
     mail_context::{Body, MailContext, MessageMetadata},
+    re::{anyhow, log},
 };
 use vsmtp_config::{log_channel::DELIVER, re::users, Config};
 
