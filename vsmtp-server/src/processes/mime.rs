@@ -96,15 +96,14 @@ pub async fn handle_one_in_working_queue(
                 .iter()
                 .all(|rcpt| rcpt.transfer_method == vsmtp_common::transfer::Transfer::None)
             {
-                // quietly skipping mime & delivery processes when all recipients .
+                // skipping mime & delivery processes.
                 log::warn!(
                     target: DELIVER,
                     "delivery skipped because all recipient's transfer method is set to None."
                 );
+                Queue::Dead.write_to_queue(config.as_ref(), &ctx)?;
                 return Ok(());
             }
-
-            Queue::Deliver.write_to_queue(config.as_ref(), &ctx)?;
         }
 
         delivery_sender
