@@ -41,6 +41,7 @@ fn parse() {
                 }
             )
             .with_default_smtp_codes()
+            .without_auth()
             .with_app_at_location("/var/spool/vsmtp/app")
             .with_default_vsl_settings()
             .with_default_app_logs()

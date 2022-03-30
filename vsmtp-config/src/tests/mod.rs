@@ -18,6 +18,8 @@ mod root_example {
     mod tls;
 }
 
+mod validate;
+
 #[test]
 fn construct() {
     let _c = Config {

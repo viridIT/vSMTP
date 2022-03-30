@@ -128,7 +128,7 @@ async fn test_starttls(
             }
         }
 
-        assert_eq!(output, expected_output);
+        pretty_assertions::assert_eq!(expected_output, output);
     });
 
     let (client, server) = tokio::join!(client, server);
@@ -156,15 +156,13 @@ async fn simple() -> anyhow::Result<()> {
         &[
             "220 testserver.com Service ready",
             "250-testserver.com",
+            "250-STARTTLS",
             "250-8BITMIME",
-            "250-SMTPUTF8",
-            "250-AUTH ",
-            "250 STARTTLS",
+            "250 SMTPUTF8",
             "220 testserver.com Service ready",
             "250-testserver.com",
             "250-8BITMIME",
-            "250-SMTPUTF8",
-            "250 AUTH PLAIN LOGIN CRAM-MD5",
+            "250 SMTPUTF8",
             "250 Ok",
             "250 Ok",
             "354 Start mail input; end with <CRLF>.<CRLF>",
@@ -188,10 +186,9 @@ async fn test_receiver_7() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH \r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "454 TLS not available due to temporary reason\r\n",
             "221 Service closing transmission channel\r\n",
         ]
@@ -212,10 +209,9 @@ async fn test_receiver_8() -> anyhow::Result<()> {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH \r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "530 Must issue a STARTTLS command first\r\n",
             "221 Service closing transmission channel\r\n",
         ]

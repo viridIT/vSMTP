@@ -55,6 +55,7 @@ async fn listen_and_serve() {
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
         .with_default_smtp_codes()
+        .without_auth()
         .with_app_at_location("./tmp/stress")
         .with_vsl("./tests/stress/main.vsl")
         .with_app_logs("./tmp/stress/app.log")

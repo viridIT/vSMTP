@@ -33,6 +33,7 @@ fn parse() {
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
+            .without_auth()
             .with_default_app()
             .with_default_vsl_settings()
             .with_default_app_logs()

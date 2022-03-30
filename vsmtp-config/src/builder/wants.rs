@@ -2,9 +2,12 @@
 
 use vsmtp_common::{code::SMTPReplyCode, re::log};
 
-use crate::config::{
-    ConfigQueueDelivery, ConfigQueueWorking, ConfigServerDNS, ConfigServerSMTPError,
-    ConfigServerSMTPTimeoutClient, ConfigServerTls, Service,
+use crate::{
+    config::{
+        ConfigQueueDelivery, ConfigQueueWorking, ConfigServerDNS, ConfigServerSMTPError,
+        ConfigServerSMTPTimeoutClient, ConfigServerTls, Service,
+    },
+    ConfigServerSMTPAuth,
 };
 
 ///
@@ -80,9 +83,15 @@ pub struct WantsServerSMTPConfig3 {
 }
 
 ///
-pub struct WantsApp {
+pub struct WantsServerSMTPAuth {
     pub(crate) parent: WantsServerSMTPConfig3,
     pub(super) codes: std::collections::BTreeMap<SMTPReplyCode, String>,
+}
+
+///
+pub struct WantsApp {
+    pub(crate) parent: WantsServerSMTPAuth,
+    pub(super) auth: Option<ConfigServerSMTPAuth>,
 }
 
 ///

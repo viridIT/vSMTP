@@ -1,8 +1,14 @@
-use super::wants::{
-    WantsApp, WantsAppLogs, WantsAppServices, WantsAppVSL, WantsServer, WantsServerDNS,
-    WantsServerInterfaces, WantsServerLogs, WantsServerQueues, WantsServerSMTPConfig1,
-    WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
-    WantsValidate, WantsVersion,
+// this produce just too much false positive in this file
+#![allow(clippy::missing_const_for_fn)]
+
+use super::{
+    wants::{
+        WantsApp, WantsAppLogs, WantsAppServices, WantsAppVSL, WantsServer, WantsServerDNS,
+        WantsServerInterfaces, WantsServerLogs, WantsServerQueues, WantsServerSMTPConfig1,
+        WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
+        WantsValidate, WantsVersion,
+    },
+    WantsServerSMTPAuth,
 };
 use crate::{
     config::{
@@ -13,9 +19,10 @@ use crate::{
         TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
-    Service,
+    ConfigServerSMTPAuth, Service,
 };
 use vsmtp_common::{
+    auth::Mechanism,
     code::SMTPReplyCode,
     re::{
         anyhow::{self, Context},
@@ -30,8 +37,6 @@ pub struct Builder<State> {
 }
 
 impl Builder<WantsVersion> {
-    ///
-    ///
     /// # Panics
     ///
     /// * CARGO_PKG_VERSION is not valid
@@ -40,8 +45,6 @@ impl Builder<WantsVersion> {
         self.with_version_str(env!("CARGO_PKG_VERSION")).unwrap()
     }
 
-    ///
-    ///
     /// # Errors
     ///
     /// * version_requirement is not valid format
@@ -62,7 +65,6 @@ impl Builder<WantsVersion> {
 
 impl Builder<WantsServer> {
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_debug_server_info(self) -> Builder<WantsServerSystem> {
         self.with_server_name("debug.com")
@@ -156,7 +158,6 @@ impl Builder<WantsServerSystem> {
 
     ///
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
     pub fn with_system(
         self,
         user: users::User,
@@ -333,7 +334,6 @@ impl Builder<WantsServerTLSConfig> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn without_tls_support(self) -> Builder<WantsServerSMTPConfig1> {
         Builder::<WantsServerSMTPConfig1> {
@@ -380,7 +380,6 @@ impl Builder<WantsServerSMTPConfig1> {
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_default_smtp_options(self) -> Builder<WantsServerSMTPConfig2> {
         self.with_rcpt_count_and_default(ConfigServerSMTP::default_rcpt_count_max())
@@ -405,7 +404,6 @@ impl Builder<WantsServerSMTPConfig1> {
 
 impl Builder<WantsServerSMTPConfig2> {
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_default_smtp_error_handler(self) -> Builder<WantsServerSMTPConfig3> {
         Builder::<WantsServerSMTPConfig3> {
@@ -460,7 +458,7 @@ impl Builder<WantsServerSMTPConfig2> {
 impl Builder<WantsServerSMTPConfig3> {
     ///
     #[must_use]
-    pub fn with_default_smtp_codes(self) -> Builder<WantsApp> {
+    pub fn with_default_smtp_codes(self) -> Builder<WantsServerSMTPAuth> {
         self.with_smtp_codes(std::collections::BTreeMap::new())
     }
 
@@ -469,11 +467,61 @@ impl Builder<WantsServerSMTPConfig3> {
     pub fn with_smtp_codes(
         self,
         codes: std::collections::BTreeMap<SMTPReplyCode, String>,
+    ) -> Builder<WantsServerSMTPAuth> {
+        Builder::<WantsServerSMTPAuth> {
+            state: WantsServerSMTPAuth {
+                parent: self.state,
+                codes,
+            },
+        }
+    }
+}
+
+impl Builder<WantsServerSMTPAuth> {
+    ///
+    #[must_use]
+    pub fn without_auth(self) -> Builder<WantsApp> {
+        Builder::<WantsApp> {
+            state: WantsApp {
+                parent: self.state,
+                auth: None,
+            },
+        }
+    }
+
+    ///
+    #[must_use]
+    pub fn with_safe_auth(
+        self,
+        must_be_authenticated: bool,
+        attempt_count_max: i64,
+    ) -> Builder<WantsApp> {
+        self.with_auth(
+            must_be_authenticated,
+            ConfigServerSMTPAuth::default_enable_dangerous_mechanism_in_clair(),
+            ConfigServerSMTPAuth::default_mechanisms(),
+            attempt_count_max,
+        )
+    }
+
+    ///
+    #[must_use]
+    pub fn with_auth(
+        self,
+        must_be_authenticated: bool,
+        enable_dangerous_mechanism_in_clair: bool,
+        mechanisms: Vec<Mechanism>,
+        attempt_count_max: i64,
     ) -> Builder<WantsApp> {
         Builder::<WantsApp> {
             state: WantsApp {
                 parent: self.state,
-                codes,
+                auth: Some(ConfigServerSMTPAuth {
+                    must_be_authenticated,
+                    enable_dangerous_mechanism_in_clair,
+                    mechanisms,
+                    attempt_count_max,
+                }),
             },
         }
     }
@@ -561,14 +609,12 @@ impl Builder<WantsAppLogs> {
 
 impl Builder<WantsAppServices> {
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn without_services(self) -> Builder<WantsServerDNS> {
         self.with_services(std::collections::BTreeMap::new())
     }
 
     ///
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_services(
         self,
@@ -585,7 +631,6 @@ impl Builder<WantsAppServices> {
 
 impl Builder<WantsServerDNS> {
     /// dns resolutions will be made using google's service.
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_google_dns(self) -> Builder<WantsValidate> {
         Builder::<WantsValidate> {
@@ -597,7 +642,6 @@ impl Builder<WantsServerDNS> {
     }
 
     /// dns resolutions will be made using couldflare's service.
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_cloudflare_dns(self) -> Builder<WantsValidate> {
         Builder::<WantsValidate> {
@@ -610,7 +654,6 @@ impl Builder<WantsServerDNS> {
 
     /// dns resolutions will be made using the system configuration.
     /// (/etc/resolv.conf on unix systems & the registry on Windows).
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_system_dns(self) -> Builder<WantsValidate> {
         Builder::<WantsValidate> {
@@ -622,7 +665,6 @@ impl Builder<WantsServerDNS> {
     }
 
     /// dns resolutions will be made using the following dns configuration.
-    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_dns(
         self,

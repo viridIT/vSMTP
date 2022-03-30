@@ -91,6 +91,7 @@ fn test_services() {
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
         .with_default_smtp_codes()
+        .without_auth()
         .with_app_at_location("./tmp/app")
         .with_vsl("./tmp/nothing")
         .with_default_app_logs()
