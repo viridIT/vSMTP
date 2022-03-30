@@ -83,7 +83,6 @@ impl Transaction<'_> {
         conn: &Connection<S>,
         event: Event,
     ) -> ProcessedEvent {
-        println!("{}, {event:?}", &self.state);
         match (&self.state, event) {
             (_, Event::NoopCmd) => ProcessedEvent::Reply(SMTPReplyCode::Code250),
 
