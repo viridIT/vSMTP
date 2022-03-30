@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,8 +13,9 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::{processes::ProcessMessage, queue::Queue};
+use anyhow::Context;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
     re::{anyhow, log},
@@ -72,7 +73,12 @@ pub async fn handle_one_in_working_queue(
 
     log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
-    let mut ctx: MailContext = serde_json::from_str(&std::fs::read_to_string(&file_to_process)?)?;
+    let mut ctx = MailContext::from_file(&file_to_process).with_context(|| {
+        format!(
+            "failed to deserialize email '{}'",
+            &process_message.message_id
+        )
+    })?;
 
     if let Body::Raw(raw) = &ctx.body {
         ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
@@ -90,20 +96,21 @@ pub async fn handle_one_in_working_queue(
         {
             let ctx = state.get_context();
             let ctx = ctx.read().unwrap();
-            match &ctx.metadata {
-                // quietly skipping delivery processes when there is no resolver.
-                // (in case of a quarantine for example)
-                Some(metadata) if metadata.resolver == "none" => {
-                    log::warn!(
-                        target: DELIVER,
-                        "delivery skipped due to NO_DELIVERY action call."
-                    );
-                    return Ok(());
-                }
-                _ => {}
-            };
 
-            Queue::Deliver.write_to_queue(config.as_ref(), &ctx)?;
+            if ctx
+                .envelop
+                .rcpt
+                .iter()
+                .all(|rcpt| rcpt.transfer_method == vsmtp_common::transfer::Transfer::None)
+            {
+                // skipping mime & delivery processes.
+                log::warn!(
+                    target: DELIVER,
+                    "delivery skipped because all recipient's transfer method is set to None."
+                );
+                Queue::Dead.write_to_queue(config.as_ref(), &ctx)?;
+                return Ok(());
+            }
         }
 
         delivery_sender

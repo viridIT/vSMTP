@@ -16,6 +16,7 @@
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::{
+    address::Address,
     mail::{BodyType, Mail},
     mail_context::{Body, MessageMetadata},
     state::StateSMTP,
@@ -24,6 +25,8 @@ use vsmtp_common::{
 
 #[test]
 fn test_email_context() {
+    // crate::tests::helpers::setup_logs_for_tests();
+
     let re = RuleEngine::new(&Some(rules_path!["main.vsl"])).unwrap();
     let mut state = get_default_state();
 
@@ -34,12 +37,22 @@ fn test_email_context() {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
+    state.get_context().write().unwrap().envelop.rcpt = vec![
+        Address::try_from("rcpt@toremove.org".to_string())
+            .unwrap()
+            .into(),
+        Address::try_from("rcpt@torewrite.net".to_string())
+            .unwrap()
+            .into(),
+    ];
     state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }
 
 #[test]
 fn test_email_bcc() {
+    // crate::tests::helpers::setup_logs_for_tests();
+
     let re = RuleEngine::new(&Some(rules_path!["bcc", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
@@ -48,6 +61,8 @@ fn test_email_bcc() {
 
 #[test]
 fn test_email_add_header() {
+    // crate::tests::helpers::setup_logs_for_tests();
+
     let re = RuleEngine::new(&Some(rules_path!["add_header", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
@@ -67,6 +82,8 @@ fn test_email_add_header() {
 
 #[test]
 fn test_context_write() {
+    // crate::tests::helpers::setup_logs_for_tests();
+
     std::fs::DirBuilder::new()
         .recursive(true)
         .create("./tests/generated")
@@ -78,8 +95,6 @@ fn test_context_write() {
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
-        retry: 0,
-        resolver: "default".to_string(),
         skipped: None,
     });
     assert_eq!(
@@ -116,6 +131,8 @@ This is a raw email.
 
 #[test]
 fn test_context_dump() {
+    // crate::tests::helpers::setup_logs_for_tests();
+
     std::fs::DirBuilder::new()
         .recursive(true)
         .create("./tests/generated")
@@ -127,8 +144,6 @@ fn test_context_dump() {
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
-        retry: 0,
-        resolver: "default".to_string(),
         skipped: None,
     });
     assert_eq!(

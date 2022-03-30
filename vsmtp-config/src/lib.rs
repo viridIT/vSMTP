@@ -10,7 +10,7 @@
 //
 #![allow(clippy::doc_markdown)]
 
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -25,7 +25,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 
 /// targets for log! macro
 pub mod log_channel {
@@ -65,6 +65,7 @@ pub mod builder {
 
 mod log4rs_helper;
 mod rustls_helper;
+mod trust_dns_helper;
 
 mod config;
 mod default;
@@ -72,6 +73,7 @@ mod default;
 pub use config::*;
 pub use log4rs_helper::get_log4rs_config;
 pub use rustls_helper::get_rustls_config;
+pub use trust_dns_helper::build_dns;
 
 /// Re-exported dependencies
 pub mod re {

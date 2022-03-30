@@ -17,6 +17,7 @@ vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
 vsmtp-rule-engine = { version = "^0.9", path = "../vsmtp-rule-engine" }
 vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
+vsmtp-delivery = { version = "^0.9", path = "../vsmtp-delivery" }
 
 serde_json = "1.0.79"
 async-trait = "0.1.53"
@@ -33,20 +34,12 @@ tokio = { version = "1.17.0", features = [
     "rt-multi-thread",
 ] }
 
+trust-dns-resolver = "0.21.1"
 time = { version = "0.3.7", default-features = false, features = [
     "std",
     "formatting",
     "macros",
 ] }
-
-lettre = { version = "0.10.0-rc.4", default-features = false, features = [
-    "smtp-transport",
-    "builder",
-    "tokio1-rustls-tls",
-    "tracing",
-] }
-
-trust-dns-resolver = "0.21.1"
 
 num_cpus = "1.13.1"
 
@@ -63,6 +56,13 @@ opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"] }
 serde = { version = "1.0.136", features = ["derive"] }
 serde_derive = "1.0.136"
 lazy_static = "1.4.0"
+log4rs = { version = "1.0.0" }
+lettre = { version = "0.10.0-rc.4", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }
 
 [[bench]]
 name = "receiver"

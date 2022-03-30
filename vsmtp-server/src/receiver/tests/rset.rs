@@ -14,38 +14,52 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{resolver::Resolver, test_receiver};
+use crate::{
+    receiver::{Connection, OnMail},
+    test_receiver,
+};
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
     re::anyhow,
 };
-use vsmtp_config::Config;
+use vsmtp_mail_parser::MailMimeParser;
 
 #[tokio::test]
 async fn reset_helo() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "foo");
-            assert_eq!(ctx.envelop.mail_from.full(), "a@b");
-            assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::try_from("b@c".to_string()).unwrap()])
-            );
-            assert!(match &ctx.body {
-                Body::Parsed(body) => body.headers.len() == 2,
-                _ => false,
-            });
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
 
+            assert_eq!(mail.envelop.helo, "foo");
+            assert_eq!(mail.envelop.mail_from.full(), "a@b");
+            assert_eq!(
+                mail.envelop.rcpt,
+                vec![Address::try_from("b@c".to_string()).unwrap().into()]
+            );
+            assert_eq!(body.headers.len(), 2);
+
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T,
+        on_mail => &mut T,
         [
             "HELO foo\r\n",
             "RSET\r\n",
@@ -123,25 +137,36 @@ async fn reset_rcpt_to_ok() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "foo2");
-            assert_eq!(ctx.envelop.mail_from.full(), "d@e");
-            assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::try_from("b@c".to_string()).unwrap()])
-            );
-            assert!(match &ctx.body {
-                Body::Parsed(body) => body.headers.is_empty(),
-                _ => false,
-            });
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
 
+            assert_eq!(mail.envelop.helo, "foo2");
+            assert_eq!(mail.envelop.mail_from.full(), "d@e");
+            assert_eq!(
+                mail.envelop.rcpt,
+                vec![Address::try_from("b@c".to_string()).unwrap().into()]
+            );
+            assert!(body.headers.is_empty());
+
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T,
+        on_mail => &mut T,
         [
             "HELO foo\r\n",
             "MAIL FROM:<a@b>\r\n",
@@ -198,28 +223,37 @@ async fn reset_rcpt_to_multiple_rcpt() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "foo");
-            assert_eq!(ctx.envelop.mail_from.full(), "foo2@foo");
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
+            assert_eq!(mail.envelop.helo, "foo");
+            assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");
             assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from([
-                    Address::try_from("toto2@bar".to_string()).unwrap(),
-                    Address::try_from("toto3@bar".to_string()).unwrap()
-                ])
+                mail.envelop.rcpt,
+                vec![
+                    Address::try_from("toto2@bar".to_string()).unwrap().into(),
+                    Address::try_from("toto3@bar".to_string()).unwrap().into()
+                ]
             );
-            assert!(match &ctx.body {
-                Body::Parsed(body) => body.headers.len() == 2,
-                _ => false,
-            });
-
+            assert_eq!(body.headers.len(), 2);
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T,
+        on_mail => &mut T,
         [
             "HELO foo\r\n",
             "MAIL FROM:<foo@foo>\r\n",

@@ -17,21 +17,25 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp_common::{
-    address::Address,
-    mail::BodyType,
-    mail_context::{Body, MailContext},
-    re::anyhow,
-};
+use vsmtp_common::{address::Address, mail_context::MailContext, re::anyhow};
 use vsmtp_config::Config;
-use vsmtp_server::{resolver::Resolver, test_receiver};
+use vsmtp_server::{
+    receiver::{Connection, OnMail},
+    test_receiver,
+};
 
 #[derive(Clone)]
-struct DefaultResolverTest;
+struct DefaultMailHandler;
 
 #[async_trait::async_trait]
-impl Resolver for DefaultResolverTest {
-    async fn deliver(&mut self, _: &Config, _: &MailContext) -> anyhow::Result<()> {
+impl OnMail for DefaultMailHandler {
+    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        &mut self,
+        conn: &mut Connection<'_, S>,
+        _: Box<MailContext>,
+        _: &mut Option<String>,
+    ) -> anyhow::Result<()> {
+        conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
         Ok(())
     }
 }
@@ -55,22 +59,23 @@ fn get_test_config() -> std::sync::Arc<Config> {
             .with_vsl("./benches/main.vsl")
             .with_default_app_logs()
             .without_services()
+            .with_system_dns()
             .validate()
             .unwrap(),
     )
 }
 
-fn make_bench<R>(
-    resolver: R,
+fn make_bench<M>(
+    mail_handler: M,
     b: &mut Bencher<WallTime>,
     (input, output, config): &(String, String, std::sync::Arc<Config>),
 ) where
-    R: Resolver + Clone + Send + Sync + 'static,
+    M: OnMail + Clone + Send,
 {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
             let _ = test_receiver! {
-                on_mail => resolver.clone(),
+                on_mail => &mut mail_handler.clone(),
                 with_config => config.clone().as_ref().clone(),
                 input,
                 output
@@ -84,20 +89,25 @@ fn criterion_benchmark(c: &mut Criterion) {
         struct T;
 
         #[async_trait::async_trait]
-        impl Resolver for T {
-            async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-                assert_eq!(ctx.envelop.helo, "foobar");
-                assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
+        impl OnMail for T {
+            async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+                &mut self,
+                conn: &mut Connection<'_, S>,
+                mail: Box<MailContext>,
+                _: &mut Option<String>,
+            ) -> anyhow::Result<()> {
+                assert_eq!(mail.envelop.helo, "foobar");
+                assert_eq!(mail.envelop.mail_from.full(), "john@doe");
                 assert_eq!(
-                    ctx.envelop.rcpt,
-                    std::collections::HashSet::from([
-                        Address::try_from("aa@bb".to_string()).unwrap()
-                    ])
+                    mail.envelop.rcpt,
+                    vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                 );
-                assert!(match &ctx.body {
-                    Body::Parsed(mail) => mail.body == BodyType::Undefined,
-                    _ => false,
-                });
+
+                if matches!(mail.body, vsmtp_common::mail_context::Body::Empty) {
+                    panic!("the email is not empty");
+                }
+
+                conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
 
                 Ok(())
             }
@@ -142,7 +152,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             .concat(),
             get_test_config(),
         ),
-        |b, input| make_bench(DefaultResolverTest, b, input),
+        |b, input| make_bench(DefaultMailHandler, b, input),
     );
 }
 

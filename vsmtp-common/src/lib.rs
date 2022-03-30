@@ -57,6 +57,12 @@ pub mod state;
 /// status of the mail context
 pub mod status;
 
+/// rcpt data structure.
+pub mod rcpt;
+
+/// transfer method for delivery / forwarding.
+pub mod transfer;
+
 mod mechanism;
 
 /// Data related to ESMTP Authentication

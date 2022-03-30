@@ -101,6 +101,7 @@ fn test_services() {
             command: "echo".to_string(),
             args: Some("test".to_string()),
         }})
+        .with_system_dns()
         .validate()
         .unwrap();
 

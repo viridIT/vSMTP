@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::modules::types::Rcpt;
 use crate::modules::EngineResult;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
@@ -73,13 +72,17 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw)]
-    pub fn rcpt(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<Rcpt> {
+    pub fn rcpt(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<Vec<vsmtp_common::address::Address>> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .clone())
+            .iter()
+            .map(|rcpt| rcpt.address.clone())
+            .collect())
     }
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw)]
@@ -111,20 +114,6 @@ pub mod mail_context {
             })?
             .message_id
             .clone())
-    }
-
-    #[rhai_fn(global, get = "retry", return_raw)]
-    pub fn retry(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<u64> {
-        this.read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .metadata
-            .as_ref()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "metadata are not available in this stage".into()
-            })?
-            .retry
-            .try_into()
-            .map_err::<Box<EvalAltResult>, _>(|e: std::num::TryFromIntError| e.to_string().into())
     }
 
     #[rhai_fn(global, return_raw)]

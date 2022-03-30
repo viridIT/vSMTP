@@ -31,6 +31,7 @@ fn parse() {
                     args: Some("{mail}".to_string())
                 }
             })
+            .with_system_dns()
             .validate()
             .unwrap()
     );

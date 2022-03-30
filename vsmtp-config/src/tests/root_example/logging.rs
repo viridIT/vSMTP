@@ -39,6 +39,7 @@ fn parse() {
                 "{d} - {m}{n}"
             )
             .without_services()
+            .with_system_dns()
             .validate()
             .unwrap()
     );

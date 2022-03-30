@@ -1,6 +1,6 @@
-use vsmtp_common::re::log;
-
+use crate::config::ConfigServerDNS;
 use crate::config::ConfigServerSMTPAuth;
+use vsmtp_common::re::log;
 
 use super::config::{
     Config, ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
@@ -87,6 +87,7 @@ fn construct() {
                     must_be_authenticated: false,
                 }),
             },
+            dns: ConfigServerDNS::default(),
         },
         app: ConfigApp {
             dirpath: "/var/spool/vsmtp/app".into(),

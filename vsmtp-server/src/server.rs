@@ -207,30 +207,29 @@ impl ServerVSMTP {
             config.clone(),
             &mut io_plain,
         );
-        handle_connection(
-            &mut conn,
-            tls_config,
-            rsasl,
-            rule_engine,
+
+        let mut mail_handler = crate::receiver::MailHandler {
             working_sender,
             delivery_sender,
-        )
-        .await
-        .map(|_| {
-            log::warn!(
-                "{{ elapsed: {:?} }} Connection {} closed cleanly",
-                begin.elapsed(),
-                client_addr,
-            );
-        })
-        .map_err(|error| {
-            log::error!(
-                "{{ elapsed: {:?} }} Connection {} closed with an error {}",
-                begin.elapsed(),
-                client_addr,
-                error,
-            );
-            error
-        })
+        };
+
+        handle_connection(&mut conn, tls_config, rsasl, rule_engine, &mut mail_handler)
+            .await
+            .map(|_| {
+                log::warn!(
+                    "{{ elapsed: {:?} }} Connection {} closed cleanly",
+                    begin.elapsed(),
+                    client_addr,
+                );
+            })
+            .map_err(|error| {
+                log::error!(
+                    "{{ elapsed: {:?} }} Connection {} closed with an error {}",
+                    begin.elapsed(),
+                    client_addr,
+                    error,
+                );
+                error
+            })
     }
 }

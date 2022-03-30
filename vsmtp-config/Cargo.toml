@@ -28,6 +28,9 @@ rustls = { version = "0.20.4", features = ["tls12", "logging"] }
 rustls-pemfile = "0.3.0"
 
 hostname = "0.3.1"
+trust-dns-resolver = { version = "0.21.1", default-features = false, features = [
+    "serde-config",
+] }
 
 semver = "1.0.6"
 

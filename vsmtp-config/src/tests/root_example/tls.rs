@@ -37,6 +37,7 @@ fn parse() {
             .with_default_vsl_settings()
             .with_default_app_logs()
             .without_services()
+            .with_system_dns()
             .validate()
             .unwrap()
     );
