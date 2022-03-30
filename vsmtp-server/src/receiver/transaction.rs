@@ -154,11 +154,15 @@ impl Transaction<'_> {
                 }
             }
 
-            (StateSMTP::Helo, Event::StartTls) if conn.config.server.tls.is_none() => {
+            (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
+                if conn.config.server.tls.is_none() =>
+            {
                 ProcessedEvent::Reply(SMTPReplyCode::Code454)
             }
 
-            (StateSMTP::Helo, Event::StartTls) if conn.config.server.tls.is_some() => {
+            (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
+                if conn.config.server.tls.is_some() =>
+            {
                 ProcessedEvent::ReplyChangeState(
                     StateSMTP::NegotiationTLS,
                     SMTPReplyCode::Greetings,

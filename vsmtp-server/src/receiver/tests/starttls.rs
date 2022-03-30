@@ -127,6 +127,14 @@ async fn test_starttls(
                 None => break,
             }
         }
+        if let Ok(Ok(last)) = tokio::time::timeout(
+            std::time::Duration::from_millis(100),
+            io.get_next_line_async(),
+        )
+        .await
+        {
+            output.push(last);
+        }
 
         pretty_assertions::assert_eq!(expected_output, output);
     });
@@ -170,6 +178,32 @@ async fn simple() -> anyhow::Result<()> {
             "221 Service closing transmission channel",
         ],
         20027,
+    )
+    .await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+async fn double_starttls() -> anyhow::Result<()> {
+    test_starttls(
+        "testserver.com",
+        std::sync::Arc::new(get_tls_config()),
+        &["EHLO client.com\r\n", "STARTTLS\r\n"],
+        &["EHLO secured.client.com\r\n", "STARTTLS\r\n", "QUIT\r\n"],
+        &[
+            "220 testserver.com Service ready",
+            "250-testserver.com",
+            "250-STARTTLS",
+            "250-8BITMIME",
+            "250 SMTPUTF8",
+            "220 testserver.com Service ready",
+            "250-testserver.com",
+            "250-8BITMIME",
+            "250 SMTPUTF8",
+            "220 testserver.com Service ready",
+            "554 5.5.1 Error: TLS already active",
+            "221 Service closing transmission channel",
+        ],
+        20037,
     )
     .await
 }

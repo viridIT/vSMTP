@@ -454,7 +454,7 @@ async fn test_receiver_9() {
             "501 Syntax error in parameters or arguments\r\n",
             "250 Ok\r\n",
             "501 Syntax error in parameters or arguments\r\n",
-            "503 Bad sequence of commands\r\n",
+            "454 TLS not available due to temporary reason\r\n",
             "503 Bad sequence of commands\r\n",
             "501 Syntax error in parameters or arguments\r\n",
             "501 Syntax error in parameters or arguments\r\n",

@@ -262,6 +262,7 @@ impl ConfigServerSMTP {
             SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n".to_string(),
             SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n".to_string(),
             SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n".to_string(),
+            SMTPReplyCode::TlsAlreadyUnderTls => "554 5.5.1 Error: TLS already active\r\n".to_string(),
             SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n".to_string(),
             SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported\r\n".to_string(),
             SMTPReplyCode::AuthSucceeded => "235 2.7.0 Authentication succeeded\r\n".to_string(),
