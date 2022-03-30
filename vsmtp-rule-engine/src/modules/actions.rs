@@ -375,11 +375,11 @@ pub mod actions {
         srv: &mut std::sync::Arc<ServerAPI>,
         mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         queue: &str,
-    ) -> EngineResult<()> {
+    ) -> EngineResult<Status> {
         disable_delivery_all(&mut ctx)?;
 
         let ctx = ctx.read().map_err::<Box<EvalAltResult>, _>(|_| {
-            "failed to dump email: mail context poisoned".into()
+            "failed to quarantine email: mail context poisoned".into()
         })?;
 
         let mut path = srv.config.app.dirpath.join(queue);
@@ -398,16 +398,22 @@ pub mod actions {
             .append(true)
             .open(path)
         {
-            Ok(mut file) => std::io::Write::write_all(
-                &mut file,
-                serde_json::to_string_pretty(&*ctx)
-                    .map_err::<Box<EvalAltResult>, _>(|err| {
-                        format!("failed to dump email: {err:?}").into()
-                    })?
-                    .as_bytes(),
-            )
-            .map_err(|err| format!("failed to dump email: {err:?}").into()),
-            Err(err) => Err(format!("failed to dump email: {err:?}").into()),
+            Ok(mut file) => {
+                std::io::Write::write_all(
+                    &mut file,
+                    serde_json::to_string_pretty(&*ctx)
+                        .map_err::<Box<EvalAltResult>, _>(|err| {
+                            format!("failed to quarantine email: {err:?}").into()
+                        })?
+                        .as_bytes(),
+                )
+                .map_err::<Box<EvalAltResult>, _>(|err| {
+                    format!("failed to quarantine email: {err:?}").into()
+                })?;
+
+                Ok(Status::Deny)
+            }
+            Err(err) => Err(format!("failed to quarantine email: {err:?}").into()),
         }
     }
 
