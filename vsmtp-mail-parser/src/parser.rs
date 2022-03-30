@@ -19,6 +19,7 @@ use super::helpers::get_mime_type;
 use super::helpers::read_header;
 use vsmtp_common::mail::{BodyType, Mail, MailHeaders};
 use vsmtp_common::mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
+use vsmtp_common::re::log;
 
 /// BoundaryType
 /// a boundary serves as a delimiter between mime parts in a multipart section.

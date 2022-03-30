@@ -1,8 +1,8 @@
 [package]
 edition = "2021"
 
-name = "vsmtp-rule-engine"
-version = "0.9.7"
+name = "vsmtp-delivery"
+version = "0.9.3"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -16,12 +16,7 @@ publish = false
 vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
 
-serde_json = "1.0.79"
-
-addr = { version = "0.15.3" }
-regex = "1.5.5"
-iprange = "0.6.7"
-ipnet = "2.4.0"
+async-trait = "0.1.52"
 
 time = { version = "0.3.7", default-features = false, features = [
     "std",
@@ -29,20 +24,20 @@ time = { version = "0.3.7", default-features = false, features = [
     "macros",
 ] }
 
-rhai = { git = "https://github.com/rhaiscript/rhai.git", version = "1.5.0", features = [
-    "unchecked",
-    "sync",
-    "internals",
-] }
+anyhow = "1.0.56"
+log = "0.4.14"
 
-
+users = { version = "0.11.0", features = [] }
+trust-dns-resolver = "0.21.1"
 lettre = { version = "0.10.0-rc.4", default-features = false, features = [
     "smtp-transport",
+    "pool",
     "builder",
     "tokio1-rustls-tls",
     "tracing",
 ] }
 
+[dev-dependencies]
 tokio = { version = "1.17.0", features = [
     "macros",
     "time",
@@ -51,9 +46,3 @@ tokio = { version = "1.17.0", features = [
     "io-util",
     "rt-multi-thread",
 ] }
-
-wait-timeout = "0.2.0"
-
-[dev-dependencies]
-vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
-log4rs = { version = "1.0.0" }

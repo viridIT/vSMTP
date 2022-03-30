@@ -13,12 +13,12 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+ **/
 use anyhow::Context;
-use vsmtp_common::mail_context::MailContext;
-use vsmtp_config::{log4rs_helper::get_log4rs_config, Config};
+use vsmtp_common::re::anyhow;
+use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{processes::ProcessMessage, resolver::Resolver, server::ServerVSMTP};
+use vsmtp_server::{processes::ProcessMessage, server::ServerVSMTP};
 
 #[derive(Debug, serde::Deserialize)]
 struct StressConfig {
@@ -59,6 +59,7 @@ async fn listen_and_serve() {
         .with_vsl("./tests/stress/main.vsl")
         .with_app_logs("./tmp/stress/app.log")
         .without_services()
+        .with_system_dns()
         .validate()
         .unwrap();
 
@@ -94,15 +95,6 @@ async fn listen_and_serve() {
         delivery_sender,
     )
     .unwrap();
-
-    struct Nothing;
-
-    #[async_trait::async_trait]
-    impl Resolver for Nothing {
-        async fn deliver(&mut self, _: &Config, _: &MailContext) -> anyhow::Result<()> {
-            Ok(())
-        }
-    }
 
     tokio::time::timeout(SERVER_TIMEOUT, server.listen_and_serve())
         .await

@@ -60,7 +60,7 @@ fn test_chown_file() {
 
     assert!(chown(
         std::path::Path::new("./no_such_file_exist"),
-        Some(&user),
+        Some(user.uid()),
         None
     )
     .is_err());
@@ -72,7 +72,7 @@ fn test_chown_file() {
         .open(file_to_create)
         .unwrap();
 
-    assert!(chown(std::path::Path::new(file_to_create), Some(&user), None).is_ok());
+    assert!(chown(std::path::Path::new(file_to_create), Some(user.uid()), None).is_ok());
 
     std::fs::remove_file(file_to_create).unwrap();
 }

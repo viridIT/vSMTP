@@ -1,4 +1,4 @@
-use vsmtp_common::{code::SMTPReplyCode, collection};
+use vsmtp_common::{code::SMTPReplyCode, collection, re::log};
 
 use crate::Config;
 
@@ -39,6 +39,7 @@ fn parse() {
                 "{d} - {m}{n}"
             )
             .without_services()
+            .with_system_dns()
             .validate()
             .unwrap()
     );

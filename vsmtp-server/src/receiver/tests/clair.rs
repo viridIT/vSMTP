@@ -14,12 +14,16 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{receiver::test_helpers::get_regular_config, resolver::Resolver, test_receiver};
+use crate::{
+    receiver::{test_helpers::get_regular_config, Connection, OnMail},
+    test_receiver,
+};
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
+    re::anyhow,
 };
-use vsmtp_config::Config;
+use vsmtp_mail_parser::MailMimeParser;
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
@@ -28,26 +32,28 @@ async fn test_receiver_1() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "foobar");
-            assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            assert_eq!(mail.envelop.helo, "foobar");
+            assert_eq!(mail.envelop.mail_from.full(), "john@doe");
             assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from([Address::try_from("aa@bb".to_string()).unwrap()])
+                mail.envelop.rcpt,
+                vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
             );
-            assert!(match &ctx.body {
-                Body::Parsed(body) => body.headers.is_empty(),
-                _ => false,
-            });
-            assert!(ctx.metadata.is_some());
+            assert!(mail.metadata.is_some());
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
 
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T,
+        on_mail => &mut T,
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john@doe>\r\n",
@@ -231,49 +237,58 @@ async fn test_receiver_13() {
     }
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            helo_domain: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            *helo_domain = Some(mail.envelop.helo.clone());
+
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
+
             match self.count {
                 0 => {
-                    assert_eq!(ctx.envelop.helo, "foobar");
-                    assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
+                    assert_eq!(mail.envelop.helo, "foobar");
+                    assert_eq!(mail.envelop.mail_from.full(), "john@doe");
                     assert_eq!(
-                        ctx.envelop.rcpt,
-                        std::collections::HashSet::from([
+                        mail.envelop.rcpt,
+                        vec![vsmtp_common::rcpt::Rcpt::new(
                             Address::try_from("aa@bb".to_string()).unwrap()
-                        ])
+                        )]
                     );
-                    assert!(match &ctx.body {
-                        Body::Parsed(body) => body.headers.len() == 2,
-                        _ => false,
-                    });
-                    assert!(ctx.metadata.is_some());
+                    assert!(body.headers.len() == 2);
+                    assert!(mail.metadata.is_some());
                 }
                 1 => {
-                    assert_eq!(ctx.envelop.helo, "foobar");
-                    assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
+                    assert_eq!(mail.envelop.helo, "foobar");
+                    assert_eq!(mail.envelop.mail_from.full(), "john2@doe");
                     assert_eq!(
-                        ctx.envelop.rcpt,
-                        std::collections::HashSet::from([
-                            Address::try_from("aa2@bb".to_string()).unwrap()
-                        ])
+                        mail.envelop.rcpt,
+                        vec![Address::try_from("aa2@bb".to_string()).unwrap().into()]
                     );
-                    assert!(match &ctx.body {
-                        Body::Parsed(body) => body.headers.len() == 2,
-                        _ => false,
-                    });
+                    assert!(body.headers.len() == 2);
                 }
                 _ => panic!(),
             }
 
             self.count += 1;
 
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T { count: 0 },
+        on_mail => &mut T { count: 0 },
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john@doe>\r\n",
@@ -318,49 +333,54 @@ async fn test_receiver_14() {
     }
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
+
             match self.count {
                 0 => {
-                    assert_eq!(ctx.envelop.helo, "foobar");
-                    assert_eq!(ctx.envelop.mail_from.full(), "john@doe");
+                    assert_eq!(mail.envelop.helo, "foobar");
+                    assert_eq!(mail.envelop.mail_from.full(), "john@doe");
                     assert_eq!(
-                        ctx.envelop.rcpt,
-                        std::collections::HashSet::from([
-                            Address::try_from("aa@bb".to_string()).unwrap()
-                        ])
+                        mail.envelop.rcpt,
+                        vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                     );
-                    assert!(match &ctx.body {
-                        Body::Parsed(body) => body.headers.len() == 2,
-                        _ => false,
-                    });
+                    assert_eq!(body.headers.len(), 2);
                 }
                 1 => {
-                    assert_eq!(ctx.envelop.helo, "foobar2");
-                    assert_eq!(ctx.envelop.mail_from.full(), "john2@doe");
+                    assert_eq!(mail.envelop.helo, "foobar2");
+                    assert_eq!(mail.envelop.mail_from.full(), "john2@doe");
                     assert_eq!(
-                        ctx.envelop.rcpt,
-                        std::collections::HashSet::from([
-                            Address::try_from("aa2@bb".to_string()).unwrap()
-                        ])
+                        mail.envelop.rcpt,
+                        vec![Address::try_from("aa2@bb".to_string()).unwrap().into()]
                     );
-                    assert!(match &ctx.body {
-                        Body::Parsed(body) => body.headers.len() == 2,
-                        _ => false,
-                    });
-                    assert!(ctx.metadata.is_some());
+                    assert_eq!(body.headers.len(), 2);
+                    assert!(mail.metadata.is_some());
                 }
                 _ => panic!(),
             }
 
             self.count += 1;
 
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+
             Ok(())
         }
     }
 
     assert!(test_receiver! {
-        on_mail => T { count: 0 },
+        on_mail => &mut T { count: 0 },
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john@doe>\r\n",

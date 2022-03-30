@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,9 +13,12 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use anyhow::Context;
-use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::{
+    mail_context::MailContext,
+    re::{anyhow, log},
+};
 use vsmtp_config::{log_channel::RECEIVER, Config};
 
 /// identifiers for all mail queues.

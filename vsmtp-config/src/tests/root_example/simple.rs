@@ -10,6 +10,7 @@ fn parse() {
             .unwrap()
             .with_server_name("my.fqdn.com")
             .with_user_group_and_default_system("root", "root")
+            .unwrap()
             .with_interfaces(
                 &["127.0.0.1:25".parse().unwrap()],
                 &["127.0.0.1:587".parse().unwrap()],
@@ -25,6 +26,7 @@ fn parse() {
             .with_default_vsl_settings()
             .with_default_app_logs()
             .without_services()
+            .with_system_dns()
             .validate()
             .unwrap()
     );

@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,13 +13,14 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::{envelop::Envelop, mail::Mail, status::Status};
 
 /// average size of a mail
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
 /// metadata
+/// TODO: remove retry & resolver fields.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MessageMetadata {
     /// instant when the last "MAIL FROM" has been received.
@@ -27,10 +28,6 @@ pub struct MessageMetadata {
     /// unique id generated when the "MAIL FROM" has been received.
     /// format: {mail timestamp}{connection timestamp}{process id}
     pub message_id: String,
-    /// number of times the mta tried to send the email.
-    pub retry: usize,
-    /// the resolver chosen to deliver the message.
-    pub resolver: String,
     /// whether further rule analysis has been skipped.
     pub skipped: Option<Status>,
 }
@@ -40,8 +37,6 @@ impl Default for MessageMetadata {
         Self {
             timestamp: std::time::SystemTime::now(),
             message_id: String::default(),
-            retry: Default::default(),
-            resolver: "default".to_string(),
             skipped: None,
         }
     }
@@ -59,7 +54,6 @@ pub enum Body {
 }
 
 /// Representation of one mail obtained by a transaction SMTP
-#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
     /// time of connection by the client.
@@ -72,4 +66,18 @@ pub struct MailContext {
     pub body: Body,
     /// metadata
     pub metadata: Option<MessageMetadata>,
+}
+
+impl MailContext {
+    /// serialize the mail context using serde.
+    ///
+    /// # Errors
+    /// * Failed to read the file
+    /// * Failed deserialize to the MailContext struct.
+    pub fn from_file<P>(file: P) -> anyhow::Result<Self>
+    where
+        P: AsRef<std::path::Path>,
+    {
+        Ok(serde_json::from_str(&std::fs::read_to_string(file)?)?)
+    }
 }

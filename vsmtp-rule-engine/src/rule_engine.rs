@@ -23,6 +23,7 @@ use rhai::{
 };
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
+use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::SRULES;
@@ -82,8 +83,8 @@ impl<'a> RuleState<'a> {
         }
     }
 
-    ///
     #[must_use]
+    /// create a RuleState from an existing mail context (f.e. when deserializing a context)
     pub fn with_context(config: &Config, mail_context: MailContext) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(ServerAPI {
@@ -115,7 +116,8 @@ impl<'a> RuleState<'a> {
     }
 
     /// fetch the email context (possibly) mutated by the user's rules.
-    pub fn get_context(&mut self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
+    #[must_use]
+    pub fn get_context(&self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
         self.mail_context.clone()
     }
 
@@ -552,7 +554,7 @@ impl RuleEngine {
                 },
             )
             // NOTE: is their a way to defined iterators directly in modules ?
-            .register_iterator::<modules::types::Rcpt>()
+            .register_iterator::<Vec<vsmtp_common::address::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
         log::debug!(target: SRULES, "compiling rhai scripts ...");

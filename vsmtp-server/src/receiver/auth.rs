@@ -3,7 +3,7 @@ use crate::server::SaslBackend;
 use vsmtp_common::{
     auth::Mechanism,
     code::SMTPReplyCode,
-    re::{base64, rsasl},
+    re::{anyhow, log, rsasl},
 };
 
 /// Result of the AUTH command

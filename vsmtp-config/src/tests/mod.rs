@@ -1,4 +1,6 @@
+use crate::config::ConfigServerDNS;
 use crate::config::ConfigServerSMTPAuth;
+use vsmtp_common::re::log;
 
 use super::config::{
     Config, ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
@@ -24,8 +26,8 @@ fn construct() {
             domain: "domain.com".to_string(),
             client_count_max: 100,
             system: ConfigServerSystem {
-                user: "vsmtp".to_string(),
-                group: "vsmtp".to_string(),
+                user: users::get_user_by_name("root").unwrap(),
+                group: users::get_group_by_name("root").unwrap(),
                 thread_pool: ConfigServerSystemThreadPool {
                     receiver: 6,
                     processing: 6,
@@ -85,6 +87,7 @@ fn construct() {
                     must_be_authenticated: false,
                 }),
             },
+            dns: ConfigServerDNS::default(),
         },
         app: ConfigApp {
             dirpath: "/var/spool/vsmtp/app".into(),

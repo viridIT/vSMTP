@@ -57,6 +57,12 @@ pub mod state;
 /// status of the mail context
 pub mod status;
 
+/// rcpt data structure.
+pub mod rcpt;
+
+/// transfer method for delivery / forwarding.
+pub mod transfer;
+
 mod mechanism;
 
 /// Data related to ESMTP Authentication
@@ -74,8 +80,8 @@ mod tests {
 ///
 pub mod re {
     pub use anyhow;
-    pub use base64;
     pub use libc;
+    pub use log;
     pub use rsasl;
     pub use strum;
 }

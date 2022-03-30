@@ -1,9 +1,9 @@
 use anyhow::Context;
 use vsmtp_common::{
     auth::Mechanism,
-    re::{base64, rsasl, strum},
+    re::{anyhow, rsasl, strum},
 };
-use vsmtp_config::{config::ConfigServerSMTPAuth, Config};
+use vsmtp_config::{Config, ConfigServerSMTPAuth};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use crate::{

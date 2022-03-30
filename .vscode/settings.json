@@ -22,6 +22,7 @@
         "helo",
         "humantime",
         "indextoname",
+        "inet",
         "iprange",
         "lettre",
         "libc",
@@ -61,17 +62,35 @@
     "todohighlight.isCaseSensitive": false,
     "todohighlight.keywords": [
         {
+            "text": "todo!",
+            "color": "grey",
+            "backgroundColor": "gold",
+            "overviewRulerColor": "grey"
+        },
+        {
             "text": "NOTE:",
-            "color": "#000000",
+            "color": "black",
             "backgroundColor": "cyan",
             "overviewRulerColor": "grey"
         },
         {
             "text": "https://datatracker.ietf.org/doc/html/rfc",
-            "color": "#000000",
+            "color": "black",
             "backgroundColor": "olive",
             "overviewRulerColor": "grey",
             "cursor": "pointer",
+        },
+        {
+            "text": "unwrap()",
+            "color": "black",
+            "backgroundColor": "red",
+            "overviewRulerColor": "grey",
+        },
+        {
+            "text": "[allow(",
+            "color": "black",
+            "backgroundColor": "red",
+            "overviewRulerColor": "grey",
         }
     ],
     "rust-analyzer.checkOnSave.command": "clippy",
@@ -79,5 +98,9 @@
         "*.vsl": "rhai"
     },
     "files.insertFinalNewline": true,
-    "files.trimFinalNewlines": true
+    "files.trimFinalNewlines": true,
+    "lldb.displayFormat": "auto",
+    "lldb.showDisassembly": "auto",
+    "lldb.dereferencePointers": true,
+    "lldb.consoleMode": "commands"
 }

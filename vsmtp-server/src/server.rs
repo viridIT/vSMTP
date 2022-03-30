@@ -21,8 +21,11 @@ use crate::{
         handle_connection, IoService, {Connection, ConnectionKind},
     },
 };
-use vsmtp_common::{code::SMTPReplyCode, re::rsasl};
-use vsmtp_config::{rustls_helper::get_rustls_config, Config};
+use vsmtp_common::{
+    code::SMTPReplyCode,
+    re::{anyhow, log, rsasl},
+};
+use vsmtp_config::{get_rustls_config, re::rustls, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 pub(crate) type SaslBackend = rsasl::DiscardOnDrop<rsasl::SASL<(), ()>>;
@@ -204,30 +207,29 @@ impl ServerVSMTP {
             config.clone(),
             &mut io_plain,
         );
-        handle_connection(
-            &mut conn,
-            tls_config,
-            rsasl,
-            rule_engine,
+
+        let mut mail_handler = crate::receiver::MailHandler {
             working_sender,
             delivery_sender,
-        )
-        .await
-        .map(|_| {
-            log::warn!(
-                "{{ elapsed: {:?} }} Connection {} closed cleanly",
-                begin.elapsed(),
-                client_addr,
-            );
-        })
-        .map_err(|error| {
-            log::error!(
-                "{{ elapsed: {:?} }} Connection {} closed with an error {}",
-                begin.elapsed(),
-                client_addr,
-                error,
-            );
-            error
-        })
+        };
+
+        handle_connection(&mut conn, tls_config, rsasl, rule_engine, &mut mail_handler)
+            .await
+            .map(|_| {
+                log::warn!(
+                    "{{ elapsed: {:?} }} Connection {} closed cleanly",
+                    begin.elapsed(),
+                    client_addr,
+                );
+            })
+            .map_err(|error| {
+                log::error!(
+                    "{{ elapsed: {:?} }} Connection {} closed with an error {}",
+                    begin.elapsed(),
+                    client_addr,
+                    error,
+                );
+                error
+            })
     }
 }

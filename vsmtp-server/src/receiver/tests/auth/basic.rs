@@ -1,15 +1,16 @@
+use crate::{
+    receiver::{
+        tests::auth::{get_auth_config, TestAuth},
+        Connection, OnMail,
+    },
+    test_receiver,
+};
 use vsmtp_common::{
     address::Address,
     mail_context::MailContext,
-    re::{base64, rsasl},
+    re::{anyhow, rsasl},
 };
-use vsmtp_config::{config::ConfigServerSMTPAuth, Config};
-
-use crate::{
-    receiver::tests::auth::{get_auth_config, TestAuth},
-    resolver::Resolver,
-    test_receiver,
-};
+use vsmtp_config::ConfigServerSMTPAuth;
 
 #[tokio::test]
 async fn plain_in_clair_secured() {
@@ -38,17 +39,21 @@ async fn plain_in_clair_unsecured() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "client.com");
-            assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            assert_eq!(mail.envelop.helo, "client.com");
+            assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from(
-                    [Address::try_from("joe@doe".to_string()).unwrap()]
-                )
+                mail.envelop.rcpt,
+                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
@@ -68,7 +73,7 @@ async fn plain_in_clair_unsecured() {
             rsasl
         },
         with_config => config,
-        on_mail => T,
+        on_mail => &mut T,
         [
             "EHLO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "hello", "world"))),
@@ -101,17 +106,21 @@ async fn plain_in_clair_unsecured_utf8() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "client.com");
-            assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            assert_eq!(mail.envelop.helo, "client.com");
+            assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from(
-                    [Address::try_from("joe@doe".to_string()).unwrap()]
-                )
+                mail.envelop.rcpt,
+                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
@@ -131,7 +140,7 @@ async fn plain_in_clair_unsecured_utf8() {
             rsasl
         },
         with_config => config,
-        on_mail => T,
+        on_mail => &mut T,
         [
             "EHLO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "héllo", "wÖrld"))),
@@ -287,17 +296,21 @@ async fn plain_in_clair_unsecured_without_initial_response() {
     struct T;
 
     #[async_trait::async_trait]
-    impl Resolver for T {
-        async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-            assert_eq!(ctx.envelop.helo, "client.com");
-            assert_eq!(ctx.envelop.mail_from.full(), "foo@bar");
+    impl OnMail for T {
+        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            &mut self,
+            conn: &mut Connection<'_, S>,
+            mail: Box<MailContext>,
+            _: &mut Option<String>,
+        ) -> anyhow::Result<()> {
+            assert_eq!(mail.envelop.helo, "client.com");
+            assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(
-                ctx.envelop.rcpt,
-                std::collections::HashSet::from(
-                    [Address::try_from("joe@doe".to_string()).unwrap()]
-                )
+                mail.envelop.rcpt,
+                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
     }
@@ -317,7 +330,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
             rsasl
         },
         with_config => config,
-        on_mail => T,
+        on_mail => &mut T,
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN\r\n",

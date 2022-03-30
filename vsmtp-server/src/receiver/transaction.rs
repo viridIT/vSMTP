@@ -23,6 +23,7 @@ use vsmtp_common::{
     envelop::Envelop,
     event::Event,
     mail_context::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
+    re::{anyhow, log},
     state::StateSMTP,
     status::Status,
 };
@@ -327,9 +328,8 @@ impl Transaction<'_> {
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
-            // FIXME:
-            mail_from: Address::try_from("default@default.com".to_string()).expect(""),
-            rcpt: std::collections::HashSet::default(),
+            mail_from: Address::try_from("no@address.net".to_string()).unwrap(),
+            rcpt: vec![],
         };
     }
 
@@ -364,8 +364,6 @@ impl Transaction<'_> {
                             .collect::<String>(),
                         std::process::id()
                     ),
-                    retry: 0,
-                    resolver: "default".to_string(),
                     skipped: self.rule_state.skipped(),
                 });
 
@@ -384,7 +382,7 @@ impl Transaction<'_> {
                     .unwrap()
                     .envelop
                     .rcpt
-                    .insert(rcpt_to);
+                    .push(vsmtp_common::rcpt::Rcpt::new(rcpt_to));
             }
         }
     }
@@ -492,7 +490,7 @@ impl Transaction<'_> {
                                 conn.send_code(reply_to_send)?;
                             }
                             ProcessedEvent::TransactionCompleted(mail) => {
-                                return Ok(TransactionResult::Mail(mail))
+                                return Ok(TransactionResult::Mail(mail));
                             }
                         }
                     }

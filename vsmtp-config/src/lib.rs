@@ -10,7 +10,7 @@
 //
 #![allow(clippy::doc_markdown)]
 
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -25,7 +25,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 
 /// targets for log! macro
 pub mod log_channel {
@@ -45,36 +45,49 @@ mod tests;
 mod parser {
     pub mod semver;
     pub mod socket_addr;
-    #[doc(hidden)]
+    pub mod syst_group;
+    pub mod syst_user;
     pub mod tls_certificate;
-    #[doc(hidden)]
     pub mod tls_private_key;
     pub mod tls_protocol_version;
 }
 
-mod builder {
-    ///
+/// The configuration builder for programmatically instantiating
+pub mod builder {
+    mod wants;
+    mod with;
+
+    #[doc(hidden)]
     pub mod validate;
-
-    ///
-    pub mod wants;
-
-    ///
-    pub mod with;
+    pub use wants::*;
+    pub use with::*;
 }
-#[doc(hidden)]
-pub mod log4rs_helper;
-#[doc(hidden)]
-pub mod rustls_helper;
 
-pub use parser::{tls_certificate, tls_private_key};
+mod log4rs_helper;
+mod rustls_helper;
+mod trust_dns_helper;
 
-pub mod config;
+mod config;
 mod default;
 
-pub use builder::{validate, wants::*, with::*};
-pub use config::{Config, Service, TlsSecurityLevel};
+pub use config::*;
+pub use log4rs_helper::get_log4rs_config;
+pub use rustls_helper::get_rustls_config;
+pub use trust_dns_helper::build_dns;
+
+/// Re-exported dependencies
+pub mod re {
+    pub use log4rs;
+    pub use rustls;
+    // NOTE: this one should not be re-exported (because tests only)
+    pub use rustls_pemfile;
+    pub use users;
+}
+
+use builder::{Builder, WantsVersion};
 use vsmtp_common::re::anyhow;
+
+use crate::builder::WantsValidate;
 
 impl Config {
     ///
@@ -93,6 +106,11 @@ impl Config {
     /// * one field is unknown
     /// * the version requirement are not fulfilled
     /// * a mandatory field is not provided (no default value)
+    ///
+    /// # Panics
+    ///
+    /// * if the field `user` or `group` are missing, the default value `vsmtp`
+    ///   will be used, if no such user/group exist, builder will panic
     ///
     /// [TOML]: https://github.com/toml-lang/toml
     pub fn from_toml(input: &str) -> anyhow::Result<Self> {

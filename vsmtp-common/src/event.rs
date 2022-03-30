@@ -1,5 +1,3 @@
-use crate::mechanism::Mechanism;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -17,6 +15,7 @@ use crate::mechanism::Mechanism;
  *
  **/
 use super::code::SMTPReplyCode;
+use crate::mechanism::Mechanism;
 
 /// See "SMTP Service Extension for 8-bit MIME Transport"
 /// https://datatracker.ietf.org/doc/html/rfc6152
@@ -290,7 +289,6 @@ impl Event {
 
         // TODO: parse "<Postmaster@" Domain ">" / "<Postmaster>"
 
-        // FIXME: false positive ?
         #[allow(clippy::missing_const_for_fn)]
         fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
             if args.is_empty() {

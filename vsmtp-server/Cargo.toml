@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-server"
-version = "0.9.2"
+version = "0.9.7"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -17,16 +17,13 @@ vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
 vsmtp-rule-engine = { version = "^0.9", path = "../vsmtp-rule-engine" }
 vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
-
-log = "0.4.14"
-anyhow = "1.0.56"
+vsmtp-delivery = { version = "^0.9", path = "../vsmtp-delivery" }
 
 serde_json = "1.0.79"
-async-trait = "0.1.52"
+async-trait = "0.1.53"
 fastrand = "1.7.0"
 
-rustls = { version = "0.20.4", features = ["tls12", "logging"] }
-rustls-pemfile = "0.3.0"
+base64 = "0.13.0"
 
 tokio = { version = "1.17.0", features = [
     "macros",
@@ -37,25 +34,14 @@ tokio = { version = "1.17.0", features = [
     "rt-multi-thread",
 ] }
 
+trust-dns-resolver = "0.21.1"
 time = { version = "0.3.7", default-features = false, features = [
     "std",
     "formatting",
     "macros",
 ] }
 
-lettre = { version = "0.10.0-rc.4", default-features = false, features = [
-    "smtp-transport",
-    "builder",
-    "tokio1-rustls-tls",
-    "tracing",
-] }
-
-trust-dns-resolver = "0.21.1"
-
-users = { version = "0.11.0", features = [] }
-
 num_cpus = "1.13.1"
-
 
 ## TODO: move in dev-deps ; Protocol
 pretty_assertions = "1.2.0"
@@ -71,7 +57,12 @@ serde = { version = "1.0.136", features = ["derive"] }
 serde_derive = "1.0.136"
 lazy_static = "1.4.0"
 log4rs = { version = "1.0.0" }
-
+lettre = { version = "0.10.0-rc.4", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }
 
 [[bench]]
 name = "receiver"

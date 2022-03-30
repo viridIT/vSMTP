@@ -1,7 +1,30 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+
 #![allow(clippy::module_name_repetitions)]
 #![allow(missing_docs)]
+#![allow(clippy::use_self)]
+
 use crate::parser::{tls_certificate, tls_private_key};
-use vsmtp_common::{auth::Mechanism, code::SMTPReplyCode, re::anyhow};
+use vsmtp_common::{
+    auth::Mechanism,
+    code::SMTPReplyCode,
+    re::{anyhow, log},
+};
 
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -37,20 +60,38 @@ pub struct ConfigServer {
     pub tls: Option<ConfigServerTls>,
     #[serde(default)]
     pub smtp: ConfigServerSMTP,
+    #[serde(default)]
+    pub dns: ConfigServerDNS,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerSystem {
-    // TODO: should be users::
     #[serde(default = "ConfigServerSystem::default_user")]
-    pub user: String,
-    // TODO: should be users::
+    #[serde(
+        serialize_with = "crate::parser::syst_user::serialize",
+        deserialize_with = "crate::parser::syst_user::deserialize"
+    )]
+    pub user: users::User,
     #[serde(default = "ConfigServerSystem::default_group")]
-    pub group: String,
+    #[serde(
+        serialize_with = "crate::parser::syst_group::serialize",
+        deserialize_with = "crate::parser::syst_group::deserialize"
+    )]
+    pub group: users::Group,
     #[serde(default)]
     pub thread_pool: ConfigServerSystemThreadPool,
 }
+
+impl PartialEq for ConfigServerSystem {
+    fn eq(&self, other: &Self) -> bool {
+        self.user.uid() == other.user.uid()
+            && self.group.gid() == other.group.gid()
+            && self.thread_pool == other.thread_pool
+    }
+}
+
+impl Eq for ConfigServerSystem {}
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
@@ -232,6 +273,23 @@ pub struct ConfigServerSMTP {
     pub codes: std::collections::BTreeMap<SMTPReplyCode, String>,
     // NOTE: extension settings here
     pub auth: Option<ConfigServerSMTPAuth>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[allow(clippy::large_enum_variant)]
+#[serde(tag = "type", deny_unknown_fields)]
+pub enum ConfigServerDNS {
+    #[serde(rename = "system")]
+    System,
+    #[serde(rename = "google")]
+    Google,
+    #[serde(rename = "cloudflare")]
+    CloudFlare,
+    #[serde(rename = "custom")]
+    Custom {
+        config: trust_dns_resolver::config::ResolverConfig,
+        options: trust_dns_resolver::config::ResolverOpts,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

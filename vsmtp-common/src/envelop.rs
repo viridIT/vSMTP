@@ -15,16 +15,17 @@
  *
 **/
 use crate::address::Address;
+use crate::rcpt::Rcpt;
 
 /// Data receive during a smtp transaction
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Envelop {
-    ///
+    /// result of the HELO/HELO command.
     pub helo: String,
-    ///
+    /// the sender of the email received using the MAIL FROM command.
     pub mail_from: Address,
-    ///
-    pub rcpt: std::collections::HashSet<Address>,
+    /// a list of recipients received using the RCPT TO command.
+    pub rcpt: Vec<Rcpt>,
 }
 
 impl Default for Envelop {
@@ -33,7 +34,7 @@ impl Default for Envelop {
             helo: String::default(),
             // FIXME:
             mail_from: Address::try_from("default@domain.com".to_string()).expect("valid address"),
-            rcpt: std::collections::HashSet::default(),
+            rcpt: vec![],
         }
     }
 }

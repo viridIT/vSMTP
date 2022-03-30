@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use vsmtp_common::address::Address;
+use vsmtp_common::{
+    address::Address,
+    re::{anyhow, log},
+};
 
 /// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
@@ -162,7 +165,9 @@ impl Object {
                                 Ok(domain) => content.push(Self::Fqdn(domain.to_string())),
                                 Err(_) => anyhow::bail!("'{}' is not a valid fqdn.", value),
                             },
-                            "address" => content.push(Self::Address(Address::try_from(line)?)),
+                            "address" => {
+                                content.push(Self::Address(Address::try_from(line)?));
+                            }
                             "string" => content.push(Self::Str(line)),
                             "ident" => content.push(Self::Identifier(line)),
                             "regex" => content.push(Self::Regex(

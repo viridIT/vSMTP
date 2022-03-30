@@ -26,6 +26,8 @@ use rhai::plugin::{
 use vsmtp_common::address::Address;
 use vsmtp_common::mail_context::Body;
 use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::re::anyhow;
+use vsmtp_common::re::log;
 use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::URULES;
 
@@ -33,7 +35,6 @@ use vsmtp_config::log_channel::URULES;
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod actions {
-
     /// the transaction if forced accepted, skipping rules of next stages and going the pre-queue
     #[must_use]
     pub const fn faccept() -> Status {
@@ -78,12 +79,7 @@ pub mod actions {
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.
     #[rhai_fn(return_raw)]
-    pub fn send_mail(
-        from: &str,
-        to: rhai::Array,
-        path: &str,
-        relay: &str,
-    ) -> Result<(), Box<EvalAltResult>> {
+    pub fn send_mail(from: &str, to: rhai::Array, path: &str, relay: &str) -> EngineResult<()> {
         // TODO: email could be cached using an object. (obj mail "my_mail" "/path/to/mail")
         let email = std::fs::read_to_string(path).map_err::<Box<EvalAltResult>, _>(|err| {
             format!("vsl::send_mail failed, email path to send unavailable: {err:?}").into()
@@ -123,7 +119,7 @@ pub mod actions {
     /// use the user cache to check if a user exists on the system.
     #[must_use]
     pub fn user_exist(name: &str) -> bool {
-        users::get_user_by_name(name).is_some()
+        vsmtp_config::re::users::get_user_by_name(name).is_some()
     }
 
     /// execute the service named @service_name from the vSMTP configuration definition
@@ -153,27 +149,28 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn rewrite_mail_from(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        addr: &str,
+        new_addr: &str,
     ) -> EngineResult<()> {
-        let addr = Address::try_from(addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
-            format!(
-                "could not rewrite mail_from with '{}' because it is not valid address",
-                addr,
-            )
-            .into()
-        })?;
+        let new_addr =
+            Address::try_from(new_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
+                format!(
+                    "could not rewrite mail_from with '{}' because it is not valid address",
+                    new_addr,
+                )
+                .into()
+            })?;
 
         let email = &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        email.envelop.mail_from = addr.clone();
+        email.envelop.mail_from = new_addr.clone();
 
         match &mut email.body {
             Body::Empty => Err("failed to rewrite mail_from: the email has not been received yet. Use this method in postq or later.".into()),
             Body::Raw(_) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
             Body::Parsed(body) => {
-                body.rewrite_mail_from(addr.full());
+                body.rewrite_mail_from(new_addr.full());
                 Ok(())
             },
         }
@@ -183,40 +180,60 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn rewrite_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        index: &str,
-        addr: &str,
+        old_addr: &str,
+        new_addr: &str,
     ) -> EngineResult<()> {
-        let index =
-            Address::try_from(index.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
+        let old_addr =
+            Address::try_from(old_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
                 format!(
                     "could not rewrite address '{}' because it is not valid address",
-                    index,
+                    old_addr,
                 )
                 .into()
             })?;
 
-        let addr = Address::try_from(addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
-            format!(
-                "could not rewrite address '{}' with '{}' because it is not valid address",
-                index, addr,
-            )
-            .into()
-        })?;
+        let new_addr =
+            Address::try_from(new_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
+                format!(
+                    "could not rewrite address '{}' with '{}' because it is not valid address",
+                    old_addr, new_addr,
+                )
+                .into()
+            })?;
 
         let email = &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        email.envelop.rcpt.remove(&index);
-        email.envelop.rcpt.insert(addr.clone());
+        if let Body::Empty | Body::Raw(_) = &email.body {
+            return Err("failed to rewrite rcpt: the email has not been received or parsed yet. Use this method in postq or later.".into());
+        }
 
-        match &mut email.body {
-            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
-            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
-            Body::Parsed(body) => {
-                body.rewrite_rcpt(index.full(), addr.full());
-                Ok(())
-            },
+        if let Some(index) = email
+            .envelop
+            .rcpt
+            .iter()
+            .position(|rcpt| rcpt.address == old_addr)
+        {
+            email
+                .envelop
+                .rcpt
+                .push(vsmtp_common::rcpt::Rcpt::new(new_addr.clone()));
+            email.envelop.rcpt.swap_remove(index);
+
+            match &mut email.body {
+                Body::Parsed(body) => {
+                    body.rewrite_rcpt(old_addr.full(), new_addr.full());
+                    Ok(())
+                }
+                _ => unreachable!(),
+            }
+        } else {
+            Err(format!(
+                "could not rewrite address '{}' because it does not resides in rcpt.",
+                old_addr
+            )
+            .into())
         }
     }
 
@@ -224,16 +241,23 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn add_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        rcpt: &str,
+        new_addr: &str,
     ) -> EngineResult<()> {
-        let new_addr = Address::try_from(rcpt.to_string())
-            .map_err(|_| format!("'{}' could not be converted to a valid rcpt address", rcpt))?;
+        let new_addr = Address::try_from(new_addr.to_string()).map_err(|_| {
+            format!(
+                "'{}' could not be converted to a valid rcpt address",
+                new_addr
+            )
+        })?;
 
         let email = &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        email.envelop.rcpt.insert(new_addr.clone());
+        email
+            .envelop
+            .rcpt
+            .push(vsmtp_common::rcpt::Rcpt::new(new_addr.clone()));
 
         match &mut email.body {
             Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
@@ -249,24 +273,37 @@ pub mod actions {
     #[rhai_fn(global, return_raw)]
     pub fn remove_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        rcpt: &str,
+        addr: &str,
     ) -> EngineResult<()> {
-        let addr = Address::try_from(rcpt.to_string())
-            .map_err(|_| format!("{} could not be converted to a valid rcpt address", rcpt))?;
+        let addr = Address::try_from(addr.to_string())
+            .map_err(|_| format!("{} could not be converted to a valid rcpt address", addr))?;
 
         let email = &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        email.envelop.rcpt.remove(&addr);
+        if let Body::Empty | Body::Raw(_) = &email.body {
+            return Err("failed to remove rcpt: the email has not been received or parsed yet. Use this method in postq or later.".into());
+        }
 
-        match &mut email.body {
-            Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
-            Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
-            Body::Parsed(body) => {
-                body.remove_rcpt(addr.full());
-                Ok(())
-            },
+        if let Some(index) = email
+            .envelop
+            .rcpt
+            .iter()
+            .position(|rcpt| rcpt.address == addr)
+        {
+            email.envelop.rcpt.remove(index);
+            match &mut email.body {
+                Body::Parsed(body) => body.remove_rcpt(addr.full()),
+                _ => unreachable!(),
+            };
+            Ok(())
+        } else {
+            Err(format!(
+                "could not remove address '{}' because it does not resides in rcpt.",
+                addr
+            )
+            .into())
         }
     }
 
@@ -339,14 +376,22 @@ pub mod actions {
         mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         queue: &str,
     ) -> EngineResult<()> {
-        disable_delivery(&mut ctx)?;
+        disable_delivery_all(&mut ctx)?;
 
         let ctx = ctx.read().map_err::<Box<EvalAltResult>, _>(|_| {
             "failed to dump email: mail context poisoned".into()
         })?;
 
         let mut path = srv.config.app.dirpath.join(queue);
-        path.push(ctx.metadata.as_ref().unwrap().message_id.as_str());
+        path.push(
+            ctx.metadata
+                .as_ref()
+                .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                    "metadata are not available in this stage".into()
+                })?
+                .message_id
+                .as_str(),
+        );
 
         match std::fs::OpenOptions::new()
             .create(true)
@@ -366,30 +411,159 @@ pub mod actions {
         }
     }
 
-    /// set the delivery method
+    /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, return_raw)]
-    pub fn deliver(
+    pub fn forward(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        resolver: &str,
+        rcpt: &str,
+        forward: &str,
     ) -> EngineResult<()> {
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .metadata
-            .as_mut()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "metadata are not available in this stage".into()
-            })?
-            .resolver = resolver.to_string();
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::Forward(forward.to_string()),
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Forward" for all recipients.
+    #[rhai_fn(global, return_raw)]
+    pub fn forward_all(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        forward: &str,
+    ) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::Forward(forward.to_string()),
+        );
 
         Ok(())
     }
 
-    /// remove the delivery method
+    /// set the delivery method to "Deliver" for a single recipient.
+    #[rhai_fn(global, return_raw)]
+    pub fn deliver(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::Deliver,
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Deliver" for all recipients.
+    #[rhai_fn(global, return_raw)]
+    pub fn deliver_all(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::Deliver,
+        );
+
+        Ok(())
+    }
+
+    /// set the delivery method to "Mbox" for a single recipient.
+    #[rhai_fn(global, return_raw)]
+    pub fn mbox(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::Mbox,
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Mbox" for all recipients.
+    #[rhai_fn(global, return_raw)]
+    pub fn mbox_all(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::Mbox,
+        );
+
+        Ok(())
+    }
+
+    /// set the delivery method to "Maildir" for a single recipient.
+    #[rhai_fn(global, return_raw)]
+    pub fn maildir(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+    ) -> EngineResult<()> {
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::Maildir,
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Maildir" for all recipients.
+    #[rhai_fn(global, return_raw)]
+    pub fn maildir_all(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::Maildir,
+        );
+
+        Ok(())
+    }
+
+    /// remove the delivery method for a specific recipient.
     #[rhai_fn(global, return_raw)]
     pub fn disable_delivery(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
     ) -> EngineResult<()> {
-        deliver(this, "none")
+        set_transport_for(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::None,
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// remove the delivery method for all recipient.
+    #[rhai_fn(global, return_raw)]
+    pub fn disable_delivery_all(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<()> {
+        set_transport(
+            &mut *this
+                .write()
+                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            &vsmtp_common::transfer::Transfer::None,
+        );
+
+        Ok(())
     }
 
     /// check if a given header exists in the top level headers.
@@ -461,9 +635,11 @@ pub mod actions {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .insert(Address::try_from(bcc.to_string()).map_err(|_| {
-                format!("'{}' could not be converted to a valid rcpt address", bcc)
-            })?);
+            .push(vsmtp_common::rcpt::Rcpt::new(
+                Address::try_from(bcc.to_string()).map_err(|_| {
+                    format!("'{}' could not be converted to a valid rcpt address", bcc)
+                })?,
+            ));
 
         Ok(())
     }
@@ -478,7 +654,7 @@ pub mod actions {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .insert(bcc);
+            .push(vsmtp_common::rcpt::Rcpt::new(bcc));
 
         Ok(())
     }
@@ -494,14 +670,16 @@ pub mod actions {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .insert(match &*bcc {
-                Object::Address(addr) => addr.clone(),
-                Object::Str(string) => Address::try_from(string.clone()).map_err(|_| {
-                    format!(
-                        "'{}' could not be converted to a valid rcpt address",
-                        string
-                    )
-                })?,
+            .push(match &*bcc {
+                Object::Address(addr) => vsmtp_common::rcpt::Rcpt::new(addr.clone()),
+                Object::Str(string) => vsmtp_common::rcpt::Rcpt::new(
+                    Address::try_from(string.clone()).map_err(|_| {
+                        format!(
+                            "'{}' could not be converted to a valid rcpt address",
+                            string
+                        )
+                    })?,
+                ),
                 other => {
                     return Err(format!(
                         "'{}' could not be converted to a valid rcpt address",
@@ -513,4 +691,26 @@ pub mod actions {
 
         Ok(())
     }
+}
+
+/// set the transport method of a single recipient.
+fn set_transport_for(
+    ctx: &mut MailContext,
+    search: &str,
+    method: &vsmtp_common::transfer::Transfer,
+) -> anyhow::Result<()> {
+    ctx.envelop
+        .rcpt
+        .iter_mut()
+        .find(|rcpt| rcpt.address.full() == search)
+        .ok_or_else(|| anyhow::anyhow!("could not find rcpt '{}'", search))
+        .map(|rcpt| rcpt.transfer_method = method.clone())
+}
+
+/// set the transport method of all recipients.
+fn set_transport(ctx: &mut MailContext, method: &vsmtp_common::transfer::Transfer) {
+    ctx.envelop
+        .rcpt
+        .iter_mut()
+        .for_each(|rcpt| rcpt.transfer_method = method.clone());
 }

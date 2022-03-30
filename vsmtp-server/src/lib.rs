@@ -24,57 +24,12 @@ pub mod server;
 
 mod auth;
 
-///
-pub mod resolver {
-
-    use vsmtp_common::mail_context::MailContext;
-    use vsmtp_config::Config;
-
-    /// A trait allowing the [ServerVSMTP] to deliver a mail
-    #[async_trait::async_trait]
-    pub trait Resolver {
-        /// the deliver method of the [Resolver] trait
-        async fn deliver(&mut self, config: &Config, mail: &MailContext) -> anyhow::Result<()>;
-    }
-
-    pub(super) mod maildir_resolver;
-    pub(super) mod mbox_resolver;
-    pub(super) mod smtp_resolver;
-
-    #[cfg(test)]
-    #[must_use]
-    pub fn get_default_context() -> MailContext {
-        use vsmtp_common::{
-            envelop::Envelop,
-            mail_context::{Body, MessageMetadata},
-        };
-
-        MailContext {
-            body: Body::Empty,
-            connection_timestamp: std::time::SystemTime::now(),
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
-            envelop: Envelop::default(),
-            metadata: Some(MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                ..MessageMetadata::default()
-            }),
-        }
-    }
-}
-
 use processes::ProcessMessage;
+use vsmtp_common::re::{anyhow, log};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-use crate::{
-    resolver::{
-        maildir_resolver::MailDirResolver, mbox_resolver::MBoxResolver, smtp_resolver::SMTPResolver,
-    },
-    server::ServerVSMTP,
-};
+use crate::server::ServerVSMTP;
 
 #[doc(hidden)]
 pub fn start_runtime(
@@ -85,15 +40,6 @@ pub fn start_runtime(
         std::net::TcpListener,
     ),
 ) -> anyhow::Result<()> {
-    let resolvers = {
-        let mut resolvers =
-            std::collections::HashMap::<String, Box<dyn resolver::Resolver + Send + Sync>>::new();
-        resolvers.insert("maildir".to_string(), Box::new(MailDirResolver::default()));
-        resolvers.insert("smtp".to_string(), Box::new(SMTPResolver::default()));
-        resolvers.insert("mbox".to_string(), Box::new(MBoxResolver::default()));
-        resolvers
-    };
-
     let (delivery_sender, delivery_receiver) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
 
@@ -116,11 +62,10 @@ pub fn start_runtime(
                 let result = crate::processes::delivery::start(
                     config_copy,
                     rule_engine_copy,
-                    resolvers,
                     delivery_receiver,
                 )
                 .await;
-                log::error!("v_deliver ended unexpectedly '{:?}'", result);
+                log::error!("vsmtp-delivery thread ended unexpectedly '{:?}'", result);
             });
         std::io::Result::Ok(())
     });
@@ -142,7 +87,7 @@ pub fn start_runtime(
                     mime_delivery_sender,
                 )
                 .await;
-                log::error!("v_mime ended unexpectedly '{:?}'", result);
+                log::error!("vsmtp-processing thread ended unexpectedly '{:?}'", result);
             });
         std::io::Result::Ok(())
     });

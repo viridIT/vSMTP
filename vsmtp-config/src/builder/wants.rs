@@ -1,10 +1,10 @@
 #![allow(clippy::module_name_repetitions)]
 
-use vsmtp_common::code::SMTPReplyCode;
+use vsmtp_common::{code::SMTPReplyCode, re::log};
 
 use crate::config::{
-    ConfigQueueDelivery, ConfigQueueWorking, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
-    ConfigServerTls, Service,
+    ConfigQueueDelivery, ConfigQueueWorking, ConfigServerDNS, ConfigServerSMTPError,
+    ConfigServerSMTPTimeoutClient, ConfigServerTls, Service,
 };
 
 ///
@@ -27,8 +27,8 @@ pub struct WantsServerSystem {
 ///
 pub struct WantsServerInterfaces {
     pub(crate) parent: WantsServerSystem,
-    pub(super) user: String,
-    pub(super) group: String,
+    pub(super) user: users::User,
+    pub(super) group: users::Group,
     pub(super) thread_pool_receiver: usize,
     pub(super) thread_pool_processing: usize,
     pub(super) thread_pool_delivery: usize,
@@ -106,7 +106,13 @@ pub struct WantsAppServices {
 }
 
 ///
-pub struct WantsValidate {
+pub struct WantsServerDNS {
     pub(crate) parent: WantsAppServices,
     pub(super) services: std::collections::BTreeMap<String, Service>,
+}
+
+///
+pub struct WantsValidate {
+    pub(crate) parent: WantsServerDNS,
+    pub(super) config: ConfigServerDNS,
 }

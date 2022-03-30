@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -14,41 +14,53 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{resolver::Resolver, test_receiver};
-use vsmtp_common::{
-    address::Address,
-    mail_context::{Body, MailContext},
-};
-use vsmtp_config::Config;
+use crate::receiver::{Connection, MailContext, OnMail};
+use crate::test_receiver;
+use vsmtp_common::address::Address;
+use vsmtp_common::mail_context::Body;
+use vsmtp_common::re::anyhow;
 
 macro_rules! test_lang {
     ($lang_code:expr) => {{
         struct T;
 
         #[async_trait::async_trait]
-        impl Resolver for T {
-            async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-                assert_eq!(ctx.envelop.helo, "foobar".to_string());
-                assert_eq!(ctx.envelop.mail_from.full(), "john@doe".to_string());
+        impl OnMail for T {
+            async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+                &mut self,
+                conn: &mut Connection<'_, S>,
+                mail: Box<MailContext>,
+                _: &mut Option<String>,
+            ) -> anyhow::Result<()> {
+                assert_eq!(mail.envelop.helo, "foobar".to_string());
+                assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(
-                    ctx.envelop.rcpt,
-                    std::collections::HashSet::from([
-                        Address::try_from("aa@bb".to_string()).unwrap()
-                    ])
+                    mail.envelop.rcpt,
+                    vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                 );
-                assert!(match &ctx.body {
-                    Body::Parsed(mail) => {
-                        format!("{}\n", mail.to_raw()).as_str() == include_str!($lang_code)
-                    }
-                    _ => false,
-                });
 
+                let body = match mail.body {
+                    Body::Empty => panic!("mail cannot be empty"),
+                    Body::Parsed(parsed) => parsed,
+                    Body::Raw(raw) => Box::new(
+                        vsmtp_mail_parser::MailMimeParser::default()
+                            .parse(raw.as_bytes())
+                            .unwrap(),
+                    ),
+                };
+
+                pretty_assertions::assert_eq!(
+                    format!("{}\n", body.to_raw()).as_str(),
+                    include_str!($lang_code)
+                );
+
+                conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
                 Ok(())
             }
         }
 
         test_receiver! {
-            on_mail => T,
+            on_mail => &mut T,
             [
                 "HELO foobar\r\n",
                 "MAIL FROM:<john@doe>\r\n",

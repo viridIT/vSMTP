@@ -15,9 +15,6 @@
  *
 **/
 
-// TODO: EnhancedStatusCodes,
-// see https://datatracker.ietf.org/doc/html/rfc2034
-
 /// 2yz  Positive Completion reply
 /// 3yz  Positive Intermediate reply
 /// 4yz  Transient Negative Completion reply

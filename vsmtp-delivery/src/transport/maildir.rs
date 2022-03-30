@@ -14,55 +14,69 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use super::Resolver;
+use super::Transport;
 
 use anyhow::Context;
+use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
-    mail_context::{Body, MailContext, MessageMetadata},
+    mail_context::MessageMetadata,
+    rcpt::Rcpt,
+    re::{anyhow, log},
+    transfer::EmailTransferStatus,
 };
-use vsmtp_config::{log_channel::DELIVER, Config};
+use vsmtp_config::{log_channel::DELIVER, re::users, Config};
 
 /// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
-pub struct MailDirResolver;
+pub struct Maildir;
 
 #[async_trait::async_trait]
-impl Resolver for MailDirResolver {
+impl Transport for Maildir {
     // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
     //       and https://en.wikipedia.org/wiki/Maildir
-    async fn deliver(&mut self, _: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-        let content = match &ctx.body {
-            Body::Empty => {
-                anyhow::bail!("failed to write email using maildir: body is empty")
-            }
-            Body::Raw(raw) => raw.clone(),
-            Body::Parsed(parsed) => parsed.to_raw(),
-        };
-
-        for rcpt in &ctx.envelop.rcpt {
-            match users::get_user_by_name(rcpt.local_part()) {
-                Some(user) => {
-                    if let Err(err) =
-                        write_to_maildir(&user, ctx.metadata.as_ref().unwrap(), &content)
-                    {
-                        log::error!(
-                            target: DELIVER,
-                            "could not write email to '{}' maildir directory: {}",
-                            rcpt,
-                            err
-                        );
-                    }
-                }
-                None => {
+    async fn deliver(
+        &mut self,
+        _: &Config,
+        _: &TokioAsyncResolver,
+        metadata: &MessageMetadata,
+        _: &vsmtp_common::address::Address,
+        to: &mut [Rcpt],
+        content: &str,
+    ) -> anyhow::Result<()> {
+        for rcpt in to.iter_mut() {
+            if let Some(user) = users::get_user_by_name(rcpt.address.local_part()) {
+                // TODO: write to defer / dead queue.
+                if let Err(err) = write_to_maildir(&user, metadata, content) {
                     log::error!(
                         target: DELIVER,
-                        "could not write email to '{}' maildir directory: user was not found on the system",
-                        rcpt
+                        "failed to write email '{}' in maildir of '{rcpt}': {err}",
+                        metadata.message_id
                     );
+
+                    rcpt.email_status = match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => {
+                            EmailTransferStatus::HeldBack(count)
+                        }
+                        _ => EmailTransferStatus::HeldBack(0),
+                    };
+                } else {
+                    rcpt.email_status = EmailTransferStatus::Sent;
                 }
+            } else {
+                log::error!(
+                    target: DELIVER,
+                    "failed to write email '{}' in maildir of '{rcpt}': '{rcpt}' is not a user",
+                    metadata.message_id
+                );
+
+                rcpt.email_status = match rcpt.email_status {
+                    EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count),
+                    _ => EmailTransferStatus::HeldBack(0),
+                };
             }
         }
+
         Ok(())
     }
 }
@@ -77,7 +91,7 @@ fn create_maildir(
     let create_and_chown = |path: &std::path::PathBuf, user: &users::User| -> anyhow::Result<()> {
         if !path.exists() {
             std::fs::create_dir(&path).with_context(|| format!("failed to create {:?}", path))?;
-            chown(path, Some(user), None)
+            chown(path, Some(user.uid()), None)
                 .with_context(|| format!("failed to set user rights to {:?}", path))?;
         }
 
@@ -107,7 +121,7 @@ fn write_to_maildir(
 
     std::io::Write::write_all(&mut email, content.as_bytes())?;
 
-    chown(&maildir, Some(user), None)?;
+    chown(&maildir, Some(user.uid()), None)?;
 
     log::debug!(
         target: DELIVER,
