@@ -130,17 +130,12 @@ pub mod actions {
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
     pub fn run_service(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        srv: &mut std::sync::Arc<ServerAPI>,
         ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         service_name: &str,
     ) -> EngineResult<ServiceResult> {
-        let server = this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
-
         crate::service::run(
-            server
-                .config
+            srv.config
                 .app
                 .services
                 .get(service_name)
@@ -335,34 +330,38 @@ pub mod actions {
         }
     }
 
-    // TODO: unfinished, queue parameter should point to a folder specified in toml config.
     /// dump the current email into a quarantine queue, skipping delivery.
+    /// the email is written in the specified app directory, inside the "queue" folder.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
     pub fn quarantine(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        srv: &mut std::sync::Arc<ServerAPI>,
+        mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         queue: &str,
     ) -> EngineResult<()> {
+        disable_delivery(&mut ctx)?;
+
+        let ctx = ctx.read().map_err::<Box<EvalAltResult>, _>(|_| {
+            "failed to dump email: mail context poisoned".into()
+        })?;
+
+        let mut path = srv.config.app.dirpath.join(queue);
+        path.push(ctx.metadata.as_ref().unwrap().message_id.as_str());
+
         match std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(queue)
+            .open(path)
         {
-            Ok(mut file) => {
-                disable_delivery(this)?;
-
-                std::io::Write::write_all(
-                    &mut file,
-                    serde_json::to_string_pretty(&*this.read().map_err::<Box<EvalAltResult>, _>(
-                        |err| format!("failed to dump email: {err:?}").into(),
-                    )?)
+            Ok(mut file) => std::io::Write::write_all(
+                &mut file,
+                serde_json::to_string_pretty(&*ctx)
                     .map_err::<Box<EvalAltResult>, _>(|err| {
                         format!("failed to dump email: {err:?}").into()
                     })?
                     .as_bytes(),
-                )
-                .map_err(|err| format!("failed to dump email: {err:?}").into())
-            }
+            )
+            .map_err(|err| format!("failed to dump email: {err:?}").into()),
             Err(err) => Err(format!("failed to dump email: {err:?}").into()),
         }
     }
