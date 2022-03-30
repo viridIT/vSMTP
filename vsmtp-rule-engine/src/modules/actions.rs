@@ -383,6 +383,13 @@ pub mod actions {
         })?;
 
         let mut path = srv.config.app.dirpath.join(queue);
+
+        if !path.exists() {
+            std::fs::create_dir_all(&path).map_err::<Box<EvalAltResult>, _>(|err| {
+                format!("failed to quarantine email: {err:?}").into()
+            })?;
+        }
+
         path.push(
             ctx.metadata
                 .as_ref()
