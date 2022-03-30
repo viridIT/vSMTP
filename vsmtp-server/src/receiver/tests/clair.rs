@@ -241,9 +241,9 @@ async fn test_receiver_13() {
             &mut self,
             conn: &mut Connection<'_, S>,
             mail: Box<MailContext>,
-            _: &mut Option<String>,
+            helo_domain: &mut Option<String>,
         ) -> anyhow::Result<()> {
-            println!("{:#?}", mail);
+            *helo_domain = Some(mail.envelop.helo.clone());
 
             let body = match mail.body {
                 Body::Empty => panic!("mail cannot be empty"),
@@ -267,7 +267,7 @@ async fn test_receiver_13() {
                     assert!(mail.metadata.is_some());
                 }
                 1 => {
-                    // assert_eq!(mail.envelop.helo, "foobar");
+                    assert_eq!(mail.envelop.helo, "foobar");
                     assert_eq!(mail.envelop.mail_from.full(), "john2@doe");
                     assert_eq!(
                         mail.envelop.rcpt,
@@ -339,6 +339,14 @@ async fn test_receiver_14() {
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
+
             match self.count {
                 0 => {
                     assert_eq!(mail.envelop.helo, "foobar");
@@ -347,10 +355,7 @@ async fn test_receiver_14() {
                         mail.envelop.rcpt,
                         vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                     );
-                    assert!(match &mail.body {
-                        Body::Parsed(body) => body.headers.len() == 2,
-                        _ => false,
-                    });
+                    assert_eq!(body.headers.len(), 2);
                 }
                 1 => {
                     assert_eq!(mail.envelop.helo, "foobar2");
@@ -359,10 +364,7 @@ async fn test_receiver_14() {
                         mail.envelop.rcpt,
                         vec![Address::try_from("aa2@bb".to_string()).unwrap().into()]
                     );
-                    assert!(match &mail.body {
-                        Body::Parsed(body) => body.headers.len() == 2,
-                        _ => false,
-                    });
+                    assert_eq!(body.headers.len(), 2);
                     assert!(mail.metadata.is_some());
                 }
                 _ => panic!(),

@@ -22,6 +22,7 @@ use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
 };
+use vsmtp_mail_parser::MailMimeParser;
 
 #[tokio::test]
 async fn reset_helo() {
@@ -35,16 +36,21 @@ async fn reset_helo() {
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
+
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "a@b");
             assert_eq!(
                 mail.envelop.rcpt,
                 vec![Address::try_from("b@c".to_string()).unwrap().into()]
             );
-            assert!(match &mail.body {
-                Body::Parsed(body) => body.headers.len() == 2,
-                _ => false,
-            });
+            assert_eq!(body.headers.len(), 2);
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
@@ -137,16 +143,21 @@ async fn reset_rcpt_to_ok() {
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
+
             assert_eq!(mail.envelop.helo, "foo2");
             assert_eq!(mail.envelop.mail_from.full(), "d@e");
             assert_eq!(
                 mail.envelop.rcpt,
                 vec![Address::try_from("b@c".to_string()).unwrap().into()]
             );
-            assert!(match &mail.body {
-                Body::Parsed(body) => body.headers.is_empty(),
-                _ => false,
-            });
+            assert!(body.headers.is_empty());
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
@@ -218,6 +229,13 @@ async fn reset_rcpt_to_multiple_rcpt() {
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
+            let body = match mail.body {
+                Body::Empty => panic!("mail cannot be empty"),
+                Body::Parsed(parsed) => parsed,
+                Body::Raw(raw) => {
+                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
+                }
+            };
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");
             assert_eq!(
@@ -227,11 +245,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
                     Address::try_from("toto3@bar".to_string()).unwrap().into()
                 ]
             );
-            assert!(match &mail.body {
-                Body::Parsed(body) => body.headers.len() == 2,
-                _ => false,
-            });
-
+            assert_eq!(body.headers.len(), 2);
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }

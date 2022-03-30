@@ -70,7 +70,8 @@ impl OnMail for MailHandler {
             .iter()
             .all(|rcpt| rcpt.transfer_method == vsmtp_common::transfer::Transfer::None)
         {
-            // quietly skipping mime & delivery processes when all recipients .
+            // quietly skipping mime & delivery processes when all recipients do not need transfer.
+            // TODO: move to dead queue.
             log::warn!("delivery skipped because all recipient's transfer method is set to None.");
             conn.send_code(SMTPReplyCode::Code250)?;
             return Ok(());

@@ -66,9 +66,10 @@ impl super::OnMail for DefaultMailHandler {
     async fn on_mail<S: std::io::Read + std::io::Write + Send>(
         &mut self,
         conn: &mut Connection<'_, S>,
-        _: Box<vsmtp_common::mail_context::MailContext>,
-        _: &mut Option<String>,
+        mail: Box<vsmtp_common::mail_context::MailContext>,
+        helo_domain: &mut Option<String>,
     ) -> anyhow::Result<()> {
+        *helo_domain = Some(mail.envelop.helo.clone());
         conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
         Ok(())
     }

@@ -36,12 +36,21 @@ macro_rules! test_lang {
                     mail.envelop.rcpt,
                     vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                 );
-                assert!(match &mail.body {
-                    Body::Parsed(mail) => {
-                        format!("{}\n", mail.to_raw()).as_str() == include_str!($lang_code)
-                    }
-                    _ => false,
-                });
+
+                let body = match mail.body {
+                    Body::Empty => panic!("mail cannot be empty"),
+                    Body::Parsed(parsed) => parsed,
+                    Body::Raw(raw) => Box::new(
+                        vsmtp_mail_parser::MailMimeParser::default()
+                            .parse(raw.as_bytes())
+                            .unwrap(),
+                    ),
+                };
+
+                pretty_assertions::assert_eq!(
+                    format!("{}\n", body.to_raw()).as_str(),
+                    include_str!($lang_code)
+                );
 
                 conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
                 Ok(())
