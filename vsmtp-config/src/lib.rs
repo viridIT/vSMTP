@@ -48,6 +48,7 @@ mod parser {
     pub mod syst_group;
     pub mod syst_user;
     pub mod tls_certificate;
+    pub mod tls_cipher_suite;
     pub mod tls_private_key;
     pub mod tls_protocol_version;
 }

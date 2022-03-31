@@ -16,7 +16,7 @@
 **/
 use vsmtp_common::{
     address::Address,
-    re::{anyhow, log},
+    re::{addr, anyhow, log},
 };
 
 /// Objects are rust's representation of rule engine variables.

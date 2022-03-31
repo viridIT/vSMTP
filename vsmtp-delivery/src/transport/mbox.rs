@@ -19,7 +19,10 @@ use super::Transport;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    libc_abstraction::chown, mail_context::MessageMetadata, rcpt::Rcpt,
+    libc_abstraction::chown,
+    mail_context::MessageMetadata,
+    rcpt::Rcpt,
+    re::{anyhow, log},
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{log_channel::DELIVER, Config};

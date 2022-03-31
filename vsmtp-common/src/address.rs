@@ -62,13 +62,6 @@ impl std::fmt::Display for Address {
     }
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<crate::rcpt::Rcpt> for Address {
-    fn into(self) -> crate::rcpt::Rcpt {
-        crate::rcpt::Rcpt::new(self)
-    }
-}
-
 impl Address {
     /// get the full email address.
     #[must_use]

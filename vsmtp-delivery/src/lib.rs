@@ -32,7 +32,7 @@ pub mod transport {
     use anyhow::Context;
     use lettre::Tokio1Executor;
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt};
+    use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow};
     use vsmtp_config::Config;
 
     /// allowing the [ServerVSMTP] to deliver a mail.

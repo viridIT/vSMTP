@@ -89,17 +89,66 @@ impl std::fmt::Display for Transfer {
     }
 }
 
-impl TryFrom<&str> for Transfer {
-    type Error = anyhow::Error;
+impl std::str::FromStr for Transfer {
+    type Err = anyhow::Error;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
             "forward" => Ok(Self::Forward(String::default())),
             "deliver" => Ok(Self::Deliver),
             "mbox" => Ok(Self::Mbox),
             "maildir" => Ok(Self::Maildir),
             "none" => Ok(Self::None),
-            _ => anyhow::bail!("transfer method '{}' does not exist.", value),
+            _ => anyhow::bail!("transfer method '{}' does not exist.", s),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::{EmailTransferStatus, Transfer};
+
+    mod status {
+        use super::EmailTransferStatus;
+
+        #[test]
+        fn display() {
+            for i in [
+                EmailTransferStatus::Waiting,
+                EmailTransferStatus::Sent,
+                EmailTransferStatus::HeldBack(usize::default()),
+                EmailTransferStatus::Failed(String::default()),
+            ] {
+                println!("{}", i);
+            }
+        }
+    }
+
+    mod transfer {
+        use super::Transfer;
+        use std::str::FromStr;
+
+        #[test]
+        fn error() {
+            assert_eq!(
+                format!("{}", Transfer::from_str("foobar").unwrap_err()),
+                "transfer method 'foobar' does not exist."
+            );
+        }
+
+        #[test]
+        fn same() {
+            for s in [
+                Transfer::None,
+                Transfer::Deliver,
+                Transfer::Maildir,
+                Transfer::Mbox,
+                Transfer::Forward(String::default()),
+            ] {
+                println!("{:?}", s);
+                assert_eq!(Transfer::from_str(&format!("{}", s)).unwrap(), s);
+            }
         }
     }
 }

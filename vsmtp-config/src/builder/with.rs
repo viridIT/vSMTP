@@ -328,6 +328,7 @@ impl Builder<WantsServerTLSConfig> {
                     certificate: tls_certificate::from_string(certificate)?,
                     private_key: tls_private_key::from_string(private_key)?,
                     sni: vec![],
+                    cipher_suite: ConfigServerTls::default_cipher_suite(),
                 }),
             },
         })

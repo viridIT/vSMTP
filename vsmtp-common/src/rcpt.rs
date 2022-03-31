@@ -53,6 +53,12 @@ impl Rcpt {
     }
 }
 
+impl From<Address> for Rcpt {
+    fn from(this: Address) -> Self {
+        Self::new(this)
+    }
+}
+
 impl std::fmt::Display for Rcpt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.address)
@@ -67,20 +73,17 @@ impl PartialEq for Rcpt {
 
 /// filter recipients by their transfer method.
 #[must_use]
-pub fn filter_by_transfer_method(
-    rcpt: &[Rcpt],
-) -> std::collections::HashMap<crate::transfer::Transfer, Vec<crate::rcpt::Rcpt>> {
-    rcpt.iter()
-        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-            let rcpt = rcpt.clone();
-            if let Some(group) = acc.get_mut(&rcpt.transfer_method) {
-                group.push(rcpt);
-            } else {
-                acc.insert(rcpt.transfer_method.clone(), vec![rcpt]);
-            }
-
-            acc
-        })
+pub fn filter_by_transfer_method(rcpt: &[Rcpt]) -> std::collections::HashMap<Transfer, Vec<Rcpt>> {
+    let mut output: std::collections::HashMap<Transfer, Vec<Rcpt>> =
+        std::collections::HashMap::new();
+    for i in rcpt.iter().cloned() {
+        if let Some(group) = output.get_mut(&i.transfer_method) {
+            group.push(i);
+        } else {
+            output.insert(i.transfer_method.clone(), vec![i]);
+        }
+    }
+    output
 }
 
 #[cfg(test)]

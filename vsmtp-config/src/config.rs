@@ -205,6 +205,12 @@ pub struct ConfigServerTls {
     )]
     pub protocol_version: Vec<rustls::ProtocolVersion>,
     #[serde(
+        serialize_with = "crate::parser::tls_cipher_suite::serialize",
+        deserialize_with = "crate::parser::tls_cipher_suite::deserialize",
+        default = "ConfigServerTls::default_cipher_suite"
+    )]
+    pub cipher_suite: Vec<rustls::CipherSuite>,
+    #[serde(
         serialize_with = "crate::parser::tls_certificate::serialize",
         deserialize_with = "crate::parser::tls_certificate::deserialize"
     )]

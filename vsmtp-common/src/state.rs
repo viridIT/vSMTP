@@ -1,5 +1,3 @@
-use crate::mechanism::Mechanism;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,6 +14,7 @@ use crate::mechanism::Mechanism;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
+use crate::mechanism::Mechanism;
 
 /// State of the pipeline SMTP
 #[derive(

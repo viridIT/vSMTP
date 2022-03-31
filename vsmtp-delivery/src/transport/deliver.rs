@@ -18,7 +18,12 @@ use super::Transport;
 
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
-use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, transfer::EmailTransferStatus};
+use vsmtp_common::{
+    mail_context::MessageMetadata,
+    rcpt::Rcpt,
+    re::{anyhow, log},
+    transfer::EmailTransferStatus,
+};
 use vsmtp_config::Config;
 
 /// the email will be forwarded to another mail exchanger via mx record resolution & smtp.

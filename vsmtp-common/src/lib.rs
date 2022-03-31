@@ -84,6 +84,7 @@ pub mod re {
     pub use log;
     pub use rsasl;
     pub use strum;
+    pub use addr;
 }
 
 #[doc(hidden)]

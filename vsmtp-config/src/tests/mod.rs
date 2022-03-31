@@ -64,6 +64,7 @@ fn construct() {
                 certificate: rustls::Certificate(vec![]),
                 private_key: rustls::PrivateKey(vec![]),
                 sni: vec![],
+                cipher_suite: vec![],
             }),
             smtp: ConfigServerSMTP {
                 rcpt_count_max: 1000,
