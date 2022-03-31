@@ -1,5 +1,5 @@
-fn has_virus(server) {
-    let result = services.run_service("clamscan");
+fn has_virus(srv) {
+    let result = srv.run_service("clamscan");
     debug(`${result}`);
 
     if result.has_signal {
@@ -12,10 +12,19 @@ fn has_virus(server) {
 
 #{
     preq: [
-        action "antivirus" || {
-            if has_virus(server) {
-                // quarantine and log and blacklist
+        rule "antivirus" || {
+            if has_virus(srv) {
+                vsl::log("warn", "virus detected, email quarantined.");
+                vsl::quarantine(srv, ctx, "virus")
+            } else {
+                vsl::accept()
             }
+        }
+    ],
+
+    delivery: [
+        action "setup delivery" || {
+            vsl::deliver_all(ctx);
         }
     ]
 }

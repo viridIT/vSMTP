@@ -32,12 +32,22 @@ pub struct Rcpt {
 
 impl Rcpt {
     /// create a new recipient from it's address.
-    /// the delivery method is set tp default.
+    /// there is no transfer method by default.
     #[must_use]
     pub const fn new(address: Address) -> Self {
         Self {
             address,
             transfer_method: Transfer::None,
+            email_status: EmailTransferStatus::Waiting,
+        }
+    }
+
+    /// create a new recipient from it's address & transfer method.
+    #[must_use]
+    pub const fn with_transfer_method(address: Address, method: Transfer) -> Self {
+        Self {
+            address,
+            transfer_method: method,
             email_status: EmailTransferStatus::Waiting,
         }
     }
@@ -71,4 +81,76 @@ pub fn filter_by_transfer_method(
 
             acc
         })
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::address::Address;
+    use crate::transfer::Transfer;
+
+    use super::{filter_by_transfer_method, Rcpt};
+
+    #[test]
+    fn test_filter_by_transfer_method() {
+        let filtered = filter_by_transfer_method(
+            &vec![
+                Rcpt::with_transfer_method(
+                    Address::try_from("green@foo.com".to_string()).unwrap(),
+                    Transfer::Deliver,
+                ),
+                Address::try_from("john@doe.com".to_string())
+                    .unwrap()
+                    .into(),
+                Address::try_from("green@foo.com".to_string())
+                    .unwrap()
+                    .into(),
+                Rcpt::with_transfer_method(
+                    Address::try_from("green@bar.com".to_string()).unwrap(),
+                    Transfer::Deliver,
+                ),
+                Rcpt::with_transfer_method(
+                    Address::try_from("john@localhost".to_string()).unwrap(),
+                    Transfer::Mbox,
+                ),
+                Rcpt::with_transfer_method(
+                    Address::try_from("green@localhost".to_string()).unwrap(),
+                    Transfer::Mbox,
+                ),
+                Rcpt::with_transfer_method(
+                    Address::try_from("satan@localhost".to_string()).unwrap(),
+                    Transfer::Mbox,
+                ),
+                Rcpt::with_transfer_method(
+                    Address::try_from("user@localhost".to_string()).unwrap(),
+                    Transfer::Maildir,
+                ),
+            ][..],
+        );
+
+        assert!(filtered
+            .get(&Transfer::None)
+            .unwrap()
+            .iter()
+            .all(|rcpt| rcpt.transfer_method == Transfer::None));
+        assert_eq!(filtered.get(&Transfer::None).unwrap().len(), 2);
+        assert!(filtered
+            .get(&Transfer::Deliver)
+            .unwrap()
+            .iter()
+            .all(|rcpt| rcpt.transfer_method == Transfer::Deliver));
+        assert_eq!(filtered.get(&Transfer::Deliver).unwrap().len(), 2);
+        assert!(filtered
+            .get(&Transfer::Mbox)
+            .unwrap()
+            .iter()
+            .all(|rcpt| rcpt.transfer_method == Transfer::Mbox));
+        assert_eq!(filtered.get(&Transfer::Mbox).unwrap().len(), 3);
+        assert!(filtered
+            .get(&Transfer::Maildir)
+            .unwrap()
+            .iter()
+            .all(|rcpt| rcpt.transfer_method == Transfer::Maildir));
+        assert_eq!(filtered.get(&Transfer::Maildir).unwrap().len(), 1);
+    }
 }
