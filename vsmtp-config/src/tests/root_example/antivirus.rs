@@ -21,14 +21,14 @@ fn parse() {
             .with_default_smtp_codes()
             .without_auth()
             .with_default_app()
-            .with_vsl("../examples/config/service/main.vsl")
+            .with_vsl("../examples/config/antivirus/main.vsl")
             .with_default_app_logs()
             .with_services(collection! {
                 "clamscan".to_string() => Service::UnixShell {
                     timeout: std::time::Duration::from_secs(15),
                     user: None,
                     group: None,
-                    command: "../examples/config/service/antivirus/clamscan.sh".to_string(),
+                    command: "../examples/config/antivirus/clamscan.sh".to_string(),
                     args: Some("{mail}".to_string())
                 }
             })

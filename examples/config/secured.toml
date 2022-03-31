@@ -24,7 +24,7 @@ type = "custom"
 
 [server.dns.config]
 domain = "example.dns.com"
-search = []
+search = ["example.dns.com"]
 name_servers = []
 
 [server.dns.options]
@@ -36,24 +36,24 @@ ndots = 1
 # Number of retries after lookup failure before giving up. Defaults to 2
 attempts = 2
 # Rotate through the resource records in the response (if there is more than one for a given name)
-rotate = true
+rotate = false
 # Enable edns, for larger records
-edns0 = true
+edns0 = false
 # Use DNSSec to validate the request
-validate = true
+validate = false
 # The ip_strategy for the Resolver to use when lookup Ipv4 or Ipv6 addresses
-ip_strategy = "Ipv4AndIpv6"
+ip_strategy = "Ipv4thenIpv6"
 # Cache size is in number of records (some records can be large)
-cache_size = 20
+cache_size = 32
 # Check /ect/hosts file before dns requery (only works for unix like OS)
-use_hosts_file = false
+use_hosts_file = true
 # Number of concurrent requests per query
 #
 # Where more than one nameserver is configured, this configures the resolver to send queries
 # to a number of servers in parallel. Defaults to 2; 0 or 1 will execute requests serially.
 num_concurrent_reqs = 2
 # Preserve all intermediate records in the lookup response, suchas CNAME records
-preserve_intermediates = true
+preserve_intermediates = false
 # Try queries over TCP if they fail over UDP.
 try_tcp_on_error = false
 
