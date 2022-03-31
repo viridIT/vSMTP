@@ -310,16 +310,26 @@ pub mod actions {
     /// write the current email to a specified folder.
     #[rhai_fn(global, return_raw)]
     pub fn write(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        srv: &mut std::sync::Arc<ServerAPI>,
+        mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         dir: &str,
     ) -> EngineResult<()> {
-        match std::fs::OpenOptions::new().create(true).write(true).open(
-            std::path::PathBuf::from_iter([dir, &format!("{}.eml", message_id(this)?)]),
-        ) {
+        let mut dir =
+            create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
+                format!("failed to write email at {dir:?}: {err}").into()
+            })?;
+
+        dir.push(format!("{}.eml", message_id(&mut ctx)?));
+
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&dir)
+        {
             Ok(file) => {
                 let mut writer = std::io::LineWriter::new(file);
 
-                match &this
+                match &ctx
                     .read()
                     .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
                     .body
@@ -335,35 +345,44 @@ pub mod actions {
                     }
                 }
             }
-            .map_err(|err| format!("failed to write email at '{}': {:?}", dir, err).into()),
-            Err(err) => Err(format!("failed to write email at '{}': {:?}", dir, err).into()),
+            .map_err(|err| format!("failed to write email at {dir:?}: {err}").into()),
+            Err(err) => Err(format!("failed to write email at {dir:?}: {err}").into()),
         }
     }
 
-    /// write the content of the current email in a json file.
-    /// NOTE: it would be great not having all those 'map_err'.
+    /// write the content of the current email with it's metadata in a json file.
     #[rhai_fn(global, return_raw)]
     pub fn dump(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        srv: &mut std::sync::Arc<ServerAPI>,
+        mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         dir: &str,
     ) -> EngineResult<()> {
-        match std::fs::OpenOptions::new().create(true).write(true).open(
-            std::path::PathBuf::from_iter([dir, &format!("{}.dump.json", message_id(this)?)]),
-        ) {
+        let mut dir =
+            create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
+                format!("failed to write email at {dir:?}: {err}").into()
+            })?;
+
+        dir.push(format!("{}.json", message_id(&mut ctx)?));
+
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&dir)
+        {
             Ok(mut file) => std::io::Write::write_all(
                 &mut file,
                 serde_json::to_string_pretty(
-                    &*this
+                    &*ctx
                         .read()
                         .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
                 )
                 .map_err::<Box<EvalAltResult>, _>(|err| {
-                    format!("failed to dump email at '{}': {:?}", dir, err).into()
+                    format!("failed to dump email at {dir:?}: {err}").into()
                 })?
                 .as_bytes(),
             )
-            .map_err(|err| format!("failed to dump email at '{}': {:?}", dir, err).into()),
-            Err(err) => Err(format!("failed to dump email at '{}': {:?}", dir, err).into()),
+            .map_err(|err| format!("failed to dump email at {dir:?}: {err}").into()),
+            Err(err) => Err(format!("failed to dump email at {dir:?}: {err}").into()),
         }
     }
 
@@ -726,4 +745,21 @@ fn set_transport(ctx: &mut MailContext, method: &vsmtp_common::transfer::Transfe
         .rcpt
         .iter_mut()
         .for_each(|rcpt| rcpt.transfer_method = method.clone());
+}
+
+/// create a folder at `[app.dirpath]` if needed, or just create the app folder.
+fn create_app_folder(
+    config: &vsmtp_config::Config,
+    path: Option<&str>,
+) -> anyhow::Result<std::path::PathBuf> {
+    let path = path.map_or_else(
+        || config.app.dirpath.clone(),
+        |path| config.app.dirpath.join(path),
+    );
+
+    if !path.exists() {
+        std::fs::create_dir_all(&path)?;
+    }
+
+    Ok(path)
 }
