@@ -88,8 +88,6 @@ pub mod re {
 use builder::{Builder, WantsVersion};
 use vsmtp_common::re::anyhow;
 
-use crate::builder::WantsValidate;
-
 impl Config {
     ///
     #[must_use]
@@ -136,7 +134,7 @@ impl Config {
         }
 
         toml::from_str::<Self>(input)
-            .map(Builder::<WantsValidate>::ensure)
+            .map(Self::ensure)
             .map_err(anyhow::Error::new)?
     }
 }

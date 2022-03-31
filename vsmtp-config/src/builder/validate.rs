@@ -37,7 +37,7 @@ impl Builder<WantsValidate> {
         let srv = srv_syst.parent;
         let version = srv.parent;
 
-        Self::ensure(Config {
+        Config::ensure(Config {
             version_requirement: version.version_requirement,
             server: ConfigServer {
                 domain: srv.domain,
@@ -102,18 +102,20 @@ impl Builder<WantsValidate> {
             },
         })
     }
+}
 
-    fn mech_list_to_code(list: &[Mechanism]) -> String {
-        format!(
-            "250-AUTH {}\r\n",
-            list.iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(" ")
-        )
-    }
+fn mech_list_to_code(list: &[Mechanism]) -> String {
+    format!(
+        "250-AUTH {}\r\n",
+        list.iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" ")
+    )
+}
 
-    pub(crate) fn ensure(mut config: Config) -> anyhow::Result<Config> {
+impl Config {
+    pub(crate) fn ensure(mut config: Self) -> anyhow::Result<Self> {
         anyhow::ensure!(
             config.app.logs.filepath != config.server.logs.filepath,
             "rules and application logs cannot both be written in '{}' !",
@@ -155,7 +157,19 @@ impl Builder<WantsValidate> {
                 &format!("250-{}\r\n", config.server.domain),
                 &auth_mechanism_list
                     .as_ref()
-                    .map(|(_, s)| Self::mech_list_to_code(s))
+                    .map(|(plain, secured)| {
+                        if config
+                            .server
+                            .smtp
+                            .auth
+                            .as_ref()
+                            .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
+                        {
+                            mech_list_to_code(&[secured.clone(), plain.clone()].concat())
+                        } else {
+                            mech_list_to_code(secured)
+                        }
+                    })
                     .unwrap_or_default(),
                 "250-STARTTLS\r\n",
                 "250-8BITMIME\r\n",
@@ -170,7 +184,7 @@ impl Builder<WantsValidate> {
                 &format!("250-{}\r\n", config.server.domain),
                 &auth_mechanism_list
                     .as_ref()
-                    .map(|(p, _)| Self::mech_list_to_code(p))
+                    .map(|(must_be_secured, _)| mech_list_to_code(must_be_secured))
                     .unwrap_or_default(),
                 "250-8BITMIME\r\n",
                 "250 SMTPUTF8\r\n",

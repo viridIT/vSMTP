@@ -16,7 +16,7 @@
 **/
 use self::transaction::{Transaction, TransactionResult};
 use crate::{
-    processes::ProcessMessage, queue::Queue, receiver::auth::on_authentication, server::SaslBackend,
+    auth, processes::ProcessMessage, queue::Queue, receiver::auth_exchange::on_authentication,
 };
 use vsmtp_common::{
     auth::Mechanism,
@@ -27,7 +27,7 @@ use vsmtp_common::{
 use vsmtp_config::re::rustls;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-mod auth;
+mod auth_exchange;
 mod connection;
 mod io_service;
 pub(crate) mod transaction;
@@ -128,7 +128,7 @@ impl OnMail for MailHandler {
 
 async fn handle_auth<S>(
     conn: &mut Connection<'_, S>,
-    rsasl: std::sync::Arc<tokio::sync::Mutex<SaslBackend>>,
+    rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
     helo_domain: &mut Option<String>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
@@ -138,11 +138,11 @@ where
     S: std::io::Read + std::io::Write + Send,
 {
     match on_authentication(conn, rsasl, mechanism, initial_response).await {
-        Err(auth::AuthExchangeError::Failed) => {
+        Err(auth_exchange::AuthExchangeError::Failed) => {
             conn.send_code(SMTPReplyCode::AuthInvalidCredentials)?;
             anyhow::bail!("Auth: Credentials invalid, closing connection");
         }
-        Err(auth::AuthExchangeError::Canceled) => {
+        Err(auth_exchange::AuthExchangeError::Canceled) => {
             conn.authentication_attempt += 1;
             *helo_domain = Some(helo_pre_auth);
 
@@ -160,14 +160,14 @@ where
             }
             conn.send_code(SMTPReplyCode::AuthClientCanceled)?;
         }
-        Err(auth::AuthExchangeError::Timeout(e)) => {
+        Err(auth_exchange::AuthExchangeError::Timeout(e)) => {
             conn.send_code(SMTPReplyCode::Code451Timeout)?;
             anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
         }
-        Err(auth::AuthExchangeError::InvalidBase64) => {
+        Err(auth_exchange::AuthExchangeError::InvalidBase64) => {
             conn.send_code(SMTPReplyCode::AuthErrorDecode64)?;
         }
-        Err(auth::AuthExchangeError::Other(e)) => anyhow::bail!("{}", e),
+        Err(auth_exchange::AuthExchangeError::Other(e)) => anyhow::bail!("{}", e),
         Ok(_) => {
             conn.is_authenticated = true;
 
@@ -196,7 +196,7 @@ where
 pub async fn handle_connection<S, M>(
     conn: &mut Connection<'_, S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
+    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mail_handler: &mut M,
 ) -> anyhow::Result<()>
@@ -263,7 +263,7 @@ where
 async fn handle_connection_secured<S, M>(
     conn: &mut Connection<'_, S>,
     tls_config: std::sync::Arc<rustls::ServerConfig>,
-    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
+    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mail_handler: &mut M,
 ) -> anyhow::Result<()>

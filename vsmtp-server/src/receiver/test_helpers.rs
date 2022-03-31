@@ -15,12 +15,12 @@
  *
 */
 use crate::{
+    auth,
     receiver::{
         connection::{Connection, ConnectionKind},
         handle_connection,
         io_service::IoService,
     },
-    server::SaslBackend,
 };
 use anyhow::Context;
 use vsmtp_common::re::anyhow;
@@ -91,7 +91,7 @@ pub async fn test_receiver_deprecated<M>(
     smtp_input: &[u8],
     expected_output: &[u8],
     config: std::sync::Arc<Config>,
-    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
+    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
 ) -> anyhow::Result<()>
 where
     M: super::OnMail + Send,

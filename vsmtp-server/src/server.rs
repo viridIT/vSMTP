@@ -15,7 +15,7 @@
  *
 **/
 use crate::{
-    auth::AuthCallback,
+    auth,
     processes::ProcessMessage,
     receiver::{
         handle_connection, IoService, {Connection, ConnectionKind},
@@ -28,8 +28,6 @@ use vsmtp_common::{
 use vsmtp_config::{get_rustls_config, re::rustls, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-pub(crate) type SaslBackend = rsasl::DiscardOnDrop<rsasl::SASL<(), ()>>;
-
 /// TCP/IP server
 #[allow(clippy::module_name_repetitions)]
 pub struct ServerVSMTP {
@@ -37,7 +35,7 @@ pub struct ServerVSMTP {
     listener_submission: tokio::net::TcpListener,
     listener_submissions: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
+    rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -81,7 +79,7 @@ impl ServerVSMTP {
             },
             rsasl: Some(std::sync::Arc::new(tokio::sync::Mutex::new({
                 let mut rsasl = rsasl::SASL::new_untyped().map_err(|e| anyhow::anyhow!("{}", e))?;
-                rsasl.install_callback::<AuthCallback>();
+                rsasl.install_callback::<auth::Callback>();
                 rsasl
             }))),
             config,
@@ -189,7 +187,7 @@ impl ServerVSMTP {
         kind: ConnectionKind,
         config: std::sync::Arc<Config>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
-        rsasl: Option<std::sync::Arc<tokio::sync::Mutex<SaslBackend>>>,
+        rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,

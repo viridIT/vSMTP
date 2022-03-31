@@ -3,23 +3,24 @@ use vsmtp_common::{
     auth::Mechanism,
     re::{anyhow, rsasl, strum},
 };
-use vsmtp_config::{Config, ConfigServerSMTPAuth};
+use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use crate::{
+    auth,
     processes::ProcessMessage,
     receiver::{ConnectionKind, IoService},
-    server::{SaslBackend, ServerVSMTP},
+    server::ServerVSMTP,
 };
 
-use super::{get_auth_config, TestAuth};
+use super::unsafe_auth_config;
 
 async fn test_auth(
     server_config: std::sync::Arc<Config>,
     expected_response: &'static [&str],
     port: u32,
     mech: Mechanism,
-    rsasl: std::sync::Arc<tokio::sync::Mutex<SaslBackend>>,
+    rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
     (username, password): (&'static str, &'static str),
 ) -> anyhow::Result<()> {
     println!("running with mechanism {mech:?}");
@@ -105,7 +106,7 @@ async fn test_auth(
         let outcome = io.get_next_line_async().await.unwrap();
         output.push(outcome);
 
-        assert_eq!(output, expected_response);
+        pretty_assertions::assert_eq!(output, expected_response);
     });
 
     let (client, server) = tokio::join!(client, server);
@@ -118,30 +119,22 @@ async fn test_auth(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn plain() {
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-
     test_auth(
-        std::sync::Arc::new(config),
+        std::sync::Arc::new(unsafe_auth_config()),
         &[
             "220 testserver.com Service ready",
             "250-testserver.com",
+            "250-AUTH PLAIN LOGIN CRAM-MD5",
+            "250-STARTTLS",
             "250-8BITMIME",
-            "250-SMTPUTF8",
-            "250-AUTH PLAIN",
-            "250 STARTTLS",
+            "250 SMTPUTF8",
             "235 2.7.0 Authentication succeeded",
         ],
         20015,
         Mechanism::Plain,
         {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
         },
         ("hello", "world"),
@@ -152,30 +145,22 @@ async fn plain() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn login() {
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-
     test_auth(
-        std::sync::Arc::new(config),
+        std::sync::Arc::new(unsafe_auth_config()),
         &[
             "220 testserver.com Service ready",
             "250-testserver.com",
+            "250-AUTH PLAIN LOGIN CRAM-MD5",
+            "250-STARTTLS",
             "250-8BITMIME",
-            "250-SMTPUTF8",
-            "250-AUTH PLAIN",
-            "250 STARTTLS",
+            "250 SMTPUTF8",
             "235 2.7.0 Authentication succeeded",
         ],
         20016,
         Mechanism::Login,
         {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
         },
         ("hello", "world"),
@@ -186,17 +171,10 @@ async fn login() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn all_supported_by_rsasl() {
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-    let config = std::sync::Arc::new(config);
+    let config = std::sync::Arc::new(unsafe_auth_config());
 
     let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-    rsasl.install_callback::<TestAuth>();
+    rsasl.install_callback::<auth::Callback>();
 
     let rsasl = std::sync::Arc::new(tokio::sync::Mutex::new(rsasl));
     for mechanism in <Mechanism as strum::IntoEnumIterator>::iter() {
@@ -205,10 +183,10 @@ async fn all_supported_by_rsasl() {
             &[
                 "220 testserver.com Service ready",
                 "250-testserver.com",
+                "250-AUTH PLAIN LOGIN CRAM-MD5",
+                "250-STARTTLS",
                 "250-8BITMIME",
-                "250-SMTPUTF8",
-                "250-AUTH PLAIN",
-                "250 STARTTLS",
+                "250 SMTPUTF8",
                 "235 2.7.0 Authentication succeeded",
             ],
             20017,

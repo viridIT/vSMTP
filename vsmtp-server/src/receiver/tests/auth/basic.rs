@@ -1,6 +1,7 @@
 use crate::{
+    auth,
     receiver::{
-        tests::auth::{get_auth_config, TestAuth},
+        tests::auth::{safe_auth_config, unsafe_auth_config},
         Connection, OnMail,
     },
     test_receiver,
@@ -10,13 +11,12 @@ use vsmtp_common::{
     mail_context::MailContext,
     re::{anyhow, rsasl},
 };
-use vsmtp_config::ConfigServerSMTPAuth;
 
 #[tokio::test]
 async fn plain_in_clair_secured() {
     assert!(test_receiver! {
         with_auth => rsasl::SASL::new_untyped().unwrap(),
-        with_config => get_auth_config(),
+        with_config => safe_auth_config(),
         [
             "EHLO foo\r\n",
             "AUTH PLAIN\r\n"
@@ -24,10 +24,10 @@ async fn plain_in_clair_secured() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH \r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "538 5.7.11 Encryption required for requested authentication mechanism\r\n",
         ].concat()
     }
@@ -58,21 +58,13 @@ async fn plain_in_clair_unsecured() {
         }
     }
 
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-
     assert!(test_receiver! {
         with_auth => {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             rsasl
         },
-        with_config => config,
+        with_config => unsafe_auth_config(),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -86,10 +78,10 @@ async fn plain_in_clair_unsecured() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "235 2.7.0 Authentication succeeded\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -125,21 +117,13 @@ async fn plain_in_clair_unsecured_utf8() {
         }
     }
 
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-
     assert!(test_receiver! {
         with_auth => {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             rsasl
         },
-        with_config => config,
+        with_config => unsafe_auth_config(),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -153,10 +137,10 @@ async fn plain_in_clair_unsecured_utf8() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "235 2.7.0 Authentication succeeded\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
@@ -170,21 +154,13 @@ async fn plain_in_clair_unsecured_utf8() {
 
 #[tokio::test]
 async fn plain_in_clair_invalid_credentials() {
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-
     assert!(test_receiver! {
         with_auth => {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             rsasl
         },
-        with_config => config,
+        with_config => unsafe_auth_config(),
         [
             "EHLO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "foo", "bar"))),
@@ -197,10 +173,10 @@ async fn plain_in_clair_invalid_credentials() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "535 5.7.8 Authentication credentials invalid\r\n"
         ].concat()
     }
@@ -209,18 +185,13 @@ async fn plain_in_clair_invalid_credentials() {
 
 #[tokio::test]
 async fn plain_in_clair_unsecured_cancel() {
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: 3,
-        must_be_authenticated: false,
-    });
+    let mut config = unsafe_auth_config();
+    config.server.smtp.auth.as_mut().unwrap().attempt_count_max = 3;
 
     assert!(test_receiver! {
         with_auth => {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             rsasl
         },
         with_config => config,
@@ -238,10 +209,10 @@ async fn plain_in_clair_unsecured_cancel() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "334 \r\n",
             "501 Authentication canceled by clients\r\n",
             "334 \r\n",
@@ -257,21 +228,13 @@ async fn plain_in_clair_unsecured_cancel() {
 
 #[tokio::test]
 async fn plain_in_clair_unsecured_bad_base64() {
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-
     assert!(test_receiver! {
         with_auth => {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             rsasl
         },
-        with_config => config,
+        with_config => unsafe_auth_config(),
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN foobar\r\n",
@@ -280,10 +243,10 @@ async fn plain_in_clair_unsecured_bad_base64() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "501 5.5.2 Invalid, not base64\r\n",
             "503 Bad sequence of commands\r\n",
         ].concat()
@@ -315,21 +278,13 @@ async fn plain_in_clair_unsecured_without_initial_response() {
         }
     }
 
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-
     assert!(test_receiver! {
         with_auth => {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             rsasl
         },
-        with_config => config,
+        with_config => unsafe_auth_config(),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -344,10 +299,10 @@ async fn plain_in_clair_unsecured_without_initial_response() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             // See https://datatracker.ietf.org/doc/html/rfc4422#section-5 2.a
             "334 \r\n",
             "235 2.7.0 Authentication succeeded\r\n",
@@ -363,13 +318,14 @@ async fn plain_in_clair_unsecured_without_initial_response() {
 
 #[tokio::test]
 async fn no_auth_with_authenticated_policy() {
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: true,
-    });
+    let mut config = unsafe_auth_config();
+    config
+        .server
+        .smtp
+        .auth
+        .as_mut()
+        .unwrap()
+        .must_be_authenticated = true;
 
     assert!(test_receiver! {
         with_config => config,
@@ -380,10 +336,10 @@ async fn no_auth_with_authenticated_policy() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "530 5.7.0 Authentication required\r\n",
         ].concat()
     }
@@ -392,21 +348,13 @@ async fn no_auth_with_authenticated_policy() {
 
 #[tokio::test]
 async fn client_must_not_start() {
-    let mut config = get_auth_config();
-    config.server.smtp.auth = Some(ConfigServerSMTPAuth {
-        enable_dangerous_mechanism_in_clair: true,
-        mechanisms: vec![],
-        attempt_count_max: -1,
-        must_be_authenticated: false,
-    });
-
     assert!(test_receiver! {
         with_auth => {
             let mut rsasl = rsasl::SASL::new_untyped().unwrap();
-            rsasl.install_callback::<TestAuth>();
+            rsasl.install_callback::<auth::Callback>();
             rsasl
         },
-        with_config => config,
+        with_config => unsafe_auth_config(),
         [
             "EHLO client.com\r\n",
             "AUTH LOGIN foobar\r\n",
@@ -415,10 +363,10 @@ async fn client_must_not_start() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
+            "250 SMTPUTF8\r\n",
             "501 5.7.0 Client must not start with this mechanism\r\n"
         ].concat()
     }

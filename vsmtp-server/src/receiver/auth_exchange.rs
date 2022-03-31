@@ -1,5 +1,6 @@
+use crate::auth;
+
 use super::Connection;
-use crate::server::SaslBackend;
 use vsmtp_common::{
     auth::Mechanism,
     code::SMTPReplyCode,
@@ -73,7 +74,7 @@ where
 
 pub async fn on_authentication<S>(
     conn: &mut Connection<'_, S>,
-    rsasl: std::sync::Arc<tokio::sync::Mutex<SaslBackend>>,
+    rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
 ) -> Result<(), AuthExchangeError>

@@ -1,80 +1,51 @@
-use vsmtp_common::{code::SMTPReplyCode, re::rsasl};
-use vsmtp_config::Config;
+use vsmtp_config::{Config, ConfigServerSMTPAuth};
 
-use crate::receiver::test_helpers::get_regular_config;
-
-fn get_auth_config() -> Config {
-    // TODO: make selection of SMTP extension and AUTH mechanism more simple
-
-    let mut config = get_regular_config();
-    config.server.smtp.codes.insert(
-        SMTPReplyCode::Code250PlainEsmtp,
-        [
-            "250-testserver.com\r\n",
-            "250-8BITMIME\r\n",
-            "250-SMTPUTF8\r\n",
-            "250-AUTH PLAIN\r\n",
-            "250 STARTTLS\r\n",
-        ]
-        .concat(),
-    );
-    config
+pub fn safe_auth_config() -> Config {
+    Config::builder()
+        .with_version_str("<1.0.0")
+        .unwrap()
+        .with_server_name("testserver.com")
+        .with_user_group_and_default_system("root", "root")
+        .unwrap()
+        .with_ipv4_localhost()
+        .with_default_logs_settings()
+        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .without_tls_support()
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .with_safe_auth(false, -1)
+        .with_default_app()
+        .with_vsl("./src/receiver/tests/main.vsl")
+        .with_default_app_logs()
+        .without_services()
+        .with_system_dns()
+        .validate()
+        .unwrap()
 }
 
-struct TestAuth;
-
-impl rsasl::Callback<(), ()> for TestAuth {
-    fn callback(
-        _sasl: &mut rsasl::SASL<(), ()>,
-        session: &mut rsasl::Session<()>,
-        prop: rsasl::Property,
-    ) -> Result<(), rsasl::ReturnCode> {
-        match prop {
-            rsasl::Property::GSASL_PASSWORD => {
-                let authid = session
-                    .get_property(rsasl::Property::GSASL_AUTHID)
-                    .ok_or(rsasl::ReturnCode::GSASL_NO_AUTHID)?
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-
-                // println!("{}", authid);
-                if authid == "hello" {
-                    session.set_property(rsasl::Property::GSASL_PASSWORD, b"world");
-                }
-
-                Ok(())
-            }
-            rsasl::Property::GSASL_VALIDATE_SIMPLE => {
-                let (authid, password) = (
-                    session
-                        .get_property(rsasl::Property::GSASL_AUTHID)
-                        .ok_or(rsasl::ReturnCode::GSASL_NO_AUTHID)?
-                        .to_str()
-                        .unwrap()
-                        .to_string(),
-                    session
-                        .get_property(rsasl::Property::GSASL_PASSWORD)
-                        .ok_or(rsasl::ReturnCode::GSASL_NO_PASSWORD)?
-                        .to_str()
-                        .unwrap()
-                        .to_string(),
-                );
-
-                let db = [("hello", "world"), ("héllo", "wÖrld")]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect::<std::collections::HashMap<String, String>>();
-
-                if db.get(&authid).map_or(false, |p| *p == password) {
-                    Ok(())
-                } else {
-                    Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR)
-                }
-            }
-            _ => Err(rsasl::ReturnCode::GSASL_NO_CALLBACK),
-        }
-    }
+pub fn unsafe_auth_config() -> Config {
+    Config::builder()
+        .with_version_str("<1.0.0")
+        .unwrap()
+        .with_server_name("testserver.com")
+        .with_user_group_and_default_system("root", "root")
+        .unwrap()
+        .with_ipv4_localhost()
+        .with_default_logs_settings()
+        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .without_tls_support()
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .with_auth(false, true, ConfigServerSMTPAuth::default_mechanisms(), -1)
+        .with_default_app()
+        .with_vsl("./src/receiver/tests/main.vsl")
+        .with_default_app_logs()
+        .without_services()
+        .with_system_dns()
+        .validate()
+        .unwrap()
 }
 
 mod all_mechanism;

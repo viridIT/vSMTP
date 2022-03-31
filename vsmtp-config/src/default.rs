@@ -1,12 +1,5 @@
 #![allow(clippy::module_name_repetitions)]
 
-use vsmtp_common::{
-    auth::Mechanism,
-    code::SMTPReplyCode,
-    collection,
-    re::{log, strum},
-};
-
 use crate::{
     config::{
         ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
@@ -14,12 +7,18 @@ use crate::{
         ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPAuth, ConfigServerSMTPError,
         ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
     },
-    Builder, Config, ConfigServerTls, Service,
+    Config, ConfigServerTls, Service,
+};
+use vsmtp_common::{
+    auth::Mechanism,
+    code::SMTPReplyCode,
+    collection,
+    re::{log, strum},
 };
 
 impl Default for Config {
     fn default() -> Self {
-        Builder::ensure(Self {
+        Self::ensure(Self {
             version_requirement: semver::VersionReq::parse("<1.0.0").unwrap(),
             server: ConfigServer::default(),
             app: ConfigApp::default(),
@@ -215,7 +214,9 @@ impl ConfigServerSMTPAuth {
         false
     }
 
-    pub(crate) fn default_mechanisms() -> Vec<Mechanism> {
+    /// Return all the supported SASL mechanisms
+    #[must_use]
+    pub fn default_mechanisms() -> Vec<Mechanism> {
         <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>()
     }
 

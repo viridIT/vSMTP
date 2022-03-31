@@ -79,12 +79,12 @@ mod tests {
 
 ///
 pub mod re {
+    pub use addr;
     pub use anyhow;
     pub use libc;
     pub use log;
     pub use rsasl;
     pub use strum;
-    pub use addr;
 }
 
 #[doc(hidden)]
