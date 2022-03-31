@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 
 // runs rules for a given stage and returns
 // a status.
@@ -27,10 +27,20 @@ fn run_rules(rules, stage) {
             try {
                 result = procedure.evaluate.call();
             } catch (err) {
-                print(err);
-                err.set("rule", procedure.name);
-                result = err;
-            };
+                result = switch err.type_of() {
+                    "string" => {
+                        #{
+                            "error": "ErrorInFunctionCall",
+                            "rule": procedure.name,
+                            "message": err
+                        }
+                    },
+                    _ => {
+                        err.set("rule", procedure.name);
+                        err
+                    }
+                };
+            }
 
             switch result.type_of() {
                 "vsmtp_common::status::Status" => {
