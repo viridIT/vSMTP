@@ -124,6 +124,8 @@ pub enum SMTPReplyCode {
     Code554,
     /// transaction has failed
     Code554tls,
+    /// 554 5.5.1 Error: TLS already active
+    TlsAlreadyUnderTls,
     // Code555,
     // domain does not accept mail
     // Code556,
@@ -182,7 +184,8 @@ impl SMTPReplyCode {
             | Self::AuthErrorDecode64
             | Self::AuthInvalidCredentials
             | Self::AuthClientCanceled
-            | Self::AuthRequired => true,
+            | Self::AuthRequired
+            | Self::TlsAlreadyUnderTls => true,
         }
     }
 }
@@ -220,6 +223,7 @@ impl std::fmt::Display for SMTPReplyCode {
             Self::AuthInvalidCredentials => "AuthInvalidCredentials",
             Self::AuthClientCanceled => "AuthClientCanceled",
             Self::AuthRequired => "AuthRequired",
+            Self::TlsAlreadyUnderTls => "TlsAlreadyUnderTls",
         })
     }
 }
@@ -265,6 +269,7 @@ impl std::str::FromStr for SMTPReplyCode {
             "AuthInvalidCredentials" => Ok(Self::AuthInvalidCredentials),
             "AuthClientCanceled" => Ok(Self::AuthClientCanceled),
             "AuthRequired" => Ok(Self::AuthRequired),
+            "TlsAlreadyUnderTls" => Ok(Self::TlsAlreadyUnderTls),
             _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }

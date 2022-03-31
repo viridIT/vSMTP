@@ -102,19 +102,24 @@ async fn test_tls_tunneled(
 
         let mut input = smtp_input.iter().copied();
         loop {
-            match io.get_next_line_async().await {
-                Ok(res) => {
-                    output.push(res);
-                    match input.next() {
-                        Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
-                        None => break,
-                    }
-                }
-                Err(e) => println!("{:?}", e),
+            let res = io.get_next_line_async().await.unwrap();
+            output.push(res);
+            match input.next() {
+                Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
+                None => break,
             }
         }
 
-        assert_eq!(output, expected_output);
+        if let Ok(Ok(last)) = tokio::time::timeout(
+            std::time::Duration::from_millis(100),
+            io.get_next_line_async(),
+        )
+        .await
+        {
+            output.push(last);
+        }
+
+        pretty_assertions::assert_eq!(expected_output, output);
     });
 
     let (client, server) = tokio::join!(client, server);
@@ -158,6 +163,26 @@ async fn simple() -> anyhow::Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+async fn starttls_under_tunnel() -> anyhow::Result<()> {
+    let mut config = get_tls_config();
+    config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
+
+    test_tls_tunneled(
+        "testserver.com",
+        std::sync::Arc::new(config),
+        &["NOOP\r\n", "STARTTLS\r\n"],
+        &[
+            "220 testserver.com Service ready",
+            "250 Ok",
+            "220 testserver.com Service ready",
+            "554 5.5.1 Error: TLS already active",
+        ],
+        20467,
+    )
+    .await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn sni() -> anyhow::Result<()> {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
@@ -179,7 +204,7 @@ async fn sni() -> anyhow::Result<()> {
             "250 Ok",
             "221 Service closing transmission channel",
         ],
-        20467,
+        20469,
     )
     .await
 }

@@ -19,6 +19,7 @@ fn parse() {
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
+            .without_auth()
             .with_default_app()
             .with_vsl("../examples/config/service/main.vsl")
             .with_default_app_logs()

@@ -31,6 +31,7 @@ fn parse() {
                 SMTPReplyCode::Help => "214 my custom help message\r\n".to_string(),
                 SMTPReplyCode::Greetings => "220 {domain} ESMTP Service ready\r\n".to_string(),
             })
+            .without_auth()
             .with_default_app()
             .with_default_vsl_settings()
             .with_app_logs_level_and_format(

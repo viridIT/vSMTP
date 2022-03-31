@@ -1,8 +1,4 @@
-use vsmtp_common::{
-    code::SMTPReplyCode,
-    re::{anyhow, strum},
-};
-
+use super::{wants::WantsValidate, with::Builder};
 use crate::{
     config::{
         ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigServer, ConfigServerInterfaces,
@@ -11,8 +7,11 @@ use crate::{
     },
     Config,
 };
-
-use super::{wants::WantsValidate, with::Builder};
+use vsmtp_common::{
+    auth::Mechanism,
+    code::SMTPReplyCode,
+    re::{anyhow, strum},
+};
 
 impl Builder<WantsValidate> {
     ///
@@ -26,7 +25,8 @@ impl Builder<WantsValidate> {
         let app_logs = app_services.parent;
         let app_vsl = app_logs.parent;
         let app = app_vsl.parent;
-        let smtp_codes = app.parent;
+        let auth = app.parent;
+        let smtp_codes = auth.parent;
         let smtp_error = smtp_codes.parent;
         let smtp_opt = smtp_error.parent;
         let srv_tls = smtp_opt.parent;
@@ -84,7 +84,7 @@ impl Builder<WantsValidate> {
                         data: smtp_error.timeout_client.data,
                     },
                     codes: smtp_codes.codes,
-                    auth: None,
+                    auth: auth.auth,
                 },
                 dns: dns.config,
             },
@@ -103,6 +103,16 @@ impl Builder<WantsValidate> {
         })
     }
 
+    fn mech_list_to_code(list: &[Mechanism]) -> String {
+        format!(
+            "250-AUTH {}\r\n",
+            list.iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
+    }
+
     pub(crate) fn ensure(mut config: Config) -> anyhow::Result<Config> {
         anyhow::ensure!(
             config.app.logs.filepath != config.server.logs.filepath,
@@ -110,12 +120,17 @@ impl Builder<WantsValidate> {
             config.app.logs.filepath.display()
         );
 
-        // TODO: generated code EHLO here
-
         {
             let default_values = ConfigServerSMTP::default_smtp_codes();
             let reply_codes = &mut config.server.smtp.codes;
-            for i in <SMTPReplyCode as strum::IntoEnumIterator>::iter() {
+
+            for i in <SMTPReplyCode as strum::IntoEnumIterator>::iter().filter(|i| {
+                ![
+                    SMTPReplyCode::Code250PlainEsmtp,
+                    SMTPReplyCode::Code250SecuredEsmtp,
+                ]
+                .contains(i)
+            }) {
                 reply_codes.insert(
                     i,
                     reply_codes
@@ -126,6 +141,42 @@ impl Builder<WantsValidate> {
                 );
             }
         }
+
+        let auth_mechanism_list: Option<(Vec<Mechanism>, Vec<Mechanism>)> = config
+            .server
+            .smtp
+            .auth
+            .as_ref()
+            .map(|auth| auth.mechanisms.iter().partition(|m| m.must_be_under_tls()));
+
+        config.server.smtp.codes.insert(
+            SMTPReplyCode::Code250PlainEsmtp,
+            [
+                &format!("250-{}\r\n", config.server.domain),
+                &auth_mechanism_list
+                    .as_ref()
+                    .map(|(_, s)| Self::mech_list_to_code(s))
+                    .unwrap_or_default(),
+                "250-STARTTLS\r\n",
+                "250-8BITMIME\r\n",
+                "250 SMTPUTF8\r\n",
+            ]
+            .concat(),
+        );
+
+        config.server.smtp.codes.insert(
+            SMTPReplyCode::Code250SecuredEsmtp,
+            [
+                &format!("250-{}\r\n", config.server.domain),
+                &auth_mechanism_list
+                    .as_ref()
+                    .map(|(p, _)| Self::mech_list_to_code(p))
+                    .unwrap_or_default(),
+                "250-8BITMIME\r\n",
+                "250 SMTPUTF8\r\n",
+            ]
+            .concat(),
+        );
 
         Ok(config)
     }
@@ -148,6 +199,7 @@ mod tests {
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
+            .without_auth()
             .with_default_app()
             .with_default_vsl_settings()
             .with_default_app_logs()
