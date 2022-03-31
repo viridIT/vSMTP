@@ -44,7 +44,7 @@ const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
 pub struct RuleState<'a> {
     scope: Scope<'a>,
     #[allow(unused)]
-    server: std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+    server: std::sync::Arc<ServerAPI>,
     mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
     skip: Option<Status>,
 }
@@ -54,11 +54,9 @@ impl<'a> RuleState<'a> {
     #[must_use]
     pub fn new(config: &Config) -> Self {
         let mut scope = Scope::new();
-        let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
-            // FIXME: set config in Arc.
+        let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
-            resolver: "default".to_string(),
-        }));
+        });
 
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
             connection_timestamp: std::time::SystemTime::now(),
@@ -89,11 +87,9 @@ impl<'a> RuleState<'a> {
     /// create a RuleState from an existing mail context (f.e. when deserializing a context)
     pub fn with_context(config: &Config, mail_context: MailContext) -> Self {
         let mut scope = Scope::new();
-        let server = std::sync::Arc::new(std::sync::RwLock::new(ServerAPI {
-            // FIXME: set config in Arc.
+        let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
-            resolver: "default".to_string(),
-        }));
+        });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
 
         scope

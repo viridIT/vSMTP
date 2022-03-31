@@ -126,17 +126,12 @@ pub mod actions {
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
     pub fn run_service(
-        this: &mut std::sync::Arc<std::sync::RwLock<ServerAPI>>,
+        srv: &mut std::sync::Arc<ServerAPI>,
         ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         service_name: &str,
     ) -> EngineResult<ServiceResult> {
-        let server = this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
-
         crate::service::run(
-            server
-                .config
+            srv.config
                 .app
                 .services
                 .get(service_name)
@@ -315,16 +310,30 @@ pub mod actions {
     /// write the current email to a specified folder.
     #[rhai_fn(global, return_raw)]
     pub fn write(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        srv: &mut std::sync::Arc<ServerAPI>,
+        mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         dir: &str,
     ) -> EngineResult<()> {
-        match std::fs::OpenOptions::new().create(true).write(true).open(
-            std::path::PathBuf::from_iter([dir, &format!("{}.eml", message_id(this)?)]),
-        ) {
+        let mut dir =
+            create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
+                format!(
+                    "failed to write email at {}/{dir}: {err}",
+                    srv.config.app.dirpath.display()
+                )
+                .into()
+            })?;
+
+        dir.push(format!("{}.eml", message_id(&mut ctx)?));
+
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&dir)
+        {
             Ok(file) => {
                 let mut writer = std::io::LineWriter::new(file);
 
-                match &this
+                match &ctx
                     .read()
                     .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
                     .body
@@ -340,67 +349,98 @@ pub mod actions {
                     }
                 }
             }
-            .map_err(|err| format!("failed to write email at '{}': {:?}", dir, err).into()),
-            Err(err) => Err(format!("failed to write email at '{}': {:?}", dir, err).into()),
+            .map_err(|err| format!("failed to write email at {dir:?}: {err}").into()),
+            Err(err) => Err(format!("failed to write email at {dir:?}: {err}").into()),
         }
     }
 
-    /// write the content of the current email in a json file.
-    /// NOTE: it would be great not having all those 'map_err'.
+    /// write the content of the current email with it's metadata in a json file.
     #[rhai_fn(global, return_raw)]
     pub fn dump(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        srv: &mut std::sync::Arc<ServerAPI>,
+        mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         dir: &str,
     ) -> EngineResult<()> {
-        match std::fs::OpenOptions::new().create(true).write(true).open(
-            std::path::PathBuf::from_iter([dir, &format!("{}.dump.json", message_id(this)?)]),
-        ) {
+        let mut dir =
+            create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
+                format!(
+                    "failed to dump email at {}/{dir}: {err}",
+                    srv.config.app.dirpath.display()
+                )
+                .into()
+            })?;
+
+        dir.push(format!("{}.json", message_id(&mut ctx)?));
+
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&dir)
+        {
             Ok(mut file) => std::io::Write::write_all(
                 &mut file,
                 serde_json::to_string_pretty(
-                    &*this
+                    &*ctx
                         .read()
                         .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
                 )
                 .map_err::<Box<EvalAltResult>, _>(|err| {
-                    format!("failed to dump email at '{}': {:?}", dir, err).into()
+                    format!("failed to dump email at {dir:?}: {err}").into()
                 })?
                 .as_bytes(),
             )
-            .map_err(|err| format!("failed to dump email at '{}': {:?}", dir, err).into()),
-            Err(err) => Err(format!("failed to dump email at '{}': {:?}", dir, err).into()),
+            .map_err(|err| format!("failed to dump email at {dir:?}: {err}").into()),
+            Err(err) => Err(format!("failed to dump email at {dir:?}: {err}").into()),
         }
     }
 
-    // TODO: unfinished, queue parameter should point to a folder specified in toml config.
     /// dump the current email into a quarantine queue, skipping delivery.
+    /// the email is written in the specified app directory, inside the "queue" folder.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw)]
     pub fn quarantine(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        srv: &mut std::sync::Arc<ServerAPI>,
+        mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         queue: &str,
-    ) -> EngineResult<()> {
+    ) -> EngineResult<Status> {
+        disable_delivery_all(&mut ctx)?;
+
+        let mut path = create_app_folder(&srv.config, Some(queue))
+            .map_err::<Box<EvalAltResult>, _>(|err| {
+                format!(
+                    "failed to dump email at {}/{queue}: {err}",
+                    srv.config.app.dirpath.display()
+                )
+                .into()
+            })?;
+
+        path.push(format!("{}.json", message_id(&mut ctx)?));
+
+        let ctx = ctx.read().map_err::<Box<EvalAltResult>, _>(|_| {
+            "failed to quarantine email: mail context poisoned".into()
+        })?;
+
         match std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(queue)
+            .open(path)
         {
             Ok(mut file) => {
-                disable_delivery_all(this)?;
-
                 std::io::Write::write_all(
                     &mut file,
-                    serde_json::to_string_pretty(&*this.read().map_err::<Box<EvalAltResult>, _>(
-                        |err| format!("failed to dump email: {err:?}").into(),
-                    )?)
-                    .map_err::<Box<EvalAltResult>, _>(|err| {
-                        format!("failed to dump email: {err:?}").into()
-                    })?
-                    .as_bytes(),
+                    serde_json::to_string_pretty(&*ctx)
+                        .map_err::<Box<EvalAltResult>, _>(|err| {
+                            format!("failed to quarantine email: {err:?}").into()
+                        })?
+                        .as_bytes(),
                 )
-                .map_err(|err| format!("failed to dump email: {err:?}").into())
+                .map_err::<Box<EvalAltResult>, _>(|err| {
+                    format!("failed to quarantine email: {err:?}").into()
+                })?;
+
+                Ok(Status::Deny)
             }
-            Err(err) => Err(format!("failed to dump email: {err:?}").into()),
+            Err(err) => Err(format!("failed to quarantine email: {err:?}").into()),
         }
     }
 
@@ -706,4 +746,104 @@ fn set_transport(ctx: &mut MailContext, method: &vsmtp_common::transfer::Transfe
         .rcpt
         .iter_mut()
         .for_each(|rcpt| rcpt.transfer_method = method.clone());
+}
+
+/// create a folder at `[app.dirpath]` if needed, or just create the app folder.
+fn create_app_folder(
+    config: &vsmtp_config::Config,
+    path: Option<&str>,
+) -> anyhow::Result<std::path::PathBuf> {
+    let path = path.map_or_else(
+        || config.app.dirpath.clone(),
+        |path| config.app.dirpath.join(path),
+    );
+
+    if !path.exists() {
+        std::fs::create_dir_all(&path)?;
+    }
+
+    Ok(path)
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::{create_app_folder, set_transport, set_transport_for};
+    use vsmtp_common::{
+        address::Address, mail_context::MailContext, rcpt::Rcpt, transfer::Transfer,
+    };
+    use vsmtp_config::Config;
+
+    fn get_default_context() -> MailContext {
+        MailContext {
+            body: vsmtp_common::mail_context::Body::Empty,
+            connection_timestamp: std::time::SystemTime::now(),
+            client_addr: std::net::SocketAddr::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
+                0,
+            ),
+            envelop: vsmtp_common::envelop::Envelop::default(),
+            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
+                timestamp: std::time::SystemTime::now(),
+                ..vsmtp_common::mail_context::MessageMetadata::default()
+            }),
+        }
+    }
+
+    #[test]
+    fn test_set_transport_for() {
+        let mut ctx = get_default_context();
+
+        ctx.envelop.rcpt.push(Rcpt::new(
+            Address::try_from("valid@rcpt.foo".to_string()).unwrap(),
+        ));
+
+        assert!(set_transport_for(&mut ctx, "valid@rcpt.foo", &Transfer::Deliver).is_ok());
+        assert!(set_transport_for(&mut ctx, "invalid@rcpt.foo", &Transfer::Deliver).is_err());
+
+        ctx.envelop
+            .rcpt
+            .iter()
+            .find(|rcpt| rcpt.address.full() == "valid@rcpt.foo")
+            .map(|rcpt| {
+                assert_eq!(rcpt.transfer_method, Transfer::Deliver);
+            })
+            .or_else(|| panic!("recipient transfer method is not valid"));
+    }
+
+    #[test]
+    fn test_set_transport() {
+        let mut ctx = get_default_context();
+
+        set_transport(&mut ctx, &Transfer::Forward("mta.example.com".to_string()));
+
+        assert!(ctx
+            .envelop
+            .rcpt
+            .iter()
+            .all(|rcpt| rcpt.transfer_method == Transfer::Forward("mta.example.com".to_string())));
+    }
+
+    #[test]
+    fn test_create_app_folder() {
+        let mut config = Config::default();
+        config.app.dirpath = "./tests/generated".into();
+
+        let app_folder = create_app_folder(&config, None).unwrap();
+        let nested_folder = create_app_folder(&config, Some("folder")).unwrap();
+        let deep_folder = create_app_folder(&config, Some("deep/folder")).unwrap();
+
+        assert_eq!(app_folder, config.app.dirpath);
+        assert!(app_folder.exists());
+        assert_eq!(
+            nested_folder,
+            std::path::PathBuf::from_iter([config.app.dirpath.to_str().unwrap(), "folder"])
+        );
+        assert!(nested_folder.exists());
+        assert_eq!(
+            deep_folder,
+            std::path::PathBuf::from_iter([config.app.dirpath.to_str().unwrap(), "deep", "folder"])
+        );
+        assert!(deep_folder.exists());
+    }
 }

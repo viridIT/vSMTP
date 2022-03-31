@@ -20,5 +20,4 @@ use vsmtp_config::Config;
 #[derive(Debug, Clone)]
 pub struct ServerAPI {
     pub config: Config,
-    pub resolver: String,
 }

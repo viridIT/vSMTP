@@ -53,7 +53,7 @@ pub mod helpers {
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
             .without_auth()
-            .with_default_app()
+            .with_app_at_location("./tmp/app")
             .with_vsl("./src/receiver/tests/main.vsl")
             .with_default_app_logs()
             .without_services()
