@@ -1,0 +1,17 @@
+#{
+    preq: [
+        action "action + set in quarantine" || {
+            vsl::quarantine(srv, ctx, "tests/generated/quarantine1");
+        },
+
+        rule "trailing" || vsl::accept(),
+    ],
+
+    postq: [
+        rule "set in second quarantine + deny" || {
+            vsl::quarantine(srv, ctx, "tests/generated/quarantine2")
+        },
+
+        rule "trailing" || vsl::accept(),
+    ]
+}

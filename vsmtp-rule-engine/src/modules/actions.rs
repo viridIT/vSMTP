@@ -316,7 +316,11 @@ pub mod actions {
     ) -> EngineResult<()> {
         let mut dir =
             create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
-                format!("failed to write email at {dir:?}: {err}").into()
+                format!(
+                    "failed to write email at {}/{dir}: {err}",
+                    srv.config.app.dirpath.display()
+                )
+                .into()
             })?;
 
         dir.push(format!("{}.eml", message_id(&mut ctx)?));
@@ -359,7 +363,11 @@ pub mod actions {
     ) -> EngineResult<()> {
         let mut dir =
             create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
-                format!("failed to write email at {dir:?}: {err}").into()
+                format!(
+                    "failed to dump email at {}/{dir}: {err}",
+                    srv.config.app.dirpath.display()
+                )
+                .into()
             })?;
 
         dir.push(format!("{}.json", message_id(&mut ctx)?));
@@ -397,27 +405,20 @@ pub mod actions {
     ) -> EngineResult<Status> {
         disable_delivery_all(&mut ctx)?;
 
+        let mut path = create_app_folder(&srv.config, Some(queue))
+            .map_err::<Box<EvalAltResult>, _>(|err| {
+                format!(
+                    "failed to dump email at {}/{queue}: {err}",
+                    srv.config.app.dirpath.display()
+                )
+                .into()
+            })?;
+
+        path.push(format!("{}.json", message_id(&mut ctx)?));
+
         let ctx = ctx.read().map_err::<Box<EvalAltResult>, _>(|_| {
             "failed to quarantine email: mail context poisoned".into()
         })?;
-
-        let mut path = srv.config.app.dirpath.join(queue);
-
-        if !path.exists() {
-            std::fs::create_dir_all(&path).map_err::<Box<EvalAltResult>, _>(|err| {
-                format!("failed to quarantine email: {err:?}").into()
-            })?;
-        }
-
-        path.push(
-            ctx.metadata
-                .as_ref()
-                .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                    "metadata are not available in this stage".into()
-                })?
-                .message_id
-                .as_str(),
-        );
 
         match std::fs::OpenOptions::new()
             .create(true)
@@ -762,4 +763,87 @@ fn create_app_folder(
     }
 
     Ok(path)
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::{create_app_folder, set_transport, set_transport_for};
+    use vsmtp_common::{
+        address::Address, mail_context::MailContext, rcpt::Rcpt, transfer::Transfer,
+    };
+    use vsmtp_config::Config;
+
+    fn get_default_context() -> MailContext {
+        MailContext {
+            body: vsmtp_common::mail_context::Body::Empty,
+            connection_timestamp: std::time::SystemTime::now(),
+            client_addr: std::net::SocketAddr::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
+                0,
+            ),
+            envelop: vsmtp_common::envelop::Envelop::default(),
+            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
+                timestamp: std::time::SystemTime::now(),
+                ..vsmtp_common::mail_context::MessageMetadata::default()
+            }),
+        }
+    }
+
+    #[test]
+    fn test_set_transport_for() {
+        let mut ctx = get_default_context();
+
+        ctx.envelop.rcpt.push(Rcpt::new(
+            Address::try_from("valid@rcpt.foo".to_string()).unwrap(),
+        ));
+
+        assert!(set_transport_for(&mut ctx, "valid@rcpt.foo", &Transfer::Deliver).is_ok());
+        assert!(set_transport_for(&mut ctx, "invalid@rcpt.foo", &Transfer::Deliver).is_err());
+
+        ctx.envelop
+            .rcpt
+            .iter()
+            .find(|rcpt| rcpt.address.full() == "valid@rcpt.foo")
+            .map(|rcpt| {
+                assert_eq!(rcpt.transfer_method, Transfer::Deliver);
+            })
+            .or_else(|| panic!("recipient transfer method is not valid"));
+    }
+
+    #[test]
+    fn test_set_transport() {
+        let mut ctx = get_default_context();
+
+        set_transport(&mut ctx, &Transfer::Forward("mta.example.com".to_string()));
+
+        assert!(ctx
+            .envelop
+            .rcpt
+            .iter()
+            .all(|rcpt| rcpt.transfer_method == Transfer::Forward("mta.example.com".to_string())));
+    }
+
+    #[test]
+    fn test_create_app_folder() {
+        let mut config = Config::default();
+        config.app.dirpath = "./tests/generated".into();
+
+        let app_folder = create_app_folder(&config, None).unwrap();
+        let nested_folder = create_app_folder(&config, Some("folder")).unwrap();
+        let deep_folder = create_app_folder(&config, Some("deep/folder")).unwrap();
+
+        assert_eq!(app_folder, config.app.dirpath);
+        assert!(app_folder.exists());
+        assert_eq!(
+            nested_folder,
+            std::path::PathBuf::from_iter([config.app.dirpath.to_str().unwrap(), "folder"])
+        );
+        assert!(nested_folder.exists());
+        assert_eq!(
+            deep_folder,
+            std::path::PathBuf::from_iter([config.app.dirpath.to_str().unwrap(), "deep", "folder"])
+        );
+        assert!(deep_folder.exists());
+    }
 }
