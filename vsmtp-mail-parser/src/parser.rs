@@ -496,7 +496,7 @@ mod test {
 "x-account-key: account4",
 "from: tabis lucas <tabis@localhost>",
 "subject: text content",
-"to: tabis@localhost, green@viridit.com, foo@viridit.com, x@x.com",
+"to: tabis@localhost, green@example.com, foo@example.com, x@x.com",
 "message-id: <51734671-2e09-946e-7e3f-ec59b83e82d0@localhost.com>",
 "date: tue, 30 nov 2021 20:54:27 +0100",
 "x-mozilla-draft-info: internal/draft; vcard=0; receipt=0; dsn=0; uuencode=0;",
@@ -527,7 +527,7 @@ x-identity-key: id3
 x-account-key: account4
 from: tabis lucas <tabis@localhost>
 subject: text content
-to: tabis@localhost, green@viridit.com, foo@viridit.com, x@x.com
+to: tabis@localhost, green@example.com, foo@example.com, x@x.com
 message-id: <51734671-2e09-946e-7e3f-ec59b83e82d0@localhost.com>
 date: tue, 30 nov 2021 20:54:27 +0100
 x-mozilla-draft-info: internal/draft; vcard=0; receipt=0; dsn=0; uuencode=0; attachmentreminder=0; deliveryformat=1

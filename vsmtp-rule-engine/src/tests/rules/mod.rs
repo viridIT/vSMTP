@@ -35,7 +35,7 @@ fn test_connect_rules() {
 fn test_helo_rules() {
     let re = RuleEngine::new(&Some(rules_path!["helo", "main.vsl"])).unwrap();
     let mut state = get_default_state();
-    state.get_context().write().unwrap().envelop.helo = "viridit.com".to_string();
+    state.get_context().write().unwrap().envelop.helo = "example.com".to_string();
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
@@ -50,11 +50,11 @@ fn test_mail_from_rules() {
         let email = state.get_context();
         let mut email = email.write().unwrap();
 
-        email.envelop.mail_from = Address::try_from("staff@viridit.com".to_string()).unwrap();
+        email.envelop.mail_from = Address::try_from("staff@example.com".to_string()).unwrap();
         email.body = Body::Parsed(Box::new(
             MailMimeParser::default()
                 .parse(
-                    br#"From: staff <staff@viridit.com>
+                    br#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
 This is a reply to your hello."#,
@@ -70,7 +70,7 @@ This is a reply to your hello."#,
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
     assert_eq!(
         state.get_context().read().unwrap().envelop.mail_from.full(),
-        "no-reply@viridit.com"
+        "no-reply@example.com"
     );
 }
 
@@ -88,7 +88,7 @@ fn test_rcpt_rules() {
                 Address::try_from("johndoe@compagny.com".to_string()).unwrap(),
             ),
             vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("user@viridit.com".to_string()).unwrap(),
+                Address::try_from("user@example.com".to_string()).unwrap(),
             ),
             vsmtp_common::rcpt::Rcpt::new(
                 Address::try_from("customer@company.com".to_string()).unwrap(),
@@ -98,7 +98,7 @@ fn test_rcpt_rules() {
         email.body = Body::Parsed(Box::new(
             MailMimeParser::default()
                 .parse(
-                    br#"From: staff <staff@viridit.com>
+                    br#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
 This is a reply to your hello."#,
@@ -113,13 +113,13 @@ This is a reply to your hello."#,
         state.get_context().read().unwrap().envelop.rcpt,
         vec![
             vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("johndoe@viridit.com".to_string()).unwrap()
+                Address::try_from("johndoe@example.com".to_string()).unwrap()
             ),
             vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("user@viridit.com".to_string()).unwrap()
+                Address::try_from("user@example.com".to_string()).unwrap()
             ),
             vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("no-reply@viridit.com".to_string()).unwrap()
+                Address::try_from("no-reply@example.com".to_string()).unwrap()
             ),
         ]
     );

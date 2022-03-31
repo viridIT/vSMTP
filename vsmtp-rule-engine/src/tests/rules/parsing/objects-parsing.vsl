@@ -16,7 +16,7 @@ object ip4 "localhost" #{
 // fully qualified domain name objects.
 // NOTE: objects can be declared in an inline manner.
 //       redefined objects are overwritten.
-object fqdn "inline_fqdn" "viridit.com";
+object fqdn "inline_fqdn" "example.com";
 object fqdn "inline_fqdn" "xxx.com";
 // object fqdn "invalid_fqdn" "foobar..com";
 
@@ -27,7 +27,7 @@ object val "user_test" "gittest";
 
 // email addresses.
 object address "jones" "jones@foo.com";
-object address "green" "green@bar.com";
+object address "green" "green@example.com";
 // object address "invalid" "abc/.com";
 
 // files object, format: `file:(content-type)`
@@ -35,7 +35,7 @@ object address "green" "green@bar.com";
 object file:addr "whitelist" "./src/rules/tests/configs/whitelist.txt";
 
 // regex objects.
-object regex "viridit_staff" "^[a-z0-9.]+@viridit.com$";
+object regex "bar_staff" "^[a-z0-9.]+@example.com$";
 object regex "localhost_emails" "^[a-z0-9.]+@localhost$";
 
 // group objects, can store references to other objects,

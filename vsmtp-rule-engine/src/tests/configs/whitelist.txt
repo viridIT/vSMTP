@@ -1,3 +1,3 @@
-green@bar.com
+green@example.com
 jones@foo.com
 user@domain.com

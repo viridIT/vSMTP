@@ -1,4 +1,4 @@
 foo.bar
-viridit.com
+example.com
 satan.com
 jones.green

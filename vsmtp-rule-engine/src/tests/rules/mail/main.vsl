@@ -1,19 +1,19 @@
 object ident "john" "johndoe";
-object fqdn "viridit" "viridit.com";
-object address "someone" "staff@viridit.com";
+object fqdn "bar" "example.com";
+object address "someone" "staff@example.com";
 
 object group "staff" [
   john,
   object address "green" "green@personal.eu",
   object address "steven" "steven@personal.fr",
-  object address "staff" "staff@viridit.com",
+  object address "staff" "staff@example.com",
   object address "ruben" "ruben@email.ru",
 ];
 
 #{
   mail: [
     rule "test_ident" || if ctx.mail_from not john && john not ctx.mail_from { vsl::next() } else { vsl::deny() },
-    rule "test_fqdn" || if ctx.mail_from is viridit { vsl::next() } else { vsl::deny() },
+    rule "test_fqdn" || if ctx.mail_from is bar { vsl::next() } else { vsl::deny() },
     rule "test_addr" || if ctx.mail_from is someone { vsl::next() } else { vsl::deny() },
     rule "test_group" || if ctx.mail_from in staff { vsl::accept() } else { vsl::deny() },
   ],
@@ -22,7 +22,7 @@ object group "staff" [
   postq: [
     rule "test_rewrite" || {
       if ctx.mail_from in staff {
-        ctx.rewrite_mail_from("no-reply@viridit.com");
+        ctx.rewrite_mail_from("no-reply@example.com");
         vsl::accept()
       } else {
         vsl::deny()
