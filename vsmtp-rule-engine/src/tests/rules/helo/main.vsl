@@ -1,11 +1,11 @@
-object fqdn "viridit" "viridit.com";
+object fqdn "bar" "example.com";
 object file:fqdn "domains" "./src/tests/rules/helo/helo.txt";
 object regex "com" "^[a-z0-9.]+.com$";
 
 #{
   helo: [
     rule "test_fqdn" || {
-      if ctx.helo is viridit && viridit is ctx.helo {
+      if ctx.helo is bar && bar is ctx.helo {
         vsl::next()
       } else {
         vsl::deny()

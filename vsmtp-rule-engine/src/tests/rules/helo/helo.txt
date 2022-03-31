@@ -1,4 +1,4 @@
 foo.com
 green.bar
-viridit.com
+example.com
 jones.eu
