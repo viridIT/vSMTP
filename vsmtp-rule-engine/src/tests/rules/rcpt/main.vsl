@@ -1,6 +1,6 @@
-object ident "john" "johndoe";
-object fqdn "bar" "example.com";
-object address "customer" "customer@company.com";
+object john ident = "johndoe";
+object bar fqdn = "example.com";
+object customer address = "customer@company.com";
 
 #{
   rcpt: [
