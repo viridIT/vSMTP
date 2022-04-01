@@ -233,6 +233,7 @@ mod test {
     use super::Object;
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_from() {
         let ip4 = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("ip4".to_string())),
