@@ -24,9 +24,12 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
       - uses: actions-rs/cargo@v1
         with:
           command: check
           args: --manifest-path ./fuzz/Cargo.toml
+      - run: |
+        cargo install cargo-fuzz
+        cargo +nightly fuzz run receiver -- -max_total_time=3600 -dict="./fuzz/dict/server_config.dict"
