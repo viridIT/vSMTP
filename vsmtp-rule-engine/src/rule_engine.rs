@@ -30,7 +30,7 @@ use vsmtp_config::log_channel::SRULES;
 use vsmtp_config::Config;
 
 use crate::error::RuleEngineError;
-use crate::modules;
+use crate::modules::{self, EngineResult};
 use crate::obj::Object;
 
 use super::server_api::ServerAPI;
@@ -420,138 +420,11 @@ impl RuleEngine {
                     ))
                  },
             )
-            // `obj $type[:file_type]$ $name$ #{}` container syntax.
             .register_custom_syntax_raw(
                 "object",
-                |symbols, look_ahead| match symbols.len() {
-                    // obj ...
-                    1 => Ok(Some("$ident$".into())),
-                    // the type of the object ...
-                    2 => match symbols[1].as_str() {
-                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex"
-                        | "group" => Ok(Some("$string$".into())),
-                        "file" => Ok(Some("$symbol$".into())),
-                        entry => Err(ParseError(
-                            Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
-                                entry.into(),
-                                format!("Improper object type. '{}'.", entry),
-                            ))),
-                            Position::NONE,
-                        )),
-                    },
-                    // name of the object or ':' symbol for files ...
-                    3 => match symbols[2].as_str() {
-                        ":" => Ok(Some("$ident$".into())),
-                        _ => Ok(Some("$expr$".into())),
-                    },
-                    // file content type or info block / value of object, we are done parsing.
-                    4 => match symbols[3].as_str() {
-                        // NOTE: could it be possible to add a "file" content type ?
-                        "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex" => {
-                            Ok(Some("$string$".into()))
-                        }
-                        _ => Ok(None),
-                    },
-                    // object name for a file.
-                    5 => Ok(Some("$expr$".into())),
-                    // done parsing file expression.
-                    6 => Ok(None),
-                    _ => Err(ParseError(
-                        Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
-                            format!(
-                                "Improper object declaration: keyword '{}' unknown.",
-                                look_ahead
-                            ),
-                        ))),
-                        Position::NONE,
-                    )),
-                },
+                parse_object,
                 true,
-                move |context, input| {
-                    let var_type = input[0].get_string_value().unwrap().to_string();
-                    let var_name: String;
-
-                    // FIXME: refactor this expression.
-                    // file type as a special syntax (file:type),
-                    // so we need a different method to parse it.
-                    let object = if var_type.as_str() == "file" {
-                        let content_type = input[2].get_string_value().unwrap();
-                        var_name = input[3]
-                            .get_literal_value::<ImmutableString>()
-                            .unwrap()
-                            .to_string();
-                        let object = context.eval_expression_tree(&input[4])?;
-
-                        // the object syntax can use a map or an inline string.
-                        if object.is::<Map>() {
-                            let mut object: Map =
-                                object.try_cast().ok_or(RuleEngineError::Object)?;
-                            object.insert("type".into(), Dynamic::from(var_type));
-                            object.insert("name".into(), Dynamic::from(var_name.clone()));
-                            object.insert(
-                                "content_type".into(),
-                                Dynamic::from(content_type.to_string()),
-                            );
-                            object
-                        } else if object.is::<String>() {
-                            let mut map = Map::new();
-                            map.insert("type".into(), Dynamic::from(var_type));
-                            map.insert("name".into(), Dynamic::from(var_name.clone()));
-                            map.insert(
-                                "content_type".into(),
-                                Dynamic::from(content_type.to_string()),
-                            );
-                            map.insert("value".into(), object);
-                            map
-                        } else {
-                            return Err(EvalAltResult::ErrorMismatchDataType(
-                                "Map | String".to_string(),
-                                object.type_name().to_string(),
-                                Position::NONE,
-                            )
-                            .into());
-                        }
-                    } else {
-                        var_name = input[1]
-                            .get_literal_value::<ImmutableString>()
-                            .unwrap()
-                            .to_string();
-                        let object = context.eval_expression_tree(&input[2])?;
-
-                        if object.is::<Map>() {
-                            let mut object: Map =
-                                object.try_cast().ok_or(RuleEngineError::Object)?;
-                            object.insert("type".into(), Dynamic::from(var_type));
-                            object.insert("name".into(), Dynamic::from(var_name.clone()));
-                            object
-                        } else if object.is::<String>() || object.is::<Array>() {
-                            let mut map = Map::new();
-                            map.insert("type".into(), Dynamic::from(var_type));
-                            map.insert("name".into(), Dynamic::from(var_name.clone()));
-                            map.insert("value".into(), object);
-                            map
-                        } else {
-                            return Err(EvalAltResult::ErrorMismatchDataType(
-                                "Map | String".to_string(),
-                                object.type_name().to_string(),
-                                Position::NONE,
-                            )
-                            .into());
-                        }
-                    };
-
-                    let obj_ptr = std::sync::Arc::new(
-                        Object::from(&object)
-                            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
-                    );
-
-                    // Pushing object in scope, preventing a "let _" statement,
-                    // and returning a reference to the object in case of a parent group.
-                    // Also, exporting the variable by default.
-                    context.scope_mut().push_constant(&var_name, obj_ptr.clone()).set_alias(var_name, "");
-
-                    Ok(Dynamic::from(obj_ptr))
-                },
+                create_object,
             )
             // NOTE: is their a way to defined iterators directly in modules ?
             .register_iterator::<Vec<vsmtp_common::address::Address>>()
@@ -596,5 +469,166 @@ impl RuleEngine {
             context: engine,
             ast,
         })
+    }
+}
+
+/// check of a "object" expression is valid.
+/// the syntax is:
+///   object $name$ $type[:file_type]$ = #{ value: "...", ... };
+///   object $name$ $type[:file_type]$ = "...";
+fn parse_object(
+    symbols: &[ImmutableString],
+    look_ahead: &str,
+) -> Result<Option<ImmutableString>, ParseError> {
+    match symbols.len() {
+        // object keyword, then the name of the object.
+        1 | 2 => Ok(Some("$ident$".into())),
+        // type of the object.
+        3 => match symbols[2].as_str() {
+            // regular type, next is the '=' token or ':' token in case of the file type.
+            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex"
+            | "group" | "file" => Ok(Some("$symbol$".into())),
+            entry => Err(ParseError(
+                Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
+                    entry.into(),
+                    format!("Improper object type '{}'.", entry),
+                ))),
+                Position::NONE,
+            )),
+        },
+        4 => match symbols[3].as_str() {
+            // ':' token for a file content type, next is the content type of the file.
+            ":" => Ok(Some("$ident$".into())),
+            // '=' token for another object type, next is the content of the object.
+            "=" => Ok(Some("$expr$".into())),
+            entry => Err(ParseError(
+                Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
+                    entry.into(),
+                    "Improper symbol when parsing object".to_string(),
+                ))),
+                Position::NONE,
+            )),
+        },
+        5 => match symbols[4].as_str() {
+            // NOTE: could it be possible to add a "file" content type ?
+            // content types handled by the file type. next is the '=' token.
+            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex" => {
+                Ok(Some("=".into()))
+            }
+            // an expression, in the case of a regular object, whe are done parsing.
+            _ => Ok(None),
+        },
+        6 => match symbols[5].as_str() {
+            // the '=' token, next is the path to the file or a map with it's value.
+            "=" => Ok(Some("$expr$".into())),
+            // map or string value for a regular type, we are done parsing.
+            _ => Ok(None),
+        },
+        7 => Ok(None),
+        _ => Err(ParseError(
+            Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
+                format!(
+                    "Improper object declaration: keyword '{}' unknown.",
+                    look_ahead
+                ),
+            ))),
+            Position::NONE,
+        )),
+    }
+}
+
+/// parses the given syntax tree and construct an object from it. always called after `parse_object`.
+fn create_object(
+    context: &mut rhai::EvalContext,
+    input: &[rhai::Expression],
+) -> EngineResult<rhai::Dynamic> {
+    let object_name = input[0].get_string_value().unwrap().to_string();
+    let object_type = input[1].get_string_value().unwrap().to_string();
+
+    let object = match object_type.as_str() {
+        "file" => create_file(context, input, &object_name),
+        _ => create_other(context, input, &object_type, &object_name),
+    }?;
+
+    let object_ptr = std::sync::Arc::new(
+        Object::from(&object).map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
+    );
+
+    // Pushing object in scope, preventing a "let _" statement,
+    // and returning a reference to the object in case of a parent group.
+    // Also, exporting the variable by default using `set_alias`.
+    context
+        .scope_mut()
+        .push_constant(&object_name, object_ptr.clone())
+        .set_alias(object_name, "");
+
+    Ok(Dynamic::from(object_ptr))
+}
+
+/// create a file object as a Map.
+fn create_file(
+    context: &mut rhai::EvalContext,
+    input: &[rhai::Expression],
+    object_name: &str,
+) -> EngineResult<rhai::Map> {
+    let content_type = input[3].get_string_value().unwrap();
+    let object = context.eval_expression_tree(&input[4])?;
+
+    if object.is::<Map>() {
+        let mut object: Map = object.try_cast().ok_or(RuleEngineError::Object)?;
+        object.insert("type".into(), Dynamic::from("file"));
+        object.insert("name".into(), Dynamic::from(object_name.to_string()));
+        object.insert(
+            "content_type".into(),
+            Dynamic::from(content_type.to_string()),
+        );
+        Ok(object)
+    } else if object.is::<String>() {
+        let mut map = Map::new();
+        map.insert("type".into(), Dynamic::from("file"));
+        map.insert("name".into(), Dynamic::from(object_name.to_string()));
+        map.insert(
+            "content_type".into(),
+            Dynamic::from(content_type.to_string()),
+        );
+        map.insert("value".into(), object);
+        Ok(map)
+    } else {
+        return Err(EvalAltResult::ErrorMismatchDataType(
+            "Map | String".to_string(),
+            object.type_name().to_string(),
+            Position::NONE,
+        )
+        .into());
+    }
+}
+
+/// create a type other than file as a Map.
+fn create_other(
+    context: &mut rhai::EvalContext,
+    input: &[rhai::Expression],
+    object_type: &str,
+    object_name: &str,
+) -> EngineResult<rhai::Map> {
+    let object = context.eval_expression_tree(&input[3])?;
+
+    if object.is::<Map>() {
+        let mut object: Map = object.try_cast().ok_or(RuleEngineError::Object)?;
+        object.insert("type".into(), Dynamic::from(object_type.to_string()));
+        object.insert("name".into(), Dynamic::from(object_name.to_string()));
+        Ok(object)
+    } else if object.is::<String>() || object.is::<Array>() {
+        let mut map = Map::new();
+        map.insert("type".into(), Dynamic::from(object_type.to_string()));
+        map.insert("name".into(), Dynamic::from(object_name.to_string()));
+        map.insert("value".into(), object);
+        Ok(map)
+    } else {
+        return Err(EvalAltResult::ErrorMismatchDataType(
+            "Map | String".to_string(),
+            object.type_name().to_string(),
+            Position::NONE,
+        )
+        .into());
     }
 }
