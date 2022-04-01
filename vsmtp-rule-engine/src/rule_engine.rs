@@ -18,8 +18,8 @@ use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::{
     exported_module,
-    plugin::{Dynamic, EvalAltResult, ImmutableString, Module, Position},
-    Array, Engine, LexError, Map, ParseError, ParseErrorType, Scope, AST,
+    plugin::{EvalAltResult, Module},
+    Engine, Scope, AST,
 };
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
@@ -29,8 +29,11 @@ use vsmtp_common::status::Status;
 use vsmtp_config::log_channel::SRULES;
 use vsmtp_config::Config;
 
+use crate::dsl::action_parsing::{create_action, parse_action};
+use crate::dsl::object_parsing::{create_object, parse_object};
+use crate::dsl::rule_parsing::{create_rule, parse_rule};
 use crate::error::RuleEngineError;
-use crate::modules::{self, EngineResult};
+use crate::modules;
 use crate::obj::Object;
 
 use super::server_api::ServerAPI;
@@ -276,17 +279,18 @@ impl RuleEngine {
         engine
             .set_module_resolver(match script_path {
                 Some(script_path) => FileModuleResolver::new_with_path_and_extension(
-                 script_path.parent().ok_or_else(|| anyhow::anyhow!(
-                        "File '{}' is not a valid root directory for rules",
-                        script_path.display()
-                    ))?,
+                    script_path.parent().ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "File '{}' is not a valid root directory for rules",
+                            script_path.display()
+                        )
+                    })?,
                     "vsl",
                 ),
                 None => FileModuleResolver::new_with_extension("vsl"),
             })
             .register_static_module("vsl", module.into())
             .disable_symbol("eval")
-
             .on_parse_token(|token, _, _| {
                 match token {
                     // remap 'is' operator to '==', it's easier than creating a new operator.
@@ -294,138 +298,12 @@ impl RuleEngine {
                     rhai::Token::Reserved(s) if &*s == "is" => rhai::Token::EqualsTo,
                     rhai::Token::Identifier(s) if &*s == "not" => rhai::Token::NotEqualsTo,
                     // Pass through all other tokens unchanged
-                    _ => token
+                    _ => token,
                 }
             })
-            // `rule $name$ #{expr}` syntax.
-            .register_custom_syntax_raw(
-                "rule",
-                |symbols, look_ahead| match symbols.len() {
-                    // rule keyword ...
-                    1 => Ok(Some("$string$".into())),
-                    // name of the rule ...
-                    2 => Ok(Some("$expr$".into())),
-                    // map, we are done parsing.
-                    3 => Ok(None),
-                    _ => Err(ParseError(
-                        Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
-                            format!(
-                                "Improper rule declaration: keyword '{}' unknown.",
-                                look_ahead
-                            ),
-                        ))),
-                        Position::NONE,
-                    )),
-                },
-                true,
-                move |context, input| {
-                    let name = input[0].get_literal_value::<ImmutableString>().unwrap();
-                    let expr = context.eval_expression_tree(&input[1])?;
-
-                    Ok(Dynamic::from(
-                        [
-                            ("name".into(), Dynamic::from(name.clone())),
-                            ("type".into(), "rule".into()),
-                        ]
-                        .into_iter()
-                        .chain(if expr.is::<Map>() {
-                            let properties = expr.cast::<Map>();
-
-                            if properties
-                                .get("evaluate")
-                                .filter(|f| f.is::<rhai::FnPtr>())
-                                .is_none()
-                            {
-                                return Err(format!(
-                                    "'evaluate' function is missing from '{}' rule",
-                                    name
-                                )
-                                .into());
-                            }
-
-                            properties.into_iter()
-                        } else if expr.is::<rhai::FnPtr>() {
-                            Map::from_iter([
-                                ("evaluate".into(), expr),
-                            ])
-                            .into_iter()
-                        } else {
-                            return Err(format!(
-                                "a rule must be a map (#{{}}) or an anonymous function (|| {{}})\n{}",
-                                RuleEngineError::Rule.as_str()
-                            )
-                            .into());
-                        }).collect::<Map>(),
-                    ))
-                },
-            )
-            // `action $name$ #{expr}` syntax.
-            .register_custom_syntax_raw(
-                "action",
-                |symbols, look_ahead| match symbols.len() {
-                    // action keyword ...
-                    1 => Ok(Some("$string$".into())),
-                    // name of the action ...
-                    2 => Ok(Some("$expr$".into())),
-                    // block, we are done parsing.
-                    3 => Ok(None),
-                    _ => Err(ParseError(
-                        Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
-                            format!(
-                                "Improper action declaration: keyword '{}' unknown.",
-                                look_ahead
-                            ),
-                        ))),
-                        Position::NONE,
-                    )),
-                },
-                true,
-                move |context, input| {
-                    let name = input[0].get_literal_value::<ImmutableString>().unwrap();
-                    let expr = context.eval_expression_tree(&input[1])?;
-
-                    Ok(Dynamic::from([
-                            ("name".into(), Dynamic::from(name.clone())),
-                            ("type".into(), "action".into()),
-                        ]
-                        .into_iter()
-                        .chain(if expr.is::<Map>() {
-                            let properties = expr.cast::<Map>();
-
-                            if properties
-                                .get("evaluate")
-                                .filter(|f| f.is::<rhai::FnPtr>())
-                                .is_none()
-                            {
-                                return Err(format!(
-                                    "'evaluate' function is missing from '{}' action",
-                                    name
-                                )
-                                .into());
-                            }
-
-                            properties.into_iter()
-                        } else if expr.is::<rhai::FnPtr>() {
-                            Map::from_iter([
-                                ("evaluate".into(), expr),
-                            ])
-                            .into_iter()
-                        } else {
-                            return Err(format!(
-                                "an action must be a map (#{{}}) or an anonymous function (|| {{}}){}",
-                                RuleEngineError::Action.as_str()
-                            )
-                            .into());
-                        }).collect::<Map>(),
-                    ))
-                 },
-            )
-            .register_custom_syntax_raw(
-                "object",
-                parse_object,
-                true,
-                create_object,
-            )
+            .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
+            .register_custom_syntax_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_raw("object", parse_object, true, create_object)
             // NOTE: is their a way to defined iterators directly in modules ?
             .register_iterator::<Vec<vsmtp_common::address::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
@@ -469,166 +347,5 @@ impl RuleEngine {
             context: engine,
             ast,
         })
-    }
-}
-
-/// check of a "object" expression is valid.
-/// the syntax is:
-///   object $name$ $type[:file_type]$ = #{ value: "...", ... };
-///   object $name$ $type[:file_type]$ = "...";
-fn parse_object(
-    symbols: &[ImmutableString],
-    look_ahead: &str,
-) -> Result<Option<ImmutableString>, ParseError> {
-    match symbols.len() {
-        // object keyword, then the name of the object.
-        1 | 2 => Ok(Some("$ident$".into())),
-        // type of the object.
-        3 => match symbols[2].as_str() {
-            // regular type, next is the '=' token or ':' token in case of the file type.
-            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex"
-            | "group" | "file" => Ok(Some("$symbol$".into())),
-            entry => Err(ParseError(
-                Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
-                    entry.into(),
-                    format!("Improper object type '{}'.", entry),
-                ))),
-                Position::NONE,
-            )),
-        },
-        4 => match symbols[3].as_str() {
-            // ':' token for a file content type, next is the content type of the file.
-            ":" => Ok(Some("$ident$".into())),
-            // '=' token for another object type, next is the content of the object.
-            "=" => Ok(Some("$expr$".into())),
-            entry => Err(ParseError(
-                Box::new(ParseErrorType::BadInput(LexError::ImproperSymbol(
-                    entry.into(),
-                    "Improper symbol when parsing object".to_string(),
-                ))),
-                Position::NONE,
-            )),
-        },
-        5 => match symbols[4].as_str() {
-            // NOTE: could it be possible to add a "file" content type ?
-            // content types handled by the file type. next is the '=' token.
-            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex" => {
-                Ok(Some("=".into()))
-            }
-            // an expression, in the case of a regular object, whe are done parsing.
-            _ => Ok(None),
-        },
-        6 => match symbols[5].as_str() {
-            // the '=' token, next is the path to the file or a map with it's value.
-            "=" => Ok(Some("$expr$".into())),
-            // map or string value for a regular type, we are done parsing.
-            _ => Ok(None),
-        },
-        7 => Ok(None),
-        _ => Err(ParseError(
-            Box::new(ParseErrorType::BadInput(LexError::UnexpectedInput(
-                format!(
-                    "Improper object declaration: keyword '{}' unknown.",
-                    look_ahead
-                ),
-            ))),
-            Position::NONE,
-        )),
-    }
-}
-
-/// parses the given syntax tree and construct an object from it. always called after `parse_object`.
-fn create_object(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
-) -> EngineResult<rhai::Dynamic> {
-    let object_name = input[0].get_string_value().unwrap().to_string();
-    let object_type = input[1].get_string_value().unwrap().to_string();
-
-    let object = match object_type.as_str() {
-        "file" => create_file(context, input, &object_name),
-        _ => create_other(context, input, &object_type, &object_name),
-    }?;
-
-    let object_ptr = std::sync::Arc::new(
-        Object::from(&object).map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
-    );
-
-    // Pushing object in scope, preventing a "let _" statement,
-    // and returning a reference to the object in case of a parent group.
-    // Also, exporting the variable by default using `set_alias`.
-    context
-        .scope_mut()
-        .push_constant(&object_name, object_ptr.clone())
-        .set_alias(object_name, "");
-
-    Ok(Dynamic::from(object_ptr))
-}
-
-/// create a file object as a Map.
-fn create_file(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
-    object_name: &str,
-) -> EngineResult<rhai::Map> {
-    let content_type = input[3].get_string_value().unwrap();
-    let object = context.eval_expression_tree(&input[4])?;
-
-    if object.is::<Map>() {
-        let mut object: Map = object.try_cast().ok_or(RuleEngineError::Object)?;
-        object.insert("type".into(), Dynamic::from("file"));
-        object.insert("name".into(), Dynamic::from(object_name.to_string()));
-        object.insert(
-            "content_type".into(),
-            Dynamic::from(content_type.to_string()),
-        );
-        Ok(object)
-    } else if object.is::<String>() {
-        let mut map = Map::new();
-        map.insert("type".into(), Dynamic::from("file"));
-        map.insert("name".into(), Dynamic::from(object_name.to_string()));
-        map.insert(
-            "content_type".into(),
-            Dynamic::from(content_type.to_string()),
-        );
-        map.insert("value".into(), object);
-        Ok(map)
-    } else {
-        return Err(EvalAltResult::ErrorMismatchDataType(
-            "Map | String".to_string(),
-            object.type_name().to_string(),
-            Position::NONE,
-        )
-        .into());
-    }
-}
-
-/// create a type other than file as a Map.
-fn create_other(
-    context: &mut rhai::EvalContext,
-    input: &[rhai::Expression],
-    object_type: &str,
-    object_name: &str,
-) -> EngineResult<rhai::Map> {
-    let object = context.eval_expression_tree(&input[3])?;
-
-    if object.is::<Map>() {
-        let mut object: Map = object.try_cast().ok_or(RuleEngineError::Object)?;
-        object.insert("type".into(), Dynamic::from(object_type.to_string()));
-        object.insert("name".into(), Dynamic::from(object_name.to_string()));
-        Ok(object)
-    } else if object.is::<String>() || object.is::<Array>() {
-        let mut map = Map::new();
-        map.insert("type".into(), Dynamic::from(object_type.to_string()));
-        map.insert("name".into(), Dynamic::from(object_name.to_string()));
-        map.insert("value".into(), object);
-        Ok(map)
-    } else {
-        return Err(EvalAltResult::ErrorMismatchDataType(
-            "Map | String".to_string(),
-            object.type_name().to_string(),
-            Position::NONE,
-        )
-        .into());
     }
 }
