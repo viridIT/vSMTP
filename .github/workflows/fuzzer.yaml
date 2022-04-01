@@ -7,7 +7,7 @@ name: Fuzz
       - 'ci/fuzz'
 
 jobs:
-  check:
+  check-fuzz:
     runs-on: self-hosted
     steps:
       # - name: Install gsasl
@@ -28,4 +28,4 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          command: check --manifest-path ./fuzz/Cargo.toml
+          command: --manifest-path ./fuzz/Cargo.toml check
