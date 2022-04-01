@@ -10,8 +10,8 @@ jobs:
   check-fuzz:
     runs-on: self-hosted
     steps:
-      - name: Install gsasl
-        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      # - name: Install gsasl
+      #   run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/checkout@v2
       - uses: actions/cache@v1
         with:
