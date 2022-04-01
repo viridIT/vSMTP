@@ -1,0 +1,21 @@
+name: Fuzz
+"on":
+  schedule:
+    - cron: '0 16 */1 * *' # Every day at 16:00 (4pm)
+
+jobs:
+  check:
+    runs-on: self-hosted
+    steps:
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        working-directory: ./fuzz
+        with:
+          command: check

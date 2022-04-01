@@ -3,31 +3,21 @@ name = "vsmtp-fuzz"
 version = "0.0.0"
 authors = ["Automatically generated"]
 publish = false
-edition = "2018"
+edition = "2021"
 
 [package.metadata]
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4.2"
+libfuzzer-sys = "0.4.3"
 async-trait = "0.1.52"
 tokio = { version = "1.17.0", features = ["full"] }
-users = { version = "0.11", features = [] }
-log = "0.4.14"
-toml = "0.5.8"
-futures = "0.3.21"
 
-[dependencies.vsmtp-config]
-path = "../vsmtp-config"
-
-[dependencies.vsmtp-server]
-path = "../vsmtp-server"
-
-[dependencies.vsmtp-rule-engine]
-path = "../vsmtp-rule-engine"
-
-[dependencies.vsmtp-mail-parser]
-path = "../vsmtp-mail-parser"
+vsmtp-common = { path = "../vsmtp-common" }
+vsmtp-config = { path = "../vsmtp-config" }
+vsmtp-server = { path = "../vsmtp-server" }
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
 
 # Prevent this from interfering with workspaces
 [workspace]

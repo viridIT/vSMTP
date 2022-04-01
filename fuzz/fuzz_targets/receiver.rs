@@ -1,11 +1,26 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
+use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext, re::anyhow};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{
-    processes::ProcessMessage,
-    receiver::{handle_connection, test_helpers::Mock, Connection, ConnectionKind, IoService},
+use vsmtp_server::receiver::{
+    handle_connection, test_helpers::Mock, Connection, ConnectionKind, IoService, OnMail,
 };
+
+struct FuzzOnMail;
+
+#[async_trait::async_trait]
+impl OnMail for FuzzOnMail {
+    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        &mut self,
+        conn: &mut Connection<'_, S>,
+        _: Box<MailContext>,
+        _: &mut Option<String>,
+    ) -> anyhow::Result<()> {
+        conn.send_code(SMTPReplyCode::Code250)?;
+        Ok(())
+    }
+}
 
 fuzz_target!(|data: &[u8]| {
     let mut config = Config::builder()
@@ -20,10 +35,12 @@ fuzz_target!(|data: &[u8]| {
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
         .with_default_smtp_codes()
+        .without_auth()
         .with_default_app()
         .with_vsl("./main.vsl")
         .with_default_app_logs()
         .without_services()
+        .with_system_dns()
         .validate()
         .unwrap();
     config.server.smtp.error.soft_count = -1;
@@ -41,9 +58,6 @@ fuzz_target!(|data: &[u8]| {
         &mut io,
     );
 
-    let (working_sender, _) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
-    let (delivery_sender, _) = tokio::sync::mpsc::channel::<ProcessMessage>(1);
-
     let re = std::sync::Arc::new(std::sync::RwLock::new(
         RuleEngine::new(&None).expect("failed to build rule engine"),
     ));
@@ -55,7 +69,6 @@ fuzz_target!(|data: &[u8]| {
             None,
             None,
             re,
-            working_sender,
-            delivery_sender,
+            &mut FuzzOnMail,
         ));
 });
