@@ -28,4 +28,5 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          command: --manifest-path ./fuzz/Cargo.toml check
+          command: check
+          args: --manifest-path ./fuzz/Cargo.toml
