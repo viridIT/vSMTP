@@ -19,10 +19,7 @@ use criterion::{
 };
 use vsmtp_common::{address::Address, mail_context::MailContext, re::anyhow};
 use vsmtp_config::Config;
-use vsmtp_server::{
-    receiver::{Connection, OnMail},
-    test_receiver,
-};
+use vsmtp_server::{Connection, OnMail};
 
 #[derive(Clone)]
 struct DefaultMailHandler;
@@ -75,7 +72,7 @@ fn make_bench<M>(
 {
     b.to_async(tokio::runtime::Runtime::new().unwrap())
         .iter(|| async {
-            let _ = test_receiver! {
+            let _ = vsmtp_test::test_receiver! {
                 on_mail => &mut mail_handler.clone(),
                 with_config => config.clone().as_ref().clone(),
                 input,

@@ -22,7 +22,7 @@ use vsmtp_common::{
 use vsmtp_config::{log_channel::RECEIVER, Config};
 
 /// identifiers for all mail queues.
-pub(crate) enum Queue {
+pub enum Queue {
     /// postq
     Working,
     /// 1st attempt to deliver

@@ -8,9 +8,9 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 use crate::{
     auth,
-    processes::ProcessMessage,
     receiver::{ConnectionKind, IoService},
-    server::ServerVSMTP,
+    server::Server,
+    ProcessMessage,
 };
 
 use super::unsafe_auth_config;
@@ -41,7 +41,7 @@ async fn test_auth(
                 .unwrap(),
         ));
 
-        ServerVSMTP::run_session(
+        Server::run_session(
             client_stream,
             client_addr,
             ConnectionKind::Opportunistic,

@@ -1,3 +1,8 @@
+use crate::{
+    receiver::{connection::ConnectionKind, io_service::IoService},
+    server::Server,
+    ProcessMessage,
+};
 use vsmtp_common::re::anyhow;
 use vsmtp_config::{
     get_rustls_config,
@@ -5,13 +10,7 @@ use vsmtp_config::{
     Config, TlsSecurityLevel,
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-
-use crate::{
-    processes::ProcessMessage,
-    receiver::{connection::ConnectionKind, io_service::IoService},
-    server::ServerVSMTP,
-    test_receiver,
-};
+use vsmtp_test::test_receiver;
 
 use super::{get_tls_config, TEST_SERVER_CERT};
 
@@ -44,7 +43,7 @@ async fn test_starttls(
             .unwrap(),
         ));
 
-        ServerVSMTP::run_session(
+        Server::run_session(
             client_stream,
             client_addr,
             ConnectionKind::Opportunistic,

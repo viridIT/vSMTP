@@ -15,10 +15,10 @@
  *
 **/
 use crate::receiver::{Connection, MailContext, OnMail};
-use crate::test_receiver;
 use vsmtp_common::address::Address;
 use vsmtp_common::mail_context::Body;
 use vsmtp_common::re::anyhow;
+use vsmtp_test::test_receiver;
 
 macro_rules! test_lang {
     ($lang_code:expr) => {{

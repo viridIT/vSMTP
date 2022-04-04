@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{processes::ProcessMessage, queue::Queue};
+use crate::{queue::Queue, ProcessMessage};
 use anyhow::Context;
 use vsmtp_common::{
     mail_context::{Body, MailContext},

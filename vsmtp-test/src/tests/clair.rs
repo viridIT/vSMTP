@@ -14,16 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    receiver::{test_helpers::get_regular_config, Connection, OnMail},
-    test_receiver,
-};
+use crate::receiver::{Connection, OnMail};
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
     re::anyhow,
 };
 use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_test::{config, test_receiver};
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
@@ -215,7 +213,7 @@ async fn test_receiver_11_bis() {
 
 #[tokio::test]
 async fn test_receiver_12() {
-    let mut config = get_regular_config();
+    let mut config = config::local_test();
     config.server.smtp.disable_ehlo = true;
 
     assert!(test_receiver! {
@@ -422,7 +420,7 @@ async fn test_receiver_14() {
 
 #[tokio::test]
 async fn test_receiver_9() {
-    let mut config = get_regular_config();
+    let mut config = config::local_test();
     config.server.smtp.error.delay = std::time::Duration::from_millis(100);
     config.server.smtp.error.soft_count = 5;
     config.server.smtp.error.hard_count = 10;

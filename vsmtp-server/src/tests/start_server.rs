@@ -1,13 +1,11 @@
+use crate::{server::Server, ProcessMessage};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-
-use crate::{
-    processes::ProcessMessage, receiver::test_helpers::get_regular_config, server::ServerVSMTP,
-};
+use vsmtp_test::config;
 
 macro_rules! bind_address {
     ($addr:expr, $addr_submission:expr, $addr_submissions:expr) => {{
         let config = std::sync::Arc::new({
-            let mut config = get_regular_config();
+            let mut config = config::local_test();
             config.server.interfaces.addr = vec!["0.0.0.0:10026".parse().unwrap()];
             config.server.interfaces.addr_submission = vec!["0.0.0.0:10588".parse().unwrap()];
             config.server.interfaces.addr_submissions = vec!["0.0.0.0:10466".parse().unwrap()];
@@ -24,7 +22,7 @@ macro_rules! bind_address {
         let rule_engine =
             std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
 
-        let s = ServerVSMTP::new(
+        let s = Server::new(
             config.clone(),
             (
                 std::net::TcpListener::bind(&config.server.interfaces.addr[..]).unwrap(),

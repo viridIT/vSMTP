@@ -14,8 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use super::ProcessMessage;
-use crate::queue::Queue;
+use crate::{channel_message::ProcessMessage, queue::Queue};
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;

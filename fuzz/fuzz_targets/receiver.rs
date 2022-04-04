@@ -3,9 +3,8 @@ use libfuzzer_sys::fuzz_target;
 use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext, re::anyhow};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::receiver::{
-    handle_connection, test_helpers::Mock, Connection, ConnectionKind, IoService, OnMail,
-};
+use vsmtp_server::{handle_connection, Connection, ConnectionKind, IoService, OnMail};
+use vsmtp_test::receiver::Mock;
 
 struct FuzzOnMail;
 

@@ -13,23 +13,26 @@
 #[cfg(test)]
 mod tests;
 
-///
-pub mod processes;
-///
-pub mod queue;
-///
-pub mod receiver;
-///
-pub mod server;
+mod channel_message;
+mod processes;
+mod queue;
+mod receiver;
+mod server;
 
-mod auth;
+/// SMTP auth extension implementation
+pub mod auth;
+pub use channel_message::ProcessMessage;
+pub use receiver::{handle_connection, Connection, ConnectionKind, IoService, OnMail};
+pub use server::Server;
 
-use processes::ProcessMessage;
+/// re-exported module
+pub mod re {
+    pub use tokio;
+}
+
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-
-use crate::server::ServerVSMTP;
 
 #[doc(hidden)]
 pub fn start_runtime(
@@ -99,7 +102,7 @@ pub fn start_runtime(
             .thread_name("vsmtp-receiver")
             .build()?
             .block_on(async move {
-                let mut server = ServerVSMTP::new(
+                let mut server = Server::new(
                     config,
                     sockets,
                     rule_engine,

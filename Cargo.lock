@@ -2149,6 +2149,19 @@ dependencies = [
  "vsmtp-delivery",
  "vsmtp-mail-parser",
  "vsmtp-rule-engine",
+ "vsmtp-test",
+]
+
+[[package]]
+name = "vsmtp-test"
+version = "0.9.7"
+dependencies = [
+ "async-trait",
+ "pretty_assertions",
+ "vsmtp-common",
+ "vsmtp-config",
+ "vsmtp-rule-engine",
+ "vsmtp-server",
 ]
 
 [[package]]

@@ -15,9 +15,7 @@
  *
 **/
 use self::transaction::{Transaction, TransactionResult};
-use crate::{
-    auth, processes::ProcessMessage, queue::Queue, receiver::auth_exchange::on_authentication,
-};
+use crate::{auth, queue::Queue, receiver::auth_exchange::on_authentication, ProcessMessage};
 use vsmtp_common::{
     auth::Mechanism,
     code::SMTPReplyCode,
@@ -30,17 +28,10 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 mod auth_exchange;
 mod connection;
 mod io_service;
-pub(crate) mod transaction;
+pub mod transaction;
 
 pub use connection::{Connection, ConnectionKind};
 pub use io_service::IoService;
-
-#[cfg(test)]
-mod tests;
-
-// NOTE: not marked as #[cfg(test)] because it is used by the bench/fuzz
-/// boilerplate for the tests
-pub mod test_helpers;
 
 /// will be executed once the email is received.
 #[async_trait::async_trait]
@@ -55,7 +46,7 @@ pub trait OnMail {
 }
 
 /// default mail handler for production.
-pub(crate) struct MailHandler {
+pub struct MailHandler {
     pub working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     pub delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }

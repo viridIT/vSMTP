@@ -15,9 +15,9 @@
  *
 **/
 use crate::{
-    processes::ProcessMessage,
     receiver::{connection::ConnectionKind, io_service::IoService},
-    server::ServerVSMTP,
+    server::Server,
+    ProcessMessage,
 };
 use vsmtp_common::re::anyhow;
 use vsmtp_config::{
@@ -53,7 +53,7 @@ async fn test_tls_tunneled(
 
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
-        ServerVSMTP::run_session(
+        Server::run_session(
             client_stream,
             client_addr,
             ConnectionKind::Tunneled,
