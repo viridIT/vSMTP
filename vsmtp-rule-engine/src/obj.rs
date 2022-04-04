@@ -226,3 +226,126 @@ impl ToString for Object {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::Object;
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn test_from() {
+        let ip4 = Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("ip4".to_string())),
+            ("type".into(), rhai::Dynamic::from("ip4".to_string())),
+            ("value".into(), rhai::Dynamic::from("127.0.0.1".to_string())),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            ("ip6".into(), rhai::Dynamic::from("ip6".to_string())),
+            ("type".into(), rhai::Dynamic::from("ip6".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from("2001:0db8:0000:85a3:0000:0000:ac1f:8001".to_string()),
+            ),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("rg4".to_string())),
+            ("type".into(), rhai::Dynamic::from("rg4".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from("192.168.0.0/24".to_string()),
+            ),
+        ]))
+        .unwrap();
+
+        let rg6 = Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("rg6".to_string())),
+            ("type".into(), rhai::Dynamic::from("rg6".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from("2001:db8:1234::/48".to_string()),
+            ),
+        ]))
+        .unwrap();
+
+        let fqdn = Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("fqdn".to_string())),
+            ("type".into(), rhai::Dynamic::from("fqdn".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from("example.com".to_string()),
+            ),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("address".to_string())),
+            ("type".into(), rhai::Dynamic::from("address".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from("john@doe.com".to_string()),
+            ),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("ident".to_string())),
+            ("type".into(), rhai::Dynamic::from("ident".to_string())),
+            ("value".into(), rhai::Dynamic::from("john".to_string())),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("string".to_string())),
+            ("type".into(), rhai::Dynamic::from("string".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from("a text string".to_string()),
+            ),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("regex".to_string())),
+            ("type".into(), rhai::Dynamic::from("regex".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from("^[a-z0-9.]+.com$".to_string()),
+            ),
+        ]))
+        .unwrap();
+
+        // TODO: test all possible content types.
+        Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("file".to_string())),
+            ("type".into(), rhai::Dynamic::from("file".to_string())),
+            (
+                "content_type".into(),
+                rhai::Dynamic::from("address".to_string()),
+            ),
+            (
+                "value".into(),
+                rhai::Dynamic::from("./src/tests/types/address/whitelist.txt".to_string()),
+            ),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("group".to_string())),
+            ("type".into(), rhai::Dynamic::from("group".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from(rhai::Array::from_iter([
+                    rhai::Dynamic::from(std::sync::Arc::new(ip4)),
+                    rhai::Dynamic::from(std::sync::Arc::new(rg6)),
+                    rhai::Dynamic::from(std::sync::Arc::new(fqdn)),
+                ])),
+            ),
+        ]))
+        .unwrap();
+    }
+}

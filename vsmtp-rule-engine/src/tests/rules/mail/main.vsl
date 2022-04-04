@@ -1,13 +1,13 @@
-object ident "john" "johndoe";
-object fqdn "bar" "example.com";
-object address "someone" "staff@example.com";
+object john ident = "johndoe";
+object bar fqdn = "example.com";
+object someone address = "staff@example.com";
 
-object group "staff" [
+object staff group = [
   john,
-  object address "green" "green@personal.eu",
-  object address "steven" "steven@personal.fr",
-  object address "staff" "staff@example.com",
-  object address "ruben" "ruben@email.ru",
+  object green address = "green@personal.eu",
+  object steven address = "steven@personal.fr",
+  object staff address = "staff@example.com",
+  object ruben address = "ruben@email.ru",
 ];
 
 #{

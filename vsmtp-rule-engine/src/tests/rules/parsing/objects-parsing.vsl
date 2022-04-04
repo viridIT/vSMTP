@@ -2,12 +2,12 @@
 // define objects to use in rules.
 
 // standard object declaration.
-object ip4 "unspecified" #{
+object unspecified ip4 = #{
   value: "0.0.0.0",
   color: "bbf3ab"
 };
 
-object ip4 "localhost" #{
+object localhost ip4 = #{
   value: "127.0.0.1",
   color: "bbf3ab",
   description: "the localhost ip address"
@@ -16,27 +16,27 @@ object ip4 "localhost" #{
 // fully qualified domain name objects.
 // NOTE: objects can be declared in an inline manner.
 //       redefined objects are overwritten.
-object fqdn "inline_fqdn" "example.com";
-object fqdn "inline_fqdn" "xxx.com";
+object inline_fqdn fqdn = "example.com";
+object inline_fqdn fqdn = "xxx.com";
 // object fqdn "invalid_fqdn" "foobar..com";
 
 // variables, represent simple strings.
-object val "user_dev" "gitdev";
-object val "user_prod" "gitproduction";
-object val "user_test" "gittest";
+object user_dev val = "gitdev";
+object user_prod val = "gitproduction";
+object user_test val = "gittest";
 
 // email addresses.
-object address "jones" "jones@foo.com";
-object address "green" "green@example.com";
+object jones address = "jones@foo.com";
+object green address = "green@example.com";
 // object address "invalid" "abc/.com";
 
 // files object, format: `file:(content-type)`
 // content-type can be: ip4, ip6, rg4, rg6, fqdn, str, address or regex.
-object file:addr "whitelist" "./src/rules/tests/configs/whitelist.txt";
+object whitelist file:addr = "./src/rules/tests/configs/whitelist.txt";
 
 // regex objects.
-object regex "bar_staff" "^[a-z0-9.]+@example.com$";
-object regex "localhost_emails" "^[a-z0-9.]+@localhost$";
+object bar_staff regex = "^[a-z0-9.]+@example.com$";
+object localhost_emails regex = "^[a-z0-9.]+@localhost$";
 
 // group objects, can store references to other objects,
 // or store fresh objects.
@@ -44,13 +44,13 @@ object regex "localhost_emails" "^[a-z0-9.]+@localhost$";
 // when passed down into a check action, the whole group will
 // be tested. The test stops when one of the groups content
 // matches.
-object group "authorized_users" [
+object authorized_users group = [
   whitelist,
-  object ip4 "authorized_ip" "1.1.1.1",
+  object authorized_ip ip4 = "1.1.1.1",
 ];
 
 // groups can be nested into other groups.
-object group "deep_group" [
-  object regex "foo_emails" "^[a-z0-9.]+@foo.com$",
+object deep_group group = [
+  object foo_emails regex = "^[a-z0-9.]+@foo.com$",
   authorized_users,
 ];

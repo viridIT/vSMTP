@@ -1,6 +1,6 @@
-object fqdn "bar" "example.com";
-object file:fqdn "domains" "./src/tests/rules/helo/helo.txt";
-object regex "com" "^[a-z0-9.]+.com$";
+object bar fqdn = "example.com";
+object domains file:fqdn = "./src/tests/rules/helo/helo.txt";
+object com regex = "^[a-z0-9.]+.com$";
 
 #{
   helo: [
