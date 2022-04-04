@@ -1,16 +1,15 @@
 use crate::{
-    auth,
-    receiver::{
-        tests::auth::{safe_auth_config, unsafe_auth_config},
-        Connection, OnMail,
-    },
+    test_receiver,
+    tests::auth::{safe_auth_config, unsafe_auth_config},
 };
 use vsmtp_common::{
     address::Address,
     mail_context::MailContext,
     re::{anyhow, rsasl},
 };
-use vsmtp_test::test_receiver;
+use vsmtp_server::re::tokio;
+use vsmtp_server::Connection;
+use vsmtp_server::{auth, re::base64, OnMail};
 
 #[tokio::test]
 async fn plain_in_clair_secured() {

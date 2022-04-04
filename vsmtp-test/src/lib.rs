@@ -15,3 +15,6 @@ pub mod config;
 
 ///
 pub mod receiver;
+
+#[cfg(test)]
+mod tests;

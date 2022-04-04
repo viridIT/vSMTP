@@ -14,11 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::receiver::{Connection, MailContext, OnMail};
+use crate::test_receiver;
 use vsmtp_common::address::Address;
 use vsmtp_common::mail_context::Body;
+use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::re::anyhow;
-use vsmtp_test::test_receiver;
+use vsmtp_server::{re::tokio, Connection, OnMail};
 
 macro_rules! test_lang {
     ($lang_code:expr) => {{
@@ -59,7 +60,7 @@ macro_rules! test_lang {
             }
         }
 
-        test_receiver! {
+        crate::test_receiver! {
             on_mail => &mut T,
             [
                 "HELO foobar\r\n",

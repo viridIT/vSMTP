@@ -15,8 +15,8 @@
  *
 **/
 
-const TEST_SERVER_CERT: &str = "./src/receiver/tests/certs/certificate.crt";
-const TEST_SERVER_KEY: &str = "./src/receiver/tests/certs/privateKey.key";
+const TEST_SERVER_CERT: &str = "./src/tests/certs/certificate.crt";
+const TEST_SERVER_KEY: &str = "./src/tests/certs/privateKey.key";
 
 mod auth;
 mod clair;
@@ -44,7 +44,7 @@ pub fn get_tls_config() -> Config {
         .with_default_smtp_codes()
         .without_auth()
         .with_default_app()
-        .with_vsl("./src/receiver/tests/main.vsl")
+        .with_vsl("./src/empty_main.vsl")
         .with_default_app_logs()
         .without_services()
         .with_system_dns()

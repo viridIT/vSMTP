@@ -2157,9 +2157,11 @@ name = "vsmtp-test"
 version = "0.9.7"
 dependencies = [
  "async-trait",
+ "lettre",
  "pretty_assertions",
  "vsmtp-common",
  "vsmtp-config",
+ "vsmtp-mail-parser",
  "vsmtp-rule-engine",
  "vsmtp-server",
 ]

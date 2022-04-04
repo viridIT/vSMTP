@@ -3,7 +3,8 @@ use vsmtp_common::re::rsasl;
 /// Backend of SASL implementation
 pub type Backend = rsasl::DiscardOnDrop<rsasl::SASL<(), ()>>;
 
-pub(crate) struct Callback;
+/// Function called by the SASL backend
+pub struct Callback;
 
 impl rsasl::Callback<(), ()> for Callback {
     fn callback(

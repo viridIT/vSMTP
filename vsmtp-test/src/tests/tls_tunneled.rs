@@ -14,11 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    receiver::{connection::ConnectionKind, io_service::IoService},
-    server::Server,
-    ProcessMessage,
-};
+use super::{get_tls_config, TEST_SERVER_CERT};
 use vsmtp_common::re::anyhow;
 use vsmtp_config::{
     get_rustls_config,
@@ -26,8 +22,8 @@ use vsmtp_config::{
     Config, ConfigServerTlsSni, TlsSecurityLevel,
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-
-use super::{get_tls_config, TEST_SERVER_CERT};
+use vsmtp_server::re::tokio;
+use vsmtp_server::{ConnectionKind, IoService, ProcessMessage, Server};
 
 // using sockets on 2 thread to make the handshake concurrently
 async fn test_tls_tunneled(
@@ -189,8 +185,8 @@ async fn sni() -> anyhow::Result<()> {
     config.server.tls.as_mut().unwrap().sni.push(
         ConfigServerTlsSni::from_path(
             "second.testserver.com",
-            "./src/receiver/tests/certs/sni/second.certificate.crt",
-            "./src/receiver/tests/certs/sni/second.privateKey.key",
+            "./src/tests/certs/sni/second.certificate.crt",
+            "./src/tests/certs/sni/second.privateKey.key",
         )
         .unwrap(),
     );

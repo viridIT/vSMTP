@@ -178,8 +178,10 @@ impl Server {
         }
     }
 
+    ///
+    /// # Errors
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn run_session(
+    pub async fn run_session(
         stream: tokio::net::TcpStream,
         client_addr: std::net::SocketAddr,
         kind: ConnectionKind,

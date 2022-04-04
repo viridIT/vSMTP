@@ -1,8 +1,6 @@
-use crate::{
-    receiver::{connection::ConnectionKind, io_service::IoService},
-    server::Server,
-    ProcessMessage,
-};
+use crate::test_receiver;
+
+use super::{get_tls_config, TEST_SERVER_CERT};
 use vsmtp_common::re::anyhow;
 use vsmtp_config::{
     get_rustls_config,
@@ -10,9 +8,10 @@ use vsmtp_config::{
     Config, TlsSecurityLevel,
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_test::test_receiver;
-
-use super::{get_tls_config, TEST_SERVER_CERT};
+use vsmtp_server::re::tokio;
+use vsmtp_server::IoService;
+use vsmtp_server::ProcessMessage;
+use vsmtp_server::{ConnectionKind, Server};
 
 // using sockets on 2 thread to make the handshake concurrently
 async fn test_starttls(
