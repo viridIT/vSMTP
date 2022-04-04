@@ -31,9 +31,6 @@ pub enum Queue {
     Deferred,
     /// too many attempts failed
     Dead,
-    /// user defined queue
-    #[allow(unused)]
-    Quarantine,
 }
 
 impl Queue {
@@ -43,7 +40,6 @@ impl Queue {
             Queue::Deliver => "deliver",
             Queue::Deferred => "deferred",
             Queue::Dead => "dead",
-            Queue::Quarantine => "quarantine",
         }
     }
 
