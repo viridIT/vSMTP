@@ -38,8 +38,11 @@ jobs:
         run: cargo install cargo-fuzz
       - name: Run fuzz receiver
         run: cargo +nightly fuzz run receiver -- -max_total_time=1200 -dict="./fuzz/dict/server_config.dict"
+      - name: List Artifacts
+        id: fuzz-artifact
+        run: echo ""::set-output name=exit_code::$((! find -- fuzz/artifacts/receiver -prune -type d -empty | grep -q '^'))""
       - name: Save Artifacts if not empty
-        if: ${{ ! find -- ./fuzz/artifacts/receiver -prune -type d -empty | grep -q '^' }}
+        if: steps.fuzz-artifact.outputs.exit_code != 0
         uses: actions/upload-artifact@v2
         with:
           name: fuzz-artifacts-receiver
