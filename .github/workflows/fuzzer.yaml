@@ -11,7 +11,7 @@ jobs:
     runs-on: self-hosted
     steps:
       # - name: Install gsasl
-      #   run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      #   run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev # clang...
       - uses: actions/checkout@v2
       - uses: actions/cache@v1
         with:
@@ -21,6 +21,10 @@ jobs:
         with:
           path: ~/.cargo/git
           key: '${{ runner.os }}-cargo-index-${{ hashFiles(''**/Cargo.lock'') }}'
+      - uses: actions/cache@v1
+        with:
+          path: ./fuzz/corpus
+          key: '${{ runner.os }}-fuzz-corpus-${{ hashFiles(''**/Cargo.lock'') }}'
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -33,4 +37,10 @@ jobs:
       - name: Install cargo fuzz
         run: cargo install cargo-fuzz
       - name: Run fuzz receiver
-        run: cargo +nightly fuzz run receiver -- -max_total_time=3600 -dict="./fuzz/dict/server_config.dict"
+        run: cargo +nightly fuzz run receiver -- -max_total_time=1200 -dict="./fuzz/dict/server_config.dict"
+      - name: Save Artifacts if not empty
+        if: ! find -- ./fuzz/artifacts/receiver -prune -type d -empty | grep -q '^'
+        uses: actions/upload-artifact@v2
+        with:
+          name: fuzz-artifacts-receiver
+          path: fuzz/artifacts/receiver
