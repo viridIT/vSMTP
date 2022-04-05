@@ -199,6 +199,7 @@ mod tests {
                 skipped: None,
             }),
         };
+        std::fs::create_dir_all("./src/tests/mail_queue/working").unwrap();
         let mut fs = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
