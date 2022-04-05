@@ -154,7 +154,6 @@ impl RuleEngine {
             return status;
         }
 
-        // let now = chrono::Local::now();
         let now = time::OffsetDateTime::now_utc();
 
         rule_state

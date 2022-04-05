@@ -106,26 +106,26 @@ pub mod types {
         ))
     }
 
-    // std::net::SocketAddr
+    // std::net::IpAddr
 
     #[rhai_fn(global, name = "to_string", pure)]
-    pub fn socket_to_string(this: &mut std::net::SocketAddr) -> String {
+    pub fn ip_to_string(this: &mut std::net::IpAddr) -> String {
         this.to_string()
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn socket_to_debug(this: &mut std::net::SocketAddr) -> String {
+    pub fn ip_to_debug(this: &mut std::net::IpAddr) -> String {
         format!("{this:?}")
     }
 
     #[rhai_fn(global, name = "==", pure)]
-    pub fn socket_is_string(this: &mut std::net::SocketAddr, ip: &str) -> bool {
-        this.ip().to_string() == ip
+    pub fn ip_is_string(this: &mut std::net::IpAddr, ip: &str) -> bool {
+        this.to_string() == ip
     }
 
     #[rhai_fn(global, name = "!=", pure)]
-    pub fn socket_not_string(this: &mut std::net::SocketAddr, ip: &str) -> bool {
-        this.ip().to_string() != ip
+    pub fn ip_not_string(this: &mut std::net::IpAddr, ip: &str) -> bool {
+        this.to_string() != ip
     }
 
     // rules::address::Address

@@ -101,7 +101,7 @@
         action "printing client data" || {
             vsl::log("debug", "email received.");
             vsl::log("debug", `connexion timestamp: ${ctx.connection_timestamp}`);
-            vsl::log("debug", `ip: ${ctx.client_addr}`);
+            vsl::log("debug", `ip: ${ctx.client_ip}`);
             vsl::log("debug", `helo: ${ctx.helo}`);
             vsl::log("debug", `mail_from: ${ctx.mail_from}`);
             vsl::log("debug", `metadata {\n  mail timestamp: ${ctx.mail_timestamp}\n  message id: ${ctx.message_id}\n}`);

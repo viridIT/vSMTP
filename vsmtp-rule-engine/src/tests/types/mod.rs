@@ -42,15 +42,9 @@ fn test_time() {
 }
 
 #[test]
-fn test_socket() {
-    let re = RuleEngine::new(&Some(rules_path!["socket", "main.vsl"])).unwrap();
+fn test_ip() {
+    let re = RuleEngine::new(&Some(rules_path!["ip", "main.vsl"])).unwrap();
     let mut state = get_default_state();
-
-    state.add_data(
-        "custom_socket",
-        <std::net::SocketAddr as std::str::FromStr>::from_str("127.0.0.1:25")
-            .expect("could not build socket"),
-    );
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }

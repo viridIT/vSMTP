@@ -27,16 +27,27 @@ use vsmtp_common::mail_context::MailContext;
 #[rhai::plugin::export_module]
 pub mod mail_context {
 
-    // FIXME: all those poison error map_err make the code harder to read.
-
-    #[rhai_fn(global, get = "client_addr", return_raw)]
-    pub fn client_addr(
+    #[rhai_fn(global, get = "client_ip", return_raw)]
+    pub fn client_ip(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<std::net::SocketAddr> {
+    ) -> EngineResult<std::net::IpAddr> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .client_addr)
+            .client_addr
+            .ip())
+    }
+
+    #[rhai_fn(global, get = "client_port", return_raw)]
+    pub fn client_addr(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<i64> {
+        Ok(i64::from(
+            this.read()
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                .client_addr
+                .port(),
+        ))
     }
 
     #[rhai_fn(global, get = "connection_timestamp", return_raw)]
