@@ -92,10 +92,6 @@ pub fn start_runtime(
             .thread_name("vsmtp-receiver")
             .build()?
             .block_on(async move {
-                if cfg!(test) {
-                    return Ok(());
-                }
-
                 let mut server = Server::new(
                     config,
                     sockets,
@@ -104,6 +100,9 @@ pub fn start_runtime(
                     delivery_sender,
                 )?;
                 log::info!("Listening on: {:?}", server.addr());
+                if cfg!(test) {
+                    return Ok(());
+                }
 
                 server.listen_and_serve().await
             });

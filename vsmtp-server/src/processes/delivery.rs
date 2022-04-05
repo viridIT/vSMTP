@@ -82,6 +82,10 @@ pub async fn start(
                 .await {
                     log::error!(target: DELIVER, "could not deliver email '{}': {error:?}", pm.message_id);
                 }
+
+                if cfg!(test) {
+                    return Ok(());
+                }
             }
             _ = flush_deferred_interval.tick() => {
                 log::info!(
@@ -241,9 +245,39 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: Status) ->
 
 #[cfg(test)]
 mod test {
-    use vsmtp_common::mail_context::Body;
-
     use super::add_trace_information;
+    use crate::ProcessMessage;
+    use vsmtp_common::mail_context::Body;
+    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_test::config;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+    async fn start() {
+        let mut config = config::local_test();
+        config.server.queues.dirpath = "./tmp".into();
+        config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
+
+        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+            RuleEngine::new(&Some(config.app.vsl.filepath.clone())).unwrap(),
+        ));
+
+        let (delivery_sender, delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
+
+        let task = tokio::spawn(super::start(
+            std::sync::Arc::new(config),
+            rule_engine,
+            delivery_receiver,
+        ));
+
+        delivery_sender
+            .send(ProcessMessage {
+                message_id: "test".to_string(),
+            })
+            .await
+            .unwrap();
+
+        task.await.unwrap().unwrap();
+    }
 
     #[test]
     fn test_add_trace_information() {
