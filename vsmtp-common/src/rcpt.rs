@@ -100,7 +100,7 @@ mod test {
             &vec![
                 Rcpt::with_transfer_method(
                     Address::try_from("green@foo.com".to_string()).unwrap(),
-                    Transfer::Deliver,
+                    Transfer::None,
                 ),
                 Address::try_from("john@doe.com".to_string())
                     .unwrap()
@@ -110,7 +110,7 @@ mod test {
                     .into(),
                 Rcpt::with_transfer_method(
                     Address::try_from("green@bar.com".to_string()).unwrap(),
-                    Transfer::Deliver,
+                    Transfer::None,
                 ),
                 Rcpt::with_transfer_method(
                     Address::try_from("john@localhost".to_string()).unwrap(),
