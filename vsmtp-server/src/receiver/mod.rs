@@ -80,22 +80,15 @@ impl OnMail for MailHandler {
             SMTPReplyCode::Code554
         } else {
             match next_queue {
-                Queue::Working => {
-                    self.working_sender
-                        .send(ProcessMessage {
-                            message_id: metadata.message_id.clone(),
-                        })
-                        .await?;
-                }
-                Queue::Deliver => {
-                    self.delivery_sender
-                        .send(ProcessMessage {
-                            message_id: metadata.message_id.clone(),
-                        })
-                        .await?;
-                }
+                Queue::Working => &self.working_sender,
+                Queue::Deliver => &self.delivery_sender,
                 _ => unreachable!(),
-            };
+            }
+            .send(ProcessMessage {
+                message_id: metadata.message_id.clone(),
+            })
+            .await?;
+
             SMTPReplyCode::Code250
         };
 

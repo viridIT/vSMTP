@@ -39,7 +39,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "client_port", return_raw)]
-    pub fn client_addr(
+    pub fn client_port(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<i64> {
         Ok(i64::from(
