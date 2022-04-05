@@ -14,7 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use crate::{channel_message::ProcessMessage, queue::Queue};
+use crate::{
+    channel_message::ProcessMessage,
+    processes::delivery::{
+        deferred::flush_deferred_queue,
+        deliver::{flush_deliver_queue, handle_one_in_delivery_queue},
+    },
+    queue::Queue,
+};
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
@@ -22,10 +29,14 @@ use vsmtp_common::{
     mail_context::{Body, MailContext},
     re::{anyhow, log},
     status::Status,
-    transfer::EmailTransferStatus,
+    transfer::{EmailTransferStatus, Transfer},
 };
 use vsmtp_config::{log_channel::DELIVER, Config};
-use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
+use vsmtp_delivery::transport::{deliver as deliver2, forward, maildir, mbox, Transport};
+use vsmtp_rule_engine::rule_engine::RuleEngine;
+
+mod deferred;
+mod deliver;
 
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
@@ -84,206 +95,6 @@ pub async fn start(
     }
 }
 
-/// handle and send one email pulled from the delivery queue.
-///
-/// # Errors
-/// * failed to open the email.
-/// * failed to parse the email.
-/// * failed to send an email.
-/// * rule engine mutex is poisoned.
-/// * failed to add trace data to the email.
-/// * failed to copy the email to other queues or remove it from the delivery queue.
-///
-/// # Panics
-pub async fn handle_one_in_delivery_queue(
-    config: &Config,
-    dns: &TokioAsyncResolver,
-    message_id: &str,
-    path: &std::path::Path,
-    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-) -> anyhow::Result<()> {
-    log::trace!(
-        target: DELIVER,
-        "vDeliver (delivery) email received '{}'",
-        message_id
-    );
-
-    let ctx = MailContext::from_file(path).with_context(|| {
-        format!(
-            "failed to deserialize email in delivery queue '{}'",
-            &message_id
-        )
-    })?;
-
-    let mut state = RuleState::with_context(config, ctx);
-
-    let result = rule_engine
-        .read()
-        .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
-        .run_when(&mut state, &vsmtp_common::state::StateSMTP::Delivery);
-    {
-        // FIXME: cloning here to prevent send_email async error with mutex guard.
-        //        the context is wrapped in an RwLock because of the receiver.
-        //        find a way to mutate the context in the rule engine without
-        //        using a RwLock.
-        let mut ctx = state.get_context().read().unwrap().clone();
-
-        add_trace_information(config, &mut ctx, result)?;
-
-        if result == Status::Deny {
-            // we update rcpt email status and write to dead queue in case of a deny.
-            for rcpt in &mut ctx.envelop.rcpt {
-                rcpt.email_status =
-                    EmailTransferStatus::Failed("rule engine denied the email.".to_string());
-            }
-            Queue::Dead.write_to_queue(config, &ctx)?;
-        } else {
-            let metadata = ctx
-                .metadata
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("metadata not available on delivery"))?;
-
-            ctx.envelop.rcpt = send_email(
-                config,
-                dns,
-                metadata,
-                &ctx.envelop.mail_from,
-                &ctx.envelop.rcpt,
-                &ctx.body,
-            )
-            .await
-            .with_context(|| {
-                format!("failed to send '{message_id}' located in the delivery queue")
-            })?;
-
-            move_to_queue(config, &ctx)?;
-        };
-    }
-
-    // after processing the email is removed from the delivery queue.
-    std::fs::remove_file(path)
-        .with_context(|| format!("failed to remove '{message_id}' from the delivery queue"))?;
-
-    Ok(())
-}
-
-async fn flush_deliver_queue(
-    config: &Config,
-    dns: &TokioAsyncResolver,
-    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)? {
-        let path = path?;
-        let message_id = path.file_name();
-
-        if let Err(e) = handle_one_in_delivery_queue(
-            config,
-            dns,
-            message_id
-                .to_str()
-                .context("could not fetch message id in delivery queue")?,
-            &path.path(),
-            rule_engine,
-        )
-        .await
-        {
-            log::warn!("{}", e);
-        }
-    }
-
-    Ok(())
-}
-
-// NOTE: emails stored in the deferred queue are likely to slow down the process.
-//       the pickup process of this queue should be slower than pulling from the delivery queue.
-//       https://www.postfix.org/QSHAPE_README.html#queues
-async fn handle_one_in_deferred_queue(
-    config: &Config,
-    dns: &TokioAsyncResolver,
-    path: &std::path::Path,
-) -> anyhow::Result<()> {
-    let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
-
-    log::debug!(
-        target: DELIVER,
-        "vDeliver (deferred) processing email '{}'",
-        message_id
-    );
-
-    let mut ctx = MailContext::from_file(path).with_context(|| {
-        format!(
-            "failed to deserialize email in deferred queue '{}'",
-            &message_id
-        )
-    })?;
-
-    let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
-
-    let metadata = ctx
-        .metadata
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("email metadata not available in deferred email"))?;
-
-    // TODO: at this point, only HeldBack recipients should be present in the queue.
-    //       check if it is true or not.
-    ctx.envelop.rcpt = send_email(
-        config,
-        dns,
-        metadata,
-        &ctx.envelop.mail_from,
-        &ctx.envelop.rcpt,
-        &ctx.body,
-    )
-    .await
-    .context("failed to send emails from the deferred queue")?;
-
-    // updating retry count, set status to Failed if threshold reached.
-    ctx.envelop.rcpt = ctx
-        .envelop
-        .rcpt
-        .into_iter()
-        .map(|mut rcpt| {
-            rcpt.email_status = match rcpt.email_status {
-                EmailTransferStatus::HeldBack(count) if count >= max_retry_deferred => {
-                    EmailTransferStatus::Failed(format!(
-                        "maximum retry count of '{max_retry_deferred}' reached"
-                    ))
-                }
-                EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count + 1),
-                status => EmailTransferStatus::Failed(format!(
-                    "wrong recipient status '{status}' found in the deferred queue"
-                )),
-            };
-            rcpt
-        })
-        .collect();
-
-    // if there are no recipients left to send the email to, we remove the file from the deferred queue.
-    if ctx
-        .envelop
-        .rcpt
-        .iter()
-        .all(|rcpt| !matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
-    {
-        std::fs::remove_file(&path)?;
-    } else {
-        // otherwise, we just update the recipient list on disk.
-        Queue::Deferred.write_to_queue(config, &ctx)?;
-    }
-
-    Ok(())
-}
-
-async fn flush_deferred_queue(config: &Config, dns: &TokioAsyncResolver) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)? {
-        if let Err(e) = handle_one_in_deferred_queue(config, dns, &path?.path()).await {
-            log::warn!("{}", e);
-        }
-    }
-
-    Ok(())
-}
-
 /// send the email following each recipient transport method.
 /// return a list of recipients with updated email_status field.
 /// recipients tagged with the Sent email_status are discarded.
@@ -309,20 +120,12 @@ async fn send_email(
     };
 
     for (method, rcpt) in &mut triage {
-        let mut transport: Box<dyn vsmtp_delivery::transport::Transport + Send> = match method {
-            vsmtp_common::transfer::Transfer::Forward(to) => {
-                Box::new(vsmtp_delivery::transport::forward::Forward(to.clone()))
-            }
-            vsmtp_common::transfer::Transfer::Deliver => {
-                Box::new(vsmtp_delivery::transport::deliver::Deliver)
-            }
-            vsmtp_common::transfer::Transfer::Mbox => {
-                Box::new(vsmtp_delivery::transport::mbox::MBox)
-            }
-            vsmtp_common::transfer::Transfer::Maildir => {
-                Box::new(vsmtp_delivery::transport::maildir::Maildir)
-            }
-            vsmtp_common::transfer::Transfer::None => continue,
+        let mut transport: Box<dyn Transport + Send> = match method {
+            Transfer::Forward(to) => Box::new(forward::Forward(to.clone())),
+            Transfer::Deliver => Box::new(deliver2::Deliver),
+            Transfer::Mbox => Box::new(mbox::MBox),
+            Transfer::Maildir => Box::new(maildir::Maildir),
+            Transfer::None => continue,
         };
 
         transport
@@ -345,22 +148,20 @@ async fn send_email(
 /// copy the message into the deferred / dead queue if any recipient is held back or have failed delivery.
 /// FIXME: could be optimized by checking both conditions with the same iterator.
 fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-    if ctx.envelop.rcpt.iter().any(|rcpt| {
-        matches!(
-            rcpt.email_status,
-            vsmtp_common::transfer::EmailTransferStatus::HeldBack(..)
-        )
-    }) {
+    if ctx
+        .envelop
+        .rcpt
+        .iter()
+        .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
+    {
         Queue::Deferred
             .write_to_queue(config, ctx)
             .context("failed to move message from delivery queue to deferred queue")?;
     }
 
     if ctx.envelop.rcpt.iter().any(|rcpt| {
-        matches!(
-            rcpt.email_status,
-            vsmtp_common::transfer::EmailTransferStatus::Failed(..)
-        ) || matches!(rcpt.transfer_method, vsmtp_common::transfer::Transfer::None,)
+        matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
+            || matches!(rcpt.transfer_method, Transfer::None,)
     }) {
         Queue::Dead
             .write_to_queue(config, ctx)

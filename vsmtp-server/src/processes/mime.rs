@@ -140,7 +140,7 @@ async fn handle_one_in_working_queue(
 #[cfg(test)]
 mod tests {
     use super::handle_one_in_working_queue;
-    use crate::ProcessMessage;
+    use crate::{queue::Queue, ProcessMessage};
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
@@ -180,44 +180,41 @@ mod tests {
 
     #[tokio::test]
     async fn basic() {
-        let mail = MailContext {
-            connection_timestamp: std::time::SystemTime::now(),
-            client_addr: "127.0.0.1:80".parse().unwrap(),
-            envelop: Envelop {
-                helo: "client.com".to_string(),
-                mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
-                rcpt: vec![
-                    Rcpt {
-                        address: Address::try_from("to+1@client.com".to_string()).unwrap(),
-                        transfer_method: Transfer::Deliver,
-                        email_status: EmailTransferStatus::Waiting,
-                    },
-                    Rcpt {
-                        address: Address::try_from("to+2@client.com".to_string()).unwrap(),
-                        transfer_method: Transfer::Maildir,
-                        email_status: EmailTransferStatus::Waiting,
-                    },
-                ],
-            },
-            body: Body::Raw("Date: bar\r\nFrom: foo\r\nHello world\r\n".to_string()),
-            metadata: Some(MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                message_id: "test".to_string(),
-                skipped: None,
-            }),
-        };
-        std::fs::create_dir_all("./src/tests/mail_queue/working").unwrap();
-        let mut fs = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open("./src/tests/mail_queue/working/test.json")
-            .unwrap();
-        std::io::Write::write_all(&mut fs, serde_json::to_string(&mail).unwrap().as_bytes())
-            .unwrap();
-
         let mut config = config::local_test();
         config.server.queues.dirpath = "./src/tests/mail_queue".into();
         config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
+
+        Queue::Working
+            .write_to_queue(
+                &config,
+                &MailContext {
+                    connection_timestamp: std::time::SystemTime::now(),
+                    client_addr: "127.0.0.1:80".parse().unwrap(),
+                    envelop: Envelop {
+                        helo: "client.com".to_string(),
+                        mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
+                        rcpt: vec![
+                            Rcpt {
+                                address: Address::try_from("to+1@client.com".to_string()).unwrap(),
+                                transfer_method: Transfer::Deliver,
+                                email_status: EmailTransferStatus::Waiting,
+                            },
+                            Rcpt {
+                                address: Address::try_from("to+2@client.com".to_string()).unwrap(),
+                                transfer_method: Transfer::Maildir,
+                                email_status: EmailTransferStatus::Waiting,
+                            },
+                        ],
+                    },
+                    body: Body::Raw("Date: bar\r\nFrom: foo\r\nHello world\r\n".to_string()),
+                    metadata: Some(MessageMetadata {
+                        timestamp: std::time::SystemTime::now(),
+                        message_id: "test".to_string(),
+                        skipped: None,
+                    }),
+                },
+            )
+            .unwrap();
 
         let (delivery_sender, mut delivery_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(10);
@@ -231,16 +228,13 @@ mod tests {
                     .unwrap(),
             )),
             ProcessMessage {
-                message_id: "test.json".to_string(),
+                message_id: "test".to_string(),
             },
             delivery_sender,
         )
         .await
         .unwrap();
 
-        assert_eq!(
-            delivery_receiver.recv().await.unwrap().message_id,
-            "test.json"
-        );
+        assert_eq!(delivery_receiver.recv().await.unwrap().message_id, "test");
     }
 }

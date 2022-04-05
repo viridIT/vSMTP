@@ -14,11 +14,14 @@
 mod tests;
 
 mod channel_message;
-mod processes;
 mod queue;
 mod receiver;
 mod runtime;
 mod server;
+mod processes {
+    pub mod delivery;
+    pub mod mime;
+}
 
 /// SMTP auth extension implementation
 pub mod auth;
