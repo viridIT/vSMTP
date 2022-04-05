@@ -20,20 +20,9 @@ pub async fn flush_deliver_queue(
     dns: &TokioAsyncResolver,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
-    for path in std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)? {
-        let path = path?;
-        let message_id = path.file_name();
-
-        if let Err(e) = handle_one_in_delivery_queue(
-            config,
-            dns,
-            message_id
-                .to_str()
-                .context("could not fetch message id in delivery queue")?,
-            &path.path(),
-            rule_engine,
-        )
-        .await
+    let dir_entries = std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)?;
+    for path in dir_entries {
+        if let Err(e) = handle_one_in_delivery_queue(config, dns, &path?.path(), rule_engine).await
         {
             log::warn!("{}", e);
         }
@@ -56,10 +45,11 @@ pub async fn flush_deliver_queue(
 pub async fn handle_one_in_delivery_queue(
     config: &Config,
     dns: &TokioAsyncResolver,
-    message_id: &str,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
+    let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
+
     log::trace!(
         target: DELIVER,
         "vDeliver (delivery) email received '{}'",
@@ -123,4 +113,76 @@ pub async fn handle_one_in_delivery_queue(
         .with_context(|| format!("failed to remove '{message_id}' from the delivery queue"))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::handle_one_in_delivery_queue;
+    use crate::queue::Queue;
+    use vsmtp_common::{
+        address::Address,
+        envelop::Envelop,
+        mail_context::{Body, MailContext, MessageMetadata},
+        rcpt::Rcpt,
+        transfer::{EmailTransferStatus, Transfer},
+    };
+    use vsmtp_config::build_dns;
+    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_test::config;
+
+    #[tokio::test]
+    async fn basic() {
+        let mut config = config::local_test();
+        config.server.queues.dirpath = "./tmp".into();
+        config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
+
+        let now = std::time::SystemTime::now();
+
+        let dns = build_dns(&config).unwrap();
+
+        Queue::Deliver
+            .write_to_queue(
+                &config,
+                &MailContext {
+                    connection_timestamp: now,
+                    client_addr: "127.0.0.1:80".parse().unwrap(),
+                    envelop: Envelop {
+                        helo: "client.com".to_string(),
+                        mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
+                        rcpt: vec![
+                            Rcpt {
+                                address: Address::try_from("to+1@client.com".to_string()).unwrap(),
+                                transfer_method: Transfer::Maildir,
+                                email_status: EmailTransferStatus::Waiting,
+                            },
+                            Rcpt {
+                                address: Address::try_from("to+2@client.com".to_string()).unwrap(),
+                                transfer_method: Transfer::Maildir,
+                                email_status: EmailTransferStatus::Waiting,
+                            },
+                        ],
+                    },
+                    body: Body::Raw("Date: bar\r\nFrom: foo\r\nHello world\r\n".to_string()),
+                    metadata: Some(MessageMetadata {
+                        timestamp: now,
+                        message_id: "test".to_string(),
+                        skipped: None,
+                    }),
+                },
+            )
+            .unwrap();
+
+        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+            RuleEngine::new(&Some(config.app.vsl.filepath.clone())).unwrap(),
+        ));
+
+        handle_one_in_delivery_queue(
+            &config,
+            &dns,
+            &config.server.queues.dirpath.join("deliver/test"),
+            &rule_engine,
+        )
+        .await
+        .unwrap();
+    }
 }

@@ -73,7 +73,6 @@ pub async fn start(
                 if let Err(error) = handle_one_in_delivery_queue(
                     &config,
                     &dns,
-                    &pm.message_id,
                     &std::path::PathBuf::from_iter([
                         Queue::Deliver.to_path(&config.server.queues.dirpath)?,
                         std::path::Path::new(&pm.message_id).to_path_buf(),
