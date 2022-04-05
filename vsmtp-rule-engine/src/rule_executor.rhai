@@ -15,11 +15,11 @@
  *
 */
 
-// runs rules for a given stage and returns
-// a status.
+/// runs rules for a given stage and returns
+/// a status.
+/// if an error is catched by the function,
+/// deny is returned.
 fn run_rules(rules, stage) {
-    let status = vsl::next();
-
     if stage in rules {
         for procedure in rules[stage] {
             let result;
@@ -27,7 +27,7 @@ fn run_rules(rules, stage) {
             try {
                 result = procedure.evaluate.call();
             } catch (err) {
-                result = switch err.type_of() {
+                throw switch err.type_of() {
                     "string" => {
                         #{
                             "error": "ErrorInFunctionCall",
@@ -42,19 +42,14 @@ fn run_rules(rules, stage) {
                 };
             }
 
-            switch result.type_of() {
-                "vsmtp_common::status::Status" => {
-                    switch procedure.type {
-                        "rule" => status = result,
-                        _ => {},
-                    };
+            let status = switch procedure.type {
+                "rule" => switch result.type_of() {
+                    "vsmtp_common::status::Status" => result,
+                    _ => throw `the rule '${procedure.name}' must return a status, not a '${result.type_of()}'`,
                 },
-                "()" => switch procedure.type {
-                    "rule" => throw `the rule "${procedure.name}" must return a status`,
-                    _ => {}
-                },
-                _ => throw result,
-            }
+                "action" => vsl::next(),
+                _ => throw `procedure "${procedure.type}" does not exists`,
+            };
 
             if status != vsl::next() {
                 return status;
@@ -62,5 +57,6 @@ fn run_rules(rules, stage) {
         }
     }
 
-    status
+    // status returned by default.
+    vsl::next()
 }
