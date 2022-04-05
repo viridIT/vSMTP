@@ -74,7 +74,7 @@ async fn handle_one_in_working_queue(
     log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
     let mut ctx = MailContext::from_file(&file_to_process).context(format!(
-        "failed to deserialize email '{}'",
+        "failed to deserialize email in working queue '{}'",
         file_to_process.display()
     ))?;
 
@@ -91,7 +91,8 @@ async fn handle_one_in_working_queue(
     if result == Status::Deny {
         Queue::Dead.write_to_queue(config.as_ref(), &state.get_context().read().unwrap())?;
     } else {
-        {
+        // using a bool to prevent the lock guard to reach the await call below.
+        let delivered = {
             let ctx = state.get_context();
             let ctx = ctx.read().unwrap();
 
@@ -107,25 +108,31 @@ async fn handle_one_in_working_queue(
                     "delivery skipped because all recipient's transfer method is set to None."
                 );
                 Queue::Dead.write_to_queue(config.as_ref(), &ctx)?;
-                return Ok(());
+                false
+            } else {
+                Queue::Deliver
+                    .write_to_queue(&config, &ctx)
+                    .context(format!(
+                        "failed to move '{}' from delivery queue to deferred queue",
+                        process_message.message_id
+                    ))?;
+                true
             }
+        };
+
+        if delivered {
+            delivery_sender
+                .send(ProcessMessage {
+                    message_id: process_message.message_id.to_string(),
+                })
+                .await?;
         }
-
-        delivery_sender
-            .send(ProcessMessage {
-                message_id: process_message.message_id.to_string(),
-            })
-            .await?;
-
-        std::fs::remove_file(&file_to_process)
-            .context("failed to remove a file from the working queue")?;
-
-        log::debug!(
-            target: DELIVER,
-            "message '{}' removed from working queue.",
-            process_message.message_id
-        );
     };
+
+    std::fs::remove_file(&file_to_process).context(format!(
+        "failed to remove '{}' from the working queue",
+        process_message.message_id
+    ))?;
 
     Ok(())
 }

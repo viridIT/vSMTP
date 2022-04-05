@@ -61,19 +61,6 @@ impl OnMail for MailHandler {
     ) -> anyhow::Result<()> {
         *helo_domain = Some(mail.envelop.helo.clone());
 
-        if mail
-            .envelop
-            .rcpt
-            .iter()
-            .all(|rcpt| rcpt.transfer_method == vsmtp_common::transfer::Transfer::None)
-        {
-            // quietly skipping mime & delivery processes when all recipients do not need transfer.
-            // TODO: move to dead queue.
-            log::warn!("delivery skipped because all recipient's transfer method is set to None.");
-            conn.send_code(SMTPReplyCode::Code250)?;
-            return Ok(());
-        }
-
         let metadata = mail.metadata.as_ref().unwrap();
 
         let next_queue = match &metadata.skipped {
@@ -85,14 +72,30 @@ impl OnMail for MailHandler {
         };
 
         let response = if let Err(error) = next_queue.write_to_queue(&conn.config, &mail) {
-            log::error!("couldn't write to delivery queue: {}", error);
+            log::error!(
+                "couldn't write to '{}' queue: {}",
+                next_queue.as_str(),
+                error
+            );
             SMTPReplyCode::Code554
         } else {
-            self.delivery_sender
-                .send(ProcessMessage {
-                    message_id: metadata.message_id.clone(),
-                })
-                .await?;
+            match next_queue {
+                Queue::Working => {
+                    self.working_sender
+                        .send(ProcessMessage {
+                            message_id: metadata.message_id.clone(),
+                        })
+                        .await?;
+                }
+                Queue::Deliver => {
+                    self.delivery_sender
+                        .send(ProcessMessage {
+                            message_id: metadata.message_id.clone(),
+                        })
+                        .await?;
+                }
+                _ => unreachable!(),
+            };
             SMTPReplyCode::Code250
         };
 

@@ -108,8 +108,12 @@ pub async fn handle_one_in_delivery_queue(
         message_id
     );
 
-    let ctx = MailContext::from_file(path)
-        .with_context(|| format!("failed to deserialize email '{}'", &message_id))?;
+    let ctx = MailContext::from_file(path).with_context(|| {
+        format!(
+            "failed to deserialize email in delivery queue '{}'",
+            &message_id
+        )
+    })?;
 
     let mut state = RuleState::with_context(config, ctx);
 
@@ -206,8 +210,12 @@ async fn handle_one_in_deferred_queue(
         message_id
     );
 
-    let mut ctx = MailContext::from_file(path)
-        .with_context(|| format!("failed to deserialize email '{}'", &message_id))?;
+    let mut ctx = MailContext::from_file(path).with_context(|| {
+        format!(
+            "failed to deserialize email in deferred queue '{}'",
+            &message_id
+        )
+    })?;
 
     let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
 

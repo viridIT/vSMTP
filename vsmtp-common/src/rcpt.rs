@@ -37,7 +37,7 @@ impl Rcpt {
     pub const fn new(address: Address) -> Self {
         Self {
             address,
-            transfer_method: Transfer::None,
+            transfer_method: Transfer::Deliver,
             email_status: EmailTransferStatus::Waiting,
         }
     }
