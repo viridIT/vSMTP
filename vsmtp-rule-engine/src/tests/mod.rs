@@ -54,7 +54,7 @@ pub mod helpers {
             .with_default_smtp_codes()
             .without_auth()
             .with_app_at_location("./tmp/app")
-            .with_vsl("./src/receiver/tests/main.vsl")
+            .with_vsl("./src/empty_main.vsl")
             .with_default_app_logs()
             .without_services()
             .with_system_dns()

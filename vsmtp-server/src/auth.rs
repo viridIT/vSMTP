@@ -1,7 +1,9 @@
 use vsmtp_common::re::rsasl;
 
+/// Backend of SASL implementation
 pub type Backend = rsasl::DiscardOnDrop<rsasl::SASL<(), ()>>;
 
+/// Function called by the SASL backend
 pub struct Callback;
 
 impl rsasl::Callback<(), ()> for Callback {

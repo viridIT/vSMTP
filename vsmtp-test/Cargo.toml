@@ -1,0 +1,31 @@
+[package]
+edition = "2021"
+
+name = "vsmtp-test"
+version = "0.9.7"
+license = "GPLv3"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+
+publish = false
+
+[dependencies]
+vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
+vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
+vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
+vsmtp-rule-engine = { version = "^0.9", path = "../vsmtp-rule-engine" }
+vsmtp-server = { version = "^0.9", path = "../vsmtp-server" }
+
+async-trait = "0.1.53"
+
+pretty_assertions = "1.2.0"
+
+lettre = { version = "0.10.0-rc.4", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }

@@ -1,3 +1,6 @@
+use crate::test_receiver;
+
+use super::{get_tls_config, TEST_SERVER_CERT};
 use vsmtp_common::re::anyhow;
 use vsmtp_config::{
     get_rustls_config,
@@ -5,17 +8,13 @@ use vsmtp_config::{
     Config, TlsSecurityLevel,
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-
-use crate::{
-    processes::ProcessMessage,
-    receiver::{connection::ConnectionKind, io_service::IoService},
-    server::ServerVSMTP,
-    test_receiver,
-};
-
-use super::{get_tls_config, TEST_SERVER_CERT};
+use vsmtp_server::re::tokio;
+use vsmtp_server::IoService;
+use vsmtp_server::ProcessMessage;
+use vsmtp_server::{ConnectionKind, Server};
 
 // using sockets on 2 thread to make the handshake concurrently
+#[allow(clippy::too_many_lines)]
 async fn test_starttls(
     server_name: &str,
     server_config: std::sync::Arc<Config>,
@@ -23,7 +22,8 @@ async fn test_starttls(
     secured_smtp_input: &'static [&str],
     expected_output: &'static [&str],
     port: u32,
-) -> anyhow::Result<()> {
+    with_valid_config: bool,
+) -> anyhow::Result<(anyhow::Result<()>, anyhow::Result<()>)> {
     let socket_server = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .unwrap();
@@ -32,31 +32,32 @@ async fn test_starttls(
     let (delivery_sender, _delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
     let server = tokio::spawn(async move {
-        let tls_config = get_rustls_config(server_config.server.tls.as_ref().unwrap()).unwrap();
-
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
-        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            anyhow::Context::context(
-                RuleEngine::new(&Some(server_config.app.vsl.filepath.clone())),
-                "failed to initialize the engine",
-            )
-            .unwrap(),
-        ));
-
-        ServerVSMTP::run_session(
+        Server::run_session(
             client_stream,
             client_addr,
             ConnectionKind::Opportunistic,
-            server_config,
-            Some(std::sync::Arc::new(tls_config)),
+            server_config.clone(),
+            if with_valid_config {
+                Some(std::sync::Arc::new(
+                    get_rustls_config(server_config.server.tls.as_ref().unwrap()).unwrap(),
+                ))
+            } else {
+                None
+            },
             None,
-            rule_engine,
+            std::sync::Arc::new(std::sync::RwLock::new(
+                anyhow::Context::context(
+                    RuleEngine::new(&Some(server_config.app.vsl.filepath.clone())),
+                    "failed to initialize the engine",
+                )
+                .unwrap(),
+            )),
             working_sender,
             delivery_sender,
         )
         .await
-        .unwrap();
     });
 
     let mut reader = std::io::BufReader::new(std::fs::File::open(&TEST_SERVER_CERT).unwrap());
@@ -107,7 +108,10 @@ async fn test_starttls(
         let mut io = IoService::new(&mut tls);
         println!("begin handshake");
 
-        std::io::Write::flush(&mut io).unwrap();
+        if let Err(e) = std::io::Write::flush(&mut io) {
+            pretty_assertions::assert_eq!(expected_output, output);
+            anyhow::bail!(e);
+        }
         println!("end handshake");
 
         // TODO: assert on negotiated cipher ... ?
@@ -137,19 +141,18 @@ async fn test_starttls(
         }
 
         pretty_assertions::assert_eq!(expected_output, output);
+
+        anyhow::Ok(())
     });
 
     let (client, server) = tokio::join!(client, server);
 
-    client.unwrap();
-    server.unwrap();
-
-    Ok(())
+    Ok((client.unwrap(), server.unwrap()))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
-async fn simple() -> anyhow::Result<()> {
-    test_starttls(
+async fn simple() {
+    let (client, server) = test_starttls(
         "testserver.com",
         std::sync::Arc::new(get_tls_config()),
         &["EHLO client.com\r\n", "STARTTLS\r\n"],
@@ -178,13 +181,18 @@ async fn simple() -> anyhow::Result<()> {
             "221 Service closing transmission channel",
         ],
         20027,
+        true,
     )
     .await
+    .unwrap();
+
+    assert!(client.is_ok());
+    assert!(server.is_ok());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
-async fn double_starttls() -> anyhow::Result<()> {
-    test_starttls(
+async fn double_starttls() {
+    let (client, server) = test_starttls(
         "testserver.com",
         std::sync::Arc::new(get_tls_config()),
         &["EHLO client.com\r\n", "STARTTLS\r\n"],
@@ -204,8 +212,13 @@ async fn double_starttls() -> anyhow::Result<()> {
             "221 Service closing transmission channel",
         ],
         20037,
+        true,
     )
     .await
+    .unwrap();
+
+    assert!(client.is_ok());
+    assert!(server.is_ok());
 }
 
 #[tokio::test]
@@ -254,4 +267,41 @@ async fn test_receiver_8() -> anyhow::Result<()> {
     .is_ok());
 
     Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+async fn config_ill_formed() {
+    // let mut config = get_tls_config();
+    //test_tls_tunneled(
+    //     "testserver.com",
+    //     std::sync::Arc::new(config),
+    //     &["NOOP\r\n"],
+    //     &[],
+    //     20461,
+    //     false,
+    // )
+    // .await
+    // .unwrap();
+
+    let (client, server) = test_starttls(
+        "testserver.com",
+        std::sync::Arc::new(get_tls_config()),
+        &["EHLO client.com\r\n", "STARTTLS\r\n"],
+        &["EHLO secured.client.com\r\n", "QUIT\r\n"],
+        &[
+            "220 testserver.com Service ready",
+            "250-testserver.com",
+            "250-STARTTLS",
+            "250-8BITMIME",
+            "250 SMTPUTF8",
+            "220 testserver.com Service ready",
+        ],
+        20031,
+        false,
+    )
+    .await
+    .unwrap();
+
+    assert!(client.is_err());
+    assert!(server.is_err());
 }

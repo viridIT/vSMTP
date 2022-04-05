@@ -1,3 +1,4 @@
+use super::unsafe_auth_config;
 use anyhow::Context;
 use vsmtp_common::{
     auth::Mechanism,
@@ -5,15 +6,10 @@ use vsmtp_common::{
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-
-use crate::{
-    auth,
-    processes::ProcessMessage,
-    receiver::{ConnectionKind, IoService},
-    server::ServerVSMTP,
-};
-
-use super::unsafe_auth_config;
+use vsmtp_server::re::{base64, tokio};
+use vsmtp_server::IoService;
+use vsmtp_server::Server;
+use vsmtp_server::{auth, ConnectionKind, ProcessMessage};
 
 async fn test_auth(
     server_config: std::sync::Arc<Config>,
@@ -41,7 +37,7 @@ async fn test_auth(
                 .unwrap(),
         ));
 
-        ServerVSMTP::run_session(
+        Server::run_session(
             client_stream,
             client_addr,
             ConnectionKind::Opportunistic,

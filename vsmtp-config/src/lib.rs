@@ -97,7 +97,7 @@ impl Config {
         }
     }
 
-    /// Parse a [ServerConfig] with [TOML] format
+    /// Parse a [`Config`] with [TOML] format
     ///
     /// # Errors
     ///

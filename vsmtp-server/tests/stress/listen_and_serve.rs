@@ -18,7 +18,7 @@ use anyhow::Context;
 use vsmtp_common::re::anyhow;
 use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{processes::ProcessMessage, server::ServerVSMTP};
+use vsmtp_server::{ProcessMessage, Server};
 
 #[derive(Debug, serde::Deserialize)]
 struct StressConfig {
@@ -88,7 +88,7 @@ async fn listen_and_serve() {
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
 
-    let mut server = ServerVSMTP::new(
+    let mut server = Server::new(
         std::sync::Arc::new(config),
         sockets,
         rule_engine,

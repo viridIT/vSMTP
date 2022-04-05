@@ -1,4 +1,5 @@
 use lettre::transport::smtp::client::TlsParametersBuilder;
+use vsmtp_server::re::tokio;
 
 #[ignore = "require a server to run on port 10015"]
 #[tokio::test]

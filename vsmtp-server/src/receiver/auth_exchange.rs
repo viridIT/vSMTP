@@ -8,7 +8,7 @@ use vsmtp_common::{
 };
 
 /// Result of the AUTH command
-#[allow(clippy::pedantic)]
+#[allow(clippy::module_name_repetitions)]
 #[must_use]
 pub enum AuthExchangeError {
     /// authentication invalid

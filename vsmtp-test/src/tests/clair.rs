@@ -14,16 +14,16 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    receiver::{test_helpers::get_regular_config, Connection, OnMail},
-    test_receiver,
-};
+use crate::{config, test_receiver};
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
     re::anyhow,
 };
 use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_server::re::tokio;
+use vsmtp_server::Connection;
+use vsmtp_server::OnMail;
 
 // see https://datatracker.ietf.org/doc/html/rfc5321#section-4.3.2
 
@@ -215,7 +215,7 @@ async fn test_receiver_11_bis() {
 
 #[tokio::test]
 async fn test_receiver_12() {
-    let mut config = get_regular_config();
+    let mut config = config::local_test();
     config.server.smtp.disable_ehlo = true;
 
     assert!(test_receiver! {
@@ -224,6 +224,42 @@ async fn test_receiver_12() {
         [
             "220 testserver.com Service ready\r\n",
             "502 Command not implemented\r\n",
+        ]
+        .concat()
+    }
+    .is_ok());
+}
+
+#[tokio::test]
+async fn max_rcpt_reached() {
+    let mut config = config::local_test();
+    config.server.smtp.rcpt_count_max = 5;
+
+    assert!(test_receiver! {
+        with_config => config,
+        [
+            "EHLO client.com\r\n",
+            "MAIL FROM:<foo@bar.com>\r\n",
+            "RCPT TO:<foo+1@bar.com>\r\n",
+            "RCPT TO:<foo+2@bar.com>\r\n",
+            "RCPT TO:<foo+3@bar.com>\r\n",
+            "RCPT TO:<foo+4@bar.com>\r\n",
+            "RCPT TO:<foo+5@bar.com>\r\n",
+            "RCPT TO:<foo+6@bar.com>\r\n",
+        ].concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-STARTTLS\r\n",
+            "250-8BITMIME\r\n",
+            "250 SMTPUTF8\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "452 Requested action not taken: to many recipients\r\n",
+            "452 Requested action not taken: to many recipients\r\n",
         ]
         .concat()
     }
@@ -422,7 +458,7 @@ async fn test_receiver_14() {
 
 #[tokio::test]
 async fn test_receiver_9() {
-    let mut config = get_regular_config();
+    let mut config = config::local_test();
     config.server.smtp.error.delay = std::time::Duration::from_millis(100);
     config.server.smtp.error.soft_count = 5;
     config.server.smtp.error.hard_count = 10;

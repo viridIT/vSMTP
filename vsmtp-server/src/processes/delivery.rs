@@ -14,8 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
-use super::ProcessMessage;
-use crate::queue::Queue;
+use crate::{channel_message::ProcessMessage, queue::Queue};
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
@@ -173,7 +172,7 @@ async fn flush_deliver_queue(
         let path = path?;
         let message_id = path.file_name();
 
-        handle_one_in_delivery_queue(
+        if let Err(e) = handle_one_in_delivery_queue(
             config,
             dns,
             message_id
@@ -182,7 +181,10 @@ async fn flush_deliver_queue(
             &path.path(),
             rule_engine,
         )
-        .await?;
+        .await
+        {
+            log::warn!("{}", e);
+        }
     }
 
     Ok(())
@@ -266,7 +268,9 @@ async fn handle_one_in_deferred_queue(
 
 async fn flush_deferred_queue(config: &Config, dns: &TokioAsyncResolver) -> anyhow::Result<()> {
     for path in std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)? {
-        handle_one_in_deferred_queue(config, dns, &path?.path()).await?;
+        if let Err(e) = handle_one_in_deferred_queue(config, dns, &path?.path()).await {
+            log::warn!("{}", e);
+        }
     }
 
     Ok(())

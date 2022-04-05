@@ -15,9 +15,7 @@
  *
 **/
 use self::transaction::{Transaction, TransactionResult};
-use crate::{
-    auth, processes::ProcessMessage, queue::Queue, receiver::auth_exchange::on_authentication,
-};
+use crate::{auth, queue::Queue, receiver::auth_exchange::on_authentication, ProcessMessage};
 use vsmtp_common::{
     auth::Mechanism,
     code::SMTPReplyCode,
@@ -30,17 +28,10 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 mod auth_exchange;
 mod connection;
 mod io_service;
-pub(crate) mod transaction;
+pub mod transaction;
 
 pub use connection::{Connection, ConnectionKind};
 pub use io_service::IoService;
-
-#[cfg(test)]
-mod tests;
-
-// NOTE: not marked as #[cfg(test)] because it is used by the bench/fuzz
-/// boilerplate for the tests
-pub mod test_helpers;
 
 /// will be executed once the email is received.
 #[async_trait::async_trait]
@@ -55,7 +46,7 @@ pub trait OnMail {
 }
 
 /// default mail handler for production.
-pub(crate) struct MailHandler {
+pub struct MailHandler {
     pub working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     pub delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
@@ -83,46 +74,30 @@ impl OnMail for MailHandler {
             return Ok(());
         }
 
-        match &mail.metadata {
-            Some(metadata) if metadata.skipped.is_some() => {
-                log::warn!("postq skipped due to {:?}.", metadata.skipped.unwrap());
-                match Queue::Deliver.write_to_queue(&conn.config, &mail) {
-                    Ok(_) => {
-                        self.delivery_sender
-                            .send(ProcessMessage {
-                                message_id: metadata.message_id.clone(),
-                            })
-                            .await?;
+        let metadata = mail.metadata.as_ref().unwrap();
 
-                        conn.send_code(SMTPReplyCode::Code250)?;
-                    }
-                    Err(error) => {
-                        log::error!("couldn't write to delivery queue: {}", error);
-                        conn.send_code(SMTPReplyCode::Code554)?;
-                    }
-                };
-                Ok(())
+        let next_queue = match &metadata.skipped {
+            Some(reason) => {
+                log::warn!("postq skipped due to '{}'.", reason);
+                Queue::Deliver
             }
-            Some(metadata) => {
-                match Queue::Working.write_to_queue(&conn.config, &mail) {
-                    Ok(_) => {
-                        self.working_sender
-                            .send(ProcessMessage {
-                                message_id: metadata.message_id.clone(),
-                            })
-                            .await?;
+            None => Queue::Working,
+        };
 
-                        conn.send_code(SMTPReplyCode::Code250)?;
-                    }
-                    Err(error) => {
-                        log::error!("couldn't write to queue: {}", error);
-                        conn.send_code(SMTPReplyCode::Code554)?;
-                    }
-                };
-                Ok(())
-            }
-            _ => unreachable!(),
-        }
+        let response = if let Err(error) = next_queue.write_to_queue(&conn.config, &mail) {
+            log::error!("couldn't write to delivery queue: {}", error);
+            SMTPReplyCode::Code554
+        } else {
+            self.delivery_sender
+                .send(ProcessMessage {
+                    message_id: metadata.message_id.clone(),
+                })
+                .await?;
+            SMTPReplyCode::Code250
+        };
+
+        conn.send_code(response)?;
+        Ok(())
     }
 }
 
@@ -209,9 +184,7 @@ where
             return handle_connection_secured(conn, tls_config, rsasl, rule_engine, mail_handler)
                 .await;
         }
-        conn.send_code(SMTPReplyCode::Code454)?;
-        conn.send_code(SMTPReplyCode::Code221)?;
-        return Ok(());
+        anyhow::bail!("config ill-formed, handling a secured connection without valid config")
     }
 
     let mut helo_domain = None;
@@ -236,8 +209,7 @@ where
                     .await;
                 }
                 conn.send_code(SMTPReplyCode::Code454)?;
-                conn.send_code(SMTPReplyCode::Code221)?;
-                return Ok(());
+                anyhow::bail!("{}", SMTPReplyCode::Code454)
             }
             TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
                 if let Some(rsasl) = &rsasl {

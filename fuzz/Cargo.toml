@@ -18,6 +18,7 @@ vsmtp-config = { path = "../vsmtp-config" }
 vsmtp-server = { path = "../vsmtp-server" }
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
+vsmtp-test = { path = "../vsmtp-test" }
 
 # Prevent this from interfering with workspaces
 [workspace]

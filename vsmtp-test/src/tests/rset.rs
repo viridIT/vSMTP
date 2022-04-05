@@ -14,16 +14,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    receiver::{Connection, OnMail},
-    test_receiver,
-};
 use vsmtp_common::{
     address::Address,
     mail_context::{Body, MailContext},
     re::anyhow,
 };
 use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_server::re::tokio;
+use vsmtp_server::Connection;
+use vsmtp_server::OnMail;
+
+use crate::test_receiver;
 
 #[tokio::test]
 async fn reset_helo() {

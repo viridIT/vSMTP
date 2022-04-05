@@ -14,18 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    auth,
-    receiver::{
-        connection::{Connection, ConnectionKind},
-        handle_connection,
-        io_service::IoService,
-    },
-};
+
 use anyhow::Context;
 use vsmtp_common::re::anyhow;
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_server::{
+    auth, handle_connection, re::tokio, Connection, ConnectionKind, IoService, OnMail,
+};
 
 /// A type implementing Write+Read to emulate sockets
 pub struct Mock<'a, T: std::io::Write + std::io::Read> {
@@ -60,10 +56,10 @@ impl<T: std::io::Write + std::io::Read> std::io::Read for Mock<'_, T> {
 }
 
 /// used for testing, does not do anything once the email is received.
-pub(crate) struct DefaultMailHandler;
+pub struct DefaultMailHandler;
 
 #[async_trait::async_trait]
-impl super::OnMail for DefaultMailHandler {
+impl OnMail for DefaultMailHandler {
     async fn on_mail<S: std::io::Read + std::io::Write + Send>(
         &mut self,
         conn: &mut Connection<'_, S>,
@@ -76,16 +72,16 @@ impl super::OnMail for DefaultMailHandler {
     }
 }
 
-// TODO: we should use a ReceiverTestParameters struct
-//       because their could be a lot of parameters to tweak for tests.
-//       (the connection kind for example)
-/// this function mocks all of the server's processes.
+/// run a connection and assert output produced by vSMTP and @expected_output
 ///
 /// # Errors
 ///
+/// * the outcome of [`handle_connection`]
+///
 /// # Panics
-// #[deprecated]
-pub async fn test_receiver_deprecated<M>(
+///
+/// * argument provided are ill-formed
+pub async fn test_receiver_inner<M>(
     address: &str,
     mail_handler: &mut M,
     smtp_input: &[u8],
@@ -94,7 +90,7 @@ pub async fn test_receiver_deprecated<M>(
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
 ) -> anyhow::Result<()>
 where
-    M: super::OnMail + Send,
+    M: OnMail + Send,
 {
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
@@ -113,7 +109,7 @@ where
     ));
 
     let result = handle_connection(&mut conn, None, rsasl, rule_engine, mail_handler).await;
-    std::io::Write::flush(&mut conn.io_stream.inner)?;
+    std::io::Write::flush(&mut conn.io_stream.inner).unwrap();
 
     pretty_assertions::assert_eq!(
         std::str::from_utf8(expected_output),
@@ -123,39 +119,13 @@ where
     result
 }
 
-#[cfg(test)]
-pub(crate) fn get_regular_config() -> Config {
-    Config::builder()
-        .with_version_str("<1.0.0")
-        .unwrap()
-        .with_server_name("testserver.com")
-        .with_user_group_and_default_system("root", "root")
-        .unwrap()
-        .with_ipv4_localhost()
-        .with_default_logs_settings()
-        .with_spool_dir_and_default_queues("./tmp/delivery")
-        .without_tls_support()
-        .with_default_smtp_options()
-        .with_default_smtp_error_handler()
-        .with_default_smtp_codes()
-        .without_auth()
-        .with_default_app()
-        .with_vsl("./src/receiver/tests/main.vsl")
-        .with_default_app_logs()
-        .without_services()
-        .with_system_dns()
-        .validate()
-        .unwrap()
-}
-
-/// should only be on test
-// #[cfg(test)]
+/// Call test_receiver_inner
 #[macro_export]
 macro_rules! test_receiver {
     ($input:expr, $output:expr) => {
         test_receiver! {
-            on_mail => &mut $crate::receiver::test_helpers::DefaultMailHandler {},
-            with_config => $crate::receiver::test_helpers::get_regular_config(),
+            on_mail => &mut $crate::receiver::DefaultMailHandler {},
+            with_config => $crate::config::local_test(),
             $input,
             $output
         }
@@ -163,21 +133,21 @@ macro_rules! test_receiver {
     (on_mail => $resolver:expr, $input:expr, $output:expr) => {
         test_receiver! {
             on_mail => $resolver,
-            with_config => $crate::receiver::test_helpers::get_regular_config(),
+            with_config => $crate::config::local_test(),
             $input,
             $output
         }
     };
     (with_config => $config:expr, $input:expr, $output:expr) => {
         test_receiver! {
-            on_mail => &mut $crate::receiver::test_helpers::DefaultMailHandler {},
+            on_mail => &mut $crate::receiver::DefaultMailHandler {},
             with_config => $config,
             $input,
             $output
         }
     };
     (on_mail => $resolver:expr, with_config => $config:expr, $input:expr, $output:expr) => {
-        $crate::receiver::test_helpers::test_receiver_deprecated(
+        $crate::receiver::test_receiver_inner(
             "127.0.0.1:0",
             $resolver,
             $input.as_bytes(),
@@ -191,13 +161,13 @@ macro_rules! test_receiver {
         test_receiver! {
             with_auth => $auth,
             with_config => $config,
-            on_mail => &mut $crate::receiver::test_helpers::DefaultMailHandler {},
+            on_mail => &mut $crate::receiver::DefaultMailHandler {},
             $input,
             $output
         }
     };
     (with_auth => $auth:expr, with_config => $config:expr, on_mail => $resolver:expr, $input:expr, $output:expr) => {
-        $crate::receiver::test_helpers::test_receiver_deprecated(
+        $crate::receiver::test_receiver_inner(
             "127.0.0.1:0",
             $resolver,
             $input.as_bytes(),

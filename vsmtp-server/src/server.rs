@@ -16,7 +16,7 @@
 **/
 use crate::{
     auth,
-    processes::ProcessMessage,
+    channel_message::ProcessMessage,
     receiver::{
         handle_connection, IoService, {Connection, ConnectionKind},
     },
@@ -29,8 +29,7 @@ use vsmtp_config::{get_rustls_config, re::rustls, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// TCP/IP server
-#[allow(clippy::module_name_repetitions)]
-pub struct ServerVSMTP {
+pub struct Server {
     listener: tokio::net::TcpListener,
     listener_submission: tokio::net::TcpListener,
     listener_submissions: tokio::net::TcpListener,
@@ -42,7 +41,7 @@ pub struct ServerVSMTP {
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
 
-impl ServerVSMTP {
+impl Server {
     /// Create a server with the configuration provided, and the sockets already bound
     ///
     /// # Errors
@@ -61,7 +60,6 @@ impl ServerVSMTP {
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<Self> {
-        // NOTE: move that in config builder ?
         if !config.server.queues.dirpath.exists() {
             std::fs::DirBuilder::new()
                 .recursive(true)
@@ -180,8 +178,10 @@ impl ServerVSMTP {
         }
     }
 
+    ///
+    /// # Errors
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn run_session(
+    pub async fn run_session(
         stream: tokio::net::TcpStream,
         client_addr: std::net::SocketAddr,
         kind: ConnectionKind,
@@ -211,23 +211,25 @@ impl ServerVSMTP {
             delivery_sender,
         };
 
-        handle_connection(&mut conn, tls_config, rsasl, rule_engine, &mut mail_handler)
-            .await
-            .map(|_| {
+        match handle_connection(&mut conn, tls_config, rsasl, rule_engine, &mut mail_handler).await
+        {
+            Ok(_) => {
                 log::warn!(
                     "{{ elapsed: {:?} }} Connection {} closed cleanly",
                     begin.elapsed(),
                     client_addr,
                 );
-            })
-            .map_err(|error| {
+                Ok(())
+            }
+            Err(error) => {
                 log::error!(
                     "{{ elapsed: {:?} }} Connection {} closed with an error {}",
                     begin.elapsed(),
                     client_addr,
                     error,
                 );
-                error
-            })
+                Err(error)
+            }
+        }
     }
 }

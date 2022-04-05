@@ -22,7 +22,7 @@ use vsmtp_common::{
 use vsmtp_config::{log_channel::RECEIVER, Config};
 
 /// identifiers for all mail queues.
-pub(crate) enum Queue {
+pub enum Queue {
     /// postq
     Working,
     /// 1st attempt to deliver
@@ -31,9 +31,6 @@ pub(crate) enum Queue {
     Deferred,
     /// too many attempts failed
     Dead,
-    /// user defined queue
-    #[allow(unused)]
-    Quarantine,
 }
 
 impl Queue {
@@ -43,7 +40,6 @@ impl Queue {
             Queue::Deliver => "deliver",
             Queue::Deferred => "deferred",
             Queue::Dead => "dead",
-            Queue::Quarantine => "quarantine",
         }
     }
 
