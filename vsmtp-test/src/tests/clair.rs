@@ -231,6 +231,42 @@ async fn test_receiver_12() {
 }
 
 #[tokio::test]
+async fn max_rcpt_reached() {
+    let mut config = config::local_test();
+    config.server.smtp.rcpt_count_max = 5;
+
+    assert!(test_receiver! {
+        with_config => config,
+        [
+            "EHLO client.com\r\n",
+            "MAIL FROM:<foo@bar.com>\r\n",
+            "RCPT TO:<foo+1@bar.com>\r\n",
+            "RCPT TO:<foo+2@bar.com>\r\n",
+            "RCPT TO:<foo+3@bar.com>\r\n",
+            "RCPT TO:<foo+4@bar.com>\r\n",
+            "RCPT TO:<foo+5@bar.com>\r\n",
+            "RCPT TO:<foo+6@bar.com>\r\n",
+        ].concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-STARTTLS\r\n",
+            "250-8BITMIME\r\n",
+            "250 SMTPUTF8\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "452 Requested action not taken: to many recipients\r\n",
+            "452 Requested action not taken: to many recipients\r\n",
+        ]
+        .concat()
+    }
+    .is_ok());
+}
+
+#[tokio::test]
 async fn test_receiver_13() {
     struct T {
         count: u32,
