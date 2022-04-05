@@ -29,9 +29,6 @@
       "sourceLanguages": [
         "rust"
       ],
-      "env": {
-        "VSMTP_CONFIG_PATH": "${workspaceFolder}/config/vsmtp.dev-local.toml"
-      },
     },
     {
       "type": "lldb",
