@@ -95,7 +95,7 @@ fn construct() {
         app: ConfigApp {
             dirpath: "/var/spool/vsmtp/app".into(),
             vsl: ConfigAppVSL {
-                filepath: "/etc/vsmtp/main.vsl".into(),
+                filepath: "/etc/vsmtp/rules/main.vsl".into(),
             },
             logs: ConfigAppLogs {
                 filepath: "/var/log/vsmtp/app.log".into(),

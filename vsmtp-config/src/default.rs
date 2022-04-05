@@ -137,7 +137,7 @@ impl ConfigServerLogs {
     }
 
     pub(crate) fn default_format() -> String {
-        "{d} {l} - ".to_string()
+        "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}".to_string()
     }
 
     pub(crate) fn default_level() -> std::collections::BTreeMap<String, log::LevelFilter> {
@@ -368,7 +368,7 @@ impl Default for ConfigAppVSL {
 
 impl ConfigAppVSL {
     pub(crate) fn default_filepath() -> std::path::PathBuf {
-        "/etc/vsmtp/main.vsl".into()
+        "/etc/vsmtp/rules/main.vsl".into()
     }
 }
 
