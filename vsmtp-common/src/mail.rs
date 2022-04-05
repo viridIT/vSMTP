@@ -21,7 +21,7 @@ use super::mime_type::Mime;
 pub type MailHeaders = Vec<(String, String)>;
 
 /// see rfc5322 (section 2.1 and 2.3)
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum BodyType {
     /// Text message body
     Regular(Vec<String>),
@@ -52,7 +52,7 @@ impl ToString for BodyType {
 }
 
 /// Message body representation
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Mail {
     /// Message body 's headers
     pub headers: MailHeaders,

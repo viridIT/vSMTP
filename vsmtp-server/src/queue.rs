@@ -67,10 +67,10 @@ impl Queue {
             .to_path(&config.server.queues.dirpath)?
             .join(message_id);
 
-        // TODO: should loop if a file name is conflicting.
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(true)
             .open(&to_deliver)
             .with_context(|| {
                 format!(

@@ -17,7 +17,7 @@
 
 /// the delivery status of the email of the current rcpt.
 // TODO: add timestamp for Sent / HeldBack / Failed.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EmailTransferStatus {
     /// the email has not been sent yet.
     /// the email is in the deliver / working queue at this point.

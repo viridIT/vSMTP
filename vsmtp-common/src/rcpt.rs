@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// representation of a recipient with it's delivery method.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Rcpt {
     /// email address of the recipient.
     pub address: Address,

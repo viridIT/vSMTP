@@ -181,7 +181,7 @@ mod tests {
     #[tokio::test]
     async fn basic() {
         let mut config = config::local_test();
-        config.server.queues.dirpath = "./src/tests/mail_queue".into();
+        config.server.queues.dirpath = "./tmp".into();
         config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
 
         Queue::Working

@@ -18,7 +18,7 @@ use crate::address::Address;
 use crate::rcpt::Rcpt;
 
 /// Data receive during a smtp transaction
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Envelop {
     /// result of the HELO/HELO command.
     pub helo: String,

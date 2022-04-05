@@ -17,7 +17,7 @@
 use super::mail::Mail;
 
 /// header of a mime section
-#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MimeHeader {
     ///
     pub name: String,
@@ -28,7 +28,7 @@ pub struct MimeHeader {
 }
 
 ///
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum MimeBodyType {
     ///
     Regular(Vec<String>),
@@ -39,7 +39,7 @@ pub enum MimeBodyType {
 }
 
 ///
-#[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MimeMultipart {
     ///
     pub preamble: String,
@@ -100,7 +100,7 @@ impl MimeMultipart {
 }
 
 ///
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Mime {
     ///
     pub headers: Vec<MimeHeader>,

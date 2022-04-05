@@ -21,7 +21,7 @@ pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
 /// metadata
 /// TODO: remove retry & resolver fields.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MessageMetadata {
     /// instant when the last "MAIL FROM" has been received.
     pub timestamp: std::time::SystemTime,
@@ -43,7 +43,7 @@ impl Default for MessageMetadata {
 }
 
 /// Message body issued by a SMTP transaction
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Body {
     /// Nothing
     Empty,
@@ -54,7 +54,7 @@ pub enum Body {
 }
 
 /// Representation of one mail obtained by a transaction SMTP
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
     /// time of connection by the client.
     pub connection_timestamp: std::time::SystemTime,
