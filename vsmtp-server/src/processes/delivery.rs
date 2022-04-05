@@ -348,7 +348,7 @@ fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
         matches!(
             rcpt.email_status,
             vsmtp_common::transfer::EmailTransferStatus::Failed(..)
-        )
+        ) || matches!(rcpt.transfer_method, vsmtp_common::transfer::Transfer::None,)
     }) {
         Queue::Dead
             .write_to_queue(config, ctx)
