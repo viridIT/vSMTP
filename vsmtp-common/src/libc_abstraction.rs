@@ -41,14 +41,24 @@ pub fn fork() -> anyhow::Result<ForkResult> {
 /// # Errors
 ///
 /// see daemon(2) ERRORS, see setsid(2) and [fork]
-pub fn daemon() -> anyhow::Result<ForkResult> {
-    match fork()? {
-        // [coverage] exit make it annoying to test
-        ForkResult::Parent(_) => std::process::exit(0),
-        ForkResult::Child => {
-            setsid()?;
-            fork()
-        }
+// pub fn daemon() -> anyhow::Result<ForkResult> {
+//     match fork()? {
+//         // [coverage] exit make it annoying to test
+//         ForkResult::Parent(_) => std::process::exit(0),
+//         ForkResult::Child => {
+//             setsid()?;
+//             fork()
+//         }
+//     }
+// }
+
+pub fn daemon(nochdir: bool, noclose: bool) -> anyhow::Result<()> {
+    match unsafe { libc::daemon(i32::from(nochdir), i32::from(noclose)) } {
+        0 => Ok(()),
+        _ => Err(anyhow::anyhow!(
+            "daemon: '{}'",
+            std::io::Error::last_os_error()
+        )),
     }
 }
 
