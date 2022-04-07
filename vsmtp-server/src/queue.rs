@@ -17,7 +17,7 @@
 use anyhow::Context;
 use vsmtp_common::{
     mail_context::MailContext,
-    re::{anyhow, log},
+    re::{anyhow, log, serde_json},
 };
 use vsmtp_config::{log_channel::RECEIVER, Config};
 

@@ -84,6 +84,7 @@ pub mod re {
     pub use libc;
     pub use log;
     pub use rsasl;
+    pub use serde_json;
     pub use strum;
 }
 

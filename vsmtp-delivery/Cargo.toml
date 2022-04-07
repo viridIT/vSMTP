@@ -16,17 +16,18 @@ publish = false
 vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
 
-async-trait = "0.1.52"
+async-trait = "0.1.53"
 
-time = { version = "0.3.7", default-features = false, features = [
+time = { version = "0.3.9", default-features = false, features = [
     "std",
     "formatting",
     "macros",
 ] }
 
 users = { version = "0.11.0", features = [] }
-trust-dns-resolver = "0.21.1"
-lettre = { version = "0.10.0-rc.4", default-features = false, features = [
+trust-dns-resolver = "0.21.2"
+
+lettre = { version = "0.10.0-rc.5", default-features = false, features = [
     "smtp-transport",
     "pool",
     "builder",

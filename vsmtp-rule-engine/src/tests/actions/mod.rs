@@ -15,6 +15,7 @@
  *
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
+use vsmtp_common::re::serde_json;
 use vsmtp_common::{
     mail::Mail,
     mail_context::{Body, MessageMetadata},
