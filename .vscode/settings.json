@@ -45,6 +45,7 @@
         "rustls",
         "SASL",
         "setgid",
+        "setgroups",
         "setsid",
         "setuid",
         "SMTPS",

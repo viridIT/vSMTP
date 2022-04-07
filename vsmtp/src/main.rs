@@ -17,7 +17,7 @@
 use anyhow::Context;
 use vsmtp::{Args, Commands};
 use vsmtp_common::{
-    libc_abstraction::{daemon, setgid, setuid},
+    libc_abstraction::{daemon, setgid, setgroups, setuid},
     re::anyhow,
 };
 use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
@@ -72,6 +72,7 @@ fn main() -> anyhow::Result<()> {
 
     if !args.no_daemon {
         daemon(false, false)?;
+        setgroups(&[config.server.system.group.gid()])?;
         setgid(config.server.system.group.gid())?;
         setuid(config.server.system.user.uid())?;
     }

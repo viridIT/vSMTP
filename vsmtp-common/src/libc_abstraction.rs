@@ -112,6 +112,21 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
     }
 }
 
+/// Set list of supplementary group IDs
+///
+/// # Errors
+///
+/// see setgroups(2) ERRORS
+pub fn setgroups(gids: &[libc::gid_t]) -> anyhow::Result<()> {
+    match unsafe { libc::setgroups(gids.len(), gids.as_ptr()) } {
+        0 => Ok(()),
+        _ => Err(anyhow::anyhow!(
+            "setgroups: '{}'",
+            std::io::Error::last_os_error()
+        )),
+    }
+}
+
 /// Change ownership of a file
 ///
 /// # Errors
