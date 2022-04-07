@@ -2,17 +2,53 @@ use crate::{
     processes::{delivery, mime},
     ProcessMessage, Server,
 };
-use vsmtp_common::re::{anyhow, log};
+use vsmtp_common::re::{
+    anyhow::{self, Context},
+    log,
+};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
+
+fn init_runtime<F: 'static>(
+    sender: tokio::sync::mpsc::Sender<anyhow::Result<()>>,
+    name: impl Into<String>,
+    worker_thread_count: usize,
+    future: F,
+) -> anyhow::Result<std::thread::JoinHandle<anyhow::Result<()>>>
+where
+    F: std::future::Future<Output = anyhow::Result<()>> + std::marker::Send,
+{
+    let name = name.into();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(worker_thread_count)
+        .enable_all()
+        .thread_name(name.clone())
+        .build()?;
+
+    std::thread::Builder::new()
+        .name(format!("{name}-main"))
+        .spawn(move || {
+            let output = if cfg!(test) {
+                Ok(())
+            } else {
+                runtime
+                    .block_on({
+                        log::info!("Runtime '{name}' started successfully");
+                        future
+                    })
+                    .context(format!("An error terminated the '{name}' runtime"))
+            };
+
+            sender.blocking_send(output)?;
+            Ok(())
+        })
+        .map_err(anyhow::Error::new)
+}
 
 /// Start the vSMTP server's runtime
 ///
 /// # Errors
 ///
-/// # Panics
-///
-/// * todo!(): a sub routine ended unexpectedly
 #[allow(clippy::module_name_repetitions)]
 pub fn start_runtime(
     config: std::sync::Arc<Config>,
@@ -22,6 +58,11 @@ pub fn start_runtime(
         std::net::TcpListener,
     ),
 ) -> anyhow::Result<()> {
+    let (main_runtime_sender, mut main_runtime_receiver) =
+        tokio::sync::mpsc::channel::<anyhow::Result<()>>(
+            config.server.queues.delivery.channel_size,
+        );
+
     let (delivery_sender, delivery_receiver) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
 
@@ -32,101 +73,52 @@ pub fn start_runtime(
         config.app.vsl.filepath.clone(),
     ))?));
 
-    let config_copy = config.clone();
-    let rule_engine_copy = rule_engine.clone();
-    let tasks_delivery = std::thread::spawn(|| {
-        let res = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(config_copy.server.system.thread_pool.delivery)
-            .enable_all()
-            .thread_name("vsmtp-delivery")
-            .build()?
-            .block_on(async move {
-                if cfg!(test) {
-                    return Ok(());
-                }
+    let _tasks_delivery = init_runtime(
+        main_runtime_sender.clone(),
+        "vsmtp-delivery",
+        config.server.system.thread_pool.delivery,
+        delivery::start(config.clone(), rule_engine.clone(), delivery_receiver),
+    )?;
 
-                let res = delivery::start(config_copy, rule_engine_copy, delivery_receiver).await;
-                log::error!("vsmtp-delivery thread ended unexpectedly '{:?}'", res);
-                anyhow::Ok(())
-            });
-        if res.is_err() {
-            todo!();
-        }
-        std::io::Result::Ok(())
-    });
+    let _tasks_processing = init_runtime(
+        main_runtime_sender.clone(),
+        "vsmtp-processing",
+        config.server.system.thread_pool.processing,
+        mime::start(
+            config.clone(),
+            rule_engine.clone(),
+            working_receiver,
+            delivery_sender.clone(),
+        ),
+    )?;
 
-    let config_copy = config.clone();
-    let rule_engine_copy = rule_engine.clone();
-    let mime_delivery_sender = delivery_sender.clone();
-    let tasks_processing = std::thread::spawn(|| {
-        let res = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(config_copy.server.system.thread_pool.processing)
-            .enable_all()
-            .thread_name("vsmtp-processing")
-            .build()?
-            .block_on(async move {
-                if cfg!(test) {
-                    return Ok(());
-                }
+    let _tasks_receiver = init_runtime(
+        main_runtime_sender,
+        "vsmtp-receiver",
+        config.server.system.thread_pool.receiver,
+        async move {
+            let mut server = Server::new(
+                config,
+                sockets,
+                rule_engine,
+                working_sender,
+                delivery_sender,
+            )?;
+            log::info!("Listening on: {:?}", server.addr());
+            server.listen_and_serve().await
+        },
+    )?;
 
-                let res = mime::start(
-                    config_copy,
-                    rule_engine_copy,
-                    working_receiver,
-                    mime_delivery_sender,
-                )
-                .await;
-                log::error!("vsmtp-processing thread ended unexpectedly '{:?}'", res);
-                anyhow::Ok(())
-            });
-        if res.is_err() {
-            todo!();
-        }
-        std::io::Result::Ok(())
-    });
+    main_runtime_receiver
+        .blocking_recv()
+        .ok_or_else(|| anyhow::anyhow!("Channel closed, but should not"))?
 
-    let tasks_receiver = std::thread::spawn(|| {
-        let res = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(config.server.system.thread_pool.receiver)
-            .enable_all()
-            .thread_name("vsmtp-receiver")
-            .build()?
-            .block_on(async move {
-                let mut server = Server::new(
-                    config,
-                    sockets,
-                    rule_engine,
-                    working_sender,
-                    delivery_sender,
-                )?;
-                log::info!("Listening on: {:?}", server.addr());
-                if cfg!(test) {
-                    return Ok(());
-                }
-
-                server.listen_and_serve().await
-            });
-        if res.is_err() {
-            todo!();
-        }
-        std::io::Result::Ok(())
-    });
-
-    [
-        tasks_delivery
-            .join()
-            .map_err(|e| anyhow::anyhow!("{:?}", e))?,
-        tasks_processing
-            .join()
-            .map_err(|e| anyhow::anyhow!("{:?}", e))?,
-        tasks_receiver
-            .join()
-            .map_err(|e| anyhow::anyhow!("{:?}", e))?,
-    ]
-    .into_iter()
-    .collect::<std::io::Result<Vec<()>>>()?;
-
-    Ok(())
+    // if the runtime panicked (receiver/processing/delivery)
+    // .join() would return an error,
+    // but the join is CPU heavy and he blocking (so we can't join all of them)
+    // for i in [tasks_receiver, tasks_delivery, tasks_processing] {
+    //     i.join().map_err(|e| anyhow::anyhow!("{e:?}"))??;
+    // }
 }
 
 #[cfg(test)]

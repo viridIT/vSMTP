@@ -76,13 +76,19 @@ fn main() -> anyhow::Result<()> {
     );
 
     if args.no_daemon {
-        start_runtime(std::sync::Arc::new(config), sockets)
+        start_runtime(std::sync::Arc::new(config), sockets).map_err(|e| {
+            log::error!("vSMTP terminating error: '{e}'");
+            e
+        })
     } else {
         match daemon()? {
             ForkResult::Child => {
                 setgid(config.server.system.group.gid())?;
                 setuid(config.server.system.user.uid())?;
-                start_runtime(std::sync::Arc::new(config), sockets)
+                start_runtime(std::sync::Arc::new(config), sockets).map_err(|e| {
+                    log::error!("vSMTP terminating error: '{e}'");
+                    e
+                })
             }
             ForkResult::Parent(pid) => {
                 log::info!("vSMTP running in process id={pid}");
