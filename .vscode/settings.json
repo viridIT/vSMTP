@@ -23,6 +23,7 @@
         "humantime",
         "indextoname",
         "inet",
+        "initgroups",
         "iprange",
         "lettre",
         "libc",

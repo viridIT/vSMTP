@@ -17,8 +17,8 @@
 use anyhow::Context;
 use vsmtp::{Args, Commands};
 use vsmtp_common::{
-    libc_abstraction::{daemon, setgid, setgroups, setuid},
-    re::{anyhow, serde_json},
+    libc_abstraction::{daemon, initgroups, setgid, setuid},
+    re::{anyhow, log, serde_json},
 };
 use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
 use vsmtp_server::start_runtime;
@@ -31,7 +31,14 @@ fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
     })
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() {
+    if let Err(e) = main2() {
+        log::error!("{e}");
+        println!("{e}");
+    }
+}
+
+fn main2() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
 
     let config = match args.config {
@@ -72,8 +79,18 @@ fn main() -> anyhow::Result<()> {
 
     if !args.no_daemon {
         daemon(false, false)?;
-        setgroups(&[config.server.system.group.gid()])?;
+        initgroups(
+            config.server.system.user.name().to_str().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "user '{:?}' is not UTF-8 valid",
+                    config.server.system.user.name()
+                )
+            })?,
+            config.server.system.group.gid(),
+        )?;
+        // setresgid ?
         setgid(config.server.system.group.gid())?;
+        // setresuid ?
         setuid(config.server.system.user.uid())?;
     }
 

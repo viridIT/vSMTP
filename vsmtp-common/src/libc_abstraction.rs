@@ -112,16 +112,16 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
     }
 }
 
-/// Set list of supplementary group IDs
+/// Initialize the supplementary group access list
 ///
 /// # Errors
 ///
-/// see setgroups(2) ERRORS
-pub fn setgroups(gids: &[libc::gid_t]) -> anyhow::Result<()> {
-    match unsafe { libc::setgroups(gids.len(), gids.as_ptr()) } {
+/// see initgroups(2) ERRORS
+pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
+    match unsafe { libc::initgroups(std::ffi::CString::new(user)?.as_ptr(), gid) } {
         0 => Ok(()),
         _ => Err(anyhow::anyhow!(
-            "setgroups: '{}'",
+            "initgroups: '{}'",
             std::io::Error::last_os_error()
         )),
     }
