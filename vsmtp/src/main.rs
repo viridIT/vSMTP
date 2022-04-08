@@ -31,7 +31,19 @@ fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
     })
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() {
+    if let Err(err) = try_main() {
+        eprintln!("ERROR: {}", err);
+        log::error!("ERROR: {}", err);
+        err.chain().skip(1).for_each(|cause| {
+            eprintln!("because: {}", cause);
+            log::error!("because: {}", cause);
+        });
+        std::process::exit(1);
+    }
+}
+
+fn try_main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
 
     let config = match args.config {

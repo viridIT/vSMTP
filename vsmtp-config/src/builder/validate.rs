@@ -118,8 +118,15 @@ impl Config {
     pub(crate) fn ensure(mut config: Self) -> anyhow::Result<Self> {
         anyhow::ensure!(
             config.app.logs.filepath != config.server.logs.filepath,
-            "rules and application logs cannot both be written in '{}' !",
+            "System and Application logs cannot both be written in '{}' !",
             config.app.logs.filepath.display()
+        );
+
+        anyhow::ensure!(
+            config.server.system.thread_pool.processing != 0
+                && config.server.system.thread_pool.receiver != 0
+                && config.server.system.thread_pool.delivery != 0,
+            "Worker threads cannot be set to 0"
         );
 
         {
