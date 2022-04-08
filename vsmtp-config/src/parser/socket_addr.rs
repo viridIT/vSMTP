@@ -39,6 +39,7 @@ where
 #[cfg(test)]
 mod test {
     use vsmtp_common::libc_abstraction::{if_indextoname, if_nametoindex};
+    use vsmtp_common::re::serde_json;
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct S {

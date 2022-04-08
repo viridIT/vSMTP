@@ -16,4 +16,4 @@ publish = false
 vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 
 [dev-dependencies]
-pretty_assertions = "1.1.0"
+pretty_assertions = "1.2.1"

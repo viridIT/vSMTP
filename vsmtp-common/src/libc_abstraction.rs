@@ -41,14 +41,24 @@ pub fn fork() -> anyhow::Result<ForkResult> {
 /// # Errors
 ///
 /// see daemon(2) ERRORS, see setsid(2) and [fork]
-pub fn daemon() -> anyhow::Result<ForkResult> {
-    match fork()? {
-        // [coverage] exit make it annoying to test
-        ForkResult::Parent(_) => std::process::exit(0),
-        ForkResult::Child => {
-            setsid()?;
-            fork()
-        }
+// pub fn daemon() -> anyhow::Result<ForkResult> {
+//     match fork()? {
+//         // [coverage] exit make it annoying to test
+//         ForkResult::Parent(_) => std::process::exit(0),
+//         ForkResult::Child => {
+//             setsid()?;
+//             fork()
+//         }
+//     }
+// }
+
+pub fn daemon(nochdir: bool, noclose: bool) -> anyhow::Result<()> {
+    match unsafe { libc::daemon(i32::from(nochdir), i32::from(noclose)) } {
+        0 => Ok(()),
+        _ => Err(anyhow::anyhow!(
+            "daemon: '{}'",
+            std::io::Error::last_os_error()
+        )),
     }
 }
 
@@ -99,6 +109,21 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
             std::io::Error::last_os_error()
         )),
         otherwise => Ok(otherwise),
+    }
+}
+
+/// Initialize the supplementary group access list
+///
+/// # Errors
+///
+/// see initgroups(2) ERRORS
+pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
+    match unsafe { libc::initgroups(std::ffi::CString::new(user)?.as_ptr(), gid) } {
+        0 => Ok(()),
+        _ => Err(anyhow::anyhow!(
+            "initgroups: '{}'",
+            std::io::Error::last_os_error()
+        )),
     }
 }
 

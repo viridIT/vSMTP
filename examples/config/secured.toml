@@ -53,7 +53,7 @@ use_hosts_file = true
 # to a number of servers in parallel. Defaults to 2; 0 or 1 will execute requests serially.
 num_concurrent_reqs = 2
 # Preserve all intermediate records in the lookup response, suchas CNAME records
-preserve_intermediates = false
+preserve_intermediates = true
 # Try queries over TCP if they fail over UDP.
 try_tcp_on_error = false
 

@@ -58,7 +58,9 @@ pub async fn start(
         "vDeliver (delivery) booting, flushing queue.",
     );
 
-    let dns = vsmtp_config::build_dns(&config).context("could not initialize the delivery dns")?;
+    let dns = std::sync::Arc::new(
+        vsmtp_config::build_dns(&config).context("could not initialize the delivery dns")?,
+    );
 
     flush_deliver_queue(&config, &dns, &rule_engine).await?;
 
@@ -70,18 +72,28 @@ pub async fn start(
             Some(pm) = delivery_receiver.recv() => {
                 // FIXME: transports are mutable, so must be in a mutex
                 // for a delivery in a separated thread...
-                if let Err(error) = handle_one_in_delivery_queue(
-                    &config,
-                    &dns,
-                    &std::path::PathBuf::from_iter([
-                        Queue::Deliver.to_path(&config.server.queues.dirpath)?,
-                        std::path::Path::new(&pm.message_id).to_path_buf(),
-                    ]),
-                    &rule_engine,
-                )
-                .await {
-                    log::error!(target: DELIVER, "could not deliver email '{}': {error:?}", pm.message_id);
-                }
+                let copy_config = config.clone();
+                let copy_rule_engine = rule_engine.clone();
+                let copy_dns = dns.clone();
+                tokio::spawn(async move {
+                    let path = match Queue::Deliver.to_path(&copy_config.server.queues.dirpath) {
+                        Ok(path) => path,
+                        Err(_) => return // todo : log no file
+                    };
+
+                    if let Err(error) = handle_one_in_delivery_queue(
+                        &copy_config,
+                        &copy_dns,
+                        &std::path::PathBuf::from_iter([
+                            path,
+                            std::path::Path::new(&pm.message_id).to_path_buf(),
+                        ]),
+                        &copy_rule_engine,
+                    )
+                    .await {
+                        log::error!(target: DELIVER, "could not deliver email '{}': {error:?}", pm.message_id);
+                    }
+                });
 
                 if cfg!(test) {
                     return Ok(());

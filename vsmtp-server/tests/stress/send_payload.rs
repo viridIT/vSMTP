@@ -15,6 +15,7 @@
  *
 **/
 use opentelemetry::{global, runtime, trace, Context};
+use vsmtp_common::re::serde_json;
 
 #[derive(Debug, serde::Deserialize)]
 struct StressConfig {

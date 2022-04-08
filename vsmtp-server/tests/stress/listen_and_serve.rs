@@ -15,7 +15,7 @@
  *
  **/
 use anyhow::Context;
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::{anyhow, serde_json};
 use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{ProcessMessage, Server};

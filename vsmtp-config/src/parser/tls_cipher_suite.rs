@@ -152,6 +152,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::parser::tls_cipher_suite::CipherSuite;
+    use vsmtp_common::re::serde_json;
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct S {

@@ -272,7 +272,7 @@ pub mod types {
         format!("{:#?}", this)
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn object_in_object_vec(
         this: &mut Vec<std::sync::Arc<Object>>,
@@ -283,6 +283,7 @@ pub mod types {
 
     // rcpt container.
 
+    #[allow(clippy::ptr_arg)]
     #[rhai_fn(global, get = "local_parts", pure)]
     pub fn rcpt_local_parts(this: &mut Vec<Address>) -> Vec<std::sync::Arc<Object>> {
         this.iter()
@@ -290,6 +291,7 @@ pub mod types {
             .collect()
     }
 
+    #[allow(clippy::ptr_arg)]
     #[rhai_fn(global, get = "domains", pure)]
     pub fn rcpt_domains(this: &mut Vec<Address>) -> Vec<std::sync::Arc<Object>> {
         this.iter()
@@ -307,6 +309,7 @@ pub mod types {
         format!("{this:#?}")
     }
 
+    #[allow(clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn string_in_rcpt(this: &mut Vec<Address>, s: &str) -> EngineResult<bool> {
         let addr = Address::try_from(s.to_string())
@@ -314,13 +317,13 @@ pub mod types {
         Ok(this.iter().any(|rcpt| *rcpt == addr))
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn address_in_rcpt(this: &mut Vec<Address>, addr: Address) -> bool {
         this.iter().any(|rcpt| *rcpt == addr)
     }
 
-    #[allow(clippy::needless_pass_by_value)]
+    #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_rcpt(
         this: &mut Vec<Address>,
