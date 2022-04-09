@@ -260,14 +260,58 @@ impl RuleEngine {
         }
     }
 
-    /// creates a new instance of the rule engine, reading all files in
-    /// src_path parameter.
+    /// creates a new instance of the rule engine, reading all files in the
+    /// `script_path` parameter.
+    /// if `script_path` is `None`, an warning is emitted and a deny-all script
+    /// is loaded.
     ///
     /// # Errors
-    ///
-    /// # Panics
+    /// * failed to register `script_path` as a valid module folder.
+    /// * failed to compile or load any script located at `script_path`.
     #[allow(clippy::too_many_lines)]
     pub fn new(script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
+        let mut engine = Self::new_raw();
+
+        engine.set_module_resolver(match script_path {
+            Some(script_path) => FileModuleResolver::new_with_path_and_extension(
+                script_path.parent().ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "File '{}' is not a valid root directory for rules",
+                        script_path.display()
+                    )
+                })?,
+                "vsl",
+            ),
+            None => FileModuleResolver::new_with_extension("vsl"),
+        });
+
+        log::debug!(target: SRULES, "compiling rhai scripts ...");
+
+        let ast = if let Some(script_path) = &script_path {
+            Self::compile_executor(
+                &engine,
+                &std::fs::read_to_string(&script_path)
+                    .context(format!("Failed to read file: '{}'", script_path.display()))?,
+            )
+        } else {
+            log::warn!(
+                target: SRULES,
+                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
+            );
+
+            Self::compile_executor(&engine, include_str!("default_rules.rhai"))
+        }?;
+
+        log::debug!(target: SRULES, "done.");
+
+        Ok(Self {
+            context: engine,
+            ast,
+        })
+    }
+
+    /// create a rhai engine with vsl's configuration.
+    fn new_raw() -> rhai::Engine {
         let mut engine = Engine::new();
 
         let mut module: Module = exported_module!(modules::actions::actions);
@@ -276,18 +320,6 @@ impl RuleEngine {
             .combine(exported_module!(modules::mail_context::mail_context));
 
         engine
-            .set_module_resolver(match script_path {
-                Some(script_path) => FileModuleResolver::new_with_path_and_extension(
-                    script_path.parent().ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "File '{}' is not a valid root directory for rules",
-                            script_path.display()
-                        )
-                    })?,
-                    "vsl",
-                ),
-                None => FileModuleResolver::new_with_extension("vsl"),
-            })
             .register_static_module("vsl", module.into())
             .disable_symbol("eval")
             .on_parse_token(|token, _, _| {
@@ -307,8 +339,16 @@ impl RuleEngine {
             .register_iterator::<Vec<vsmtp_common::address::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
-        log::debug!(target: SRULES, "compiling rhai scripts ...");
+        engine
+    }
 
+    /// compile the rule executor with the given script, and then checks
+    /// it with a dry run.
+    ///
+    /// # Errors
+    /// * could not compile the script.
+    /// * dry run failed.
+    fn compile_executor(engine: &rhai::Engine, script: &str) -> anyhow::Result<rhai::AST> {
         let mut scope = Scope::new();
         scope
             .push("date", "")
@@ -320,27 +360,26 @@ impl RuleEngine {
             .compile(include_str!("rule_executor.rhai"))
             .context("failed to load the rule executor")?;
 
-        if let Some(script_path) = &script_path {
-            ast += std::fs::read_to_string(&script_path)
-                .with_context(|| format!("Failed to read file: '{}'", script_path.display()))
-                .map(|s| engine.compile_with_scope(&scope, s))
-                .with_context(|| format!("Failed to compile '{}'", script_path.display()))??;
-        } else {
-            log::warn!(
-                target: SRULES,
-                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
-            );
-
-            ast += engine
-                .compile_with_scope(&scope, include_str!("default_rules.rhai"))
-                .context("failed to load default rules")?;
-        }
+        ast += engine
+            .compile_with_scope(&scope, script)
+            .context("failed to load script")?;
 
         engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
             .with_context(|| RuleEngineError::Stage.as_str())?;
 
-        log::debug!(target: SRULES, "done.");
+        Ok(ast)
+    }
+
+    /// create a rule engine instance from a script.
+    ///
+    /// # Errors
+    /// * failed to compile the script.
+    #[cfg(test)]
+    pub fn from_script(script: &str) -> anyhow::Result<Self> {
+        let engine = Self::new_raw();
+
+        let ast = Self::compile_executor(&engine, script)?;
 
         Ok(Self {
             context: engine,
