@@ -1,5 +1,5 @@
 object bar fqdn = "example.com";
-object domains file:fqdn = "./src/tests/rules/helo/helo.txt";
+object domains file:fqdn = "./helo.txt";
 object com regex = "^[a-z0-9.]+.com$";
 
 #{

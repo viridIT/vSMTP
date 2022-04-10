@@ -268,7 +268,6 @@ impl RuleEngine {
     /// # Errors
     /// * failed to register `script_path` as a valid module folder.
     /// * failed to compile or load any script located at `script_path`.
-    #[allow(clippy::too_many_lines)]
     pub fn new(script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
         let mut engine = Self::new_raw();
 

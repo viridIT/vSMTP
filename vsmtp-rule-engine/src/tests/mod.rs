@@ -27,6 +27,17 @@ macro_rules! rules_path {
     ];
 }
 
+macro_rules! root_example {
+    ( $( $x:expr ),* ) => {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("examples/vsl")
+            .join(std::path::PathBuf::from_iter([ $( $x, )* ]))
+            .to_path_buf()
+    };
+}
+
 mod actions;
 mod email;
 mod engine;
@@ -38,7 +49,7 @@ pub mod helpers {
 
     use crate::rule_engine::RuleState;
 
-    pub(super) fn get_default_state() -> RuleState<'static> {
+    pub(super) fn get_default_state(dirpath: impl Into<std::path::PathBuf>) -> RuleState<'static> {
         let config = Config::builder()
             .with_version_str("<1.0.0")
             .unwrap()
@@ -53,7 +64,7 @@ pub mod helpers {
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
             .without_auth()
-            .with_app_at_location("./tmp/app")
+            .with_app_at_location(dirpath)
             .with_vsl("./src/tests/empty_main.vsl")
             .with_default_app_logs()
             .without_services()
