@@ -46,45 +46,43 @@
 
 # What is vSMTP ?
 
-vSMTP is a next-gen Mail Transfer Agent (MTA) developed by viridIT teams. You
-can follow us on [viridit.com](https://www.viridit.com).
+vSMTP is a next-gen *Mail Transfer Agent* (MTA), faster, safer and greener.
 
-## Why develop a new MTA ?
+As the optimizing of allocated resources becomes an increasing challenge, computer
+attacks remain a constant issue.
 
-Whereas optimizing allocated resources is becoming a growing challenge, computer
-attacks remain a constant issue. Over 300 billion emails are sent and received
-in the world every day. Billions of attachments are processed, analyzed and
-delivered, contributing to the increase in greenhouse gas emissions. To meet
-this challenge, viridIT is developing a new technology of email gateways, also
-called vSMTP.
+**Every day, over 300 billion emails** are sent and received in the world. Billions
+of attachments are processed, analyzed and delivered, contributing to the increase
+in greenhouse gas emissions.
 
-## Why vSMTP is your future SMTP server ?
+To meet these challenges, viridIT is developing a new technologies of email gateways, also called vSMTP.
 
-Because it is secured, faster and greener.
+Follow us on [viridit.com](https://viridit.com)
 
-- It is developed in Rust, implying high performance and stability.
-- It is modular and highly customizable.
+## Faster, Safer, Greener
+
+- 100% developed in Rust, see [Why Rust ?](https://www.rust-lang.org)
+- By design, it is modular and highly customizable.
 - It includes a complete filtering system.
-- It is actively maintained and developed.
+- Maintained and actively developed, using modern method of software development.
 
 ## Documentation
 
-For documentation please consult the [vBook], the online reference and user guide for vSMTP.
+For documentation please consult the vBook on [vsmtp.rs](https://vsmtp.rs),
+the online reference and user guide for vSMTP.
 
-[vBook]: https://vsmtp.rs/
-
-About the code and related issues, please use the GitHub issue
-tracker. To stay tuned, ask questions and get in-depth answers feel free to
-register and visit our
-[community forums](https://www.viridit.com/community-forum). You can also open a
-GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).
+To stay tuned, ask questions and get in-depth answers feel free to
+register and visit our [community forums](https://www.viridit.com/community-forum).
+You can also open a GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).
 
 ## Roadmap
 
-vSMTP is currently under development. The current versions "0.8.x" focus on the
-delivery process and on the post queue filtering. You can find more information about the
-project agenda in the
-[ROADMAP](https://github.com/viridIT/vSMTP/blob/main/ROADMAP.md).
+> vSMTP is currently under development.
+
+The current versions "0.9.x" focus on the delivery process and on the post queue filtering.
+You can find more information about the project agenda in the [`ROADMAP.md`](ROADMAP.md).
+
+A guideline about contributing to vSMTP can be found in the [`CONTRIBUTING.md`](CONTRIBUTING.md) file.
 
 ## Commercial
 

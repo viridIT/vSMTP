@@ -1,5 +1,6 @@
 object bar fqdn = "example.com";
-object domains file:fqdn = "./helo.txt";
+/// A similar syntax will be implemented for files with the 'Database' release
+// object domains file:fqdn = "./helo.txt";
 object com regex = "^[a-z0-9.]+.com$";
 
 #{
@@ -12,13 +13,14 @@ object com regex = "^[a-z0-9.]+.com$";
       }
     },
 
-    rule "test_file" || {
-      if ctx.helo in domains {
-        vsl::next()
-      } else {
-        vsl::deny()
-      }
-    },
+    /// A similar syntax will be implemented for files with the 'Database' release
+    // rule "test_file" || {
+    //   if ctx.helo in domains {
+    //     vsl::next()
+    //   } else {
+    //     vsl::deny()
+    //   }
+    // },
 
     rule "test_regex" || {
       if ctx.helo is com {
