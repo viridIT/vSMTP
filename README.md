@@ -48,23 +48,23 @@
 
 vSMTP is a next-gen *Mail Transfer Agent* (MTA), faster, safer and greener.
 
-As the optimizing of allocated resources becomes an increasing challenge, computer
-attacks remain a constant issue.
-
-**Every day, over 300 billion emails** are sent and received in the world. Billions
-of attachments are processed, analyzed and delivered, contributing to the increase
-in greenhouse gas emissions.
-
-To meet these challenges, viridIT is developing a new technologies of email gateways, also called vSMTP.
-
-Follow us on [viridit.com](https://viridit.com)
+- 🦀 100% built in [Rust](https://www.rust-lang.org).
+- ⚡ Lighting fast.
+- 🛠️ Modular and highly customizable.
+- 📧 Complete filtering system.
+- 🧑‍💻 Maintained and actively developed, using modern method of software development.
 
 ## Faster, Safer, Greener
 
-- 100% developed in Rust, see [Why Rust ?](https://www.rust-lang.org)
-- By design, it is modular and highly customizable.
-- It includes a complete filtering system.
-- Maintained and actively developed, using modern method of software development.
+While optimizing IT resources becomes an increasing challenge, computer attacks remain a constant problem.
+
+Every day, over 300 billion emails are sent and received in the world. Billions
+of attachments are processed, analyzed and delivered, contributing to the increase
+in greenhouse gas emissions.
+
+To meet these challenges, viridIT is developing a new technology of email gateways, also called vSMTP.
+
+Follow us on [viridit.com](https://viridit.com)
 
 ## Documentation
 
@@ -73,16 +73,16 @@ the online reference and user guide for vSMTP.
 
 To stay tuned, ask questions and get in-depth answers feel free to
 register and visit our [community forums](https://www.viridit.com/community-forum).
-You can also open a GitHub [discussion](https://github.com/viridIT/vSMTP/discussions).
+You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussions).
 
 ## Roadmap
 
 > vSMTP is currently under development.
 
-The current versions "0.9.x" focus on the delivery process and on the post queue filtering.
-You can find more information about the project agenda in the [`ROADMAP.md`](ROADMAP.md).
+The current versions "0.9.x" focus on the delivery process and email filtering.
+You can find more information about the project agenda in [`ROADMAP.md`](ROADMAP.md).
 
-A guideline about contributing to vSMTP can be found in the [`CONTRIBUTING.md`](CONTRIBUTING.md) file.
+A guideline about contributing to vSMTP can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Commercial
 
@@ -95,5 +95,5 @@ For any question related to commercial, licensing, etc. you can [contact us] on 
 The standard version of vSMTP is free and under an Open Source license.
 
 It is provided as usual without any warranty. Please refer to the
-[LICENSE](https://github.com/viridIT/vSMTP/blob/main/LICENSE) file for further
+[`LICENSE`](https://github.com/viridIT/vSMTP/blob/main/LICENSE) file for further
 information.
