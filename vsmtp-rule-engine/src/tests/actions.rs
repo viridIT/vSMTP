@@ -26,16 +26,15 @@ use vsmtp_common::{
 
 #[test]
 fn test_logs() {
-    let re = RuleEngine::new(&Some(rules_path!["logs", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
-
+    let re = RuleEngine::new(&Some(root_example!["actions/logs.vsl"])).unwrap();
+    let mut state = get_default_state("./tmp/app");
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
 }
 
 #[test]
 fn test_users() {
-    let re = RuleEngine::new(&Some(rules_path!["users", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(&Some(root_example!["actions/users.vsl"])).unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Delivery),
@@ -45,8 +44,8 @@ fn test_users() {
 
 #[test]
 fn test_send_mail() {
-    let re = RuleEngine::new(&Some(rules_path!["send_mail", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(&Some(root_example!["actions/send_mail.vsl"])).unwrap();
+    let mut state = get_default_state(format!("{}", root_example!["actions"].display()));
 
     // TODO: add test to send a valid email.
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
@@ -54,8 +53,8 @@ fn test_send_mail() {
 
 #[test]
 fn test_context_write() {
-    let re = RuleEngine::new(&Some(rules_path!["write", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(&Some(root_example!["actions/write.vsl"])).unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
@@ -96,8 +95,8 @@ This is a raw email.
 
 #[test]
 fn test_context_dump() {
-    let re = RuleEngine::new(&Some(rules_path!["dump", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(&Some(root_example!["actions/dump.vsl"])).unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
@@ -129,8 +128,8 @@ fn test_context_dump() {
 
 #[test]
 fn test_quarantine() {
-    let re = RuleEngine::new(&Some(rules_path!["quarantine", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(&Some(root_example!["actions/quarantine.vsl"])).unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),

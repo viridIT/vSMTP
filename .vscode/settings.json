@@ -43,6 +43,7 @@
         "roadmap",
         "rsasl",
         "Rset",
+        "Rustc",
         "rustls",
         "SASL",
         "setgid",
@@ -58,6 +59,7 @@
         "unencrypted",
         "viridit",
         "vmta",
+        "vqueue",
         "Vrfy",
         "VSMTP",
         "Xoauth"

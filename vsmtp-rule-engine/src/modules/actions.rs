@@ -395,6 +395,11 @@ pub mod actions {
         }
     }
 
+    #[rhai_fn(global, get = "app_dir")]
+    pub fn app_dir(srv: &mut std::sync::Arc<ServerAPI>) -> String {
+        format!("{}", srv.config.app.dirpath.display())
+    }
+
     /// dump the current email into a quarantine queue, skipping delivery.
     /// the email is written in the specified app directory, inside the "queue" folder.
     #[allow(clippy::needless_pass_by_value)]

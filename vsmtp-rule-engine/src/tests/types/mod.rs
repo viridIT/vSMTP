@@ -26,7 +26,7 @@ use vsmtp_config::{Config, Service};
 #[test]
 fn test_status() {
     let re = RuleEngine::new(&Some(rules_path!["status", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
@@ -34,7 +34,7 @@ fn test_status() {
 #[test]
 fn test_time() {
     let re = RuleEngine::new(&Some(rules_path!["time", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
 
     state.add_data("time", std::time::SystemTime::UNIX_EPOCH);
 
@@ -44,7 +44,7 @@ fn test_time() {
 #[test]
 fn test_ip() {
     let re = RuleEngine::new(&Some(rules_path!["ip", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
@@ -52,7 +52,7 @@ fn test_ip() {
 #[test]
 fn test_address() {
     let re = RuleEngine::new(&Some(rules_path!["address", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().envelop.mail_from =
         Address::try_from("mail.from@test.net".to_string()).expect("could not parse address");
@@ -63,7 +63,7 @@ fn test_address() {
 #[test]
 fn test_objects() {
     let re = RuleEngine::new(&Some(rules_path!["objects", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
 }

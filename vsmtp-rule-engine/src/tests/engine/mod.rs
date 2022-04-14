@@ -23,7 +23,7 @@ use vsmtp_common::{state::StateSMTP, status::Status};
 #[test]
 fn test_engine_errors() {
     let re = RuleEngine::new(&Some(rules_path!["error_handling", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
@@ -34,7 +34,7 @@ fn test_engine_errors() {
 #[test]
 fn test_engine_rules_syntax() {
     let re = RuleEngine::new(&Some(rules_path!["syntax", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
