@@ -60,10 +60,6 @@ fn test_email_add_header() {
     let re = RuleEngine::new(&Some(rules_path!["add_header", "main.vsl"])).unwrap();
     let mut state = get_default_state();
 
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept
-    );
     state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
     state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {

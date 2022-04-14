@@ -139,6 +139,24 @@ impl Mail {
             });
     }
 
+    /// rewrite a header with a new value or push it to the header stack.
+    pub fn set_header(&mut self, name: &str, value: &str) {
+        if let Some((_, old_value)) = self.headers.iter_mut().find(|(header, _)| header == name) {
+            *old_value = value.to_string();
+        } else {
+            self.headers.push((name.to_string(), value.to_string()));
+        }
+    }
+
+    /// get the value of an header, return None if it does not exists.
+    #[must_use]
+    pub fn get_header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(header, _)| header == name)
+            .map(|(_, value)| value.as_str())
+    }
+
     /// prepend new headers to the email, folding if necessary.
     pub fn prepend_headers(&mut self, headers: Vec<(String, String)>) {
         self.headers.splice(..0, headers);

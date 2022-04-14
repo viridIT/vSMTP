@@ -51,6 +51,7 @@
         "setuid",
         "SMTPS",
         "SMTPUTF",
+        "splitn",
         "STARTTLS",
         "tabis",
         "testserver",
