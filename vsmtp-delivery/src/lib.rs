@@ -31,15 +31,9 @@
 pub mod transport {
     use anyhow::Context;
     use lettre::Tokio1Executor;
-    use trust_dns_resolver::{lookup::TlsaLookup, TokioAsyncResolver};
-    use vsmtp_common::{
-        address::Address,
-        mail_context::MessageMetadata,
-        rcpt::Rcpt,
-        re::anyhow,
-        smtp::{SMTP_PORT, SUBMISSIONS_PORT, SUBMISSION_PORT},
-    };
-    use vsmtp_config::{Config, TlsSecurityLevel};
+    use trust_dns_resolver::TokioAsyncResolver;
+    use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow};
+    use vsmtp_config::Config;
 
     /// allowing the [ServerVSMTP] to deliver a mail.
     #[async_trait::async_trait]
@@ -103,84 +97,44 @@ pub mod transport {
 
     /// build a transport using opportunistic tls and toml specified certificates.
     /// TODO: resulting transport should be cached.
-    async fn build_transport(
+    fn build_transport(
         config: &Config,
-        resolver: &TokioAsyncResolver,
+        // will be used for tlsa record resolving.
+        _: &TokioAsyncResolver,
         from: &vsmtp_common::address::Address,
         target: &str,
     ) -> anyhow::Result<lettre::AsyncSmtpTransport<Tokio1Executor>> {
-        // TODO: ip lookup.
-        println!("target! {target}");
-        if let Some(virtual_domain) = config
-            .server
-            .r#virtual
-            .iter()
-            .find(|virtual_domain| virtual_domain.domain == target)
-        {
-            match virtual_domain.tls.sender_security_level {
-                TlsSecurityLevel::May => todo!(),
-                TlsSecurityLevel::Encrypt => todo!(),
-                TlsSecurityLevel::Dane { port } => {
-                    // resolving all potential tlsa records, whatever the configuration is.
-                    // since fetching tlsa records is made concurrently, I decided to resolve
-                    // all default ports for tlsa records to make the code clearer, even the user does not need them all.
-                    // TODO: give the user the ability to configure a cache time and requesting
-                    //       a tlsa record refresh.
-                    let (submissions, submission, plain, custom) = tokio::join!(
-                        resolver.tlsa_lookup(create_tlsa_query(target, SUBMISSIONS_PORT, "tcp")),
-                        resolver.tlsa_lookup(create_tlsa_query(target, SUBMISSION_PORT, "tcp")),
-                        resolver.tlsa_lookup(create_tlsa_query(target, SMTP_PORT, "tcp")),
-                        resolver.tlsa_lookup(create_tlsa_query(target, port, "tcp")),
-                    );
+        let tls_builder =
+            lettre::transport::smtp::client::TlsParameters::builder(target.to_string());
 
-                    let queries_by_order = &[custom, submissions, submission, plain];
-
-                    // selecting the correct tlsa records, downgrading if requested port does not
-                    // have those records.
-                    let tlsa = select_tlsa_records(if port == vsmtp_common::smtp::SMTP_PORT {
-                        &queries_by_order[3..]
-                    } else if port == vsmtp_common::smtp::SUBMISSION_PORT {
-                        &queries_by_order[2..]
-                    } else if port == vsmtp_common::smtp::SUBMISSIONS_PORT {
-                        &queries_by_order[1..]
-                    } else {
-                        &queries_by_order[0..]
-                    })?;
-
-                    println!("tlsa records used: {tlsa:?}");
-                }
-            }
-        } else if config.server.domain == from.domain() {
-            unimplemented!("cannot yet setup transport using the root domain")
-        }
-
-        let parameters =
-            lettre::transport::smtp::client::TlsParameters::builder(target.to_string())
-                .add_root_certificate(
-                    // from's domain could match the root domain of the server.
-                    if config.server.domain == from.domain() {
-                        lettre::transport::smtp::client::Certificate::from_der(
-                            config.server.tls.as_ref().unwrap().certificate.0.clone(),
-                        )
-                        .context("failed to parse certificate as der")?
-                    }
-                    // or a domain from one of the virtual domains.
-                    else if let Some(v) = config
-                        .server
-                        .r#virtual
-                        .iter()
-                        .find(|v| v.domain == from.domain())
-                    {
-                        lettre::transport::smtp::client::Certificate::from_der(
-                            v.tls.certificate.0.clone(),
-                        )
-                        .context("failed to parse certificate as der")?
-                    } else {
-                        anyhow::bail!("no certificate found for '{}'", from.domain());
-                    },
+        // from's domain could match the root domain of the server.
+        let tls_parameters =
+            if config.server.domain == from.domain() && config.server.tls.is_some() {
+                tls_builder.add_root_certificate(
+                    lettre::transport::smtp::client::Certificate::from_der(
+                        config.server.tls.as_ref().unwrap().certificate.0.clone(),
+                    )
+                    .context("failed to parse certificate as der")?,
                 )
-                .build_rustls()
-                .context("failed to build tls parameters")?;
+            }
+            // or a domain from one of the virtual domains.
+            else if let Some(v) = config
+                .server
+                .r#virtual
+                .iter()
+                .find(|v| v.domain == from.domain())
+            {
+                tls_builder.add_root_certificate(
+                    lettre::transport::smtp::client::Certificate::from_der(
+                        v.tls.certificate.0.clone(),
+                    )
+                    .context("failed to parse certificate as der")?,
+                )
+            } else {
+                tls_builder
+            }
+            .build_rustls()
+            .context("failed to build tls parameters")?;
 
         Ok(
             lettre::AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target)
@@ -189,7 +143,7 @@ pub mod transport {
                 ))
                 .port(lettre::transport::smtp::SMTP_PORT)
                 .tls(lettre::transport::smtp::client::Tls::Opportunistic(
-                    parameters,
+                    tls_parameters,
                 ))
                 .build(),
         )
@@ -208,23 +162,6 @@ pub mod transport {
         records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
 
         Ok(records_by_priority)
-    }
-
-    /// select the first available tlsa record.
-    /// records must be filtered by priority.
-    fn select_tlsa_records(
-        records: &[Result<TlsaLookup, trust_dns_resolver::error::ResolveError>],
-    ) -> anyhow::Result<&TlsaLookup> {
-        records
-            .iter()
-            .find(|record| record.is_ok())
-            .map(|record| record.as_ref().unwrap())
-            .ok_or_else(|| anyhow::anyhow!("no tlsa record found"))
-    }
-
-    /// create a query to request tlsa records.
-    fn create_tlsa_query(target: &str, port: u16, protocol: &str) -> String {
-        format!("_{port}._{protocol}.{target}")
     }
 }
 

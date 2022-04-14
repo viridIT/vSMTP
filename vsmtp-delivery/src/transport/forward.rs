@@ -82,7 +82,7 @@ async fn send_email(
 ) -> anyhow::Result<()> {
     lettre::AsyncTransport::send_raw(
         // TODO: transport should be cached.
-        &crate::transport::build_transport(config, resolver, from, target).await?,
+        &crate::transport::build_transport(config, resolver, from, target)?,
         envelop,
         content.as_bytes(),
     )

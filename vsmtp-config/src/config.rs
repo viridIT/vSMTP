@@ -216,7 +216,6 @@ impl ConfigServerVirtualTls {
 
 /// If a TLS configuration is provided, configure how the connection should be treated
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "level")]
 pub enum TlsSecurityLevel {
     /// Connection may stay in plain text for theirs transaction
     ///
