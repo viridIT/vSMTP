@@ -10,7 +10,7 @@ Content-Language: en-US
 Subject: test message
 Content-Type: text/html; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-        
+
 <html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
