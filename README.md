@@ -48,11 +48,11 @@
 
 vSMTP is a next-gen *Mail Transfer Agent* (MTA), faster, safer and greener.
 
-- 🦀 100% built in [Rust](https://www.rust-lang.org).
-- ⚡ Lighting fast.
-- 🛠️ Modular and highly customizable.
-- 📧 Complete filtering system.
-- 🧑‍💻 Maintained and actively developed, using modern method of software development.
+- It is 100% built in [Rust](https://www.rust-lang.org).
+- It is Lighting fast.
+- It is Modular and highly customizable.
+- It has a complete filtering system.
+- It is actively developed and maintained.
 
 ## Faster, Safer, Greener
 
@@ -68,7 +68,7 @@ Follow us on [viridit.com](https://viridit.com)
 
 ## Documentation
 
-For documentation please consult the vBook on [vsmtp.rs](https://vsmtp.rs),
+For documentation please consult the [vBook](https://vsmtp.rs),
 the online reference and user guide for vSMTP.
 
 To stay tuned, ask questions and get in-depth answers feel free to
@@ -79,10 +79,10 @@ You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussi
 
 > vSMTP is currently under development.
 
-The current versions "0.9.x" focus on the delivery process and email filtering.
-You can find more information about the project agenda in [`ROADMAP.md`](ROADMAP.md).
+The next release "0.11.x" focuses on the delivery process and email filtering.
+You can find more information about the project agenda in the [roadmap](ROADMAP.md).
 
-A guideline about contributing to vSMTP can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+A guideline about contributing to vSMTP can be found in the [contributing](CONTRIBUTING.md) section.
 
 ## Commercial
 
@@ -95,5 +95,5 @@ For any question related to commercial, licensing, etc. you can [contact us] on 
 The standard version of vSMTP is free and under an Open Source license.
 
 It is provided as usual without any warranty. Please refer to the
-[`LICENSE`](https://github.com/viridIT/vSMTP/blob/main/LICENSE) file for further
+[license](https://github.com/viridIT/vSMTP/blob/main/LICENSE) for further
 information.
