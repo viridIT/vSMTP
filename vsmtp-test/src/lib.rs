@@ -2,6 +2,7 @@
 
 #![doc(html_no_source)]
 #![deny(missing_docs)]
+#![deny(unsafe_code)]
 //
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
