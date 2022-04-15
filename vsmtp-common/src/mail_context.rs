@@ -53,6 +53,16 @@ pub enum Body {
     Parsed(Box<Mail>),
 }
 
+impl std::fmt::Display for Body {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&match self {
+            Body::Empty => "".to_string(),
+            Body::Raw(data) => data.clone(),
+            Body::Parsed(mail) => mail.to_raw(),
+        })
+    }
+}
+
 /// Representation of one mail obtained by a transaction SMTP
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {

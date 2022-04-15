@@ -50,7 +50,11 @@ pub enum MessageCommand {
         queue: Queue,
     },
     /// Remove the message from the filesystem
-    Remove {},
+    Remove {
+        /// If true, do not ask to confirm the deletion
+        #[clap(short, long)]
+        yes: bool,
+    },
     /// Re-introduce the message in the delivery system
     ReRun {},
 }
@@ -141,6 +145,47 @@ mod tests {
                 }
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "show", "eml"])
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn arg_move_message() {
+        assert_eq!(
+            Args {
+                config: None,
+                command: Commands::Msg {
+                    msg: "foobar".to_string(),
+                    command: MessageCommand::Move { queue: Queue::Dead }
+                }
+            },
+            <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "move", "dead"])
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn arg_remove_message() {
+        assert_eq!(
+            Args {
+                config: None,
+                command: Commands::Msg {
+                    msg: "foobar".to_string(),
+                    command: MessageCommand::Remove { yes: false }
+                }
+            },
+            <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "remove"]).unwrap()
+        );
+
+        assert_eq!(
+            Args {
+                config: None,
+                command: Commands::Msg {
+                    msg: "foobar".to_string(),
+                    command: MessageCommand::Remove { yes: true }
+                }
+            },
+            <Args as clap::StructOpt>::try_parse_from(&["", "msg", "foobar", "remove", "--yes"])
                 .unwrap()
         );
     }

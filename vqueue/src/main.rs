@@ -1,7 +1,12 @@
-use vqueue::{Args, Commands, MessageCommand};
+use vqueue::{Args, Commands, MessageCommand, MessageShowFormat};
 use vsmtp_common::{
+    mail_context::MailContext,
     queue::Queue,
-    re::anyhow::{self, Context},
+    re::{
+        anyhow::{self, Context},
+        serde_json,
+        strum::IntoEnumIterator,
+    },
 };
 use vsmtp_config::Config;
 
@@ -35,8 +40,6 @@ fn get_message_path(
 }
 
 fn main() -> anyhow::Result<()> {
-    println!("vqueue");
-
     let args = <Args as clap::StructOpt>::parse();
 
     let config = args.config.as_ref().map_or_else(
@@ -50,7 +53,14 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     match args.command {
-        Commands::Show { queues } => todo!(),
+        Commands::Show { mut queues } => {
+            if queues.is_empty() {
+                queues = Queue::iter().collect::<Vec<_>>();
+            }
+            for i in queues {
+                println!("{}", i);
+            }
+        }
         Commands::Msg { msg, command } => match command {
             MessageCommand::Show { format } => {
                 let message =
@@ -58,12 +68,48 @@ fn main() -> anyhow::Result<()> {
                         std::fs::read_to_string(&path)
                             .context(format!("Failed to read file: '{:?}'", path))
                     })?;
-                println!("{:?}", message);
-                Ok(())
+
+                let message: MailContext = serde_json::from_str(&message)?;
+
+                match format {
+                    MessageShowFormat::Eml => println!("{}", message.body),
+                    MessageShowFormat::Json => {
+                        println!("{}", serde_json::to_string_pretty(&message)?)
+                    }
+                }
             }
-            MessageCommand::Move { .. } => todo!(),
-            MessageCommand::Remove {} => todo!(),
+            MessageCommand::Move { queue } => {
+                let message = get_message_path(&msg, &config.server.queues.dirpath)?;
+                std::fs::rename(
+                    &message,
+                    queue
+                        .to_path(config.server.queues.dirpath)?
+                        .join(message.file_name().unwrap()),
+                )?;
+            }
+            MessageCommand::Remove { yes } => {
+                let message = get_message_path(&msg, &config.server.queues.dirpath)?;
+                println!("Removing file at location: '{}'", message.display());
+
+                if !yes {
+                    print!("Confirm ? [y|yes] ");
+                    std::io::Write::flush(&mut std::io::stdout())?;
+
+                    let confirmation =
+                        std::io::BufRead::lines(std::io::stdin().lock())
+                            .next()
+                            .ok_or_else(|| anyhow::anyhow!("Fail to read line from stdio"))??;
+                    if !["y", "yes"].contains(&confirmation.to_lowercase().as_str()) {
+                        println!("Canceled");
+                        return Ok(());
+                    }
+                }
+
+                std::fs::remove_file(&message)?;
+                println!("File removed");
+            }
             MessageCommand::ReRun {} => todo!(),
         },
     }
+    Ok(())
 }
