@@ -15,11 +15,12 @@
  *
 **/
 use self::transaction::{Transaction, TransactionResult};
-use crate::{auth, queue::Queue, receiver::auth_exchange::on_authentication, ProcessMessage};
+use crate::{auth, receiver::auth_exchange::on_authentication, ProcessMessage};
 use vsmtp_common::{
     auth::Mechanism,
     code::SMTPReplyCode,
     mail_context::MailContext,
+    queue::Queue,
     re::{anyhow, log},
 };
 use vsmtp_config::re::rustls;
@@ -71,12 +72,10 @@ impl OnMail for MailHandler {
             None => Queue::Working,
         };
 
-        let response = if let Err(error) = next_queue.write_to_queue(&conn.config, &mail) {
-            log::error!(
-                "couldn't write to '{}' queue: {}",
-                next_queue.as_str(),
-                error
-            );
+        let response = if let Err(error) =
+            next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail)
+        {
+            log::error!("couldn't write to '{}' queue: {}", next_queue, error);
             SMTPReplyCode::Code554
         } else {
             match next_queue {

@@ -14,7 +14,6 @@
 mod tests;
 
 mod channel_message;
-mod queue;
 mod receiver;
 mod runtime;
 mod server;

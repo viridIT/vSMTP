@@ -20,13 +20,13 @@ use crate::{
         deferred::flush_deferred_queue,
         deliver::{flush_deliver_queue, handle_one_in_delivery_queue},
     },
-    queue::Queue,
 };
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
+    queue::Queue,
     re::{anyhow, log},
     status::Status,
     transfer::{EmailTransferStatus, Transfer},
@@ -170,7 +170,7 @@ fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
         .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
     {
         Queue::Deferred
-            .write_to_queue(config, ctx)
+            .write_to_queue(&config.server.queues.dirpath, ctx)
             .context("failed to move message from delivery queue to deferred queue")?;
     }
 
@@ -179,7 +179,7 @@ fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
             || matches!(rcpt.transfer_method, Transfer::None,)
     }) {
         Queue::Dead
-            .write_to_queue(config, ctx)
+            .write_to_queue(&config.server.queues.dirpath, ctx)
             .context("failed to move message from delivery queue to dead queue")?;
     }
 

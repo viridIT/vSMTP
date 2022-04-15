@@ -1,7 +1,8 @@
-use crate::{processes::delivery::send_email, queue::Queue};
+use crate::processes::delivery::send_email;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MailContext,
+    queue::Queue,
     rcpt::Rcpt,
     re::{
         anyhow::{self, Context},
@@ -93,7 +94,7 @@ async fn handle_one_in_deferred_queue(
         .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
     {
         // if there is still recipients left to send the email to, we just update the recipient list on disk.
-        Queue::Deferred.write_to_queue(config, &ctx)?;
+        Queue::Deferred.write_to_queue(&config.server.queues.dirpath, &ctx)?;
     } else {
         // otherwise, we remove the file from the deferred queue.
         std::fs::remove_file(&path)?;
@@ -104,8 +105,7 @@ async fn handle_one_in_deferred_queue(
 
 #[cfg(test)]
 mod tests {
-    use super::handle_one_in_deferred_queue;
-    use crate::queue::Queue;
+    use super::*;
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
@@ -126,7 +126,7 @@ mod tests {
 
         Queue::Deferred
             .write_to_queue(
-                &config,
+                &config.server.queues.dirpath,
                 &MailContext {
                     connection_timestamp: now,
                     client_addr: "127.0.0.1:80".parse().unwrap(),

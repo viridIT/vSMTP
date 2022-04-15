@@ -14,10 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{queue::Queue, ProcessMessage};
+use crate::ProcessMessage;
 use anyhow::Context;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
+    queue::Queue,
     re::{anyhow, log},
     state::StateSMTP,
     status::Status,
@@ -89,7 +90,10 @@ async fn handle_one_in_working_queue(
         .run_when(&mut state, &StateSMTP::PostQ);
 
     if result == Status::Deny {
-        Queue::Dead.write_to_queue(config.as_ref(), &state.get_context().read().unwrap())?;
+        Queue::Dead.write_to_queue(
+            &config.server.queues.dirpath,
+            &state.get_context().read().unwrap(),
+        )?;
     } else {
         // using a bool to prevent the lock guard to reach the await call below.
         let delivered = {
@@ -107,11 +111,11 @@ async fn handle_one_in_working_queue(
                     target: DELIVER,
                     "delivery skipped because all recipient's transfer method is set to None."
                 );
-                Queue::Dead.write_to_queue(config.as_ref(), &ctx)?;
+                Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
                 false
             } else {
                 Queue::Deliver
-                    .write_to_queue(&config, &ctx)
+                    .write_to_queue(&config.server.queues.dirpath, &ctx)
                     .context(format!(
                         "failed to move '{}' from delivery queue to deferred queue",
                         process_message.message_id
@@ -139,8 +143,8 @@ async fn handle_one_in_working_queue(
 
 #[cfg(test)]
 mod tests {
-    use super::handle_one_in_working_queue;
-    use crate::{queue::Queue, ProcessMessage};
+    use super::*;
+    use crate::ProcessMessage;
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
@@ -186,7 +190,7 @@ mod tests {
 
         Queue::Working
             .write_to_queue(
-                &config,
+                &config.server.queues.dirpath,
                 &MailContext {
                     connection_timestamp: std::time::SystemTime::now(),
                     client_addr: "127.0.0.1:80".parse().unwrap(),

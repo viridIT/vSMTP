@@ -1,10 +1,8 @@
-use crate::{
-    processes::delivery::{add_trace_information, move_to_queue, send_email},
-    queue::Queue,
-};
+use crate::processes::delivery::{add_trace_information, move_to_queue, send_email};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MailContext,
+    queue::Queue,
     re::{
         anyhow::{self, Context},
         log,
@@ -84,7 +82,7 @@ pub async fn handle_one_in_delivery_queue(
                 rcpt.email_status =
                     EmailTransferStatus::Failed("rule engine denied the email.".to_string());
             }
-            Queue::Dead.write_to_queue(config, &ctx)?;
+            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
         } else {
             let metadata = ctx
                 .metadata
@@ -117,8 +115,7 @@ pub async fn handle_one_in_delivery_queue(
 
 #[cfg(test)]
 mod tests {
-    use super::handle_one_in_delivery_queue;
-    use crate::queue::Queue;
+    use super::*;
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
@@ -142,7 +139,7 @@ mod tests {
 
         Queue::Deliver
             .write_to_queue(
-                &config,
+                &config.server.queues.dirpath,
                 &MailContext {
                     connection_timestamp: now,
                     client_addr: "127.0.0.1:80".parse().unwrap(),
