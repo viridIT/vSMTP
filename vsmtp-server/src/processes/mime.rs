@@ -165,7 +165,7 @@ mod tests {
         assert!(handle_one_in_working_queue(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::new(&Some(config.app.vsl.filepath.clone()))
+                RuleEngine::new(&config, &Some(config.app.vsl.filepath.clone()))
                     .context("failed to initialize the engine")
                     .unwrap(),
             )),
@@ -223,7 +223,7 @@ mod tests {
         handle_one_in_working_queue(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::new(&Some(config.app.vsl.filepath.clone()))
+                RuleEngine::new(&config, &Some(config.app.vsl.filepath.clone()))
                     .context("failed to initialize the engine")
                     .unwrap(),
             )),

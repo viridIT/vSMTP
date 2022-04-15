@@ -16,11 +16,7 @@
  **/
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
-use rhai::{
-    exported_module,
-    plugin::{EvalAltResult, Module},
-    Engine, Scope, AST,
-};
+use rhai::{exported_module, plugin::EvalAltResult, Engine, Scope, AST};
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
 use vsmtp_common::re::{anyhow, log};
@@ -268,8 +264,8 @@ impl RuleEngine {
     /// # Errors
     /// * failed to register `script_path` as a valid module folder.
     /// * failed to compile or load any script located at `script_path`.
-    pub fn new(script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
-        let mut engine = Self::new_raw();
+    pub fn new(config: &Config, script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
+        let mut engine = Self::new_raw(config)?;
 
         engine.set_module_resolver(match script_path {
             Some(script_path) => FileModuleResolver::new_with_path_and_extension(
@@ -310,11 +306,18 @@ impl RuleEngine {
     }
 
     /// create a rhai engine with vsl's configuration.
-    fn new_raw() -> rhai::Engine {
+    fn new_raw(config: &Config) -> anyhow::Result<rhai::Engine> {
         let mut engine = Engine::new();
 
-        let mut module: Module = exported_module!(modules::actions::actions);
+        let mut module = rhai::Module::new();
+
+        let config = &vsmtp_common::re::serde_json::to_string(config)
+            .context("failed to convert the configuration to json")?
+            .replace('{', "#{");
+
         module
+            .set_var("config", engine.parse_json(config, true)?)
+            .combine(exported_module!(modules::actions::actions))
             .combine(exported_module!(modules::types::types))
             .combine(exported_module!(modules::mail_context::mail_context));
 
@@ -338,7 +341,7 @@ impl RuleEngine {
             .register_iterator::<Vec<vsmtp_common::address::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
-        engine
+        Ok(engine)
     }
 
     /// compile the rule executor with the given script, and then checks
@@ -375,8 +378,8 @@ impl RuleEngine {
     /// # Errors
     /// * failed to compile the script.
     #[cfg(test)]
-    pub fn from_script(script: &str) -> anyhow::Result<Self> {
-        let engine = Self::new_raw();
+    pub fn from_script(config: &Config, script: &str) -> anyhow::Result<Self> {
+        let engine = Self::new_raw(config)?;
 
         let ast = Self::compile_executor(&engine, script)?;
 

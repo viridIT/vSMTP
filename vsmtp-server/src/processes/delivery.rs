@@ -270,7 +270,7 @@ mod test {
         config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::new(&Some(config.app.vsl.filepath.clone())).unwrap(),
+            RuleEngine::new(&config, &Some(config.app.vsl.filepath.clone())).unwrap(),
         ));
 
         let (delivery_sender, delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);

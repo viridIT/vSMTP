@@ -173,7 +173,7 @@ mod tests {
             .unwrap();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::new(&Some(config.app.vsl.filepath.clone())).unwrap(),
+            RuleEngine::new(&config, &Some(config.app.vsl.filepath.clone())).unwrap(),
         ));
 
         handle_one_in_delivery_queue(
