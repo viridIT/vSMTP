@@ -19,3 +19,4 @@ vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
 vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
 
 clap = { version = "3.1.8", features = ["derive"] }
+itertools = "0.10.3"

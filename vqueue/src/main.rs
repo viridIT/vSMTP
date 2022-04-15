@@ -10,12 +10,49 @@ use vsmtp_common::{
 };
 use vsmtp_config::Config;
 
+#[derive(Debug)]
+struct QueueEntry {
+    path: std::path::PathBuf,
+    modified: std::time::SystemTime,
+    message: MailContext,
+}
+
+fn queue_entries(
+    queue: &Queue,
+    queues_dirpath: &std::path::Path,
+) -> anyhow::Result<Vec<QueueEntry>> {
+    let queue_path = queue.to_path(queues_dirpath)?;
+
+    queue_path
+        .read_dir()
+        .context(format!("Error from read dir '{}'", queue_path.display()))?
+        // TODO: raise error ?
+        .filter_map(|i| i.ok())
+        .map(|i| {
+            let metadata = i.metadata().unwrap();
+            let modified = metadata.modified().unwrap();
+            let message = std::fs::read_to_string(&i.path())
+                .context(format!("Failed to read file: '{}'", i.path().display()))?;
+
+            let message: MailContext = serde_json::from_str(&message)?;
+
+            anyhow::Ok(QueueEntry {
+                path: i.path(),
+                modified,
+                message,
+            })
+        })
+        // TODO: ignore error ?
+        .collect::<anyhow::Result<Vec<_>>>()
+}
+
 fn get_message_path(
     id: &str,
     queues_dirpath: &std::path::Path,
 ) -> anyhow::Result<std::path::PathBuf> {
     for queue in <Queue as vsmtp_common::re::strum::IntoEnumIterator>::iter() {
         match queue.to_path(queues_dirpath) {
+            // TODO: raise error ?
             Err(_) => continue,
             Ok(queue_path) => {
                 if let Some(found) = queue_path
@@ -33,6 +70,7 @@ fn get_message_path(
             }
         }
     }
+
     anyhow::bail!(
         "No such message '{id}' in queues at '{}'",
         queues_dirpath.display()
@@ -57,8 +95,42 @@ fn main() -> anyhow::Result<()> {
             if queues.is_empty() {
                 queues = Queue::iter().collect::<Vec<_>>();
             }
-            for i in queues {
-                println!("{}", i);
+            fn lifetimes() -> Vec<u32> {
+                (1..10)
+                    .into_iter()
+                    .scan(5, |state, _| {
+                        *state *= 2;
+                        Some(*state)
+                    })
+                    .collect()
+            }
+
+            let now = std::time::SystemTime::now();
+
+            for q in queues {
+                println!("{}", q);
+                for i in lifetimes() {
+                    println!("{i}");
+                }
+                let mut entries = queue_entries(&q, &config.server.queues.dirpath)?;
+                entries.sort_by(|a, b| Ord::cmp(&a.message.envelop.helo, &b.message.envelop.helo));
+
+                let groups = itertools::Itertools::group_by(entries.into_iter(), |i| {
+                    i.message.envelop.helo.clone()
+                });
+
+                for (key, values) in &groups {
+                    let mut values = values.into_iter().collect::<Vec<_>>();
+                    values.sort_by(|a, b| Ord::cmp(&a.modified, &b.modified));
+
+                    // let mut maps = std::collections::HashMap::<u32, Vec<QueueEntry>>::new();
+                    //
+                    // todo: sort by timestamp and print
+                    println!("{:?}", key);
+                    for i in values {
+                        println!("{:?}", i);
+                    }
+                }
             }
         }
         Commands::Msg { msg, command } => match command {
@@ -66,7 +138,7 @@ fn main() -> anyhow::Result<()> {
                 let message =
                     get_message_path(&msg, &config.server.queues.dirpath).and_then(|path| {
                         std::fs::read_to_string(&path)
-                            .context(format!("Failed to read file: '{:?}'", path))
+                            .context(format!("Failed to read file: '{}'", path.display()))
                     })?;
 
                 let message: MailContext = serde_json::from_str(&message)?;
