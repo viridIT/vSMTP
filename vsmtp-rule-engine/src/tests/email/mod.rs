@@ -56,14 +56,12 @@ fn test_email_bcc() {
 }
 
 #[test]
-fn test_email_add_header() {
-    let re = RuleEngine::new(&Some(rules_path!["add_header", "main.vsl"])).unwrap();
+fn test_email_add_get_set_header() {
+    let re = RuleEngine::new(&Some(rules_path!["mutate_header", "main.vsl"])).unwrap();
     let mut state = get_default_state("./tmp/app");
 
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept
-    );
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
+    let mut state = get_default_state("./tmp/app");
     state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
     state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {

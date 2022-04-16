@@ -53,6 +53,77 @@ pub enum Body {
     Parsed(Box<Mail>),
 }
 
+impl Body {
+    /// get the value of an header, return None if it does not exists or when the body is empty.
+    #[must_use]
+    pub fn get_header(&self, name: &str) -> Option<&str> {
+        match self {
+            Body::Empty => None,
+            Body::Raw(raw) => {
+                for line in raw.lines() {
+                    let mut split = line.splitn(2, ": ");
+                    match (split.next(), split.next()) {
+                        (Some(header), Some(value)) if header == name => {
+                            return Some(value);
+                        }
+                        (Some(_), Some(_)) => continue,
+                        _ => break,
+                    }
+                }
+
+                None
+            }
+            Body::Parsed(parsed) => parsed.get_header(name),
+        }
+    }
+
+    /// rewrite a header with a new value or add it to the header section.
+    pub fn set_header(&mut self, name: &str, value: &str) {
+        match self {
+            Body::Empty => {}
+            Body::Raw(raw) => {
+                let mut header_start = 0;
+                let mut header_end = None;
+
+                for line in raw.lines() {
+                    let mut split = line.splitn(2, ": ");
+                    match (split.next(), split.next()) {
+                        (Some(old_name), Some(_)) if old_name == name => {
+                            header_end = Some(line.len());
+                            break;
+                        }
+                        (Some(_), Some(_)) => header_start += line.len() + 1,
+                        _ => break,
+                    }
+                }
+
+                #[allow(clippy::option_if_let_else)]
+                if let Some(header_end) = header_end {
+                    println!("start {header_start}, end {header_end}");
+                    raw.replace_range(
+                        header_start..header_start + header_end,
+                        &format!("{name}: {value}"),
+                    );
+                } else {
+                    self.add_header(name, value);
+                }
+            }
+            Body::Parsed(parsed) => parsed.set_header(name, value),
+        }
+    }
+
+    /// prepend a header to the header section.
+    pub fn add_header(&mut self, name: &str, value: &str) {
+        match self {
+            Body::Empty => {}
+            Body::Raw(raw) => *raw = format!("{name}: {value}\n{raw}"),
+            Body::Parsed(parsed) => {
+                parsed.prepend_headers(vec![(name.to_string(), value.to_string())]);
+            }
+        }
+    }
+}
+
 /// Representation of one mail obtained by a transaction SMTP
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MailContext {
