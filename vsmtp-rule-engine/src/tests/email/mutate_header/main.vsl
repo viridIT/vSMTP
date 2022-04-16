@@ -1,0 +1,53 @@
+fn mutate_headers(ctx) {
+    vsl::add_header(ctx, "X-New-Header", "value of header");
+    vsl::add_header(ctx, "X-Another-Header", "value of another");
+    vsl::add_header(ctx, "From", "<john@doe.com>");
+    vsl::add_header(ctx, "To", "<green@foo.net>");
+
+    if !vsl::has_header(ctx, "X-New-Header")
+    || !vsl::has_header(ctx, "X-Another-Header")
+    || !vsl::has_header(ctx, "From")
+    || !vsl::has_header(ctx, "To")
+    {
+        return vsl::deny();
+    }
+
+    vsl::set_header(ctx, "X-New-Header", "new value!");
+    vsl::set_header(ctx, "X-Yet-Another-Header", "adding to header section when not found");
+
+    print(vsl::get_header(ctx, "X-New-Header"));
+
+    if !vsl::has_header(ctx, "X-New-Header")
+    || !vsl::has_header(ctx, "X-Yet-Another-Header")
+    {
+        return vsl::deny();
+    }
+
+    if vsl::get_header(ctx, "X-New-Header") == "new value!"
+    && vsl::get_header(ctx, "X-Another-Header") == "value of another"
+    && vsl::get_header(ctx, "From") == "<john@doe.com>"
+    && vsl::get_header(ctx, "To") == "<green@foo.net>"
+    && vsl::get_header(ctx, "X-Yet-Another-Header") == "adding to header section when not found"
+    {
+        vsl::next()
+    } else {
+        vsl::deny()
+    }
+}
+
+#{
+    connect: [
+        rule "adding headers when body is empty" || mutate_headers(ctx),
+        rule "trailing" || vsl::accept(),
+    ],
+
+    preq: [
+        rule "adding headers to raw email" || mutate_headers(ctx),
+        rule "trailing" || vsl::accept(),
+    ],
+
+    postq: [
+        rule "adding headers to parsed email" || mutate_headers(ctx),
+        rule "trailing" || vsl::accept(),
+    ],
+}
