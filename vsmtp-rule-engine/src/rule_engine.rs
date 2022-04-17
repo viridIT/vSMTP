@@ -309,20 +309,31 @@ impl RuleEngine {
     fn new_raw(config: &Config) -> anyhow::Result<rhai::Engine> {
         let mut engine = Engine::new();
 
-        let mut module = rhai::Module::new();
-
-        let config = &vsmtp_common::re::serde_json::to_string(config)
-            .context("failed to convert the configuration to json")?
+        let server_config = &vsmtp_common::re::serde_json::to_string(&config.server)
+            .context("failed to convert the server configuration to json")?
             .replace('{', "#{");
 
-        module
-            .set_var("config", engine.parse_json(config, true)?)
+        let app_config = &vsmtp_common::re::serde_json::to_string(&config.app)
+            .context("failed to convert the app configuration to json")?
+            .replace('{', "#{");
+
+        let mut vsl_module = rhai::Module::new();
+        let mut toml_module = rhai::Module::new();
+
+        // setting up action, mail context & vsl's special types.
+        vsl_module
             .combine(exported_module!(modules::actions::actions))
             .combine(exported_module!(modules::types::types))
             .combine(exported_module!(modules::mail_context::mail_context));
 
+        // setting up toml configuration injection.
+        toml_module
+            .set_var("server", engine.parse_json(server_config, true)?)
+            .set_var("app", engine.parse_json(app_config, true)?);
+
         engine
-            .register_static_module("vsl", module.into())
+            .register_static_module("vsl", vsl_module.into())
+            .register_static_module("toml", toml_module.into())
             .disable_symbol("eval")
             .on_parse_token(|token, _, _| {
                 match token {
