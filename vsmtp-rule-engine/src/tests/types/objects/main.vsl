@@ -31,12 +31,12 @@ import "vars" as vars;
 
    helo: [
         rule "dump configuration" || {
-            if vsl::config.server.domain == "testserver.com"
-            && vsl::config.server.system.user == "root"
-            && vsl::config.server.system.group == "root"
-            && vsl::config.app.dirpath == "./tmp/app"
-            && vsl::config.app.services["shell"].command == "echo"
-            && vsl::config.app.vsl.filepath == "./tmp/nothing" {
+            if toml::server.domain == "testserver.com"
+            && toml::server.system.user == "root"
+            && toml::server.system.group == "root"
+            && toml::app.dirpath == "./tmp/app"
+            && toml::app.services["shell"].command == "echo"
+            && toml::app.vsl.filepath == "./tmp/nothing" {
                 vsl::next()
             } else {
                 vsl::deny()
