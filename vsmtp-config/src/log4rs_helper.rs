@@ -3,7 +3,7 @@ use vsmtp_common::re::{anyhow, log};
 
 fn init_rolling_log(
     format: &str,
-    path: &std::path::Path,
+    filepath: &std::path::Path,
     size_limit: u64,
     archive_count: u32,
 ) -> anyhow::Result<log4rs::append::rolling_file::RollingFileAppender> {
@@ -20,21 +20,20 @@ fn init_rolling_log(
         .append(true)
         .encoder(Box::new(encode::pattern::PatternEncoder::new(format)))
         .build(
-            path,
+            filepath,
             Box::new(CompoundPolicy::new(
                 Box::new(trigger::size::SizeTrigger::new(size_limit)),
                 Box::new(
                     roll::fixed_window::FixedWindowRoller::builder()
                         .base(0)
                         .build(
-                            &format!("{}-ar/trace.{{}}.gz", path.display()),
+                            &format!("{}-ar/trace.{{}}.gz", filepath.display()),
                             archive_count,
-                        )
-                        .unwrap(),
+                        )?,
                 ),
             )),
         )
-        .with_context(|| format!("For filepath: '{}'", path.display()))
+        .with_context(|| format!("For filepath: '{}'", filepath.display()))
 }
 
 #[doc(hidden)]
@@ -44,8 +43,8 @@ pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log
     let server = init_rolling_log(
         &config.server.logs.format,
         &config.server.logs.filepath,
-        config.app.logs.size_limit,
-        config.app.logs.archive_count,
+        config.server.logs.size_limit,
+        config.server.logs.archive_count,
     )?;
     let app = init_rolling_log(
         &config.app.logs.format,
