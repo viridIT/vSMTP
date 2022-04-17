@@ -1,24 +1,58 @@
 use crate::{log_channel, Config};
 use vsmtp_common::re::{anyhow, log};
 
+fn init_rolling_log(
+    format: &str,
+    path: &std::path::Path,
+    size_limit: u64,
+    archive_count: u32,
+) -> anyhow::Result<log4rs::append::rolling_file::RollingFileAppender> {
+    use anyhow::Context;
+    use log4rs::{
+        append::rolling_file::{
+            policy::compound::{roll, trigger, CompoundPolicy},
+            RollingFileAppender,
+        },
+        encode,
+    };
+
+    RollingFileAppender::builder()
+        .append(true)
+        .encoder(Box::new(encode::pattern::PatternEncoder::new(format)))
+        .build(
+            path,
+            Box::new(CompoundPolicy::new(
+                Box::new(trigger::size::SizeTrigger::new(size_limit)),
+                Box::new(
+                    roll::fixed_window::FixedWindowRoller::builder()
+                        .base(0)
+                        .build(
+                            &format!("{}-ar/trace.{{}}.gz", path.display()),
+                            archive_count,
+                        )
+                        .unwrap(),
+                ),
+            )),
+        )
+        .with_context(|| format!("For filepath: '{}'", path.display()))
+}
+
 #[doc(hidden)]
 pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log4rs::Config> {
-    use anyhow::Context;
     use log4rs::{append, config, encode, Config};
 
-    let server = append::file::FileAppender::builder()
-        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-            &config.server.logs.format,
-        )))
-        .build(&config.server.logs.filepath)
-        .with_context(|| format!("For filepath: '{}'", config.server.logs.filepath.display()))?;
-
-    let app = append::file::FileAppender::builder()
-        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-            &config.app.logs.format,
-        )))
-        .build(&config.app.logs.filepath)
-        .with_context(|| format!("For filepath: '{}'", config.app.logs.filepath.display()))?;
+    let server = init_rolling_log(
+        &config.server.logs.format,
+        &config.server.logs.filepath,
+        config.app.logs.size_limit,
+        config.app.logs.archive_count,
+    )?;
+    let app = init_rolling_log(
+        &config.app.logs.format,
+        &config.app.logs.filepath,
+        config.app.logs.size_limit,
+        config.app.logs.archive_count,
+    )?;
 
     let mut builder = Config::builder();
     let mut root = config::Root::builder();

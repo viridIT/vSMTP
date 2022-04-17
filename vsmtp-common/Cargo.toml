@@ -15,7 +15,7 @@ publish = false
 [dependencies]
 # Re-exported
 anyhow = "1.0.56"
-log = "0.4.16"
+log = { version = "0.4.16", features = ["serde"] }
 serde_json = "1.0.79"
 addr = { version = "0.15.3" }
 rsasl = { git = "https://github.com/viridIT/rsasl.git", branch = "fix/async" }

@@ -51,6 +51,8 @@ pub struct WantsServerQueues {
     pub(super) filepath: std::path::PathBuf,
     pub(super) format: String,
     pub(super) level: std::collections::BTreeMap<String, log::LevelFilter>,
+    pub(super) size_limit: u64,
+    pub(super) archive_count: u32,
 }
 
 ///
@@ -112,6 +114,8 @@ pub struct WantsAppServices {
     pub(super) filepath: std::path::PathBuf,
     pub(super) level: log::LevelFilter,
     pub(super) format: String,
+    pub(super) size_limit: u64,
+    pub(super) archive_count: u32,
 }
 
 ///
