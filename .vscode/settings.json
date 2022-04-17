@@ -25,6 +25,7 @@
         "inet",
         "initgroups",
         "iprange",
+        "itertools",
         "lettre",
         "libc",
         "libmilter",

@@ -18,7 +18,7 @@ use crate::mail_context::MailContext;
 use anyhow::Context;
 
 /// identifiers for all mail queues.
-#[derive(Debug, PartialEq, Clone, strum::EnumIter)]
+#[derive(Debug, PartialEq, Copy, Clone, strum::EnumIter)]
 pub enum Queue {
     /// postq
     Working,

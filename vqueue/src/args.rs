@@ -22,6 +22,9 @@ pub enum Commands {
     Show {
         /// List of queues to print
         queues: Vec<Queue>,
+        /// Character to print if the field is empty
+        #[clap(short, long, default_value = "0")]
+        empty_token: char,
     },
     /// Operate action to a given message
     Msg {
@@ -40,8 +43,7 @@ pub enum MessageCommand {
     /// Print the content of the message
     Show {
         /// Format of the output
-        #[clap(arg_enum)]
-        #[clap(default_value = "json")]
+        #[clap(arg_enum, default_value = "json")]
         format: MessageShowFormat,
     },
     /// Move the message to the given queue
@@ -79,7 +81,10 @@ mod tests {
         assert_eq!(
             Args {
                 config: None,
-                command: Commands::Show { queues: vec![] }
+                command: Commands::Show {
+                    queues: vec![],
+                    empty_token: '0'
+                }
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "show"]).unwrap()
         );
@@ -88,7 +93,8 @@ mod tests {
             Args {
                 config: None,
                 command: Commands::Show {
-                    queues: vec![Queue::Dead]
+                    queues: vec![Queue::Dead],
+                    empty_token: '0'
                 }
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "show", "dead"]).unwrap()
@@ -98,7 +104,19 @@ mod tests {
             Args {
                 config: None,
                 command: Commands::Show {
-                    queues: vec![Queue::Dead, Queue::Deliver]
+                    queues: vec![],
+                    empty_token: '.'
+                }
+            },
+            <Args as clap::StructOpt>::try_parse_from(&["", "show", "-e", "."]).unwrap()
+        );
+
+        assert_eq!(
+            Args {
+                config: None,
+                command: Commands::Show {
+                    queues: vec![Queue::Dead, Queue::Deliver],
+                    empty_token: '0'
                 }
             },
             <Args as clap::StructOpt>::try_parse_from(&["", "show", "dead", "deliver"]).unwrap()

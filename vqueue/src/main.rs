@@ -1,4 +1,4 @@
-use vqueue::{Args, Commands, MessageCommand, MessageShowFormat};
+use vqueue::{Args, Commands, MessageCommand, MessageShowFormat, QueueContent, QueueEntry};
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
@@ -9,13 +9,6 @@ use vsmtp_common::{
     },
 };
 use vsmtp_config::Config;
-
-#[derive(Debug)]
-struct QueueEntry {
-    path: std::path::PathBuf,
-    modified: std::time::SystemTime,
-    message: MailContext,
-}
 
 fn queue_entries(
     queue: &Queue,
@@ -28,20 +21,7 @@ fn queue_entries(
         .context(format!("Error from read dir '{}'", queue_path.display()))?
         // TODO: raise error ?
         .filter_map(|i| i.ok())
-        .map(|i| {
-            let metadata = i.metadata().unwrap();
-            let modified = metadata.modified().unwrap();
-            let message = std::fs::read_to_string(&i.path())
-                .context(format!("Failed to read file: '{}'", i.path().display()))?;
-
-            let message: MailContext = serde_json::from_str(&message)?;
-
-            anyhow::Ok(QueueEntry {
-                path: i.path(),
-                modified,
-                message,
-            })
-        })
+        .map(QueueEntry::try_from)
         // TODO: ignore error ?
         .collect::<anyhow::Result<Vec<_>>>()
 }
@@ -91,46 +71,37 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     match args.command {
-        Commands::Show { mut queues } => {
+        Commands::Show {
+            mut queues,
+            empty_token,
+        } => {
             if queues.is_empty() {
                 queues = Queue::iter().collect::<Vec<_>>();
             }
-            fn lifetimes() -> Vec<u32> {
-                (1..10)
-                    .into_iter()
-                    .scan(5, |state, _| {
-                        *state *= 2;
-                        Some(*state)
-                    })
-                    .collect()
-            }
-
             let now = std::time::SystemTime::now();
 
             for q in queues {
-                println!("{}", q);
-                for i in lifetimes() {
-                    println!("{i}");
-                }
                 let mut entries = queue_entries(&q, &config.server.queues.dirpath)?;
                 entries.sort_by(|a, b| Ord::cmp(&a.message.envelop.helo, &b.message.envelop.helo));
 
-                let groups = itertools::Itertools::group_by(entries.into_iter(), |i| {
+                let content = itertools::Itertools::group_by(entries.into_iter(), |i| {
                     i.message.envelop.helo.clone()
-                });
+                })
+                .into_iter()
+                .fold(
+                    QueueContent::from((
+                        q,
+                        q.to_path(&config.server.queues.dirpath).unwrap(),
+                        empty_token,
+                        now,
+                    )),
+                    |mut content, (key, values)| {
+                        content.add_entry(&key, values.into_iter().collect::<Vec<_>>());
+                        content
+                    },
+                );
 
-                for (key, values) in &groups {
-                    let mut values = values.into_iter().collect::<Vec<_>>();
-                    values.sort_by(|a, b| Ord::cmp(&a.modified, &b.modified));
-
-                    // let mut maps = std::collections::HashMap::<u32, Vec<QueueEntry>>::new();
-                    //
-                    // todo: sort by timestamp and print
-                    println!("{:?}", key);
-                    for i in values {
-                        println!("{:?}", i);
-                    }
-                }
+                println!("{content}");
             }
         }
         Commands::Msg { msg, command } => match command {
