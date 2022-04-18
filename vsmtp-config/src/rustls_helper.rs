@@ -35,7 +35,7 @@ static ALL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
 #[doc(hidden)]
 pub fn get_rustls_config(
     config: &ConfigServerTls,
-    virtual_entries: &[ConfigServerVirtual],
+    virtual_entries: &std::collections::BTreeMap<String, ConfigServerVirtual>,
 ) -> anyhow::Result<rustls::ServerConfig> {
     let protocol_version = match (
         config
@@ -63,7 +63,7 @@ pub fn get_rustls_config(
         .with_cert_resolver(std::sync::Arc::new(CertResolver {
             sni_resolver: virtual_entries.iter().fold(
                 anyhow::Ok(rustls::server::ResolvesServerCertUsingSni::new()),
-                |sni_resolver, entry| {
+                |sni_resolver, (_, entry)| {
                     let mut sni_resolver = sni_resolver?;
                     sni_resolver
                         .add(

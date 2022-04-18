@@ -63,7 +63,7 @@ pub struct ConfigServer {
     #[serde(default)]
     pub dns: ConfigServerDNS,
     #[serde(default)]
-    pub r#virtual: Vec<ConfigServerVirtual>,
+    pub r#virtual: std::collections::BTreeMap<String, ConfigServerVirtual>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -157,7 +157,6 @@ pub struct ConfigServerQueues {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerVirtual {
-    // TODO: parse valid fqdn
     pub domain: String,
     pub tls: ConfigServerVirtualTls,
     pub dns: ConfigServerDNS,

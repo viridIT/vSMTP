@@ -661,6 +661,8 @@ impl Builder<WantsServerDNS> {
 
 /// metadata for a virtual entry.
 pub struct VirtualEntry {
+    /// name of the entry.
+    pub name: String,
     /// the domain of the entry.
     pub domain: String,
     /// path to the certificate used for tls.
@@ -676,7 +678,7 @@ impl Builder<WantsServerVirtual> {
         Builder::<WantsValidate> {
             state: WantsValidate {
                 parent: self.state,
-                r#virtual: vec![],
+                r#virtual: std::collections::BTreeMap::new(),
             },
         }
     }
@@ -691,19 +693,23 @@ impl Builder<WantsServerVirtual> {
         self,
         entries: &[VirtualEntry],
     ) -> anyhow::Result<Builder<WantsValidate>> {
+        let mut r#virtual = std::collections::BTreeMap::new();
+
+        for entry in entries {
+            r#virtual.insert(
+                entry.name.clone(),
+                ConfigServerVirtual::with_tls(
+                    &entry.domain,
+                    &entry.certificate_path,
+                    &entry.private_key_path,
+                )?,
+            );
+        }
+
         Ok(Builder::<WantsValidate> {
             state: WantsValidate {
                 parent: self.state,
-                r#virtual: entries
-                    .iter()
-                    .map(|p| {
-                        ConfigServerVirtual::with_tls(
-                            &p.domain,
-                            &p.certificate_path,
-                            &p.private_key_path,
-                        )
-                    })
-                    .collect::<Result<Vec<ConfigServerVirtual>, _>>()?,
+                r#virtual,
             },
         })
     }

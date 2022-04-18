@@ -56,11 +56,8 @@ pub fn build_resolvers(
         build_dns_from_config(&config.server.dns)?,
     );
 
-    for virtual_domain in &config.server.r#virtual {
-        resolvers.insert(
-            virtual_domain.domain.clone(),
-            build_dns_from_config(&virtual_domain.dns)?,
-        );
+    for (domain, domain_config) in &config.server.r#virtual {
+        resolvers.insert(domain.clone(), build_dns_from_config(&domain_config.dns)?);
     }
 
     Ok(resolvers)

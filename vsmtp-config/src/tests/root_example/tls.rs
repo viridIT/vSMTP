@@ -30,11 +30,13 @@ fn parse() {
             .with_system_dns()
             .with_virtual_entries(&[
                 VirtualEntry {
+                    name: "testserver2".to_string(),
                     domain: "testserver2.com".to_string(),
                     certificate_path: "../examples/config/tls/certificate.crt".to_string(),
                     private_key_path: "../examples/config/tls/private_key.key".to_string(),
                 },
                 VirtualEntry {
+                    name: "testserver3".to_string(),
                     domain: "testserver3.com".to_string(),
                     certificate_path: "../examples/config/tls/certificate.crt".to_string(),
                     private_key_path: "../examples/config/tls/private_key.key".to_string(),

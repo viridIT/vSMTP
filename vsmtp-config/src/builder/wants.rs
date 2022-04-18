@@ -133,5 +133,5 @@ pub struct WantsServerVirtual {
 ///
 pub struct WantsValidate {
     pub(crate) parent: WantsServerVirtual,
-    pub(super) r#virtual: Vec<ConfigServerVirtual>,
+    pub(super) r#virtual: std::collections::BTreeMap<String, ConfigServerVirtual>,
 }

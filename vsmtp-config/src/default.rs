@@ -40,7 +40,7 @@ impl Default for ConfigServer {
             tls: None,
             smtp: ConfigServerSMTP::default(),
             dns: ConfigServerDNS::default(),
-            r#virtual: vec![],
+            r#virtual: std::collections::BTreeMap::default(),
         }
     }
 }
