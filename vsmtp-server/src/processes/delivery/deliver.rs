@@ -98,7 +98,9 @@ pub async fn handle_one_in_delivery_queue(
                 &ctx.body,
             )
             .await
-            .context("failed to send '{message_id}' located in the delivery queue")?;
+            .context(format!(
+                "failed to send '{message_id}' located in the delivery queue"
+            ))?;
 
             move_to_queue(config, &ctx)?;
         };
