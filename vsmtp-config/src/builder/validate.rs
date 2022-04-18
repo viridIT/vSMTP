@@ -60,6 +60,8 @@ impl Builder<WantsValidate> {
                     filepath: srv_logs.filepath,
                     format: srv_logs.format,
                     level: srv_logs.level,
+                    size_limit: srv_logs.size_limit,
+                    archive_count: srv_logs.archive_count,
                 },
                 queues: ConfigServerQueues {
                     dirpath: srv_delivery.dirpath,
@@ -97,6 +99,8 @@ impl Builder<WantsValidate> {
                     filepath: app_logs.filepath,
                     level: app_logs.level,
                     format: app_logs.format,
+                    size_limit: app_logs.size_limit,
+                    archive_count: app_logs.archive_count,
                 },
                 services: app_services.services,
             },

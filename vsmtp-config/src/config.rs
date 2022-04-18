@@ -121,6 +121,10 @@ pub struct ConfigServerLogs {
     pub format: String,
     #[serde(default = "ConfigServerLogs::default_level")]
     pub level: std::collections::BTreeMap<String, log::LevelFilter>,
+    #[serde(default = "ConfigAppLogs::default_size_limit")]
+    pub size_limit: u64,
+    #[serde(default = "ConfigAppLogs::default_archive_count")]
+    pub archive_count: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -313,6 +317,10 @@ pub struct ConfigAppLogs {
     pub level: log::LevelFilter,
     #[serde(default = "ConfigAppLogs::default_format")]
     pub format: String,
+    #[serde(default = "ConfigAppLogs::default_size_limit")]
+    pub size_limit: u64,
+    #[serde(default = "ConfigAppLogs::default_archive_count")]
+    pub archive_count: u32,
 }
 
 ///

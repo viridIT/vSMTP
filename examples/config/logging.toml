@@ -20,3 +20,5 @@ Greetings = "220 {domain} ESMTP Service ready\r\n"
 filepath = "/var/log/vsmtp/app.log"
 level = "trace"
 format = "{d} - {m}{n}"
+archive_count = 100
+size_limit = 20_971_520             # 20MB
