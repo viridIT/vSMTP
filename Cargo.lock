@@ -224,16 +224,16 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.1.8"
+version = "3.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71c47df61d9e16dc010b55dba1952a57d8c215dbb533fd13cdd13369aac73b1c"
+checksum = "6aad2534fad53df1cc12519c5cda696dd3e20e6118a027e24054aea14a0bdcbe"
 dependencies = [
  "atty",
  "bitflags",
  "clap_derive",
+ "clap_lex",
  "indexmap",
  "lazy_static",
- "os_str_bytes",
  "strsim 0.10.0",
  "termcolor",
  "textwrap 0.15.0",
@@ -250,6 +250,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "clap_lex"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "189ddd3b5d32a70b35e7686054371742a937b0d99128e76dde6340210e966669"
+dependencies = [
+ "os_str_bytes",
 ]
 
 [[package]]
@@ -774,9 +783,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.122"
+version = "0.2.123"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec647867e2bf0772e28c8bcde4f0d19a9216916e890543b5a03ed8ef27b8f259"
+checksum = "cb691a747a7ab48abc15c5b42066eaafde10dc427e3b6ee2a1cf43db04c763bd"
 
 [[package]]
 name = "libloading"
@@ -1067,9 +1076,6 @@ name = "os_str_bytes"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
-dependencies = [
- "memchr",
-]
 
 [[package]]
 name = "output_vt100"
@@ -1392,8 +1398,9 @@ dependencies = [
 
 [[package]]
 name = "rhai"
-version = "1.6.0"
-source = "git+https://github.com/rhaiscript/rhai.git#82cc4b55531354e933b2fc3da0cdd47e4c74eb7f"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ef3d57e55ca044c53ced279d2d3ee9df229b247556b005a23713d5206a2ecfc"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1407,7 +1414,8 @@ dependencies = [
 [[package]]
 name = "rhai_codegen"
 version = "1.4.0"
-source = "git+https://github.com/rhaiscript/rhai.git#82cc4b55531354e933b2fc3da0cdd47e4c74eb7f"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faa0ff1c9dc19c9f8bba510a2a75d3f0449f6233570c2672c7e31c692a11a59a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2049,7 +2057,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vsmtp"
 version = "0.9.7"
 dependencies = [
- "clap 3.1.8",
+ "clap 3.1.9",
  "diff",
  "vsmtp-common",
  "vsmtp-config",
