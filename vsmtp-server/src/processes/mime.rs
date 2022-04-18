@@ -158,8 +158,7 @@ mod tests {
 
     #[tokio::test]
     async fn cannot_deserialize() {
-        let mut config = config::local_test();
-        config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
+        let config = config::local_test();
 
         let (delivery_sender, _delivery_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(10);
@@ -169,7 +168,7 @@ mod tests {
         assert!(handle_one_in_working_queue(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::new(&Some(config.app.vsl.filepath.clone()))
+                RuleEngine::from_script("#{}")
                     .context("failed to initialize the engine")
                     .unwrap(),
             )),
@@ -186,7 +185,6 @@ mod tests {
     async fn basic() {
         let mut config = config::local_test();
         config.server.queues.dirpath = "./tmp".into();
-        config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
 
         Queue::Working
             .write_to_queue(
@@ -224,10 +222,11 @@ mod tests {
             tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
         let config = std::sync::Arc::new(config);
+
         handle_one_in_working_queue(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::new(&Some(config.app.vsl.filepath.clone()))
+                RuleEngine::from_script("#{}")
                     .context("failed to initialize the engine")
                     .unwrap(),
             )),

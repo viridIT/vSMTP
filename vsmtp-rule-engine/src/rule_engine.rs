@@ -373,8 +373,8 @@ impl RuleEngine {
     /// create a rule engine instance from a script.
     ///
     /// # Errors
+    ///
     /// * failed to compile the script.
-    #[cfg(test)]
     pub fn from_script(script: &str) -> anyhow::Result<Self> {
         let engine = Self::new_raw();
 

@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -159,6 +161,11 @@ impl MailContext {
     where
         P: AsRef<std::path::Path>,
     {
-        Ok(serde_json::from_str(&std::fs::read_to_string(file)?)?)
+        std::fs::read_to_string(&file)
+            .context(format!("Cannot read file '{}'", file.as_ref().display()))
+            .map(|content| {
+                serde_json::from_str::<Self>(&content)
+                    .context(format!("Cannot deserialize: '{}'", content))
+            })?
     }
 }

@@ -93,6 +93,12 @@
             "overviewRulerColor": "grey",
         },
         {
+            "text": "unwrap_err()",
+            "color": "black",
+            "backgroundColor": "red",
+            "overviewRulerColor": "grey",
+        },
+        {
             "text": "[allow(",
             "color": "black",
             "backgroundColor": "red",

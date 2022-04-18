@@ -258,19 +258,17 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: Status) ->
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use crate::ProcessMessage;
     use vsmtp_common::mail_context::Body;
-    use vsmtp_rule_engine::rule_engine::RuleEngine;
-    use vsmtp_test::config;
 
+    /*
+    /// This test produce side-effect and may make other test fails
     #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
     async fn start() {
         let mut config = config::local_test();
         config.server.queues.dirpath = "./tmp".into();
-        config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::new(&Some(config.app.vsl.filepath.clone())).unwrap(),
+            RuleEngine::from_script("#{}").unwrap(),
         ));
 
         let (delivery_sender, delivery_receiver) = tokio::sync::mpsc::channel::<ProcessMessage>(10);
@@ -290,6 +288,7 @@ mod test {
 
         task.await.unwrap().unwrap();
     }
+    */
 
     #[test]
     fn test_add_trace_information() {
@@ -313,38 +312,31 @@ mod test {
 
         let config = vsmtp_config::Config::default();
 
-        if let Err(error) =
-            add_trace_information(&config, &mut ctx, vsmtp_common::status::Status::Next)
-        {
-            assert_eq!(
-                &error.to_string(),
-                "could not add trace information to email header: body is empty"
-            );
-        } else {
-            panic!("add_trace_information did not return an error on empty body");
-        }
+        assert_eq!(
+            &add_trace_information(&config, &mut ctx, vsmtp_common::status::Status::Next)
+                .unwrap_err()
+                .to_string(),
+            "could not add trace information to email header: body is empty"
+        );
 
         ctx.body = Body::Raw("".to_string());
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &mut ctx, vsmtp_common::status::Status::Next).unwrap();
 
         assert_eq!(
-            match &ctx.body {
-                Body::Raw(raw) => raw,
-                _ => unreachable!(),
-            },
-            &format!(
+            ctx.body ,
+            Body::Raw(
+            format!(
                 "Received: from localhost\n\tby {}\n\twith SMTP\n\tid {};\n\t{}\nX-VSMTP: id='{}'\n\tversion='{}'\n\tstatus='next'\n",
                 config.server.domain,
                 ctx.metadata.as_ref().unwrap().message_id,
                 {
                     let odt: time::OffsetDateTime = ctx.metadata.as_ref().unwrap().timestamp.into();
-
                     odt.format(&time::format_description::well_known::Rfc2822).unwrap()
                 },
                 ctx.metadata.as_ref().unwrap().message_id,
                 config.version_requirement,
-            )
+            ))
         );
     }
 }
