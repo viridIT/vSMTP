@@ -13,10 +13,11 @@
 #![allow(clippy::multiple_crate_versions)]
 
 mod args;
+mod command;
 mod model;
 
 pub use args::{Args, Commands, MessageCommand, MessageShowFormat};
-
+pub use command::execute;
 pub use model::{QueueContent, QueueEntry};
 
 /// Generate the list of lifetime
