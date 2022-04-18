@@ -20,8 +20,12 @@ use vsmtp_mail_parser::MailMimeParser;
 
 #[test]
 fn test_connect_rules() {
-    let re = RuleEngine::new(&Some(rules_path!["connect", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["rules/connect.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     // ctx.client_addr is 0.0.0.0 by default.
     state.get_context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
@@ -33,8 +37,12 @@ fn test_connect_rules() {
 
 #[test]
 fn test_helo_rules() {
-    let re = RuleEngine::new(&Some(rules_path!["helo", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["rules/helo.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
     state.get_context().write().unwrap().envelop.helo = "example.com".to_string();
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
@@ -43,9 +51,13 @@ fn test_helo_rules() {
 
 #[test]
 fn test_mail_from_rules() {
-    let re = RuleEngine::new(&Some(rules_path!["mail", "main.vsl"])).unwrap();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["rules/mail.vsl"]),
+    )
+    .unwrap();
 
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
     {
         let email = state.get_context();
         let mut email = email.write().unwrap();
@@ -76,9 +88,13 @@ This is a reply to your hello."#,
 
 #[test]
 fn test_rcpt_rules() {
-    let re = RuleEngine::new(&Some(rules_path!["rcpt", "main.vsl"])).unwrap();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["rules/rcpt.vsl"]),
+    )
+    .unwrap();
 
-    let mut state = get_default_state();
+    let mut state = get_default_state("./tmp/app");
     {
         let email = state.get_context();
         let mut email = email.write().unwrap();

@@ -25,8 +25,12 @@ use vsmtp_common::{
 
 #[test]
 fn test_email_context() {
-    let re = RuleEngine::new(&Some(rules_path!["main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(rules_path!["main.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
     state.get_context().write().unwrap().body = Body::Raw(String::default());
@@ -49,21 +53,27 @@ fn test_email_context() {
 
 #[test]
 fn test_email_bcc() {
-    let re = RuleEngine::new(&Some(rules_path!["bcc", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(rules_path!["bcc", "main.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }
 
 #[test]
-fn test_email_add_header() {
-    let re = RuleEngine::new(&Some(rules_path!["add_header", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+fn test_email_add_get_set_header() {
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(rules_path!["mutate_header", "main.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept
-    );
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
+    let mut state = get_default_state("./tmp/app");
     state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
     state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {

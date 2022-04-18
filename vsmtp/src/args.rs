@@ -1,4 +1,4 @@
-/// Flags and command to change vSMTP execution
+///
 #[derive(Debug, clap::Parser, PartialEq)]
 #[clap(about, version, author)]
 pub struct Args {
@@ -15,7 +15,7 @@ pub struct Args {
     pub no_daemon: bool,
 }
 
-/// Subcommand run instead of the vSMTP server
+///
 #[derive(Debug, clap::Subcommand, PartialEq)]
 pub enum Commands {
     /// Show the loaded config (as serialized json format)

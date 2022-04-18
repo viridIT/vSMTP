@@ -261,6 +261,8 @@ impl Builder<WantsServerLogs> {
                 filepath: filepath.into(),
                 format: format.into(),
                 level,
+                size_limit: ConfigServerLogs::default_size_limit(),
+                archive_count: ConfigServerLogs::default_archive_count(),
             },
         }
     }
@@ -539,12 +541,12 @@ impl Builder<WantsAppLogs> {
     ///
     #[must_use]
     pub fn with_default_app_logs(self) -> Builder<WantsAppServices> {
-        self.with_app_logs(ConfigAppLogs::default_filepath())
+        self.with_app_logs_at(ConfigAppLogs::default_filepath())
     }
 
     ///
     #[must_use]
-    pub fn with_app_logs(
+    pub fn with_app_logs_at(
         self,
         filepath: impl Into<std::path::PathBuf>,
     ) -> Builder<WantsAppServices> {
@@ -552,6 +554,8 @@ impl Builder<WantsAppLogs> {
             filepath,
             ConfigAppLogs::default_level(),
             ConfigAppLogs::default_format(),
+            ConfigAppLogs::default_size_limit(),
+            ConfigAppLogs::default_archive_count(),
         )
     }
 
@@ -562,6 +566,8 @@ impl Builder<WantsAppLogs> {
         filepath: impl Into<std::path::PathBuf>,
         level: log::LevelFilter,
         format: impl Into<String>,
+        size_limit: u64,
+        archive_count: u32,
     ) -> Builder<WantsAppServices> {
         Builder::<WantsAppServices> {
             state: WantsAppServices {
@@ -569,6 +575,8 @@ impl Builder<WantsAppLogs> {
                 filepath: filepath.into(),
                 level,
                 format: format.into(),
+                size_limit,
+                archive_count,
             },
         }
     }

@@ -60,6 +60,9 @@ pub mod status;
 /// rcpt data structure.
 pub mod rcpt;
 
+/// queues
+pub mod queue;
+
 /// transfer method for delivery / forwarding.
 pub mod transfer;
 

@@ -27,6 +27,17 @@ macro_rules! rules_path {
     ];
 }
 
+macro_rules! root_example {
+    ( $( $x:expr ),* ) => {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("examples/vsl")
+            .join(std::path::PathBuf::from_iter([ $( $x, )* ]))
+            .to_path_buf()
+    };
+}
+
 mod actions;
 mod email;
 mod engine;
@@ -38,7 +49,7 @@ pub mod helpers {
 
     use crate::rule_engine::RuleState;
 
-    pub(super) fn get_default_state() -> RuleState<'static> {
+    pub(super) fn get_default_state(dirpath: impl Into<std::path::PathBuf>) -> RuleState<'static> {
         let config = Config::builder()
             .with_version_str("<1.0.0")
             .unwrap()
@@ -53,7 +64,7 @@ pub mod helpers {
             .with_default_smtp_error_handler()
             .with_default_smtp_codes()
             .without_auth()
-            .with_app_at_location("./tmp/app")
+            .with_app_at_location(dirpath)
             .with_vsl("./src/tests/empty_main.vsl")
             .with_default_app_logs()
             .without_services()
@@ -64,37 +75,4 @@ pub mod helpers {
 
         RuleState::new(&config)
     }
-
-    // static INIT_LOGS: std::sync::Once = std::sync::Once::new();
-
-    // pub fn setup_logs_for_tests() {
-    //     INIT_LOGS.call_once(|| {
-    //         let mut config = Config::builder()
-    //             .with_version_str("<1.0.0")
-    //             .unwrap()
-    //             .with_rfc_port("test.server.com", "root", "root", None)
-    //             .without_log()
-    //             .without_smtps()
-    //             .with_default_smtp()
-    //             .with_delivery("./tmp/delivery", "none")
-    //             .with_rules("./src/receiver/tests/main.vsl", vec![])
-    //             .with_default_reply_codes()
-    //             .build()
-    //             .expect("failed to create config for logs");
-
-    //         config
-    //             .log
-    //             .level
-    //             .insert("default".into(), log::LevelFilter::Warn);
-    //         config.log.file =
-    //             std::path::PathBuf::from_iter([".", "tests", "generated", "app.test.log"]);
-    //         config.rules.logs.file =
-    //             std::path::PathBuf::from_iter([".", "tests", "generated", "rules.test.log"]);
-
-    //         log4rs::init_config(
-    //             vsmtp_config::get_logger_config(&config, true).expect("failed to init logs"),
-    //         )
-    //         .expect("failed to init logs");
-    //     });
-    // }
 }

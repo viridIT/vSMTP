@@ -1,12 +1,12 @@
 [package]
 edition = "2021"
 
-name = "vsmtp"
+name = "vqueue"
 version = "0.9.7"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
-description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+description = "vQUEUE : the vSMTP's queues mananger. Secured, Faster and Greener"
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 
@@ -14,12 +14,9 @@ publish = false
 
 rust-version = "1.58"
 
-default-run = "vsmtp"
-
 [dependencies]
 vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
-vsmtp-server = { version = "^0.9", path = "../vsmtp-server" }
 vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
 
 clap = { version = "3.1.9", features = ["derive"] }
-diff = "0.1.12"
+itertools = "0.10.3"

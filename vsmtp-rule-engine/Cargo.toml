@@ -18,7 +18,7 @@ vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
 
 regex = "1.5.5"
 iprange = "0.6.7"
-ipnet = "2.4.0"
+ipnet = "2.5.0"
 
 time = { version = "0.3.9", default-features = false, features = [
     "std",
@@ -48,4 +48,3 @@ wait-timeout = "0.2.0"
 
 [dev-dependencies]
 vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
-log4rs = { version = "1.0.0" }

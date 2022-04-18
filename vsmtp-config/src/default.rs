@@ -129,6 +129,8 @@ impl Default for ConfigServerLogs {
             filepath: Self::default_filepath(),
             format: Self::default_format(),
             level: Self::default_level(),
+            size_limit: Self::default_size_limit(),
+            archive_count: Self::default_archive_count(),
         }
     }
 }
@@ -146,6 +148,14 @@ impl ConfigServerLogs {
         collection! {
             "default".to_string() => log::LevelFilter::Warn
         }
+    }
+
+    pub(crate) const fn default_size_limit() -> u64 {
+        10_485_760 // 10MB
+    }
+
+    pub(crate) const fn default_archive_count() -> u32 {
+        10
     }
 }
 
@@ -434,6 +444,8 @@ impl Default for ConfigAppLogs {
             filepath: Self::default_filepath(),
             level: Self::default_level(),
             format: Self::default_format(),
+            size_limit: Self::default_size_limit(),
+            archive_count: Self::default_archive_count(),
         }
     }
 }
@@ -449,5 +461,13 @@ impl ConfigAppLogs {
 
     pub(crate) fn default_format() -> String {
         "{d} - {m}{n}".to_string()
+    }
+
+    pub(crate) const fn default_size_limit() -> u64 {
+        10_485_760 // 10MB
+    }
+
+    pub(crate) const fn default_archive_count() -> u32 {
+        10
     }
 }

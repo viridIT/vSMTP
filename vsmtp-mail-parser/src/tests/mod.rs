@@ -24,6 +24,8 @@ mod mime_parser {
     #[allow(non_snake_case)]
     mod allen_p__discussion_threads__1;
 
+    mod methods;
+
     mod mime1;
 }
 

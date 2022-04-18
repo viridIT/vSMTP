@@ -395,6 +395,11 @@ pub mod actions {
         }
     }
 
+    #[rhai_fn(global, get = "app_dir")]
+    pub fn app_dir(srv: &mut std::sync::Arc<ServerAPI>) -> String {
+        format!("{}", srv.config.app.dirpath.display())
+    }
+
     /// dump the current email into a quarantine queue, skipping delivery.
     /// the email is written in the specified app directory, inside the "queue" folder.
     #[allow(clippy::needless_pass_by_value)]
@@ -606,31 +611,27 @@ pub mod actions {
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         header: &str,
     ) -> EngineResult<bool> {
-        Ok(
-            match &this
-                .read()
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-                .body
-            {
-                Body::Empty => false,
-                Body::Raw(raw) => {
-                    let mut headers_end = 0;
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+            .get_header(header)
+            .is_some())
+    }
 
-                    // getting headers from the raw email.
-                    for line in raw.lines() {
-                        let mut split = line.splitn(2, ':');
-                        match (split.next(), split.next()) {
-                            // adding one to the index because `\n` is striped using the Lines iterator.
-                            (Some(_), Some(_)) => headers_end += line.len() + 1,
-                            _ => break,
-                        }
-                    }
-
-                    raw[0..headers_end].contains(format!("{}: ", header).as_str())
-                }
-                Body::Parsed(email) => email.headers.iter().any(|(name, _)| header == name),
-            },
-        )
+    /// return the value of a header if it exists. Otherwise, returns an empty string.
+    #[rhai_fn(global, return_raw)]
+    pub fn get_header(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        header: &str,
+    ) -> EngineResult<String> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+            .get_header(header)
+            .map(std::string::ToString::to_string)
+            .unwrap_or_default())
     }
 
     /// add a header to the raw or parsed email contained in ctx.
@@ -640,22 +641,25 @@ pub mod actions {
         header: &str,
         value: &str,
     ) -> EngineResult<()> {
-        match &mut this
-            .write()
+        this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
-        {
-            Body::Empty => {
-                return Err(format!(
-                    "failed to add header '{}': the body has not been received yet.",
-                    header
-                )
-                .into())
-            }
-            Body::Raw(raw) => *raw = format!("{}: {}\n{}", header, value, raw),
-            Body::Parsed(email) => email.headers.push((header.to_string(), value.to_string())),
-        };
+            .add_header(header, value);
 
+        Ok(())
+    }
+
+    /// set a header to the raw or parsed email contained in ctx.
+    #[rhai_fn(global, return_raw)]
+    pub fn set_header(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        header: &str,
+        value: &str,
+    ) -> EngineResult<()> {
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+            .set_header(header, value);
         Ok(())
     }
 

@@ -1,50 +1,52 @@
 # vSMTP standard edition roadmap
 
+## Production release
+
+Depending on versions fixes and user feedbacks, the production version is
+expected for end of Q3/2022.
+
 > Release before 1.0 should not be used for production purpose.
-For the enhanced edition roadmap, please feel free to contact us at
-<https://www.viridit.com/contact>.
 
-## Release 0.7.x
+## Release 0.13.x : available in july 2022
 
-Available from December 2021, this release focuses on:
+- [ARC](https://datatracker.ietf.org/doc/html/rfc8617) and [BIMI](https://www.ietf.org/archive/id/draft-blank-ietf-bimi-02.txt) support.
+- MySQL database support.
+- Integration of the [ClamAV](https://www.clamav.net/) anti-virus.
+- performance improvements and message transfer optimisation.
 
-- Handling network connections, including TLS support.
-- SMTP compliancy (RFC 5321/5322).
-- Interaction with the SMTP transaction.
-- Scripting language (vSL) and configuration files.
-- Local delivery using "maildir" (IMAP) protocol.
-- Application logs.
+## Release 0.12.x : available in june 2022
 
-About filtering functionalities :
+This version will be the first pre-production release, focusing on expending databases support and new security protocols.
 
-- All SMTP state : HELO/EHLO, CONNECT, MAIL, RCPT, DATA.
-- Inline filtering (pre-queue).
-- Basic actions like accept, deny, rewrite, etc.
-- User defined quarantine queues and logs.
-- JSON and RAW exports.
+- [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) and [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
+- Redis, Memcached & LDAP databases support.
+- [DANE](https://blog.apnic.net/2019/11/20/better-mail-security-with-dane-for-smtp/) support for vSMTP's transport system.
 
-> This version only manages incoming mails. An IMAP server is required. For
-> outgoing mail you must use your current SMTP server.
+## Release 0.11.x : available in mai 2022
 
-## Release 0.8.x
+- implementation of The vSMTP Policy Server (vPS), a module dedicated to the integration of third-party software.
+  - manages complex filtering and security rules for incoming emails.
+  - accepts delegation trough the SMTP protocol via Unix & Inet sockets.
+- databases support for VSL.
+  - implementation of the databases access syntax.
+  - support for file databases.
+- support of the [Null MX](https://datatracker.ietf.org/doc/html/rfc7505) record for vSMTP's transport.
+- [SPF](https://datatracker.ietf.org/doc/html/rfc7208) support.
+- DDOS, zombies and SPAM bots countermeasures.
+- a vqueue program that will be used to show queues content, move, remove and re-send messages.
 
-Available from mid January 2022, the main features are:
+## Release 0.10.x : current version
 
-- The delivery process and the related queues for local and remote mails.
-- The Post-queue filtering.
+- Configuration improvements.
+  - Folders restrictions for user-defined quarantines.
+  - configuration for virtual domains.
+  - DNS configuration for vSMTP's transport system.
+- Rule engine new features.
+  - a new server vsl api that will enable interaction with services and server configuration in rules.
+  - stabilizing VSL's syntax.
+- optimisation and performance improvements.
 
-About filtering functionalities :
-
-- MIME compliancy (RFC 2045+) checks.
-- Actions on MIME headers related to RFC 5322.
-- Offline filtering stage (post-queue).
-- Deliver stage related rules and actions.
-
-## Release 0.9.x : current version
-
-Due to several constraints the vSMTP Policy Server (vPS) module dedicated to the integration of third-party software has been postponed to versions 0.10.x.
-
-The 0.9.x releases focus on:
+## Release 0.9.x
 
 - TLS integration.
 - vSL grammar and syntax.
@@ -61,27 +63,31 @@ About filtering features:
 - Headers manipulation.
 - Bcc() action.
 
-## Release 0.10.x : available in april 2022
+## Release 0.8.x
 
-These versions will be the first pre-production releases, focusing on vSMTP policy server and performances.
+- The delivery process and the related queues for local and remote mails.
+- The Post-queue filtering.
 
-The vSMTP Policy Server (vPS) is a module dedicated to the integration of
-third-party software. Thanks to its logic engine it can manage complex filtering
-and security rules. In version 0.10.x, vPS will accept delegation trough:
+About filtering functionalities :
 
-- The SMTP protocol.
-- Postfix SMTP access policy delegation support.
-- Local Unix scripts.
+- MIME compliancy (RFC 2045+) checks.
+- Actions on MIME headers related to RFC 5322.
+- Offline filtering stage (post-queue).
+- Deliver stage related rules and actions.
 
-It can be called at any stage of a SMTP transaction via the rule engine.
+## Release 0.7.x
 
-This version will also include:
+- Handling network connections, including TLS support.
+- SMTP compliancy (RFC 5321/5322).
+- Interaction with the SMTP transaction.
+- Scripting language (vSL) and configuration files.
+- Local delivery using "maildir" (IMAP) protocol.
+- Application logs.
 
-- Folders restrictions for user-defined quarantines.
-- system & application logs.
-- a new `server` vsl api that will enable interaction with services and server configuration in rules.
+About filtering functionalities :
 
-## Production release
-
-Depending on versions fixes and user feedbacks, the production version is
-expected for end of Q2/2022.
+- All SMTP state : HELO/EHLO, CONNECT, MAIL, RCPT, DATA.
+- Inline filtering (pre-queue).
+- Basic actions like accept, deny, rewrite, etc.
+- User defined quarantine queues and logs.
+- JSON and RAW exports.

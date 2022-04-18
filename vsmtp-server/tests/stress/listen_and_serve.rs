@@ -58,7 +58,7 @@ async fn listen_and_serve() {
         .without_auth()
         .with_app_at_location("./tmp/stress")
         .with_vsl("./tests/stress/main.vsl")
-        .with_app_logs("./tmp/stress/app.log")
+        .with_app_logs_at("./tmp/stress/app.log")
         .without_services()
         .with_system_dns()
         .without_virtual_entries()
@@ -87,7 +87,9 @@ async fn listen_and_serve() {
     let (working_sender, _working_receiver) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+        RuleEngine::new(&config, &None).unwrap(),
+    ));
 
     let mut server = Server::new(
         std::sync::Arc::new(config),

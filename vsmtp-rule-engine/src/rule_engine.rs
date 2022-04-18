@@ -16,11 +16,7 @@
  **/
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
-use rhai::{
-    exported_module,
-    plugin::{EvalAltResult, Module},
-    Engine, Scope, AST,
-};
+use rhai::{exported_module, plugin::EvalAltResult, Engine, Scope, AST};
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, MailContext};
 use vsmtp_common::re::{anyhow, log};
@@ -268,9 +264,8 @@ impl RuleEngine {
     /// # Errors
     /// * failed to register `script_path` as a valid module folder.
     /// * failed to compile or load any script located at `script_path`.
-    #[allow(clippy::too_many_lines)]
-    pub fn new(script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
-        let mut engine = Self::new_raw();
+    pub fn new(config: &Config, script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
+        let mut engine = Self::new_raw(config)?;
 
         engine.set_module_resolver(match script_path {
             Some(script_path) => FileModuleResolver::new_with_path_and_extension(
@@ -311,16 +306,34 @@ impl RuleEngine {
     }
 
     /// create a rhai engine with vsl's configuration.
-    fn new_raw() -> rhai::Engine {
+    fn new_raw(config: &Config) -> anyhow::Result<rhai::Engine> {
         let mut engine = Engine::new();
 
-        let mut module: Module = exported_module!(modules::actions::actions);
-        module
+        let server_config = &vsmtp_common::re::serde_json::to_string(&config.server)
+            .context("failed to convert the server configuration to json")?
+            .replace('{', "#{");
+
+        let app_config = &vsmtp_common::re::serde_json::to_string(&config.app)
+            .context("failed to convert the app configuration to json")?
+            .replace('{', "#{");
+
+        let mut vsl_module = rhai::Module::new();
+        let mut toml_module = rhai::Module::new();
+
+        // setting up action, mail context & vsl's special types.
+        vsl_module
+            .combine(exported_module!(modules::actions::actions))
             .combine(exported_module!(modules::types::types))
             .combine(exported_module!(modules::mail_context::mail_context));
 
+        // setting up toml configuration injection.
+        toml_module
+            .set_var("server", engine.parse_json(server_config, true)?)
+            .set_var("app", engine.parse_json(app_config, true)?);
+
         engine
-            .register_static_module("vsl", module.into())
+            .register_static_module("vsl", vsl_module.into())
+            .register_static_module("toml", toml_module.into())
             .disable_symbol("eval")
             .on_parse_token(|token, _, _| {
                 match token {
@@ -339,7 +352,7 @@ impl RuleEngine {
             .register_iterator::<Vec<vsmtp_common::address::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
-        engine
+        Ok(engine)
     }
 
     /// compile the rule executor with the given script, and then checks
@@ -374,11 +387,10 @@ impl RuleEngine {
     /// create a rule engine instance from a script.
     ///
     /// # Errors
+    ///
     /// * failed to compile the script.
-    #[cfg(test)]
-    pub fn from_script(script: &str) -> anyhow::Result<Self> {
-        let engine = Self::new_raw();
-
+    pub fn from_script(config: &Config, script: &str) -> anyhow::Result<Self> {
+        let engine = Self::new_raw(config)?;
         let ast = Self::compile_executor(&engine, script)?;
 
         Ok(Self {

@@ -25,16 +25,24 @@ use vsmtp_config::{Config, Service};
 
 #[test]
 fn test_status() {
-    let re = RuleEngine::new(&Some(rules_path!["status", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(rules_path!["status", "main.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
 
 #[test]
 fn test_time() {
-    let re = RuleEngine::new(&Some(rules_path!["time", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(rules_path!["time", "main.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     state.add_data("time", std::time::SystemTime::UNIX_EPOCH);
 
@@ -43,16 +51,24 @@ fn test_time() {
 
 #[test]
 fn test_ip() {
-    let re = RuleEngine::new(&Some(rules_path!["ip", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(rules_path!["ip", "main.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
 
 #[test]
 fn test_address() {
-    let re = RuleEngine::new(&Some(rules_path!["address", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(rules_path!["address", "main.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().envelop.mail_from =
         Address::try_from("mail.from@test.net".to_string()).expect("could not parse address");
@@ -62,16 +78,18 @@ fn test_address() {
 
 #[test]
 fn test_objects() {
-    let re = RuleEngine::new(&Some(rules_path!["objects", "main.vsl"])).unwrap();
-    let mut state = get_default_state();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(rules_path!["objects", "main.vsl"]),
+    )
+    .unwrap();
+    let mut state = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
 }
 
 #[test]
 fn test_services() {
-    let re = RuleEngine::new(&Some(rules_path!["service", "main.vsl"])).unwrap();
-
     let config = Config::builder()
         .with_version_str("<1.0.0")
         .unwrap()
@@ -101,9 +119,50 @@ fn test_services() {
         .validate()
         .unwrap();
 
+    let re = RuleEngine::new(&config, &Some(rules_path!["service", "main.vsl"])).unwrap();
+
     let mut state = RuleState::new(&config);
 
     state.get_context().write().unwrap().body = Body::Raw(String::default());
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+}
+
+#[test]
+fn test_config_display() {
+    let config = Config::builder()
+        .with_version_str("<1.0.0")
+        .unwrap()
+        .with_server_name("testserver.com")
+        .with_user_group_and_default_system("root", "root")
+        .unwrap()
+        .with_ipv4_localhost()
+        .with_default_logs_settings()
+        .with_spool_dir_and_default_queues("./tmp/delivery")
+        .without_tls_support()
+        .with_default_smtp_options()
+        .with_default_smtp_error_handler()
+        .with_default_smtp_codes()
+        .without_auth()
+        .with_app_at_location("./tmp/app")
+        .with_vsl("./tmp/nothing")
+        .with_default_app_logs()
+        .with_services(collection! {"shell".to_string() => Service::UnixShell {
+            timeout: std::time::Duration::from_secs(2),
+            user: None,
+            group: None,
+            command: "echo".to_string(),
+            args: Some("test".to_string()),
+        }})
+        .with_system_dns()
+        .without_virtual_entries()
+        .validate()
+        .unwrap();
+
+    let re = RuleEngine::new(&config, &Some(rules_path!["objects", "main.vsl"])).unwrap();
+    let mut state = RuleState::new(&config);
+
+    state.get_context().write().unwrap().body = Body::Raw(String::default());
+
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Accept);
 }

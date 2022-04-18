@@ -19,8 +19,9 @@ macro_rules! bind_address {
         let (working_sender, _working_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
 
-        let rule_engine =
-            std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&None).unwrap()));
+        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+            RuleEngine::new(&config, &None).unwrap(),
+        ));
 
         let s = Server::new(
             config.clone(),

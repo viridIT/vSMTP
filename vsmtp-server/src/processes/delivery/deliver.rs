@@ -1,10 +1,8 @@
-use crate::{
-    processes::delivery::{add_trace_information, move_to_queue, send_email},
-    queue::Queue,
-};
+use crate::processes::delivery::{add_trace_information, move_to_queue, send_email};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MailContext,
+    queue::Queue,
     re::{
         anyhow::{self, Context},
         log,
@@ -64,12 +62,10 @@ pub async fn handle_one_in_delivery_queue(
         message_id
     );
 
-    let ctx = MailContext::from_file(path).with_context(|| {
-        format!(
-            "failed to deserialize email in delivery queue '{}'",
-            &message_id
-        )
-    })?;
+    let ctx = MailContext::from_file(path).context(format!(
+        "failed to deserialize email in delivery queue '{}'",
+        &message_id
+    ))?;
 
     let mut state = RuleState::with_context(config, ctx);
 
@@ -92,7 +88,7 @@ pub async fn handle_one_in_delivery_queue(
                 rcpt.email_status =
                     EmailTransferStatus::Failed("rule engine denied the email.".to_string());
             }
-            Queue::Dead.write_to_queue(config, &ctx)?;
+            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
         } else {
             let metadata = ctx
                 .metadata
@@ -108,25 +104,25 @@ pub async fn handle_one_in_delivery_queue(
                 &ctx.body,
             )
             .await
-            .with_context(|| {
-                format!("failed to send '{message_id}' located in the delivery queue")
-            })?;
+            .context(format!(
+                "failed to send '{message_id}' located in the delivery queue"
+            ))?;
 
             move_to_queue(config, &ctx)?;
         };
     }
 
     // after processing the email is removed from the delivery queue.
-    std::fs::remove_file(path)
-        .with_context(|| format!("failed to remove '{message_id}' from the delivery queue"))?;
+    std::fs::remove_file(path).context(format!(
+        "failed to remove '{message_id}' from the delivery queue"
+    ))?;
 
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::handle_one_in_delivery_queue;
-    use crate::queue::Queue;
+    use super::*;
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
@@ -142,7 +138,6 @@ mod tests {
     async fn basic() {
         let mut config = config::local_test();
         config.server.queues.dirpath = "./tmp".into();
-        config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
 
         let now = std::time::SystemTime::now();
 
@@ -150,7 +145,7 @@ mod tests {
 
         Queue::Deliver
             .write_to_queue(
-                &config,
+                &config.server.queues.dirpath,
                 &MailContext {
                     connection_timestamp: now,
                     client_addr: "127.0.0.1:80".parse().unwrap(),
@@ -181,27 +176,27 @@ mod tests {
             .unwrap();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::new(&Some(config.app.vsl.filepath.clone())).unwrap(),
+            RuleEngine::from_script(&config, "#{}").unwrap(),
         ));
 
         handle_one_in_delivery_queue(
             &config,
             &resolvers,
-            &config
-                .server
-                .queues
-                .dirpath
-                .join("deliver/message_from_deliver_to_deferred"),
+            &Queue::Deliver
+                .to_path(&config.server.queues.dirpath)
+                .unwrap()
+                .join("message_from_deliver_to_deferred"),
             &rule_engine,
         )
         .await
         .unwrap();
 
-        assert!(config
-            .server
-            .queues
-            .dirpath
-            .join("deferred/message_from_deliver_to_deferred")
-            .exists());
+        std::fs::remove_file(
+            Queue::Deferred
+                .to_path(&config.server.queues.dirpath)
+                .unwrap()
+                .join("message_from_deliver_to_deferred"),
+        )
+        .unwrap();
     }
 }

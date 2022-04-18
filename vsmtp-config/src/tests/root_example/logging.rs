@@ -37,7 +37,9 @@ fn parse() {
             .with_app_logs_level_and_format(
                 "/var/log/vsmtp/app.log",
                 log::LevelFilter::Trace,
-                "{d} - {m}{n}"
+                "{d} - {m}{n}",
+                20_971_520,
+                100,
             )
             .without_services()
             .with_system_dns()

@@ -58,7 +58,7 @@ fuzz_target!(|data: &[u8]| {
     );
 
     let re = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&None).expect("failed to build rule engine"),
+        RuleEngine::new(&config, &None).expect("failed to build rule engine"),
     ));
 
     let _ = tokio::runtime::Runtime::new()

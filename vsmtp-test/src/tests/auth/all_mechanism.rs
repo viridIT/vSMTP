@@ -32,9 +32,12 @@ async fn test_auth(
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::new(&Some(server_config.app.vsl.filepath.clone()))
-                .context("failed to initialize the engine")
-                .unwrap(),
+            RuleEngine::new(
+                &server_config,
+                &Some(server_config.app.vsl.filepath.clone()),
+            )
+            .context("failed to initialize the engine")
+            .unwrap(),
         ));
 
         Server::run_session(
