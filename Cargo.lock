@@ -699,9 +699,9 @@ dependencies = [
 
 [[package]]
 name = "ipnet"
-version = "2.4.0"
+version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35e70ee094dc02fd9c13fdad4940090f22dbd6ac7c9e7094a46cf0232a50bc7c"
+checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
 
 [[package]]
 name = "iprange"
@@ -1398,8 +1398,9 @@ dependencies = [
 
 [[package]]
 name = "rhai"
-version = "1.6.0"
-source = "git+https://github.com/rhaiscript/rhai.git#82cc4b55531354e933b2fc3da0cdd47e4c74eb7f"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ef3d57e55ca044c53ced279d2d3ee9df229b247556b005a23713d5206a2ecfc"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1413,7 +1414,8 @@ dependencies = [
 [[package]]
 name = "rhai_codegen"
 version = "1.4.0"
-source = "git+https://github.com/rhaiscript/rhai.git#82cc4b55531354e933b2fc3da0cdd47e4c74eb7f"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faa0ff1c9dc19c9f8bba510a2a75d3f0449f6233570c2672c7e31c692a11a59a"
 dependencies = [
  "proc-macro2",
  "quote",
