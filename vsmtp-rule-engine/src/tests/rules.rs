@@ -20,7 +20,11 @@ use vsmtp_mail_parser::MailMimeParser;
 
 #[test]
 fn test_connect_rules() {
-    let re = RuleEngine::new(&Some(root_example!["rules/connect.vsl"])).unwrap();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["rules/connect.vsl"]),
+    )
+    .unwrap();
     let mut state = get_default_state("./tmp/app");
 
     // ctx.client_addr is 0.0.0.0 by default.
@@ -33,7 +37,11 @@ fn test_connect_rules() {
 
 #[test]
 fn test_helo_rules() {
-    let re = RuleEngine::new(&Some(root_example!["rules/helo.vsl"])).unwrap();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["rules/helo.vsl"]),
+    )
+    .unwrap();
     let mut state = get_default_state("./tmp/app");
     state.get_context().write().unwrap().envelop.helo = "example.com".to_string();
 
@@ -43,7 +51,11 @@ fn test_helo_rules() {
 
 #[test]
 fn test_mail_from_rules() {
-    let re = RuleEngine::new(&Some(root_example!["rules/mail.vsl"])).unwrap();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["rules/mail.vsl"]),
+    )
+    .unwrap();
 
     let mut state = get_default_state("./tmp/app");
     {
@@ -76,7 +88,11 @@ This is a reply to your hello."#,
 
 #[test]
 fn test_rcpt_rules() {
-    let re = RuleEngine::new(&Some(root_example!["rules/rcpt.vsl"])).unwrap();
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["rules/rcpt.vsl"]),
+    )
+    .unwrap();
 
     let mut state = get_default_state("./tmp/app");
     {

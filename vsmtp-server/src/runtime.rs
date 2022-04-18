@@ -69,9 +69,10 @@ pub fn start_runtime(
     let (working_sender, working_receiver) =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(&Some(
-        config.app.vsl.filepath.clone(),
-    ))?));
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
+        &config,
+        &Some(config.app.vsl.filepath.clone()),
+    )?));
 
     let _tasks_delivery = init_runtime(
         main_runtime_sender.clone(),

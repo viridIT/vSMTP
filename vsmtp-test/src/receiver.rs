@@ -103,7 +103,7 @@ where
     );
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&Some(config.app.vsl.filepath.clone()))
+        RuleEngine::new(&config, &Some(config.app.vsl.filepath.clone()))
             .context("failed to initialize the engine")
             .unwrap(),
     ));

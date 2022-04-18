@@ -168,7 +168,7 @@ mod tests {
             .unwrap();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::from_script("#{}").unwrap(),
+            RuleEngine::from_script(&config, "#{}").unwrap(),
         ));
 
         handle_one_in_delivery_queue(
