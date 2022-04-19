@@ -6,21 +6,100 @@ use vsmtp_common::{
         serde_json,
     },
 };
-use vsmtp_config::Config;
 
-pub fn show(msg_id: &str, format: &MessageShowFormat, config: &Config) -> anyhow::Result<()> {
-    let message = get_message_path(msg_id, &config.server.queues.dirpath).and_then(|path| {
+pub fn show<OUT: std::io::Write>(
+    msg_id: &str,
+    format: &MessageShowFormat,
+    queues_dirpath: &std::path::Path,
+    output: &mut OUT,
+) -> anyhow::Result<()> {
+    let message = get_message_path(msg_id, queues_dirpath).and_then(|path| {
         std::fs::read_to_string(&path).context(format!("Failed to read file: '{}'", path.display()))
     })?;
 
     let message: MailContext = serde_json::from_str(&message)?;
 
     match format {
-        MessageShowFormat::Eml => println!("{}", message.body),
+        MessageShowFormat::Eml => output.write_fmt(format_args!("{}", message.body)),
         MessageShowFormat::Json => {
-            println!("{}", serde_json::to_string_pretty(&message)?);
+            output.write_fmt(format_args!("{}", serde_json::to_string_pretty(&message)?))
         }
-    }
+    }?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vsmtp_common::{
+        address::Address,
+        envelop::Envelop,
+        mail::{BodyType, Mail},
+        mail_context::{Body, MessageMetadata},
+        queue::Queue,
+        rcpt::Rcpt,
+        transfer::{EmailTransferStatus, Transfer},
+    };
+
+    #[test]
+    fn eml() {
+        let queues_dirpath = "./tmp/cmd_show";
+        let msg_id = "titi";
+
+        Queue::Working
+            .write_to_queue(
+                &std::path::PathBuf::from(queues_dirpath),
+                &MailContext {
+                    connection_timestamp: std::time::SystemTime::now(),
+                    client_addr: "0.0.0.0:25".parse().unwrap(),
+                    envelop: Envelop {
+                        helo: "toto".to_string(),
+                        mail_from: Address::try_from("foo@domain.com".to_string()).unwrap(),
+                        rcpt: vec![Rcpt {
+                            address: Address::try_from("foo+1@domain.com".to_string()).unwrap(),
+                            transfer_method: Transfer::Mbox,
+                            email_status: EmailTransferStatus::Waiting,
+                        }],
+                    },
+                    body: Body::Parsed(Box::new(Mail {
+                        headers: [
+                            ("from", "foo2 foo <foo2@foo>"),
+                            ("date", "tue, 30 nov 2021 20:54:27 +0100"),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect::<Vec<_>>(),
+                        body: BodyType::Regular(vec!["Hello World!!".to_string()]),
+                    })),
+                    metadata: Some(MessageMetadata {
+                        timestamp: std::time::SystemTime::now(),
+                        message_id: msg_id.to_string(),
+                        skipped: None,
+                    }),
+                },
+            )
+            .unwrap();
+
+        let mut output = vec![];
+
+        show(
+            msg_id,
+            &MessageShowFormat::Eml,
+            &std::path::PathBuf::from(queues_dirpath),
+            &mut output,
+        )
+        .unwrap();
+
+        assert_eq!(
+            std::str::from_utf8(&output).unwrap(),
+            [
+                "from: foo2 foo <foo2@foo>\n",
+                "date: tue, 30 nov 2021 20:54:27 +0100\n",
+                "\n",
+                "Hello World!!",
+            ]
+            .concat()
+        );
+    }
 }

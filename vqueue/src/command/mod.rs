@@ -64,6 +64,11 @@ mod tests {
 
         std::fs::remove_file(filepath).unwrap();
     }
+
+    #[test]
+    fn not_found() {
+        assert!(get_message_path("foobar", &std::path::PathBuf::from("./tmp")).is_err(),);
+    }
 }
 
 /// Execute the vQueue command
@@ -84,9 +89,22 @@ pub fn execute(args: Args, config: &Config) -> anyhow::Result<()> {
             empty_token,
         ),
         Commands::Msg { msg, command } => match command {
-            MessageCommand::Show { format } => msg_command::show::show(&msg, &format, config),
-            MessageCommand::Move { queue } => msg_command::r#move::r#move(&msg, queue, config),
-            MessageCommand::Remove { yes } => msg_command::remove::remove(&msg, yes, config),
+            MessageCommand::Show { format } => msg_command::show::show(
+                &msg,
+                &format,
+                &config.server.queues.dirpath,
+                &mut std::io::stdout(),
+            ),
+            MessageCommand::Move { queue } => {
+                msg_command::r#move::r#move(&msg, queue, &config.server.queues.dirpath)
+            }
+            MessageCommand::Remove { yes } => msg_command::remove::remove(
+                &msg,
+                yes,
+                &config.server.queues.dirpath,
+                &mut std::io::stdout(),
+                std::io::stdin().lock(),
+            ),
             MessageCommand::ReRun {} => unimplemented!(),
         },
     }

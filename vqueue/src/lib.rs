@@ -17,4 +17,4 @@ mod model;
 
 pub use args::{Args, Commands, MessageCommand, MessageShowFormat};
 pub use command::execute;
-pub use model::{QueueContent, QueueEntry};
+pub(crate) use model::{QueueContent, QueueEntry};

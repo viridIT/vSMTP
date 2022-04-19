@@ -73,6 +73,29 @@ impl Queue {
         Ok(dir)
     }
 
+    /// List the files contained in the queue
+    ///
+    /// # Errors
+    ///
+    /// * failed to initialize queue
+    /// * error while reading directory
+    /// * one entry produced an error
+    pub fn list_entries(
+        &self,
+        queues_dirpath: &std::path::Path,
+    ) -> anyhow::Result<Vec<std::path::PathBuf>> {
+        let queue_path = self.to_path(queues_dirpath)?;
+
+        queue_path
+            .read_dir()
+            .context(format!("Error from read dir '{}'", queue_path.display()))?
+            .map(|e| match e {
+                Ok(e) => Ok(e.path()),
+                Err(e) => Err(anyhow::Error::new(e)),
+            })
+            .collect::<anyhow::Result<Vec<_>>>()
+    }
+
     /// Write a [`MailContext`] to the [`self`] queue
     ///
     /// # Errors
