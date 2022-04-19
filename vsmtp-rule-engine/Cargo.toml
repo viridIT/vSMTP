@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "0.9.7"
+version = "0.10.0"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -13,8 +13,8 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
-vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
-vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
+vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
+vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
 
 regex = "1.5.5"
 iprange = "0.6.7"
@@ -47,4 +47,4 @@ tokio = { version = "1.17.0", features = [
 wait-timeout = "0.2.0"
 
 [dev-dependencies]
-vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
+vsmtp-mail-parser = { version = "^0.10", path = "../vsmtp-mail-parser" }

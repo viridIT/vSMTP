@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-server"
-version = "0.9.7"
+version = "0.10.0"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -13,11 +13,11 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
-vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
-vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
-vsmtp-rule-engine = { version = "^0.9", path = "../vsmtp-rule-engine" }
-vsmtp-mail-parser = { version = "^0.9", path = "../vsmtp-mail-parser" }
-vsmtp-delivery = { version = "^0.9", path = "../vsmtp-delivery" }
+vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
+vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
+vsmtp-rule-engine = { version = "^0.10", path = "../vsmtp-rule-engine" }
+vsmtp-mail-parser = { version = "^0.10", path = "../vsmtp-mail-parser" }
+vsmtp-delivery = { version = "^0.10", path = "../vsmtp-delivery" }
 
 async-trait = "0.1.53"
 fastrand = "1.7.0"
@@ -43,7 +43,7 @@ time = { version = "0.3.9", default-features = false, features = [
 num_cpus = "1.13.1"
 
 [dev-dependencies]
-vsmtp-test = { version = "^0.9", path = "../vsmtp-test" }
+vsmtp-test = { version = "^0.10", path = "../vsmtp-test" }
 pretty_assertions = "1.2.1"
 
 ## Benchmark

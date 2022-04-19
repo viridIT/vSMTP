@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp"
-version = "0.9.7"
+version = "0.10.0"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -17,9 +17,9 @@ rust-version = "1.58"
 default-run = "vsmtp"
 
 [dependencies]
-vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
-vsmtp-server = { version = "^0.9", path = "../vsmtp-server" }
-vsmtp-config = { version = "^0.9", path = "../vsmtp-config" }
+vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
+vsmtp-server = { version = "^0.10", path = "../vsmtp-server" }
+vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
 
 clap = { version = "3.1.9", features = ["derive"] }
 diff = "0.1.12"

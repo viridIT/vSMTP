@@ -825,9 +825,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.123"
+version = "0.2.124"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb691a747a7ab48abc15c5b42066eaafde10dc427e3b6ee2a1cf43db04c763bd"
+checksum = "21a41fed9d98f27ab1c6d161da622a4fa35e8a54a8adc24bbf3ddd0ef70b0e50"
 
 [[package]]
 name = "libloading"
@@ -2092,7 +2092,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vqueue"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "clap 3.1.9",
  "itertools",
@@ -2102,7 +2102,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "clap 3.1.9",
  "diff",
@@ -2113,7 +2113,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "addr",
  "anyhow",
@@ -2129,7 +2129,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-config"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "hostname",
  "humantime-serde",
@@ -2148,7 +2148,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-delivery"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "async-trait",
  "lettre",
@@ -2162,7 +2162,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "pretty_assertions",
  "vsmtp-common",
@@ -2170,7 +2170,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "ipnet",
  "iprange",
@@ -2187,7 +2187,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -2214,7 +2214,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "0.9.7"
+version = "0.10.0"
 dependencies = [
  "async-trait",
  "lettre",

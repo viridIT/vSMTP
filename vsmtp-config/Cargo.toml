@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-config"
-version = "0.9.7"
+version = "0.10.0"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -13,7 +13,7 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
-vsmtp-common = { version = "^0.9", path = "../vsmtp-common" }
+vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
 
 log4rs = { version = "1.0.0", default-features = false, features = [
     "rolling_file_appender",
