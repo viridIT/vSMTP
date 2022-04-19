@@ -1,4 +1,3 @@
-use crate::lifetimes;
 use vsmtp_common::{
     collection,
     mail_context::MailContext,
@@ -101,6 +100,17 @@ impl From<(Queue, std::path::PathBuf, char, std::time::SystemTime)> for QueueCon
             inner: collection! {},
         }
     }
+}
+
+fn lifetimes() -> Vec<u64> {
+    (0..9)
+        .into_iter()
+        .scan(5, |state, _| {
+            let out = *state;
+            *state *= 2;
+            Some(out)
+        })
+        .collect()
 }
 
 macro_rules! token_if_empty {
