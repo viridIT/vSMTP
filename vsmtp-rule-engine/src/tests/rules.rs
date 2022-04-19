@@ -15,7 +15,9 @@
  *
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::{address::Address, mail_context::Body, state::StateSMTP, status::Status};
+use vsmtp_common::{
+    address::Address, mail_context::Body, state::StateSMTP, status::Status, MailParser,
+};
 use vsmtp_mail_parser::MailMimeParser;
 
 #[test]

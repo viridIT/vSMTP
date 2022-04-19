@@ -86,19 +86,18 @@ async fn test_auth(
             let read = read.strip_prefix("334 ").unwrap();
             let read = base64::decode(read).unwrap();
 
-            match session.step(&read) {
-                Ok(rsasl::Step::Done(buffer)) => {
+            match session.step(&read).unwrap() {
+                rsasl::Step::Done(buffer) => {
                     std::io::Write::write_all(&mut io, base64::encode(&**buffer).as_bytes())
                         .unwrap();
                     std::io::Write::write_all(&mut io, b"\r\n").unwrap();
                     break;
                 }
-                Ok(rsasl::Step::NeedsMore(buffer)) => {
+                rsasl::Step::NeedsMore(buffer) => {
                     std::io::Write::write_all(&mut io, base64::encode(&**buffer).as_bytes())
                         .unwrap();
                     std::io::Write::write_all(&mut io, b"\r\n").unwrap();
                 }
-                Err(e) => todo!("{e}"),
             }
         }
 

@@ -16,7 +16,7 @@ use anyhow::Context;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{envelop::Envelop, mail::Mail, status::Status};
+use crate::{envelop::Envelop, mail::Mail, status::Status, MailParser};
 
 /// average size of a mail
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
@@ -66,6 +66,18 @@ impl std::fmt::Display for Body {
 }
 
 impl Body {
+    /// Convert a the instance into a [`Body::Parsed`] or [`Body::Empty`]
+    ///
+    /// # Errors
+    ///
+    /// * Fail to parse using the provided [`MailParser`]
+    pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
+        Ok(match self {
+            Body::Raw(raw) => Self::Parsed(Box::new(P::default().parse(raw.as_bytes())?)),
+            otherwise => otherwise,
+        })
+    }
+
     /// get the value of an header, return None if it does not exists or when the body is empty.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {

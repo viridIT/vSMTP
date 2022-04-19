@@ -17,7 +17,7 @@
 use crate::ProcessMessage;
 use anyhow::Context;
 use vsmtp_common::{
-    mail_context::{Body, MailContext},
+    mail_context::MailContext,
     queue::Queue,
     re::{anyhow, log},
     state::StateSMTP,
@@ -79,9 +79,8 @@ async fn handle_one_in_working_queue(
         file_to_process.display()
     ))?;
 
-    if let Body::Raw(raw) = &ctx.body {
-        ctx.body = Body::Parsed(Box::new(MailMimeParser::default().parse(raw.as_bytes())?));
-    }
+    ctx.body = ctx.body.to_parsed::<MailMimeParser>()?;
+
     let mut state = RuleState::with_context(config.as_ref(), ctx);
 
     let result = rule_engine

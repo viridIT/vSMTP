@@ -19,7 +19,9 @@ use super::helpers::get_mime_type;
 use super::helpers::read_header;
 use vsmtp_common::mail::{BodyType, Mail, MailHeaders};
 use vsmtp_common::mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
-use vsmtp_common::re::log;
+use vsmtp_common::re::anyhow::Context;
+use vsmtp_common::re::{anyhow, log};
+use vsmtp_common::MailParser;
 
 /// BoundaryType
 /// a boundary serves as a delimiter between mime parts in a multipart section.
@@ -36,24 +38,18 @@ pub struct MailMimeParser {
     boundary_stack: Vec<String>,
 }
 
-impl MailMimeParser {
-    /// parse method
-    ///
-    /// # Errors
-    ///
-    /// * data is not utf8 encoded
-    /// * data is not a valid mail format
-    pub fn parse(&mut self, data: &[u8]) -> ParserResult<Mail> {
-        let input = match std::str::from_utf8(data) {
-            Ok(ut8_decoded) => ut8_decoded,
-            Err(_) => return Err(ParserError::InvalidInput),
-        }
-        .lines()
-        .collect::<Vec<_>>();
+impl MailParser for MailMimeParser {
+    fn parse(&mut self, data: &[u8]) -> anyhow::Result<Mail> {
+        let input = std::str::from_utf8(data)
+            .map_err(|_| anyhow::anyhow!("{}", ParserError::InvalidInput))?
+            .lines()
+            .collect::<Vec<_>>();
 
-        self.parse_inner(&mut &input[..])
+        self.parse_inner(&mut &input[..]).context("parsing failed")
     }
+}
 
+impl MailMimeParser {
     fn parse_inner(&mut self, content: &mut &[&str]) -> ParserResult<Mail> {
         let mut headers = MailHeaders::with_capacity(10);
         let mut mime_headers = Vec::with_capacity(10);

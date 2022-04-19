@@ -16,6 +16,7 @@
 **/
 use crate::test_receiver;
 use vsmtp_common::address::Address;
+use vsmtp_common::mail::{BodyType, Mail};
 use vsmtp_common::mail_context::Body;
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::re::anyhow;
@@ -40,19 +41,37 @@ macro_rules! test_lang {
                     vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
                 );
 
-                let body = match mail.body {
-                    Body::Empty => panic!("mail cannot be empty"),
-                    Body::Parsed(parsed) => parsed,
-                    Body::Raw(raw) => Box::new(
-                        vsmtp_mail_parser::MailMimeParser::default()
-                            .parse(raw.as_bytes())
-                            .unwrap(),
-                    ),
-                };
+                let body = mail
+                    .body
+                    .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
+                    .unwrap();
 
                 pretty_assertions::assert_eq!(
-                    format!("{}\n", body.to_raw()).as_str(),
-                    include_str!($lang_code)
+                    body,
+                    Body::Parsed(Box::new(Mail {
+                        headers: [
+                            ("from", "john doe <john@doe>"),
+                            ("subject", "ar"),
+                            ("to", "aa@bb"),
+                            ("message-id", "<xxx@localhost.com>"),
+                            ("date", "Tue, 30 Nov 2021 20:54:27 +0100"),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect::<Vec<_>>(),
+                        body: BodyType::Regular(
+                            include_str!($lang_code)
+                                .lines()
+                                .skip(6)
+                                .map(str::to_string)
+                                .map(|s| if s.starts_with("..") {
+                                    s[1..].to_string()
+                                } else {
+                                    s
+                                })
+                                .collect::<Vec<_>>()
+                        )
+                    }))
                 );
 
                 conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
