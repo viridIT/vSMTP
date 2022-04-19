@@ -137,9 +137,8 @@ async fn sni() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
     config.server.r#virtual.insert(
-        "second".to_string(),
+        "second.testserver.com".to_string(),
         ConfigServerVirtual::with_tls(
-            "second.testserver.com",
             "./src/tests/certs/sni/second.certificate.crt",
             "./src/tests/certs/sni/second.privateKey.key",
         )

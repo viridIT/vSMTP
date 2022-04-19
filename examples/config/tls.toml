@@ -11,20 +11,18 @@ protocol_version = "TLSv1.3"
 certificate = "../examples/config/tls/certificate.crt"
 private_key = "../examples/config/tls/private_key.key"
 
-[server.virtual.testserver2]
-domain = "testserver2.com"
+[server.virtual."testserver2.com"]
 dns = { type = "system" }
 
-[server.virtual.testserver2.tls]
+[server.virtual."testserver2.com".tls]
 protocol_version = "TLSv1.3"
 certificate = "../examples/config/tls/certificate.crt"
 private_key = "../examples/config/tls/private_key.key"
 
-[server.virtual.testserver3]
-domain = "testserver3.com"
+[server.virtual."testserver3.com"]
 dns = { type = "system" }
 
-[server.virtual.testserver3.tls]
+[server.virtual."testserver3.com".tls]
 protocol_version = "TLSv1.3"
 certificate = "../examples/config/tls/certificate.crt"
 private_key = "../examples/config/tls/private_key.key"

@@ -63,11 +63,11 @@ pub fn get_rustls_config(
         .with_cert_resolver(std::sync::Arc::new(CertResolver {
             sni_resolver: virtual_entries.iter().fold(
                 anyhow::Ok(rustls::server::ResolvesServerCertUsingSni::new()),
-                |sni_resolver, (_, entry)| {
+                |sni_resolver, (domain, entry)| {
                     let mut sni_resolver = sni_resolver?;
                     sni_resolver
                         .add(
-                            &entry.domain,
+                            domain,
                             rustls::sign::CertifiedKey {
                                 cert: vec![entry.tls.certificate.clone()],
                                 key: rustls::sign::any_supported_type(&entry.tls.private_key)?,

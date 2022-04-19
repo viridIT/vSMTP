@@ -661,8 +661,6 @@ impl Builder<WantsServerDNS> {
 
 /// metadata for a virtual entry.
 pub struct VirtualEntry {
-    /// name of the entry.
-    pub name: String,
     /// the domain of the entry.
     pub domain: String,
     /// path to the certificate used for tls.
@@ -697,12 +695,8 @@ impl Builder<WantsServerVirtual> {
 
         for entry in entries {
             r#virtual.insert(
-                entry.name.clone(),
-                ConfigServerVirtual::with_tls(
-                    &entry.domain,
-                    &entry.certificate_path,
-                    &entry.private_key_path,
-                )?,
+                entry.domain.clone(),
+                ConfigServerVirtual::with_tls(&entry.certificate_path, &entry.private_key_path)?,
             );
         }
 

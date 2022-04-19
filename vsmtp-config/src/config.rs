@@ -157,7 +157,6 @@ pub struct ConfigServerQueues {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerVirtual {
-    pub domain: String,
     pub tls: ConfigServerVirtualTls,
     pub dns: ConfigServerDNS,
 }
@@ -169,9 +168,8 @@ impl ConfigServerVirtual {
     ///
     /// * certificate is not valid
     /// * private key is not valid
-    pub fn with_tls(domain: &str, certificate: &str, private_key: &str) -> anyhow::Result<Self> {
+    pub fn with_tls(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
         Ok(Self {
-            domain: domain.to_string(),
             tls: ConfigServerVirtualTls::from_path(certificate, private_key)?,
             dns: ConfigServerDNS::default(),
         })

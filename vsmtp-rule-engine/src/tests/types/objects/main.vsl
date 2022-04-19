@@ -34,7 +34,7 @@ import "vars" as vars;
             if toml::server.domain == "testserver.com"
             && toml::server.system.user == "root"
             && toml::server.system.group == "root"
-            && toml::server.virtual["example"].tls.protocol_version == ["TLSv1.3"]
+            && toml::server.virtual["domain@example.com"].tls.protocol_version == ["TLSv1.3"]
 
             && toml::app.services["my_shell"].command == "echo"
             && toml::app.dirpath == "./tmp/app"

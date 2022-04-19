@@ -156,7 +156,6 @@ fn test_config_display() {
         }})
         .with_system_dns()
         .with_virtual_entries(&[VirtualEntry {
-            name: "example".to_string(),
             domain: "domain@example.com".to_string(),
             certificate_path: root_example!["../config/tls/certificate.crt"]
                 .to_str()
