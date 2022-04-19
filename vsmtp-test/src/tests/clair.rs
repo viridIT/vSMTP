@@ -17,6 +17,7 @@
 use crate::{config, test_receiver};
 use vsmtp_common::{
     address::Address,
+    mail::{BodyType, Mail},
     mail_context::{Body, MailContext},
     re::anyhow,
 };
@@ -282,38 +283,35 @@ async fn test_receiver_13() {
         ) -> anyhow::Result<()> {
             *helo_domain = Some(mail.envelop.helo.clone());
 
-            let body = match mail.body {
-                Body::Empty => panic!("mail cannot be empty"),
-                Body::Parsed(parsed) => parsed,
-                Body::Raw(raw) => {
-                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
-                }
-            };
+            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
 
-            match self.count {
-                0 => {
-                    assert_eq!(mail.envelop.helo, "foobar");
-                    assert_eq!(mail.envelop.mail_from.full(), "john@doe");
-                    assert_eq!(
-                        mail.envelop.rcpt,
-                        vec![vsmtp_common::rcpt::Rcpt::new(
-                            Address::try_from("aa@bb".to_string()).unwrap()
-                        )]
-                    );
-                    assert!(body.headers.len() == 2);
-                    assert!(mail.metadata.is_some());
-                }
-                1 => {
-                    assert_eq!(mail.envelop.helo, "foobar");
-                    assert_eq!(mail.envelop.mail_from.full(), "john2@doe");
-                    assert_eq!(
-                        mail.envelop.rcpt,
-                        vec![Address::try_from("aa2@bb".to_string()).unwrap().into()]
-                    );
-                    assert!(body.headers.len() == 2);
-                }
-                _ => panic!(),
-            }
+            assert_eq!(mail.envelop.helo, "foobar");
+            assert_eq!(
+                mail.envelop.mail_from.full(),
+                format!("john{}@doe", self.count)
+            );
+            assert_eq!(
+                mail.envelop.rcpt,
+                vec![Address::try_from(format!("aa{}@bb", self.count))
+                    .unwrap()
+                    .into()]
+            );
+            pretty_assertions::assert_eq!(
+                body,
+                Body::Parsed(Box::new(Mail {
+                    headers: [
+                        (
+                            "from",
+                            format!("john{} doe <john{}@doe>", self.count, self.count)
+                        ),
+                        ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
+                    ]
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v))
+                    .collect::<Vec<_>>(),
+                    body: BodyType::Regular(vec![format!("mail {}", self.count)])
+                }))
+            );
 
             self.count += 1;
 
@@ -324,22 +322,24 @@ async fn test_receiver_13() {
     }
 
     assert!(test_receiver! {
-        on_mail => &mut T { count: 0 },
+        on_mail => &mut T { count: 1 },
         [
             "HELO foobar\r\n",
-            "MAIL FROM:<john@doe>\r\n",
-            "RCPT TO:<aa@bb>\r\n",
+            "MAIL FROM:<john1@doe>\r\n",
+            "RCPT TO:<aa1@bb>\r\n",
             "DATA\r\n",
-            "from: john doe <john@doe>\r\n",
+            "from: john1 doe <john1@doe>\r\n",
             "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            "mail one\r\n",
+            "\r\n",
+            "mail 1\r\n",
             ".\r\n",
             "MAIL FROM:<john2@doe>\r\n",
             "RCPT TO:<aa2@bb>\r\n",
             "DATA\r\n",
             "from: john2 doe <john2@doe>\r\n",
             "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            "mail two\r\n",
+            "\r\n",
+            "mail 2\r\n",
             ".\r\n",
             "QUIT\r\n",
         ]
@@ -362,6 +362,7 @@ async fn test_receiver_13() {
     .is_ok());
 }
 
+#[allow(clippy::too_many_lines)]
 #[tokio::test]
 async fn test_receiver_14() {
     struct T {
@@ -376,36 +377,35 @@ async fn test_receiver_14() {
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
-            let body = match mail.body {
-                Body::Empty => panic!("mail cannot be empty"),
-                Body::Parsed(parsed) => parsed,
-                Body::Raw(raw) => {
-                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
-                }
-            };
+            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
 
-            match self.count {
-                0 => {
-                    assert_eq!(mail.envelop.helo, "foobar");
-                    assert_eq!(mail.envelop.mail_from.full(), "john@doe");
-                    assert_eq!(
-                        mail.envelop.rcpt,
-                        vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
-                    );
-                    assert_eq!(body.headers.len(), 2);
-                }
-                1 => {
-                    assert_eq!(mail.envelop.helo, "foobar2");
-                    assert_eq!(mail.envelop.mail_from.full(), "john2@doe");
-                    assert_eq!(
-                        mail.envelop.rcpt,
-                        vec![Address::try_from("aa2@bb".to_string()).unwrap().into()]
-                    );
-                    assert_eq!(body.headers.len(), 2);
-                    assert!(mail.metadata.is_some());
-                }
-                _ => panic!(),
-            }
+            assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
+            assert_eq!(
+                mail.envelop.mail_from.full(),
+                format!("john{}@doe", self.count)
+            );
+            assert_eq!(
+                mail.envelop.rcpt,
+                vec![Address::try_from(format!("aa{}@bb", self.count))
+                    .unwrap()
+                    .into()]
+            );
+            pretty_assertions::assert_eq!(
+                body,
+                Body::Parsed(Box::new(Mail {
+                    headers: [
+                        (
+                            "from",
+                            format!("john{} doe <john{}@doe>", self.count, self.count)
+                        ),
+                        ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
+                    ]
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v))
+                    .collect::<Vec<_>>(),
+                    body: BodyType::Regular(vec![format!("mail {}", self.count)])
+                }))
+            );
 
             self.count += 1;
 
@@ -416,15 +416,16 @@ async fn test_receiver_14() {
     }
 
     assert!(test_receiver! {
-        on_mail => &mut T { count: 0 },
+        on_mail => &mut T { count: 1 },
         [
-            "HELO foobar\r\n",
-            "MAIL FROM:<john@doe>\r\n",
-            "RCPT TO:<aa@bb>\r\n",
+            "HELO foobar1\r\n",
+            "MAIL FROM:<john1@doe>\r\n",
+            "RCPT TO:<aa1@bb>\r\n",
             "DATA\r\n",
-            "from: john doe <john@doe>\r\n",
+            "from: john1 doe <john1@doe>\r\n",
             "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            "mail one\r\n",
+            "\r\n",
+            "mail 1\r\n",
             ".\r\n",
             "HELO foobar2\r\n",
             "MAIL FROM:<john2@doe>\r\n",
@@ -432,7 +433,8 @@ async fn test_receiver_14() {
             "DATA\r\n",
             "from: john2 doe <john2@doe>\r\n",
             "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-            "mail two\r\n",
+            "\r\n",
+            "mail 2\r\n",
             ".\r\n",
             "QUIT\r\n",
         ]

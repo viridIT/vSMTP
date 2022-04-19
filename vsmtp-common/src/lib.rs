@@ -76,6 +76,12 @@ pub mod auth {
     pub use crate::mechanism::Mechanism;
 }
 
+mod r#trait {
+    pub mod mail_parser;
+}
+
+pub use r#trait::mail_parser::MailParser;
+
 #[cfg(test)]
 mod tests {
     mod event;

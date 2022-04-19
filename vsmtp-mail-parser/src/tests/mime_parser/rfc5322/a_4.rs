@@ -1,6 +1,8 @@
-use vsmtp_common::mail::{BodyType, Mail};
-
 use crate::parser::MailMimeParser;
+use vsmtp_common::{
+    mail::{BodyType, Mail},
+    MailParser,
+};
 
 #[test]
 fn tracing() {

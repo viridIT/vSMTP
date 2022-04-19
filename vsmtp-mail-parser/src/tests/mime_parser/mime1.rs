@@ -1,10 +1,10 @@
+use crate::parser::MailMimeParser;
 use vsmtp_common::{
     collection,
     mail::{BodyType, Mail},
     mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart},
+    MailParser,
 };
-
-use crate::parser::MailMimeParser;
 
 const MAIL: &str = include_str!("../mail/mime1.eml");
 

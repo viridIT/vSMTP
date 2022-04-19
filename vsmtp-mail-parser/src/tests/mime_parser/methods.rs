@@ -1,4 +1,4 @@
-use vsmtp_common::mail_context::Body;
+use vsmtp_common::{mail_context::Body, MailParser};
 
 use crate::MailMimeParser;
 

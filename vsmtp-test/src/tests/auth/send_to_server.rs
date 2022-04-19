@@ -1,3 +1,4 @@
+/*
 use lettre::transport::smtp::client::TlsParametersBuilder;
 use vsmtp_server::re::tokio;
 
@@ -36,3 +37,4 @@ async fn auth() {
     .await
     .unwrap();
 }
+*/

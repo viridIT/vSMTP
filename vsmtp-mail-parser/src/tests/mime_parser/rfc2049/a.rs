@@ -1,19 +1,19 @@
-use pretty_assertions::assert_eq;
-
+use crate::MailMimeParser;
 use vsmtp_common::{
     collection,
     mail::{BodyType, Mail},
     mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart},
+    MailParser,
 };
-
-use crate::MailMimeParser;
 
 #[test]
 #[allow(clippy::too_many_lines)]
 fn simple() {
-    assert_eq!(
-        MailMimeParser::default().parse(include_bytes!("../../mail/rfc2049/A.eml")),
-        Ok(Mail {
+    pretty_assertions::assert_eq!(
+        MailMimeParser::default()
+            .parse(include_bytes!("../../mail/rfc2049/A.eml"))
+            .unwrap(),
+        Mail {
             headers: vec![
                 ("mime-version", "1.0"),
                 ("from", "Nathaniel Borenstein <nsb@nsb.fv.com>",),
@@ -191,6 +191,6 @@ fn simple() {
                     epilogue: "".to_string(),
                 })
             }))
-        })
+        }
     );
 }

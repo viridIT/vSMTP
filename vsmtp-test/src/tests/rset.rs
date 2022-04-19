@@ -16,6 +16,7 @@
 **/
 use vsmtp_common::{
     address::Address,
+    mail::{BodyType, Mail},
     mail_context::{Body, MailContext},
     re::anyhow,
 };
@@ -38,13 +39,7 @@ async fn reset_helo() {
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
-            let body = match mail.body {
-                Body::Empty => panic!("mail cannot be empty"),
-                Body::Parsed(parsed) => parsed,
-                Body::Raw(raw) => {
-                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
-                }
-            };
+            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "a@b");
@@ -52,7 +47,19 @@ async fn reset_helo() {
                 mail.envelop.rcpt,
                 vec![Address::try_from("b@c".to_string()).unwrap().into()]
             );
-            assert_eq!(body.headers.len(), 2);
+            assert_eq!(
+                body,
+                Body::Parsed(Box::new(Mail {
+                    headers: [
+                        ("from", "a b <a@b>"),
+                        ("date", "tue, 30 nov 2021 20:54:27 +0100"),
+                    ]
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect::<Vec<_>>(),
+                    body: BodyType::Regular(vec!["mail content wow".to_string()])
+                }))
+            );
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
@@ -69,6 +76,7 @@ async fn reset_helo() {
             "DATA\r\n",
             "from: a b <a@b>\r\n",
             "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+            "\r\n",
             "mail content wow\r\n",
             ".\r\n"
         ]
@@ -145,13 +153,7 @@ async fn reset_rcpt_to_ok() {
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
-            let body = match mail.body {
-                Body::Empty => panic!("mail cannot be empty"),
-                Body::Parsed(parsed) => parsed,
-                Body::Raw(raw) => {
-                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
-                }
-            };
+            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo2");
             assert_eq!(mail.envelop.mail_from.full(), "d@e");
@@ -159,7 +161,13 @@ async fn reset_rcpt_to_ok() {
                 mail.envelop.rcpt,
                 vec![Address::try_from("b@c".to_string()).unwrap().into()]
             );
-            assert!(body.headers.is_empty());
+            assert_eq!(
+                body,
+                Body::Parsed(Box::new(Mail {
+                    headers: vec![],
+                    body: BodyType::Undefined
+                }))
+            );
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
@@ -231,13 +239,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
-            let body = match mail.body {
-                Body::Empty => panic!("mail cannot be empty"),
-                Body::Parsed(parsed) => parsed,
-                Body::Raw(raw) => {
-                    Box::new(MailMimeParser::default().parse(raw.as_bytes()).unwrap())
-                }
-            };
+            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");
             assert_eq!(
@@ -247,7 +250,19 @@ async fn reset_rcpt_to_multiple_rcpt() {
                     Address::try_from("toto3@bar".to_string()).unwrap().into()
                 ]
             );
-            assert_eq!(body.headers.len(), 2);
+            assert_eq!(
+                body,
+                Body::Parsed(Box::new(Mail {
+                    headers: [
+                        ("from", "foo2 foo <foo2@foo>"),
+                        ("date", "tue, 30 nov 2021 20:54:27 +0100"),
+                    ]
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect::<Vec<_>>(),
+                    body: BodyType::Undefined
+                }))
+            );
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
             Ok(())
         }
