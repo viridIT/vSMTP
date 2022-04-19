@@ -33,6 +33,7 @@ fn parse() {
                 }
             })
             .with_system_dns()
+            .without_virtual_entries()
             .validate()
             .unwrap()
     );

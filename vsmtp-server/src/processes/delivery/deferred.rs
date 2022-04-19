@@ -12,10 +12,13 @@ use vsmtp_common::{
 };
 use vsmtp_config::{log_channel::DELIVER, Config};
 
-pub async fn flush_deferred_queue(config: &Config, dns: &TokioAsyncResolver) -> anyhow::Result<()> {
+pub async fn flush_deferred_queue(
+    config: &Config,
+    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
+) -> anyhow::Result<()> {
     let dir_entries = std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)?;
     for path in dir_entries {
-        if let Err(e) = handle_one_in_deferred_queue(config, dns, &path?.path()).await {
+        if let Err(e) = handle_one_in_deferred_queue(config, resolvers, &path?.path()).await {
             log::warn!("{}", e);
         }
     }
@@ -28,7 +31,7 @@ pub async fn flush_deferred_queue(config: &Config, dns: &TokioAsyncResolver) -> 
 //       https://www.postfix.org/QSHAPE_README.html#queues
 async fn handle_one_in_deferred_queue(
     config: &Config,
-    dns: &TokioAsyncResolver,
+    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
     path: &std::path::Path,
 ) -> anyhow::Result<()> {
     let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
@@ -57,7 +60,7 @@ async fn handle_one_in_deferred_queue(
     //       check if it is true or not.
     ctx.envelop.rcpt = send_email(
         config,
-        dns,
+        resolvers,
         metadata,
         &ctx.envelop.mail_from,
         &ctx.envelop.rcpt,
@@ -113,7 +116,7 @@ mod tests {
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
-    use vsmtp_config::build_dns;
+    use vsmtp_config::build_resolvers;
     use vsmtp_test::config;
 
     #[tokio::test]
@@ -132,7 +135,7 @@ mod tests {
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
-                        mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
+                        mail_from: Address::try_from("from@testserver.com".to_string()).unwrap(),
                         rcpt: vec![
                             Rcpt {
                                 address: Address::try_from("to+1@client.com".to_string()).unwrap(),
@@ -156,11 +159,11 @@ mod tests {
             )
             .unwrap();
 
-        let dns = build_dns(&config).unwrap();
+        let resolvers = build_resolvers(&config).unwrap();
 
         handle_one_in_deferred_queue(
             &config,
-            &dns,
+            &resolvers,
             &config.server.queues.dirpath.join("deferred/test"),
         )
         .await
@@ -173,7 +176,7 @@ mod tests {
                 client_addr: "127.0.0.1:80".parse().unwrap(),
                 envelop: Envelop {
                     helo: "client.com".to_string(),
-                    mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
+                    mail_from: Address::try_from("from@testserver.com".to_string()).unwrap(),
                     rcpt: vec![
                         Rcpt {
                             address: Address::try_from("to+1@client.com".to_string()).unwrap(),

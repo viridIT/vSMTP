@@ -25,8 +25,10 @@ time = { version = "0.3.9", default-features = false, features = [
 ] }
 
 users = { version = "0.11.0", features = [] }
-trust-dns-resolver = "0.21.2"
-
+trust-dns-resolver = { version = "0.21.2", features = [
+    "dns-over-rustls",
+    "dnssec-openssl",
+] }
 lettre = { version = "0.10.0-rc.5", default-features = false, features = [
     "smtp-transport",
     "pool",
@@ -34,6 +36,8 @@ lettre = { version = "0.10.0-rc.5", default-features = false, features = [
     "tokio1-rustls-tls",
     "tracing",
 ] }
+
+tokio = { version = "1.17.0", default-features = false, features = ["macros"] }
 
 [dev-dependencies]
 tokio = { version = "1.17.0", features = [

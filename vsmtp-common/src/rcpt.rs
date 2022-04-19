@@ -86,6 +86,24 @@ pub fn filter_by_transfer_method(rcpt: &[Rcpt]) -> std::collections::HashMap<Tra
     output
 }
 
+/// filter recipients by domain name using mutable reference on the recipients.
+#[must_use]
+pub fn filter_by_domain_mut(
+    rcpt: &mut [Rcpt],
+) -> std::collections::HashMap<String, Vec<&mut Rcpt>> {
+    rcpt.iter_mut()
+        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
+            #[allow(clippy::option_if_let_else)]
+            if let Some(domain) = acc.get_mut(rcpt.address.domain()) {
+                domain.push(rcpt);
+            } else {
+                acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
+            }
+
+            acc
+        })
+}
+
 #[cfg(test)]
 mod test {
 
@@ -94,42 +112,44 @@ mod test {
 
     use super::{filter_by_transfer_method, Rcpt};
 
+    fn get_test_rcpt() -> Vec<Rcpt> {
+        vec![
+            Rcpt::with_transfer_method(
+                Address::try_from("green@foo.com".to_string()).unwrap(),
+                Transfer::None,
+            ),
+            Address::try_from("john@doe.com".to_string())
+                .unwrap()
+                .into(),
+            Address::try_from("green@foo.com".to_string())
+                .unwrap()
+                .into(),
+            Rcpt::with_transfer_method(
+                Address::try_from("green@bar.com".to_string()).unwrap(),
+                Transfer::None,
+            ),
+            Rcpt::with_transfer_method(
+                Address::try_from("john@localhost".to_string()).unwrap(),
+                Transfer::Mbox,
+            ),
+            Rcpt::with_transfer_method(
+                Address::try_from("green@localhost".to_string()).unwrap(),
+                Transfer::Mbox,
+            ),
+            Rcpt::with_transfer_method(
+                Address::try_from("satan@localhost".to_string()).unwrap(),
+                Transfer::Mbox,
+            ),
+            Rcpt::with_transfer_method(
+                Address::try_from("user@localhost".to_string()).unwrap(),
+                Transfer::Maildir,
+            ),
+        ]
+    }
+
     #[test]
     fn test_filter_by_transfer_method() {
-        let filtered = filter_by_transfer_method(
-            &vec![
-                Rcpt::with_transfer_method(
-                    Address::try_from("green@foo.com".to_string()).unwrap(),
-                    Transfer::None,
-                ),
-                Address::try_from("john@doe.com".to_string())
-                    .unwrap()
-                    .into(),
-                Address::try_from("green@foo.com".to_string())
-                    .unwrap()
-                    .into(),
-                Rcpt::with_transfer_method(
-                    Address::try_from("green@bar.com".to_string()).unwrap(),
-                    Transfer::None,
-                ),
-                Rcpt::with_transfer_method(
-                    Address::try_from("john@localhost".to_string()).unwrap(),
-                    Transfer::Mbox,
-                ),
-                Rcpt::with_transfer_method(
-                    Address::try_from("green@localhost".to_string()).unwrap(),
-                    Transfer::Mbox,
-                ),
-                Rcpt::with_transfer_method(
-                    Address::try_from("satan@localhost".to_string()).unwrap(),
-                    Transfer::Mbox,
-                ),
-                Rcpt::with_transfer_method(
-                    Address::try_from("user@localhost".to_string()).unwrap(),
-                    Transfer::Maildir,
-                ),
-            ][..],
-        );
+        let filtered = filter_by_transfer_method(&get_test_rcpt()[..]);
 
         assert!(filtered
             .get(&Transfer::None)
@@ -155,5 +175,36 @@ mod test {
             .iter()
             .all(|rcpt| rcpt.transfer_method == Transfer::Maildir));
         assert_eq!(filtered.get(&Transfer::Maildir).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_filter_by_domain_mut() {
+        let mut rcpt = get_test_rcpt();
+        let filtered = super::filter_by_domain_mut(&mut rcpt);
+
+        assert!(filtered
+            .get("foo.com")
+            .unwrap()
+            .iter()
+            .all(|rcpt| rcpt.address.domain() == "foo.com"));
+        assert_eq!(filtered.get("foo.com").unwrap().len(), 2);
+        assert!(filtered
+            .get("doe.com")
+            .unwrap()
+            .iter()
+            .all(|rcpt| rcpt.address.domain() == "doe.com"));
+        assert_eq!(filtered.get("doe.com").unwrap().len(), 1);
+        assert!(filtered
+            .get("bar.com")
+            .unwrap()
+            .iter()
+            .all(|rcpt| rcpt.address.domain() == "bar.com"));
+        assert_eq!(filtered.get("bar.com").unwrap().len(), 1);
+        assert!(filtered
+            .get("localhost")
+            .unwrap()
+            .iter()
+            .all(|rcpt| rcpt.address.domain() == "localhost"));
+        assert_eq!(filtered.get("localhost").unwrap().len(), 4);
     }
 }

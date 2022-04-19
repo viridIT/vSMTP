@@ -55,6 +55,7 @@ macro_rules! assert_mechanism_list {
             .with_default_app_logs()
             .without_services()
             .with_system_dns()
+            .without_virtual_entries()
             .validate()
             .unwrap();
 

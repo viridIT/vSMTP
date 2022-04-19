@@ -61,6 +61,7 @@ async fn listen_and_serve() {
         .with_app_logs_at("./tmp/stress/app.log")
         .without_services()
         .with_system_dns()
+        .without_virtual_entries()
         .validate()
         .unwrap();
 

@@ -45,21 +45,19 @@ impl Transport for Forward {
         let envelop = super::build_lettre_envelop(from, &to[..])
             .context("failed to build envelop to forward email")?;
 
-        for destination in dns.lookup_ip(&self.0).await?.iter() {
-            match send_email(config, from, &destination.to_string(), &envelop, content).await {
-                Ok(()) => {
-                    to.iter_mut()
-                        .for_each(|rcpt| rcpt.email_status = EmailTransferStatus::Sent);
-                    return Ok(());
-                }
-                Err(err) => {
-                    log::debug!(
-                        target: vsmtp_config::log_channel::DELIVER,
-                        "failed to forward email to '{}': {}",
-                        destination,
-                        err
-                    );
-                }
+        match send_email(config, dns, from, &self.0, &envelop, content).await {
+            Ok(()) => {
+                to.iter_mut()
+                    .for_each(|rcpt| rcpt.email_status = EmailTransferStatus::Sent);
+                return Ok(());
+            }
+            Err(err) => {
+                log::debug!(
+                    target: vsmtp_config::log_channel::DELIVER,
+                    "failed to forward email to '{}': {}",
+                    &self.0,
+                    err
+                );
             }
         }
 
@@ -76,6 +74,7 @@ impl Transport for Forward {
 
 async fn send_email(
     config: &Config,
+    resolver: &TokioAsyncResolver,
     from: &vsmtp_common::address::Address,
     target: &str,
     envelop: &lettre::address::Envelope,
@@ -83,7 +82,7 @@ async fn send_email(
 ) -> anyhow::Result<()> {
     lettre::AsyncTransport::send_raw(
         // TODO: transport should be cached.
-        &crate::transport::build_transport(config, from, target)?,
+        &crate::transport::build_transport(config, resolver, from, target)?,
         envelop,
         content.as_bytes(),
     )

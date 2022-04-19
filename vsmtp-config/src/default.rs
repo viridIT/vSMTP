@@ -7,7 +7,8 @@ use crate::{
         ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPAuth, ConfigServerSMTPError,
         ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
     },
-    Config, ConfigServerTls, Service,
+    Config, ConfigServerTls, ConfigServerVirtualTls, ResolverOptsWrapper, Service,
+    TlsSecurityLevel,
 };
 use vsmtp_common::{
     auth::Mechanism,
@@ -39,6 +40,7 @@ impl Default for ConfigServer {
             tls: None,
             smtp: ConfigServerSMTP::default(),
             dns: ConfigServerDNS::default(),
+            r#virtual: std::collections::BTreeMap::default(),
         }
     }
 }
@@ -69,7 +71,7 @@ impl ConfigServerSystem {
             Some(_) => "root",
             None => "vsmtp",
         })
-        .unwrap()
+        .expect("user 'vsmtp' not found")
     }
 
     pub(crate) fn default_group() -> users::Group {
@@ -77,7 +79,7 @@ impl ConfigServerSystem {
             Some(_) => "root",
             None => "vsmtp",
         })
-        .unwrap()
+        .expect("user 'vsmtp' not found")
     }
 }
 
@@ -207,6 +209,12 @@ impl Default for ConfigQueueDelivery {
     }
 }
 
+impl ConfigServerVirtualTls {
+    pub(crate) const fn default_sender_security_level() -> TlsSecurityLevel {
+        TlsSecurityLevel::Encrypt
+    }
+}
+
 impl Default for ConfigServerSMTPAuth {
     fn default() -> Self {
         Self {
@@ -326,6 +334,54 @@ impl ConfigServerSMTP {
 impl Default for ConfigServerDNS {
     fn default() -> Self {
         Self::System
+    }
+}
+
+impl Default for ResolverOptsWrapper {
+    fn default() -> Self {
+        Self {
+            timeout: Self::default_timeout(),
+            attempts: Self::default_attempts(),
+            rotate: Self::default_rotate(),
+            dnssec: Self::default_dnssec(),
+            ip_strategy: Self::default_ip_strategy(),
+            cache_size: Self::default_cache_size(),
+            use_hosts_file: Self::default_use_hosts_file(),
+            num_concurrent_reqs: Self::default_num_concurrent_reqs(),
+        }
+    }
+}
+
+impl ResolverOptsWrapper {
+    pub(crate) const fn default_timeout() -> std::time::Duration {
+        std::time::Duration::from_secs(5)
+    }
+
+    pub(crate) const fn default_attempts() -> usize {
+        2
+    }
+    pub(crate) const fn default_rotate() -> bool {
+        false
+    }
+
+    pub(crate) const fn default_dnssec() -> bool {
+        false
+    }
+
+    pub(crate) fn default_ip_strategy() -> trust_dns_resolver::config::LookupIpStrategy {
+        trust_dns_resolver::config::LookupIpStrategy::default()
+    }
+
+    pub(crate) const fn default_cache_size() -> usize {
+        32
+    }
+
+    pub(crate) const fn default_use_hosts_file() -> bool {
+        true
+    }
+
+    pub(crate) const fn default_num_concurrent_reqs() -> usize {
+        2
     }
 }
 

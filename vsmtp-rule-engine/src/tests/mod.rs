@@ -69,6 +69,7 @@ pub mod helpers {
             .with_default_app_logs()
             .without_services()
             .with_system_dns()
+            .without_virtual_entries()
             .validate()
             .unwrap();
 

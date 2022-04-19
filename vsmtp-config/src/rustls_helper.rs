@@ -1,6 +1,6 @@
 use vsmtp_common::re::{anyhow, log};
 
-use crate::config::ConfigServerTls;
+use crate::{config::ConfigServerTls, ConfigServerVirtual};
 
 struct TlsLogger;
 impl rustls::KeyLog for TlsLogger {
@@ -33,7 +33,10 @@ static ALL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
     &[&rustls::version::TLS13, &rustls::version::TLS12];
 
 #[doc(hidden)]
-pub fn get_rustls_config(config: &ConfigServerTls) -> anyhow::Result<rustls::ServerConfig> {
+pub fn get_rustls_config(
+    config: &ConfigServerTls,
+    virtual_entries: &std::collections::BTreeMap<String, ConfigServerVirtual>,
+) -> anyhow::Result<rustls::ServerConfig> {
     let protocol_version = match (
         config
             .protocol_version
@@ -58,16 +61,16 @@ pub fn get_rustls_config(config: &ConfigServerTls) -> anyhow::Result<rustls::Ser
         .map_err(|e| anyhow::anyhow!("cannot initialize tls config: '{e}'"))?
         .with_client_cert_verifier(rustls::server::NoClientAuth::new())
         .with_cert_resolver(std::sync::Arc::new(CertResolver {
-            sni_resolver: config.sni.iter().fold(
+            sni_resolver: virtual_entries.iter().fold(
                 anyhow::Ok(rustls::server::ResolvesServerCertUsingSni::new()),
-                |sni_resolver, sni| {
+                |sni_resolver, (_, entry)| {
                     let mut sni_resolver = sni_resolver?;
                     sni_resolver
                         .add(
-                            &sni.domain,
+                            &entry.domain,
                             rustls::sign::CertifiedKey {
-                                cert: vec![sni.certificate.clone()],
-                                key: rustls::sign::any_supported_type(&sni.private_key)?,
+                                cert: vec![entry.tls.certificate.clone()],
+                                key: rustls::sign::any_supported_type(&entry.tls.private_key)?,
                                 ocsp: None,
                                 sct_list: None,
                             },

@@ -20,7 +20,8 @@ impl Builder<WantsValidate> {
     ///
     /// *
     pub fn validate(self) -> anyhow::Result<Config> {
-        let dns = self.state;
+        let virtual_entries = self.state;
+        let dns = virtual_entries.parent;
         let app_services = dns.parent;
         let app_logs = app_services.parent;
         let app_vsl = app_logs.parent;
@@ -89,6 +90,7 @@ impl Builder<WantsValidate> {
                     auth: auth.auth,
                 },
                 dns: dns.config,
+                r#virtual: virtual_entries.r#virtual,
             },
             app: ConfigApp {
                 dirpath: app.dirpath,
@@ -230,6 +232,7 @@ mod tests {
             .with_default_app_logs()
             .without_services()
             .with_system_dns()
+            .without_virtual_entries()
             .validate();
         assert!(config.is_ok(), "{:?}", config);
     }

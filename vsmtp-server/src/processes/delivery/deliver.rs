@@ -13,14 +13,16 @@ use vsmtp_common::{
 use vsmtp_config::{log_channel::DELIVER, Config};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
+/// read all entries from the deliver queue & tries to send them.
 pub async fn flush_deliver_queue(
     config: &Config,
-    dns: &TokioAsyncResolver,
+    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
     let dir_entries = std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)?;
     for path in dir_entries {
-        if let Err(e) = handle_one_in_delivery_queue(config, dns, &path?.path(), rule_engine).await
+        if let Err(e) =
+            handle_one_in_delivery_queue(config, resolvers, &path?.path(), rule_engine).await
         {
             log::warn!("{}", e);
         }
@@ -30,6 +32,12 @@ pub async fn flush_deliver_queue(
 }
 
 /// handle and send one email pulled from the delivery queue.
+///
+/// # Args
+/// * `config` - the server's config.
+/// * `resolvers` - a list of dns with their associated domains.
+/// * `path` - the path to the message file.
+/// * `rule_engine` - an instance of the rule engine.
 ///
 /// # Errors
 /// * failed to open the email.
@@ -42,7 +50,7 @@ pub async fn flush_deliver_queue(
 /// # Panics
 pub async fn handle_one_in_delivery_queue(
     config: &Config,
-    dns: &TokioAsyncResolver,
+    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
@@ -89,7 +97,7 @@ pub async fn handle_one_in_delivery_queue(
 
             ctx.envelop.rcpt = send_email(
                 config,
-                dns,
+                resolvers,
                 metadata,
                 &ctx.envelop.mail_from,
                 &ctx.envelop.rcpt,
@@ -122,7 +130,7 @@ mod tests {
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
-    use vsmtp_config::build_dns;
+    use vsmtp_config::build_resolvers;
     use vsmtp_rule_engine::rule_engine::RuleEngine;
     use vsmtp_test::config;
 
@@ -133,7 +141,7 @@ mod tests {
 
         let now = std::time::SystemTime::now();
 
-        let dns = build_dns(&config).unwrap();
+        let resolvers = build_resolvers(&config).unwrap();
 
         Queue::Deliver
             .write_to_queue(
@@ -143,7 +151,7 @@ mod tests {
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
-                        mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
+                        mail_from: Address::try_from("from@testserver.com".to_string()).unwrap(),
                         rcpt: vec![
                             Rcpt {
                                 address: Address::try_from("to+1@client.com".to_string()).unwrap(),
@@ -173,7 +181,7 @@ mod tests {
 
         handle_one_in_delivery_queue(
             &config,
-            &dns,
+            &resolvers,
             &Queue::Deliver
                 .to_path(&config.server.queues.dirpath)
                 .unwrap()

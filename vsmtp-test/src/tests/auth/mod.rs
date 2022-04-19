@@ -20,6 +20,7 @@ pub fn safe_auth_config() -> Config {
         .with_default_app_logs()
         .without_services()
         .with_system_dns()
+        .without_virtual_entries()
         .validate()
         .unwrap()
 }
@@ -44,6 +45,7 @@ pub fn unsafe_auth_config() -> Config {
         .with_default_app_logs()
         .without_services()
         .with_system_dns()
+        .without_virtual_entries()
         .validate()
         .unwrap()
 }

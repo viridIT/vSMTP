@@ -71,7 +71,10 @@ impl Server {
             listener_submission: tokio::net::TcpListener::from_std(sockets.1)?,
             listener_submissions: tokio::net::TcpListener::from_std(sockets.2)?,
             tls_config: if let Some(smtps) = &config.server.tls {
-                Some(std::sync::Arc::new(get_rustls_config(smtps)?))
+                Some(std::sync::Arc::new(get_rustls_config(
+                    smtps,
+                    &config.server.r#virtual,
+                )?))
             } else {
                 None
             },

@@ -37,6 +37,7 @@ pub fn get_tls_config() -> Config {
         .with_default_app_logs()
         .without_services()
         .with_system_dns()
+        .without_virtual_entries()
         .validate()
         .unwrap()
 }
@@ -69,7 +70,11 @@ async fn test_starttls(
             server_config.clone(),
             if with_valid_config {
                 Some(std::sync::Arc::new(
-                    get_rustls_config(server_config.server.tls.as_ref().unwrap()).unwrap(),
+                    get_rustls_config(
+                        server_config.server.tls.as_ref().unwrap(),
+                        &server_config.server.r#virtual,
+                    )
+                    .unwrap(),
                 ))
             } else {
                 None

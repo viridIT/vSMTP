@@ -59,8 +59,9 @@ fn parse() {
 
                     cfg
                 },
-                trust_dns_resolver::config::ResolverOpts::default()
+                crate::ResolverOptsWrapper::default()
             )
+            .without_virtual_entries()
             .validate()
             .unwrap()
     );

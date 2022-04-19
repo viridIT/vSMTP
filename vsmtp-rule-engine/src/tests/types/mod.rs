@@ -21,7 +21,7 @@ use crate::{
 use vsmtp_common::{
     address::Address, collection, mail_context::Body, state::StateSMTP, status::Status,
 };
-use vsmtp_config::{Config, Service};
+use vsmtp_config::{builder::VirtualEntry, Config, Service};
 
 #[test]
 fn test_status() {
@@ -115,6 +115,7 @@ fn test_services() {
             args: Some("test".to_string()),
         }})
         .with_system_dns()
+        .without_virtual_entries()
         .validate()
         .unwrap();
 
@@ -146,7 +147,7 @@ fn test_config_display() {
         .with_app_at_location("./tmp/app")
         .with_vsl("./tmp/nothing")
         .with_default_app_logs()
-        .with_services(collection! {"shell".to_string() => Service::UnixShell {
+        .with_services(collection! {"my_shell".to_string() => Service::UnixShell {
             timeout: std::time::Duration::from_secs(2),
             user: None,
             group: None,
@@ -154,6 +155,19 @@ fn test_config_display() {
             args: Some("test".to_string()),
         }})
         .with_system_dns()
+        .with_virtual_entries(&[VirtualEntry {
+            name: "example".to_string(),
+            domain: "domain@example.com".to_string(),
+            certificate_path: root_example!["../config/tls/certificate.crt"]
+                .to_str()
+                .unwrap()
+                .to_string(),
+            private_key_path: root_example!["../config/tls/private_key.key"]
+                .to_str()
+                .unwrap()
+                .to_string(),
+        }])
+        .unwrap()
         .validate()
         .unwrap();
 

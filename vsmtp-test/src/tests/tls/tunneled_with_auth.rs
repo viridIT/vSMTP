@@ -28,6 +28,7 @@ fn get_tls_auth_config() -> Config {
         .with_default_app_logs()
         .without_services()
         .with_system_dns()
+        .without_virtual_entries()
         .validate()
         .unwrap()
 }
@@ -73,7 +74,11 @@ async fn simple() {
         20456,
         |config| {
             Some(std::sync::Arc::new(
-                get_rustls_config(config.server.tls.as_ref().unwrap()).unwrap(),
+                get_rustls_config(
+                    config.server.tls.as_ref().unwrap(),
+                    &config.server.r#virtual,
+                )
+                .unwrap(),
             ))
         },
         |_| {

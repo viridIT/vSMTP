@@ -99,36 +99,37 @@ pub mod transport {
     /// TODO: resulting transport should be cached.
     fn build_transport(
         config: &Config,
+        // will be used for tlsa record resolving.
+        _: &TokioAsyncResolver,
         from: &vsmtp_common::address::Address,
         target: &str,
     ) -> anyhow::Result<lettre::AsyncSmtpTransport<Tokio1Executor>> {
-        let parameters =
-            lettre::transport::smtp::client::TlsParameters::builder(target.to_string())
-                .add_root_certificate(
-                    // from's domain could match the root domain of the server.
-                    if config.server.domain == from.domain() {
-                        lettre::transport::smtp::client::Certificate::from_der(
-                            config.server.tls.as_ref().unwrap().certificate.0.clone(),
-                        )
-                        .context("failed to parse certificate as der")?
-                    }
-                    // or a domain from one of the sni.
-                    else if let Some(sni) = config
-                        .server
-                        .tls
-                        .as_ref()
-                        .and_then(|tls| tls.sni.iter().find(|sni| sni.domain == from.domain()))
-                    {
-                        lettre::transport::smtp::client::Certificate::from_der(
-                            sni.certificate.0.clone(),
-                        )
-                        .context("failed to parse certificate as der")?
-                    } else {
-                        anyhow::bail!("no certificate found for '{}'", from.domain());
-                    },
+        let tls_builder =
+            lettre::transport::smtp::client::TlsParameters::builder(target.to_string());
+
+        // from's domain could match the root domain of the server.
+        let tls_parameters =
+            if config.server.domain == from.domain() && config.server.tls.is_some() {
+                tls_builder.add_root_certificate(
+                    lettre::transport::smtp::client::Certificate::from_der(
+                        config.server.tls.as_ref().unwrap().certificate.0.clone(),
+                    )
+                    .context("failed to parse certificate as der")?,
                 )
-                .build_rustls()
-                .context("failed to build tls parameters")?;
+            }
+            // or a domain from one of the virtual domains.
+            else if let Some(domain_config) = config.server.r#virtual.get(from.domain()) {
+                tls_builder.add_root_certificate(
+                    lettre::transport::smtp::client::Certificate::from_der(
+                        domain_config.tls.certificate.0.clone(),
+                    )
+                    .context("failed to parse certificate as der")?,
+                )
+            } else {
+                tls_builder
+            }
+            .build_rustls()
+            .context("failed to build tls parameters")?;
 
         Ok(
             lettre::AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target)
@@ -137,10 +138,25 @@ pub mod transport {
                 ))
                 .port(lettre::transport::smtp::SMTP_PORT)
                 .tls(lettre::transport::smtp::client::Tls::Opportunistic(
-                    parameters,
+                    tls_parameters,
                 ))
                 .build(),
         )
+    }
+
+    /// fetch mx records for a specific domain and order them by priority.
+    async fn get_mx_records(
+        resolver: &trust_dns_resolver::TokioAsyncResolver,
+        query: &str,
+    ) -> anyhow::Result<Vec<trust_dns_resolver::proto::rr::rdata::MX>> {
+        let mut records_by_priority = resolver
+            .mx_lookup(query)
+            .await?
+            .into_iter()
+            .collect::<Vec<_>>();
+        records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
+
+        Ok(records_by_priority)
     }
 }
 

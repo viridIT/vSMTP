@@ -16,7 +16,7 @@
 **/
 use super::get_tls_config;
 use crate::tests::tls::test_tls_tunneled;
-use vsmtp_config::{get_rustls_config, ConfigServerTlsSni, TlsSecurityLevel};
+use vsmtp_config::{get_rustls_config, ConfigServerVirtual, TlsSecurityLevel};
 use vsmtp_server::re::tokio;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
@@ -55,7 +55,11 @@ async fn simple() {
         20466,
         |config| {
             Some(std::sync::Arc::new(
-                get_rustls_config(config.server.tls.as_ref().unwrap()).unwrap(),
+                get_rustls_config(
+                    config.server.tls.as_ref().unwrap(),
+                    &config.server.r#virtual,
+                )
+                .unwrap(),
             ))
         },
         |_| None,
@@ -91,7 +95,11 @@ async fn starttls_under_tunnel() {
         20467,
         |config| {
             Some(std::sync::Arc::new(
-                get_rustls_config(config.server.tls.as_ref().unwrap()).unwrap(),
+                get_rustls_config(
+                    config.server.tls.as_ref().unwrap(),
+                    &config.server.r#virtual,
+                )
+                .unwrap(),
             ))
         },
         |_| None,
@@ -128,8 +136,9 @@ async fn config_ill_formed() {
 async fn sni() {
     let mut config = get_tls_config();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
-    config.server.tls.as_mut().unwrap().sni.push(
-        ConfigServerTlsSni::from_path(
+    config.server.r#virtual.insert(
+        "second".to_string(),
+        ConfigServerVirtual::with_tls(
             "second.testserver.com",
             "./src/tests/certs/sni/second.certificate.crt",
             "./src/tests/certs/sni/second.privateKey.key",
@@ -155,7 +164,11 @@ async fn sni() {
         20469,
         |config| {
             Some(std::sync::Arc::new(
-                get_rustls_config(config.server.tls.as_ref().unwrap()).unwrap(),
+                get_rustls_config(
+                    config.server.tls.as_ref().unwrap(),
+                    &config.server.r#virtual,
+                )
+                .unwrap(),
             ))
         },
         |_| None,

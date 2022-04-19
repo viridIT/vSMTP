@@ -58,11 +58,11 @@ pub async fn start(
         "vDeliver (delivery) booting, flushing queue.",
     );
 
-    let dns = std::sync::Arc::new(
-        vsmtp_config::build_dns(&config).context("could not initialize the delivery dns")?,
+    let resolvers = std::sync::Arc::new(
+        vsmtp_config::build_resolvers(&config).context("could not initialize dns for delivery")?,
     );
 
-    flush_deliver_queue(&config, &dns, &rule_engine).await?;
+    flush_deliver_queue(&config, &resolvers, &rule_engine).await?;
 
     let mut flush_deferred_interval =
         tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
@@ -70,11 +70,9 @@ pub async fn start(
     loop {
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
-                // FIXME: transports are mutable, so must be in a mutex
-                // for a delivery in a separated thread...
                 let copy_config = config.clone();
                 let copy_rule_engine = rule_engine.clone();
-                let copy_dns = dns.clone();
+                let copy_resolvers = resolvers.clone();
                 tokio::spawn(async move {
                     let path = match Queue::Deliver.to_path(&copy_config.server.queues.dirpath) {
                         Ok(path) => path,
@@ -83,7 +81,7 @@ pub async fn start(
 
                     if let Err(error) = handle_one_in_delivery_queue(
                         &copy_config,
-                        &copy_dns,
+                        &copy_resolvers,
                         &std::path::PathBuf::from_iter([
                             path,
                             std::path::Path::new(&pm.message_id).to_path_buf(),
@@ -104,7 +102,7 @@ pub async fn start(
                     target: DELIVER,
                     "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
                 );
-                flush_deferred_queue(&config, &dns).await?;
+                flush_deferred_queue(&config, &resolvers).await?;
             }
         };
     }
@@ -115,12 +113,21 @@ pub async fn start(
 /// recipients tagged with the Sent email_status are discarded.
 async fn send_email(
     config: &Config,
-    dns: &TokioAsyncResolver,
+    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
     metadata: &vsmtp_common::mail_context::MessageMetadata,
     from: &vsmtp_common::address::Address,
     to: &[vsmtp_common::rcpt::Rcpt],
     body: &Body,
 ) -> anyhow::Result<Vec<vsmtp_common::rcpt::Rcpt>> {
+    // getting the dns configured for right domain / virtual domain.
+    let resolver = if from.domain() == config.server.domain {
+        resolvers.get(&config.server.domain).unwrap()
+    } else if let Some(resolver) = resolvers.get(from.domain()) {
+        resolver
+    } else {
+        anyhow::bail!("no dns configured for {from}");
+    };
+
     // filtering recipients by domains and delivery method.
     let mut triage = vsmtp_common::rcpt::filter_by_transfer_method(to);
 
@@ -144,7 +151,7 @@ async fn send_email(
         };
 
         transport
-            .deliver(config, dns, metadata, from, &mut rcpt[..], &content)
+            .deliver(config, resolver, metadata, from, &mut rcpt[..], &content)
             .await
             .with_context(|| {
                 format!("failed to deliver email using '{method}' for group '{rcpt:?}'")
@@ -160,8 +167,8 @@ async fn send_email(
         .collect::<Vec<_>>())
 }
 
+// FIXME: could be optimized by checking both conditions with the same iterator.
 /// copy the message into the deferred / dead queue if any recipient is held back or have failed delivery.
-/// FIXME: could be optimized by checking both conditions with the same iterator.
 fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
     if ctx
         .envelop

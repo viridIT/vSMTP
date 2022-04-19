@@ -14,13 +14,13 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::Transport;
+use super::{get_mx_records, Transport};
 
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MessageMetadata,
-    rcpt::Rcpt,
+    rcpt::{filter_by_domain_mut, Rcpt},
     re::{anyhow, log},
     transfer::EmailTransferStatus,
 };
@@ -44,9 +44,9 @@ impl Transport for Deliver {
         let envelop = super::build_lettre_envelop(from, &to[..])
             .context("failed to build envelop to deliver email")?;
 
-        let mut to = rcpt_by_domain(to);
+        let mut filtered_rcpt = filter_by_domain_mut(to);
 
-        for (query, rcpt) in &mut to {
+        for (query, rcpt) in &mut filtered_rcpt {
             // getting mx records for a set of recipients.
             let records = match get_mx_records(dns, query).await {
                 Ok(records) => records,
@@ -73,14 +73,11 @@ impl Transport for Deliver {
 
             let mut records = records.iter();
 
-            // we try to deliver the email to the recipients of the current group using found mail exchangers.
             for record in records.by_ref() {
-                for destination in dns.lookup_ip(&record.exchange().to_ascii()).await?.iter() {
-                    if (send_email(config, &destination.to_string(), &envelop, from, content).await)
-                        .is_ok()
-                    {
-                        break;
-                    }
+                let host = record.exchange().to_ascii();
+                if (send_email(config, dns, &host, &envelop, from, content).await).is_ok() {
+                    // if a transfer succeeded, we can stop the lookup.
+                    break;
                 }
             }
 
@@ -110,38 +107,10 @@ impl Transport for Deliver {
     }
 }
 
-/// filter recipients by domain name.
-fn rcpt_by_domain(rcpt: &mut [Rcpt]) -> std::collections::HashMap<String, Vec<&mut Rcpt>> {
-    rcpt.iter_mut()
-        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-            if acc.contains_key(rcpt.address.domain()) {
-                acc.get_mut(rcpt.address.domain()).unwrap().push(rcpt);
-            } else {
-                acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
-            }
-
-            acc
-        })
-}
-
-/// fetch mx records for a specific domain.
-async fn get_mx_records(
-    resolver: &trust_dns_resolver::TokioAsyncResolver,
-    query: &str,
-) -> anyhow::Result<Vec<trust_dns_resolver::proto::rr::rdata::MX>> {
-    let mut records_by_priority = resolver
-        .mx_lookup(query)
-        .await?
-        .into_iter()
-        .collect::<Vec<_>>();
-    records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
-
-    Ok(records_by_priority)
-}
-
 /// send an email using [lettre].
 async fn send_email(
     config: &Config,
+    resolver: &TokioAsyncResolver,
     target: &str,
     envelop: &lettre::address::Envelope,
     from: &vsmtp_common::address::Address,
@@ -149,7 +118,7 @@ async fn send_email(
 ) -> anyhow::Result<()> {
     lettre::AsyncTransport::send_raw(
         // TODO: transport should be cached.
-        &crate::transport::build_transport(config, from, target)?,
+        &crate::transport::build_transport(config, resolver, from, target)?,
         envelop,
         content.as_bytes(),
     )
@@ -161,6 +130,7 @@ async fn send_email(
 #[cfg(test)]
 mod test {
 
+    use trust_dns_resolver::TokioAsyncResolver;
     use vsmtp_common::address::Address;
     use vsmtp_config::{Config, ConfigServerDNS};
 
@@ -173,20 +143,23 @@ mod test {
         // FIXME: find a way to guarantee that the mx records exists.
         let mut config = Config::default();
         config.server.dns = ConfigServerDNS::System;
-        let dns = vsmtp_config::build_dns(&config).unwrap();
+        let resolvers = vsmtp_config::build_resolvers(&config).unwrap();
+        let dns = resolvers.get(&config.server.domain).unwrap();
 
-        get_mx_records(&dns, "google.com")
+        get_mx_records(dns, "google.com")
             .await
             .expect("couldn't find any mx records for google.com");
 
-        assert!(get_mx_records(&dns, "invalid_query").await.is_err());
+        assert!(get_mx_records(dns, "invalid_query").await.is_err());
     }
 
     #[tokio::test]
     async fn test_delivery() {
+        let config = Config::default();
         // NOTE: for this to return ok, we would need to setup a test server running locally.
         assert!(send_email(
-            &Config::default(),
+            &config,
+            &TokioAsyncResolver::tokio_from_system_conf().unwrap(),
             "localhost",
             &lettre::address::Envelope::new(
                 Some("a@a.a".parse().unwrap()),

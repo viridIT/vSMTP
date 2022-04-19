@@ -62,6 +62,8 @@ pub struct ConfigServer {
     pub smtp: ConfigServerSMTP,
     #[serde(default)]
     pub dns: ConfigServerDNS,
+    #[serde(default)]
+    pub r#virtual: std::collections::BTreeMap<String, ConfigServerVirtual>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -154,9 +156,36 @@ pub struct ConfigServerQueues {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerTlsSni {
-    // TODO: parse valid fqdn
+pub struct ConfigServerVirtual {
     pub domain: String,
+    pub tls: ConfigServerVirtualTls,
+    pub dns: ConfigServerDNS,
+}
+
+impl ConfigServerVirtual {
+    ///
+    ///
+    /// # Errors
+    ///
+    /// * certificate is not valid
+    /// * private key is not valid
+    pub fn with_tls(domain: &str, certificate: &str, private_key: &str) -> anyhow::Result<Self> {
+        Ok(Self {
+            domain: domain.to_string(),
+            tls: ConfigServerVirtualTls::from_path(certificate, private_key)?,
+            dns: ConfigServerDNS::default(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigServerVirtualTls {
+    #[serde(
+        serialize_with = "crate::parser::tls_protocol_version::serialize",
+        deserialize_with = "crate::parser::tls_protocol_version::deserialize"
+    )]
+    pub protocol_version: Vec<rustls::ProtocolVersion>,
     #[serde(
         serialize_with = "crate::parser::tls_certificate::serialize",
         deserialize_with = "crate::parser::tls_certificate::deserialize"
@@ -167,20 +196,23 @@ pub struct ConfigServerTlsSni {
         deserialize_with = "crate::parser::tls_private_key::deserialize"
     )]
     pub private_key: rustls::PrivateKey,
+    #[serde(default = "ConfigServerVirtualTls::default_sender_security_level")]
+    pub sender_security_level: TlsSecurityLevel,
 }
 
-impl ConfigServerTlsSni {
-    ///
+impl ConfigServerVirtualTls {
+    /// create a virtual tls configuration from the certificate & private key paths.
     ///
     /// # Errors
     ///
-    /// * certificate is not valid
-    /// * private key is not valid
-    pub fn from_path(domain: &str, certificate: &str, private_key: &str) -> anyhow::Result<Self> {
+    /// * certificate file not found.
+    /// * private key file not found.
+    pub fn from_path(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
         Ok(Self {
-            domain: domain.to_string(),
+            protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
             certificate: tls_certificate::from_string(certificate)?,
             private_key: tls_private_key::from_string(private_key)?,
+            sender_security_level: ConfigServerVirtualTls::default_sender_security_level(),
         })
     }
 }
@@ -194,6 +226,8 @@ pub enum TlsSecurityLevel {
     May,
     /// Connection must be under a TLS tunnel (using STARTTLS mechanism or using port 465)
     Encrypt,
+    /// DANE protocol using TLSA dns records to establish a secure connexion with a distant server.
+    Dane { port: u16 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -224,8 +258,6 @@ pub struct ConfigServerTls {
         deserialize_with = "crate::parser::tls_private_key::deserialize"
     )]
     pub private_key: rustls::PrivateKey,
-    #[serde(default)]
-    pub sni: Vec<ConfigServerTlsSni>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -292,14 +324,47 @@ pub enum ConfigServerDNS {
     #[serde(rename = "system")]
     System,
     #[serde(rename = "google")]
-    Google,
+    Google { options: ResolverOptsWrapper },
     #[serde(rename = "cloudflare")]
-    CloudFlare,
+    CloudFlare { options: ResolverOptsWrapper },
     #[serde(rename = "custom")]
     Custom {
         config: trust_dns_resolver::config::ResolverConfig,
-        options: trust_dns_resolver::config::ResolverOpts,
+        options: ResolverOptsWrapper,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct ResolverOptsWrapper {
+    /// Specify the timeout for a request. Defaults to 5 seconds
+    #[serde(with = "humantime_serde")]
+    #[serde(default = "ResolverOptsWrapper::default_timeout")]
+    pub timeout: std::time::Duration,
+    /// Number of retries after lookup failure before giving up. Defaults to 2
+    #[serde(default = "ResolverOptsWrapper::default_attempts")]
+    pub attempts: usize,
+    /// Rotate through the resource records in the response (if there is more than one for a given name)
+    #[serde(default = "ResolverOptsWrapper::default_rotate")]
+    pub rotate: bool,
+    /// Use DNSSec to validate the request
+    #[serde(default = "ResolverOptsWrapper::default_dnssec")]
+    pub dnssec: bool,
+    /// The ip_strategy for the Resolver to use when lookup Ipv4 or Ipv6 addresses
+    #[serde(default = "ResolverOptsWrapper::default_ip_strategy")]
+    pub ip_strategy: trust_dns_resolver::config::LookupIpStrategy,
+    /// Cache size is in number of records (some records can be large)
+    #[serde(default = "ResolverOptsWrapper::default_cache_size")]
+    pub cache_size: usize,
+    /// Check /ect/hosts file before dns requery (only works for unix like OS)
+    #[serde(default = "ResolverOptsWrapper::default_use_hosts_file")]
+    pub use_hosts_file: bool,
+    /// Number of concurrent requests per query
+    ///
+    /// Where more than one nameserver is configured, this configures the resolver to send queries
+    /// to a number of servers in parallel. Defaults to 2; 0 or 1 will execute requests serially.
+    #[serde(default = "ResolverOptsWrapper::default_num_concurrent_reqs")]
+    pub num_concurrent_reqs: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
