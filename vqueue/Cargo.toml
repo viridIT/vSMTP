@@ -18,5 +18,5 @@ rust-version = "1.58"
 vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
 vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
 
-clap = { version = "3.1.9", features = ["derive"] }
+clap = { version = "3.1.10", features = ["derive"] }
 itertools = "0.10.3"

@@ -230,9 +230,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.1.9"
+version = "3.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aad2534fad53df1cc12519c5cda696dd3e20e6118a027e24054aea14a0bdcbe"
+checksum = "3124f3f75ce09e22d1410043e1e24f2ecc44fad3afe4f08408f1f7663d68da2b"
 dependencies = [
  "atty",
  "bitflags",
@@ -2094,7 +2094,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vqueue"
 version = "0.10.0"
 dependencies = [
- "clap 3.1.9",
+ "clap 3.1.10",
  "itertools",
  "vsmtp-common",
  "vsmtp-config",
@@ -2104,7 +2104,7 @@ dependencies = [
 name = "vsmtp"
 version = "0.10.0"
 dependencies = [
- "clap 3.1.9",
+ "clap 3.1.10",
  "diff",
  "vsmtp-common",
  "vsmtp-config",
