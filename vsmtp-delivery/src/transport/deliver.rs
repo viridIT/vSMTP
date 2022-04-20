@@ -27,15 +27,23 @@ use vsmtp_common::{
 use vsmtp_config::Config;
 
 /// the email will be forwarded to another mail exchanger via mx record resolution & smtp.
-#[derive(Default)]
-pub struct Deliver;
+pub struct Deliver<'r> {
+    resolver: &'r TokioAsyncResolver,
+}
+
+impl<'r> Deliver<'r> {
+    /// create a new deliver with a resolver to get data from the distant dns server.
+    #[must_use]
+    pub const fn new(resolver: &'r TokioAsyncResolver) -> Self {
+        Self { resolver }
+    }
+}
 
 #[async_trait::async_trait]
-impl Transport for Deliver {
+impl<'r> Transport for Deliver<'r> {
     async fn deliver(
         &mut self,
         config: &Config,
-        dns: &TokioAsyncResolver,
         metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
@@ -48,7 +56,7 @@ impl Transport for Deliver {
 
         for (query, rcpt) in &mut filtered_rcpt {
             // getting mx records for a set of recipients.
-            let records = match get_mx_records(dns, query).await {
+            let records = match get_mx_records(self.resolver, query).await {
                 Ok(records) => records,
                 Err(err) => {
                     log::warn!(
@@ -75,7 +83,8 @@ impl Transport for Deliver {
 
             for record in records.by_ref() {
                 let host = record.exchange().to_ascii();
-                if (send_email(config, dns, &host, &envelop, from, content).await).is_ok() {
+                if (send_email(config, self.resolver, &host, &envelop, from, content).await).is_ok()
+                {
                     // if a transfer succeeded, we can stop the lookup.
                     break;
                 }

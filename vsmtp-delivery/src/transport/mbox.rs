@@ -17,7 +17,6 @@
 use super::Transport;
 
 use anyhow::Context;
-use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     libc_abstraction::chown,
     mail_context::MessageMetadata,
@@ -42,7 +41,6 @@ impl Transport for MBox {
     async fn deliver(
         &mut self,
         _: &Config,
-        _: &TokioAsyncResolver,
         metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],

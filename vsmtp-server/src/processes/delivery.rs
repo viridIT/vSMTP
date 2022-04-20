@@ -119,15 +119,6 @@ async fn send_email(
     to: &[vsmtp_common::rcpt::Rcpt],
     body: &Body,
 ) -> anyhow::Result<Vec<vsmtp_common::rcpt::Rcpt>> {
-    // getting the dns configured for right domain / virtual domain.
-    let resolver = if from.domain() == config.server.domain {
-        resolvers.get(&config.server.domain).unwrap()
-    } else if let Some(resolver) = resolvers.get(from.domain()) {
-        resolver
-    } else {
-        anyhow::bail!("no dns configured for {from}");
-    };
-
     // filtering recipients by domains and delivery method.
     let mut triage = vsmtp_common::rcpt::filter_by_transfer_method(to);
 
@@ -143,15 +134,25 @@ async fn send_email(
 
     for (method, rcpt) in &mut triage {
         let mut transport: Box<dyn Transport + Send> = match method {
-            Transfer::Forward(to) => Box::new(forward::Forward(to.clone())),
-            Transfer::Deliver => Box::new(deliver2::Deliver),
+            Transfer::Forward(to) => Box::new(forward::Forward::new(
+                to,
+                resolvers
+                    .get(to)
+                    .ok_or_else(|| anyhow::anyhow!("no dns configured for {to}"))?,
+            )),
+            Transfer::Deliver => Box::new(deliver2::Deliver::new({
+                let domain = rcpt[0].address.domain();
+                resolvers
+                    .get(domain)
+                    .ok_or_else(|| anyhow::anyhow!("no dns configured for {domain}"))?
+            })),
             Transfer::Mbox => Box::new(mbox::MBox),
             Transfer::Maildir => Box::new(maildir::Maildir),
             Transfer::None => continue,
         };
 
         transport
-            .deliver(config, resolver, metadata, from, &mut rcpt[..], &content)
+            .deliver(config, metadata, from, &mut rcpt[..], &content)
             .await
             .with_context(|| {
                 format!("failed to deliver email using '{method}' for group '{rcpt:?}'")

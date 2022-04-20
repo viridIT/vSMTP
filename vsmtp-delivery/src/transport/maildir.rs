@@ -17,7 +17,6 @@
 use super::Transport;
 
 use anyhow::Context;
-use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
     mail_context::MessageMetadata,
@@ -38,7 +37,6 @@ impl Transport for Maildir {
     async fn deliver(
         &mut self,
         _: &Config,
-        _: &TokioAsyncResolver,
         metadata: &MessageMetadata,
         _: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
@@ -66,8 +64,10 @@ impl Transport for Maildir {
             } else {
                 log::error!(
                     target: DELIVER,
-                    "failed to write email '{}' in maildir of '{rcpt}': '{rcpt}' is not a user",
-                    metadata.message_id
+                    "failed to write email '{}' in maildir of '{}': '{}' is not a user",
+                    metadata.message_id,
+                    rcpt.address.local_part(),
+                    rcpt.address.local_part()
                 );
 
                 rcpt.email_status = match rcpt.email_status {
