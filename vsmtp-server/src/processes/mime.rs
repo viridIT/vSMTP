@@ -238,5 +238,71 @@ mod tests {
         .unwrap();
 
         assert_eq!(delivery_receiver.recv().await.unwrap().message_id, "test");
+        assert!(!std::path::PathBuf::from("./tmp/working/test").exists());
+        assert!(std::path::PathBuf::from("./tmp/deliver/test").exists());
+    }
+
+    #[tokio::test]
+    async fn denied() {
+        let mut config = config::local_test();
+        config.server.queues.dirpath = "./tmp".into();
+
+        Queue::Working
+            .write_to_queue(
+                &config.server.queues.dirpath,
+                &MailContext {
+                    connection_timestamp: std::time::SystemTime::now(),
+                    client_addr: "127.0.0.1:80".parse().unwrap(),
+                    envelop: Envelop {
+                        helo: "client.com".to_string(),
+                        mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
+                        rcpt: vec![
+                            Rcpt {
+                                address: Address::try_from("to+1@client.com".to_string()).unwrap(),
+                                transfer_method: Transfer::Deliver,
+                                email_status: EmailTransferStatus::Waiting,
+                            },
+                            Rcpt {
+                                address: Address::try_from("to+2@client.com".to_string()).unwrap(),
+                                transfer_method: Transfer::Maildir,
+                                email_status: EmailTransferStatus::Waiting,
+                            },
+                        ],
+                    },
+                    body: Body::Raw("Date: bar\r\nFrom: foo\r\nHello world\r\n".to_string()),
+                    metadata: Some(MessageMetadata {
+                        timestamp: std::time::SystemTime::now(),
+                        message_id: "test_denied".to_string(),
+                        skipped: None,
+                    }),
+                },
+            )
+            .unwrap();
+
+        let (delivery_sender, _delivery_receiver) =
+            tokio::sync::mpsc::channel::<ProcessMessage>(10);
+
+        let config = std::sync::Arc::new(config);
+
+        handle_one_in_working_queue(
+            config.clone(),
+            std::sync::Arc::new(std::sync::RwLock::new(
+                RuleEngine::from_script(
+                    &config,
+                    &format!("#{{ {}: [ rule \"\" || vsl::deny() ] }}", StateSMTP::PostQ),
+                )
+                .context("failed to initialize the engine")
+                .unwrap(),
+            )),
+            ProcessMessage {
+                message_id: "test_denied".to_string(),
+            },
+            delivery_sender,
+        )
+        .await
+        .unwrap();
+
+        assert!(!std::path::PathBuf::from("./tmp/working/test_denied").exists());
+        assert!(std::path::PathBuf::from("./tmp/dead/test_denied").exists());
     }
 }
