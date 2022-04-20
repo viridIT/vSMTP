@@ -42,7 +42,6 @@ pub mod transport {
         async fn deliver(
             &mut self,
             config: &Config,
-            dns: &TokioAsyncResolver,
             metadata: &MessageMetadata,
             from: &Address,
             to: &mut [Rcpt],
@@ -67,7 +66,6 @@ pub mod transport {
         async fn deliver(
             &mut self,
             _: &Config,
-            _: &TokioAsyncResolver,
             _: &MessageMetadata,
             _: &Address,
             _: &mut [Rcpt],

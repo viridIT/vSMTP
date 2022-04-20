@@ -28,15 +28,27 @@ use vsmtp_common::{
 use vsmtp_config::Config;
 
 /// the email will be directly delivered to the server, without mx lookup.
-#[derive(Default)]
-pub struct Forward(pub String);
+pub struct Forward<'r> {
+    to: String,
+    resolver: &'r TokioAsyncResolver,
+}
+
+impl<'r> Forward<'r> {
+    /// create a new deliver with a resolver to get data from the distant dns server.
+    #[must_use]
+    pub fn new<S: ToString>(to: &S, resolver: &'r TokioAsyncResolver) -> Self {
+        Self {
+            to: to.to_string(),
+            resolver,
+        }
+    }
+}
 
 #[async_trait::async_trait]
-impl Transport for Forward {
+impl<'r> Transport for Forward<'r> {
     async fn deliver(
         &mut self,
         config: &Config,
-        dns: &TokioAsyncResolver,
         _: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
@@ -45,7 +57,7 @@ impl Transport for Forward {
         let envelop = super::build_lettre_envelop(from, &to[..])
             .context("failed to build envelop to forward email")?;
 
-        match send_email(config, dns, from, &self.0, &envelop, content).await {
+        match send_email(config, self.resolver, from, &self.to, &envelop, content).await {
             Ok(()) => {
                 to.iter_mut()
                     .for_each(|rcpt| rcpt.email_status = EmailTransferStatus::Sent);
@@ -55,7 +67,7 @@ impl Transport for Forward {
                 log::debug!(
                     target: vsmtp_config::log_channel::DELIVER,
                     "failed to forward email to '{}': {}",
-                    &self.0,
+                    &self.to,
                     err
                 );
             }
@@ -68,7 +80,7 @@ impl Transport for Forward {
             };
         }
 
-        anyhow::bail!("failed to forward email to '{}'", self.0)
+        anyhow::bail!("failed to forward email to '{}'", self.to)
     }
 }
 
