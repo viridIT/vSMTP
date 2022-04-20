@@ -138,13 +138,13 @@ async fn send_email(
                 to,
                 resolvers
                     .get(to)
-                    .ok_or_else(|| anyhow::anyhow!("no dns configured for {to}"))?,
+                    .unwrap_or_else(|| resolvers.get(&config.server.domain).unwrap()),
             )),
             Transfer::Deliver => Box::new(deliver2::Deliver::new({
                 let domain = rcpt[0].address.domain();
                 resolvers
                     .get(domain)
-                    .ok_or_else(|| anyhow::anyhow!("no dns configured for {domain}"))?
+                    .unwrap_or_else(|| resolvers.get(&config.server.domain).unwrap())
             })),
             Transfer::Mbox => Box::new(mbox::MBox),
             Transfer::Maildir => Box::new(maildir::Maildir),
