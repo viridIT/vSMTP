@@ -236,3 +236,80 @@ impl Server {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_test::config;
+
+    use crate::{ProcessMessage, Server};
+
+    macro_rules! listen_with {
+        ($addr:expr, $addr_submission:expr, $addr_submissions:expr, $timeout:expr) => {{
+            let config = std::sync::Arc::new({
+                let mut config = config::local_test();
+                config.server.interfaces.addr = $addr;
+                config.server.interfaces.addr_submission = $addr_submission;
+                config.server.interfaces.addr_submissions = $addr_submissions;
+                config
+            });
+
+            let delivery = tokio::sync::mpsc::channel::<ProcessMessage>(
+                config.server.queues.delivery.channel_size,
+            );
+
+            let working = tokio::sync::mpsc::channel::<ProcessMessage>(
+                config.server.queues.working.channel_size,
+            );
+
+            let mut s = Server::new(
+                config.clone(),
+                (
+                    std::net::TcpListener::bind(&config.server.interfaces.addr[..]).unwrap(),
+                    std::net::TcpListener::bind(&config.server.interfaces.addr_submission[..])
+                        .unwrap(),
+                    std::net::TcpListener::bind(&config.server.interfaces.addr_submissions[..])
+                        .unwrap(),
+                ),
+                std::sync::Arc::new(std::sync::RwLock::new(
+                    RuleEngine::new(&config, &None).unwrap(),
+                )),
+                working.0,
+                delivery.0,
+            )
+            .unwrap();
+
+            println!("{:?}", s.addr());
+
+            assert_eq!(
+                s.addr(),
+                [
+                    config.server.interfaces.addr.clone(),
+                    config.server.interfaces.addr_submission.clone(),
+                    config.server.interfaces.addr_submissions.clone()
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+            );
+
+            tokio::time::timeout(
+                std::time::Duration::from_millis($timeout),
+                s.listen_and_serve(),
+            )
+            .await
+            .unwrap_err();
+        }};
+    }
+
+    #[tokio::test]
+    async fn basic() {
+        listen_with![
+            vec!["0.0.0.0:10026".parse().unwrap()],
+            vec!["0.0.0.0:10588".parse().unwrap()],
+            vec!["0.0.0.0:10466".parse().unwrap()],
+            10
+        ];
+    }
+}

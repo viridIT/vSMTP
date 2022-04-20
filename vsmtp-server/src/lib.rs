@@ -10,9 +10,6 @@
 //
 #![allow(clippy::doc_markdown)]
 
-#[cfg(test)]
-mod tests;
-
 mod channel_message;
 mod receiver;
 mod runtime;

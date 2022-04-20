@@ -85,8 +85,9 @@ pub fn execute(args: Args, config: &Config) -> anyhow::Result<()> {
             } else {
                 queues
             },
-            config,
+            &config.server.queues.dirpath,
             empty_token,
+            &mut std::io::stdout(),
         ),
         Commands::Msg { msg, command } => match command {
             MessageCommand::Show { format } => msg_command::show::show(

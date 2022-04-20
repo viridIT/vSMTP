@@ -42,43 +42,44 @@ mod tests {
         transfer::{EmailTransferStatus, Transfer},
     };
 
+    fn get_mail(msg_id: &str) -> MailContext {
+        MailContext {
+            connection_timestamp: std::time::SystemTime::now(),
+            client_addr: "0.0.0.0:25".parse().unwrap(),
+            envelop: Envelop {
+                helo: "toto".to_string(),
+                mail_from: Address::try_from("foo@domain.com".to_string()).unwrap(),
+                rcpt: vec![Rcpt {
+                    address: Address::try_from("foo+1@domain.com".to_string()).unwrap(),
+                    transfer_method: Transfer::Mbox,
+                    email_status: EmailTransferStatus::Waiting,
+                }],
+            },
+            body: Body::Parsed(Box::new(Mail {
+                headers: [
+                    ("from", "foo2 foo <foo2@foo>"),
+                    ("date", "tue, 30 nov 2021 20:54:27 +0100"),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect::<Vec<_>>(),
+                body: BodyType::Regular(vec!["Hello World!!".to_string()]),
+            })),
+            metadata: Some(MessageMetadata {
+                timestamp: std::time::SystemTime::now(),
+                message_id: msg_id.to_string(),
+                skipped: None,
+            }),
+        }
+    }
+
     #[test]
     fn eml() {
         let queues_dirpath = "./tmp/cmd_show";
         let msg_id = "titi";
 
         Queue::Working
-            .write_to_queue(
-                &std::path::PathBuf::from(queues_dirpath),
-                &MailContext {
-                    connection_timestamp: std::time::SystemTime::now(),
-                    client_addr: "0.0.0.0:25".parse().unwrap(),
-                    envelop: Envelop {
-                        helo: "toto".to_string(),
-                        mail_from: Address::try_from("foo@domain.com".to_string()).unwrap(),
-                        rcpt: vec![Rcpt {
-                            address: Address::try_from("foo+1@domain.com".to_string()).unwrap(),
-                            transfer_method: Transfer::Mbox,
-                            email_status: EmailTransferStatus::Waiting,
-                        }],
-                    },
-                    body: Body::Parsed(Box::new(Mail {
-                        headers: [
-                            ("from", "foo2 foo <foo2@foo>"),
-                            ("date", "tue, 30 nov 2021 20:54:27 +0100"),
-                        ]
-                        .into_iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect::<Vec<_>>(),
-                        body: BodyType::Regular(vec!["Hello World!!".to_string()]),
-                    })),
-                    metadata: Some(MessageMetadata {
-                        timestamp: std::time::SystemTime::now(),
-                        message_id: msg_id.to_string(),
-                        skipped: None,
-                    }),
-                },
-            )
+            .write_to_queue(&std::path::PathBuf::from(queues_dirpath), &get_mail(msg_id))
             .unwrap();
 
         let mut output = vec![];
@@ -100,6 +101,33 @@ mod tests {
                 "Hello World!!",
             ]
             .concat()
+        );
+    }
+
+    #[test]
+    fn json() {
+        let queues_dirpath = "./tmp/cmd_show";
+        let msg_id = "tutu";
+
+        let mail = get_mail(msg_id);
+
+        Queue::Working
+            .write_to_queue(&std::path::PathBuf::from(queues_dirpath), &mail)
+            .unwrap();
+
+        let mut output = vec![];
+
+        show(
+            msg_id,
+            &MessageShowFormat::Json,
+            &std::path::PathBuf::from(queues_dirpath),
+            &mut output,
+        )
+        .unwrap();
+
+        pretty_assertions::assert_eq!(
+            std::str::from_utf8(&output).unwrap(),
+            serde_json::to_string_pretty(&mail).unwrap()
         );
     }
 }
