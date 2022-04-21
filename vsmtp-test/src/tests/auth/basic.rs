@@ -5,11 +5,11 @@ use crate::{
 use vsmtp_common::{
     address::Address,
     mail_context::MailContext,
-    re::{anyhow, rsasl},
+    re::{anyhow, base64, rsasl},
 };
 use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
-use vsmtp_server::{auth, re::base64, OnMail};
+use vsmtp_server::{auth, OnMail};
 
 #[tokio::test]
 async fn plain_in_clair_secured() {

@@ -28,6 +28,5 @@ pub use server::Server;
 
 /// re-exported module
 pub mod re {
-    pub use base64;
     pub use tokio;
 }

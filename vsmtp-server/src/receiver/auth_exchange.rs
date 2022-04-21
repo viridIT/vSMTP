@@ -4,7 +4,7 @@ use super::Connection;
 use vsmtp_common::{
     auth::Mechanism,
     code::SMTPReplyCode,
-    re::{anyhow, log, rsasl},
+    re::{anyhow, base64, log, rsasl},
 };
 
 /// Result of the AUTH command

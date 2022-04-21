@@ -1,4 +1,4 @@
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::{anyhow, base64};
 
 pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
     let path = std::path::Path::new(&input);
@@ -46,5 +46,16 @@ pub fn serialize<S>(this: &rustls::Certificate, serializer: S) -> Result<S::Ok, 
 where
     S: serde::Serializer,
 {
-    serializer.serialize_bytes(&this.0)
+    let cert = base64::encode(&this.0)
+        .chars()
+        .collect::<Vec<_>>()
+        .chunks(64)
+        .map(|c| c.iter().collect::<String>())
+        .collect::<Vec<_>>();
+
+    let mut seq = serializer.serialize_seq(Some(cert.len()))?;
+    for i in cert {
+        serde::ser::SerializeSeq::serialize_element(&mut seq, &i)?;
+    }
+    serde::ser::SerializeSeq::end(seq)
 }

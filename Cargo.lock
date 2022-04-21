@@ -2118,6 +2118,7 @@ version = "0.10.1"
 dependencies = [
  "addr",
  "anyhow",
+ "base64",
  "libc",
  "log",
  "rsasl",
@@ -2191,7 +2192,6 @@ name = "vsmtp-server"
 version = "0.10.1"
 dependencies = [
  "async-trait",
- "base64",
  "criterion",
  "fastrand",
  "lazy_static",

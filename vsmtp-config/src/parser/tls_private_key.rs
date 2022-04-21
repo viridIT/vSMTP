@@ -1,4 +1,4 @@
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::{anyhow, base64};
 
 pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
     let path = std::path::Path::new(input);
@@ -14,10 +14,10 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
             rustls_pemfile::Item::RSAKey(i)
             | rustls_pemfile::Item::X509Certificate(i)
             | rustls_pemfile::Item::PKCS8Key(i)
-            | rustls_pemfile::Item::ECKey(i) => rustls::PrivateKey(i),
-            _ => todo!(),
+            | rustls_pemfile::Item::ECKey(i) => Ok(rustls::PrivateKey(i)),
+            _ => Err(anyhow::anyhow!("private key is valid but not supported")),
         })
-        .collect::<Vec<_>>();
+        .collect::<anyhow::Result<Vec<_>>>()?;
 
     pem.first()
         .cloned()
@@ -52,5 +52,16 @@ pub fn serialize<S>(this: &rustls::PrivateKey, serializer: S) -> Result<S::Ok, S
 where
     S: serde::Serializer,
 {
-    serializer.serialize_bytes(&this.0)
+    let key = base64::encode(&this.0)
+        .chars()
+        .collect::<Vec<_>>()
+        .chunks(64)
+        .map(|c| c.iter().collect::<String>())
+        .collect::<Vec<_>>();
+
+    let mut seq = serializer.serialize_seq(Some(key.len()))?;
+    for i in key {
+        serde::ser::SerializeSeq::serialize_element(&mut seq, &i)?;
+    }
+    serde::ser::SerializeSeq::end(seq)
 }
