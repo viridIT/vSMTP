@@ -88,7 +88,7 @@ impl<'r> Transport for Deliver<'r> {
                     Ok(_) => break,
                     Err(err) => log::warn!(
                         target: vsmtp_config::log_channel::DELIVER,
-                        "[deliver({})] failed to send message from '{from}' to '{host}': {err}",
+                        "[deliver({})] failed to send message from '{from}' to '{rcpt:?}': {err}",
                         metadata.message_id
                     ),
                 }
