@@ -2169,6 +2169,7 @@ version = "0.10.2"
 dependencies = [
  "pretty_assertions",
  "vsmtp-common",
+ "vsmtp-config",
 ]
 
 [[package]]
