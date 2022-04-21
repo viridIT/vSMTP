@@ -61,7 +61,7 @@ impl<'r> Transport for Deliver<'r> {
                 Err(err) => {
                     log::warn!(
                         target: vsmtp_config::log_channel::DELIVER,
-                        "failed to deliver email '{}' to '{query}': {err}",
+                        "[deliver({})] failed to get mx records for '{query}' ({rcpt:?}): {err}",
                         metadata.message_id
                     );
 
@@ -88,7 +88,8 @@ impl<'r> Transport for Deliver<'r> {
                     Ok(_) => break,
                     Err(err) => log::warn!(
                         target: vsmtp_config::log_channel::DELIVER,
-                        "[deliver] failed to send message to '{host}': {err}",
+                        "[deliver({})] failed to send message from '{from}' to '{host}': {err}",
+                        metadata.message_id
                     ),
                 }
             }
@@ -96,8 +97,8 @@ impl<'r> Transport for Deliver<'r> {
             if records.next().is_none() {
                 log::error!(
                     target: vsmtp_config::log_channel::DELIVER,
-                    "[deliver] no valid mail exchanger found for '{}', check warnings above.",
-                    query
+                    "[deliver({})] no valid mail exchanger found for '{query}', check warnings above.",
+                    metadata.message_id
                 );
 
                 for rcpt in rcpt.iter_mut() {
