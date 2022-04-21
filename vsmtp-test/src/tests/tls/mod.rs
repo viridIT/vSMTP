@@ -2,8 +2,8 @@ mod starttls;
 mod tunneled;
 mod tunneled_with_auth;
 
-const TEST_SERVER_CERT: &str = "./src/tests/certs/certificate.crt";
-const TEST_SERVER_KEY: &str = "./src/tests/certs/privateKey.key";
+const TEST_SERVER_CERT: &str = "src/template/certs/certificate.crt";
+const TEST_SERVER_KEY: &str = "src/template/certs/private_key.rsa.key";
 
 use vsmtp_common::re::anyhow;
 use vsmtp_config::{

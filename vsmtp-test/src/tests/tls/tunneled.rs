@@ -139,8 +139,8 @@ async fn sni() {
     config.server.r#virtual.insert(
         "second.testserver.com".to_string(),
         ConfigServerVirtual::with_tls(
-            "./src/tests/certs/sni/second.certificate.crt",
-            "./src/tests/certs/sni/second.privateKey.key",
+            "src/template/certs/sni/second.certificate.crt",
+            "src/template/certs/sni/second.private_key.rsa.key",
         )
         .unwrap(),
     );
