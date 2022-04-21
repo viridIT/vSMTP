@@ -42,6 +42,7 @@ where
     deserializer.deserialize_any(CertificateVisitor)
 }
 
+#[allow(dead_code)]
 pub fn serialize<S>(this: &rustls::Certificate, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
@@ -67,7 +68,7 @@ mod tests {
     use vsmtp_common::re::serde_json;
     use vsmtp_test::get_tls_file;
 
-    #[derive(serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
     struct S {
         #[serde(
             serialize_with = "crate::parser::tls_certificate::serialize",
@@ -87,5 +88,15 @@ mod tests {
             .unwrap();
 
         serde_json::from_str::<S>(r#"{"v": "./tmp/crt"}"#).unwrap();
+    }
+
+    #[test]
+    fn not_a_string() {
+        serde_json::from_str::<S>(r#"{"v": 10}"#).unwrap_err();
+    }
+
+    #[test]
+    fn not_valid_path() {
+        serde_json::from_str::<S>(r#"{"v": "foobar"}"#).unwrap_err();
     }
 }

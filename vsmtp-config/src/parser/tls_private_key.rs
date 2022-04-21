@@ -12,7 +12,6 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
         .into_iter()
         .map(|i| match i {
             rustls_pemfile::Item::RSAKey(i)
-            | rustls_pemfile::Item::X509Certificate(i)
             | rustls_pemfile::Item::PKCS8Key(i)
             | rustls_pemfile::Item::ECKey(i) => Ok(rustls::PrivateKey(i)),
             _ => Err(anyhow::anyhow!("private key is valid but not supported")),
@@ -48,6 +47,7 @@ where
     deserializer.deserialize_any(PrivateKeyVisitor)
 }
 
+#[allow(dead_code)]
 pub fn serialize<S>(this: &rustls::PrivateKey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
@@ -64,4 +64,83 @@ where
         serde::ser::SerializeSeq::serialize_element(&mut seq, &i)?;
     }
     serde::ser::SerializeSeq::end(seq)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use vsmtp_common::re::serde_json;
+    use vsmtp_test::get_tls_file;
+
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    struct S {
+        #[serde(
+            serialize_with = "crate::parser::tls_private_key::serialize",
+            deserialize_with = "crate::parser::tls_private_key::deserialize"
+        )]
+        v: rustls::PrivateKey,
+    }
+
+    #[test]
+    fn rsa_ok() {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open("./tmp/rsa_key")
+            .unwrap();
+        file.write_all(get_tls_file::get_rsa_key().as_bytes())
+            .unwrap();
+
+        serde_json::from_str::<S>(r#"{"v": "./tmp/rsa_key"}"#).unwrap();
+    }
+
+    #[test]
+    fn pkcs8_ok() {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open("./tmp/pkcs8_key")
+            .unwrap();
+        file.write_all(get_tls_file::get_pkcs8_key().as_bytes())
+            .unwrap();
+
+        serde_json::from_str::<S>(r#"{"v": "./tmp/pkcs8_key"}"#).unwrap();
+    }
+
+    #[test]
+    fn ec256_ok() {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open("./tmp/ec256_key")
+            .unwrap();
+        file.write_all(get_tls_file::get_ec256_key().as_bytes())
+            .unwrap();
+
+        serde_json::from_str::<S>(r#"{"v": "./tmp/ec256_key"}"#).unwrap();
+    }
+
+    #[test]
+    fn not_good_format() {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open("./tmp/crt2")
+            .unwrap();
+        file.write_all(get_tls_file::get_certificate().as_bytes())
+            .unwrap();
+
+        serde_json::from_str::<S>(r#"{"v": "./tmp/crt2"}"#).unwrap_err();
+    }
+
+    #[test]
+    fn not_a_string() {
+        serde_json::from_str::<S>(r#"{"v": 10}"#).unwrap_err();
+    }
+
+    #[test]
+    fn not_valid_path() {
+        serde_json::from_str::<S>(r#"{"v": "foobar"}"#).unwrap_err();
+    }
 }

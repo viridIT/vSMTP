@@ -185,14 +185,16 @@ pub struct ConfigServerVirtualTls {
     )]
     pub protocol_version: Vec<rustls::ProtocolVersion>,
     #[serde(
-        serialize_with = "crate::parser::tls_certificate::serialize",
+        // serialize_with = "crate::parser::tls_certificate::serialize",
         deserialize_with = "crate::parser::tls_certificate::deserialize"
     )]
+    #[serde(skip_serializing)]
     pub certificate: rustls::Certificate,
     #[serde(
-        serialize_with = "crate::parser::tls_private_key::serialize",
+        // serialize_with = "crate::parser::tls_private_key::serialize",
         deserialize_with = "crate::parser::tls_private_key::deserialize"
     )]
+    #[serde(skip_serializing)]
     pub private_key: rustls::PrivateKey,
     #[serde(default = "ConfigServerVirtualTls::default_sender_security_level")]
     pub sender_security_level: TlsSecurityLevel,
@@ -247,14 +249,16 @@ pub struct ConfigServerTls {
     )]
     pub cipher_suite: Vec<rustls::CipherSuite>,
     #[serde(
-        serialize_with = "crate::parser::tls_certificate::serialize",
+        // serialize_with = "crate::parser::tls_certificate::serialize",
         deserialize_with = "crate::parser::tls_certificate::deserialize"
     )]
+    #[serde(skip_serializing)]
     pub certificate: rustls::Certificate,
     #[serde(
-        serialize_with = "crate::parser::tls_private_key::serialize",
+        // serialize_with = "crate::parser::tls_private_key::serialize",
         deserialize_with = "crate::parser::tls_private_key::deserialize"
     )]
+    #[serde(skip_serializing)]
     pub private_key: rustls::PrivateKey,
 }
 
