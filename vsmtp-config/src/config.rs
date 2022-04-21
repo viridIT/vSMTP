@@ -157,12 +157,21 @@ pub struct ConfigServerQueues {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerVirtual {
-    pub tls: ConfigServerVirtualTls,
-    pub dns: ConfigServerDNS,
+    pub tls: Option<ConfigServerVirtualTls>,
+    pub dns: Option<ConfigServerDNS>,
 }
 
 impl ConfigServerVirtual {
-    ///
+    /// create a new virtual domain using the root domain parameters.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            tls: None,
+            dns: None,
+        }
+    }
+
+    /// create a new virtual domain with tls parameters.
     ///
     /// # Errors
     ///
@@ -170,8 +179,38 @@ impl ConfigServerVirtual {
     /// * private key is not valid
     pub fn with_tls(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
         Ok(Self {
-            tls: ConfigServerVirtualTls::from_path(certificate, private_key)?,
-            dns: ConfigServerDNS::default(),
+            tls: Some(ConfigServerVirtualTls::from_path(certificate, private_key)?),
+            dns: None,
+        })
+    }
+
+    /// create a new virtual domain with a dns config.
+    ///
+    /// # Errors
+    ///
+    /// * certificate is not valid
+    /// * private key is not valid
+    pub const fn with_dns(dns_config: ConfigServerDNS) -> anyhow::Result<Self> {
+        Ok(Self {
+            tls: None,
+            dns: Some(dns_config),
+        })
+    }
+
+    /// create a new virtual domain with a dns & tls parameters.
+    ///
+    /// # Errors
+    ///
+    /// * certificate is not valid
+    /// * private key is not valid
+    pub fn with_tls_and_dns(
+        certificate: &str,
+        private_key: &str,
+        dns_config: ConfigServerDNS,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            tls: Some(ConfigServerVirtualTls::from_path(certificate, private_key)?),
+            dns: Some(dns_config),
         })
     }
 }
@@ -322,12 +361,19 @@ pub enum ConfigServerDNS {
     #[serde(rename = "system")]
     System,
     #[serde(rename = "google")]
-    Google { options: ResolverOptsWrapper },
+    Google {
+        #[serde(default)]
+        options: ResolverOptsWrapper,
+    },
     #[serde(rename = "cloudflare")]
-    CloudFlare { options: ResolverOptsWrapper },
+    CloudFlare {
+        #[serde(default)]
+        options: ResolverOptsWrapper,
+    },
     #[serde(rename = "custom")]
     Custom {
         config: trust_dns_resolver::config::ResolverConfig,
+        #[serde(default)]
         options: ResolverOptsWrapper,
     },
 }

@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-mail-parser"
-version = "0.10.1"
+version = "0.10.2"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]

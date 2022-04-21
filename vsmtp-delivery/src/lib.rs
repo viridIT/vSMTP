@@ -116,13 +116,19 @@ pub mod transport {
                 )
             }
             // or a domain from one of the virtual domains.
-            else if let Some(domain_config) = config.server.r#virtual.get(from.domain()) {
+            else if let Some(tls_config) = config
+                .server
+                .r#virtual
+                .get(from.domain())
+                .and_then(|domain| domain.tls.as_ref())
+            {
                 tls_builder.add_root_certificate(
                     lettre::transport::smtp::client::Certificate::from_der(
-                        domain_config.tls.certificate.0.clone(),
+                        tls_config.certificate.0.clone(),
                     )
                     .context("failed to parse certificate as der")?,
                 )
+            // if not, no certificate are used.
             } else {
                 tls_builder
             }

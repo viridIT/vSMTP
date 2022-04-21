@@ -1,4 +1,4 @@
-use crate::{builder::VirtualEntry, Config};
+use crate::{builder::VirtualEntry, Config, ConfigServerDNS, ResolverOptsWrapper};
 
 #[test]
 fn parse() {
@@ -30,15 +30,33 @@ fn parse() {
             .with_system_dns()
             .with_virtual_entries(&[
                 VirtualEntry {
+                    domain: "testserver1.com".to_string(),
+                    tls: None,
+                    dns: None,
+                },
+                VirtualEntry {
                     domain: "testserver2.com".to_string(),
-                    certificate_path: "../examples/config/tls/certificate.crt".to_string(),
-                    private_key_path: "../examples/config/tls/private_key.key".to_string(),
+                    tls: None,
+                    dns: Some(ConfigServerDNS::System),
                 },
                 VirtualEntry {
                     domain: "testserver3.com".to_string(),
-                    certificate_path: "../examples/config/tls/certificate.crt".to_string(),
-                    private_key_path: "../examples/config/tls/private_key.key".to_string(),
-                }
+                    tls: Some((
+                        "../examples/config/tls/certificate.crt".to_string(),
+                        "../examples/config/tls/private_key.key".to_string()
+                    )),
+                    dns: None,
+                },
+                VirtualEntry {
+                    domain: "testserver4.com".to_string(),
+                    tls: Some((
+                        "../examples/config/tls/certificate.crt".to_string(),
+                        "../examples/config/tls/private_key.key".to_string()
+                    )),
+                    dns: Some(ConfigServerDNS::Google {
+                        options: ResolverOptsWrapper::default()
+                    }),
+                },
             ])
             .unwrap()
             .validate()

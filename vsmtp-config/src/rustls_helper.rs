@@ -65,17 +65,28 @@ pub fn get_rustls_config(
                 anyhow::Ok(rustls::server::ResolvesServerCertUsingSni::new()),
                 |sni_resolver, (domain, entry)| {
                     let mut sni_resolver = sni_resolver?;
+
+                    // using root certificate and private key if tls parameters are not defined in
+                    // the virtual domain.
+                    let (certificate, private_key) = {
+                        entry.tls.as_ref().map_or_else(
+                            || (config.certificate.clone(), &config.private_key),
+                            |tls| (tls.certificate.clone(), &tls.private_key),
+                        )
+                    };
+
                     sni_resolver
                         .add(
                             domain,
                             rustls::sign::CertifiedKey {
-                                cert: vec![entry.tls.certificate.clone()],
-                                key: rustls::sign::any_supported_type(&entry.tls.private_key)?,
+                                cert: vec![certificate],
+                                key: rustls::sign::any_supported_type(private_key)?,
                                 ocsp: None,
                                 sct_list: None,
                             },
                         )
                         .map_err(|e| anyhow::anyhow!("cannot add sni to resolver: {e}"))?;
+
                     Ok(sni_resolver)
                 },
             )?,

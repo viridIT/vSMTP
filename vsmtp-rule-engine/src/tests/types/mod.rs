@@ -21,7 +21,7 @@ use crate::{
 use vsmtp_common::{
     address::Address, collection, mail_context::Body, state::StateSMTP, status::Status,
 };
-use vsmtp_config::{builder::VirtualEntry, Config, Service};
+use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS, Service};
 
 #[test]
 fn test_status() {
@@ -157,14 +157,17 @@ fn test_config_display() {
         .with_system_dns()
         .with_virtual_entries(&[VirtualEntry {
             domain: "domain@example.com".to_string(),
-            certificate_path: root_example!["../config/tls/certificate.crt"]
-                .to_str()
-                .unwrap()
-                .to_string(),
-            private_key_path: root_example!["../config/tls/private_key.key"]
-                .to_str()
-                .unwrap()
-                .to_string(),
+            tls: Some((
+                root_example!["../config/tls/certificate.crt"]
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+                root_example!["../config/tls/private_key.key"]
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            )),
+            dns: Some(ConfigServerDNS::System),
         }])
         .unwrap()
         .validate()
