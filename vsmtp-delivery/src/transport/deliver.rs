@@ -49,12 +49,17 @@ impl<'r> Transport for Deliver<'r> {
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
-        let envelop = super::build_lettre_envelop(from, &to[..])
-            .context("failed to build envelop to deliver email")?;
+        for (query, rcpt) in &mut filter_by_domain_mut(to) {
+            let envelop = super::build_lettre_envelop(
+                from,
+                // TODO: 'to' parameter should be immutable, and the deliver
+                //       implementor should return a new set of recipients.
+                &rcpt.iter().map(|rcpt| (**rcpt).clone()).collect::<Vec<_>>()[..],
+            )
+            .context(format!(
+                "failed to build envelop to deliver email for '{query}'"
+            ))?;
 
-        let mut filtered_rcpt = filter_by_domain_mut(to);
-
-        for (query, rcpt) in &mut filtered_rcpt {
             // getting mx records for a set of recipients.
             let records = match get_mx_records(self.resolver, query).await {
                 Ok(records) => records,
@@ -83,12 +88,13 @@ impl<'r> Transport for Deliver<'r> {
 
             for record in records.by_ref() {
                 let host = record.exchange().to_ascii();
+
                 match send_email(config, self.resolver, &host, &envelop, from, content).await {
                     // if a transfer succeeded, we can stop the lookup.
                     Ok(_) => break,
                     Err(err) => log::warn!(
                         target: vsmtp_config::log_channel::DELIVER,
-                        "[deliver({})] failed to send message from '{from}' to '{rcpt:?}': {err}",
+                        "[deliver({})] failed to send message from '{from}' to '{rcpt:?}' for '{query}': {err}",
                         metadata.message_id
                     ),
                 }
