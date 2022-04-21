@@ -663,10 +663,10 @@ impl Builder<WantsServerDNS> {
 pub struct VirtualEntry {
     /// the domain of the entry.
     pub domain: String,
-    /// path to the certificate used for tls.
-    pub certificate_path: String,
-    /// path to the private key used for tls.
-    pub private_key_path: String,
+    /// path to the certificate and private key used for tls.
+    pub tls: Option<(String, String)>,
+    /// dns configuration.
+    pub dns: Option<ConfigServerDNS>,
 }
 
 impl Builder<WantsServerVirtual> {
@@ -696,7 +696,20 @@ impl Builder<WantsServerVirtual> {
         for entry in entries {
             r#virtual.insert(
                 entry.domain.clone(),
-                ConfigServerVirtual::with_tls(&entry.certificate_path, &entry.private_key_path)?,
+                match (entry.tls.as_ref(), entry.dns.as_ref()) {
+                    (None, None) => ConfigServerVirtual::new(),
+                    (None, Some(dns_config)) => ConfigServerVirtual::with_dns(dns_config.clone())?,
+                    (Some((certificate, private_key)), None) => {
+                        ConfigServerVirtual::with_tls(certificate, private_key)?
+                    }
+                    (Some((certificate, private_key)), Some(dns_config)) => {
+                        ConfigServerVirtual::with_tls_and_dns(
+                            certificate,
+                            private_key,
+                            dns_config.clone(),
+                        )?
+                    }
+                },
             );
         }
 

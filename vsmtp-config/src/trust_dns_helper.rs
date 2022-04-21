@@ -56,8 +56,17 @@ pub fn build_resolvers(
         build_dns_from_config(&config.server.dns)?,
     );
 
+    // root domain dns config is used by default if it is not configured in the virtual domain.
     for (domain, domain_config) in &config.server.r#virtual {
-        resolvers.insert(domain.clone(), build_dns_from_config(&domain_config.dns)?);
+        resolvers.insert(
+            domain.clone(),
+            build_dns_from_config(
+                domain_config
+                    .dns
+                    .as_ref()
+                    .map_or(&config.server.dns, |dns_config| dns_config),
+            )?,
+        );
     }
 
     Ok(resolvers)
