@@ -1,3 +1,5 @@
+use crate::log_channels;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -22,7 +24,6 @@ use vsmtp_common::mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
 use vsmtp_common::re::anyhow::Context;
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::MailParser;
-use vsmtp_config::log_channel;
 
 /// BoundaryType
 /// a boundary serves as a delimiter between mime parts in a multipart section.
@@ -59,7 +60,7 @@ impl MailMimeParser {
             match read_header(content) {
                 Some((name, value)) if is_mime_header(&name) => {
                     log::debug!(
-                        target: log_channel::PARSER,
+                        target: log_channels::PARSER,
                         "new mime header found: '{}' => '{}'",
                         name,
                         value
@@ -69,7 +70,7 @@ impl MailMimeParser {
 
                 Some((name, value)) => {
                     log::debug!(
-                        target: log_channel::PARSER,
+                        target: log_channels::PARSER,
                         "new header found: '{}' => '{}'",
                         name,
                         value
@@ -82,7 +83,7 @@ impl MailMimeParser {
                     *content = &content[1..];
 
                     log::debug!(
-                        target: log_channel::PARSER,
+                        target: log_channels::PARSER,
                         "finished parsing headers, body found."
                     );
 
@@ -90,7 +91,7 @@ impl MailMimeParser {
                     let has_mime_version = headers.iter().any(|(name, _)| name == "mime-version");
 
                     log::debug!(
-                        target: log_channel::PARSER,
+                        target: log_channels::PARSER,
                         "mime-version header found?: {}",
                         has_mime_version
                     );
@@ -146,7 +147,7 @@ impl MailMimeParser {
     fn as_regular_body(&self, content: &mut &[&str]) -> ParserResult<Vec<String>> {
         let mut body = Vec::with_capacity(100);
         log::debug!(
-            target: log_channel::PARSER,
+            target: log_channels::PARSER,
             "storing body of regular message."
         );
 
@@ -156,7 +157,7 @@ impl MailMimeParser {
                 // we can stop parsing the mail and return it.
                 Some(BoundaryType::Delimiter | BoundaryType::End) => {
                     log::debug!(
-                        target: log_channel::PARSER,
+                        target: log_channels::PARSER,
                         "boundary found in regular message."
                     );
                     *content = &content[1..];
@@ -178,7 +179,7 @@ impl MailMimeParser {
 
         // EOF reached.
         log::debug!(
-            target: log_channel::PARSER,
+            target: log_channels::PARSER,
             "EOF reached while storing body of regular message."
         );
         Ok(body)
@@ -223,7 +224,7 @@ impl MailMimeParser {
         match get_mime_type(&headers, parent)? {
             ("message", sub_type) => {
                 log::debug!(
-                    target: log_channel::PARSER,
+                    target: log_channels::PARSER,
                     "'message' content type found (message/{})",
                     sub_type
                 );
@@ -234,7 +235,7 @@ impl MailMimeParser {
                 })
             }
             ("multipart", _) => {
-                log::debug!(target: log_channel::PARSER, "parsing multipart.");
+                log::debug!(target: log_channels::PARSER, "parsing multipart.");
                 Ok(Mime {
                     headers: headers.clone(),
                     content: MimeBodyType::Multipart(self.parse_multipart(&headers, content)?),
@@ -242,7 +243,7 @@ impl MailMimeParser {
             }
             (body_type, sub_type) => {
                 log::debug!(
-                    target: log_channel::PARSER,
+                    target: log_channels::PARSER,
                     "parsing regular mime section of type '{}' and subtype '{}'",
                     body_type,
                     sub_type
@@ -262,12 +263,12 @@ impl MailMimeParser {
     ) -> ParserResult<Mime> {
         let mut headers = Vec::new();
 
-        log::debug!(target: log_channel::PARSER, "parsing a mime section.");
+        log::debug!(target: log_channels::PARSER, "parsing a mime section.");
 
         while content.len() > 1 {
             if let Some((name, value)) = read_header(content) {
                 log::debug!(
-                    target: log_channel::PARSER,
+                    target: log_channels::PARSER,
                     "mime-header found: '{}' => '{}'.",
                     name,
                     value
@@ -275,7 +276,7 @@ impl MailMimeParser {
                 headers.push(get_mime_header(&name, &value));
             } else {
                 log::debug!(
-                    target: log_channel::PARSER,
+                    target: log_channels::PARSER,
                     "finished reading mime headers, body found."
                 );
                 break;
@@ -288,7 +289,7 @@ impl MailMimeParser {
 
     fn parse_preamble<'a>(&self, content: &'a mut &[&str]) -> ParserResult<Vec<&'a str>> {
         log::debug!(
-            target: log_channel::PARSER,
+            target: log_channels::PARSER,
             "storing preamble for a multipart mime section."
         );
         let mut preamble = Vec::new();
@@ -297,7 +298,7 @@ impl MailMimeParser {
             match self.check_boundary(content[0]) {
                 Some(BoundaryType::Delimiter) => {
                     log::debug!(
-                        target: log_channel::PARSER,
+                        target: log_channels::PARSER,
                         "delimiter boundary found for multipart, finished storing preamble."
                     );
                     return Ok(preamble);
@@ -326,7 +327,7 @@ impl MailMimeParser {
 
     fn parse_epilogue<'a>(&self, content: &'a mut &[&str]) -> ParserResult<Vec<&'a str>> {
         log::debug!(
-            target: log_channel::PARSER,
+            target: log_channels::PARSER,
             "storing epilogue for a multipart mime section."
         );
         let mut epilogue = Vec::new();
@@ -337,7 +338,7 @@ impl MailMimeParser {
                 // meaning that the next lines will be part of another mime part.
                 Some(BoundaryType::Delimiter | BoundaryType::End) => {
                     log::debug!(
-                        target: log_channel::PARSER,
+                        target: log_channels::PARSER,
                         "boundary found for multipart, finished storing epilogue."
                     );
                     break;
@@ -366,7 +367,7 @@ impl MailMimeParser {
         match content_type.args.get("boundary") {
             Some(b) => {
                 log::debug!(
-                    target: log_channel::PARSER,
+                    target: log_channels::PARSER,
                     "boundary found in parameters: '{}'.",
                     b
                 );
@@ -394,7 +395,7 @@ impl MailMimeParser {
         while content.len() > 1 {
             match self.check_boundary(content[0]) {
                 Some(BoundaryType::Delimiter) => {
-                    log::debug!(target: log_channel::PARSER,
+                    log::debug!(target: log_channels::PARSER,
                         "delimiter boundary found while parsing multipart: '{}', calling parse_mime.",
                         &content[0]
                     );
@@ -406,7 +407,7 @@ impl MailMimeParser {
                 }
 
                 Some(BoundaryType::End) => {
-                    log::debug!(target: log_channel::PARSER,
+                    log::debug!(target: log_channels::PARSER,
                         "end boundary found while parsing multipart: '{}', stopping multipart parsing.",
                         &content[0]
                     );
@@ -430,7 +431,7 @@ impl MailMimeParser {
 
                 None => {
                     log::debug!(
-                        target: log_channel::PARSER,
+                        target: log_channels::PARSER,
                         "EOF reached while parsing multipart.",
                     );
                     return Ok(multi_parts);

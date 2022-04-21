@@ -1,4 +1,4 @@
-use crate::processes::delivery::send_email;
+use crate::{log_channels, processes::delivery::send_email};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MailContext,
@@ -10,7 +10,7 @@ use vsmtp_common::{
     },
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::{log_channel::DELIVER, Config};
+use vsmtp_config::Config;
 
 pub async fn flush_deferred_queue(
     config: &Config,
@@ -19,7 +19,7 @@ pub async fn flush_deferred_queue(
     let dir_entries = std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)?;
     for path in dir_entries {
         if let Err(e) = handle_one_in_deferred_queue(config, resolvers, &path?.path()).await {
-            log::warn!("{}", e);
+            log::warn!(target: log_channels::DEFERRED, "{}", e);
         }
     }
 
@@ -37,8 +37,8 @@ async fn handle_one_in_deferred_queue(
     let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
     log::debug!(
-        target: DELIVER,
-        "vDeliver (deferred) processing email '{}'",
+        target: log_channels::DEFERRED,
+        "processing email '{}'",
         message_id
     );
 

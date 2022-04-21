@@ -1,3 +1,5 @@
+use crate::log_channels;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -19,7 +21,7 @@ use vsmtp_common::{
     code::SMTPReplyCode,
     re::{anyhow, log},
 };
-use vsmtp_config::{log_channel::RECEIVER, re::rustls, Config};
+use vsmtp_config::{re::rustls, Config};
 
 /// how the server would react to tls interaction for this connection
 #[allow(clippy::module_name_repetitions)]
@@ -126,7 +128,11 @@ where
 
                 anyhow::bail!("too many errors")
             }
-            log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
+            log::info!(
+                target: log_channels::CONNECTION,
+                "send=\"{:?}\"",
+                reply_to_send
+            );
 
             std::io::Write::write_all(
                 &mut self.io_stream,
@@ -143,7 +149,11 @@ where
                 std::thread::sleep(self.config.server.smtp.error.delay);
             }
         } else {
-            log::info!(target: RECEIVER, "send=\"{:?}\"", reply_to_send);
+            log::info!(
+                target: log_channels::CONNECTION,
+                "send=\"{:?}\"",
+                reply_to_send
+            );
 
             std::io::Write::write_all(
                 &mut self.io_stream,
@@ -165,7 +175,7 @@ where
     ///
     /// * internal connection writer error
     pub fn send(&mut self, reply: &str) -> anyhow::Result<()> {
-        log::info!(target: RECEIVER, "send=\"{}\"", reply);
+        log::info!(target: log_channels::CONNECTION, "send=\"{}\"", reply);
 
         std::io::Write::write_all(&mut self.io_stream, reply.as_bytes())?;
 

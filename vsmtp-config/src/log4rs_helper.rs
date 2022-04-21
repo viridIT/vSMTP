@@ -87,7 +87,7 @@ pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log
             config::Logger::builder()
                 .appender("app")
                 .additive(false)
-                .build(log_channel::USER_RULES, config.app.logs.level),
+                .build(log_channel::APP, config.app.logs.level),
         )
         // vSMTP's "root" logger under the name "default", all sub loggers inherit from this one.
         .logger(

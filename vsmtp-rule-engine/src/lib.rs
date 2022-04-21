@@ -10,6 +10,12 @@
 //
 #![allow(clippy::doc_markdown)]
 
+mod log_channels {
+    /// server's rule
+    pub const RE: &str = "server::rule_engine";
+    pub const SERVICES: &str = "server::rule_engine::services";
+}
+
 mod dsl;
 mod error;
 /// vsl prelude

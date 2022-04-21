@@ -16,6 +16,7 @@
  */
 use crate::{
     channel_message::ProcessMessage,
+    log_channels,
     processes::delivery::{
         deferred::flush_deferred_queue,
         deliver::{flush_deliver_queue, handle_one_in_delivery_queue},
@@ -31,7 +32,7 @@ use vsmtp_common::{
     status::Status,
     transfer::{EmailTransferStatus, Transfer},
 };
-use vsmtp_config::{log_channel::DELIVER, Config};
+use vsmtp_config::Config;
 use vsmtp_delivery::transport::{deliver as deliver2, forward, maildir, mbox, Transport};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
@@ -53,10 +54,7 @@ pub async fn start(
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> anyhow::Result<()> {
-    log::info!(
-        target: DELIVER,
-        "vDeliver (delivery) booting, flushing queue.",
-    );
+    log::info!(target: log_channels::DELIVERY, "booting, flushing queue.",);
 
     let resolvers = std::sync::Arc::new(
         vsmtp_config::build_resolvers(&config).context("could not initialize dns for delivery")?,
@@ -89,7 +87,8 @@ pub async fn start(
                         &copy_rule_engine,
                     )
                     .await {
-                        log::error!(target: DELIVER, "could not deliver email '{}': {error:?}", pm.message_id);
+                        log::error!(target: log_channels::DELIVERY,
+                             "(msg={}) could not deliver email: {error:?}", pm.message_id);
                     }
                 });
 
@@ -99,8 +98,8 @@ pub async fn start(
             }
             _ = flush_deferred_interval.tick() => {
                 log::info!(
-                    target: DELIVER,
-                    "vDeliver (deferred) cronjob delay elapsed, flushing queue.",
+                    target: log_channels::DEFERRED,
+                    "cronjob delay elapsed, flushing queue.",
                 );
                 flush_deferred_queue(&config, &resolvers).await?;
             }

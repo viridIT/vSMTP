@@ -1,4 +1,4 @@
-use crate::auth;
+use crate::{auth, log_channels};
 
 use super::Connection;
 use vsmtp_common::{
@@ -93,6 +93,7 @@ where
             .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
         {
             log::warn!(
+                target: log_channels::AUTH,
                 "An unsecured AUTH mechanism ({mechanism}) is used on a non-encrypted connection!"
             );
         } else {
@@ -121,7 +122,7 @@ where
     while !succeeded {
         succeeded = match conn.read(std::time::Duration::from_secs(1)).await {
             Ok(Ok(buffer)) => {
-                log::trace!("{}", buffer);
+                log::trace!(target: log_channels::AUTH, "{buffer}");
                 auth_step(conn, &mut session, buffer.as_bytes())
             }
             Ok(Err(e)) => Err(AuthExchangeError::Other(anyhow::anyhow!("{:?}", e))),

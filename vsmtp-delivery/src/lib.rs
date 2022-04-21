@@ -35,6 +35,13 @@ pub mod transport {
     use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow};
     use vsmtp_config::Config;
 
+    mod log_channels {
+        pub const DELIVER: &str = "server::delivery::deliver";
+        pub const FORWARD: &str = "server::delivery::forward";
+        pub const MAILDIR: &str = "server::delivery::maildir";
+        pub const MBOX: &str = "server::delivery::mbox";
+    }
+
     /// allowing the [ServerVSMTP] to deliver a mail.
     #[async_trait::async_trait]
     pub trait Transport {

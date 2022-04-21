@@ -1,3 +1,5 @@
+use crate::transport::log_channels;
+
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -65,8 +67,8 @@ impl<'r> Transport for Deliver<'r> {
                 Ok(records) => records,
                 Err(err) => {
                     log::warn!(
-                        target: vsmtp_config::log_channel::DELIVER,
-                        "[deliver({})] failed to get mx records for '{query}' ({rcpt:?}): {err}",
+                        target: log_channels::DELIVER,
+                        "(msg={}) failed to get mx records for '{query}': {err}",
                         metadata.message_id
                     );
 
@@ -93,8 +95,8 @@ impl<'r> Transport for Deliver<'r> {
                     // if a transfer succeeded, we can stop the lookup.
                     Ok(_) => break,
                     Err(err) => log::warn!(
-                        target: vsmtp_config::log_channel::DELIVER,
-                        "[deliver({})] failed to send message from '{from}' to '{rcpt:?}' for '{query}': {err}",
+                        target: log_channels::DELIVER,
+                        "(msg={}) failed to send message from '{from}' for '{query}': {err}",
                         metadata.message_id
                     ),
                 }
@@ -102,8 +104,8 @@ impl<'r> Transport for Deliver<'r> {
 
             if records.next().is_none() {
                 log::error!(
-                    target: vsmtp_config::log_channel::DELIVER,
-                    "[deliver({})] no valid mail exchanger found for '{query}', check warnings above.",
+                    target: log_channels::DELIVER,
+                    "(msg={}) no valid mail exchanger found for '{query}', check warnings above.",
                     metadata.message_id
                 );
 

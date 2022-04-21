@@ -32,5 +32,10 @@ mod parser;
 
 pub use parser::MailMimeParser;
 
+mod log_channels {
+    /// mail parser.
+    pub const PARSER: &str = "server::parser";
+}
+
 #[cfg(test)]
 pub mod tests;

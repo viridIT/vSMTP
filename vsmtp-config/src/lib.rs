@@ -31,16 +31,8 @@
 pub mod log_channel {
     /// default log, use this instead of the root log.
     pub const DEFAULT: &str = "server";
-    /// receiver system
-    pub const RECEIVER: &str = "server::receiver";
-    /// mail parser.
-    pub const PARSER: &str = "server::parser";
-    /// server's rule
-    pub const SERVER_RULES: &str = "server::rule_engine";
-    /// delivery system
-    pub const DELIVER: &str = "server::delivery";
-    /// application side's rule
-    pub const USER_RULES: &str = "app::user_rules";
+    /// application logs (rule engine).
+    pub const APP: &str = "app";
 }
 
 #[cfg(test)]
