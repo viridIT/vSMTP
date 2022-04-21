@@ -16,5 +16,8 @@ pub mod config;
 ///
 pub mod receiver;
 
+///
+pub mod get_tls_file;
+
 #[cfg(test)]
 mod tests;

@@ -2146,6 +2146,7 @@ dependencies = [
  "trust-dns-resolver",
  "users",
  "vsmtp-common",
+ "vsmtp-test",
 ]
 
 [[package]]

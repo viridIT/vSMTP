@@ -59,3 +59,33 @@ where
     }
     serde::ser::SerializeSeq::end(seq)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use vsmtp_common::re::serde_json;
+    use vsmtp_test::get_tls_file;
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct S {
+        #[serde(
+            serialize_with = "crate::parser::tls_certificate::serialize",
+            deserialize_with = "crate::parser::tls_certificate::deserialize"
+        )]
+        v: rustls::Certificate,
+    }
+
+    #[test]
+    fn basic() {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open("./tmp/crt")
+            .unwrap();
+        file.write_all(get_tls_file::get_certificate().as_bytes())
+            .unwrap();
+
+        serde_json::from_str::<S>(r#"{"v": "./tmp/crt"}"#).unwrap();
+    }
+}
