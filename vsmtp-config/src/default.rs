@@ -141,7 +141,7 @@ impl ConfigServerLogs {
     }
 
     pub(crate) fn default_format() -> String {
-        "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}".to_string()
+        "{d(%Y-%m-%d %H:%M:%S%.f)} {h({l:<5} t={I})} (({t})) $ {m}{n}".to_string()
     }
 
     pub(crate) fn default_level() -> std::collections::BTreeMap<String, log::LevelFilter> {

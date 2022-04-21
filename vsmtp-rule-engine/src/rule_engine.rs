@@ -22,7 +22,7 @@ use vsmtp_common::mail_context::{Body, MailContext};
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
-use vsmtp_config::log_channel::SRULES;
+use vsmtp_config::log_channel::SERVER_RULES;
 use vsmtp_config::Config;
 
 use crate::dsl::action_parsing::{create_action, parse_action};
@@ -171,7 +171,7 @@ impl RuleEngine {
             Ok(rules) => rules,
             Err(error) => {
                 log::error!(
-                    target: SRULES,
+                    target: SERVER_RULES,
                     "smtp_stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
                     smtp_state,
                     error
@@ -188,7 +188,7 @@ impl RuleEngine {
         ) {
             Ok(status) => {
                 log::debug!(
-                    target: SRULES,
+                    target: SERVER_RULES,
                     "[{}] evaluated => {:?}.",
                     smtp_state,
                     status
@@ -197,7 +197,7 @@ impl RuleEngine {
                 match status {
                     Status::Faccept | Status::Deny => {
                         log::debug!(
-                        target: SRULES,
+                        target: SERVER_RULES,
                         "[{}] the rule engine will skip all rules because of the previous result.",
                         smtp_state
                     );
@@ -209,7 +209,7 @@ impl RuleEngine {
             }
             Err(error) => {
                 log::error!(
-                    target: SRULES,
+                    target: SERVER_RULES,
                     "{}",
                     Self::parse_stage_error(error, smtp_state)
                 );
@@ -280,7 +280,7 @@ impl RuleEngine {
             None => FileModuleResolver::new_with_extension("vsl"),
         });
 
-        log::debug!(target: SRULES, "compiling rhai scripts ...");
+        log::debug!(target: SERVER_RULES, "compiling rhai scripts ...");
 
         let ast = if let Some(script_path) = &script_path {
             Self::compile_executor(
@@ -290,14 +290,14 @@ impl RuleEngine {
             )
         } else {
             log::warn!(
-                target: SRULES,
+                target: SERVER_RULES,
                 "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
             );
 
             Self::compile_executor(&engine, include_str!("default_rules.rhai"))
         }?;
 
-        log::debug!(target: SRULES, "done.");
+        log::debug!(target: SERVER_RULES, "done.");
 
         Ok(Self {
             context: engine,

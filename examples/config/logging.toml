@@ -2,6 +2,8 @@ version_requirement = "<1.0.0"
 
 [server.logs]
 filepath = "/var/log/vsmtp/vsmtp.log"
+# see https://docs.rs/log4rs/latest/log4rs/encode/pattern/index.html
+# for all available formats.
 format = "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}"
 
 [server.logs.level]
@@ -9,7 +11,7 @@ default = "warn"
 receiver = "info"
 rule_engine = "warn"
 delivery = "error"
-
+parser = "trace"
 
 [server.smtp.codes]
 Help = "214 my custom help message\r\n"
