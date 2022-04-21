@@ -83,17 +83,20 @@ impl<'r> Transport for Deliver<'r> {
 
             for record in records.by_ref() {
                 let host = record.exchange().to_ascii();
-                if (send_email(config, self.resolver, &host, &envelop, from, content).await).is_ok()
-                {
+                match send_email(config, self.resolver, &host, &envelop, from, content).await {
                     // if a transfer succeeded, we can stop the lookup.
-                    break;
+                    Ok(_) => break,
+                    Err(err) => log::warn!(
+                        target: vsmtp_config::log_channel::DELIVER,
+                        "[deliver] failed to send message to '{host}': {err}",
+                    ),
                 }
             }
 
             if records.next().is_none() {
                 log::error!(
                     target: vsmtp_config::log_channel::DELIVER,
-                    "no valid mail exchanger found for '{}'",
+                    "[deliver] no valid mail exchanger found for '{}', check warnings above.",
                     query
                 );
 
