@@ -55,24 +55,38 @@ impl std::str::FromStr for Queue {
     }
 }
 
-impl Queue {
-    /// Return a valid path of the Queue, depending of @queues_dirpath,
-    /// create the folder and the parents if not existing
-    ///
-    /// # Errors
-    ///
-    /// * failed to create the folders
-    pub fn to_path(
-        &self,
-        queues_dirpath: impl Into<std::path::PathBuf>,
-    ) -> std::io::Result<std::path::PathBuf> {
-        let dir = queues_dirpath.into().join(format!("{}", self));
-        if !dir.exists() {
-            std::fs::DirBuilder::new().recursive(true).create(&dir)?;
-        }
-        Ok(dir)
-    }
+/// Syntax sugar for access of queues folder and queues items
+///
+/// # Errors
+///
+/// * if [`create_if_missing`] is provided, will attempt to create the folder
+#[macro_export]
+macro_rules! queue_path {
+    ($queues_dirpath:expr, $queue:expr) => {
+        std::path::PathBuf::from($queues_dirpath).join(format!("{}", $queue))
+    };
+    ($queues_dirpath:expr, $queue:expr, $msg_id:expr) => {
+        $crate::queue_path!($queues_dirpath, $queue).join($msg_id)
+    };
 
+    (create_if_missing => $queues_dirpath:expr, $queue:expr) => {
+        {
+            let buf = std::path::PathBuf::from($queues_dirpath).join(format!("{}", $queue));
+            if !buf.exists() {
+                std::fs::DirBuilder::new()
+                    .recursive(true)
+                    .create(&buf).map(|_| buf)
+            } else {
+                std::io::Result::Ok(buf)
+            }
+        }
+    };
+    (create_if_missing => $queues_dirpath:expr, $queue:expr, $msg_id:expr) => {
+        $crate::queue_path!(create_if_missing => $queues_dirpath, $queue).map(|buf| buf.join($msg_id))
+    };
+}
+
+impl Queue {
     /// List the files contained in the queue
     ///
     /// # Errors
@@ -84,7 +98,7 @@ impl Queue {
         &self,
         queues_dirpath: &std::path::Path,
     ) -> anyhow::Result<Vec<std::path::PathBuf>> {
-        let queue_path = self.to_path(queues_dirpath)?;
+        let queue_path = queue_path!(queues_dirpath, self);
 
         queue_path
             .read_dir()
@@ -114,7 +128,7 @@ impl Queue {
             None => anyhow::bail!("could not write to {} queue: mail metadata not found", self),
         };
 
-        let to_deliver = self.to_path(&queues_dirpath)?.join(message_id);
+        let to_deliver = queue_path!(create_if_missing => queues_dirpath, self, message_id)?;
 
         let mut file = std::fs::OpenOptions::new()
             .create(true)

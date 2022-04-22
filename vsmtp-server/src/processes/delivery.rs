@@ -27,6 +27,7 @@ use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::{Body, MailContext},
     queue::Queue,
+    queue_path,
     re::{anyhow, log},
     status::Status,
     transfer::{EmailTransferStatus, Transfer},
@@ -74,10 +75,7 @@ pub async fn start(
                 let copy_rule_engine = rule_engine.clone();
                 let copy_resolvers = resolvers.clone();
                 tokio::spawn(async move {
-                    let path = match Queue::Deliver.to_path(&copy_config.server.queues.dirpath) {
-                        Ok(path) => path,
-                        Err(_) => return // todo : log no file
-                    };
+                    let path = queue_path!(&copy_config.server.queues.dirpath, Queue::Deliver);
 
                     if let Err(error) = handle_one_in_delivery_queue(
                         &copy_config,

@@ -20,7 +20,7 @@ fn get_message_path(
     queues_dirpath: &std::path::Path,
 ) -> anyhow::Result<std::path::PathBuf> {
     for queue in <Queue as strum::IntoEnumIterator>::iter() {
-        let queue_path = queue.to_path(queues_dirpath)?;
+        let queue_path = vsmtp_common::queue_path!(queues_dirpath, queue);
         if let Some(found) = queue_path
             .read_dir()
             .context(format!("Error from read dir '{}'", queue_path.display()))?
@@ -39,36 +39,6 @@ fn get_message_path(
         "No such message '{id}' in queues at '{}'",
         queues_dirpath.display()
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn find_one() {
-        let queues_dirpath = "./tmp";
-
-        let filepath = Queue::Working.to_path(queues_dirpath).unwrap().join("toto");
-
-        std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(&filepath)
-            .unwrap();
-
-        assert_eq!(
-            get_message_path("toto", &std::path::PathBuf::from(queues_dirpath)).unwrap(),
-            filepath
-        );
-
-        std::fs::remove_file(filepath).unwrap();
-    }
-
-    #[test]
-    fn not_found() {
-        assert!(get_message_path("foobar", &std::path::PathBuf::from("./tmp")).is_err(),);
-    }
 }
 
 /// Execute the vQueue command
@@ -108,5 +78,38 @@ pub fn execute(args: Args, config: &Config) -> anyhow::Result<()> {
             ),
             MessageCommand::ReRun {} => unimplemented!(),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use vsmtp_common::queue_path;
+
+    use super::*;
+
+    #[test]
+    fn find_one() {
+        let queues_dirpath = "./tmp";
+
+        let filepath =
+            queue_path!(create_if_missing => queues_dirpath, Queue::Working, "toto").unwrap();
+
+        std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&filepath)
+            .unwrap();
+
+        assert_eq!(
+            get_message_path("toto", &std::path::PathBuf::from(queues_dirpath)).unwrap(),
+            filepath
+        );
+
+        std::fs::remove_file(filepath).unwrap();
+    }
+
+    #[test]
+    fn not_found() {
+        assert!(get_message_path("foobar", &std::path::PathBuf::from("./tmp")).is_err(),);
     }
 }

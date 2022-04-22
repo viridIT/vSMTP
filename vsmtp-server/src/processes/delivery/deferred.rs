@@ -3,6 +3,7 @@ use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
+    queue_path,
     rcpt::Rcpt,
     re::{
         anyhow::{self, Context},
@@ -16,7 +17,8 @@ pub async fn flush_deferred_queue(
     config: &Config,
     resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
 ) -> anyhow::Result<()> {
-    let dir_entries = std::fs::read_dir(Queue::Deferred.to_path(&config.server.queues.dirpath)?)?;
+    let dir_entries =
+        std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deferred))?;
     for path in dir_entries {
         if let Err(e) = handle_one_in_deferred_queue(config, resolvers, &path?.path()).await {
             log::warn!("{}", e);

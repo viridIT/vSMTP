@@ -11,14 +11,25 @@ pub fn queue_show<OUT: std::io::Write>(
     let now = std::time::SystemTime::now();
 
     for q in queues {
-        let mut entries = q
-            .list_entries(queues_dirpath)?
+        let mut content = QueueContent::from((
+            q,
+            vsmtp_common::queue_path!(queues_dirpath, q),
+            empty_token,
+            now,
+        ));
+
+        let entries = if let Ok(entries) = q.list_entries(queues_dirpath) {
+            entries
+        } else {
+            output.write_fmt(format_args!("{content}"))?;
+            continue;
+        };
+
+        let mut entries = entries
             .into_iter()
             .map(QueueEntry::try_from)
             .collect::<anyhow::Result<Vec<_>>>()?;
         entries.sort_by(|a, b| Ord::cmp(&a.message.envelop.helo, &b.message.envelop.helo));
-
-        let mut content = QueueContent::from((q, q.to_path(&queues_dirpath)?, empty_token, now));
 
         for (key, values) in
             &itertools::Itertools::group_by(entries.into_iter(), |i| i.message.envelop.helo.clone())
@@ -39,6 +50,7 @@ mod tests {
         mail::{BodyType, Mail},
         mail_context::{Body, MailContext, MessageMetadata},
         queue::Queue,
+        queue_path,
         rcpt::Rcpt,
         re::strum,
         transfer::{EmailTransferStatus, Transfer},
@@ -51,7 +63,12 @@ mod tests {
         let mut output = vec![];
 
         queue_show(
-            vec![Queue::Working, Queue::Deliver],
+            [Queue::Working, Queue::Deliver]
+                .into_iter()
+                .inspect(|q| {
+                    vsmtp_common::queue_path!(create_if_missing => "./tmp/empty", q).unwrap();
+                })
+                .collect::<Vec<_>>(),
             &std::path::PathBuf::from("./tmp/empty"),
             '.',
             &mut output,
@@ -73,7 +90,11 @@ mod tests {
         let mut output = vec![];
 
         queue_show(
-            <Queue as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
+            <Queue as strum::IntoEnumIterator>::iter()
+                .inspect(|q| {
+                    vsmtp_common::queue_path!(create_if_missing => "./tmp/empty", q).unwrap();
+                })
+                .collect::<Vec<_>>(),
             &std::path::PathBuf::from("./tmp/empty"),
             '.',
             &mut output,
@@ -87,6 +108,30 @@ mod tests {
                 "DELIVER    is at './tmp/empty/deliver' : <EMPTY>\n",
                 "DEFERRED   is at './tmp/empty/deferred' : <EMPTY>\n",
                 "DEAD       is at './tmp/empty/dead' : <EMPTY>\n"
+            ]
+            .concat(),
+        );
+    }
+
+    #[test]
+    fn all_missing() {
+        let mut output = vec![];
+
+        queue_show(
+            <Queue as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
+            &std::path::PathBuf::from("./tmp/missing"),
+            '.',
+            &mut output,
+        )
+        .unwrap();
+
+        pretty_assertions::assert_eq!(
+            std::str::from_utf8(&output).unwrap(),
+            [
+                "WORKING    is at './tmp/missing/working' : <MISSING>\n",
+                "DELIVER    is at './tmp/missing/deliver' : <MISSING>\n",
+                "DEFERRED   is at './tmp/missing/deferred' : <MISSING>\n",
+                "DEAD       is at './tmp/missing/dead' : <MISSING>\n"
             ]
             .concat(),
         );
@@ -134,6 +179,8 @@ mod tests {
             )
             .unwrap();
 
+        queue_path!(create_if_missing => "./tmp/dead_with_one", Queue::Working).unwrap();
+
         queue_show(
             <Queue as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
             &std::path::PathBuf::from("./tmp/dead_with_one"),
@@ -146,12 +193,12 @@ mod tests {
             std::str::from_utf8(&output).unwrap(),
             [
                 "WORKING    is at './tmp/dead_with_one/working' : <EMPTY>\n",
-                "DELIVER    is at './tmp/dead_with_one/deliver' : <EMPTY>\n",
-                "DEFERRED   is at './tmp/dead_with_one/deferred' : <EMPTY>\n",
+                "DELIVER    is at './tmp/dead_with_one/deliver' : <MISSING>\n",
+                "DEFERRED   is at './tmp/dead_with_one/deferred' : <MISSING>\n",
                 "DEAD       is at './tmp/dead_with_one/dead' :\n",
-                "              T    5   10   20   40   80  160  320  640 1280 1280+\n",
-                "     TOTAL    1    1    .    .    .    .    .    .    .    .    .\n",
-                "      toto    1    1    .    .    .    .    .    .    .    .    .\n",
+                "                        T    5   10   20   40   80  160  320  640 1280 1280+\n",
+                "               TOTAL    1    1    .    .    .    .    .    .    .    .    .\n",
+                "                toto    1    1    .    .    .    .    .    .    .    .    .\n",
             ]
             .concat(),
         );

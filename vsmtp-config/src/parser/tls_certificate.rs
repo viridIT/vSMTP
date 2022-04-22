@@ -79,6 +79,8 @@ mod tests {
 
     #[test]
     fn basic() {
+        let _droppable = std::fs::DirBuilder::new().create("./tmp");
+
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
