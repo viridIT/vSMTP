@@ -42,7 +42,9 @@ mod tests {
     fn confirmed() {
         let queues_dirpath = "./tmp/cmd_remove";
         let msg_id = "titi";
-        let filepath = Queue::Working.to_path(queues_dirpath).unwrap().join(msg_id);
+        let filepath =
+            vsmtp_common::queue_path!(create_if_missing => queues_dirpath, Queue::Working, msg_id)
+                .unwrap();
 
         std::fs::OpenOptions::new()
             .create(true)
@@ -66,7 +68,9 @@ mod tests {
     fn not_confirmed() {
         let queues_dirpath = "./tmp/cmd_remove";
         let msg_id = "tata";
-        let filepath = Queue::Working.to_path(queues_dirpath).unwrap().join(msg_id);
+        let filepath =
+            vsmtp_common::queue_path!(create_if_missing => queues_dirpath, Queue::Working, msg_id)
+                .unwrap();
 
         std::fs::OpenOptions::new()
             .create(true)
@@ -101,7 +105,9 @@ mod tests {
     fn canceled() {
         let queues_dirpath = "./tmp/cmd_remove";
         let msg_id = "tutu";
-        let filepath = Queue::Working.to_path(queues_dirpath).unwrap().join(msg_id);
+        let filepath =
+            vsmtp_common::queue_path!(create_if_missing => queues_dirpath, Queue::Working, msg_id)
+                .unwrap();
 
         std::fs::OpenOptions::new()
             .create(true)

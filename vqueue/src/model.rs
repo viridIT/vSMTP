@@ -130,13 +130,17 @@ impl std::fmt::Display for QueueContent {
         ))?;
 
         if self.inner.is_empty() {
-            f.write_str(" <EMPTY>\n")?;
+            f.write_str(if self.dirpath.exists() {
+                " <EMPTY>\n"
+            } else {
+                " <MISSING>\n"
+            })?;
             return Ok(());
         }
 
         f.write_str("\n")?;
 
-        f.write_fmt(format_args!("{:>15}", "T"))?;
+        f.write_fmt(format_args!("{:>25}", "T"))?;
         for i in &lifetimes {
             f.write_fmt(format_args!("{i:>5}"))?;
         }
@@ -147,7 +151,7 @@ impl std::fmt::Display for QueueContent {
         f.write_fmt(format_args!("\n"))?;
 
         f.write_fmt(format_args!(
-            "{:>10}{:>5}",
+            "{:>20}{:>5}",
             "TOTAL",
             token_if_empty!(
                 self.empty_token,
@@ -180,7 +184,7 @@ impl std::fmt::Display for QueueContent {
 
         for (key, values) in &self.inner {
             f.write_fmt(format_args!(
-                "{key:>10}{:>5}",
+                "{key:>20}{:>5}",
                 token_if_empty!(
                     self.empty_token,
                     values.iter().fold(0, |sum, (_, m)| sum + m.len())

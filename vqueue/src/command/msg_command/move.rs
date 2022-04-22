@@ -7,10 +7,12 @@ pub fn r#move(msg_id: &str, queue: Queue, queues_dirpath: &std::path::Path) -> a
 
     std::fs::rename(
         &message,
-        queue.to_path(queues_dirpath)?.join(
+        vsmtp_common::queue_path!(
+            queues_dirpath,
+            queue,
             message
                 .file_name()
-                .ok_or_else(|| anyhow::anyhow!("Not a valid filename: '{}'", message.display()))?,
+                .ok_or_else(|| anyhow::anyhow!("Not a valid filename: '{}'", message.display()))?
         ),
     )?;
 
@@ -26,7 +28,9 @@ mod tests {
     fn basic() {
         let queues_dirpath = "./tmp/cmd_move";
         let msg_id = "toto";
-        let filepath = Queue::Working.to_path(queues_dirpath).unwrap().join(msg_id);
+        let filepath =
+            vsmtp_common::queue_path!(create_if_missing => queues_dirpath, Queue::Working, msg_id)
+                .unwrap();
 
         std::fs::OpenOptions::new()
             .create(true)
@@ -34,6 +38,7 @@ mod tests {
             .open(&filepath)
             .unwrap();
 
+        vsmtp_common::queue_path!(create_if_missing => queues_dirpath, Queue::Dead).unwrap();
         r#move(
             msg_id,
             Queue::Dead,
@@ -43,6 +48,11 @@ mod tests {
 
         assert!(!filepath.exists());
 
-        std::fs::remove_file(Queue::Dead.to_path(queues_dirpath).unwrap().join(msg_id)).unwrap();
+        std::fs::remove_file(vsmtp_common::queue_path!(
+            queues_dirpath,
+            Queue::Dead,
+            msg_id
+        ))
+        .unwrap();
     }
 }

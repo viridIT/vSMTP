@@ -19,6 +19,7 @@ use anyhow::Context;
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
+    queue_path,
     re::{anyhow, log},
     state::StateSMTP,
     status::Status,
@@ -68,9 +69,11 @@ async fn handle_one_in_working_queue(
         process_message.message_id,
     );
 
-    let file_to_process = Queue::Working
-        .to_path(&config.server.queues.dirpath)?
-        .join(&process_message.message_id);
+    let file_to_process = queue_path!(
+        &config.server.queues.dirpath,
+        Queue::Working,
+        &process_message.message_id
+    );
 
     log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
 
