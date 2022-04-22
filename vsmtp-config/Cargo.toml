@@ -15,7 +15,7 @@ publish = false
 [dependencies]
 vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
 
-log4rs = { version = "1.0.0", default-features = false, features = [
+log4rs = { version = "1.1.1", default-features = false, features = [
     "rolling_file_appender",
     "compound_policy",
     "gzip",
