@@ -31,7 +31,7 @@ fn test_logs() {
         &Some(root_example!["actions/logs.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
 }
 
@@ -42,7 +42,7 @@ fn test_users() {
         &Some(root_example!["actions/users.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Delivery),
@@ -52,12 +52,8 @@ fn test_users() {
 
 #[test]
 fn test_send_mail() {
-    let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/send_mail.vsl"]),
-    )
-    .unwrap();
-    let mut state = get_default_state(format!("{}", root_example!["actions"].display()));
+    let (mut state, config) = get_default_state(format!("{}", root_example!["actions"].display()));
+    let re = RuleEngine::new(&config, &Some(root_example!["actions/send_mail.vsl"])).unwrap();
 
     // TODO: add test to send a valid email.
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
@@ -70,7 +66,7 @@ fn test_context_write() {
         &Some(root_example!["actions/write.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
@@ -116,7 +112,7 @@ fn test_context_dump() {
         &Some(root_example!["actions/dump.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
@@ -153,7 +149,7 @@ fn test_quarantine() {
         &Some(root_example!["actions/quarantine.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),

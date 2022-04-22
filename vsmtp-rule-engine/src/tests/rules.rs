@@ -27,7 +27,7 @@ fn test_connect_rules() {
         &Some(root_example!["rules/connect.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     // ctx.client_addr is 0.0.0.0 by default.
     state.get_context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
@@ -44,7 +44,7 @@ fn test_helo_rules() {
         &Some(root_example!["rules/helo.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
     state.get_context().write().unwrap().envelop.helo = "example.com".to_string();
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
@@ -59,7 +59,7 @@ fn test_mail_from_rules() {
     )
     .unwrap();
 
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
     {
         let email = state.get_context();
         let mut email = email.write().unwrap();
@@ -96,7 +96,7 @@ fn test_rcpt_rules() {
     )
     .unwrap();
 
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
     {
         let email = state.get_context();
         let mut email = email.write().unwrap();

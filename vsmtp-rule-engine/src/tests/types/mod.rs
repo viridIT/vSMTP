@@ -30,7 +30,7 @@ fn test_status() {
         &Some(rules_path!["status", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
@@ -42,7 +42,7 @@ fn test_time() {
         &Some(rules_path!["time", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     state.add_data("time", std::time::SystemTime::UNIX_EPOCH);
 
@@ -56,7 +56,7 @@ fn test_ip() {
         &Some(rules_path!["ip", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
@@ -68,7 +68,7 @@ fn test_address() {
         &Some(rules_path!["address", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     state.get_context().write().unwrap().envelop.mail_from =
         Address::try_from("mail.from@test.net".to_string()).expect("could not parse address");
@@ -83,7 +83,7 @@ fn test_objects() {
         &Some(rules_path!["objects", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
 }

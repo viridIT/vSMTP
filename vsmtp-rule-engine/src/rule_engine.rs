@@ -321,7 +321,14 @@ impl RuleEngine {
 
         // setting up action, mail context & vsl's special types.
         vsl_module
-            .combine(exported_module!(modules::actions::actions))
+            .combine(exported_module!(modules::actions::bcc::bcc))
+            .combine(exported_module!(modules::actions::headers::headers))
+            .combine(exported_module!(modules::actions::logging::logging))
+            .combine(exported_module!(modules::actions::rule_state::rule_state))
+            .combine(exported_module!(modules::actions::services::services))
+            .combine(exported_module!(modules::actions::transports::transports))
+            .combine(exported_module!(modules::actions::utils::utils))
+            .combine(exported_module!(modules::actions::write::write))
             .combine(exported_module!(modules::types::types))
             .combine(exported_module!(modules::mail_context::mail_context));
 
