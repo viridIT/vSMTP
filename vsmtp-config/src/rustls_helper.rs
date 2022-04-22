@@ -1,3 +1,4 @@
+use rustls::ALL_CIPHER_SUITES;
 use vsmtp_common::re::{anyhow, log};
 
 use crate::{config::ConfigServerTls, ConfigServerVirtual};
@@ -32,6 +33,21 @@ static JUST_TLS1_3: &[&rustls::SupportedProtocolVersion] = &[&rustls::version::T
 static ALL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
     &[&rustls::version::TLS13, &rustls::version::TLS12];
 
+fn to_supported_cipher_suite(
+    cipher_suite: &[rustls::CipherSuite],
+) -> Vec<rustls::SupportedCipherSuite> {
+    ALL_CIPHER_SUITES
+        .iter()
+        .filter(|i| {
+            cipher_suite
+                .iter()
+                .map(rustls::CipherSuite::get_u16)
+                .any(|x| x == i.suite().get_u16())
+        })
+        .copied()
+        .collect::<Vec<_>>()
+}
+
 #[doc(hidden)]
 pub fn get_rustls_config(
     config: &ConfigServerTls,
@@ -54,8 +70,10 @@ pub fn get_rustls_config(
     }
     .ok_or_else(|| anyhow::anyhow!("requested version is not supported"))?;
 
+    println!("{:?}", protocol_version);
+
     let mut out = rustls::ServerConfig::builder()
-        .with_cipher_suites(rustls::ALL_CIPHER_SUITES)
+        .with_cipher_suites(&to_supported_cipher_suite(&config.cipher_suite))
         .with_kx_groups(&rustls::ALL_KX_GROUPS)
         .with_protocol_versions(protocol_version)
         .map_err(|e| anyhow::anyhow!("cannot initialize tls config: '{e}'"))?
