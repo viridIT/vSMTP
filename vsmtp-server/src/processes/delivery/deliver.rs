@@ -6,6 +6,7 @@ use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
+    queue_path,
     re::{
         anyhow::{self, Context},
         log,
@@ -22,7 +23,8 @@ pub async fn flush_deliver_queue(
     resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
-    let dir_entries = std::fs::read_dir(Queue::Deliver.to_path(&config.server.queues.dirpath)?)?;
+    let dir_entries =
+        std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deliver))?;
     for path in dir_entries {
         if let Err(e) =
             handle_one_in_delivery_queue(config, resolvers, &path?.path(), rule_engine).await
@@ -185,21 +187,21 @@ mod tests {
         handle_one_in_delivery_queue(
             &config,
             &resolvers,
-            &Queue::Deliver
-                .to_path(&config.server.queues.dirpath)
-                .unwrap()
-                .join("message_from_deliver_to_deferred"),
+            &queue_path!(
+                &config.server.queues.dirpath,
+                Queue::Deliver,
+                "message_from_deliver_to_deferred"
+            ),
             &rule_engine,
         )
         .await
         .unwrap();
 
-        std::fs::remove_file(
-            Queue::Deferred
-                .to_path(&config.server.queues.dirpath)
-                .unwrap()
-                .join("message_from_deliver_to_deferred"),
-        )
+        std::fs::remove_file(queue_path!(
+            &config.server.queues.dirpath,
+            Queue::Deferred,
+            "message_from_deliver_to_deferred"
+        ))
         .unwrap();
     }
 }

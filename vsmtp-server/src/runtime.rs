@@ -3,9 +3,12 @@ use crate::{
     processes::{delivery, postq},
     ProcessMessage, Server,
 };
-use vsmtp_common::re::{
-    anyhow::{self, Context},
-    log,
+use vsmtp_common::{
+    queue::Queue,
+    re::{
+        anyhow::{self, Context},
+        log, strum,
+    },
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -62,6 +65,10 @@ pub fn start_runtime(
         std::net::TcpListener,
     ),
 ) -> anyhow::Result<()> {
+    <Queue as strum::IntoEnumIterator>::iter()
+        .map(|q| vsmtp_common::queue_path!(create_if_missing => &config.server.queues.dirpath, q))
+        .collect::<std::io::Result<Vec<_>>>()?;
+
     let (main_runtime_sender, mut main_runtime_receiver) =
         tokio::sync::mpsc::channel::<anyhow::Result<()>>(
             config.server.queues.delivery.channel_size,

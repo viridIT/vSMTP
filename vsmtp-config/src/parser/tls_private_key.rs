@@ -84,6 +84,8 @@ mod tests {
 
     #[test]
     fn rsa_ok() {
+        let _droppable = std::fs::DirBuilder::new().create("./tmp");
+
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -97,6 +99,8 @@ mod tests {
 
     #[test]
     fn pkcs8_ok() {
+        let _droppable = std::fs::DirBuilder::new().create("./tmp");
+
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -110,6 +114,8 @@ mod tests {
 
     #[test]
     fn ec256_ok() {
+        let _droppable = std::fs::DirBuilder::new().create("./tmp");
+
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -123,6 +129,8 @@ mod tests {
 
     #[test]
     fn not_good_format() {
+        let _droppable = std::fs::DirBuilder::new().create("./tmp");
+
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
