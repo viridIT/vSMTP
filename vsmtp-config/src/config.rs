@@ -265,7 +265,7 @@ pub enum TlsSecurityLevel {
     May,
     /// Connection must be under a TLS tunnel (using STARTTLS mechanism or using port 465)
     Encrypt,
-    /// DANE protocol using TLSA dns records to establish a secure connexion with a distant server.
+    /// DANE protocol using TLSA dns records to establish a secure connection with a distant server.
     Dane { port: u16 },
 }
 

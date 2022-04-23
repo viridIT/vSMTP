@@ -29,7 +29,8 @@ fn init_rolling_log(
                         .build(
                             &format!("{}-ar/trace.{{}}.gz", filepath.display()),
                             archive_count,
-                        )?,
+                        )
+                        .expect("{} in pattern && log4rs built with gzip"),
                 ),
             )),
         )
@@ -116,10 +117,7 @@ pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log
                     .unwrap_or(&log::LevelFilter::Warn),
             ),
         )
-        .map_err(|e| {
-            e.errors().iter().for_each(|e| log::error!("{}", e));
-            anyhow::anyhow!(e)
-        })
+        .map_err(anyhow::Error::new)
 }
 
 #[cfg(test)]
@@ -134,9 +132,37 @@ mod tests {
         config.app.logs.filepath = "./tmp/app.log".into();
         config.server.logs.filepath = "./tmp/vsmtp.log".into();
 
-        let res = get_log4rs_config(&config, true);
-        assert!(res.is_ok(), "{:?}", res);
         let res = get_log4rs_config(&config, false);
         assert!(res.is_ok(), "{:?}", res);
+    }
+
+    #[test]
+    fn init_with_console() {
+        let mut config = Config::default();
+        config.app.logs.filepath = "./tmp/app.log".into();
+        config.server.logs.filepath = "./tmp/vsmtp.log".into();
+
+        let res = get_log4rs_config(&config, true);
+        assert!(res.is_ok(), "{:?}", res);
+    }
+
+    #[test]
+    fn invalid_server_path() {
+        let mut config = Config::default();
+        config.app.logs.filepath = "./tmp/app.log".into();
+        config.server.logs.filepath = "/root/var/vsmtp.log".into();
+
+        let res = get_log4rs_config(&config, true);
+        assert!(res.is_err(), "{:?}", res);
+    }
+
+    #[test]
+    fn invalid_app_path() {
+        let mut config = Config::default();
+        config.app.logs.filepath = "/root/var/app.log".into();
+        config.server.logs.filepath = "./tmp/vsmtp.log".into();
+
+        let res = get_log4rs_config(&config, true);
+        assert!(res.is_err(), "{:?}", res);
     }
 }

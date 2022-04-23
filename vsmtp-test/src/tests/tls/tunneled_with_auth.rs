@@ -87,6 +87,7 @@ async fn simple() {
                 std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
             })
         },
+        |_| (),
     )
     .await
     .unwrap();

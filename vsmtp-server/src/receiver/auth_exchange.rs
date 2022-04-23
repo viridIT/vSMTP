@@ -24,11 +24,6 @@ pub enum AuthExchangeError {
     Other(anyhow::Error),
 }
 
-// /// authentication exchange is still processing
-// Processing,
-// /// authentication valid
-// Success,
-
 fn auth_step<S>(
     conn: &mut Connection<'_, S>,
     session: &mut rsasl::DiscardOnDrop<
