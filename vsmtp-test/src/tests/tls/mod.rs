@@ -244,25 +244,28 @@ async fn test_tls_tunneled(
         root_store.add(&i).unwrap();
     }
 
-    let config = rustls::ClientConfig::builder()
-        .with_safe_defaults()
+    let client_config = rustls::ClientConfig::builder()
+        .with_safe_default_cipher_suites()
+        .with_safe_default_kx_groups()
+        .with_safe_default_protocol_versions()
+        .unwrap()
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
-    let mut conn =
-        rustls::ClientConnection::new(std::sync::Arc::new(config), server_name.try_into().unwrap())
-            .unwrap();
+    let mut conn = rustls::ClientConnection::new(
+        std::sync::Arc::new(client_config),
+        server_name.try_into().unwrap(),
+    )
+    .unwrap();
 
     let client = tokio::spawn(async move {
         let mut client = std::net::TcpStream::connect(format!("0.0.0.0:{port}")).unwrap();
         let mut tls = rustls::Stream::new(&mut conn, &mut client);
         let mut io = IoService::new(&mut tls);
 
-        println!("here");
         if let Err(e) = std::io::Write::flush(&mut io) {
             anyhow::bail!(e);
         }
-        println!("here2");
 
         let mut output = vec![];
 

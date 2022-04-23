@@ -70,8 +70,6 @@ pub fn get_rustls_config(
     }
     .ok_or_else(|| anyhow::anyhow!("requested version is not supported"))?;
 
-    println!("{:?}", protocol_version);
-
     let mut out = rustls::ServerConfig::builder()
         .with_cipher_suites(&to_supported_cipher_suite(&config.cipher_suite))
         .with_kx_groups(&rustls::ALL_KX_GROUPS)
