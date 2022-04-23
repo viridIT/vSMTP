@@ -38,12 +38,7 @@ fn to_supported_cipher_suite(
 ) -> Vec<rustls::SupportedCipherSuite> {
     ALL_CIPHER_SUITES
         .iter()
-        .filter(|i| {
-            cipher_suite
-                .iter()
-                .map(rustls::CipherSuite::get_u16)
-                .any(|x| x == i.suite().get_u16())
-        })
+        .filter(|i| cipher_suite.iter().any(|x| *x == i.suite()))
         .copied()
         .collect::<Vec<_>>()
 }
@@ -57,18 +52,17 @@ pub fn get_rustls_config(
         config
             .protocol_version
             .iter()
-            .any(|i| i.get_u16() == rustls::ProtocolVersion::TLSv1_2.get_u16()),
+            .any(|i| *i == rustls::ProtocolVersion::TLSv1_2),
         config
             .protocol_version
             .iter()
-            .any(|i| i.get_u16() == rustls::ProtocolVersion::TLSv1_3.get_u16()),
+            .any(|i| *i == rustls::ProtocolVersion::TLSv1_3),
     ) {
-        (true, true) => Some(ALL_VERSIONS),
-        (true, false) => Some(JUST_TLS1_2),
-        (false, true) => Some(JUST_TLS1_3),
-        (false, false) => None,
-    }
-    .ok_or_else(|| anyhow::anyhow!("requested version is not supported"))?;
+        (true, true) => ALL_VERSIONS,
+        (true, false) => JUST_TLS1_2,
+        (false, true) => JUST_TLS1_3,
+        (false, false) => anyhow::bail!("requested version is not supported"),
+    };
 
     let mut out = rustls::ServerConfig::builder()
         .with_cipher_suites(&to_supported_cipher_suite(&config.cipher_suite))
