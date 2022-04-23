@@ -21,6 +21,7 @@ fn parse() {
                     "receiver".to_string() => log::LevelFilter::Info,
                     "rule_engine".to_string() => log::LevelFilter::Warn,
                     "delivery".to_string()=> log::LevelFilter::Error,
+                    "parser".to_string()=> log::LevelFilter::Trace,
                 }
             )
             .with_default_delivery()

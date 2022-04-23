@@ -1,3 +1,5 @@
+use crate::log_channels;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -27,10 +29,7 @@ use vsmtp_common::{
     state::StateSMTP,
     status::Status,
 };
-use vsmtp_config::{
-    log_channel::RECEIVER,
-    {Config, TlsSecurityLevel},
-};
+use vsmtp_config::{Config, TlsSecurityLevel};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
@@ -63,7 +62,11 @@ impl Transaction<'_> {
         conn: &Connection<S>,
         client_message: &str,
     ) -> ProcessedEvent {
-        log::trace!(target: RECEIVER, "buffer=\"{}\"", client_message);
+        log::trace!(
+            target: log_channels::TRANSACTION,
+            "buffer=\"{}\"",
+            client_message
+        );
 
         let command_or_code = if self.state == StateSMTP::Data {
             Event::parse_data
@@ -71,7 +74,11 @@ impl Transaction<'_> {
             Event::parse_cmd
         }(client_message);
 
-        log::trace!(target: RECEIVER, "parsed=\"{:?}\"", command_or_code);
+        log::trace!(
+            target: log_channels::TRANSACTION,
+            "parsed=\"{:?}\"",
+            command_or_code
+        );
 
         command_or_code.map_or_else(ProcessedEvent::Reply, |command| {
             self.process_event(conn, command)
@@ -371,7 +378,11 @@ impl Transaction<'_> {
                     skipped: self.rule_state.skipped(),
                 });
 
-                log::trace!(target: RECEIVER, "envelop=\"{:?}\"", ctx.envelop,);
+                log::trace!(
+                    target: log_channels::TRANSACTION,
+                    "envelop=\"{:?}\"",
+                    ctx.envelop,
+                );
             }
         }
     }
@@ -472,7 +483,7 @@ impl Transaction<'_> {
                             }
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
-                                    target: RECEIVER,
+                                    target: log_channels::TRANSACTION,
                                     "================ STATE: /{:?}/ => /{:?}/",
                                     transaction.state,
                                     new_state
@@ -483,7 +494,7 @@ impl Transaction<'_> {
                             }
                             ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
                                 log::info!(
-                                    target: RECEIVER,
+                                    target: log_channels::TRANSACTION,
                                     "================ STATE: /{:?}/ => /{:?}/",
                                     transaction.state,
                                     new_state
@@ -500,7 +511,7 @@ impl Transaction<'_> {
                     }
                     Ok(Err(ReadError::Blocking)) => {}
                     Ok(Err(ReadError::Eof)) => {
-                        log::info!(target: RECEIVER, "eof");
+                        log::info!(target: log_channels::TRANSACTION, "eof");
                         transaction.state = StateSMTP::Stop;
                     }
                     Ok(Err(ReadError::Other(e))) => {

@@ -1,3 +1,5 @@
+use crate::transport::log_channels;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -24,7 +26,7 @@ use vsmtp_common::{
     re::{anyhow, log},
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::{log_channel::DELIVER, Config};
+use vsmtp_config::Config;
 
 const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
     "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"
@@ -57,10 +59,11 @@ impl Transport for MBox {
                 if let Err(err) = write_content_to_mbox(
                     &std::path::PathBuf::from_iter(["/", "var", "mail", rcpt.address.local_part()]),
                     &user,
+                    metadata,
                     &content,
                 ) {
                     log::error!(
-                        target: DELIVER,
+                        target: log_channels::MBOX,
                         "failed to write email '{}' in mbox of '{rcpt}': {err}",
                         metadata.message_id
                     );
@@ -76,7 +79,7 @@ impl Transport for MBox {
                 }
             } else {
                 log::error!(
-                    target: DELIVER,
+                    target: log_channels::MBOX,
                     "failed to write email '{}' in mbox of '{rcpt}': '{rcpt}' is not a user",
                     metadata.message_id
                 );
@@ -110,6 +113,7 @@ fn build_mbox_message(
 fn write_content_to_mbox(
     mbox: &std::path::Path,
     user: &users::User,
+    metadata: &MessageMetadata,
     content: &str,
 ) -> anyhow::Result<()> {
     let mut file = std::fs::OpenOptions::new()
@@ -125,8 +129,9 @@ fn write_content_to_mbox(
         .with_context(|| format!("could not write email to '{:?}' mbox", mbox))?;
 
     log::debug!(
-        target: DELIVER,
-        "{} bytes written to {:?}",
+        target: log_channels::MBOX,
+        "(msg={}) {} bytes written to {:?}",
+        metadata.message_id,
         content.len(),
         mbox
     );
@@ -189,10 +194,11 @@ This is a raw email.
         let content = "From 0 john@doe.com\nfrom: john doe <john@doe.com>\n";
         let mbox =
             std::path::PathBuf::from_iter(["./tests/generated/", user.name().to_str().unwrap()]);
+        let metadata = MessageMetadata::default();
 
         std::fs::create_dir_all("./tests/generated/").expect("could not create temporary folders");
 
-        write_content_to_mbox(&mbox, &user, content).expect("could not write to mbox");
+        write_content_to_mbox(&mbox, &user, &metadata, content).expect("could not write to mbox");
 
         assert_eq!(
             content.to_string(),

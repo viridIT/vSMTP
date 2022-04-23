@@ -30,7 +30,7 @@ use vsmtp_common::re::anyhow;
 use vsmtp_common::re::log;
 use vsmtp_common::re::serde_json;
 use vsmtp_common::status::Status;
-use vsmtp_config::log_channel::URULES;
+use vsmtp_config::log_channel::APP;
 
 #[doc(hidden)]
 #[allow(dead_code)]
@@ -63,13 +63,13 @@ pub mod actions {
     ///
     pub fn log(level: &str, message: &str) {
         match level {
-            "trace" => log::trace!(target: URULES, "{}", message),
-            "debug" => log::debug!(target: URULES, "{}", message),
-            "info" => log::info!(target: URULES, "{}", message),
-            "warn" => log::warn!(target: URULES, "{}", message),
-            "error" => log::error!(target: URULES, "{}", message),
+            "trace" => log::trace!(target: APP, "{}", message),
+            "debug" => log::debug!(target: APP, "{}", message),
+            "info" => log::info!(target: APP, "{}", message),
+            "warn" => log::warn!(target: APP, "{}", message),
+            "error" => log::error!(target: APP, "{}", message),
             unknown => log::warn!(
-                target: URULES,
+                target: APP,
                 "'{}' is not a valid log level. Original message: '{}'",
                 unknown,
                 message

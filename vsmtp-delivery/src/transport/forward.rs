@@ -1,3 +1,5 @@
+use crate::transport::log_channels;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -49,7 +51,7 @@ impl<'r> Transport for Forward<'r> {
     async fn deliver(
         &mut self,
         config: &Config,
-        _: &MessageMetadata,
+        metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
         content: &str,
@@ -65,22 +67,24 @@ impl<'r> Transport for Forward<'r> {
             }
             Err(err) => {
                 log::debug!(
-                    target: vsmtp_config::log_channel::DELIVER,
-                    "failed to forward email to '{}': {}",
-                    &self.to,
-                    err
+                    target: log_channels::FORWARD,
+                    "(msg={}) failed to forward email to '{}': {err}",
+                    metadata.message_id,
+                    &self.to
                 );
+
+                for rcpt in to.iter_mut() {
+                    rcpt.email_status = match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => {
+                            EmailTransferStatus::HeldBack(count)
+                        }
+                        _ => EmailTransferStatus::HeldBack(0),
+                    };
+                }
+
+                anyhow::bail!("failed to forward email to '{}'", self.to)
             }
         }
-
-        for rcpt in to.iter_mut() {
-            rcpt.email_status = match rcpt.email_status {
-                EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count),
-                _ => EmailTransferStatus::HeldBack(0),
-            };
-        }
-
-        anyhow::bail!("failed to forward email to '{}'", self.to)
     }
 }
 

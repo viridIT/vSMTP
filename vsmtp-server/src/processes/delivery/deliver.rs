@@ -1,4 +1,7 @@
-use crate::processes::delivery::{add_trace_information, move_to_queue, send_email};
+use crate::{
+    log_channels,
+    processes::delivery::{add_trace_information, move_to_queue, send_email},
+};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MailContext,
@@ -11,7 +14,7 @@ use vsmtp_common::{
     status::Status,
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::{log_channel::DELIVER, Config};
+use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
 /// read all entries from the deliver queue & tries to send them.
@@ -26,7 +29,7 @@ pub async fn flush_deliver_queue(
         if let Err(e) =
             handle_one_in_delivery_queue(config, resolvers, &path?.path(), rule_engine).await
         {
-            log::warn!("{}", e);
+            log::warn!(target: log_channels::DELIVERY, "{}", e);
         }
     }
 
@@ -59,8 +62,8 @@ pub async fn handle_one_in_delivery_queue(
     let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
 
     log::trace!(
-        target: DELIVER,
-        "vDeliver (delivery) email received '{}'",
+        target: log_channels::DELIVERY,
+        "email received '{}'",
         message_id
     );
 

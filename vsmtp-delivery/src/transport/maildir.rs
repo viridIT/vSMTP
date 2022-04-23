@@ -1,3 +1,5 @@
+use crate::transport::log_channels;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -24,7 +26,7 @@ use vsmtp_common::{
     re::{anyhow, log},
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::{log_channel::DELIVER, re::users, Config};
+use vsmtp_config::{re::users, Config};
 
 /// see https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
@@ -47,8 +49,8 @@ impl Transport for Maildir {
                 // TODO: write to defer / dead queue.
                 if let Err(err) = write_to_maildir(&user, metadata, content) {
                     log::error!(
-                        target: DELIVER,
-                        "failed to write email '{}' in maildir of '{rcpt}': {err}",
+                        target: log_channels::MAILDIR,
+                        "(msg={}) failed to write email in maildir of '{rcpt}': {err}",
                         metadata.message_id
                     );
 
@@ -63,8 +65,8 @@ impl Transport for Maildir {
                 }
             } else {
                 log::error!(
-                    target: DELIVER,
-                    "failed to write email '{}' in maildir of '{}': '{}' is not a user",
+                    target: log_channels::MAILDIR,
+                    "(msg={}) failed to write email in maildir of '{}': '{}' is not a user",
                     metadata.message_id,
                     rcpt.address.local_part(),
                     rcpt.address.local_part()
@@ -124,8 +126,9 @@ fn write_to_maildir(
     chown(&maildir, Some(user.uid()), None)?;
 
     log::debug!(
-        target: DELIVER,
-        "{} bytes written to {:?}'s inbox",
+        target: log_channels::MAILDIR,
+        "(msg={}) {} bytes written to {:?}'s inbox",
+        metadata.message_id,
         content.len(),
         user
     );

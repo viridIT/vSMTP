@@ -1,5 +1,6 @@
 use crate::{
-    processes::{delivery, mime},
+    log_channels,
+    processes::{delivery, postq},
     ProcessMessage, Server,
 };
 use vsmtp_common::{
@@ -36,7 +37,10 @@ where
             } else {
                 runtime
                     .block_on({
-                        log::info!("Runtime '{name}' started successfully");
+                        log::info!(
+                            target: log_channels::RUNTIME,
+                            "Runtime '{name}' started successfully"
+                        );
                         future
                     })
                     .context(format!("An error terminated the '{name}' runtime"))
@@ -92,7 +96,7 @@ pub fn start_runtime(
         main_runtime_sender.clone(),
         "vsmtp-processing",
         config.server.system.thread_pool.processing,
-        mime::start(
+        postq::start(
             config.clone(),
             rule_engine.clone(),
             working_receiver,
@@ -112,7 +116,11 @@ pub fn start_runtime(
                 working_sender,
                 delivery_sender,
             )?;
-            log::info!("Listening on: {:?}", server.addr());
+            log::info!(
+                target: log_channels::RUNTIME,
+                "Listening on: {:?}",
+                server.addr()
+            );
             server.listen_and_serve().await
         },
     )?;

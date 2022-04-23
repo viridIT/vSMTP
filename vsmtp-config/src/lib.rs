@@ -29,14 +29,10 @@
 
 /// targets for log! macro
 pub mod log_channel {
-    /// receiver system
-    pub const RECEIVER: &str = "receiver";
-    /// server's rule
-    pub const SRULES: &str = "rules";
-    /// application side's rule
-    pub const URULES: &str = "user_rules";
-    /// delivery system
-    pub const DELIVER: &str = "deliver";
+    /// default log, use this instead of the root log.
+    pub const DEFAULT: &str = "server";
+    /// application logs (rule engine).
+    pub const APP: &str = "app";
 }
 
 #[cfg(test)]

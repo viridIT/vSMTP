@@ -64,7 +64,7 @@ pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log
                 Box::new(
                     append::console::ConsoleAppender::builder()
                         .encoder(Box::new(encode::pattern::PatternEncoder::new(
-                            "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
+                            &config.server.logs.format,
                         )))
                         .build(),
                 ),
@@ -76,27 +76,44 @@ pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log
     builder
         .appender(config::Appender::builder().build("server", Box::new(server)))
         .appender(config::Appender::builder().build("app", Box::new(app)))
-        .loggers(
-            config
-                .server
-                .logs
-                .level
-                .iter()
-                .map(|(name, level)| config::Logger::builder().build(name, *level)),
-        )
+        .loggers(config.server.logs.level.iter().filter_map(|(name, level)| {
+            // adding all loggers under the "server" logger to simulate a root logger.
+            if name == "default" {
+                None
+            } else {
+                Some(config::Logger::builder().build(format!("server::{name}"), *level))
+            }
+        }))
         .logger(
             config::Logger::builder()
                 .appender("app")
                 .additive(false)
-                .build(log_channel::URULES, config.app.logs.level),
+                .build(log_channel::APP, config.app.logs.level),
+        )
+        // vSMTP's "root" logger under the name "default", all sub loggers inherit from this one.
+        .logger(
+            config::Logger::builder()
+                .appender("server")
+                .additive(true)
+                .build(
+                    log_channel::DEFAULT,
+                    *config
+                        .server
+                        .logs
+                        .level
+                        .get("default")
+                        .unwrap_or(&log::LevelFilter::Warn),
+                ),
         )
         .build(
+            // true "root" logger, enabling it set logs for vSMTP's dependencies.
+            // the user doesn't need to set this 99% of the time.
             root.appender("server").build(
                 *config
                     .server
                     .logs
                     .level
-                    .get("default")
+                    .get("root")
                     .unwrap_or(&log::LevelFilter::Warn),
             ),
         )

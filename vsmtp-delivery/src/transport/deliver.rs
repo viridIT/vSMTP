@@ -1,3 +1,5 @@
+use crate::transport::log_channels;
+
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -49,19 +51,24 @@ impl<'r> Transport for Deliver<'r> {
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
-        let envelop = super::build_lettre_envelop(from, &to[..])
-            .context("failed to build envelop to deliver email")?;
+        for (query, rcpt) in &mut filter_by_domain_mut(to) {
+            let envelop = super::build_lettre_envelop(
+                from,
+                // TODO: 'to' parameter should be immutable, and the deliver
+                //       implementor should return a new set of recipients.
+                &rcpt.iter().map(|rcpt| (**rcpt).clone()).collect::<Vec<_>>()[..],
+            )
+            .context(format!(
+                "failed to build envelop to deliver email for '{query}'"
+            ))?;
 
-        let mut filtered_rcpt = filter_by_domain_mut(to);
-
-        for (query, rcpt) in &mut filtered_rcpt {
             // getting mx records for a set of recipients.
             let records = match get_mx_records(self.resolver, query).await {
                 Ok(records) => records,
                 Err(err) => {
                     log::warn!(
-                        target: vsmtp_config::log_channel::DELIVER,
-                        "failed to deliver email '{}' to '{query}': {err}",
+                        target: log_channels::DELIVER,
+                        "(msg={}) failed to get mx records for '{query}': {err}",
                         metadata.message_id
                     );
 
@@ -83,18 +90,23 @@ impl<'r> Transport for Deliver<'r> {
 
             for record in records.by_ref() {
                 let host = record.exchange().to_ascii();
-                if (send_email(config, self.resolver, &host, &envelop, from, content).await).is_ok()
-                {
+
+                match send_email(config, self.resolver, &host, &envelop, from, content).await {
                     // if a transfer succeeded, we can stop the lookup.
-                    break;
+                    Ok(_) => break,
+                    Err(err) => log::warn!(
+                        target: log_channels::DELIVER,
+                        "(msg={}) failed to send message from '{from}' for '{query}': {err}",
+                        metadata.message_id
+                    ),
                 }
             }
 
             if records.next().is_none() {
                 log::error!(
-                    target: vsmtp_config::log_channel::DELIVER,
-                    "no valid mail exchanger found for '{}'",
-                    query
+                    target: log_channels::DELIVER,
+                    "(msg={}) no valid mail exchanger found for '{query}', check warnings above.",
+                    metadata.message_id
                 );
 
                 for rcpt in rcpt.iter_mut() {

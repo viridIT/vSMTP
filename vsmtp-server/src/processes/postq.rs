@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::ProcessMessage;
+use crate::{log_channels, ProcessMessage};
 use anyhow::Context;
 use vsmtp_common::{
     mail_context::MailContext,
@@ -24,7 +24,7 @@ use vsmtp_common::{
     state::StateSMTP,
     status::Status,
 };
-use vsmtp_config::{log_channel::DELIVER, Config};
+use vsmtp_config::Config;
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
@@ -47,7 +47,7 @@ pub async fn start(
             ))
             .await
             {
-                log::error!("{}", err);
+                log::error!(target: log_channels::POSTQ, "{}", err);
             }
         }
     }
@@ -64,8 +64,8 @@ async fn handle_one_in_working_queue(
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
     log::debug!(
-        target: DELIVER,
-        "vMIME process received a new message id: {}",
+        target: log_channels::POSTQ,
+        "received a new message: {}",
         process_message.message_id,
     );
 
@@ -75,7 +75,12 @@ async fn handle_one_in_working_queue(
         &process_message.message_id
     );
 
-    log::debug!(target: DELIVER, "vMIME opening file: {:?}", file_to_process);
+    log::debug!(
+        target: log_channels::POSTQ,
+        "(msg={}) opening file: {:?}",
+        process_message.message_id,
+        file_to_process
+    );
 
     let mut ctx = MailContext::from_file(&file_to_process).context(format!(
         "failed to deserialize email in working queue '{}'",
@@ -110,8 +115,9 @@ async fn handle_one_in_working_queue(
             {
                 // skipping mime & delivery processes.
                 log::warn!(
-                    target: DELIVER,
-                    "delivery skipped because all recipient's transfer method is set to None."
+                    target: log_channels::POSTQ,
+                    "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
+                    process_message.message_id,
                 );
                 Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
                 false

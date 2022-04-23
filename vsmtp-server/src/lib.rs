@@ -10,13 +10,23 @@
 //
 #![allow(clippy::doc_markdown)]
 
+mod log_channels {
+    pub const AUTH: &str = "server::receiver::auth";
+    pub const CONNECTION: &str = "server::receiver::connection";
+    pub const TRANSACTION: &str = "server::receiver::transaction";
+    pub const RUNTIME: &str = "server::runtime";
+    pub const DEFERRED: &str = "server::processes::deferred";
+    pub const DELIVERY: &str = "server::processes::delivery";
+    pub const POSTQ: &str = "server::processes::postq";
+}
+
 mod channel_message;
 mod receiver;
 mod runtime;
 mod server;
 mod processes {
     pub mod delivery;
-    pub mod mime;
+    pub mod postq;
 }
 
 /// SMTP auth extension implementation
