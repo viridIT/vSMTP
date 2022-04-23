@@ -1,0 +1,20 @@
+#{
+    authenticate: [
+        rule "auth /etc/shadow" || {
+            print("VSL HERE");
+            let result = srv.run_service(ctx, "saslauthd");
+            debug(`${result}`);
+
+            if result.has_signal {
+                // timed out
+                return false;
+            }
+
+            if result.has_code && result.code == 0 {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ]
+}

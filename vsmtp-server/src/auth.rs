@@ -1,15 +1,26 @@
-use vsmtp_common::re::rsasl;
+use vsmtp_common::{auth::Mechanism, re::rsasl, state::StateSMTP, status::Status};
+use vsmtp_config::Config;
+use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
 /// Backend of SASL implementation
-pub type Backend = rsasl::DiscardOnDrop<rsasl::SASL<(), ()>>;
+pub type Backend = rsasl::DiscardOnDrop<
+    rsasl::SASL<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
+>;
 
 /// Function called by the SASL backend
 pub struct Callback;
 
-impl rsasl::Callback<(), ()> for Callback {
+impl rsasl::Callback<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<RuleEngine>>>
+    for Callback
+{
     fn callback(
-        _sasl: &mut rsasl::SASL<(), ()>,
-        session: &mut rsasl::Session<()>,
+        sasl: &mut rsasl::SASL<
+            std::sync::Arc<Config>,
+            std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        >,
+        session: &mut vsmtp_common::re::rsasl::Session<
+            std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        >,
         prop: rsasl::Property,
     ) -> Result<(), rsasl::ReturnCode> {
         // FIXME: this db MUST be provided by the rule engine
@@ -19,6 +30,9 @@ impl rsasl::Callback<(), ()> for Callback {
             .into_iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect::<std::collections::HashMap<String, String>>();
+
+        let config = unsafe { sasl.retrieve() }.unwrap();
+        sasl.store(config.clone());
 
         match prop {
             rsasl::Property::GSASL_PASSWORD => {
@@ -51,7 +65,25 @@ impl rsasl::Callback<(), ()> for Callback {
                         .to_string(),
                 );
 
-                if db.get(&authid).map_or(false, |p| *p == password) {
+                let mut rule_state = RuleState::new(&config);
+                {
+                    let guard = rule_state.get_context();
+
+                    let mut ctx = guard.write().unwrap();
+                    ctx.connection.authid = authid;
+                    ctx.connection.authpass = password;
+                }
+
+                let rule_engine = session.retrieve_mut().unwrap();
+
+                let result = {
+                    rule_engine.read().unwrap().run_when(
+                        &mut rule_state,
+                        &StateSMTP::Authentication(Mechanism::default(), None),
+                    )
+                };
+
+                if result == Status::Accept {
                     Ok(())
                 } else {
                     Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR)

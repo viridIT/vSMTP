@@ -178,7 +178,11 @@ pub mod test {
     pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
         vsmtp_common::mail_context::MailContext {
             body: vsmtp_common::mail_context::Body::Empty,
-            connection_timestamp: std::time::SystemTime::now(),
+            connection: ConnectionContext {
+                timestamp: std::time::SystemTime::now(),
+                authid: "".to_string(),
+                authpass: "".to_string(),
+            },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
                 0,
@@ -194,6 +198,7 @@ pub mod test {
     use super::transport::build_lettre_envelop;
     use vsmtp_common::{
         address::Address,
+        mail_context::ConnectionContext,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };

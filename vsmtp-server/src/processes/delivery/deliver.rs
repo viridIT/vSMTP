@@ -131,7 +131,7 @@ mod tests {
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
-        mail_context::{Body, MailContext, MessageMetadata},
+        mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
@@ -152,7 +152,11 @@ mod tests {
             .write_to_queue(
                 &config.server.queues.dirpath,
                 &MailContext {
-                    connection_timestamp: now,
+                    connection: ConnectionContext {
+                        timestamp: now,
+                        authid: "".to_string(),
+                        authpass: "".to_string(),
+                    },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),

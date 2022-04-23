@@ -57,7 +57,8 @@ pub mod mail_context {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .connection_timestamp)
+            .connection
+            .timestamp)
     }
 
     #[rhai_fn(global, get = "helo", return_raw)]

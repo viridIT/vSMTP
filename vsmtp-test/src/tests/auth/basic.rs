@@ -14,7 +14,7 @@ use vsmtp_server::{auth, OnMail};
 #[tokio::test]
 async fn plain_in_clair_secured() {
     assert!(test_receiver! {
-        with_auth => rsasl::SASL::new_untyped().unwrap(),
+        with_auth => rsasl::SASL::new().unwrap(),
         with_config => safe_auth_config(),
         [
             "EHLO foo\r\n",
@@ -59,7 +59,7 @@ async fn plain_in_clair_unsecured() {
 
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl
         },
@@ -118,7 +118,7 @@ async fn plain_in_clair_unsecured_utf8() {
 
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl
         },
@@ -155,7 +155,7 @@ async fn plain_in_clair_unsecured_utf8() {
 async fn plain_in_clair_invalid_credentials() {
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl
         },
@@ -189,7 +189,7 @@ async fn plain_in_clair_unsecured_cancel() {
 
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl
         },
@@ -229,7 +229,7 @@ async fn plain_in_clair_unsecured_cancel() {
 async fn plain_in_clair_unsecured_bad_base64() {
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl
         },
@@ -279,7 +279,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
 
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl
         },
@@ -349,7 +349,7 @@ async fn no_auth_with_authenticated_policy() {
 async fn client_must_not_start() {
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl
         },

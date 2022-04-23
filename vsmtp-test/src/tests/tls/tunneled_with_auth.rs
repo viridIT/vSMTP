@@ -80,7 +80,7 @@ async fn simple() {
         },
         |_| {
             Some({
-                let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+                let mut rsasl = rsasl::SASL::new().unwrap();
                 rsasl.install_callback::<auth::Callback>();
                 std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
             })

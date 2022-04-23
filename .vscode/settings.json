@@ -3,6 +3,7 @@
         "alpn",
         "appender",
         "authid",
+        "authpass",
         "BITMIME",
         "capath",
         "chrono",

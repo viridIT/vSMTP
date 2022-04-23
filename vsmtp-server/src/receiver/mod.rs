@@ -99,6 +99,7 @@ impl OnMail for MailHandler {
 async fn handle_auth<S>(
     conn: &mut Connection<'_, S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     helo_domain: &mut Option<String>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
@@ -107,7 +108,7 @@ async fn handle_auth<S>(
 where
     S: std::io::Read + std::io::Write + Send,
 {
-    match on_authentication(conn, rsasl, mechanism, initial_response).await {
+    match on_authentication(conn, rsasl, rule_engine, mechanism, initial_response).await {
         Err(auth_exchange::AuthExchangeError::Failed) => {
             conn.send_code(SMTPReplyCode::AuthInvalidCredentials)?;
             anyhow::bail!("Auth: Credentials invalid, closing connection");
@@ -211,6 +212,7 @@ where
                     handle_auth(
                         conn,
                         rsasl.clone(),
+                        rule_engine.clone(),
                         &mut helo_domain,
                         mechanism,
                         initial_response,
@@ -286,6 +288,7 @@ where
                     handle_auth(
                         &mut secured_conn,
                         rsasl.clone(),
+                        rule_engine.clone(),
                         &mut helo_domain,
                         mechanism,
                         initial_response,

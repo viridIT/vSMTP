@@ -18,7 +18,7 @@ use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::{exported_module, plugin::EvalAltResult, Engine, Scope, AST};
 use vsmtp_common::envelop::Envelop;
-use vsmtp_common::mail_context::{Body, MailContext};
+use vsmtp_common::mail_context::{Body, ConnectionContext, MailContext};
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
@@ -57,7 +57,11 @@ impl<'a> RuleState<'a> {
         });
 
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
-            connection_timestamp: std::time::SystemTime::now(),
+            connection: ConnectionContext {
+                timestamp: std::time::SystemTime::now(),
+                authid: "".to_string(),
+                authpass: "".to_string(),
+            },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
                 0,

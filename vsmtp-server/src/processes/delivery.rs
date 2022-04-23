@@ -263,7 +263,7 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: Status) ->
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::mail_context::Body;
+    use vsmtp_common::mail_context::{Body, ConnectionContext};
 
     /*
     /// This test produce side-effect and may make other test fails
@@ -299,7 +299,11 @@ mod test {
     fn test_add_trace_information() {
         let mut ctx = vsmtp_common::mail_context::MailContext {
             body: vsmtp_common::mail_context::Body::Empty,
-            connection_timestamp: std::time::SystemTime::UNIX_EPOCH,
+            connection: ConnectionContext {
+                timestamp: std::time::SystemTime::UNIX_EPOCH,
+                authid: "".to_string(),
+                authpass: "".to_string(),
+            },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
                 0,

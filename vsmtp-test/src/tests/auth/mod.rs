@@ -52,4 +52,3 @@ pub fn unsafe_auth_config() -> Config {
 
 mod all_mechanism;
 mod basic;
-mod send_to_server;

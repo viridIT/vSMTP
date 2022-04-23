@@ -6,6 +6,7 @@ use vsmtp_common::{
     code::SMTPReplyCode,
     re::{anyhow, base64, log, rsasl},
 };
+use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// Result of the AUTH command
 #[allow(clippy::module_name_repetitions)]
@@ -30,7 +31,9 @@ pub enum AuthExchangeError {
 
 fn auth_step<S>(
     conn: &mut Connection<'_, S>,
-    session: &mut rsasl::DiscardOnDrop<rsasl::Session<()>>,
+    session: &mut rsasl::DiscardOnDrop<
+        rsasl::Session<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
+    >,
     buffer: &[u8],
 ) -> Result<bool, AuthExchangeError>
 where
@@ -75,6 +78,7 @@ where
 pub async fn on_authentication<S>(
     conn: &mut Connection<'_, S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
 ) -> Result<(), AuthExchangeError>
@@ -116,6 +120,7 @@ where
     }
     let mut guard = rsasl.lock().await;
     let mut session = guard.server_start(&String::from(mechanism)).unwrap();
+    session.store(Box::new(rule_engine));
 
     let mut succeeded = auth_step(conn, &mut session, &initial_response.unwrap_or_default())?;
 

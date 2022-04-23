@@ -775,14 +775,21 @@ mod test {
 
     use super::{create_app_folder, set_transport, set_transport_for};
     use vsmtp_common::{
-        address::Address, mail_context::MailContext, rcpt::Rcpt, transfer::Transfer,
+        address::Address,
+        mail_context::{ConnectionContext, MailContext},
+        rcpt::Rcpt,
+        transfer::Transfer,
     };
     use vsmtp_config::Config;
 
     fn get_default_context() -> MailContext {
         MailContext {
             body: vsmtp_common::mail_context::Body::Empty,
-            connection_timestamp: std::time::SystemTime::now(),
+            connection: ConnectionContext {
+                timestamp: std::time::SystemTime::now(),
+                authid: "".to_string(),
+                authpass: "".to_string(),
+            },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
                 0,

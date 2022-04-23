@@ -131,7 +131,7 @@ async fn plain() {
         20015,
         Mechanism::Plain,
         {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
         },
@@ -157,7 +157,7 @@ async fn login() {
         20016,
         Mechanism::Login,
         {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
         },
@@ -171,7 +171,7 @@ async fn login() {
 async fn all_supported_by_rsasl() {
     let config = std::sync::Arc::new(unsafe_auth_config());
 
-    let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+    let mut rsasl = rsasl::SASL::new().unwrap();
     rsasl.install_callback::<auth::Callback>();
 
     let rsasl = std::sync::Arc::new(tokio::sync::Mutex::new(rsasl));
