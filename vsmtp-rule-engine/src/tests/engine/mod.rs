@@ -83,8 +83,7 @@ fn test_rule_state() {
         vsmtp_common::mail_context::MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
-                authid: "".to_string(),
-                authpass: "".to_string(),
+                credentials: None,
             },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),

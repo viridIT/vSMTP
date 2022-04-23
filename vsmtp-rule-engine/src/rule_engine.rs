@@ -59,8 +59,7 @@ impl<'a> RuleState<'a> {
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
-                authid: "".to_string(),
-                authpass: "".to_string(),
+                credentials: None,
             },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
@@ -125,8 +124,8 @@ impl<'a> RuleState<'a> {
 
     ///
     #[must_use]
-    pub const fn skipped(&self) -> Option<Status> {
-        self.skip
+    pub fn skipped(&self) -> Option<Status> {
+        self.skip.clone()
     }
 }
 
@@ -149,8 +148,8 @@ pub struct RuleEngine {
 impl RuleEngine {
     /// runs all rules from a stage using the current transaction state.
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
-        if let Some(status) = rule_state.skip {
-            return status;
+        if let Some(status) = &rule_state.skip {
+            return status.clone();
         }
 
         let now = time::OffsetDateTime::now_utc();
@@ -197,18 +196,15 @@ impl RuleEngine {
                     status
                 );
 
-                match status {
-                    Status::Faccept | Status::Deny => {
-                        log::debug!(
+                if let Status::Faccept | Status::Deny = status {
+                    log::debug!(
                         target: log_channels::RE,
                         "[{}] the rule engine will skip all rules because of the previous result.",
                         smtp_state
                     );
-                        rule_state.skip = Some(status);
-                        status
-                    }
-                    s => s,
+                    rule_state.skip = Some(status.clone());
                 }
+                status
             }
             Err(error) => {
                 log::error!(

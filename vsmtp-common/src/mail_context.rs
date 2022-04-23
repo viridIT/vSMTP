@@ -148,15 +148,30 @@ impl Body {
     }
 }
 
+/// The credentials send by the client, not necessarily the right one
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum AuthCredentials {
+    /// the pair will be sent and verified by a third party
+    Verify {
+        ///
+        authid: String,
+        ///
+        authpass: String,
+    },
+    /// the server will query a third party and make internal verification
+    Query {
+        ///
+        authid: String,
+    },
+}
+
 /// Representation of one connection
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct ConnectionContext {
     /// time of connection by the client.
     pub timestamp: std::time::SystemTime,
     ///
-    pub authid: String,
-    ///
-    pub authpass: String,
+    pub credentials: Option<AuthCredentials>,
 }
 
 /// Representation of one mail obtained by a transaction SMTP

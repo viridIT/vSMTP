@@ -306,8 +306,7 @@ impl Transaction<'_> {
                 let mut output = MailContext {
                     connection: ConnectionContext {
                         timestamp: std::time::SystemTime::now(),
-                        authid: "".to_string(),
-                        authpass: "".to_string(),
+                        credentials: None,
                     },
                     client_addr: ctx.client_addr,
                     envelop: Envelop::default(),

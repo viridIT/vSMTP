@@ -46,8 +46,7 @@ mod tests {
         MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
-                authid: "".to_string(),
-                authpass: "".to_string(),
+                credentials: None,
             },
             client_addr: "0.0.0.0:25".parse().unwrap(),
             envelop: Envelop {

@@ -9,10 +9,17 @@
                 "héllo": "wÖrld"
             };
 
-            if db[ctx.authid] == ctx.authpass {
-                vsl::accept()
-            } else {
-                vsl::deny()
+            switch ctx.auth.type {
+                "Verify" => {
+                    if db[ctx.auth.authid] == ctx.auth.authpass {
+                        vsl::accept()
+                    } else {
+                        vsl::deny()
+                    }
+                },
+                "Query" => {
+                    vsl::send(db[ctx.auth.authid])
+                }
             }
         }
     ]

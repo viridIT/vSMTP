@@ -1,5 +1,5 @@
 use vsmtp_common::{
-    mail_context::{Body, MailContext},
+    mail_context::{AuthCredentials, Body, MailContext},
     re::{anyhow, log},
 };
 use vsmtp_config::{re::users, Service};
@@ -70,8 +70,24 @@ pub fn run(this: &Service, ctx: &MailContext) -> anyhow::Result<ServiceResult> {
                 for i in args.split_whitespace() {
                     child.arg(
                         i.replace("{mail}", &body)
-                            .replace("{authid}", &ctx.connection.authid)
-                            .replace("{authpass}", &ctx.connection.authpass),
+                            .replace(
+                                "{authid}",
+                                ctx.connection.credentials.as_ref().map_or("", |c| match c {
+                                    AuthCredentials::Query { authid }
+                                    | AuthCredentials::Verify { authid, .. } => authid,
+                                }),
+                            )
+                            .replace(
+                                "{authpass}",
+                                ctx.connection
+                                    .credentials
+                                    .as_ref()
+                                    .and_then(|c| match c {
+                                        AuthCredentials::Verify { authpass, .. } => Some(authpass),
+                                        AuthCredentials::Query { .. } => None,
+                                    })
+                                    .unwrap_or(&"".to_string()),
+                            ),
                     );
                 }
             }

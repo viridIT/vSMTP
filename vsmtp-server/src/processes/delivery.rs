@@ -196,7 +196,7 @@ fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
 fn add_trace_information(
     config: &Config,
     ctx: &mut MailContext,
-    rule_engine_result: Status,
+    rule_engine_result: &Status,
 ) -> anyhow::Result<()> {
     let metadata = ctx
         .metadata
@@ -253,7 +253,7 @@ fn create_received_stamp(
 }
 
 /// create the "X-VSMTP" header stamp.
-fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: Status) -> String {
+fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -> String {
     format!(
         "id='{}'\n\tversion='{}'\n\tstatus='{}'",
         message_id, version, status
@@ -301,8 +301,7 @@ mod test {
             body: vsmtp_common::mail_context::Body::Empty,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::UNIX_EPOCH,
-                authid: "".to_string(),
-                authpass: "".to_string(),
+                credentials: None,
             },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
@@ -322,7 +321,7 @@ mod test {
         let config = vsmtp_config::Config::default();
 
         assert_eq!(
-            &add_trace_information(&config, &mut ctx, vsmtp_common::status::Status::Next)
+            &add_trace_information(&config, &mut ctx, &vsmtp_common::status::Status::Next)
                 .unwrap_err()
                 .to_string(),
             "could not add trace information to email header: body is empty"
@@ -330,7 +329,7 @@ mod test {
 
         ctx.body = Body::Raw("".to_string());
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
-        add_trace_information(&config, &mut ctx, vsmtp_common::status::Status::Next).unwrap();
+        add_trace_information(&config, &mut ctx, &vsmtp_common::status::Status::Next).unwrap();
 
         assert_eq!(
             ctx.body ,

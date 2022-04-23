@@ -180,8 +180,7 @@ pub mod test {
             body: vsmtp_common::mail_context::Body::Empty,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
-                authid: "".to_string(),
-                authpass: "".to_string(),
+                credentials: None,
             },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),

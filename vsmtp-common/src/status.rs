@@ -15,9 +15,20 @@
  *
 **/
 
+/// A packet send from the application (.vsl) to the server (vsmtp)
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum SendPacket {
+    /// a string
+    Str(String),
+    // ... SMTPReplyCode ...
+}
+
 /// Status of the mail context treated by the rule engine
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
+    /// data has being send from the rule engine to the server
+    Send(SendPacket),
+
     /// accepts the current stage value, skips all rules in the stage.
     Accept,
 
@@ -41,6 +52,7 @@ impl std::fmt::Display for Status {
                 Status::Next => "next",
                 Status::Deny => "deny",
                 Status::Faccept => "faccept",
+                Status::Send(_) => "send",
             }
         )
     }

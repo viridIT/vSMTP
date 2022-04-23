@@ -85,7 +85,7 @@ pub async fn handle_one_in_delivery_queue(
         //        using a RwLock.
         let mut ctx = state.get_context().read().unwrap().clone();
 
-        add_trace_information(config, &mut ctx, result)?;
+        add_trace_information(config, &mut ctx, &result)?;
 
         if result == Status::Deny {
             // we update rcpt email status and write to dead queue in case of a deny.
@@ -154,8 +154,7 @@ mod tests {
                 &MailContext {
                     connection: ConnectionContext {
                         timestamp: now,
-                        authid: "".to_string(),
-                        authpass: "".to_string(),
+                        credentials: None,
                     },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {

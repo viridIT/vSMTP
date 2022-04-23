@@ -200,8 +200,7 @@ mod tests {
                 &MailContext {
                     connection: ConnectionContext {
                         timestamp: std::time::SystemTime::now(),
-                        authid: "".to_string(),
-                        authpass: "".to_string(),
+                        credentials: None,
                     },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
@@ -266,8 +265,7 @@ mod tests {
                 &MailContext {
                     connection: ConnectionContext {
                         timestamp: std::time::SystemTime::now(),
-                        authid: "".to_string(),
-                        authpass: "".to_string(),
+                        credentials: None,
                     },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
