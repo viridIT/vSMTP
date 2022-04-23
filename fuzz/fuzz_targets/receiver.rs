@@ -40,12 +40,11 @@ fuzz_target!(|data: &[u8]| {
         .with_default_app_logs()
         .without_services()
         .with_system_dns()
+        .without_virtual_entries()
         .validate()
         .unwrap();
     config.server.smtp.error.soft_count = -1;
     config.server.smtp.error.hard_count = -1;
-
-    let config = std::sync::Arc::new(config);
 
     let mut written_data = Vec::new();
     let mut mock = Mock::new(std::io::Cursor::new(data.to_vec()), &mut written_data);
@@ -53,7 +52,7 @@ fuzz_target!(|data: &[u8]| {
     let mut conn = Connection::new(
         ConnectionKind::Opportunistic,
         "0.0.0.0:0".parse().unwrap(),
-        config,
+        std::sync::Arc::new(config.clone()),
         &mut io,
     );
 
