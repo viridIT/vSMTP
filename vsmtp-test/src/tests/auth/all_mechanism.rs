@@ -117,8 +117,9 @@ async fn test_auth(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn plain() {
+    let config = std::sync::Arc::new(unsafe_auth_config());
     test_auth(
-        std::sync::Arc::new(unsafe_auth_config()),
+        config.clone(),
         &[
             "220 testserver.com Service ready",
             "250-testserver.com",
@@ -133,6 +134,7 @@ async fn plain() {
         {
             let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(config));
             std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
         },
         ("hello", "world"),
@@ -143,8 +145,9 @@ async fn plain() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn login() {
+    let config = std::sync::Arc::new(unsafe_auth_config());
     test_auth(
-        std::sync::Arc::new(unsafe_auth_config()),
+        config.clone(),
         &[
             "220 testserver.com Service ready",
             "250-testserver.com",
@@ -159,6 +162,7 @@ async fn login() {
         {
             let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(config));
             std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
         },
         ("hello", "world"),
@@ -173,6 +177,7 @@ async fn all_supported_by_rsasl() {
 
     let mut rsasl = rsasl::SASL::new().unwrap();
     rsasl.install_callback::<auth::Callback>();
+    rsasl.store(Box::new(config.clone()));
 
     let rsasl = std::sync::Arc::new(tokio::sync::Mutex::new(rsasl));
     for mechanism in <Mechanism as strum::IntoEnumIterator>::iter() {

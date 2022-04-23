@@ -1,0 +1,19 @@
+#{
+    connect: [
+        rule "ok" || vsl::accept()
+    ],
+    authenticate: [
+        rule "auth hardcoded" || {
+            let db = #{
+                "hello": "world",
+                "héllo": "wÖrld"
+            };
+
+            if db[ctx.authid] == ctx.authpass {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ]
+}

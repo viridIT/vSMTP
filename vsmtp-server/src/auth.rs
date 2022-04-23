@@ -26,12 +26,12 @@ impl rsasl::Callback<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<Ru
         // FIXME: this db MUST be provided by the rule engine
         // which authorize the credentials or lookup a database (sql/ldap/...)
         // or call an external services (saslauthd) for example
-        let db = [("hello", "world"), ("héllo", "wÖrld")]
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect::<std::collections::HashMap<String, String>>();
+        // let db = [("hello", "world"), ("héllo", "wÖrld")]
+        //     .into_iter()
+        //     .map(|(k, v)| (k.to_string(), v.to_string()))
+        //     .collect::<std::collections::HashMap<String, String>>();
 
-        let config = unsafe { sasl.retrieve() }.unwrap();
+        let config = unsafe { sasl.retrieve() }.ok_or(rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
         sasl.store(config.clone());
 
         match prop {
@@ -43,11 +43,17 @@ impl rsasl::Callback<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<Ru
                     .unwrap()
                     .to_string();
 
-                if let Some(pass) = db.get(&authid) {
-                    session.set_property(rsasl::Property::GSASL_PASSWORD, pass.as_bytes());
-                }
+                println!("HERE {:?}", authid);
 
-                Ok(())
+                /*
+
+                            if let Some(pass) = db.get(&authid) {
+                                session.set_property(rsasl::Property::GSASL_PASSWORD, pass.as_bytes());
+                            }
+                            // Ok(())
+                */
+
+                Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR)
             }
             rsasl::Property::GSASL_VALIDATE_SIMPLE => {
                 let (authid, password) = (
@@ -69,18 +75,25 @@ impl rsasl::Callback<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<Ru
                 {
                     let guard = rule_state.get_context();
 
-                    let mut ctx = guard.write().unwrap();
+                    let mut ctx = guard
+                        .write()
+                        .map_err(|_| rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
                     ctx.connection.authid = authid;
                     ctx.connection.authpass = password;
                 }
 
-                let rule_engine = session.retrieve_mut().unwrap();
+                let rule_engine = session
+                    .retrieve_mut()
+                    .ok_or(rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
 
                 let result = {
-                    rule_engine.read().unwrap().run_when(
-                        &mut rule_state,
-                        &StateSMTP::Authentication(Mechanism::default(), None),
-                    )
+                    rule_engine
+                        .read()
+                        .map_err(|_| rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?
+                        .run_when(
+                            &mut rule_state,
+                            &StateSMTP::Authentication(Mechanism::default(), None),
+                        )
                 };
 
                 if result == Status::Accept {

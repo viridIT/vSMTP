@@ -78,10 +78,11 @@ async fn simple() {
                 .unwrap(),
             ))
         },
-        |_| {
+        |config| {
             Some({
                 let mut rsasl = rsasl::SASL::new().unwrap();
                 rsasl.install_callback::<auth::Callback>();
+                rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
                 std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
             })
         },

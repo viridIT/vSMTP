@@ -61,6 +61,30 @@ pub mod mail_context {
             .timestamp)
     }
 
+    #[rhai_fn(global, get = "authid", return_raw)]
+    pub fn authid(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<String> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .connection
+            .authid
+            .clone())
+    }
+
+    #[rhai_fn(global, get = "authpass", return_raw)]
+    pub fn authpass(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<String> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .connection
+            .authpass
+            .clone())
+    }
+
     #[rhai_fn(global, get = "helo", return_raw)]
     pub fn helo(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<String> {
         Ok(this

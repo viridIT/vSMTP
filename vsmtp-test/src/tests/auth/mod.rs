@@ -41,7 +41,7 @@ pub fn unsafe_auth_config() -> Config {
         .with_default_smtp_codes()
         .with_auth(false, true, ConfigServerSMTPAuth::default_mechanisms(), -1)
         .with_default_app()
-        .with_vsl("./src/tests/empty_main.vsl")
+        .with_vsl("./src/tests/auth.vsl")
         .with_default_app_logs()
         .without_services()
         .with_system_dns()
