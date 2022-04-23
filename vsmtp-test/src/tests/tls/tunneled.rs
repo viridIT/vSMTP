@@ -63,6 +63,7 @@ async fn simple() {
             ))
         },
         |_| None,
+        |_| (),
     )
     .await
     .unwrap();
@@ -103,6 +104,7 @@ async fn starttls_under_tunnel() {
             ))
         },
         |_| None,
+        |_| (),
     )
     .await
     .unwrap();
@@ -124,6 +126,7 @@ async fn config_ill_formed() {
         20461,
         |_| None,
         |_| None,
+        |_| (),
     )
     .await
     .unwrap();
@@ -171,6 +174,7 @@ async fn sni() {
             ))
         },
         |_| None,
+        |_| (),
     )
     .await
     .unwrap();

@@ -5,6 +5,7 @@
         "authid",
         "BITMIME",
         "capath",
+        "CHACHA",
         "chrono",
         "cipherlist",
         "ciphersuite",

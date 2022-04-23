@@ -1,3 +1,4 @@
+mod cipher_suite;
 mod starttls;
 mod tunneled;
 mod tunneled_with_auth;
@@ -187,6 +188,7 @@ async fn test_starttls(
 }
 
 // using sockets on 2 thread to make the handshake concurrently
+#[allow(clippy::too_many_arguments)]
 async fn test_tls_tunneled(
     server_name: &str,
     server_config: std::sync::Arc<Config>,
@@ -195,6 +197,9 @@ async fn test_tls_tunneled(
     port: u32,
     get_tls_config: fn(&Config) -> Option<std::sync::Arc<rustls::ServerConfig>>,
     get_auth_config: fn(&Config) -> Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
+    after_handshake: impl Fn(&IoService<rustls::Stream<rustls::ClientConnection, std::net::TcpStream>>)
+        + 'static
+        + std::marker::Send,
 ) -> anyhow::Result<(anyhow::Result<()>, anyhow::Result<()>)> {
     let socket_server = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
@@ -239,14 +244,19 @@ async fn test_tls_tunneled(
         root_store.add(&i).unwrap();
     }
 
-    let config = rustls::ClientConfig::builder()
-        .with_safe_defaults()
+    let client_config = rustls::ClientConfig::builder()
+        .with_safe_default_cipher_suites()
+        .with_safe_default_kx_groups()
+        .with_safe_default_protocol_versions()
+        .unwrap()
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
-    let mut conn =
-        rustls::ClientConnection::new(std::sync::Arc::new(config), server_name.try_into().unwrap())
-            .unwrap();
+    let mut conn = rustls::ClientConnection::new(
+        std::sync::Arc::new(client_config),
+        server_name.try_into().unwrap(),
+    )
+    .unwrap();
 
     let client = tokio::spawn(async move {
         let mut client = std::net::TcpStream::connect(format!("0.0.0.0:{port}")).unwrap();
@@ -254,13 +264,12 @@ async fn test_tls_tunneled(
         let mut io = IoService::new(&mut tls);
 
         if let Err(e) = std::io::Write::flush(&mut io) {
-            assert!(expected_output.is_empty());
             anyhow::bail!(e);
         }
 
         let mut output = vec![];
 
-        // TODO: assert on negotiated cipher ... ?
+        after_handshake(&io);
 
         let mut input = smtp_input.iter().cloned();
         loop {
