@@ -6,6 +6,8 @@ use vsmtp_common::{mail_context::MailContext, re::anyhow};
 
 #[rhai::plugin::export_module]
 pub mod transports {
+    use vsmtp_common::transfer::ForwardTarget;
+
     use crate::{modules::actions::MailContext, modules::EngineResult};
 
     /// set the delivery method to "Forward" for a single recipient.
@@ -20,7 +22,13 @@ pub mod transports {
                 .write()
                 .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
             rcpt,
-            &vsmtp_common::transfer::Transfer::Forward(forward.to_string()),
+            &vsmtp_common::transfer::Transfer::Forward({
+                forward
+                    .parse::<std::net::IpAddr>()
+                    .map_or(ForwardTarget::Domain(forward.to_string()), |ip| {
+                        ForwardTarget::Ip(ip)
+                    })
+            }),
         )
         .map_err(|err| err.to_string().into())
     }
@@ -35,7 +43,13 @@ pub mod transports {
             &mut *this
                 .write()
                 .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            &vsmtp_common::transfer::Transfer::Forward(forward.to_string()),
+            &vsmtp_common::transfer::Transfer::Forward({
+                forward
+                    .parse::<std::net::IpAddr>()
+                    .map_or(ForwardTarget::Domain(forward.to_string()), |ip| {
+                        ForwardTarget::Ip(ip)
+                    })
+            }),
         );
 
         Ok(())
@@ -191,7 +205,11 @@ mod test {
 
     use super::*;
     use crate::modules::actions::test::get_default_context;
-    use vsmtp_common::{address::Address, rcpt::Rcpt, transfer::Transfer};
+    use vsmtp_common::{
+        address::Address,
+        rcpt::Rcpt,
+        transfer::{ForwardTarget, Transfer},
+    };
 
     #[test]
     fn test_set_transport_for() {
@@ -218,12 +236,24 @@ mod test {
     fn test_set_transport() {
         let mut ctx = get_default_context();
 
-        set_transport(&mut ctx, &Transfer::Forward("mta.example.com".to_string()));
+        set_transport(
+            &mut ctx,
+            &Transfer::Forward(ForwardTarget::Domain("mta.example.com".to_string())),
+        );
 
-        assert!(ctx
-            .envelop
-            .rcpt
-            .iter()
-            .all(|rcpt| rcpt.transfer_method == Transfer::Forward("mta.example.com".to_string())));
+        assert!(ctx.envelop.rcpt.iter().all(|rcpt| rcpt.transfer_method
+            == Transfer::Forward(ForwardTarget::Domain("mta.example.com".to_string()))));
+
+        set_transport(
+            &mut ctx,
+            &Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
+                "127.0.0.1".parse().unwrap(),
+            ))),
+        );
+
+        assert!(ctx.envelop.rcpt.iter().all(|rcpt| rcpt.transfer_method
+            == Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
+                "127.0.0.1".parse().unwrap()
+            )))));
     }
 }

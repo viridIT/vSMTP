@@ -133,9 +133,15 @@ async fn send_email(
         let mut transport: Box<dyn Transport + Send> = match method {
             Transfer::Forward(to) => Box::new(forward::Forward::new(
                 to,
-                resolvers
-                    .get(to)
-                    .unwrap_or_else(|| resolvers.get(&config.server.domain).unwrap()),
+                // if we are using an ip the default dns is used.
+                match to {
+                    vsmtp_common::transfer::ForwardTarget::Domain(domain) => resolvers
+                        .get(domain)
+                        .unwrap_or_else(|| resolvers.get(&config.server.domain).unwrap()),
+                    vsmtp_common::transfer::ForwardTarget::Ip(_) => {
+                        resolvers.get(&config.server.domain).unwrap()
+                    }
+                },
             )),
             Transfer::Deliver => Box::new(deliver2::Deliver::new({
                 let domain = rcpt[0].address.domain();

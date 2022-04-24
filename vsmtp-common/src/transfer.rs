@@ -54,12 +54,21 @@ impl std::fmt::Display for EmailTransferStatus {
     }
 }
 
+/// possible format of the forward target.
+#[derive(Debug, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
+pub enum ForwardTarget {
+    /// the target is a domain name. (default)
+    Domain(String),
+    /// the target is an ip address, a domaine resolution needs to be made.
+    Ip(std::net::IpAddr),
+}
+
 /// the delivery method / protocol used for a specific recipient.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Transfer {
-    /// forward email via the smtp protocol and mx record resolution.
-    Forward(String),
-    /// deliver the email via the smtp protocol.
+    /// forward email via the smtp protocol.
+    Forward(ForwardTarget),
+    /// deliver the email via the smtp protocol and mx record resolution.
     Deliver,
     /// local delivery via the mbox protocol.
     Mbox,
@@ -94,7 +103,7 @@ impl std::str::FromStr for Transfer {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "forward" => Ok(Self::Forward(String::default())),
+            "forward" => Ok(Self::Forward(ForwardTarget::Domain(String::default()))),
             "deliver" => Ok(Self::Deliver),
             "mbox" => Ok(Self::Mbox),
             "maildir" => Ok(Self::Maildir),
@@ -126,6 +135,8 @@ mod tests {
     }
 
     mod transfer {
+        use crate::transfer::ForwardTarget;
+
         use super::Transfer;
         use std::str::FromStr;
 
@@ -144,7 +155,7 @@ mod tests {
                 Transfer::Deliver,
                 Transfer::Maildir,
                 Transfer::Mbox,
-                Transfer::Forward(String::default()),
+                Transfer::Forward(ForwardTarget::Domain(String::default())),
             ] {
                 println!("{:?}", s);
                 assert_eq!(Transfer::from_str(&format!("{}", s)).unwrap(), s);
