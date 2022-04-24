@@ -17,6 +17,7 @@ use std::str::FromStr;
  *
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
+use vsmtp_common::auth::Mechanism;
 use vsmtp_common::re::serde_json;
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{
@@ -253,4 +254,141 @@ fn test_forward() {
         rcpt[6].transfer_method,
         Transfer::Forward(ForwardTarget::Domain("test.eu".to_string()))
     );
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn test_forward_all() {
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["actions/forward_all.vsl"]),
+    )
+    .unwrap();
+    let (mut state, _) = get_default_state("./tmp/app");
+    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail::default()));
+
+    re.run_when(&mut state, &StateSMTP::Connect);
+
+    re.run_when(
+        &mut state,
+        &StateSMTP::Authentication(Mechanism::Login, None),
+    );
+
+    state
+        .get_context()
+        .read()
+        .unwrap()
+        .envelop
+        .rcpt
+        .iter()
+        .for_each(|rcpt| {
+            assert_eq!(
+                rcpt.transfer_method,
+                Transfer::Forward(ForwardTarget::Domain("localhost".to_string()))
+            );
+        });
+
+    re.run_when(&mut state, &StateSMTP::MailFrom);
+
+    state
+        .get_context()
+        .read()
+        .unwrap()
+        .envelop
+        .rcpt
+        .iter()
+        .for_each(|rcpt| {
+            assert_eq!(
+                rcpt.transfer_method,
+                Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
+                    std::net::Ipv4Addr::from_str("127.0.0.1").unwrap()
+                )))
+            );
+        });
+
+    re.run_when(&mut state, &StateSMTP::RcptTo);
+
+    state
+        .get_context()
+        .read()
+        .unwrap()
+        .envelop
+        .rcpt
+        .iter()
+        .for_each(|rcpt| {
+            assert_eq!(
+                rcpt.transfer_method,
+                Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
+                    std::net::Ipv6Addr::from_str("::1").unwrap()
+                )))
+            );
+        });
+
+    re.run_when(&mut state, &StateSMTP::Data);
+
+    state
+        .get_context()
+        .read()
+        .unwrap()
+        .envelop
+        .rcpt
+        .iter()
+        .for_each(|rcpt| {
+            assert_eq!(
+                rcpt.transfer_method,
+                Transfer::Forward(ForwardTarget::Domain("localhost".to_string()))
+            );
+        });
+
+    re.run_when(&mut state, &StateSMTP::PreQ);
+
+    state
+        .get_context()
+        .read()
+        .unwrap()
+        .envelop
+        .rcpt
+        .iter()
+        .for_each(|rcpt| {
+            assert_eq!(
+                rcpt.transfer_method,
+                Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
+                    std::net::Ipv4Addr::from_str("127.0.0.1").unwrap()
+                )))
+            );
+        });
+
+    re.run_when(&mut state, &StateSMTP::PostQ);
+
+    state
+        .get_context()
+        .read()
+        .unwrap()
+        .envelop
+        .rcpt
+        .iter()
+        .for_each(|rcpt| {
+            assert_eq!(
+                rcpt.transfer_method,
+                Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
+                    std::net::Ipv6Addr::from_str("::1").unwrap()
+                )))
+            );
+        });
+
+    re.run_when(&mut state, &StateSMTP::Delivery);
+
+    state
+        .get_context()
+        .read()
+        .unwrap()
+        .envelop
+        .rcpt
+        .iter()
+        .for_each(|rcpt| {
+            assert_eq!(
+                rcpt.transfer_method,
+                Transfer::Forward(ForwardTarget::Domain("test.eu".to_string()))
+            );
+        });
 }

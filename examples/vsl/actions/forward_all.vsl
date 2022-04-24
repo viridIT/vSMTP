@@ -1,0 +1,46 @@
+object forward_str string = "localhost";
+object forward_ip4 ip4 = "127.0.0.1";
+object forward_ip6 ip6 = "::1";
+object forward_fqdn fqdn = "test.eu";
+
+#{
+    connect: [
+        action "add recipients" || {
+            vsl::add_rcpt(ctx, "fqdn@example.com");
+            vsl::add_rcpt(ctx, "ip4@example.com");
+            vsl::add_rcpt(ctx, "ip6@example.com");
+            vsl::add_rcpt(ctx, "object.str@example.com");
+            vsl::add_rcpt(ctx, "object.ip4@example.com");
+            vsl::add_rcpt(ctx, "object.ip6@example.com");
+            vsl::add_rcpt(ctx, "object.fqdn@example.com");
+        }
+    ],
+
+    Authentication: [
+        action "forward all (fqdn string)" || vsl::forward_all(ctx, "localhost"),
+    ],
+
+    mail: [
+        action "forward all (ip4 string)" || vsl::forward_all(ctx, "127.0.0.1"),
+    ],
+
+    rcpt: [
+        action "forward all (ip4 string)" || vsl::forward_all(ctx, "::1"),
+    ],
+
+    Data: [
+        action "forward all (string object)" || vsl::forward_all(ctx, forward_str),
+    ],
+
+    preq: [
+        action "forward all (ip4 object)" || vsl::forward_all(ctx, forward_ip4),
+    ],
+
+    postq: [
+        action "forward all (ip6 object)" || vsl::forward_all(ctx, forward_ip6),
+    ],
+
+    delivery: [
+        action "forward all (fqdn object)" || vsl::forward_all(ctx, forward_fqdn),
+    ],
+}
