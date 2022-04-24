@@ -6,10 +6,10 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod rule_state {
     use crate::{
+        modules::actions::create_app_folder,
         modules::actions::transports::transports::disable_delivery_all,
-        modules::actions::create_app_folder, modules::actions::MailContext,
-        modules::mail_context::mail_context::message_id, modules::EngineResult,
-        server_api::ServerAPI,
+        modules::actions::MailContext, modules::mail_context::mail_context::message_id,
+        modules::EngineResult, server_api::ServerAPI,
     };
     use vsmtp_common::status::Status;
 
