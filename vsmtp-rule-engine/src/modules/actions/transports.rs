@@ -255,5 +255,17 @@ mod test {
             == Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
                 "127.0.0.1".parse().unwrap()
             )))));
+
+        set_transport(
+            &mut ctx,
+            &Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
+                "::1".parse().unwrap(),
+            ))),
+        );
+
+        assert!(ctx.envelop.rcpt.iter().all(|rcpt| rcpt.transfer_method
+            == Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
+                "::1".parse().unwrap()
+            )))));
     }
 }
