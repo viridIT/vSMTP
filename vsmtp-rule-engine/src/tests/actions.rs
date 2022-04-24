@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,6 +18,7 @@
 **/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::re::serde_json;
+use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{
     mail::Mail,
     mail_context::{Body, MessageMetadata},
@@ -189,4 +192,65 @@ fn test_quarantine() {
         .expect("could not remove generated test file");
     std::fs::remove_file("./tmp/app/tests/generated/quarantine2/test_message_id.json")
         .expect("could not remove generated test file");
+}
+
+#[test]
+fn test_forward() {
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["actions/forward.vsl"]),
+    )
+    .unwrap();
+    let (mut state, _) = get_default_state("./tmp/app");
+    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail::default()));
+
+    re.run_when(&mut state, &StateSMTP::Connect);
+    re.run_when(&mut state, &StateSMTP::Delivery);
+
+    let rcpt = state.get_context().read().unwrap().envelop.rcpt.clone();
+    println!("{rcpt:?}");
+
+    assert_eq!(rcpt[0].address.full(), "fqdn@example.com");
+    assert_eq!(
+        rcpt[0].transfer_method,
+        Transfer::Forward(ForwardTarget::Domain("localhost".to_string()))
+    );
+    assert_eq!(rcpt[1].address.full(), "ip4@example.com");
+    assert_eq!(
+        rcpt[1].transfer_method,
+        Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
+            std::net::Ipv4Addr::from_str("127.0.0.1").unwrap()
+        )))
+    );
+    assert_eq!(rcpt[2].address.full(), "ip6@example.com");
+    assert_eq!(
+        rcpt[2].transfer_method,
+        Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
+            std::net::Ipv6Addr::from_str("::1").unwrap()
+        )))
+    );
+    assert_eq!(rcpt[3].address.full(), "object.str@example.com");
+    assert_eq!(
+        rcpt[3].transfer_method,
+        Transfer::Forward(ForwardTarget::Domain("localhost".to_string()))
+    );
+    assert_eq!(rcpt[4].address.full(), "object.ip4@example.com");
+    assert_eq!(
+        rcpt[4].transfer_method,
+        Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
+            std::net::Ipv4Addr::from_str("127.0.0.1").unwrap()
+        )))
+    );
+    assert_eq!(rcpt[5].address.full(), "object.ip6@example.com");
+    assert_eq!(
+        rcpt[5].transfer_method,
+        Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
+            std::net::Ipv6Addr::from_str("::1").unwrap()
+        )))
+    );
+    assert_eq!(rcpt[6].address.full(), "object.fqdn@example.com");
+    assert_eq!(
+        rcpt[6].transfer_method,
+        Transfer::Forward(ForwardTarget::Domain("test.eu".to_string()))
+    );
 }

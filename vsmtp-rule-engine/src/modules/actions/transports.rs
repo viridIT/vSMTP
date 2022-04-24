@@ -4,15 +4,34 @@ use rhai::plugin::{
 };
 use vsmtp_common::{mail_context::MailContext, re::anyhow};
 
+#[allow(clippy::needless_pass_by_value)]
 #[rhai::plugin::export_module]
 pub mod transports {
     use vsmtp_common::transfer::ForwardTarget;
 
-    use crate::{modules::actions::MailContext, modules::EngineResult};
+    use crate::{modules::actions::MailContext, modules::EngineResult, obj::Object};
+
+    #[rhai_fn(global, name = "forward", return_raw)]
+    pub fn forward_obj(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        rcpt: &str,
+        forward: std::sync::Arc<Object>,
+    ) -> EngineResult<()> {
+        match &*forward {
+            Object::Ip4(ip) => forward_str(this, rcpt, &ip.to_string()),
+            Object::Ip6(ip) => forward_str(this, rcpt, &ip.to_string()),
+            Object::Fqdn(fqdn) | Object::Str(fqdn) => forward_str(this, rcpt, fqdn),
+            obj => Err(format!(
+                "{} is not a valid address to forward an email to.",
+                obj.to_string()
+            )
+            .into()),
+        }
+    }
 
     /// set the delivery method to "Forward" for a single recipient.
-    #[rhai_fn(global, return_raw)]
-    pub fn forward(
+    #[rhai_fn(global, name = "forward", return_raw)]
+    pub fn forward_str(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
         forward: &str,
@@ -33,9 +52,26 @@ pub mod transports {
         .map_err(|err| err.to_string().into())
     }
 
+    #[rhai_fn(global, name = "forward_all", return_raw)]
+    pub fn forward_all_obj(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        forward: std::sync::Arc<Object>,
+    ) -> EngineResult<()> {
+        match &*forward {
+            Object::Ip4(ip) => forward_all_str(this, &ip.to_string()),
+            Object::Ip6(ip) => forward_all_str(this, &ip.to_string()),
+            Object::Fqdn(fqdn) | Object::Str(fqdn) => forward_all_str(this, fqdn),
+            obj => Err(format!(
+                "{} is not a valid address to forward an email to.",
+                obj.to_string()
+            )
+            .into()),
+        }
+    }
+
     /// set the delivery method to "Forward" for all recipients.
-    #[rhai_fn(global, return_raw)]
-    pub fn forward_all(
+    #[rhai_fn(global, name = "forward_all", return_raw)]
+    pub fn forward_all_str(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         forward: &str,
     ) -> EngineResult<()> {
