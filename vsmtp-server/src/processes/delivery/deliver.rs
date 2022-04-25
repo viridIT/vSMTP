@@ -85,7 +85,7 @@ pub async fn handle_one_in_delivery_queue(
         //        using a RwLock.
         let mut ctx = state.get_context().read().unwrap().clone();
 
-        add_trace_information(config, &mut ctx, result)?;
+        add_trace_information(config, &mut ctx, &result)?;
 
         if result == Status::Deny {
             // we update rcpt email status and write to dead queue in case of a deny.
@@ -131,7 +131,7 @@ mod tests {
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
-        mail_context::{Body, MailContext, MessageMetadata},
+        mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
@@ -152,7 +152,10 @@ mod tests {
             .write_to_queue(
                 &config.server.queues.dirpath,
                 &MailContext {
-                    connection_timestamp: now,
+                    connection: ConnectionContext {
+                        timestamp: now,
+                        credentials: None,
+                    },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),

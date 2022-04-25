@@ -5,6 +5,6 @@
 /// ```
 ///
 mod stress {
-    mod listen_and_serve;
-    mod send_payload;
+    mod listen_and_serve_ignored_test;
+    mod send_payload_ignored_test;
 }

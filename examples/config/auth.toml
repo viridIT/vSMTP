@@ -1,0 +1,31 @@
+version_requirement = "<1.0.0"
+
+[server.interfaces]
+addr = ["127.0.0.1:10025"]
+addr_submission = ["127.0.0.1:10587"]
+addr_submissions = ["127.0.0.1:10465"]
+
+[server.logs]
+filepath = "./tmp/dev/vsmtp.log"
+
+[server.logs.level]
+default = "trace"
+
+[server.queues]
+dirpath = "./tmp/dev/spool2"
+
+[server.smtp.auth]
+must_be_authenticated = true
+enable_dangerous_mechanism_in_clair = true
+
+[app.vsl]
+filepath = "./examples/config/auth/main.vsl"
+
+[app.logs]
+filepath = "./tmp/dev/app.log"
+
+[app.services.saslauthd]
+type = "shell"
+timeout = "100ms"
+command = "testsaslauthd"
+args = "-u {authid} -p {authpass}"

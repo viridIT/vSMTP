@@ -1,5 +1,3 @@
-use crate::log_channels;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -18,13 +16,14 @@ use crate::log_channels;
 **/
 use super::connection::Connection;
 use super::io_service::ReadError;
+use crate::log_channels;
 use vsmtp_common::{
     address::Address,
     auth::Mechanism,
     code::SMTPReplyCode,
     envelop::Envelop,
     event::Event,
-    mail_context::{Body, MailContext, MessageMetadata, MAIL_CAPACITY},
+    mail_context::{Body, ConnectionContext, MailContext, MessageMetadata, MAIL_CAPACITY},
     re::{anyhow, log},
     state::StateSMTP,
     status::Status,
@@ -305,7 +304,10 @@ impl Transaction<'_> {
                 }
 
                 let mut output = MailContext {
-                    connection_timestamp: std::time::SystemTime::now(),
+                    connection: ConnectionContext {
+                        timestamp: std::time::SystemTime::now(),
+                        credentials: None,
+                    },
                     client_addr: ctx.client_addr,
                     envelop: Envelop::default(),
                     body: Body::Empty,
@@ -328,7 +330,7 @@ impl Transaction<'_> {
         let ctx = &mut state.write().unwrap();
 
         ctx.client_addr = conn.client_addr;
-        ctx.connection_timestamp = conn.timestamp;
+        ctx.connection.timestamp = conn.timestamp;
     }
 
     fn set_helo(&mut self, helo: String) {

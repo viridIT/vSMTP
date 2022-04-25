@@ -37,6 +37,11 @@ pub mod rule_state {
         Status::Deny
     }
 
+    #[must_use]
+    pub fn send(message: &str) -> Status {
+        Status::Send(vsmtp_common::status::SendPacket::Str(message.to_string()))
+    }
+
     /// dump the current email into a quarantine queue, skipping delivery.
     /// the email is written in the specified app directory, inside the "queue" folder.
     #[allow(clippy::needless_pass_by_value)]

@@ -46,13 +46,16 @@ fn create_app_folder(
 mod test {
 
     use super::create_app_folder;
-    use vsmtp_common::mail_context::MailContext;
+    use vsmtp_common::mail_context::{ConnectionContext, MailContext};
     use vsmtp_config::Config;
 
     pub fn get_default_context() -> MailContext {
         MailContext {
             body: vsmtp_common::mail_context::Body::Empty,
-            connection_timestamp: std::time::SystemTime::now(),
+            connection: ConnectionContext {
+                timestamp: std::time::SystemTime::now(),
+                credentials: None,
+            },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
                 0,

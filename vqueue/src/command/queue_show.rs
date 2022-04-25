@@ -48,7 +48,7 @@ mod tests {
         address::Address,
         envelop::Envelop,
         mail::{BodyType, Mail},
-        mail_context::{Body, MailContext, MessageMetadata},
+        mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
         queue::Queue,
         queue_path,
         rcpt::Rcpt,
@@ -139,7 +139,10 @@ mod tests {
 
     fn get_mail(msg_id: &str) -> MailContext {
         MailContext {
-            connection_timestamp: std::time::SystemTime::now(),
+            connection: ConnectionContext {
+                timestamp: std::time::SystemTime::now(),
+                credentials: None,
+            },
             client_addr: "0.0.0.0:25".parse().unwrap(),
             envelop: Envelop {
                 helo: "toto".to_string(),

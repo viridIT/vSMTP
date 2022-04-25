@@ -6,6 +6,7 @@ object forward_fqdn fqdn = "test.eu";
 #{
     connect: [
         action "add recipients" || {
+            print("connect");
             vsl::add_rcpt(ctx, "fqdn@example.com");
             vsl::add_rcpt(ctx, "ip4@example.com");
             vsl::add_rcpt(ctx, "ip6@example.com");
@@ -16,8 +17,11 @@ object forward_fqdn fqdn = "test.eu";
         }
     ],
 
-    Authentication: [
-        action "forward all (fqdn string)" || vsl::forward_all(ctx, "localhost"),
+    authenticate: [
+        action "forward all (fqdn string)" || {
+            print("test");
+            vsl::forward_all(ctx, "localhost")
+        },
     ],
 
     mail: [

@@ -25,6 +25,7 @@ use vsmtp_common::address::Address;
 use vsmtp_common::status::Status;
 
 #[allow(dead_code)]
+#[allow(clippy::needless_pass_by_value)]
 #[rhai::plugin::export_module]
 pub mod types {
 

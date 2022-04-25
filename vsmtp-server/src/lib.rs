@@ -10,6 +10,9 @@
 //
 #![allow(clippy::doc_markdown)]
 
+#[cfg(test)]
+mod tests;
+
 mod log_channels {
     pub const AUTH: &str = "server::receiver::auth";
     pub const CONNECTION: &str = "server::receiver::connection";

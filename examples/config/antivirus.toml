@@ -4,10 +4,10 @@ version_requirement = "<1.0.0"
 type = "system"
 
 [app.vsl]
-filepath = "../examples/config/antivirus/main.vsl"
+filepath = "./examples/config/antivirus/main.vsl"
 
 [app.services.clamscan]
 type = "shell"
 timeout = "15s"
-command = "../examples/config/antivirus/clamscan.sh"
+command = "./examples/config/antivirus/clamscan.sh"
 args = "{mail}"
