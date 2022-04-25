@@ -27,7 +27,7 @@ fn test_engine_errors() {
         &Some(rules_path!["error_handling", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
@@ -42,7 +42,7 @@ fn test_engine_rules_syntax() {
         &Some(rules_path!["syntax", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
