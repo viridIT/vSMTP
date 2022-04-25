@@ -7,7 +7,6 @@ use vsmtp_common::{
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::re::tokio;
-use vsmtp_server::IoService;
 use vsmtp_server::Server;
 use vsmtp_server::{auth, ConnectionKind, ProcessMessage};
 
@@ -56,8 +55,11 @@ async fn test_auth(
     });
 
     let client = tokio::spawn(async move {
-        let mut client = std::net::TcpStream::connect(format!("0.0.0.0:{port}")).unwrap();
-        let mut io = IoService::new(&mut client);
+        let mut stream = vsmtp_server::AbstractIO::new(
+            tokio::net::TcpStream::connect(format!("0.0.0.0:{port}"))
+                .await
+                .unwrap(),
+        );
 
         let mut rsasl = rsasl::SASL::new_untyped().unwrap();
         let mut session = rsasl.client_start(mech.to_string().as_str()).unwrap();
@@ -65,44 +67,55 @@ async fn test_auth(
         session.set_property(rsasl::Property::GSASL_AUTHID, username.as_bytes());
         session.set_property(rsasl::Property::GSASL_PASSWORD, password.as_bytes());
 
-        let greetings = io.get_next_line_async().await.unwrap();
-        std::io::Write::write_all(&mut io, b"EHLO client.com\r\n").unwrap();
+        let greetings = stream.next_line(None).await.unwrap();
+        tokio::io::AsyncWriteExt::write_all(&mut stream, b"EHLO client.com\r\n")
+            .await
+            .unwrap();
 
         let mut output = vec![greetings];
-
         loop {
-            let res = io.get_next_line_async().await.unwrap();
-            output.push(res);
+            let line = stream.next_line(None).await.unwrap();
+            output.push(line);
             if output.last().unwrap().chars().nth(3) == Some('-') {
                 continue;
             }
             break;
         }
 
-        std::io::Write::write_all(&mut io, format!("AUTH {}\r\n", mech).as_bytes()).unwrap();
+        tokio::io::AsyncWriteExt::write_all(&mut stream, format!("AUTH {}\r\n", mech).as_bytes())
+            .await
+            .unwrap();
 
         loop {
-            let read = io.get_next_line_async().await.unwrap();
-            let read = read.strip_prefix("334 ").unwrap();
-            let read = base64::decode(read).unwrap();
+            let line = base64::decode(
+                stream
+                    .next_line(None)
+                    .await
+                    .unwrap()
+                    .strip_prefix("334 ")
+                    .unwrap(),
+            )
+            .unwrap();
 
-            match session.step(&read).unwrap() {
-                rsasl::Step::Done(buffer) => {
-                    std::io::Write::write_all(&mut io, base64::encode(&**buffer).as_bytes())
-                        .unwrap();
-                    std::io::Write::write_all(&mut io, b"\r\n").unwrap();
-                    break;
-                }
-                rsasl::Step::NeedsMore(buffer) => {
-                    std::io::Write::write_all(&mut io, base64::encode(&**buffer).as_bytes())
-                        .unwrap();
-                    std::io::Write::write_all(&mut io, b"\r\n").unwrap();
-                }
+            let res = session.step(&line).unwrap();
+            let (buffer, done) = match res {
+                rsasl::Step::Done(buffer) => (buffer, true),
+                rsasl::Step::NeedsMore(buffer) => (buffer, false),
+            };
+            tokio::io::AsyncWriteExt::write_all(&mut stream, base64::encode(&**buffer).as_bytes())
+                .await
+                .unwrap();
+            tokio::io::AsyncWriteExt::write_all(&mut stream, b"\r\n")
+                .await
+                .unwrap();
+
+            if done {
+                break;
             }
         }
 
-        let outcome = io.get_next_line_async().await.unwrap();
-        output.push(outcome);
+        let line = stream.next_line(None).await.unwrap();
+        output.push(line);
 
         pretty_assertions::assert_eq!(output, expected_response);
     });

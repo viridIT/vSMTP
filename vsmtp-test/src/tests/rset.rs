@@ -33,9 +33,9 @@ async fn reset_helo() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -61,7 +61,8 @@ async fn reset_helo() {
                 }))
             );
 
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
             Ok(())
         }
     }
@@ -147,9 +148,9 @@ async fn reset_rcpt_to_ok() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -169,7 +170,8 @@ async fn reset_rcpt_to_ok() {
                 }))
             );
 
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
             Ok(())
         }
     }
@@ -233,9 +235,9 @@ async fn reset_rcpt_to_multiple_rcpt() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -263,7 +265,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
                     body: BodyType::Undefined
                 }))
             );
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
             Ok(())
         }
     }

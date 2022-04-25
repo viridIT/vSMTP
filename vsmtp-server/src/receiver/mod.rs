@@ -28,19 +28,19 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod auth_exchange;
 mod connection;
-mod io_service;
+// mod io_service;
 pub mod transaction;
 
-pub use connection::{Connection, ConnectionKind};
-pub use io_service::IoService;
+pub use connection::{AbstractIO, Connection, ConnectionKind};
+// pub use io_service::IoService;
 
 /// will be executed once the email is received.
 #[async_trait::async_trait]
 pub trait OnMail {
     /// the server executes this function once the email as been received.
-    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        conn: &mut Connection<'_, S>,
+        conn: &mut Connection<S>,
         mail: Box<MailContext>,
         helo_domain: &mut Option<String>,
     ) -> anyhow::Result<()>;
@@ -54,9 +54,9 @@ pub struct MailHandler {
 
 #[async_trait::async_trait]
 impl OnMail for MailHandler {
-    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        conn: &mut Connection<'_, S>,
+        conn: &mut Connection<S>,
         mail: Box<MailContext>,
         helo_domain: &mut Option<String>,
     ) -> anyhow::Result<()> {
@@ -91,13 +91,13 @@ impl OnMail for MailHandler {
             SMTPReplyCode::Code250
         };
 
-        conn.send_code(response)?;
+        conn.send_code(response).await?;
         Ok(())
     }
 }
 
 async fn handle_auth<S>(
-    conn: &mut Connection<'_, S>,
+    conn: &mut Connection<S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
     helo_domain: &mut Option<String>,
     mechanism: Mechanism,
@@ -105,11 +105,12 @@ async fn handle_auth<S>(
     helo_pre_auth: String,
 ) -> anyhow::Result<()>
 where
-    S: std::io::Read + std::io::Write + Send,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     match on_authentication(conn, rsasl, mechanism, initial_response).await {
         Err(auth_exchange::AuthExchangeError::Failed) => {
-            conn.send_code(SMTPReplyCode::AuthInvalidCredentials)?;
+            conn.send_code(SMTPReplyCode::AuthInvalidCredentials)
+                .await?;
             anyhow::bail!("Auth: Credentials invalid, closing connection");
         }
         Err(auth_exchange::AuthExchangeError::Canceled) => {
@@ -125,17 +126,17 @@ where
                 .unwrap()
                 .attempt_count_max;
             if retries_max != -1 && conn.authentication_attempt > retries_max {
-                conn.send_code(SMTPReplyCode::AuthRequired)?;
+                conn.send_code(SMTPReplyCode::AuthRequired).await?;
                 anyhow::bail!("Auth: Attempt max {} reached", retries_max);
             }
-            conn.send_code(SMTPReplyCode::AuthClientCanceled)?;
+            conn.send_code(SMTPReplyCode::AuthClientCanceled).await?;
         }
         Err(auth_exchange::AuthExchangeError::Timeout(e)) => {
-            conn.send_code(SMTPReplyCode::Code451Timeout)?;
+            conn.send_code(SMTPReplyCode::Code451Timeout).await?;
             anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
         }
         Err(auth_exchange::AuthExchangeError::InvalidBase64) => {
-            conn.send_code(SMTPReplyCode::AuthErrorDecode64)?;
+            conn.send_code(SMTPReplyCode::AuthErrorDecode64).await?;
         }
         Err(auth_exchange::AuthExchangeError::Other(e)) => anyhow::bail!("{}", e),
         Ok(_) => {
@@ -164,14 +165,14 @@ where
 /// # Panics
 /// * the authentication is issued but gsasl was not found.
 pub async fn handle_connection<S, M>(
-    conn: &mut Connection<'_, S>,
+    conn: &mut Connection<S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mail_handler: &mut M,
 ) -> anyhow::Result<()>
 where
-    S: std::io::Read + std::io::Write + Send,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
     M: OnMail + Send,
 {
     if let ConnectionKind::Tunneled = conn.kind {
@@ -184,7 +185,7 @@ where
 
     let mut helo_domain = None;
 
-    conn.send_code(SMTPReplyCode::Greetings)?;
+    conn.send_code(SMTPReplyCode::Greetings).await?;
 
     while conn.is_alive {
         match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
@@ -203,7 +204,7 @@ where
                     )
                     .await;
                 }
-                conn.send_code(SMTPReplyCode::Code454)?;
+                conn.send_code(SMTPReplyCode::Code454).await?;
                 anyhow::bail!("{}", SMTPReplyCode::Code454)
             }
             TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
@@ -228,28 +229,26 @@ where
 }
 
 async fn handle_connection_secured<S, M>(
-    conn: &mut Connection<'_, S>,
+    conn: &mut Connection<S>,
     tls_config: std::sync::Arc<rustls::ServerConfig>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mail_handler: &mut M,
 ) -> anyhow::Result<()>
 where
-    S: std::io::Read + std::io::Write + Send,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
     M: OnMail + Send,
 {
     let smtps_config = conn.config.server.tls.as_ref().ok_or_else(|| {
         anyhow::anyhow!("server accepted tls encrypted transaction, but not tls config provided")
     })?;
+    let acceptor = tokio_rustls::TlsAcceptor::from(tls_config);
 
-    let mut tls_conn = rustls::ServerConnection::new(tls_config).unwrap();
-    let mut tls_stream = rustls::Stream::new(&mut tls_conn, &mut conn.io_stream);
-    let mut io_tls_stream = IoService::new(&mut tls_stream);
-
-    Connection::<IoService<'_, S>>::complete_tls_handshake(
-        &mut io_tls_stream,
-        &smtps_config.handshake_timeout,
-    )?;
+    let stream = tokio::time::timeout(
+        smtps_config.handshake_timeout,
+        acceptor.accept(&mut conn.io_stream),
+    )
+    .await??;
 
     let mut secured_conn = Connection {
         kind: conn.kind,
@@ -261,11 +260,11 @@ where
         authentication_attempt: conn.authentication_attempt,
         is_alive: true,
         is_secured: true,
-        io_stream: &mut io_tls_stream,
+        io_stream: AbstractIO::new(stream),
     };
 
     if let ConnectionKind::Tunneled = secured_conn.kind {
-        secured_conn.send_code(SMTPReplyCode::Greetings)?;
+        secured_conn.send_code(SMTPReplyCode::Greetings).await?;
     }
 
     let mut helo_domain = None;
@@ -279,7 +278,9 @@ where
                     .await?;
             }
             TransactionResult::TlsUpgrade => {
-                secured_conn.send_code(SMTPReplyCode::TlsAlreadyUnderTls)?;
+                secured_conn
+                    .send_code(SMTPReplyCode::TlsAlreadyUnderTls)
+                    .await?;
             }
             TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
                 if let Some(rsasl) = &rsasl {
