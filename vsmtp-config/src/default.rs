@@ -60,6 +60,7 @@ impl Default for ConfigServerSystem {
         Self {
             user: Self::default_user(),
             group: Self::default_group(),
+            group_local: None,
             thread_pool: ConfigServerSystemThreadPool::default(),
         }
     }
