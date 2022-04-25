@@ -501,6 +501,7 @@ impl Transaction<'_> {
                             }
                         }
                     }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                         conn.send_code(SMTPReplyCode::Code451Timeout).await?;
                         anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e))

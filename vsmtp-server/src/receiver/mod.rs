@@ -246,7 +246,7 @@ where
 
     let stream = tokio::time::timeout(
         smtps_config.handshake_timeout,
-        acceptor.accept(&mut conn.io_stream),
+        acceptor.accept(&mut conn.io_stream.inner),
     )
     .await??;
 

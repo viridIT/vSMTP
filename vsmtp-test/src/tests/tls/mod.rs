@@ -134,9 +134,11 @@ async fn test_starttls(
                 continue;
             }
             match input.next() {
-                Some(line) => tokio::io::AsyncWriteExt::write_all(&mut stream, line.as_bytes())
-                    .await
-                    .unwrap(),
+                Some(line) => {
+                    tokio::io::AsyncWriteExt::write_all(&mut stream.inner, line.as_bytes())
+                        .await
+                        .unwrap();
+                }
                 None => break,
             }
         }
@@ -145,14 +147,17 @@ async fn test_starttls(
 
         let mut stream = vsmtp_server::AbstractIO::new(
             connector
-                .connect(rustls::ServerName::try_from(server_name).unwrap(), stream)
+                .connect(
+                    rustls::ServerName::try_from(server_name).unwrap(),
+                    stream.inner,
+                )
                 .await
                 .unwrap(),
         );
 
         let mut input = secured_smtp_input.iter().copied();
 
-        tokio::io::AsyncWriteExt::write_all(&mut stream, input.next().unwrap().as_bytes())
+        tokio::io::AsyncWriteExt::write_all(&mut stream.inner, input.next().unwrap().as_bytes())
             .await
             .unwrap();
 
@@ -163,9 +168,11 @@ async fn test_starttls(
                 continue;
             }
             match input.next() {
-                Some(line) => tokio::io::AsyncWriteExt::write_all(&mut stream, line.as_bytes())
-                    .await
-                    .unwrap(),
+                Some(line) => {
+                    tokio::io::AsyncWriteExt::write_all(&mut stream.inner, line.as_bytes())
+                        .await
+                        .unwrap();
+                }
                 None => break,
             }
         }
@@ -269,9 +276,11 @@ async fn test_tls_tunneled(
             let line = stream.next_line(None).await.unwrap();
             output.push(line);
             match input.next() {
-                Some(line) => tokio::io::AsyncWriteExt::write_all(&mut stream, line.as_bytes())
-                    .await
-                    .unwrap(),
+                Some(line) => {
+                    tokio::io::AsyncWriteExt::write_all(&mut stream.inner, line.as_bytes())
+                        .await
+                        .unwrap();
+                }
                 None => break,
             }
         }

@@ -68,7 +68,7 @@ async fn test_auth(
         session.set_property(rsasl::Property::GSASL_PASSWORD, password.as_bytes());
 
         let greetings = stream.next_line(None).await.unwrap();
-        tokio::io::AsyncWriteExt::write_all(&mut stream, b"EHLO client.com\r\n")
+        tokio::io::AsyncWriteExt::write_all(&mut stream.inner, b"EHLO client.com\r\n")
             .await
             .unwrap();
 
@@ -82,9 +82,12 @@ async fn test_auth(
             break;
         }
 
-        tokio::io::AsyncWriteExt::write_all(&mut stream, format!("AUTH {}\r\n", mech).as_bytes())
-            .await
-            .unwrap();
+        tokio::io::AsyncWriteExt::write_all(
+            &mut stream.inner,
+            format!("AUTH {}\r\n", mech).as_bytes(),
+        )
+        .await
+        .unwrap();
 
         loop {
             let line = base64::decode(
@@ -102,10 +105,13 @@ async fn test_auth(
                 rsasl::Step::Done(buffer) => (buffer, true),
                 rsasl::Step::NeedsMore(buffer) => (buffer, false),
             };
-            tokio::io::AsyncWriteExt::write_all(&mut stream, base64::encode(&**buffer).as_bytes())
-                .await
-                .unwrap();
-            tokio::io::AsyncWriteExt::write_all(&mut stream, b"\r\n")
+            tokio::io::AsyncWriteExt::write_all(
+                &mut stream.inner,
+                base64::encode(&**buffer).as_bytes(),
+            )
+            .await
+            .unwrap();
+            tokio::io::AsyncWriteExt::write_all(&mut stream.inner, b"\r\n")
                 .await
                 .unwrap();
 

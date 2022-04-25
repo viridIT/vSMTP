@@ -35,6 +35,7 @@ pub enum ConnectionKind {
 }
 
 ///
+#[derive(Debug)]
 pub struct AbstractIO<S>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
@@ -42,8 +43,51 @@ where
     ///
     pub inner: S,
     buffer: Vec<u8>,
+    //    read: usize,
 }
 
+impl<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin> std::future::Future
+    for AbstractIO<S>
+{
+    type Output = std::io::Result<String>;
+
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        loop {
+            let (done, used) = {
+                let mut temp = self.buffer.clone();
+                let mut buf = tokio::io::ReadBuf::new(&mut temp);
+                match std::pin::Pin::new(&mut self.inner).poll_read(cx, &mut buf) {
+                    std::task::Poll::Ready(t) => t,
+                    std::task::Poll::Pending => return std::task::Poll::Pending,
+                }?;
+                let available = buf.filled();
+                let needle = b"\r\n";
+
+                if let Some(i) = available
+                    .windows(needle.len())
+                    .position(|window| window == needle)
+                {
+                    self.buffer.extend_from_slice(&available[..i + 1]);
+                    (true, i + 2)
+                } else {
+                    self.buffer.extend_from_slice(available);
+                    (false, available.len())
+                }
+            };
+            // self.inner.consume(used);
+            // self.read += used;
+            if done || used == 0 {
+                let out = self.buffer.drain(..used).collect::<Vec<_>>();
+                return std::task::Poll::Ready(Ok(String::from_utf8(out).unwrap()));
+            }
+        }
+    }
+}
+
+/*
 impl<S> tokio::io::AsyncRead for AbstractIO<S>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
@@ -83,7 +127,9 @@ where
         std::pin::Pin::new(&mut self.inner).poll_shutdown(cx)
     }
 }
+*/
 
+/*
 impl<S> tokio::io::AsyncBufRead for AbstractIO<S>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
@@ -93,12 +139,17 @@ where
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<std::io::Result<&[u8]>> {
         let this = self.get_mut();
-
+        println!("{:?}", std::str::from_utf8(this.buffer.as_slice()).unwrap());
         if this.buffer.is_empty() {
-            let mut raw = vec![0; 1000];
+            let mut raw = vec![0; 100];
             let mut buf = tokio::io::ReadBuf::new(&mut raw);
-            match tokio::io::AsyncRead::poll_read(std::pin::Pin::new(&mut this.inner), cx, &mut buf)
-            {
+            let res = dbg!(tokio::io::AsyncRead::poll_read(
+                std::pin::Pin::new(&mut this.inner),
+                cx,
+                &mut buf
+            ));
+
+            match res {
                 std::task::Poll::Pending => return std::task::Poll::Pending,
                 std::task::Poll::Ready(Ok(_)) => this.buffer = buf.filled().to_vec(),
                 std::task::Poll::Ready(Err(e)) => return std::task::Poll::Ready(Err(e)),
@@ -108,9 +159,19 @@ where
     }
 
     fn consume(mut self: std::pin::Pin<&mut Self>, amt: usize) {
+        println!(
+            "before con: {:?}",
+            std::str::from_utf8(self.buffer.as_slice()).unwrap()
+        );
         self.buffer.drain(..amt);
+        // self.buffer = self.buffer[amt..].to_vec();
+        println!(
+            "after  con: {:?}",
+            std::str::from_utf8(self.buffer.as_slice()).unwrap()
+        );
     }
 }
+*/
 
 impl<S> AbstractIO<S>
 where
@@ -121,8 +182,43 @@ where
         Self {
             inner: stream,
             buffer: Vec::new(),
+            // read: 0,
         }
     }
+
+    /*
+    async fn inner_next_line(&mut self) -> std::io::Result<String> {
+        let mut line = String::new();
+
+        let mut temp = Vec::with_capacity(1000);
+
+        loop {
+            dbg!(&line);
+            match line.find("\r\n") {
+                Some(pos) => {
+                    self.buffer = line[pos..].as_bytes().to_vec();
+                    return Ok(line[..pos].to_string());
+                }
+                None => {
+                    match tokio::io::AsyncReadExt::read(&mut self.inner, &mut temp).await? {
+                        0 => {
+                            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, ""));
+                        }
+                        size_read => {
+                            dbg!(&line);
+
+                            line.push_str(std::str::from_utf8(&temp[..size_read]).map_err(
+                                |e| std::io::Error::new(std::io::ErrorKind::InvalidData, e),
+                            )?);
+
+                            temp = temp[size_read..].to_vec();
+                        }
+                    };
+                }
+            }
+        }
+    }
+    */
 
     ///
     /// # Errors
@@ -131,14 +227,12 @@ where
         &mut self,
         timeout: Option<std::time::Duration>,
     ) -> std::io::Result<String> {
-        let mut buffer = String::new();
         tokio::time::timeout(
             timeout.unwrap_or(std::time::Duration::from_millis(100)),
-            tokio::io::AsyncBufReadExt::read_line(self, &mut buffer),
+            self,
         )
         .await
         .map_err(|t| std::io::Error::new(std::io::ErrorKind::TimedOut, t))?
-        .map(|size_read| buffer[..size_read].to_string())
     }
 }
 
@@ -242,7 +336,7 @@ where
             );
 
             tokio::io::AsyncWriteExt::write_all(
-                &mut self.io_stream,
+                &mut self.io_stream.inner,
                 self.config
                     .server
                     .smtp
@@ -264,7 +358,7 @@ where
             );
 
             tokio::io::AsyncWriteExt::write_all(
-                &mut self.io_stream,
+                &mut self.io_stream.inner,
                 self.config
                     .server
                     .smtp
@@ -285,10 +379,9 @@ where
     /// * internal connection writer error
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
         log::info!(target: log_channels::CONNECTION, "send=\"{}\"", reply);
-
-        tokio::io::AsyncWriteExt::write_all(&mut self.io_stream, reply.as_bytes()).await?;
-
-        Ok(())
+        tokio::io::AsyncWriteExt::write_all(&mut self.io_stream.inner, reply.as_bytes())
+            .await
+            .map_err(anyhow::Error::new)
     }
 
     /// read a line from the client
