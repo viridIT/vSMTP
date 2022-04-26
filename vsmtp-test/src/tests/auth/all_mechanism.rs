@@ -67,14 +67,14 @@ async fn test_auth(
         session.set_property(rsasl::Property::GSASL_AUTHID, username.as_bytes());
         session.set_property(rsasl::Property::GSASL_PASSWORD, password.as_bytes());
 
-        let greetings = stream.next_line(None).await.unwrap();
+        let greetings = stream.next_line(None).await.unwrap().unwrap();
         tokio::io::AsyncWriteExt::write_all(&mut stream.inner, b"EHLO client.com\r\n")
             .await
             .unwrap();
 
         let mut output = vec![greetings];
         loop {
-            let line = stream.next_line(None).await.unwrap();
+            let line = stream.next_line(None).await.unwrap().unwrap();
             output.push(line);
             if output.last().unwrap().chars().nth(3) == Some('-') {
                 continue;
@@ -94,6 +94,7 @@ async fn test_auth(
                 stream
                     .next_line(None)
                     .await
+                    .unwrap()
                     .unwrap()
                     .strip_prefix("334 ")
                     .unwrap(),
@@ -120,8 +121,9 @@ async fn test_auth(
             }
         }
 
-        let line = stream.next_line(None).await.unwrap();
-        output.push(line);
+        if let Some(last) = stream.next_line(None).await.unwrap() {
+            output.push(last);
+        }
 
         pretty_assertions::assert_eq!(output, expected_response);
     });

@@ -128,7 +128,7 @@ async fn test_starttls(
         let mut input = clair_smtp_input.iter().copied();
 
         loop {
-            let line = stream.next_line(None).await.unwrap();
+            let line = stream.next_line(None).await.unwrap().unwrap();
             output.push(line);
             if output.last().unwrap().chars().nth(3) == Some('-') {
                 continue;
@@ -162,7 +162,7 @@ async fn test_starttls(
             .unwrap();
 
         loop {
-            let line = stream.next_line(None).await.unwrap();
+            let line = stream.next_line(None).await.unwrap().unwrap();
             output.push(line);
             if output.last().unwrap().chars().nth(3) == Some('-') {
                 continue;
@@ -176,7 +176,7 @@ async fn test_starttls(
                 None => break,
             }
         }
-        if let Ok(last) = stream.next_line(None).await {
+        if let Some(last) = stream.next_line(None).await.unwrap() {
             output.push(last);
         }
 
@@ -273,7 +273,7 @@ async fn test_tls_tunneled(
 
         let mut input = smtp_input.iter().cloned();
         loop {
-            let line = stream.next_line(None).await.unwrap();
+            let line = stream.next_line(None).await.unwrap().unwrap();
             output.push(line);
             match input.next() {
                 Some(line) => {
@@ -285,7 +285,7 @@ async fn test_tls_tunneled(
             }
         }
 
-        if let Ok(last) = stream.next_line(None).await {
+        if let Some(last) = stream.next_line(None).await.unwrap() {
             output.push(last);
         }
 

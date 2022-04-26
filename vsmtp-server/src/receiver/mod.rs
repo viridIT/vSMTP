@@ -28,11 +28,11 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod auth_exchange;
 mod connection;
-// mod io_service;
+mod io;
 pub mod transaction;
 
-pub use connection::{AbstractIO, Connection, ConnectionKind};
-// pub use io_service::IoService;
+pub use connection::{Connection, ConnectionKind};
+pub use io::AbstractIO;
 
 /// will be executed once the email is received.
 #[async_trait::async_trait]
@@ -246,12 +246,24 @@ where
 
     let stream = tokio::time::timeout(
         smtps_config.handshake_timeout,
-        acceptor.accept(&mut conn.io_stream.inner),
+        acceptor.accept(&mut conn.inner.inner),
     )
     .await??;
 
-    let mut secured_conn = Connection {
-        kind: conn.kind,
+    let mut secured_conn = Connection::new_with(
+        conn.kind,
+        conn.timestamp,
+        conn.is_alive,
+        conn.config.clone(),
+        conn.client_addr,
+        conn.error_count,
+        conn.is_secured,
+        conn.is_authenticated,
+        conn.authentication_attempt,
+        stream,
+    );
+    /*
+    kind: conn.kind,
         timestamp: conn.timestamp,
         config: conn.config.clone(),
         client_addr: conn.client_addr,
@@ -262,6 +274,7 @@ where
         is_secured: true,
         io_stream: AbstractIO::new(stream),
     };
+    */
 
     if let ConnectionKind::Tunneled = secured_conn.kind {
         secured_conn.send_code(SMTPReplyCode::Greetings).await?;

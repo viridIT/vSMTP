@@ -15,8 +15,6 @@
  *
 */
 
-use std::io::Write;
-
 use anyhow::Context;
 use vsmtp_common::re::anyhow;
 use vsmtp_config::Config;
@@ -24,54 +22,45 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{auth, handle_connection, re::tokio, Connection, ConnectionKind, OnMail};
 
 /// A type implementing Write+Read to emulate sockets
-pub struct Mock<'a, T: std::io::Write + std::io::Read> {
-    read_cursor: T,
+pub struct Mock<'a, T: AsRef<[u8]> + Unpin> {
+    read_cursor: std::io::Cursor<T>,
     write_cursor: std::io::Cursor<&'a mut Vec<u8>>,
 }
 
-impl<'a, T: std::io::Write + std::io::Read> Mock<'a, T> {
+impl<'a, T: AsRef<[u8]> + Unpin> Mock<'a, T> {
     /// Create an new instance
     pub fn new(read: T, write: &'a mut Vec<u8>) -> Self {
         Self {
-            read_cursor: read,
+            read_cursor: std::io::Cursor::new(read),
             write_cursor: std::io::Cursor::new(write),
         }
     }
 }
 
-impl<T: std::io::Write + std::io::Read + Unpin> tokio::io::AsyncRead for Mock<'_, T> {
+impl<T: AsRef<[u8]> + Unpin> tokio::io::AsyncRead for Mock<'_, T> {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
-        _: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
-        std::task::Poll::Ready(
-            self.as_mut()
-                .read_cursor
-                .read(unsafe {
-                    &mut *(buf.unfilled_mut() as *mut [std::mem::MaybeUninit<u8>] as *mut [u8])
-                })
-                .map(|i| {
-                    buf.set_filled(i);
-                }),
-        )
+        std::pin::Pin::new(&mut self.read_cursor).poll_read(cx, buf)
     }
 }
 
-impl<T: std::io::Write + std::io::Read + Unpin> tokio::io::AsyncWrite for Mock<'_, T> {
+impl<T: AsRef<[u8]> + Unpin> tokio::io::AsyncWrite for Mock<'_, T> {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
         _: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<Result<usize, std::io::Error>> {
-        std::task::Poll::Ready(self.write_cursor.write(buf))
+        std::task::Poll::Ready(std::io::Write::write(&mut self.write_cursor, buf))
     }
 
     fn poll_flush(
         mut self: std::pin::Pin<&mut Self>,
         _: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        std::task::Poll::Ready(self.write_cursor.flush())
+        std::task::Poll::Ready(std::io::Write::flush(&mut self.write_cursor))
     }
 
     fn poll_shutdown(
@@ -121,7 +110,7 @@ where
     M: OnMail + Send,
 {
     let mut written_data = Vec::new();
-    let mut mock = Mock::new(std::io::Cursor::new(smtp_input.to_vec()), &mut written_data);
+    let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut conn = Connection::new(
         ConnectionKind::Opportunistic,
         address.parse().unwrap(),
@@ -136,7 +125,7 @@ where
     ));
 
     let result = handle_connection(&mut conn, None, rsasl, rule_engine, mail_handler).await;
-    tokio::io::AsyncWriteExt::flush(&mut conn.io_stream.inner)
+    tokio::io::AsyncWriteExt::flush(&mut conn.inner.inner)
         .await
         .unwrap();
 

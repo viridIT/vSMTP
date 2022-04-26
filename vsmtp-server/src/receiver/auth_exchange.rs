@@ -120,10 +120,11 @@ where
 
     while !succeeded {
         succeeded = match conn.read(std::time::Duration::from_secs(1)).await {
-            Ok(buffer) => {
+            Ok(Some(buffer)) => {
                 log::trace!(target: log_channels::AUTH, "{buffer}");
                 auth_step(conn, &mut session, buffer.as_bytes()).await
             }
+            Ok(None) => Err(AuthExchangeError::Other(anyhow::anyhow!("eof"))),
             Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                 Err(AuthExchangeError::Timeout(e))
             }

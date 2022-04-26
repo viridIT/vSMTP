@@ -406,7 +406,10 @@ impl Transaction<'_> {
 }
 
 impl Transaction<'_> {
-    pub async fn receive<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin>(
+    pub async fn receive<
+        'a,
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin,
+    >(
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -463,11 +466,7 @@ impl Transaction<'_> {
                     return Ok(TransactionResult::Nothing);
                 }
                 _ => match conn.read(read_timeout).await {
-                    Ok(client_message) if client_message.is_empty() => {
-                        log::info!(target: log_channels::TRANSACTION, "eof");
-                        transaction.state = StateSMTP::Stop;
-                    }
-                    Ok(client_message) => {
+                    Ok(Some(client_message)) => {
                         match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
                             ProcessedEvent::Nothing => {}
                             ProcessedEvent::Reply(reply_to_send) => {
@@ -500,6 +499,10 @@ impl Transaction<'_> {
                                 return Ok(TransactionResult::Mail(mail));
                             }
                         }
+                    }
+                    Ok(None) => {
+                        log::info!(target: log_channels::TRANSACTION, "eof");
+                        transaction.state = StateSMTP::Stop;
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
