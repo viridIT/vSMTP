@@ -43,7 +43,7 @@ fn test_logs() {
 fn test_users() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
-        &Some(root_example!["actions/users.vsl"]),
+        &Some(root_example!["actions/utils.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
@@ -391,4 +391,16 @@ fn test_forward_all() {
                 Transfer::Forward(ForwardTarget::Domain("test.eu".to_string()))
             );
         });
+}
+
+#[test]
+fn test_hostname() {
+    let re = RuleEngine::new(
+        &vsmtp_config::Config::default(),
+        &Some(root_example!["actions/utils.vsl"]),
+    )
+    .unwrap();
+    let (mut state, _) = get_default_state("./tmp/app");
+
+    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }

@@ -2144,6 +2144,7 @@ dependencies = [
 name = "vsmtp-rule-engine"
 version = "0.10.3"
 dependencies = [
+ "hostname",
  "ipnet",
  "iprange",
  "lettre",

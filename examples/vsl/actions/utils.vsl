@@ -1,6 +1,14 @@
 #{
+    postq: [
+        rule "get hostname" || {
+            print("running get hostname: ");
+            print(vsl::hostname());
+            vsl::accept()
+        }
+    ],
+
     delivery: [
-        rule "find_users" || {
+        rule "find users" || {
             if !vsl::user_exist("john")
             && vsl::user_exist("root")
             {
