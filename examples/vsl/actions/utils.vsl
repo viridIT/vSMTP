@@ -1,4 +1,26 @@
 #{
+    connect: [
+        rule "check root domain" || {
+            if get_domain(vsl::new_address("rcpt@testserver.com")) {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ],
+
+    preq: [
+        rule "check sni domain" || {
+            if get_domain(vsl::new_address("rcpt@example.com")) == true
+            && get_domain(vsl::new_address("john@unknown.com")) == false {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+
+        }
+    ],
+
     postq: [
         rule "get hostname" || {
             print("running get hostname: ");

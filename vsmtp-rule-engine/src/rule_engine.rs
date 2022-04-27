@@ -319,6 +319,16 @@ impl RuleEngine {
         let mut vsl_module = rhai::Module::new();
         let mut toml_module = rhai::Module::new();
 
+        let ast = engine
+            .compile_scripts_with_scope(
+                &rhai::Scope::new(),
+                [include_str!("api/utils.rhai"), include_str!("api/api.rhai")],
+            )
+            .context("failed to compile vsl's api")?;
+
+        let api = rhai::Module::eval_ast_as_new(rhai::Scope::new(), &ast, &engine)
+            .context("failed to create vsl's api module")?;
+
         // setting up action, mail context & vsl's special types.
         vsl_module
             .combine(exported_module!(modules::actions::bcc::bcc))
@@ -340,6 +350,7 @@ impl RuleEngine {
         engine
             .register_static_module("vsl", vsl_module.into())
             .register_static_module("toml", toml_module.into())
+            .register_global_module(api.into())
             .disable_symbol("eval")
             .on_parse_token(|token, _, _| {
                 match token {
