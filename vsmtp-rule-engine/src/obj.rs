@@ -45,6 +45,12 @@ pub enum Object {
     Identifier(String),
     /// a simple string.
     Str(String),
+    /// a smtp reply code.
+    Code {
+        base: i32,
+        enhanced: String,
+        text: String,
+    },
 }
 
 impl PartialEq for Object {
@@ -205,6 +211,12 @@ impl Object {
                 Ok(Self::Group(group))
             }
 
+            "code" => Ok(Self::Code {
+                base: Self::value::<S, i32>(map, "base")?,
+                enhanced: Self::value::<S, String>(map, "enhanced")?,
+                text: Self::value::<S, String>(map, "text")?,
+            }),
+
             _ => anyhow::bail!("'{}' is an unknown object type.", t),
         }
     }
@@ -223,6 +235,11 @@ impl ToString for Object {
             Object::File(file) => format!("{file:?}"),
             Object::Group(group) => format!("{group:?}"),
             Object::Identifier(string) | Object::Str(string) => string.clone(),
+            Object::Code {
+                base,
+                enhanced,
+                text,
+            } => todo!(),
         }
     }
 }
@@ -343,6 +360,23 @@ mod test {
                     rhai::Dynamic::from(std::sync::Arc::new(ip4)),
                     rhai::Dynamic::from(std::sync::Arc::new(rg6)),
                     rhai::Dynamic::from(std::sync::Arc::new(fqdn)),
+                ])),
+            ),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            ("name".into(), rhai::Dynamic::from("code".to_string())),
+            ("type".into(), rhai::Dynamic::from("code".to_string())),
+            (
+                "value".into(),
+                rhai::Dynamic::from(rhai::Map::from_iter([
+                    ("base".into(), rhai::Dynamic::from(550)),
+                    ("enhanced".into(), rhai::Dynamic::from("5.7.2".to_string())),
+                    (
+                        "text".into(),
+                        rhai::Dynamic::from("nice to meet you, client".to_string()),
+                    ),
                 ])),
             ),
         ]))
