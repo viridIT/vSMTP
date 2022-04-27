@@ -170,8 +170,12 @@ pub enum AuthCredentials {
 pub struct ConnectionContext {
     /// time of connection by the client.
     pub timestamp: std::time::SystemTime,
-    ///
+    /// credentials of the client.
     pub credentials: Option<AuthCredentials>,
+    /// is the client authenticated ?
+    pub is_authenticated: bool,
+    /// is the connection under tls ?
+    pub is_secured: bool,
 }
 
 /// Representation of one mail obtained by a transaction SMTP

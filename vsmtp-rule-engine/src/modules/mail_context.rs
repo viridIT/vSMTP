@@ -61,16 +61,26 @@ pub mod mail_context {
             .timestamp)
     }
 
-    #[rhai_fn(global, get = "is_auth", return_raw)]
-    pub fn is_auth(
+    #[rhai_fn(global, get = "is_secured", return_raw)]
+    pub fn is_secured(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<bool> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .connection
-            .credentials
-            .is_some())
+            .is_secured)
+    }
+
+    #[rhai_fn(global, get = "is_authenticated", return_raw)]
+    pub fn is_authenticated(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<bool> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .connection
+            .is_authenticated)
     }
 
     #[rhai_fn(global, get = "auth", return_raw)]

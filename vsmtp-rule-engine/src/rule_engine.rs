@@ -60,6 +60,8 @@ impl<'a> RuleState<'a> {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
+                is_authenticated: false,
+                is_secured: false,
             },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
@@ -84,8 +86,17 @@ impl<'a> RuleState<'a> {
         }
     }
 
+    /// create a new rule state with connection data.
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn with_connection(config: &Config, conn: ConnectionContext) -> Self {
+        let state = Self::new(config);
+        state.mail_context.write().unwrap().connection = conn;
+        state
+    }
+
     /// create a RuleState from an existing mail context (f.e. when deserializing a context)
+    #[must_use]
     pub fn with_context(config: &Config, mail_context: MailContext) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(ServerAPI {

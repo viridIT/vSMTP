@@ -1,9 +1,13 @@
-use crate::{auth, log_channels};
+use crate::{
+    auth::{self, Session},
+    log_channels,
+};
 
 use super::Connection;
 use vsmtp_common::{
     auth::Mechanism,
     code::SMTPReplyCode,
+    mail_context::ConnectionContext,
     re::{anyhow, base64, log, rsasl},
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -26,9 +30,7 @@ pub enum AuthExchangeError {
 
 async fn auth_step<S>(
     conn: &mut Connection<S>,
-    session: &mut rsasl::DiscardOnDrop<
-        rsasl::Session<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
-    >,
+    session: &mut rsasl::DiscardOnDrop<Session>,
     buffer: &[u8],
 ) -> Result<bool, AuthExchangeError>
 where
@@ -118,7 +120,15 @@ where
     }
     let mut guard = rsasl.lock().await;
     let mut session = guard.server_start(&String::from(mechanism)).unwrap();
-    session.store(Box::new(rule_engine));
+    session.store(Box::new((
+        rule_engine,
+        ConnectionContext {
+            timestamp: conn.timestamp,
+            credentials: None,
+            is_authenticated: conn.is_authenticated,
+            is_secured: conn.is_secured,
+        },
+    )));
 
     let mut succeeded =
         auth_step(conn, &mut session, &initial_response.unwrap_or_default()).await?;

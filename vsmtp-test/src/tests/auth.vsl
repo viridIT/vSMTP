@@ -9,7 +9,7 @@
                 "héllo": "wÖrld"
             };
 
-            if !ctx.is_auth {
+            if !ctx.is_authenticated {
                 return vsl::deny();
             }
 

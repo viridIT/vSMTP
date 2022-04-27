@@ -47,6 +47,8 @@ mod tests {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
+                is_authenticated: false,
+                is_secured: false,
             },
             client_addr: "0.0.0.0:25".parse().unwrap(),
             envelop: Envelop {
