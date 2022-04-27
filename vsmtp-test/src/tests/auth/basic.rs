@@ -72,7 +72,7 @@ async fn plain_in_clair_unsecured() {
             "MAIL FROM:<foo@bar>\r\n",
             "RCPT TO:<joe@doe>\r\n",
             "DATA\r\n",
-            ".\r\n",
+            "\r\n.\r\n",
             "QUIT\r\n"
         ].concat(),
         [
