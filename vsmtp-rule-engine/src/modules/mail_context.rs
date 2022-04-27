@@ -61,6 +61,18 @@ pub mod mail_context {
             .timestamp)
     }
 
+    #[rhai_fn(global, get = "is_auth", return_raw)]
+    pub fn is_auth(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<bool> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .connection
+            .credentials
+            .is_some())
+    }
+
     #[rhai_fn(global, get = "auth", return_raw)]
     pub fn auth(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
