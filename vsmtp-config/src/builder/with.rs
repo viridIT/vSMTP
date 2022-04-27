@@ -115,6 +115,7 @@ impl Builder<WantsServerSystem> {
         self.with_system(
             ConfigServerSystem::default_user(),
             ConfigServerSystem::default_group(),
+            None,
             ConfigServerSystemThreadPool::default_receiver(),
             ConfigServerSystemThreadPool::default_processing(),
             ConfigServerSystemThreadPool::default_delivery(),
@@ -132,6 +133,7 @@ impl Builder<WantsServerSystem> {
         self.with_system(
             ConfigServerSystem::default_user(),
             ConfigServerSystem::default_group(),
+            None,
             thread_pool_receiver,
             thread_pool_processing,
             thread_pool_delivery,
@@ -150,6 +152,7 @@ impl Builder<WantsServerSystem> {
         self.with_system_str(
             user,
             group,
+            None,
             ConfigServerSystemThreadPool::default_receiver(),
             ConfigServerSystemThreadPool::default_processing(),
             ConfigServerSystemThreadPool::default_delivery(),
@@ -162,6 +165,7 @@ impl Builder<WantsServerSystem> {
         self,
         user: users::User,
         group: users::Group,
+        group_local: Option<users::Group>,
         thread_pool_receiver: usize,
         thread_pool_processing: usize,
         thread_pool_delivery: usize,
@@ -171,6 +175,7 @@ impl Builder<WantsServerSystem> {
                 parent: self.state,
                 user,
                 group,
+                group_local,
                 thread_pool_receiver,
                 thread_pool_processing,
                 thread_pool_delivery,
@@ -186,6 +191,7 @@ impl Builder<WantsServerSystem> {
         self,
         user: &str,
         group: &str,
+        group_local: Option<&str>,
         thread_pool_receiver: usize,
         thread_pool_processing: usize,
         thread_pool_delivery: usize,
@@ -197,6 +203,14 @@ impl Builder<WantsServerSystem> {
                     .ok_or_else(|| anyhow::anyhow!("user not found: '{}'", user))?,
                 group: users::get_group_by_name(group)
                     .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", group))?,
+                group_local: if let Some(group_local) = group_local {
+                    Some(
+                        users::get_group_by_name(group_local)
+                            .ok_or_else(|| anyhow::anyhow!("group not found: '{}'", group_local))?,
+                    )
+                } else {
+                    None
+                },
                 thread_pool_receiver,
                 thread_pool_processing,
                 thread_pool_delivery,

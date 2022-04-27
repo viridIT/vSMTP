@@ -14,6 +14,31 @@ where
         .ok_or_else(|| serde::de::Error::custom(format!("group not found: '{}'", group_name)))
 }
 
+pub fn opt_serialize<S>(group: &Option<users::Group>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    if let Some(group) = group {
+        serde::Serialize::serialize(&group.name().to_str().unwrap(), serializer)
+    } else {
+        serializer.serialize_none()
+    }
+}
+
+pub fn opt_deserialize<'de, D>(deserializer: D) -> Result<Option<users::Group>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let group_name = &<Option<String> as serde::Deserialize>::deserialize(deserializer)?;
+    if let Some(group_name) = group_name {
+        Ok(Some(users::get_group_by_name(group_name).ok_or_else(
+            || serde::de::Error::custom(format!("group not found: '{}'", group_name)),
+        )?))
+    } else {
+        Ok(None)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -44,6 +69,46 @@ mod tests {
                 v: users::get_group_by_name("root").unwrap()
             })
             .unwrap()
+        );
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct OptS {
+        #[serde(default)]
+        #[serde(
+            serialize_with = "crate::parser::syst_group::opt_serialize",
+            deserialize_with = "crate::parser::syst_group::opt_deserialize"
+        )]
+        v: Option<users::Group>,
+    }
+
+    #[test]
+    fn optional() {
+        assert_eq!(
+            serde_json::from_str::<OptS>("{\"v\":\"root\"}")
+                .unwrap()
+                .v
+                .unwrap()
+                .gid(),
+            users::get_group_by_name("root").unwrap().gid()
+        );
+
+        assert!(serde_json::from_str::<OptS>("{\"v\":null}")
+            .unwrap()
+            .v
+            .is_none());
+
+        assert_eq!(
+            "{\"v\":\"root\"}",
+            serde_json::to_string(&OptS {
+                v: Some(users::get_group_by_name("root").unwrap())
+            })
+            .unwrap()
+        );
+
+        assert_eq!(
+            "{\"v\":null}",
+            serde_json::to_string(&OptS { v: None }).unwrap()
         );
     }
 }

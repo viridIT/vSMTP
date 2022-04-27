@@ -75,11 +75,11 @@ impl std::fmt::Display for StateSMTP {
             Self::PreQ => "preq",
             Self::PostQ => "postq",
             Self::Delivery => "delivery",
+            Self::Authentication(_, _) => "authenticate",
             // others
             Self::Data => "Data",
             Self::Stop => "Stop",
             Self::NegotiationTLS => "NegotiationTLS",
-            Self::Authentication(_, _) => "Authentication",
         })
     }
 }
@@ -103,14 +103,14 @@ impl std::str::FromStr for StateSMTP {
             "preq" => Ok(Self::PreQ),
             "postq" => Ok(Self::PostQ),
             "delivery" => Ok(Self::Delivery),
+            "authenticate" => Ok(Self::Authentication(
+                Mechanism::default(),
+                Option::<Vec<u8>>::default(),
+            )),
             // others
             "Data" => Ok(Self::Data),
             "Stop" => Ok(Self::Stop),
             "NegotiationTLS" => Ok(Self::NegotiationTLS),
-            "Authentication" => Ok(Self::Authentication(
-                Mechanism::default(),
-                Option::<Vec<u8>>::default(),
-            )),
             _ => anyhow::bail!("not a valid SMTP state: '{}'", s),
         }
     }

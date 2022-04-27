@@ -99,6 +99,7 @@ impl OnMail for MailHandler {
 async fn handle_auth<S>(
     conn: &mut Connection<S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     helo_domain: &mut Option<String>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
@@ -107,7 +108,7 @@ async fn handle_auth<S>(
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
-    match on_authentication(conn, rsasl, mechanism, initial_response).await {
+    match on_authentication(conn, rsasl, rule_engine, mechanism, initial_response).await {
         Err(auth_exchange::AuthExchangeError::Failed) => {
             conn.send_code(SMTPReplyCode::AuthInvalidCredentials)
                 .await?;
@@ -212,6 +213,7 @@ where
                     handle_auth(
                         conn,
                         rsasl.clone(),
+                        rule_engine.clone(),
                         &mut helo_domain,
                         mechanism,
                         initial_response,
@@ -262,19 +264,6 @@ where
         conn.authentication_attempt,
         stream,
     );
-    /*
-    kind: conn.kind,
-        timestamp: conn.timestamp,
-        config: conn.config.clone(),
-        client_addr: conn.client_addr,
-        error_count: conn.error_count,
-        is_authenticated: conn.is_authenticated,
-        authentication_attempt: conn.authentication_attempt,
-        is_alive: true,
-        is_secured: true,
-        io_stream: AbstractIO::new(stream),
-    };
-    */
 
     if let ConnectionKind::Tunneled = secured_conn.kind {
         secured_conn.send_code(SMTPReplyCode::Greetings).await?;
@@ -300,6 +289,7 @@ where
                     handle_auth(
                         &mut secured_conn,
                         rsasl.clone(),
+                        rule_engine.clone(),
                         &mut helo_domain,
                         mechanism,
                         initial_response,

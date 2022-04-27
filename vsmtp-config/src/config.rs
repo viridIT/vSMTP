@@ -82,6 +82,12 @@ pub struct ConfigServerSystem {
     )]
     pub group: users::Group,
     #[serde(default)]
+    #[serde(
+        serialize_with = "crate::parser::syst_group::opt_serialize",
+        deserialize_with = "crate::parser::syst_group::opt_deserialize"
+    )]
+    pub group_local: Option<users::Group>,
+    #[serde(default)]
     pub thread_pool: ConfigServerSystemThreadPool,
 }
 

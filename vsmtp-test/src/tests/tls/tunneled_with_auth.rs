@@ -32,7 +32,8 @@ fn get_tls_auth_config() -> Config {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn simple() {
-    let config = get_tls_auth_config();
+    let mut config = get_tls_auth_config();
+    config.app.vsl.filepath = "./src/tests/auth.vsl".into();
 
     let (client, server) = test_tls_tunneled(
         "testserver.com",
@@ -78,10 +79,11 @@ async fn simple() {
                 .unwrap(),
             ))
         },
-        |_| {
+        |config| {
             Some({
-                let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+                let mut rsasl = rsasl::SASL::new().unwrap();
                 rsasl.install_callback::<auth::Callback>();
+                rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
                 std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
             })
         },

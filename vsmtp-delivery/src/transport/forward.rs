@@ -25,22 +25,22 @@ use vsmtp_common::{
     mail_context::MessageMetadata,
     rcpt::Rcpt,
     re::{anyhow, log},
-    transfer::EmailTransferStatus,
+    transfer::{EmailTransferStatus, ForwardTarget},
 };
 use vsmtp_config::Config;
 
 /// the email will be directly delivered to the server, without mx lookup.
 pub struct Forward<'r> {
-    to: String,
+    to: ForwardTarget,
     resolver: &'r TokioAsyncResolver,
 }
 
 impl<'r> Forward<'r> {
     /// create a new deliver with a resolver to get data from the distant dns server.
     #[must_use]
-    pub fn new<S: ToString>(to: &S, resolver: &'r TokioAsyncResolver) -> Self {
+    pub fn new(to: &ForwardTarget, resolver: &'r TokioAsyncResolver) -> Self {
         Self {
-            to: to.to_string(),
+            to: to.clone(),
             resolver,
         }
     }
@@ -59,7 +59,21 @@ impl<'r> Transport for Forward<'r> {
         let envelop = super::build_lettre_envelop(from, &to[..])
             .context("failed to build envelop to forward email")?;
 
-        match send_email(config, self.resolver, from, &self.to, &envelop, content).await {
+        // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
+        let target = match &self.to {
+            ForwardTarget::Domain(domain) => domain.clone(),
+            ForwardTarget::Ip(ip) => self
+                .resolver
+                .reverse_lookup(*ip)
+                .await
+                .context(format!("failed to forward email to {ip}"))?
+                .into_iter()
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("no domain found for {ip}"))?
+                .to_string(),
+        };
+
+        match send_email(config, self.resolver, from, &target, &envelop, content).await {
             Ok(()) => {
                 to.iter_mut()
                     .for_each(|rcpt| rcpt.email_status = EmailTransferStatus::Sent);
@@ -70,7 +84,7 @@ impl<'r> Transport for Forward<'r> {
                     target: log_channels::FORWARD,
                     "(msg={}) failed to forward email to '{}': {err}",
                     metadata.message_id,
-                    &self.to
+                    &target
                 );
 
                 for rcpt in to.iter_mut() {
@@ -82,7 +96,7 @@ impl<'r> Transport for Forward<'r> {
                     };
                 }
 
-                anyhow::bail!("failed to forward email to '{}'", self.to)
+                anyhow::bail!("failed to forward email to '{}'", target)
             }
         }
     }

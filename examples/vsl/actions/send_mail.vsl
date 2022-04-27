@@ -16,9 +16,10 @@
 
         rule "invalid from" || {
             try {
-                vsl::send_mail("", ["john@doe.net"], `${srv.app_dir}/template.eml`, "relay");
+                vsl::send_mail("", ["john@doe.net"], `${toml::app.dirpath}/template.eml`, "relay");
                 return vsl::deny();
             } catch (err) {
+                print(err);
                 if "MissingParts" in err {
                     return vsl::next();
                 } else {
@@ -29,7 +30,7 @@
 
         rule "invalid to" || {
             try {
-                vsl::send_mail("john@doe.net", [], `${srv.app_dir}/template.eml`, "relay");
+                vsl::send_mail("john@doe.net", [], `${toml::app.dirpath}/template.eml`, "relay");
                 return vsl::deny();
             } catch (err) {
                 if "MissingTo" in err {
@@ -42,7 +43,7 @@
 
         rule "invalid relay" || {
             try {
-                vsl::send_mail("john@doe.net", ["green@foo.net"], `${srv.app_dir}/template.eml`, "relay");
+                vsl::send_mail("john@doe.net", ["green@foo.net"], `${toml::app.dirpath}/template.eml`, "relay");
                 return vsl::deny();
             } catch (err) {
                 if "Temporary failure in name resolution" in err {

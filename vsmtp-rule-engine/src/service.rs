@@ -1,5 +1,5 @@
 use vsmtp_common::{
-    mail_context::{Body, MailContext},
+    mail_context::{AuthCredentials, Body, MailContext},
     re::{anyhow, log},
 };
 use vsmtp_config::{re::users, Service};
@@ -45,14 +45,13 @@ impl std::fmt::Display for ServiceResult {
 /// run the service using an email context.
 /// # Errors
 ///
-/// * if the body of the email is empty.
 /// * if the user used to launch commands is not found.
 /// * if the group used to launch commands is not found.
 /// * if the shell service failed to spawn.
 /// * if the shell returned an error.
 pub fn run(this: &Service, ctx: &MailContext) -> anyhow::Result<ServiceResult> {
     let body = match &ctx.body {
-        Body::Empty => anyhow::bail!("could not run service: body of the email is empty",),
+        Body::Empty => "".to_string(),
         Body::Raw(raw) => raw.clone(),
         Body::Parsed(parsed) => parsed.to_raw(),
     };
@@ -69,7 +68,27 @@ pub fn run(this: &Service, ctx: &MailContext) -> anyhow::Result<ServiceResult> {
             let mut child = std::process::Command::new(command);
             if let Some(args) = args {
                 for i in args.split_whitespace() {
-                    child.arg(i.replace("{mail}", &body));
+                    child.arg(
+                        i.replace("{mail}", &body)
+                            .replace(
+                                "{authid}",
+                                ctx.connection.credentials.as_ref().map_or("", |c| match c {
+                                    AuthCredentials::Query { authid }
+                                    | AuthCredentials::Verify { authid, .. } => authid,
+                                }),
+                            )
+                            .replace(
+                                "{authpass}",
+                                ctx.connection
+                                    .credentials
+                                    .as_ref()
+                                    .and_then(|c| match c {
+                                        AuthCredentials::Verify { authpass, .. } => Some(authpass),
+                                        AuthCredentials::Query { .. } => None,
+                                    })
+                                    .unwrap_or(&"".to_string()),
+                            ),
+                    );
                 }
             }
 

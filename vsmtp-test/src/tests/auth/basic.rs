@@ -13,9 +13,14 @@ use vsmtp_server::{auth, OnMail};
 
 #[tokio::test]
 async fn plain_in_clair_secured() {
+    let config = safe_auth_config();
     assert!(test_receiver! {
-        with_auth => rsasl::SASL::new_untyped().unwrap(),
-        with_config => safe_auth_config(),
+        with_auth => {
+            let mut rsasl = rsasl::SASL::new().unwrap();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
+            rsasl
+        },
+        with_config => config.clone(),
         [
             "EHLO foo\r\n",
             "AUTH PLAIN\r\n"
@@ -58,13 +63,15 @@ async fn plain_in_clair_unsecured() {
         }
     }
 
+    let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
         },
-        with_config => unsafe_auth_config(),
+        with_config => config.clone(),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -118,13 +125,15 @@ async fn plain_in_clair_unsecured_utf8() {
         }
     }
 
+    let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
         },
-        with_config => unsafe_auth_config(),
+        with_config => config.clone(),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -155,13 +164,15 @@ async fn plain_in_clair_unsecured_utf8() {
 
 #[tokio::test]
 async fn plain_in_clair_invalid_credentials() {
+    let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
         },
-        with_config => unsafe_auth_config(),
+        with_config => config.clone(),
         [
             "EHLO client.com\r\n",
             &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "foo", "bar"))),
@@ -191,11 +202,12 @@ async fn plain_in_clair_unsecured_cancel() {
 
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
         },
-        with_config => config,
+        with_config => config.clone(),
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN\r\n",
@@ -229,13 +241,15 @@ async fn plain_in_clair_unsecured_cancel() {
 
 #[tokio::test]
 async fn plain_in_clair_unsecured_bad_base64() {
+    let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
         },
-        with_config => unsafe_auth_config(),
+        with_config => config.clone(),
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN foobar\r\n",
@@ -280,13 +294,15 @@ async fn plain_in_clair_unsecured_without_initial_response() {
         }
     }
 
+    let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
         },
-        with_config => unsafe_auth_config(),
+        with_config => config.clone(),
         on_mail => &mut T,
         [
             "EHLO client.com\r\n",
@@ -350,13 +366,15 @@ async fn no_auth_with_authenticated_policy() {
 
 #[tokio::test]
 async fn client_must_not_start() {
+    let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+            let mut rsasl = rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
         },
-        with_config => unsafe_auth_config(),
+        with_config => config.clone(),
         [
             "EHLO client.com\r\n",
             "AUTH LOGIN foobar\r\n",

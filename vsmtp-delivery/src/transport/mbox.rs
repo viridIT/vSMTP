@@ -42,7 +42,7 @@ pub struct MBox;
 impl Transport for MBox {
     async fn deliver(
         &mut self,
-        _: &Config,
+        config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
@@ -59,6 +59,7 @@ impl Transport for MBox {
                 if let Err(err) = write_content_to_mbox(
                     &std::path::PathBuf::from_iter(["/", "var", "mail", rcpt.address.local_part()]),
                     &user,
+                    config.server.system.group_local.as_ref(),
                     metadata,
                     &content,
                 ) {
@@ -113,6 +114,7 @@ fn build_mbox_message(
 fn write_content_to_mbox(
     mbox: &std::path::Path,
     user: &users::User,
+    group_local: Option<&users::Group>,
     metadata: &MessageMetadata,
     content: &str,
 ) -> anyhow::Result<()> {
@@ -122,7 +124,7 @@ fn write_content_to_mbox(
         .open(&mbox)
         .with_context(|| format!("could not open {:?} mbox", mbox))?;
 
-    chown(mbox, Some(user.uid()), None)
+    chown(mbox, Some(user.uid()), group_local.map(users::Group::gid))
         .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
     std::io::Write::write_all(&mut file, content.as_bytes())
@@ -198,7 +200,8 @@ This is a raw email.
 
         std::fs::create_dir_all("./tests/generated/").expect("could not create temporary folders");
 
-        write_content_to_mbox(&mbox, &user, &metadata, content).expect("could not write to mbox");
+        write_content_to_mbox(&mbox, &user, None, &metadata, content)
+            .expect("could not write to mbox");
 
         assert_eq!(
             content.to_string(),

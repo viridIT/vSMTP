@@ -46,6 +46,7 @@ impl Builder<WantsValidate> {
                 system: ConfigServerSystem {
                     user: srv_syst.user,
                     group: srv_syst.group,
+                    group_local: srv_syst.group_local,
                     thread_pool: ConfigServerSystemThreadPool {
                         receiver: srv_syst.thread_pool_receiver,
                         processing: srv_syst.thread_pool_processing,

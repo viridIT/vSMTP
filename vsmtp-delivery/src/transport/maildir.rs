@@ -38,7 +38,7 @@ impl Transport for Maildir {
     //       and https://en.wikipedia.org/wiki/Maildir
     async fn deliver(
         &mut self,
-        _: &Config,
+        config: &Config,
         metadata: &MessageMetadata,
         _: &vsmtp_common::address::Address,
         to: &mut [Rcpt],
@@ -47,7 +47,12 @@ impl Transport for Maildir {
         for rcpt in to.iter_mut() {
             if let Some(user) = users::get_user_by_name(rcpt.address.local_part()) {
                 // TODO: write to defer / dead queue.
-                if let Err(err) = write_to_maildir(&user, metadata, content) {
+                if let Err(err) = write_to_maildir(
+                    &user,
+                    config.server.system.group_local.as_ref(),
+                    metadata,
+                    content,
+                ) {
                     log::error!(
                         target: log_channels::MAILDIR,
                         "(msg={}) failed to write email in maildir of '{rcpt}': {err}",
@@ -86,6 +91,7 @@ impl Transport for Maildir {
 // NOTE: see https://en.wikipedia.org/wiki/Maildir
 fn create_maildir(
     user: &users::User,
+    group_local: Option<&users::Group>,
     metadata: &MessageMetadata,
 ) -> anyhow::Result<std::path::PathBuf> {
     let mut maildir = std::path::PathBuf::from_iter([getpwuid(user.uid())?, "Maildir".into()]);
@@ -93,7 +99,7 @@ fn create_maildir(
     let create_and_chown = |path: &std::path::PathBuf, user: &users::User| -> anyhow::Result<()> {
         if !path.exists() {
             std::fs::create_dir(&path).with_context(|| format!("failed to create {:?}", path))?;
-            chown(path, Some(user.uid()), None)
+            chown(path, Some(user.uid()), group_local.map(users::Group::gid))
                 .with_context(|| format!("failed to set user rights to {:?}", path))?;
         }
 
@@ -111,10 +117,11 @@ fn create_maildir(
 
 fn write_to_maildir(
     user: &users::User,
+    group_local: Option<&users::Group>,
     metadata: &MessageMetadata,
     content: &str,
 ) -> anyhow::Result<()> {
-    let maildir = create_maildir(user, metadata)?;
+    let maildir = create_maildir(user, group_local, metadata)?;
 
     let mut email = std::fs::OpenOptions::new()
         .create(true)
@@ -123,7 +130,11 @@ fn write_to_maildir(
 
     std::io::Write::write_all(&mut email, content.as_bytes())?;
 
-    chown(&maildir, Some(user.uid()), None)?;
+    chown(
+        &maildir,
+        Some(user.uid()),
+        group_local.map(users::Group::gid),
+    )?;
 
     log::debug!(
         target: log_channels::MAILDIR,
@@ -167,6 +178,7 @@ mod test {
 
         write_to_maildir(
             &current,
+            None,
             &MessageMetadata {
                 message_id: message_id.to_string(),
                 ..MessageMetadata::default()

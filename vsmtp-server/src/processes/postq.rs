@@ -156,7 +156,7 @@ mod tests {
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
-        mail_context::{Body, MailContext, MessageMetadata},
+        mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::anyhow::Context,
         transfer::{EmailTransferStatus, Transfer},
@@ -198,7 +198,10 @@ mod tests {
             .write_to_queue(
                 &config.server.queues.dirpath,
                 &MailContext {
-                    connection_timestamp: std::time::SystemTime::now(),
+                    connection: ConnectionContext {
+                        timestamp: std::time::SystemTime::now(),
+                        credentials: None,
+                    },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
@@ -260,7 +263,10 @@ mod tests {
             .write_to_queue(
                 &config.server.queues.dirpath,
                 &MailContext {
-                    connection_timestamp: std::time::SystemTime::now(),
+                    connection: ConnectionContext {
+                        timestamp: std::time::SystemTime::now(),
+                        credentials: None,
+                    },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),

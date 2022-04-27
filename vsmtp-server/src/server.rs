@@ -84,11 +84,16 @@ impl Server {
             } else {
                 None
             },
-            rsasl: Some(std::sync::Arc::new(tokio::sync::Mutex::new({
-                let mut rsasl = rsasl::SASL::new_untyped().map_err(|e| anyhow::anyhow!("{}", e))?;
-                rsasl.install_callback::<auth::Callback>();
-                rsasl
-            }))),
+            rsasl: if config.server.smtp.auth.is_some() {
+                Some(std::sync::Arc::new(tokio::sync::Mutex::new({
+                    let mut rsasl = rsasl::SASL::new().map_err(|e| anyhow::anyhow!("{}", e))?;
+                    rsasl.install_callback::<auth::Callback>();
+                    rsasl.store(Box::new(config.clone()));
+                    rsasl
+                })))
+            } else {
+                None
+            },
             config,
             rule_engine,
             working_sender,

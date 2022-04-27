@@ -114,7 +114,7 @@ mod tests {
     use vsmtp_common::{
         address::Address,
         envelop::Envelop,
-        mail_context::{Body, MailContext, MessageMetadata},
+        mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
@@ -133,7 +133,10 @@ mod tests {
             .write_to_queue(
                 &config.server.queues.dirpath,
                 &MailContext {
-                    connection_timestamp: now,
+                    connection: ConnectionContext {
+                        timestamp: now,
+                        credentials: None,
+                    },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
@@ -174,7 +177,10 @@ mod tests {
         pretty_assertions::assert_eq!(
             MailContext::from_file(&config.server.queues.dirpath.join("deferred/test")).unwrap(),
             MailContext {
-                connection_timestamp: now,
+                connection: ConnectionContext {
+                    timestamp: now,
+                    credentials: None,
+                },
                 client_addr: "127.0.0.1:80".parse().unwrap(),
                 envelop: Envelop {
                     helo: "client.com".to_string(),

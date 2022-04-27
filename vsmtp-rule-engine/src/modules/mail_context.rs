@@ -57,7 +57,53 @@ pub mod mail_context {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .connection_timestamp)
+            .connection
+            .timestamp)
+    }
+
+    #[rhai_fn(global, get = "auth", return_raw)]
+    pub fn auth(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+    ) -> EngineResult<vsmtp_common::mail_context::AuthCredentials> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .connection
+            .credentials
+            .clone()
+            .ok_or("is none")?)
+    }
+
+    #[rhai_fn(global, get = "type", pure)]
+    pub fn get_type(my_enum: &mut vsmtp_common::mail_context::AuthCredentials) -> String {
+        match my_enum {
+            vsmtp_common::mail_context::AuthCredentials::Verify { .. } => "Verify".to_string(),
+            vsmtp_common::mail_context::AuthCredentials::Query { .. } => "Query".to_string(),
+        }
+    }
+
+    #[rhai_fn(global, get = "authid", pure)]
+    pub fn get_authid(my_enum: &mut vsmtp_common::mail_context::AuthCredentials) -> String {
+        match my_enum {
+            vsmtp_common::mail_context::AuthCredentials::Query { authid }
+            | vsmtp_common::mail_context::AuthCredentials::Verify { authid, .. } => authid.clone(),
+        }
+    }
+
+    #[rhai_fn(global, get = "authpass", return_raw)]
+    pub fn get_authpass(
+        my_enum: &mut vsmtp_common::mail_context::AuthCredentials,
+    ) -> EngineResult<String> {
+        match my_enum {
+            vsmtp_common::mail_context::AuthCredentials::Verify { authpass, .. } => {
+                Ok(authpass.clone())
+            }
+            vsmtp_common::mail_context::AuthCredentials::Query { .. } => {
+                Err("no `authpass` available in credentials of type `Query`"
+                    .to_string()
+                    .into())
+            }
+        }
     }
 
     #[rhai_fn(global, get = "helo", return_raw)]

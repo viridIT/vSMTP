@@ -18,7 +18,7 @@ use crate::{
     rule_engine::{RuleEngine, RuleState},
     tests::helpers::get_default_state,
 };
-use vsmtp_common::{state::StateSMTP, status::Status};
+use vsmtp_common::{mail_context::ConnectionContext, state::StateSMTP, status::Status};
 
 #[test]
 fn test_engine_errors() {
@@ -27,7 +27,7 @@ fn test_engine_errors() {
         &Some(rules_path!["error_handling", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
@@ -42,7 +42,7 @@ fn test_engine_rules_syntax() {
         &Some(rules_path!["syntax", "main.vsl"]),
     )
     .unwrap();
-    let mut state = get_default_state("./tmp/app");
+    let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
@@ -81,7 +81,10 @@ fn test_rule_state() {
     let state_with_context = RuleState::with_context(
         &config,
         vsmtp_common::mail_context::MailContext {
-            connection_timestamp: std::time::SystemTime::now(),
+            connection: ConnectionContext {
+                timestamp: std::time::SystemTime::now(),
+                credentials: None,
+            },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
                 25,

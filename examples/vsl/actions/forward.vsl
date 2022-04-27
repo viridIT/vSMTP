@@ -1,0 +1,30 @@
+object forward_str string = "localhost";
+object forward_ip4 ip4 = "127.0.0.1";
+object forward_ip6 ip6 = "::1";
+object forward_fqdn fqdn = "test.eu";
+
+#{
+    connect: [
+        action "add recipients" || {
+            vsl::add_rcpt(ctx, "fqdn@example.com");
+            vsl::add_rcpt(ctx, "ip4@example.com");
+            vsl::add_rcpt(ctx, "ip6@example.com");
+            vsl::add_rcpt(ctx, "object.str@example.com");
+            vsl::add_rcpt(ctx, "object.ip4@example.com");
+            vsl::add_rcpt(ctx, "object.ip6@example.com");
+            vsl::add_rcpt(ctx, "object.fqdn@example.com");
+        }
+    ],
+
+    delivery: [
+        action "setup forwarding" || {
+            vsl::forward(ctx, "fqdn@example.com", "localhost");
+            vsl::forward(ctx, "ip4@example.com", "127.0.0.1");
+            vsl::forward(ctx, "ip6@example.com", "::1");
+            vsl::forward(ctx, "object.str@example.com", forward_str);
+            vsl::forward(ctx, "object.ip4@example.com", forward_ip4);
+            vsl::forward(ctx, "object.ip6@example.com", forward_ip6);
+            vsl::forward(ctx, "object.fqdn@example.com", forward_fqdn);
+        },
+    ]
+}
