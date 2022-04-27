@@ -34,9 +34,9 @@ async fn test_receiver_1() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -47,7 +47,8 @@ async fn test_receiver_1() {
                 vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
             );
             assert!(mail.metadata.is_some());
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
 
             Ok(())
         }
@@ -275,9 +276,9 @@ async fn test_receiver_13() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             helo_domain: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -315,7 +316,8 @@ async fn test_receiver_13() {
 
             self.count += 1;
 
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
 
             Ok(())
         }
@@ -371,9 +373,9 @@ async fn test_receiver_14() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -409,7 +411,8 @@ async fn test_receiver_14() {
 
             self.count += 1;
 
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
 
             Ok(())
         }

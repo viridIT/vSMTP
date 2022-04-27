@@ -26,13 +26,14 @@ struct DefaultMailHandler;
 
 #[async_trait::async_trait]
 impl OnMail for DefaultMailHandler {
-    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        conn: &mut Connection<'_, S>,
+        conn: &mut Connection<S>,
         _: Box<MailContext>,
         _: &mut Option<String>,
     ) -> anyhow::Result<()> {
-        conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+        conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+            .await?;
         Ok(())
     }
 }
@@ -89,9 +90,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
         #[async_trait::async_trait]
         impl OnMail for T {
-            async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+            async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
                 &mut self,
-                conn: &mut Connection<'_, S>,
+                conn: &mut Connection<S>,
                 mail: Box<MailContext>,
                 _: &mut Option<String>,
             ) -> anyhow::Result<()> {
@@ -106,7 +107,8 @@ fn criterion_benchmark(c: &mut Criterion) {
                     panic!("the email is not empty");
                 }
 
-                conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+                conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                    .await?;
 
                 Ok(())
             }

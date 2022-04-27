@@ -2,7 +2,6 @@ use crate::tests::tls::{get_tls_config, test_tls_tunneled};
 use vsmtp_config::get_rustls_config;
 use vsmtp_config::re::rustls;
 use vsmtp_server::re::tokio;
-use vsmtp_server::IoService;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn test_all_cipher_suite() {
@@ -45,10 +44,10 @@ async fn test_all_cipher_suite() {
                 ))
             },
             |_| None,
-            |io: &IoService<rustls::Stream<rustls::ClientConnection, std::net::TcpStream>>| {
+            |io: &tokio_rustls::client::TlsStream<tokio::net::TcpStream>| {
                 assert_eq!(
                     i.suite(),
-                    io.inner.conn.negotiated_cipher_suite().unwrap().suite()
+                    io.get_ref().1.negotiated_cipher_suite().unwrap().suite()
                 );
             },
         )

@@ -15,7 +15,7 @@ use vsmtp_config::{
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::auth;
 use vsmtp_server::re::tokio;
-use vsmtp_server::{ConnectionKind, IoService, ProcessMessage, Server};
+use vsmtp_server::{ConnectionKind, ProcessMessage, Server};
 
 pub fn get_tls_config() -> Config {
     Config::builder()
@@ -46,7 +46,7 @@ pub fn get_tls_config() -> Config {
 // using sockets on 2 thread to make the handshake concurrently
 #[allow(clippy::too_many_lines)]
 async fn test_starttls(
-    server_name: &str,
+    server_name: &'static str,
     server_config: std::sync::Arc<Config>,
     clair_smtp_input: &'static [&str],
     secured_smtp_input: &'static [&str],
@@ -115,65 +115,67 @@ async fn test_starttls(
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
-    let mut conn =
-        rustls::ClientConnection::new(std::sync::Arc::new(config), server_name.try_into().unwrap())
-            .unwrap();
+    let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(config));
 
     let client = tokio::spawn(async move {
-        let mut client = std::net::TcpStream::connect(format!("0.0.0.0:{port}")).unwrap();
-        let mut io = IoService::new(&mut client);
+        let mut stream = vsmtp_server::AbstractIO::new(
+            tokio::net::TcpStream::connect(format!("0.0.0.0:{port}"))
+                .await
+                .unwrap(),
+        );
 
         let mut output = vec![];
-
         let mut input = clair_smtp_input.iter().copied();
 
         loop {
-            let res = io.get_next_line_async().await.unwrap();
-            output.push(res);
+            let line = stream.next_line(None).await.unwrap().unwrap();
+            output.push(line);
             if output.last().unwrap().chars().nth(3) == Some('-') {
                 continue;
             }
             match input.next() {
-                Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
+                Some(line) => {
+                    tokio::io::AsyncWriteExt::write_all(&mut stream.inner, line.as_bytes())
+                        .await
+                        .unwrap();
+                }
                 None => break,
             }
         }
 
         println!("{output:?}");
 
-        let mut tls = rustls::Stream::new(&mut conn, &mut io);
-        let mut io = IoService::new(&mut tls);
-        println!("begin handshake");
-
-        if let Err(e) = std::io::Write::flush(&mut io) {
-            pretty_assertions::assert_eq!(expected_output, output);
-            anyhow::bail!(e);
-        }
-        println!("end handshake");
-
-        // TODO: assert on negotiated cipher ... ?
+        let mut stream = vsmtp_server::AbstractIO::new(
+            connector
+                .connect(
+                    rustls::ServerName::try_from(server_name).unwrap(),
+                    stream.inner,
+                )
+                .await?,
+        );
 
         let mut input = secured_smtp_input.iter().copied();
 
-        std::io::Write::write_all(&mut io, input.next().unwrap().as_bytes()).unwrap();
+        tokio::io::AsyncWriteExt::write_all(&mut stream.inner, input.next().unwrap().as_bytes())
+            .await
+            .unwrap();
 
         loop {
-            let res = io.get_next_line_async().await.unwrap();
-            output.push(res);
+            let line = stream.next_line(None).await.unwrap().unwrap();
+            output.push(line);
             if output.last().unwrap().chars().nth(3) == Some('-') {
                 continue;
             }
             match input.next() {
-                Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
+                Some(line) => {
+                    tokio::io::AsyncWriteExt::write_all(&mut stream.inner, line.as_bytes())
+                        .await
+                        .unwrap();
+                }
                 None => break,
             }
         }
-        if let Ok(Ok(last)) = tokio::time::timeout(
-            std::time::Duration::from_millis(100),
-            io.get_next_line_async(),
-        )
-        .await
-        {
+        while let Ok(Some(last)) = stream.next_line(None).await {
             output.push(last);
         }
 
@@ -190,16 +192,14 @@ async fn test_starttls(
 // using sockets on 2 thread to make the handshake concurrently
 #[allow(clippy::too_many_arguments)]
 async fn test_tls_tunneled(
-    server_name: &str,
+    server_name: &'static str,
     server_config: std::sync::Arc<Config>,
     smtp_input: Vec<String>,
     expected_output: Vec<String>,
     port: u32,
     get_tls_config: fn(&Config) -> Option<std::sync::Arc<rustls::ServerConfig>>,
     get_auth_config: fn(&Config) -> Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
-    after_handshake: impl Fn(&IoService<rustls::Stream<rustls::ClientConnection, std::net::TcpStream>>)
-        + 'static
-        + std::marker::Send,
+    after_handshake: impl Fn(&tokio_rustls::client::TlsStream<tokio::net::TcpStream>) + 'static + Send,
 ) -> anyhow::Result<(anyhow::Result<()>, anyhow::Result<()>)> {
     let socket_server = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
@@ -244,49 +244,47 @@ async fn test_tls_tunneled(
         root_store.add(&i).unwrap();
     }
 
-    let client_config = rustls::ClientConfig::builder()
-        .with_safe_default_cipher_suites()
-        .with_safe_default_kx_groups()
-        .with_safe_default_protocol_versions()
-        .unwrap()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
+    let client_config = std::sync::Arc::new(
+        rustls::ClientConfig::builder()
+            .with_safe_default_cipher_suites()
+            .with_safe_default_kx_groups()
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_root_certificates(root_store)
+            .with_no_client_auth(),
+    );
 
-    let mut conn = rustls::ClientConnection::new(
-        std::sync::Arc::new(client_config),
-        server_name.try_into().unwrap(),
-    )
-    .unwrap();
+    let connector = tokio_rustls::TlsConnector::from(client_config.clone());
 
     let client = tokio::spawn(async move {
-        let mut client = std::net::TcpStream::connect(format!("0.0.0.0:{port}")).unwrap();
-        let mut tls = rustls::Stream::new(&mut conn, &mut client);
-        let mut io = IoService::new(&mut tls);
-
-        if let Err(e) = std::io::Write::flush(&mut io) {
-            anyhow::bail!(e);
-        }
+        let stream = tokio::net::TcpStream::connect(format!("0.0.0.0:{port}"))
+            .await
+            .unwrap();
+        let mut stream = vsmtp_server::AbstractIO::new(
+            connector
+                .connect(rustls::ServerName::try_from(server_name).unwrap(), stream)
+                .await?,
+        );
 
         let mut output = vec![];
 
-        after_handshake(&io);
+        after_handshake(&stream.inner);
 
         let mut input = smtp_input.iter().cloned();
         loop {
-            let res = io.get_next_line_async().await.unwrap();
-            output.push(res);
+            let line = stream.next_line(None).await.unwrap().unwrap();
+            output.push(line);
             match input.next() {
-                Some(line) => std::io::Write::write_all(&mut io, line.as_bytes()).unwrap(),
+                Some(line) => {
+                    tokio::io::AsyncWriteExt::write_all(&mut stream.inner, line.as_bytes())
+                        .await
+                        .unwrap();
+                }
                 None => break,
             }
         }
 
-        if let Ok(Ok(last)) = tokio::time::timeout(
-            std::time::Duration::from_millis(100),
-            io.get_next_line_async(),
-        )
-        .await
-        {
+        while let Ok(Some(last)) = stream.next_line(None).await {
             output.push(last);
         }
 

@@ -44,9 +44,9 @@ async fn plain_in_clair_unsecured() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -57,7 +57,8 @@ async fn plain_in_clair_unsecured() {
                 vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
             Ok(())
         }
     }
@@ -78,7 +79,7 @@ async fn plain_in_clair_unsecured() {
             "MAIL FROM:<foo@bar>\r\n",
             "RCPT TO:<joe@doe>\r\n",
             "DATA\r\n",
-            ".\r\n",
+            "\r\n.\r\n",
             "QUIT\r\n"
         ].concat(),
         [
@@ -105,9 +106,9 @@ async fn plain_in_clair_unsecured_utf8() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -118,7 +119,8 @@ async fn plain_in_clair_unsecured_utf8() {
                 vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
             Ok(())
         }
     }
@@ -273,9 +275,9 @@ async fn plain_in_clair_unsecured_without_initial_response() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<'_, S>,
+            conn: &mut Connection<S>,
             mail: Box<MailContext>,
             _: &mut Option<String>,
         ) -> anyhow::Result<()> {
@@ -286,7 +288,8 @@ async fn plain_in_clair_unsecured_without_initial_response() {
                 vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
             );
 
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)?;
+            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
+                .await?;
             Ok(())
         }
     }

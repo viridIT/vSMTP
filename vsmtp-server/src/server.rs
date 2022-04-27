@@ -18,7 +18,7 @@ use crate::{
     auth,
     channel_message::ProcessMessage,
     receiver::{
-        handle_connection, IoService, {Connection, ConnectionKind},
+        handle_connection, {Connection, ConnectionKind},
     },
 };
 use vsmtp_common::{
@@ -64,6 +64,12 @@ impl Server {
             std::fs::DirBuilder::new()
                 .recursive(true)
                 .create(&config.server.queues.dirpath)?;
+        }
+
+        if config.server.tls.is_none() {
+            log::warn!(
+                "No TLS configuration provided, listening on submissions protocol (port 465) will cause issue"
+            );
         }
 
         Ok(Self {
@@ -200,26 +206,20 @@ impl Server {
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
-        let mut stream = stream.into_std()?;
-
         let begin = std::time::SystemTime::now();
         log::warn!("Handling client: {}", client_addr);
 
-        let mut io_plain = IoService::new(&mut stream);
-
-        let mut conn = Connection::<std::net::TcpStream>::new(
-            kind,
-            client_addr,
-            config.clone(),
-            &mut io_plain,
-        );
-
-        let mut mail_handler = crate::receiver::MailHandler {
-            working_sender,
-            delivery_sender,
-        };
-
-        match handle_connection(&mut conn, tls_config, rsasl, rule_engine, &mut mail_handler).await
+        match handle_connection(
+            &mut Connection::new(kind, client_addr, config.clone(), stream),
+            tls_config,
+            rsasl,
+            rule_engine,
+            &mut crate::receiver::MailHandler {
+                working_sender,
+                delivery_sender,
+            },
+        )
+        .await
         {
             Ok(_) => {
                 log::warn!(

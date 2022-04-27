@@ -15,7 +15,6 @@
  *
 **/
 use super::connection::Connection;
-use super::io_service::ReadError;
 use crate::log_channels;
 use vsmtp_common::{
     address::Address,
@@ -56,7 +55,9 @@ enum ProcessedEvent {
 }
 
 impl Transaction<'_> {
-    fn parse_and_apply_and_get_reply<S: std::io::Read + std::io::Write + Send>(
+    fn parse_and_apply_and_get_reply<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    >(
         &mut self,
         conn: &Connection<S>,
         client_message: &str,
@@ -85,7 +86,7 @@ impl Transaction<'_> {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn process_event<S: std::io::Read + std::io::Write + Send>(
+    fn process_event<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
         conn: &Connection<S>,
         event: Event,
@@ -322,10 +323,11 @@ impl Transaction<'_> {
             _ => ProcessedEvent::Reply(SMTPReplyCode::BadSequence),
         }
     }
-}
 
-impl Transaction<'_> {
-    fn set_connect<S: std::io::Read + std::io::Write + Send>(&mut self, conn: &Connection<S>) {
+    fn set_connect<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        &mut self,
+        conn: &Connection<S>,
+    ) {
         let state = self.rule_state.get_context();
         let ctx = &mut state.write().unwrap();
 
@@ -346,12 +348,13 @@ impl Transaction<'_> {
         };
     }
 
-    fn set_mail_from<S>(&mut self, mail_from: &str, conn: &Connection<'_, S>)
-    where
-        S: std::io::Write + std::io::Read + Send,
-    {
+    fn set_mail_from<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        &mut self,
+        mail_from: &str,
+        conn: &Connection<S>,
+    ) {
         match Address::try_from(mail_from.to_string()) {
-            Err(_) => (),
+            Err(_) => todo!(),
             Ok(mail_from) => {
                 let now = std::time::SystemTime::now();
 
@@ -391,7 +394,7 @@ impl Transaction<'_> {
 
     fn set_rcpt_to(&mut self, rcpt_to: &str) {
         match Address::try_from(rcpt_to.to_string()) {
-            Err(_) => (),
+            Err(_) => todo!(),
             Ok(rcpt_to) => {
                 self.rule_state
                     .get_context()
@@ -405,23 +408,13 @@ impl Transaction<'_> {
     }
 }
 
-fn get_timeout_for_state(
-    config: &std::sync::Arc<Config>,
-    state: &StateSMTP,
-) -> std::time::Duration {
-    match state {
-        StateSMTP::Connect => config.server.smtp.timeout_client.connect,
-        StateSMTP::Helo => config.server.smtp.timeout_client.helo,
-        StateSMTP::MailFrom => config.server.smtp.timeout_client.mail_from,
-        StateSMTP::RcptTo => config.server.smtp.timeout_client.rcpt_to,
-        StateSMTP::Data => config.server.smtp.timeout_client.data,
-        _ => std::time::Duration::from_millis(TIMEOUT_DEFAULT),
-    }
-}
-
 impl Transaction<'_> {
-    pub async fn receive<'a, 'b, S: std::io::Read + std::io::Write + Send>(
-        conn: &'a mut Connection<'b, S>,
+    #[allow(clippy::too_many_lines)]
+    pub async fn receive<
+        'a,
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin,
+    >(
+        conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     ) -> anyhow::Result<TransactionResult> {
@@ -477,11 +470,11 @@ impl Transaction<'_> {
                     return Ok(TransactionResult::Nothing);
                 }
                 _ => match conn.read(read_timeout).await {
-                    Ok(Ok(client_message)) => {
+                    Ok(Some(client_message)) => {
                         match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
                             ProcessedEvent::Nothing => {}
                             ProcessedEvent::Reply(reply_to_send) => {
-                                conn.send_code(reply_to_send)?;
+                                conn.send_code(reply_to_send).await?;
                             }
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
@@ -504,28 +497,44 @@ impl Transaction<'_> {
                                 transaction.state = new_state;
                                 read_timeout =
                                     get_timeout_for_state(&conn.config, &transaction.state);
-                                conn.send_code(reply_to_send)?;
+                                conn.send_code(reply_to_send).await?;
                             }
                             ProcessedEvent::TransactionCompleted(mail) => {
                                 return Ok(TransactionResult::Mail(mail));
                             }
                         }
                     }
-                    Ok(Err(ReadError::Blocking)) => {}
-                    Ok(Err(ReadError::Eof)) => {
+                    Ok(None) => {
                         log::info!(target: log_channels::TRANSACTION, "eof");
                         transaction.state = StateSMTP::Stop;
                     }
-                    Ok(Err(ReadError::Other(e))) => {
-                        // TODO: send error to client ?
+                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        log::warn!(target: log_channels::TRANSACTION, "unexpected eof");
+                        transaction.state = StateSMTP::Stop;
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                        conn.send_code(SMTPReplyCode::Code451Timeout).await?;
                         anyhow::bail!(e)
                     }
                     Err(e) => {
-                        conn.send_code(SMTPReplyCode::Code451Timeout)?;
-                        anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
+                        todo!("{:?}", e);
                     }
                 },
             }
         }
+    }
+}
+
+fn get_timeout_for_state(
+    config: &std::sync::Arc<Config>,
+    state: &StateSMTP,
+) -> std::time::Duration {
+    match state {
+        StateSMTP::Connect => config.server.smtp.timeout_client.connect,
+        StateSMTP::Helo => config.server.smtp.timeout_client.helo,
+        StateSMTP::MailFrom => config.server.smtp.timeout_client.mail_from,
+        StateSMTP::RcptTo => config.server.smtp.timeout_client.rcpt_to,
+        StateSMTP::Data => config.server.smtp.timeout_client.data,
+        _ => std::time::Duration::from_millis(TIMEOUT_DEFAULT),
     }
 }

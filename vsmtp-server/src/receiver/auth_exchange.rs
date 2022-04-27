@@ -17,22 +17,22 @@ pub enum AuthExchangeError {
     /// the client stopped the exchange
     Canceled,
     /// timeout of the server
-    Timeout(tokio::time::error::Elapsed),
+    Timeout(std::io::Error),
     ///
     InvalidBase64,
     ///
     Other(anyhow::Error),
 }
 
-fn auth_step<S>(
-    conn: &mut Connection<'_, S>,
+async fn auth_step<S>(
+    conn: &mut Connection<S>,
     session: &mut rsasl::DiscardOnDrop<
         rsasl::Session<std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
     >,
     buffer: &[u8],
 ) -> Result<bool, AuthExchangeError>
 where
-    S: std::io::Read + std::io::Write + Send,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     if buffer == [b'*'] {
         return Err(AuthExchangeError::Canceled);
@@ -51,6 +51,7 @@ where
             }
 
             conn.send_code(SMTPReplyCode::AuthSucceeded)
+                .await
                 .map_err(AuthExchangeError::Other)?;
             Ok(true)
         }
@@ -60,7 +61,7 @@ where
                 base64::encode(std::str::from_utf8(&*buffer).unwrap())
             );
 
-            conn.send(&reply).map_err(AuthExchangeError::Other)?;
+            conn.send(&reply).await.map_err(AuthExchangeError::Other)?;
             Ok(false)
         }
         Err(e) if e.matches(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
@@ -71,14 +72,14 @@ where
 }
 
 pub async fn on_authentication<S>(
-    conn: &mut Connection<'_, S>,
+    conn: &mut Connection<S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
 ) -> Result<(), AuthExchangeError>
 where
-    S: std::io::Read + std::io::Write + Send,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     // TODO: if initial data == "=" ; it mean empty ""
 
@@ -97,6 +98,7 @@ where
             );
         } else {
             conn.send_code(SMTPReplyCode::AuthMechanismMustBeEncrypted)
+                .await
                 .map_err(AuthExchangeError::Other)?;
 
             return Err(AuthExchangeError::Other(anyhow::anyhow!(
@@ -107,6 +109,7 @@ where
 
     if !mechanism.client_first() && initial_response.is_some() {
         conn.send_code(SMTPReplyCode::AuthClientMustNotStart)
+            .await
             .map_err(AuthExchangeError::Other)?;
 
         return Err(AuthExchangeError::Other(anyhow::anyhow!(
@@ -117,16 +120,20 @@ where
     let mut session = guard.server_start(&String::from(mechanism)).unwrap();
     session.store(Box::new(rule_engine));
 
-    let mut succeeded = auth_step(conn, &mut session, &initial_response.unwrap_or_default())?;
+    let mut succeeded =
+        auth_step(conn, &mut session, &initial_response.unwrap_or_default()).await?;
 
     while !succeeded {
         succeeded = match conn.read(std::time::Duration::from_secs(1)).await {
-            Ok(Ok(buffer)) => {
+            Ok(Some(buffer)) => {
                 log::trace!(target: log_channels::AUTH, "{buffer}");
-                auth_step(conn, &mut session, buffer.as_bytes())
+                auth_step(conn, &mut session, buffer.as_bytes()).await
             }
-            Ok(Err(e)) => Err(AuthExchangeError::Other(anyhow::anyhow!("{:?}", e))),
-            Err(e) => Err(AuthExchangeError::Timeout(e)),
+            Ok(None) => Err(AuthExchangeError::Other(anyhow::anyhow!("eof"))),
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                Err(AuthExchangeError::Timeout(e))
+            }
+            Err(e) => Err(AuthExchangeError::Other(anyhow::anyhow!("{:?}", e))),
         }?;
     }
 

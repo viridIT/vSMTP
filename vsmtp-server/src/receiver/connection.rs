@@ -1,5 +1,3 @@
-use crate::log_channels;
-
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,12 +14,13 @@ use crate::log_channels;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use super::io_service::{IoService, ReadError};
+// use super::io_service::{IoService, ReadError};
+use crate::{log_channels, AbstractIO};
 use vsmtp_common::{
     code::SMTPReplyCode,
     re::{anyhow, log},
 };
-use vsmtp_config::{re::rustls, Config};
+use vsmtp_config::Config;
 
 /// how the server would react to tls interaction for this connection
 #[allow(clippy::module_name_repetitions)]
@@ -36,9 +35,9 @@ pub enum ConnectionKind {
 }
 
 /// Instance containing connection to the server's information
-pub struct Connection<'stream, S>
+pub struct Connection<S>
 where
-    S: std::io::Read + std::io::Write + Send,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     /// server's port
     pub kind: ConnectionKind,
@@ -58,22 +57,22 @@ where
     pub is_authenticated: bool,
     /// number of time the AUTH command has been received (and failed)
     pub authentication_attempt: i64,
-    /// abstraction of the stream
-    pub io_stream: &'stream mut IoService<'stream, S>,
+    /// inner stream
+    pub inner: AbstractIO<S>,
 }
 
-impl<S> Connection<'_, S>
+impl<S> Connection<S>
 where
-    S: std::io::Read + std::io::Write + Send,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     ///
-    pub fn new<'a>(
+    pub fn new(
         kind: ConnectionKind,
         client_addr: std::net::SocketAddr,
         config: std::sync::Arc<Config>,
-        io_stream: &'a mut IoService<'a, S>,
-    ) -> Connection<S> {
-        Connection {
+        inner: S,
+    ) -> Self {
+        Self {
             kind,
             timestamp: std::time::SystemTime::now(),
             is_alive: true,
@@ -81,16 +80,44 @@ where
             client_addr,
             error_count: 0,
             is_secured: false,
-            io_stream,
+            inner: AbstractIO::new(inner),
             is_authenticated: false,
             authentication_attempt: 0,
         }
     }
+
+    ///
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with(
+        kind: ConnectionKind,
+        timestamp: std::time::SystemTime,
+        is_alive: bool,
+        config: std::sync::Arc<Config>,
+        client_addr: std::net::SocketAddr,
+        error_count: i64,
+        is_secured: bool,
+        is_authenticated: bool,
+        authentication_attempt: i64,
+        inner: S,
+    ) -> Self {
+        Self {
+            kind,
+            timestamp,
+            is_alive,
+            config,
+            client_addr,
+            error_count,
+            is_secured,
+            is_authenticated,
+            authentication_attempt,
+            inner: AbstractIO::new(inner),
+        }
+    }
 }
 
-impl<S> Connection<'_, S>
+impl<S> Connection<S>
 where
-    S: std::io::Read + std::io::Write + Send,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     /// send a reply code to the client
     ///
@@ -99,7 +126,7 @@ where
     /// # Panics
     ///
     /// * a smtp code is missing, and thus config is ill-formed
-    pub fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> anyhow::Result<()> {
+    pub async fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> anyhow::Result<()> {
         if reply_to_send.is_error() {
             self.error_count += 1;
 
@@ -124,7 +151,7 @@ where
                         .get(&SMTPReplyCode::Code451TooManyError)
                         .unwrap(),
                 );
-                self.send(&response_begin)?;
+                self.send(&response_begin).await?;
 
                 anyhow::bail!("too many errors")
             }
@@ -134,8 +161,8 @@ where
                 reply_to_send
             );
 
-            std::io::Write::write_all(
-                &mut self.io_stream,
+            tokio::io::AsyncWriteExt::write_all(
+                &mut self.inner.inner,
                 self.config
                     .server
                     .smtp
@@ -143,7 +170,8 @@ where
                     .get(&reply_to_send)
                     .unwrap()
                     .as_bytes(),
-            )?;
+            )
+            .await?;
 
             if soft_error != -1 && self.error_count >= soft_error {
                 std::thread::sleep(self.config.server.smtp.error.delay);
@@ -155,8 +183,8 @@ where
                 reply_to_send
             );
 
-            std::io::Write::write_all(
-                &mut self.io_stream,
+            tokio::io::AsyncWriteExt::write_all(
+                &mut self.inner.inner,
                 self.config
                     .server
                     .smtp
@@ -164,7 +192,8 @@ where
                     .get(&reply_to_send)
                     .unwrap()
                     .as_bytes(),
-            )?;
+            )
+            .await?;
         }
         Ok(())
     }
@@ -174,12 +203,11 @@ where
     /// # Errors
     ///
     /// * internal connection writer error
-    pub fn send(&mut self, reply: &str) -> anyhow::Result<()> {
+    pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
         log::info!(target: log_channels::CONNECTION, "send=\"{}\"", reply);
-
-        std::io::Write::write_all(&mut self.io_stream, reply.as_bytes())?;
-
-        Ok(())
+        tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes())
+            .await
+            .map_err(anyhow::Error::new)
     }
 
     /// read a line from the client
@@ -191,39 +219,7 @@ where
     pub async fn read(
         &mut self,
         timeout: std::time::Duration,
-    ) -> Result<std::result::Result<std::string::String, ReadError>, tokio::time::error::Elapsed>
-    {
-        let future = self.io_stream.get_next_line_async();
-        tokio::time::timeout(timeout, future).await
-    }
-}
-
-impl<S> Connection<'_, S>
-where
-    S: std::io::Read + std::io::Write + Send,
-{
-    /// process a tls handshake
-    ///
-    /// # Errors
-    pub fn complete_tls_handshake(
-        io: &mut IoService<rustls::Stream<rustls::ServerConnection, &mut S>>,
-        timeout: &std::time::Duration,
-    ) -> Result<(), std::io::Error> {
-        let begin_handshake = std::time::Instant::now();
-
-        while io.inner.conn.is_handshaking() {
-            if begin_handshake.elapsed() > *timeout {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    "too long",
-                ));
-            }
-            match std::io::Write::flush(&mut io.inner) {
-                Ok(_) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
-                Err(e) => return Err(e),
-            }
-        }
-        Ok(())
+    ) -> std::io::Result<Option<std::string::String>> {
+        self.inner.next_line(Some(timeout)).await
     }
 }

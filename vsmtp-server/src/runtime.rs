@@ -20,7 +20,7 @@ fn init_runtime<F: 'static>(
     future: F,
 ) -> anyhow::Result<std::thread::JoinHandle<anyhow::Result<()>>>
 where
-    F: std::future::Future<Output = anyhow::Result<()>> + std::marker::Send,
+    F: std::future::Future<Output = anyhow::Result<()>> + Send,
 {
     let name = name.into();
     let runtime = tokio::runtime::Builder::new_multi_thread()
