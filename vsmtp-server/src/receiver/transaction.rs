@@ -467,6 +467,7 @@ impl Transaction<'_> {
                 }
                 _ => match conn.read(read_timeout).await {
                     Ok(Some(client_message)) => {
+                        println!("'{client_message}'");
                         match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
                             ProcessedEvent::Nothing => {}
                             ProcessedEvent::Reply(reply_to_send) => {
@@ -504,7 +505,6 @@ impl Transaction<'_> {
                         log::info!(target: log_channels::TRANSACTION, "eof");
                         transaction.state = StateSMTP::Stop;
                     }
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                         conn.send_code(SMTPReplyCode::Code451Timeout).await?;
                         anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e))

@@ -62,7 +62,6 @@ macro_rules! test_lang {
                         body: BodyType::Regular(
                             include_str!($lang_code)
                                 .lines()
-                                .skip(6)
                                 .map(str::to_string)
                                 .map(|s| if s.starts_with("..") {
                                     s[1..].to_string()
@@ -87,8 +86,15 @@ macro_rules! test_lang {
                 "MAIL FROM:<john@doe>\r\n",
                 "RCPT TO:<aa@bb>\r\n",
                 "DATA\r\n",
-                include_str!($lang_code),
-                ".\r\n",
+                "from: john doe <john@doe>\r\n",
+                "subject: ar\r\n",
+                "to: aa@bb\r\n",
+                "message-id: <xxx@localhost.com>\r\n",
+                "date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
+                "\r\n",
+                &include_str!($lang_code).lines().map(str::to_string).collect::<Vec<_>>().join("\r\n"),
+                // adding a "\r\n" after the mail because [`join`] don t add after the final element
+                "\r\n.\r\n",
                 "QUIT\r\n",
             ]
             .concat(),
