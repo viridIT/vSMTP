@@ -409,6 +409,7 @@ impl Transaction<'_> {
 }
 
 impl Transaction<'_> {
+    #[allow(clippy::too_many_lines)]
     pub async fn receive<
         'a,
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin,
@@ -470,7 +471,6 @@ impl Transaction<'_> {
                 }
                 _ => match conn.read(read_timeout).await {
                     Ok(Some(client_message)) => {
-                        println!("'{client_message}'");
                         match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
                             ProcessedEvent::Nothing => {}
                             ProcessedEvent::Reply(reply_to_send) => {
@@ -508,9 +508,13 @@ impl Transaction<'_> {
                         log::info!(target: log_channels::TRANSACTION, "eof");
                         transaction.state = StateSMTP::Stop;
                     }
+                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        log::warn!(target: log_channels::TRANSACTION, "unexpected eof");
+                        transaction.state = StateSMTP::Stop;
+                    }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                         conn.send_code(SMTPReplyCode::Code451Timeout).await?;
-                        anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e))
+                        anyhow::bail!(e)
                     }
                     Err(e) => {
                         todo!("{:?}", e);

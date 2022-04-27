@@ -56,7 +56,7 @@ where
         timeout: Option<std::time::Duration>,
     ) -> std::io::Result<Option<String>> {
         tokio::time::timeout(
-            timeout.unwrap_or(std::time::Duration::from_millis(100)),
+            timeout.unwrap_or(std::time::Duration::from_millis(500)),
             self,
         )
         .await

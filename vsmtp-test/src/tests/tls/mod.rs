@@ -151,8 +151,7 @@ async fn test_starttls(
                     rustls::ServerName::try_from(server_name).unwrap(),
                     stream.inner,
                 )
-                .await
-                .unwrap(),
+                .await?,
         );
 
         let mut input = secured_smtp_input.iter().copied();
@@ -176,7 +175,7 @@ async fn test_starttls(
                 None => break,
             }
         }
-        if let Some(last) = stream.next_line(None).await.unwrap() {
+        while let Ok(Some(last)) = stream.next_line(None).await {
             output.push(last);
         }
 
@@ -285,7 +284,7 @@ async fn test_tls_tunneled(
             }
         }
 
-        if let Some(last) = stream.next_line(None).await.unwrap() {
+        while let Ok(Some(last)) = stream.next_line(None).await {
             output.push(last);
         }
 

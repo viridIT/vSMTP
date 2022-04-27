@@ -121,7 +121,7 @@ async fn test_auth(
             }
         }
 
-        if let Some(last) = stream.next_line(None).await.unwrap() {
+        while let Ok(Some(last)) = stream.next_line(None).await {
             output.push(last);
         }
 

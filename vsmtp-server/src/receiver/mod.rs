@@ -259,7 +259,7 @@ where
         conn.config.clone(),
         conn.client_addr,
         conn.error_count,
-        conn.is_secured,
+        true,
         conn.is_authenticated,
         conn.authentication_attempt,
         stream,

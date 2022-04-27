@@ -41,10 +41,7 @@ async fn simple() {
         [
             "EHLO client.com\r\n",
             "AUTH PLAIN\r\n",
-            &format!(
-                "{}\r\n",
-                base64::encode(format!("\0{}\0{}", "hello", "world"))
-            ),
+            &format!("{}\r\n", base64::encode("\0hello\0world")),
             "MAIL FROM:<foo@bar>\r\n",
             "RCPT TO:<bar@foo>\r\n",
             "DATA\r\n",
@@ -65,6 +62,8 @@ async fn simple() {
             "250 Ok",
             "250 Ok",
             "354 Start mail input; end with <CRLF>.<CRLF>",
+            "250 Ok",
+            "221 Service closing transmission channel",
         ]
         .into_iter()
         .map(str::to_string)
@@ -92,6 +91,6 @@ async fn simple() {
     .await
     .unwrap();
 
-    assert!(client.is_ok());
-    assert!(server.is_ok());
+    client.unwrap();
+    server.unwrap();
 }
