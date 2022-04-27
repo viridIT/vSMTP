@@ -221,7 +221,7 @@ where
                     )
                     .await?;
                 } else {
-                    todo!()
+                    conn.send_code(SMTPReplyCode::Code502unimplemented).await?;
                 }
             }
         }
@@ -297,7 +297,9 @@ where
                     )
                     .await?;
                 } else {
-                    todo!();
+                    secured_conn
+                        .send_code(SMTPReplyCode::Code502unimplemented)
+                        .await?;
                 }
             }
         }
