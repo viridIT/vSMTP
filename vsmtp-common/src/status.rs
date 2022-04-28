@@ -31,6 +31,21 @@ pub enum InfoPacket {
     },
 }
 
+impl ToString for InfoPacket {
+    fn to_string(&self) -> String {
+        match self {
+            InfoPacket::Str(string) => string.clone(),
+            InfoPacket::Code {
+                base,
+                enhanced,
+                text,
+            } => {
+                format!("{base} {enhanced} {text}")
+            }
+        }
+    }
+}
+
 /// Status of the mail context treated by the rule engine
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
