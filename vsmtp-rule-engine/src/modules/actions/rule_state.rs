@@ -38,8 +38,8 @@ pub mod rule_state {
     }
 
     #[must_use]
-    pub fn send(message: &str) -> Status {
-        Status::Send(vsmtp_common::status::SendPacket::Str(message.to_string()))
+    pub fn info(message: &str) -> Status {
+        Status::Info(vsmtp_common::status::InfoPacket::Str(message.to_string()))
     }
 
     /// dump the current email into a quarantine queue, skipping delivery.

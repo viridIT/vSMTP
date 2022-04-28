@@ -3,7 +3,7 @@ use vsmtp_common::{
     mail_context::AuthCredentials,
     re::rsasl,
     state::StateSMTP,
-    status::{SendPacket, Status},
+    status::{InfoPacket, Status},
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
@@ -85,7 +85,7 @@ impl rsasl::Callback<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<Ru
             rsasl::Property::GSASL_VALIDATE_SIMPLE if result == Status::Accept => Ok(()),
             rsasl::Property::GSASL_PASSWORD => {
                 let authpass = match result {
-                    Status::Send(SendPacket::Str(authpass)) => authpass,
+                    Status::Info(InfoPacket::Str(authpass)) => authpass,
                     _ => return Err(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR),
                 };
 

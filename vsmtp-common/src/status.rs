@@ -17,17 +17,25 @@
 
 /// A packet send from the application (.vsl) to the server (vsmtp)
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub enum SendPacket {
+pub enum InfoPacket {
     /// a string
     Str(String),
-    // ... SMTPReplyCode ...
+    /// a custom code.
+    Code {
+        /// the base code (550, 250 ...)
+        base: i32,
+        /// the enhanced code {5.7.1 ...}
+        enhanced: String,
+        /// a message to send.
+        text: String,
+    },
 }
 
 /// Status of the mail context treated by the rule engine
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
-    /// data has being send from the rule engine to the server
-    Send(SendPacket),
+    /// informational data needs to be sent to the client.
+    Info(InfoPacket),
 
     /// accepts the current stage value, skips all rules in the stage.
     Accept,
@@ -52,7 +60,7 @@ impl std::fmt::Display for Status {
                 Status::Next => "next",
                 Status::Deny => "deny",
                 Status::Faccept => "faccept",
-                Status::Send(_) => "send",
+                Status::Info(_) => "info",
             }
         )
     }

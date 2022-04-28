@@ -17,6 +17,7 @@
 use vsmtp_common::{
     address::Address,
     re::{addr, anyhow, log},
+    status::InfoPacket,
 };
 
 /// Objects are rust's representation of rule engine variables.
@@ -45,12 +46,8 @@ pub enum Object {
     Identifier(String),
     /// a simple string.
     Str(String),
-    /// a smtp reply code.
-    Code {
-        base: i32,
-        enhanced: String,
-        text: String,
-    },
+    /// a custom smtp reply code.
+    Code(InfoPacket),
 }
 
 impl PartialEq for Object {
@@ -97,6 +94,7 @@ impl Object {
     /// create an object from a raw rhai Map data structure.
     /// this map must have the "value" and "type" keys to be parsed
     /// successfully.
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn from<S>(
         map: &std::collections::BTreeMap<S, rhai::Dynamic>,
     ) -> anyhow::Result<Self>
@@ -211,12 +209,17 @@ impl Object {
                 Ok(Self::Group(group))
             }
 
-            "code" => Ok(Self::Code {
-                base: Self::value::<S, i32>(map, "base")?,
-                enhanced: Self::value::<S, String>(map, "enhanced")?,
-                text: Self::value::<S, String>(map, "text")?,
-            }),
-
+            "code" => {
+                if let Ok(code) = Self::value::<S, String>(map, "value") {
+                    Ok(Self::Code(InfoPacket::Str(code)))
+                } else {
+                    Ok(Self::Code(InfoPacket::Code {
+                        base: Self::value::<S, i32>(map, "base")?,
+                        enhanced: Self::value::<S, String>(map, "enhanced")?,
+                        text: Self::value::<S, String>(map, "text")?,
+                    }))
+                }
+            }
             _ => anyhow::bail!("'{}' is an unknown object type.", t),
         }
     }
@@ -227,19 +230,20 @@ impl ToString for Object {
         match self {
             Object::Ip4(ip) => ip.to_string(),
             Object::Ip6(ip) => ip.to_string(),
-            Object::Rg4(range) => format!("{:?}", range),
-            Object::Rg6(range) => format!("{:?}", range),
+            Object::Rg4(range) => format!("{range:?}"),
+            Object::Rg6(range) => format!("{range:?}"),
             Object::Address(addr) => addr.to_string(),
             Object::Fqdn(fqdn) => fqdn.clone(),
             Object::Regex(regex) => regex.to_string(),
             Object::File(file) => format!("{file:?}"),
             Object::Group(group) => format!("{group:?}"),
             Object::Identifier(string) | Object::Str(string) => string.clone(),
-            Object::Code {
+            Object::Code(InfoPacket::Str(message)) => message.clone(),
+            Object::Code(InfoPacket::Code {
                 base,
                 enhanced,
                 text,
-            } => todo!(),
+            }) => format!("{base} {enhanced} {text}"),
         }
     }
 }
@@ -368,17 +372,22 @@ mod test {
         Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("code".to_string())),
             ("type".into(), rhai::Dynamic::from("code".to_string())),
+            ("base".into(), rhai::Dynamic::from(550)),
+            ("enhanced".into(), rhai::Dynamic::from("5.7.2".to_string())),
             (
-                "value".into(),
-                rhai::Dynamic::from(rhai::Map::from_iter([
-                    ("base".into(), rhai::Dynamic::from(550)),
-                    ("enhanced".into(), rhai::Dynamic::from("5.7.2".to_string())),
-                    (
-                        "text".into(),
-                        rhai::Dynamic::from("nice to meet you, client".to_string()),
-                    ),
-                ])),
+                "text".into(),
+                rhai::Dynamic::from("nice to meet you, client".to_string()),
             ),
+        ]))
+        .unwrap();
+
+        Object::from(&rhai::Map::from_iter([
+            (
+                "name".into(),
+                rhai::Dynamic::from("inline code".to_string()),
+            ),
+            ("type".into(), rhai::Dynamic::from("code".to_string())),
+            ("value".into(), rhai::Dynamic::from("250 ok".to_string())),
         ]))
         .unwrap();
     }
