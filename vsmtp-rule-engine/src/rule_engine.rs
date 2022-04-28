@@ -60,6 +60,9 @@ impl<'a> RuleState<'a> {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
+                is_authenticated: false,
+                is_secured: false,
+                server_name: "testserver.com".to_string(),
             },
             client_addr: std::net::SocketAddr::new(
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
@@ -84,8 +87,17 @@ impl<'a> RuleState<'a> {
         }
     }
 
+    /// create a new rule state with connection data.
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn with_connection(config: &Config, conn: ConnectionContext) -> Self {
+        let state = Self::new(config);
+        state.mail_context.write().unwrap().connection = conn;
+        state
+    }
+
     /// create a RuleState from an existing mail context (f.e. when deserializing a context)
+    #[must_use]
     pub fn with_context(config: &Config, mail_context: MailContext) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(ServerAPI {
@@ -319,6 +331,16 @@ impl RuleEngine {
         let mut vsl_module = rhai::Module::new();
         let mut toml_module = rhai::Module::new();
 
+        let ast = engine
+            .compile_scripts_with_scope(
+                &rhai::Scope::new(),
+                [include_str!("api/utils.rhai"), include_str!("api/api.rhai")],
+            )
+            .context("failed to compile vsl's api")?;
+
+        let api = rhai::Module::eval_ast_as_new(rhai::Scope::new(), &ast, &engine)
+            .context("failed to create vsl's api module")?;
+
         // setting up action, mail context & vsl's special types.
         vsl_module
             .combine(exported_module!(modules::actions::bcc::bcc))
@@ -340,6 +362,7 @@ impl RuleEngine {
         engine
             .register_static_module("vsl", vsl_module.into())
             .register_static_module("toml", toml_module.into())
+            .register_global_module(api.into())
             .disable_symbol("eval")
             .on_parse_token(|token, _, _| {
                 match token {

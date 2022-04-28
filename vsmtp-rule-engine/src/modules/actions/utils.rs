@@ -54,4 +54,18 @@ pub mod utils {
     pub fn user_exist(name: &str) -> bool {
         vsmtp_config::re::users::get_user_by_name(name).is_some()
     }
+
+    /// get the hostname of the machine.
+    #[rhai_fn(return_raw)]
+    pub fn hostname() -> EngineResult<String> {
+        hostname::get()
+            .map_err::<Box<rhai::EvalAltResult>, _>(|err| {
+                format!("failed to get system's hostname: {err}").into()
+            })?
+            .to_str()
+            .map_or(
+                Err("the system's hostname is not UTF-8 valide".into()),
+                |host| Ok(host.to_string()),
+            )
+    }
 }

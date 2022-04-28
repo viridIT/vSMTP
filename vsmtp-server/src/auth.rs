@@ -1,6 +1,6 @@
 use vsmtp_common::{
     auth::Mechanism,
-    mail_context::AuthCredentials,
+    mail_context::{AuthCredentials, ConnectionContext},
     re::rsasl,
     state::StateSMTP,
     status::{InfoPacket, Status},
@@ -10,23 +10,42 @@ use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
 
 /// Backend of SASL implementation
 pub type Backend = rsasl::DiscardOnDrop<
-    rsasl::SASL<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<RuleEngine>>>,
+    rsasl::SASL<
+        std::sync::Arc<Config>,
+        (
+            std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+            ConnectionContext,
+        ),
+    >,
 >;
+
+/// SASL session data.
+pub type Session = vsmtp_common::re::rsasl::Session<(
+    std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    ConnectionContext,
+)>;
 
 /// Function called by the SASL backend
 pub struct Callback;
 
-impl rsasl::Callback<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<RuleEngine>>>
-    for Callback
+impl
+    rsasl::Callback<
+        std::sync::Arc<Config>,
+        (
+            std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+            ConnectionContext,
+        ),
+    > for Callback
 {
     fn callback(
         sasl: &mut rsasl::SASL<
             std::sync::Arc<Config>,
-            std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+            (
+                std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+                ConnectionContext,
+            ),
         >,
-        session: &mut vsmtp_common::re::rsasl::Session<
-            std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-        >,
+        session: &mut Session,
         prop: rsasl::Property,
     ) -> Result<(), rsasl::ReturnCode> {
         let config = unsafe { sasl.retrieve() }.ok_or(rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
@@ -58,20 +77,14 @@ impl rsasl::Callback<std::sync::Arc<Config>, std::sync::Arc<std::sync::RwLock<Ru
             _ => return Err(rsasl::ReturnCode::GSASL_NO_CALLBACK),
         };
 
-        let mut rule_state = RuleState::new(&config);
-        {
-            let guard = rule_state.get_context();
-
-            guard
-                .write()
-                .map_err(|_| rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?
-                .connection
-                .credentials = Some(credentials);
-        }
-
-        let rule_engine = session
+        let (rule_engine, conn) = session
             .retrieve_mut()
             .ok_or(rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
+
+        let mut conn = conn.clone();
+        conn.credentials = Some(credentials);
+
+        let mut rule_state = RuleState::with_connection(&config, conn);
 
         let result = rule_engine
             .read()

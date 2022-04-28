@@ -254,6 +254,12 @@ where
 
     let mut secured_conn = Connection::new_with(
         conn.kind,
+        stream
+            .get_ref()
+            .1
+            .sni_hostname()
+            .unwrap_or(&conn.server_name)
+            .to_string(),
         conn.timestamp,
         conn.is_alive,
         conn.config.clone(),

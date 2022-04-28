@@ -1,0 +1,46 @@
+#{
+    connect: [
+        rule "check root domain" || {
+            if in_domain!(vsl::new_address("rcpt@testserver.com"))
+            && in_domain!("rcpt@testserver.com")
+            && ctx.server_name == "testserver.com" {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ],
+
+    preq: [
+        rule "check sni domain" || {
+            if in_domain!(vsl::new_address("rcpt@example.com")) == true
+            && in_domain!(vsl::new_address("john@unknown.com")) == false
+            && in_domain!("john@unknown.com") == false
+            && in_domain!("invalid") == false {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ],
+
+    postq: [
+        rule "get hostname" || {
+            print("running get hostname: ");
+            print(vsl::hostname());
+            vsl::accept()
+        }
+    ],
+
+    delivery: [
+        rule "find users" || {
+            if !vsl::user_exist("john")
+            && vsl::user_exist("root")
+            {
+                vsl::accept()
+            } else {
+                vsl::deny()
+            }
+        }
+    ]
+}

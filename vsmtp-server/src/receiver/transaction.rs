@@ -308,6 +308,9 @@ impl Transaction<'_> {
                     connection: ConnectionContext {
                         timestamp: std::time::SystemTime::now(),
                         credentials: None,
+                        is_authenticated: conn.is_authenticated,
+                        is_secured: conn.is_secured,
+                        server_name: conn.server_name.clone(),
                     },
                     client_addr: ctx.client_addr,
                     envelop: Envelop::default(),
@@ -424,7 +427,16 @@ impl Transaction<'_> {
             } else {
                 StateSMTP::Helo
             },
-            rule_state: RuleState::new(conn.config.as_ref()),
+            rule_state: RuleState::with_connection(
+                conn.config.as_ref(),
+                ConnectionContext {
+                    timestamp: conn.timestamp,
+                    credentials: None,
+                    is_authenticated: conn.is_authenticated,
+                    is_secured: conn.is_secured,
+                    server_name: conn.server_name.clone(),
+                },
+            ),
             rule_engine,
         };
 

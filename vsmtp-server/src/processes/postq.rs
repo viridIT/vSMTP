@@ -201,6 +201,9 @@ mod tests {
                     connection: ConnectionContext {
                         timestamp: std::time::SystemTime::now(),
                         credentials: None,
+                        is_authenticated: false,
+                        is_secured: false,
+                        server_name: "testserver.com".to_string(),
                     },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
@@ -266,6 +269,9 @@ mod tests {
                     connection: ConnectionContext {
                         timestamp: std::time::SystemTime::now(),
                         credentials: None,
+                        is_authenticated: false,
+                        is_secured: false,
+                        server_name: "testserver.com".to_string(),
                     },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
