@@ -27,7 +27,6 @@ use vsmtp_common::{
     status::Status,
     transfer::Transfer,
 };
-use vsmtp_config::ConfigServerVirtual;
 
 #[test]
 fn test_logs() {
