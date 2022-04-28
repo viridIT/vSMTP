@@ -1,7 +1,9 @@
 #{
     connect: [
         rule "check root domain" || {
-            if ctx.server_name == "testserver.com" {
+            if in_domain!(vsl::new_address("rcpt@testserver.com"))
+            && in_domain!("rcpt@testserver.com")
+            && ctx.server_name == "testserver.com" {
                 vsl::accept()
             } else {
                 vsl::deny()
@@ -11,7 +13,10 @@
 
     preq: [
         rule "check sni domain" || {
-            if ctx.server_name == "testserver.com" {
+            if in_domain!(vsl::new_address("rcpt@example.com")) == true
+            && in_domain!(vsl::new_address("john@unknown.com")) == false
+            && in_domain!("john@unknown.com") == false
+            && in_domain!("invalid") == false {
                 vsl::accept()
             } else {
                 vsl::deny()
