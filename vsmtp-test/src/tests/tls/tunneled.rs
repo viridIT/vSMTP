@@ -138,6 +138,7 @@ async fn config_ill_formed() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn sni() {
     let mut config = get_tls_config();
+    config.app.vsl.filepath = "./src/vsl/sni.vsl".into();
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
     config.server.r#virtual.insert(
         "second.testserver.com".to_string(),

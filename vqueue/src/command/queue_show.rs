@@ -144,6 +144,7 @@ mod tests {
                 credentials: None,
                 is_authenticated: false,
                 is_secured: false,
+                server_name: "testserver.com".to_string(),
             },
             client_addr: "0.0.0.0:25".parse().unwrap(),
             envelop: Envelop {

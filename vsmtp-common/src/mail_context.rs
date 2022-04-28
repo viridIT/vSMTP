@@ -172,6 +172,8 @@ pub struct ConnectionContext {
     pub timestamp: std::time::SystemTime,
     /// credentials of the client.
     pub credentials: Option<AuthCredentials>,
+    /// server's domain of the connection, (from config.server.domain or sni)
+    pub server_name: String,
     /// is the client authenticated ?
     pub is_authenticated: bool,
     /// is the connection under tls ?

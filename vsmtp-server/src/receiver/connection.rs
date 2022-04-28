@@ -34,6 +34,7 @@ pub enum ConnectionKind {
     Tunneled,
 }
 
+// TODO:? merge with [`ConnectionContext`]
 /// Instance containing connection to the server's information
 pub struct Connection<S>
 where
@@ -41,6 +42,8 @@ where
 {
     /// server's port
     pub kind: ConnectionKind,
+    /// server's domain of the connection, (from config.server.domain or sni)
+    pub server_name: String,
     /// connection timestamp
     pub timestamp: std::time::SystemTime,
     /// is still alive
@@ -74,6 +77,7 @@ where
     ) -> Self {
         Self {
             kind,
+            server_name: config.server.domain.clone(),
             timestamp: std::time::SystemTime::now(),
             is_alive: true,
             config,
@@ -90,6 +94,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn new_with(
         kind: ConnectionKind,
+        server_name: String,
         timestamp: std::time::SystemTime,
         is_alive: bool,
         config: std::sync::Arc<Config>,
@@ -102,6 +107,7 @@ where
     ) -> Self {
         Self {
             kind,
+            server_name,
             timestamp,
             is_alive,
             config,
