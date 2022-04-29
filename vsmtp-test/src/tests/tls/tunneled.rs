@@ -80,7 +80,7 @@ async fn starttls_under_tunnel() {
     let (client, server) = test_tls_tunneled(
         "testserver.com",
         std::sync::Arc::new(config),
-        ["NOOP\r\n", "STARTTLS\r\n"]
+        ["NOOP\r\n", "STARTTLS\r\n", "QUIT\r\n"]
             .into_iter()
             .map(str::to_string)
             .collect::<Vec<_>>(),
@@ -89,6 +89,7 @@ async fn starttls_under_tunnel() {
             "250 Ok",
             "220 testserver.com Service ready",
             "554 5.5.1 Error: TLS already active",
+            "221 Service closing transmission channel",
         ]
         .into_iter()
         .map(str::to_string)

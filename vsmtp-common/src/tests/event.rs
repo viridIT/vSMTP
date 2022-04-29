@@ -162,7 +162,7 @@ fn command_mail_from() {
     assert_eq!(
         Event::parse_cmd("Mail FROM:<valid@reverse.path.com>"),
         Ok(Event::MailCmd(
-            "valid@reverse.path.com".to_string(),
+            Some(addr!("valid@reverse.path.com")),
             None,
             None
         ))
@@ -170,14 +170,14 @@ fn command_mail_from() {
     assert_eq!(
         Event::parse_cmd("Mail fRoM: <valid2@reverse.path.com>"),
         Ok(Event::MailCmd(
-            "valid2@reverse.path.com".to_string(),
+            Some(addr!("valid2@reverse.path.com")),
             None,
             None
         ))
     );
     assert_eq!(
         Event::parse_cmd("MaIl From:   <>  "),
-        Ok(Event::MailCmd("".to_string(), None, None))
+        Ok(Event::MailCmd(None, None, None))
     );
     // assert_eq!(
     //     Event::parse_cmd("MaIl From:   <local.part@[127.0.0.1]>  "),
@@ -186,7 +186,7 @@ fn command_mail_from() {
     assert_eq!(
         Event::parse_cmd("MaIl From:   <\"john..doe\"@example.org>  "),
         Ok(Event::MailCmd(
-            "\"john..doe\"@example.org".to_string(),
+            Some(addr!("\"john..doe\"@example.org")),
             None,
             None
         ))
@@ -208,7 +208,7 @@ fn command_mail_from_8bitmime() {
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=8BITMIME"),
         Ok(Event::MailCmd(
-            "ned@ymir.claremont.edu".to_string(),
+            Some(addr!("ned@ymir.claremont.edu")),
             Some(MimeBodyType::EightBitMime),
             None
         ))
@@ -217,7 +217,7 @@ fn command_mail_from_8bitmime() {
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=7BIT"),
         Ok(Event::MailCmd(
-            "ned@ymir.claremont.edu".to_string(),
+            Some(addr!("ned@ymir.claremont.edu")),
             Some(MimeBodyType::SevenBit),
             None
         ))
@@ -250,7 +250,7 @@ fn command_mail_from_international() {
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> SMTPUTF8"),
         Ok(Event::MailCmd(
-            "ned@ymir.claremont.edu".to_string(),
+            Some(addr!("ned@ymir.claremont.edu")),
             None,
             None
         ))
@@ -261,7 +261,7 @@ fn command_mail_from_international() {
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<用户@例子.广告> SMTPUTF8"),
-        Ok(Event::MailCmd("用户@例子.广告".to_string(), None, None))
+        Ok(Event::MailCmd(Some(addr!("用户@例子.广告")), None, None))
     );
 }
 
@@ -270,7 +270,7 @@ fn command_mail_from_auth() {
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<e=mc2@example.com> AUTH=e+3Dmc2@example.com"),
         Ok(Event::MailCmd(
-            "e=mc2@example.com".to_string(),
+            Some(addr!("e=mc2@example.com")),
             None,
             Some("e+3Dmc2@example.com".to_string())
         ))
@@ -278,7 +278,7 @@ fn command_mail_from_auth() {
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> AUTH=<>"),
         Ok(Event::MailCmd(
-            "ned@ymir.claremont.edu".to_string(),
+            Some(addr!("ned@ymir.claremont.edu")),
             None,
             Some("<>".to_string())
         ))
@@ -295,11 +295,11 @@ fn command_rcpt_to() {
 
     assert_eq!(
         Event::parse_cmd("RcPt To:<valid@forward.path.com>"),
-        Ok(Event::RcptCmd("valid@forward.path.com".to_string()))
+        Ok(Event::RcptCmd(addr!("valid@forward.path.com")))
     );
     assert_eq!(
         Event::parse_cmd("rCpT TO: <valid2@forward.path.com>"),
-        Ok(Event::RcptCmd("valid2@forward.path.com".to_string()))
+        Ok(Event::RcptCmd(addr!("valid2@forward.path.com")))
     );
     assert_eq!(
         Event::parse_cmd("RCPT TO:   <>  "),
@@ -311,7 +311,7 @@ fn command_rcpt_to() {
     // );
     assert_eq!(
         Event::parse_cmd("rcpt to:   <\"john..doe\"@example.org>  "),
-        Ok(Event::RcptCmd("\"john..doe\"@example.org".to_string()))
+        Ok(Event::RcptCmd(addr!("\"john..doe\"@example.org")))
     );
     assert_eq!(
         Event::parse_cmd("RCPT TO:   <ibm@com>  extra_arg "),
@@ -327,7 +327,7 @@ fn command_rcpt_to() {
 fn command_rcpt_to_international() {
     assert_eq!(
         Event::parse_cmd("RCPT TO:<用户@例子.广告>"),
-        Ok(Event::RcptCmd("用户@例子.广告".to_string()))
+        Ok(Event::RcptCmd(addr!("用户@例子.广告")))
     );
 }
 

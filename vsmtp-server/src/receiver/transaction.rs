@@ -210,7 +210,8 @@ impl Transaction<'_> {
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
                 // TODO: store in envelop _body_bit_mime & _auth_mailbox
-                self.set_mail_from(&mail_from, conn);
+                // TODO: handle : mail_from can be "<>""
+                self.set_mail_from(mail_from.unwrap(), conn);
 
                 match self
                     .rule_engine
@@ -229,7 +230,7 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
-                self.set_rcpt_to(&rcpt_to);
+                self.set_rcpt_to(rcpt_to);
 
                 match self
                     .rule_engine
@@ -353,61 +354,51 @@ impl Transaction<'_> {
 
     fn set_mail_from<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        mail_from: &str,
+        mail_from: Address,
         conn: &Connection<S>,
     ) {
-        match Address::try_from(mail_from.to_string()) {
-            Err(_) => todo!(),
-            Ok(mail_from) => {
-                let now = std::time::SystemTime::now();
+        let now = std::time::SystemTime::now();
 
-                let state = self.rule_state.get_context();
-                let mut ctx = state.write().unwrap();
-                ctx.body = Body::Empty;
-                ctx.envelop.rcpt.clear();
-                ctx.envelop.mail_from = mail_from;
-                ctx.metadata = Some(MessageMetadata {
-                    timestamp: now,
-                    // TODO: find a way to handle SystemTime failure.
-                    message_id: format!(
-                        "{}{}{}{}",
-                        now.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap_or(std::time::Duration::ZERO)
-                            .as_micros(),
-                        conn.timestamp
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap_or(std::time::Duration::ZERO)
-                            .as_millis(),
-                        std::iter::repeat_with(fastrand::alphanumeric)
-                            .take(36)
-                            .collect::<String>(),
-                        std::process::id()
-                    ),
-                    skipped: self.rule_state.skipped(),
-                });
+        let state = self.rule_state.get_context();
+        let mut ctx = state.write().unwrap();
+        ctx.body = Body::Empty;
+        ctx.envelop.rcpt.clear();
+        ctx.envelop.mail_from = mail_from;
+        ctx.metadata = Some(MessageMetadata {
+            timestamp: now,
+            // TODO: find a way to handle SystemTime failure.
+            message_id: format!(
+                "{}{}{}{}",
+                now.duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::ZERO)
+                    .as_micros(),
+                conn.timestamp
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::ZERO)
+                    .as_millis(),
+                std::iter::repeat_with(fastrand::alphanumeric)
+                    .take(36)
+                    .collect::<String>(),
+                std::process::id()
+            ),
+            skipped: self.rule_state.skipped(),
+        });
 
-                log::trace!(
-                    target: log_channels::TRANSACTION,
-                    "envelop=\"{:?}\"",
-                    ctx.envelop,
-                );
-            }
-        }
+        log::trace!(
+            target: log_channels::TRANSACTION,
+            "envelop=\"{:?}\"",
+            ctx.envelop,
+        );
     }
 
-    fn set_rcpt_to(&mut self, rcpt_to: &str) {
-        match Address::try_from(rcpt_to.to_string()) {
-            Err(_) => todo!(),
-            Ok(rcpt_to) => {
-                self.rule_state
-                    .get_context()
-                    .write()
-                    .unwrap()
-                    .envelop
-                    .rcpt
-                    .push(vsmtp_common::rcpt::Rcpt::new(rcpt_to));
-            }
-        }
+    fn set_rcpt_to(&mut self, rcpt_to: Address) {
+        self.rule_state
+            .get_context()
+            .write()
+            .unwrap()
+            .envelop
+            .rcpt
+            .push(vsmtp_common::rcpt::Rcpt::new(rcpt_to));
     }
 }
 
@@ -520,16 +511,12 @@ impl Transaction<'_> {
                         log::info!(target: log_channels::TRANSACTION, "eof");
                         transaction.state = StateSMTP::Stop;
                     }
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                        log::warn!(target: log_channels::TRANSACTION, "unexpected eof");
-                        transaction.state = StateSMTP::Stop;
-                    }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                         conn.send_code(SMTPReplyCode::Code451Timeout).await?;
                         anyhow::bail!(e)
                     }
                     Err(e) => {
-                        todo!("{:?}", e);
+                        anyhow::bail!(e)
                     }
                 },
             }

@@ -23,10 +23,25 @@ where
     F: std::future::Future<Output = anyhow::Result<()>> + Send,
 {
     let name = name.into();
+    // let (n1, n2, n3, n4) = (name.clone(), name.clone(), name.clone(), name.clone());
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(worker_thread_count)
         .enable_all()
-        .thread_name(name.clone())
+        .thread_name(&name)
+        /*
+        .on_thread_start(move || {
+            println!("{}: thread started", n1);
+        })
+        .on_thread_stop(move || {
+            println!("{}: thread stopping", n2);
+        })
+        .on_thread_park(move || {
+            println!("{}: thread park", n3);
+        })
+        .on_thread_unpark(move || {
+            println!("{}: thread unpark", n4);
+        })
+        */
         .build()?;
 
     std::thread::Builder::new()

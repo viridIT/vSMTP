@@ -201,6 +201,7 @@ where
             )
             .await?;
         }
+        tokio::io::AsyncWriteExt::flush(&mut self.inner.inner).await?;
         Ok(())
     }
 
@@ -211,9 +212,9 @@ where
     /// * internal connection writer error
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
         log::info!(target: log_channels::CONNECTION, "send=\"{}\"", reply);
-        tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes())
-            .await
-            .map_err(anyhow::Error::new)
+        tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes()).await?;
+        tokio::io::AsyncWriteExt::flush(&mut self.inner.inner).await?;
+        Ok(())
     }
 
     /// read a line from the client

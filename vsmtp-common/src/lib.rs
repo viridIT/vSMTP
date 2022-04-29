@@ -28,6 +28,7 @@
 **/
 
 /// email address representation
+#[macro_use]
 pub mod address;
 
 /// smtp reply code to client's command

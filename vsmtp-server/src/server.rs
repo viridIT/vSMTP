@@ -130,17 +130,25 @@ impl Server {
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
         loop {
+            let listen1 = self.listener.accept();
+            tokio::pin!(listen1);
+            let listen2 = self.listener_submission.accept();
+            tokio::pin!(listen2);
+            let listen3 = self.listener_submissions.accept();
+            tokio::pin!(listen3);
+
             let (mut stream, client_addr, kind) = tokio::select! {
-                Ok((stream, client_addr)) = self.listener.accept() => {
+                Ok((stream, client_addr)) = listen1 => {
                     (stream, client_addr, ConnectionKind::Opportunistic)
                 }
-                Ok((stream, client_addr)) = self.listener_submission.accept() => {
+                Ok((stream, client_addr)) = listen2 => {
                     (stream, client_addr, ConnectionKind::Submission)
                 }
-                Ok((stream, client_addr)) = self.listener_submissions.accept() => {
+                Ok((stream, client_addr)) = listen3 => {
                     (stream, client_addr, ConnectionKind::Tunneled)
                 }
             };
+            stream.set_nodelay(true)?;
             log::warn!("Connection from: {:?}, {}", kind, client_addr);
 
             if self.config.server.client_count_max != -1

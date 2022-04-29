@@ -24,6 +24,18 @@ pub struct Address {
     full: String,
 }
 
+/// Syntax sugar Address object from dyn ToString
+///
+/// # Panics
+///
+/// if the argument failed to be converted
+#[macro_export]
+macro_rules! addr {
+    ($e:expr) => {
+        $crate::address::Address::try_from($e.to_string()).unwrap()
+    };
+}
+
 impl TryFrom<String> for Address {
     type Error = anyhow::Error;
 

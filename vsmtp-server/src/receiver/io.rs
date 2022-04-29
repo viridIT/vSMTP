@@ -33,7 +33,7 @@ where
     }
 }
 
-const BUFFER_SIZE: usize = 100;
+const BUFFER_SIZE: usize = 1000;
 const NEEDLE: &[u8] = b"\r\n";
 
 impl<S> AbstractIO<S>
