@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use self::transaction::{Transaction, TransactionResult};
 use crate::{auth, receiver::auth_exchange::on_authentication, ProcessMessage};
 use vsmtp_common::{

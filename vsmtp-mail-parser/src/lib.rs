@@ -10,7 +10,7 @@
 //
 #![allow(clippy::doc_markdown)]
 
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -25,7 +25,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 mod error;
 mod helpers;
 mod parser;

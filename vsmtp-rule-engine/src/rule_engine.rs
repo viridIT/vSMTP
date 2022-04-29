@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
- **/
+ */
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::{exported_module, plugin::EvalAltResult, Engine, Scope, AST};

@@ -1,6 +1,6 @@
 use crate::transport::log_channels;
 
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -15,7 +15,7 @@ use crate::transport::log_channels;
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use super::Transport;
 
 use anyhow::Context;

@@ -1,6 +1,6 @@
 use vsmtp_common::MailParser;
 
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -15,7 +15,7 @@ use vsmtp_common::MailParser;
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::parser::MailMimeParser;
 
 mod mime_parser {

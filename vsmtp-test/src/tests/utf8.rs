@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::test_receiver;
 use vsmtp_common::address::Address;
 use vsmtp_common::mail::{BodyType, Mail};

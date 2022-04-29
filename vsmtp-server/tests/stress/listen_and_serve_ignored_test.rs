@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
- **/
+ */
 use anyhow::Context;
 use vsmtp_common::re::{anyhow, serde_json};
 use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
