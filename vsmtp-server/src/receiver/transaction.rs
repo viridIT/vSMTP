@@ -128,9 +128,7 @@ impl Transaction<'_> {
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
                     Status::Info(packet) => Self::send_custom_code(&packet),
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
-                    }
+                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
                     _ => ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250),
                 }
             }
@@ -149,9 +147,7 @@ impl Transaction<'_> {
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
                     Status::Info(packet) => Self::send_custom_code(&packet),
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
-                    }
+                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
                         if conn.is_secured {
@@ -221,9 +217,7 @@ impl Transaction<'_> {
                     .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
                 {
                     Status::Info(packet) => Self::send_custom_code(&packet),
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
-                    }
+                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::MailFrom,
                         SMTPReplyCode::Code250,
@@ -241,9 +235,7 @@ impl Transaction<'_> {
                     .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
                 {
                     Status::Info(packet) => Self::send_custom_code(&packet),
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
-                    }
+                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
                     _ if self
                         .rule_state
                         .get_context()
@@ -288,12 +280,7 @@ impl Transaction<'_> {
                     .run_when(&mut self.rule_state, &StateSMTP::PreQ)
                 {
                     Status::Info(packet) => return Self::send_custom_code(&packet),
-                    Status::Deny => {
-                        return ProcessedEvent::ReplyChangeState(
-                            StateSMTP::Stop,
-                            SMTPReplyCode::Code554,
-                        )
-                    }
+                    Status::Deny(packet) => return Self::deny_with_custom_code(packet.as_ref()),
                     _ => {}
                 }
 
@@ -420,6 +407,16 @@ impl Transaction<'_> {
     fn send_custom_code(packet: &InfoPacket) -> ProcessedEvent {
         ProcessedEvent::Reply(SMTPReplyCode::Custom(packet.to_string()))
     }
+
+    fn deny_with_custom_code(packet: Option<&InfoPacket>) -> ProcessedEvent {
+        match packet {
+            Some(packet) => ProcessedEvent::ReplyChangeState(
+                StateSMTP::Stop,
+                SMTPReplyCode::Custom(packet.to_string()),
+            ),
+            None => ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554),
+        }
+    }
 }
 
 impl Transaction<'_> {
@@ -467,10 +464,17 @@ impl Transaction<'_> {
                     conn.send_code(SMTPReplyCode::Custom(packet.to_string()))
                         .await?;
                 }
-                Status::Deny => anyhow::bail!(
-                    "connection at '{}' has been denied when connecting.",
-                    conn.client_addr
-                ),
+                Status::Deny(packet) => {
+                    conn.send_code(match packet {
+                        Some(packet) => SMTPReplyCode::Custom(packet.to_string()),
+                        None => SMTPReplyCode::Code554,
+                    }).await?;
+
+                    anyhow::bail!(
+                        "connection at '{}' has been denied when connecting.",
+                        conn.client_addr
+                    )
+                },
                 _ => {}
             }
         }

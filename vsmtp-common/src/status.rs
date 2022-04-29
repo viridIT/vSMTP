@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 
 /// A packet send from the application (.vsl) to the server (vsmtp)
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -23,7 +23,7 @@ pub enum InfoPacket {
     /// a custom code.
     Code {
         /// the base code (550, 250 ...)
-        base: i32,
+        base: i64,
         /// the enhanced code {5.7.1 ...}
         enhanced: String,
         /// a message to send.
@@ -59,7 +59,7 @@ pub enum Status {
     Next,
 
     /// immediately stops the transaction and send an error code.
-    Deny,
+    Deny(Option<InfoPacket>),
 
     /// ignore all future rules for the current transaction.
     Faccept,
@@ -73,7 +73,7 @@ impl std::fmt::Display for Status {
             match self {
                 Status::Accept => "accept",
                 Status::Next => "next",
-                Status::Deny => "deny",
+                Status::Deny(_) => "deny",
                 Status::Faccept => "faccept",
                 Status::Info(_) => "info",
             }

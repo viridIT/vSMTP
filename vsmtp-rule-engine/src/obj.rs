@@ -214,13 +214,32 @@ impl Object {
                     Ok(Self::Code(InfoPacket::Str(code)))
                 } else {
                     Ok(Self::Code(InfoPacket::Code {
-                        base: Self::value::<S, i32>(map, "base")?,
+                        base: Self::value::<S, i64>(map, "base")?,
                         enhanced: Self::value::<S, String>(map, "enhanced")?,
                         text: Self::value::<S, String>(map, "text")?,
                     }))
                 }
             }
             _ => anyhow::bail!("'{}' is an unknown object type.", t),
+        }
+    }
+
+    /// get the type of the object.
+    #[must_use]
+    pub const fn as_str(&self) -> &str {
+        match self {
+            Object::Ip4(_) => "ip4",
+            Object::Ip6(_) => "ip6",
+            Object::Rg4(_) => "rg4",
+            Object::Rg6(_) => "rg6",
+            Object::Address(_) => "address",
+            Object::Fqdn(_) => "fqdn",
+            Object::Regex(_) => "regex",
+            Object::File(_) => "file",
+            Object::Group(_) => "group",
+            Object::Identifier(_) => "identifier",
+            Object::Str(_) => "string",
+            Object::Code(_) => "code",
         }
     }
 }
@@ -263,7 +282,7 @@ mod test {
         ]))
         .unwrap();
 
-        Object::from(&rhai::Map::from_iter([
+        let ip6 = Object::from(&rhai::Map::from_iter([
             ("ip6".into(), rhai::Dynamic::from("ip6".to_string())),
             ("type".into(), rhai::Dynamic::from("ip6".to_string())),
             (
@@ -273,7 +292,7 @@ mod test {
         ]))
         .unwrap();
 
-        Object::from(&rhai::Map::from_iter([
+        let rg4 = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("rg4".to_string())),
             ("type".into(), rhai::Dynamic::from("rg4".to_string())),
             (
@@ -303,7 +322,7 @@ mod test {
         ]))
         .unwrap();
 
-        Object::from(&rhai::Map::from_iter([
+        let address = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("address".to_string())),
             ("type".into(), rhai::Dynamic::from("address".to_string())),
             (
@@ -313,14 +332,14 @@ mod test {
         ]))
         .unwrap();
 
-        Object::from(&rhai::Map::from_iter([
+        let identifier = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("ident".to_string())),
             ("type".into(), rhai::Dynamic::from("ident".to_string())),
             ("value".into(), rhai::Dynamic::from("john".to_string())),
         ]))
         .unwrap();
 
-        Object::from(&rhai::Map::from_iter([
+        let string = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("string".to_string())),
             ("type".into(), rhai::Dynamic::from("string".to_string())),
             (
@@ -330,7 +349,7 @@ mod test {
         ]))
         .unwrap();
 
-        Object::from(&rhai::Map::from_iter([
+        let regex = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("regex".to_string())),
             ("type".into(), rhai::Dynamic::from("regex".to_string())),
             (
@@ -341,7 +360,7 @@ mod test {
         .unwrap();
 
         // TODO: test all possible content types.
-        Object::from(&rhai::Map::from_iter([
+        let file = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("file".to_string())),
             ("type".into(), rhai::Dynamic::from("file".to_string())),
             (
@@ -355,21 +374,21 @@ mod test {
         ]))
         .unwrap();
 
-        Object::from(&rhai::Map::from_iter([
+        let group = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("group".to_string())),
             ("type".into(), rhai::Dynamic::from("group".to_string())),
             (
                 "value".into(),
                 rhai::Dynamic::from(rhai::Array::from_iter([
-                    rhai::Dynamic::from(std::sync::Arc::new(ip4)),
-                    rhai::Dynamic::from(std::sync::Arc::new(rg6)),
-                    rhai::Dynamic::from(std::sync::Arc::new(fqdn)),
+                    rhai::Dynamic::from(std::sync::Arc::new(ip4.clone())),
+                    rhai::Dynamic::from(std::sync::Arc::new(rg6.clone())),
+                    rhai::Dynamic::from(std::sync::Arc::new(fqdn.clone())),
                 ])),
             ),
         ]))
         .unwrap();
 
-        Object::from(&rhai::Map::from_iter([
+        let code = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("code".to_string())),
             ("type".into(), rhai::Dynamic::from("code".to_string())),
             ("base".into(), rhai::Dynamic::from(550)),
@@ -390,5 +409,21 @@ mod test {
             ("value".into(), rhai::Dynamic::from("250 ok".to_string())),
         ]))
         .unwrap();
+
+        println!(
+            "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
+            ip4.as_str(),
+            ip6.as_str(),
+            rg4.as_str(),
+            rg6.as_str(),
+            fqdn.as_str(),
+            address.as_str(),
+            identifier.as_str(),
+            string.as_str(),
+            regex.as_str(),
+            file.as_str(),
+            group.as_str(),
+            code.as_str(),
+        );
     }
 }
