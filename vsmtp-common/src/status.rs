@@ -80,3 +80,41 @@ impl std::fmt::Display for Status {
         )
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::status::Status;
+
+    use super::InfoPacket;
+
+    #[test]
+    fn display_status() {
+        println!(
+            "{}, {}, {}, {}, {}",
+            Status::Accept,
+            Status::Next,
+            Status::Deny(None),
+            Status::Faccept,
+            Status::Info(InfoPacket::Str(String::default()))
+        );
+    }
+
+    #[test]
+    fn to_string() {
+        assert_eq!(
+            InfoPacket::Str("packet".to_string()).to_string().as_str(),
+            "packet"
+        );
+
+        assert_eq!(
+            InfoPacket::Code {
+                base: 250,
+                enhanced: "2.0.0".to_string(),
+                text: "custom message".to_string()
+            }
+            .to_string()
+            .as_str(),
+            "250 2.0.0 custom message"
+        );
+    }
+}

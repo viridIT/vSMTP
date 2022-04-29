@@ -468,13 +468,14 @@ impl Transaction<'_> {
                     conn.send_code(match packet {
                         Some(packet) => SMTPReplyCode::Custom(packet.to_string()),
                         None => SMTPReplyCode::Code554,
-                    }).await?;
+                    })
+                    .await?;
 
                     anyhow::bail!(
                         "connection at '{}' has been denied when connecting.",
                         conn.client_addr
                     )
-                },
+                }
                 _ => {}
             }
         }
