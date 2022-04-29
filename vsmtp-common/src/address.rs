@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-
 /// Address Email
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
 #[serde(into = "String", try_from = "String")]

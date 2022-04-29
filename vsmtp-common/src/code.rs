@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-
 /// 2yz  Positive Completion reply
 /// 3yz  Positive Intermediate reply
 /// 4yz  Transient Negative Completion reply

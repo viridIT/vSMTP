@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-
 #![allow(clippy::module_name_repetitions)]
 #![allow(missing_docs)]
 #![allow(clippy::use_self)]

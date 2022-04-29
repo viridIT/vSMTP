@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-
 use crate::{Config, ConfigServerDNS, ResolverOptsWrapper};
 use trust_dns_resolver::{config::ResolverConfig, error::ResolveError, TokioAsyncResolver};
 

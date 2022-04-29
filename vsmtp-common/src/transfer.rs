@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-
 /// the delivery status of the email of the current rcpt.
 // TODO: add timestamp for Sent / HeldBack / Failed.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

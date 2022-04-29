@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,6 +14,7 @@ use anyhow::Context;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use anyhow::Context;
 use crate::{envelop::Envelop, mail::Mail, status::Status, MailParser};
 
 /// average size of a mail

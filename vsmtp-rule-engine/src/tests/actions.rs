@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,6 +14,8 @@ use std::str::FromStr;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use std::str::FromStr;
+
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::auth::Mechanism;
 use vsmtp_common::re::serde_json;
