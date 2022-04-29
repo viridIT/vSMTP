@@ -51,10 +51,8 @@ fn run_rules(rules, stage) {
                 _ => throw `procedure "${procedure.type}" does not exists`,
             };
 
-            switch status.to_string() {
-                "next" => {},
-                "info" => {},
-                _ => return status,
+            if status != vsl::next() {
+                return status;
             }
         }
     }
