@@ -37,10 +37,10 @@ lettre = { version = "0.10.0-rc.5", default-features = false, features = [
     "tracing",
 ] }
 
-tokio = { version = "1.17.0", default-features = false, features = ["macros"] }
+tokio = { version = "1.18.0", default-features = false, features = ["macros"] }
 
 [dev-dependencies]
-tokio = { version = "1.17.0", features = [
+tokio = { version = "1.18.0", features = [
     "macros",
     "time",
     "sync",
