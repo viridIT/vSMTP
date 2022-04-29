@@ -391,7 +391,7 @@ mod test {
         let code = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("code".to_string())),
             ("type".into(), rhai::Dynamic::from("code".to_string())),
-            ("base".into(), rhai::Dynamic::from(550)),
+            ("base".into(), rhai::Dynamic::from(550_i64)),
             ("enhanced".into(), rhai::Dynamic::from("5.7.2".to_string())),
             (
                 "text".into(),

@@ -273,6 +273,7 @@ impl std::str::FromStr for SMTPReplyCode {
             "AuthClientCanceled" => Ok(Self::AuthClientCanceled),
             "AuthRequired" => Ok(Self::AuthRequired),
             "TlsAlreadyUnderTls" => Ok(Self::TlsAlreadyUnderTls),
+            "Custom" => Ok(Self::Custom(String::default())),
             _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }
