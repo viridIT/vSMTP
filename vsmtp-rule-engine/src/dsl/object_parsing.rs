@@ -146,7 +146,13 @@ fn create_code(
 ) -> EngineResult<rhai::Map> {
     let object = context.eval_expression_tree(&input[3])?;
 
-    if object.is::<rhai::Map>() {
+    if object.is::<String>() {
+        let mut map = rhai::Map::new();
+        map.insert("type".into(), rhai::Dynamic::from("code"));
+        map.insert("name".into(), rhai::Dynamic::from(object_name.to_string()));
+        map.insert("value".into(), object);
+        Ok(map)
+    } else if object.is::<rhai::Map>() {
         let mut object: rhai::Map = object.try_cast().ok_or(RuleEngineError::Object)?;
 
         for key in ["base", "enhanced", "text"] {

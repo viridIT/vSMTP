@@ -45,13 +45,29 @@ pub mod rule_state {
 
     /// the transaction is denied, reply error to clients.
     #[must_use]
+    #[rhai_fn(global)]
     pub const fn deny() -> Status {
         Status::Deny(None)
     }
 
-    #[must_use]
+    /// send a single informative code to the client. (using a code object)
+    #[rhai_fn(global, name = "info", return_raw)]
+    pub fn info_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
+        match &**code {
+            Object::Str(message) => Ok(Status::Info(InfoPacket::Str(
+                message.to_string(),
+            ))),
+            Object::Code(code) => Ok(Status::Info(code.clone())),
+            object => {
+                Err(format!("deny parameter should be a code, not {}", object.as_str()).into())
+            }
+        }
+    }
+
+    /// send a single informative code to the client. (using a simple string)
+    #[rhai_fn(global)]
     pub fn info(message: &str) -> Status {
-        Status::Info(vsmtp_common::status::InfoPacket::Str(message.to_string()))
+        Status::Info(InfoPacket::Str(message.to_string()))
     }
 
     /// dump the current email into a quarantine queue, skipping delivery.
