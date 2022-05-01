@@ -31,6 +31,12 @@ pub mod rule_state {
         Status::Next
     }
 
+    /// the transaction is denied, reply error to clients. (includes a custom code from a string)
+    #[rhai_fn(global, name = "deny")]
+    pub fn deny_with_string(message: &str) -> Status {
+        Status::Deny(Some(InfoPacket::Str(message.to_string())))
+    }
+
     /// the transaction is denied, reply error to clients. (includes a custom code)
     #[rhai_fn(global, name = "deny", return_raw)]
     pub fn deny_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {

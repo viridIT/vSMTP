@@ -22,21 +22,89 @@ use vsmtp_server::re::tokio;
 #[tokio::test]
 async fn info_message() {
     let mut config = config::local_test();
-    config.app.vsl.filepath = std::path::PathBuf::from_str("./src/tests/custom_codes.vsl").unwrap();
+    config.app.vsl.filepath =
+        std::path::PathBuf::from_str("./src/tests/custom_codes_info.vsl").unwrap();
 
     assert!(test_receiver! {
         with_config => config,
         [
             "HELO someone\r\n",
-            "HELO foo.bar\r\n",
+            "HELO foo\r\n",
+            "HELO bar\r\n",
+            "HELO example.com\r\n",
             "MAIL FROM:<a@satan.org>\r\n",
+            "MAIL FROM:<a@ok.org>\r\n",
+            "RCPT TO:<b@ok.org>\r\n",
+            "DATA\r\n",
+            ".\r\n"
         ]
         .concat(),
         [
             "220 testserver.com Service ready\r\n",
             "250 cannot identify with 'someone'.\r\n",
+            "250 2.0.0 foo is not accepted as a helo value.\r\n",
+            "250 I do not accept this email, sorry\r\n",
+            "250 Ok\r\n",
+            "250 satan.org is not valid, please try again.\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+            "500 I decided that you cannot send data.\r\n",
+        ]
+        .concat()
+    }
+    .is_ok());
+}
+
+#[tokio::test]
+async fn deny_message() {
+    let mut config = config::local_test();
+    config.app.vsl.filepath =
+        std::path::PathBuf::from_str("./src/tests/custom_codes_deny.vsl").unwrap();
+
+    assert!(test_receiver! {
+        with_config => config.clone(),
+        [
+            "HELO someone\r\n",
+            "MAIL FROM:<a@satan.org>\r\n",
+        ]
+        .concat(),
+        [
+            "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "501 4.7.1 satan is blacklisted on this server\r\n",
+        ]
+        .concat()
+    }
+    .is_ok());
+
+    assert!(test_receiver! {
+        with_config => config.clone(),
+        [
+            "HELO someone\r\n",
+            "MAIL FROM:<a@evil.com>\r\n",
+        ]
+        .concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250 Ok\r\n",
+            "501 4.7.1 evil is blacklisted on this server\r\n",
+        ]
+        .concat()
+    }
+    .is_ok());
+
+    assert!(test_receiver! {
+        with_config => config,
+        [
+            "HELO someone\r\n",
+            "MAIL FROM:<a@unpleasant.eu>\r\n",
+        ]
+        .concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250 Ok\r\n",
+            "501 4.7.1 unpleasant is blacklisted on this server\r\n",
         ]
         .concat()
     }
