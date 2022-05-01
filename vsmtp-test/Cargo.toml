@@ -23,7 +23,7 @@ async-trait = "0.1.53"
 
 pretty_assertions = "1.2.1"
 
-lettre = { version = "0.10.0-rc.5", default-features = false, features = [
+lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "smtp-transport",
     "builder",
     "tokio1-rustls-tls",
