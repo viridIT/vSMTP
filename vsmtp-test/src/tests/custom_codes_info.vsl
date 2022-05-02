@@ -17,31 +17,31 @@ object bar_invalid string = "250 I do not accept this email, sorry\r\n";
     helo: [
         rule "helo must be foo.bar" || {
             if ctx.helo == "foo" {
-                vsl::info(foo_invalid);
+                sys::info(foo_invalid);
             } else if ctx.helo == "bar" {
-                vsl::info(bar_invalid);
+                sys::info(bar_invalid);
             } else if ctx.helo == "example.com" {
-                vsl::next()
+                sys::next()
             } else {
-                vsl::info(retry_helo(ctx.helo));
+                sys::info(retry_helo(ctx.helo));
             }
         },
 
-        rule "helo trailing" || vsl::accept(),
+        rule "helo trailing" || sys::accept(),
     ],
 
     mail: [
         rule "retry mail" || {
             if ctx.mail_from.domain == "satan.org" {
-                vsl::info("250 satan.org is not valid, please try again.\r\n");
+                sys::info("250 satan.org is not valid, please try again.\r\n");
             } else {
-                vsl::accept()
+                sys::accept()
             }
         }
     ],
 
     preq: [
-        rule "cannot send data" || vsl::info("500 I decided that you cannot send data.\r\n")
+        rule "cannot send data" || sys::info("500 I decided that you cannot send data.\r\n")
     ],
 
 }

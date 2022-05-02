@@ -47,16 +47,16 @@ fn run_rules(rules, stage) {
                     "vsmtp_common::status::Status" => result,
                     _ => throw `the rule '${procedure.name}' must return a status, not a '${result.type_of()}'`,
                 },
-                "action" => vsl::next(),
+                "action" => sys::next(),
                 _ => throw `procedure "${procedure.type}" does not exists`,
             };
 
-            if status != vsl::next() {
+            if status != sys::next() {
                 return status;
             }
         }
     }
 
     // status returned by default.
-    vsl::next()
+    sys::next()
 }

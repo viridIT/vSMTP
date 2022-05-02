@@ -310,7 +310,7 @@ mod tests {
             std::sync::Arc::new(std::sync::RwLock::new(
                 RuleEngine::from_script(
                     &config,
-                    &format!("#{{ {}: [ rule \"\" || vsl::deny() ] }}", StateSMTP::PostQ),
+                    &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", StateSMTP::PostQ),
                 )
                 .context("failed to initialize the engine")
                 .unwrap(),

@@ -1,8 +1,8 @@
 #{
   connect: [
     rule "test_connect" || {
-      vsl::log("trace", `${ctx.client_ip}`);
-      if ctx.client_ip is "127.0.0.1" { vsl::next() } else { vsl::deny() }
+      sys::log("trace", `${ctx.client_ip}`);
+      if ctx.client_ip is "127.0.0.1" { sys::next() } else { sys::deny() }
     }
   ],
 }

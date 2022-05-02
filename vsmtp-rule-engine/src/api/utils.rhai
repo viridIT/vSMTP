@@ -6,7 +6,7 @@ private fn __in_domain(rcpt) {
         },
         "string" => {
             // converting to an address could fail.
-            try { return __in_domain(vsl::new_address(rcpt)); } catch { return false; }
+            try { return __in_domain(sys::new_address(rcpt)); } catch { return false; }
         },
         _ => false,
     }

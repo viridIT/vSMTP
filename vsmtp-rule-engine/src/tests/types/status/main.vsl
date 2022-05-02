@@ -1,23 +1,23 @@
 #{
     connect: [
         rule "test_status" || {
-            if vsl::next() is vsl::next()
-            && vsl::next() == vsl::next()
+            if sys::next() is sys::next()
+            && sys::next() == sys::next()
 
-            && vsl::next() not vsl::accept()
-            && vsl::next() != vsl::accept()
+            && sys::next() not sys::accept()
+            && sys::next() != sys::accept()
 
-            && vsl::next().to_string() == "next"
-            && vsl::next().to_debug() == "next" {
+            && sys::next().to_string() == "next"
+            && sys::next().to_debug() == "next" {
 
-                print(vsl::next());
-                print(vsl::accept());
-                print(vsl::faccept());
-                print(vsl::deny());
+                print(sys::next());
+                print(sys::accept());
+                print(sys::faccept());
+                print(sys::deny());
 
-                vsl::accept()
+                sys::accept()
             } else {
-                vsl::deny()
+                sys::deny()
             }
         }
     ]

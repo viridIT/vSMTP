@@ -55,7 +55,7 @@ object deep_group group = [
   authorized_users,
 ];
 
-/// you can define custom code that you can use with `vsl::info` & `vsl::deny`.
+/// you can define custom code that you can use with `sys::info` & `sys::deny`.
 object custom_code code = "220 this is a custom code.";
 
 /// the complete code declaration enable automatic message folding.

@@ -14,17 +14,17 @@ fn has_virus(srv) {
     preq: [
         rule "antivirus" || {
             if has_virus(srv) {
-                vsl::log("warn", "virus detected, email quarantined.");
-                vsl::quarantine(srv, ctx, "virus")
+                sys::log("warn", "virus detected, email quarantined.");
+                sys::quarantine(srv, ctx, "virus")
             } else {
-                vsl::accept()
+                sys::accept()
             }
         }
     ],
 
     delivery: [
         action "setup delivery" || {
-            vsl::deliver_all(ctx);
+            sys::deliver_all(ctx);
         }
     ]
 }

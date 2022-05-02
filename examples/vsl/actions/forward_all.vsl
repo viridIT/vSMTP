@@ -7,44 +7,44 @@ object forward_fqdn fqdn = "test.eu";
     connect: [
         action "add recipients" || {
             print("connect");
-            vsl::add_rcpt(ctx, "fqdn@example.com");
-            vsl::add_rcpt(ctx, "ip4@example.com");
-            vsl::add_rcpt(ctx, "ip6@example.com");
-            vsl::add_rcpt(ctx, "object.str@example.com");
-            vsl::add_rcpt(ctx, "object.ip4@example.com");
-            vsl::add_rcpt(ctx, "object.ip6@example.com");
-            vsl::add_rcpt(ctx, "object.fqdn@example.com");
+            sys::add_rcpt(ctx, "fqdn@example.com");
+            sys::add_rcpt(ctx, "ip4@example.com");
+            sys::add_rcpt(ctx, "ip6@example.com");
+            sys::add_rcpt(ctx, "object.str@example.com");
+            sys::add_rcpt(ctx, "object.ip4@example.com");
+            sys::add_rcpt(ctx, "object.ip6@example.com");
+            sys::add_rcpt(ctx, "object.fqdn@example.com");
         }
     ],
 
     authenticate: [
         action "forward all (fqdn string)" || {
             print("test");
-            vsl::forward_all(ctx, "localhost")
+            sys::forward_all(ctx, "localhost")
         },
     ],
 
     mail: [
-        action "forward all (ip4 string)" || vsl::forward_all(ctx, "127.0.0.1"),
+        action "forward all (ip4 string)" || sys::forward_all(ctx, "127.0.0.1"),
     ],
 
     rcpt: [
-        action "forward all (ip4 string)" || vsl::forward_all(ctx, "::1"),
+        action "forward all (ip4 string)" || sys::forward_all(ctx, "::1"),
     ],
 
     Data: [
-        action "forward all (string object)" || vsl::forward_all(ctx, forward_str),
+        action "forward all (string object)" || sys::forward_all(ctx, forward_str),
     ],
 
     preq: [
-        action "forward all (ip4 object)" || vsl::forward_all(ctx, forward_ip4),
+        action "forward all (ip4 object)" || sys::forward_all(ctx, forward_ip4),
     ],
 
     postq: [
-        action "forward all (ip6 object)" || vsl::forward_all(ctx, forward_ip6),
+        action "forward all (ip6 object)" || sys::forward_all(ctx, forward_ip6),
     ],
 
     delivery: [
-        action "forward all (fqdn object)" || vsl::forward_all(ctx, forward_fqdn),
+        action "forward all (fqdn object)" || sys::forward_all(ctx, forward_fqdn),
     ],
 }

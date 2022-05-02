@@ -3,10 +3,10 @@
         rule "unknown service" || {
             try {
                 srv.run_service(ctx, "unknown");
-                return vsl::deny();
+                return sys::deny();
             } catch (err) {
                 print(err);
-                if "" in err { return vsl::next(); } else { return vsl::deny(); }
+                if "" in err { return sys::next(); } else { return sys::deny(); }
             }
         },
 
@@ -22,15 +22,15 @@
             {
                 try {
                     result.signal;
-                    return vsl::deny();
+                    return sys::deny();
                 } catch {
-                    return vsl::next();
+                    return sys::next();
                 }
             } else {
-                vsl::deny()
+                sys::deny()
             }
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || sys::accept(),
     ]
 }

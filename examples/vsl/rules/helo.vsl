@@ -7,26 +7,26 @@ object com regex = "^[a-z0-9.]+.com$";
   helo: [
     rule "test_fqdn" || {
       if ctx.helo is bar && bar is ctx.helo {
-        vsl::next()
+        sys::next()
       } else {
-        vsl::deny()
+        sys::deny()
       }
     },
 
     /// A similar syntax will be implemented for files with the 'Database' release
     // rule "test_file" || {
     //   if ctx.helo in domains {
-    //     vsl::next()
+    //     sys::next()
     //   } else {
-    //     vsl::deny()
+    //     sys::deny()
     //   }
     // },
 
     rule "test_regex" || {
       if ctx.helo is com {
-        vsl::next()
+        sys::next()
       } else {
-        vsl::deny()
+        sys::deny()
       }
     },
   ]

@@ -19,9 +19,9 @@
             && ctx.client_port != 25
 
             {
-                vsl::accept()
+                sys::accept()
             } else {
-                vsl::deny()
+                sys::deny()
             }
         }
     ]

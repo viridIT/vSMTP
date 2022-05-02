@@ -15,18 +15,18 @@ object string_obj string = "raw@address.net";
 #{
     connect: [
         rule "test_new_address" || {
-            let my_address = vsl::new_address("my@address.fqdn");
+            let my_address = sys::new_address("my@address.fqdn");
 
             try {
-                vsl::new_address("bad.address");
-                return vsl::deny()
+                sys::new_address("bad.address");
+                return sys::deny()
             } catch {
-                return vsl::next()
+                return sys::next()
             }
         },
 
         rule "test_address" || {
-            let my_address = vsl::new_address("my@address.fqdn");
+            let my_address = sys::new_address("my@address.fqdn");
 
             print(my_address.to_string());
             print(my_address.to_debug());
@@ -50,58 +50,58 @@ object string_obj string = "raw@address.net";
 
             // check against objects.
 
-            && vsl::new_address("my@address.fqdn") not address_obj
-            && address_obj not vsl::new_address("my@address.fqdn")
-            && vsl::new_address("add@obj.net") is address_obj
-            && address_obj is vsl::new_address("add@obj.net")
+            && sys::new_address("my@address.fqdn") not address_obj
+            && address_obj not sys::new_address("my@address.fqdn")
+            && sys::new_address("add@obj.net") is address_obj
+            && address_obj is sys::new_address("add@obj.net")
 
-            && vsl::new_address("my@address.fqdn") not fqdn_obj
-            && fqdn_obj not vsl::new_address("my@address.fqdn")
-            && vsl::new_address("add@obj.net") is fqdn_obj
-            && fqdn_obj is vsl::new_address("add@obj.net")
+            && sys::new_address("my@address.fqdn") not fqdn_obj
+            && fqdn_obj not sys::new_address("my@address.fqdn")
+            && sys::new_address("add@obj.net") is fqdn_obj
+            && fqdn_obj is sys::new_address("add@obj.net")
 
-            && vsl::new_address("my@address.fqdn") not regex_obj
-            && regex_obj not vsl::new_address("my@address.fqdn")
-            && vsl::new_address("add@obj.com") is regex_obj
-            && regex_obj is vsl::new_address("add@obj.com")
+            && sys::new_address("my@address.fqdn") not regex_obj
+            && regex_obj not sys::new_address("my@address.fqdn")
+            && sys::new_address("add@obj.com") is regex_obj
+            && regex_obj is sys::new_address("add@obj.com")
 
-            && !(vsl::new_address("my@address.fqdn") in file_obj)
-            && vsl::new_address("nested@address.com") in file_obj
+            && !(sys::new_address("my@address.fqdn") in file_obj)
+            && sys::new_address("nested@address.com") in file_obj
 
-            && !(vsl::new_address("my@address.fqdn") in group_obj)
-            && vsl::new_address("nested@address.com") in group_obj
+            && !(sys::new_address("my@address.fqdn") in group_obj)
+            && sys::new_address("nested@address.com") in group_obj
 
-            && vsl::new_address("my@address.fqdn") not identifier_obj
-            && identifier_obj not vsl::new_address("my@address.fqdn")
-            && vsl::new_address("local_part@address.fqdn") is identifier_obj
-            && identifier_obj is vsl::new_address("local_part@address.fqdn")
+            && sys::new_address("my@address.fqdn") not identifier_obj
+            && identifier_obj not sys::new_address("my@address.fqdn")
+            && sys::new_address("local_part@address.fqdn") is identifier_obj
+            && identifier_obj is sys::new_address("local_part@address.fqdn")
 
-            && vsl::new_address("my@address.fqdn") not string_obj
-            && string_obj not vsl::new_address("my@address.fqdn")
-            && vsl::new_address("raw@address.net") is string_obj
-            && string_obj not vsl::new_address("raw@address.net")
+            && sys::new_address("my@address.fqdn") not string_obj
+            && string_obj not sys::new_address("my@address.fqdn")
+            && sys::new_address("raw@address.net") is string_obj
+            && string_obj not sys::new_address("raw@address.net")
 
             {
-                vsl::next()
+                sys::next()
             } else {
-                vsl::deny()
+                sys::deny()
             }
         },
 
         rule "test_not_valid_comparison" || {
             try {
-                vsl::new_address("raw@address.net") is object ip ip4 = "127.0.0.1";
-                return vsl::deny();
+                sys::new_address("raw@address.net") is object ip ip4 = "127.0.0.1";
+                return sys::deny();
             } catch {}
 
             try {
-                vsl::new_address("raw@address.net") in object in_addr address = "impossible@test.com";
-                return vsl::deny();
+                sys::new_address("raw@address.net") in object in_addr address = "impossible@test.com";
+                return sys::deny();
             } catch {}
 
-            vsl::next()
+            sys::next()
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || sys::accept(),
     ]
 }

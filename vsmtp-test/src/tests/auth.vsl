@@ -1,6 +1,6 @@
 #{
     connect: [
-        rule "ok" || vsl::accept()
+        rule "ok" || sys::accept()
     ],
     authenticate: [
         rule "auth hardcoded" || {
@@ -10,19 +10,19 @@
             };
 
             if ctx.is_authenticated {
-                return vsl::deny();
+                return sys::deny();
             }
 
             switch ctx.auth.type {
                 "Verify" => {
                     if db[ctx.auth.authid] == ctx.auth.authpass {
-                        vsl::accept()
+                        sys::accept()
                     } else {
-                        vsl::deny()
+                        sys::deny()
                     }
                 },
                 "Query" => {
-                    vsl::info(db[ctx.auth.authid])
+                    sys::info(db[ctx.auth.authid])
                 }
             }
         }

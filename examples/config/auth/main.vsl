@@ -11,14 +11,14 @@
                     }
 
                     if result.has_code && result.code == 0 {
-                        vsl::accept()
+                        sys::accept()
                     } else {
-                        vsl::deny()
+                        sys::deny()
                     }
 
                 },
                 "Query" => {
-                    vsl::deny()
+                    sys::deny()
                 }
             }
         }

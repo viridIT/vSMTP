@@ -20,7 +20,7 @@ pub mod utils {
 
         let envelop = lettre::address::Envelope::new(
             Some(from.parse().map_err::<Box<rhai::EvalAltResult>, _>(|err| {
-                format!("vsl::send_mail from parsing failed: {err:?}").into()
+                format!("sys::send_mail from parsing failed: {err:?}").into()
             })?),
             to.into_iter()
                 // NOTE: address that couldn't be converted will be silently dropped.
@@ -31,20 +31,20 @@ pub mod utils {
                 .collect(),
         )
         .map_err::<Box<rhai::EvalAltResult>, _>(|err| {
-            format!("vsl::send_mail envelop parsing failed {err:?}").into()
+            format!("sys::send_mail envelop parsing failed {err:?}").into()
         })?;
 
         match lettre::Transport::send_raw(
             &lettre::SmtpTransport::relay(relay)
                 .map_err::<Box<rhai::EvalAltResult>, _>(|err| {
-                    format!("vsl::send_mail failed to connect to relay: {err:?}").into()
+                    format!("sys::send_mail failed to connect to relay: {err:?}").into()
                 })?
                 .build(),
             &envelop,
             email.as_bytes(),
         ) {
             Ok(_) => Ok(()),
-            Err(err) => Err(format!("vsl::send_mail failed to send: {err:?}").into()),
+            Err(err) => Err(format!("sys::send_mail failed to send: {err:?}").into()),
         }
     }
 

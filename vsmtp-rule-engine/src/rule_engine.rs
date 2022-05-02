@@ -360,7 +360,7 @@ impl RuleEngine {
             .set_var("app", engine.parse_json(app_config, true)?);
 
         engine
-            .register_static_module("vsl", vsl_module.into())
+            .register_static_module("sys", vsl_module.into())
             .register_static_module("toml", toml_module.into())
             .register_global_module(api.into())
             .disable_symbol("eval")

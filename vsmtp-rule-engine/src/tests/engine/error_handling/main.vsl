@@ -6,18 +6,18 @@ import "errors" as err;
         rule "error parsing" || err::generic_error(ctx),
 
         // previous rule should short circuit and return `next`.
-        rule "trailing" || vsl::deny(),
+        rule "trailing" || sys::deny(),
     ],
 
     helo: [
         rule "user defined throw" || err::throw_error(),
 
         // previous rule should short circuit and return `next`.
-        rule "trailing" || vsl::deny(),
+        rule "trailing" || sys::deny(),
     ],
 
     mail: [
-        rule "deny and skip" || vsl::deny(),
-        rule "skipped" || vsl::accept(),
+        rule "deny and skip" || sys::deny(),
+        rule "skipped" || sys::accept(),
     ]
 }
