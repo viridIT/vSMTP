@@ -72,7 +72,10 @@ fn test_email_add_get_set_header() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Deny(None)
+    );
     let (mut state, _) = get_default_state("./tmp/app");
     state.get_context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);

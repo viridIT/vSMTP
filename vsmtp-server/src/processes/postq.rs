@@ -96,7 +96,7 @@ async fn handle_one_in_working_queue(
         .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
         .run_when(&mut state, &StateSMTP::PostQ);
 
-    if result == Status::Deny {
+    if let Status::Deny(_) = result {
         Queue::Dead.write_to_queue(
             &config.server.queues.dirpath,
             &state.get_context().read().unwrap(),
@@ -115,10 +115,10 @@ async fn handle_one_in_working_queue(
             {
                 // skipping mime & delivery processes.
                 log::warn!(
-                    target: log_channels::POSTQ,
-                    "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
-                    process_message.message_id,
-                );
+                target: log_channels::POSTQ,
+                "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
+                process_message.message_id,
+            );
                 Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
                 false
             } else {
@@ -139,7 +139,7 @@ async fn handle_one_in_working_queue(
                 })
                 .await?;
         }
-    };
+    }
 
     std::fs::remove_file(&file_to_process).context(format!(
         "failed to remove '{}' from the working queue",

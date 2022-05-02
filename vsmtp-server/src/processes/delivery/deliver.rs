@@ -103,7 +103,7 @@ pub async fn handle_one_in_delivery_queue(
 
         add_trace_information(config, &mut ctx, &result)?;
 
-        if result == Status::Deny {
+        if let Status::Deny(_) = result {
             // we update rcpt email status and write to dead queue in case of a deny.
             for rcpt in &mut ctx.envelop.rcpt {
                 rcpt.email_status =
@@ -130,7 +130,7 @@ pub async fn handle_one_in_delivery_queue(
             ))?;
 
             move_to_queue(config, &ctx)?;
-        };
+        }
     }
 
     // after processing the email is removed from the delivery queue.

@@ -169,13 +169,17 @@ where
 
             tokio::io::AsyncWriteExt::write_all(
                 &mut self.inner.inner,
-                self.config
-                    .server
-                    .smtp
-                    .codes
-                    .get(&reply_to_send)
-                    .unwrap()
-                    .as_bytes(),
+                match &reply_to_send {
+                    SMTPReplyCode::Custom(message) => message.as_bytes(),
+                    _ => self
+                        .config
+                        .server
+                        .smtp
+                        .codes
+                        .get(&reply_to_send)
+                        .unwrap()
+                        .as_bytes(),
+                },
             )
             .await?;
 
@@ -191,13 +195,17 @@ where
 
             tokio::io::AsyncWriteExt::write_all(
                 &mut self.inner.inner,
-                self.config
-                    .server
-                    .smtp
-                    .codes
-                    .get(&reply_to_send)
-                    .unwrap()
-                    .as_bytes(),
+                match &reply_to_send {
+                    SMTPReplyCode::Custom(message) => message.as_bytes(),
+                    _ => self
+                        .config
+                        .server
+                        .smtp
+                        .codes
+                        .get(&reply_to_send)
+                        .unwrap()
+                        .as_bytes(),
+                },
             )
             .await?;
         }

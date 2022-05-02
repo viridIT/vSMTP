@@ -25,7 +25,7 @@ use vsmtp_common::{
     mail_context::{Body, ConnectionContext, MailContext, MessageMetadata, MAIL_CAPACITY},
     re::{anyhow, log},
     state::StateSMTP,
-    status::Status,
+    status::{InfoPacket, Status},
 };
 use vsmtp_config::{Config, TlsSecurityLevel};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
@@ -127,9 +127,8 @@ impl Transaction<'_> {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
-                    }
+                    Status::Info(packet) => Self::send_custom_code(&packet),
+                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
                     _ => ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250),
                 }
             }
@@ -147,9 +146,8 @@ impl Transaction<'_> {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
-                    }
+                    Status::Info(packet) => Self::send_custom_code(&packet),
+                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
                         if conn.is_secured {
@@ -218,9 +216,8 @@ impl Transaction<'_> {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
                 {
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
-                    }
+                    Status::Info(packet) => Self::send_custom_code(&packet),
+                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::MailFrom,
                         SMTPReplyCode::Code250,
@@ -237,9 +234,8 @@ impl Transaction<'_> {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
                 {
-                    Status::Deny => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554)
-                    }
+                    Status::Info(packet) => Self::send_custom_code(&packet),
+                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
                     _ if self
                         .rule_state
                         .get_context()
@@ -277,17 +273,15 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::Data, Event::DataEnd) => {
-                if self
+                match self
                     .rule_engine
                     .read()
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::PreQ)
-                    == Status::Deny
                 {
-                    return ProcessedEvent::ReplyChangeState(
-                        StateSMTP::Stop,
-                        SMTPReplyCode::Code554,
-                    );
+                    Status::Info(packet) => return Self::send_custom_code(&packet),
+                    Status::Deny(packet) => return Self::deny_with_custom_code(packet.as_ref()),
+                    _ => {}
                 }
 
                 let state = self.rule_state.get_context();
@@ -409,6 +403,20 @@ impl Transaction<'_> {
             }
         }
     }
+
+    fn send_custom_code(packet: &InfoPacket) -> ProcessedEvent {
+        ProcessedEvent::Reply(SMTPReplyCode::Custom(packet.to_string()))
+    }
+
+    fn deny_with_custom_code(packet: Option<&InfoPacket>) -> ProcessedEvent {
+        match packet {
+            Some(packet) => ProcessedEvent::ReplyChangeState(
+                StateSMTP::Stop,
+                SMTPReplyCode::Custom(packet.to_string()),
+            ),
+            None => ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554),
+        }
+    }
 }
 
 impl Transaction<'_> {
@@ -445,17 +453,31 @@ impl Transaction<'_> {
         } else {
             transaction.set_connect(conn);
 
-            let rule_result_connect = transaction
+            let status = transaction
                 .rule_engine
                 .read()
                 .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
                 .run_when(&mut transaction.rule_state, &StateSMTP::Connect);
-            if rule_result_connect == Status::Deny {
-                anyhow::bail!(
-                    "connection at '{}' has been denied when connecting.",
-                    conn.client_addr
-                )
-            };
+
+            match status {
+                Status::Info(packet) => {
+                    conn.send_code(SMTPReplyCode::Custom(packet.to_string()))
+                        .await?;
+                }
+                Status::Deny(packet) => {
+                    conn.send_code(match packet {
+                        Some(packet) => SMTPReplyCode::Custom(packet.to_string()),
+                        None => SMTPReplyCode::Code554,
+                    })
+                    .await?;
+
+                    anyhow::bail!(
+                        "connection at '{}' has been denied when connecting.",
+                        conn.client_addr
+                    )
+                }
+                _ => {}
+            }
         }
 
         let mut read_timeout = get_timeout_for_state(&conn.config, &transaction.state);

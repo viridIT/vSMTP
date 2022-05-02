@@ -208,7 +208,7 @@ impl RuleEngine {
                     status
                 );
 
-                if let Status::Faccept | Status::Deny = status {
+                if let Status::Faccept | Status::Deny(_) = status {
                     log::debug!(
                         target: log_channels::RE,
                         "[{}] the rule engine will skip all rules because of the previous result.",

@@ -15,7 +15,6 @@
  *
 */
 use super::unsafe_auth_config;
-use anyhow::Context;
 use vsmtp_common::{
     auth::Mechanism,
     re::{anyhow, base64, rsasl, strum},
@@ -51,8 +50,7 @@ async fn test_auth(
                 &server_config,
                 &Some(server_config.app.vsl.filepath.clone()),
             )
-            .context("failed to initialize the engine")
-            .unwrap(),
+            .expect("failed to initialize the engine"),
         ));
 
         Server::run_session(

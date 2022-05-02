@@ -163,14 +163,13 @@ impl Config {
                 ]
                 .contains(i)
             }) {
-                reply_codes.insert(
-                    i,
-                    reply_codes
-                        .get(&i)
-                        .or_else(|| default_values.get(&i))
-                        .unwrap()
-                        .replace("{domain}", &config.server.domain),
-                );
+                let value = reply_codes
+                    .get(&i)
+                    .or_else(|| default_values.get(&i))
+                    .unwrap()
+                    .replace("{domain}", &config.server.domain);
+
+                reply_codes.insert(i, value);
             }
         }
 

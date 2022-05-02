@@ -30,6 +30,8 @@ import "vars" as vars;
             print(vars::str);
             print(vars::file);
             print(vars::group);
+            print(vars::custom_code);
+            print(vars::complete_code);
 
             print(vars::ip4.to_debug());
             print(vars::ip6.to_debug());
@@ -42,6 +44,8 @@ import "vars" as vars;
             print(vars::str.to_debug());
             print(vars::file.to_debug());
             print(vars::group.to_debug());
+            print(vars::custom_code.to_debug());
+            print(vars::complete_code.to_debug());
         },
    ],
 
