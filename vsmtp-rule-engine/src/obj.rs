@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -244,26 +246,30 @@ impl Object {
     }
 }
 
-impl ToString for Object {
-    fn to_string(&self) -> String {
-        match self {
-            Object::Ip4(ip) => ip.to_string(),
-            Object::Ip6(ip) => ip.to_string(),
-            Object::Rg4(range) => format!("{range:?}"),
-            Object::Rg6(range) => format!("{range:?}"),
-            Object::Address(addr) => addr.to_string(),
-            Object::Fqdn(fqdn) => fqdn.clone(),
-            Object::Regex(regex) => regex.to_string(),
-            Object::File(file) => format!("{file:?}"),
-            Object::Group(group) => format!("{group:?}"),
-            Object::Identifier(string) | Object::Str(string) => string.clone(),
-            Object::Code(InfoPacket::Str(message)) => message.clone(),
-            Object::Code(InfoPacket::Code {
-                base,
-                enhanced,
-                text,
-            }) => format!("{base} {enhanced} {text}"),
-        }
+impl Display for Object {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Object::Ip4(ip) => ip.to_string(),
+                Object::Ip6(ip) => ip.to_string(),
+                Object::Rg4(range) => format!("{range:?}"),
+                Object::Rg6(range) => format!("{range:?}"),
+                Object::Address(addr) => addr.to_string(),
+                Object::Fqdn(fqdn) => fqdn.clone(),
+                Object::Regex(regex) => regex.to_string(),
+                Object::File(file) => format!("{file:?}"),
+                Object::Group(group) => format!("{group:?}"),
+                Object::Identifier(string) | Object::Str(string) => string.clone(),
+                Object::Code(InfoPacket::Str(message)) => message.clone(),
+                Object::Code(InfoPacket::Code {
+                    base,
+                    enhanced,
+                    text,
+                }) => format!("{base} {enhanced} {text}"),
+            }
+        )
     }
 }
 

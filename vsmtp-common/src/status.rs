@@ -15,6 +15,8 @@
  *
 */
 
+use std::fmt::Display;
+
 /// A packet send from the application (.vsl) to the server (vsmtp)
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum InfoPacket {
@@ -31,18 +33,22 @@ pub enum InfoPacket {
     },
 }
 
-impl ToString for InfoPacket {
-    fn to_string(&self) -> String {
-        match self {
-            InfoPacket::Str(string) => string.clone(),
-            InfoPacket::Code {
-                base,
-                enhanced,
-                text,
-            } => {
-                format!("{base} {enhanced} {text}")
+impl Display for InfoPacket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                InfoPacket::Str(string) => string.clone(),
+                InfoPacket::Code {
+                    base,
+                    enhanced,
+                    text,
+                } => {
+                    format!("{base} {enhanced} {text}")
+                }
             }
-        }
+        )
     }
 }
 

@@ -343,11 +343,7 @@ pub fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<boo
         Object::Fqdn(fqdn) => Ok(this == fqdn),
         Object::Regex(re) => Ok(re.is_match(this)),
         Object::Str(s) | Object::Identifier(s) => Ok(this == s),
-        _ => Err(format!(
-            "a {} object cannot be compared to a string",
-            other.to_string()
-        )
-        .into()),
+        _ => Err(format!("a {} object cannot be compared to a string", other).into()),
     }
 }
 
@@ -359,7 +355,7 @@ pub fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<boo
              Err(format!(
                 "the 'in' operator can only be used with 'group' and 'file' object types, you used the string {} with the object {}",
                 this,
-                other.to_string()
+                other
             )
             .into())
         }
@@ -373,13 +369,7 @@ pub fn internal_address_is_object(this: &Address, other: &Object) -> EngineResul
         Object::Regex(re) => re.is_match(this.full()),
         Object::Identifier(s) => this.local_part() == s,
         Object::Str(s) => this.full() == s,
-        _ => {
-            return Err(format!(
-                "a {} object cannot be compared to an address",
-                other.to_string()
-            )
-            .into())
-        }
+        _ => return Err(format!("a {} object cannot be compared to an address", other).into()),
     })
 }
 
@@ -391,7 +381,7 @@ pub fn internal_address_in_object(this: &Address, other: &Object) -> EngineResul
             return Err(format!(
                 "the 'in' operator can only be used with 'group' and 'file' object types, you used the address {} with the object {}",
                 this.full(),
-                other.to_string()
+                other
             )
             .into())
         }
@@ -405,8 +395,8 @@ pub fn internal_object_in_object(this: &Object, other: &Object) -> EngineResult<
         _ => {
             return Err(format!(
                 "the 'in' operator can only be used with 'group' and 'file' object types, you used the object {} to search in {}",
-                this.to_string(),
-                other.to_string()
+                this,
+                other
             )
             .into())
         }
@@ -429,7 +419,7 @@ pub fn internal_object_in_rcpt(this: &[Address], other: &Object) -> EngineResult
         _ => {
             return Err(format!(
                 "a {} object cannot be compared to the rcpt container",
-                other.to_string()
+                other
             )
             .into())
         }
