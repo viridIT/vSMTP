@@ -37,7 +37,10 @@ fn test_logs() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Deny(None)
+    );
 }
 
 #[test]
@@ -181,7 +184,10 @@ fn test_quarantine() {
         ],
         body: vsmtp_common::mail::BodyType::Regular(vec!["this is an empty body".to_string()]),
     }));
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Deny);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Deny(None)
+    );
 
     assert_eq!(
         std::fs::read_to_string("./tmp/app/tests/generated/quarantine2/test_message_id.json")

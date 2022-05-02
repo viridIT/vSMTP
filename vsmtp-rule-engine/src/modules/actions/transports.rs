@@ -21,11 +21,7 @@ pub mod transports {
             Object::Ip4(ip) => forward_str(this, rcpt, &ip.to_string()),
             Object::Ip6(ip) => forward_str(this, rcpt, &ip.to_string()),
             Object::Fqdn(fqdn) | Object::Str(fqdn) => forward_str(this, rcpt, fqdn),
-            obj => Err(format!(
-                "{} is not a valid address to forward an email to.",
-                obj.to_string()
-            )
-            .into()),
+            obj => Err(format!("{} is not a valid address to forward an email to.", obj).into()),
         }
     }
 
@@ -61,11 +57,7 @@ pub mod transports {
             Object::Ip4(ip) => forward_all_str(this, &ip.to_string()),
             Object::Ip6(ip) => forward_all_str(this, &ip.to_string()),
             Object::Fqdn(fqdn) | Object::Str(fqdn) => forward_all_str(this, fqdn),
-            obj => Err(format!(
-                "{} is not a valid address to forward an email to.",
-                obj.to_string()
-            )
-            .into()),
+            obj => Err(format!("{} is not a valid address to forward an email to.", obj).into()),
         }
     }
 

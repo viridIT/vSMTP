@@ -22,7 +22,7 @@
                     }
                 },
                 "Query" => {
-                    vsl::send(db[ctx.auth.authid])
+                    vsl::info(db[ctx.auth.authid])
                 }
             }
         }

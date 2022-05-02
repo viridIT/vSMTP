@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -13,21 +13,50 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
+
+use std::fmt::Display;
 
 /// A packet send from the application (.vsl) to the server (vsmtp)
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub enum SendPacket {
+pub enum InfoPacket {
     /// a string
     Str(String),
-    // ... SMTPReplyCode ...
+    /// a custom code.
+    Code {
+        /// the base code (550, 250 ...)
+        base: i64,
+        /// the enhanced code {5.7.1 ...}
+        enhanced: String,
+        /// a message to send.
+        text: String,
+    },
+}
+
+impl Display for InfoPacket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                InfoPacket::Str(string) => string.clone(),
+                InfoPacket::Code {
+                    base,
+                    enhanced,
+                    text,
+                } => {
+                    format!("{base} {enhanced} {text}")
+                }
+            }
+        )
+    }
 }
 
 /// Status of the mail context treated by the rule engine
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum Status {
-    /// data has being send from the rule engine to the server
-    Send(SendPacket),
+    /// informational data needs to be sent to the client.
+    Info(InfoPacket),
 
     /// accepts the current stage value, skips all rules in the stage.
     Accept,
@@ -36,7 +65,7 @@ pub enum Status {
     Next,
 
     /// immediately stops the transaction and send an error code.
-    Deny,
+    Deny(Option<InfoPacket>),
 
     /// ignore all future rules for the current transaction.
     Faccept,
@@ -50,10 +79,48 @@ impl std::fmt::Display for Status {
             match self {
                 Status::Accept => "accept",
                 Status::Next => "next",
-                Status::Deny => "deny",
+                Status::Deny(_) => "deny",
                 Status::Faccept => "faccept",
-                Status::Send(_) => "send",
+                Status::Info(_) => "info",
             }
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::status::Status;
+
+    use super::InfoPacket;
+
+    #[test]
+    fn display_status() {
+        println!(
+            "{}, {}, {}, {}, {}",
+            Status::Accept,
+            Status::Next,
+            Status::Deny(None),
+            Status::Faccept,
+            Status::Info(InfoPacket::Str(String::default()))
+        );
+    }
+
+    #[test]
+    fn to_string() {
+        assert_eq!(
+            InfoPacket::Str("packet".to_string()).to_string().as_str(),
+            "packet"
+        );
+
+        assert_eq!(
+            InfoPacket::Code {
+                base: 250,
+                enhanced: "2.0.0".to_string(),
+                text: "custom message".to_string()
+            }
+            .to_string()
+            .as_str(),
+            "250 2.0.0 custom message"
+        );
     }
 }

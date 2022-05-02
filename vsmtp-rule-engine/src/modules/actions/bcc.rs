@@ -67,7 +67,7 @@ pub mod bcc {
                 other => {
                     return Err(format!(
                         "'{}' could not be converted to a valid rcpt address",
-                        other.to_string()
+                        other
                     )
                     .into())
                 }

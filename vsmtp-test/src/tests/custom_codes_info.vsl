@@ -1,0 +1,47 @@
+/// an example with a code object accepting string interpolation.
+fn retry_helo(helo) {
+    object retry_helo code = `250 cannot identify with '${helo}'.` + "\r\n";
+}
+
+// using a code object to send an informative message.
+object foo_invalid code = #{
+    base: 250,
+    enhanced: "2.0.0",
+    text: "foo is not accepted as a helo value.\r\n",
+};
+
+// using a string to send a code.
+object bar_invalid string = "250 I do not accept this email, sorry\r\n";
+
+#{
+    helo: [
+        rule "helo must be foo.bar" || {
+            if ctx.helo == "foo" {
+                vsl::info(foo_invalid);
+            } else if ctx.helo == "bar" {
+                vsl::info(bar_invalid);
+            } else if ctx.helo == "example.com" {
+                vsl::next()
+            } else {
+                vsl::info(retry_helo(ctx.helo));
+            }
+        },
+
+        rule "helo trailing" || vsl::accept(),
+    ],
+
+    mail: [
+        rule "retry mail" || {
+            if ctx.mail_from.domain == "satan.org" {
+                vsl::info("250 satan.org is not valid, please try again.\r\n");
+            } else {
+                vsl::accept()
+            }
+        }
+    ],
+
+    preq: [
+        rule "cannot send data" || vsl::info("500 I decided that you cannot send data.\r\n")
+    ],
+
+}

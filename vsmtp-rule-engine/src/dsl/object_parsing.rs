@@ -16,7 +16,7 @@ pub fn parse_object(
         3 => match symbols[2].as_str() {
             // regular type, next is the '=' token or ':' token in case of the file type.
             "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex"
-            | "group" | "file" => Ok(Some("$symbol$".into())),
+            | "group" | "file" | "code" => Ok(Some("$symbol$".into())),
             entry => Err(rhai::ParseError(
                 Box::new(rhai::ParseErrorType::BadInput(
                     rhai::LexError::ImproperSymbol(
@@ -43,7 +43,7 @@ pub fn parse_object(
             )),
         },
         5 => match symbols[4].as_str() {
-            // NOTE: could it be possible to add a "file" content type ?
+            // NOTE: could it be possible to add a "file" | "code" | "group" content type ?
             // content types handled by the file type. next is the '=' token.
             "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex" => {
                 Ok(Some("=".into()))
@@ -80,6 +80,7 @@ pub fn create_object(
 
     let object = match object_type.as_str() {
         "file" => create_file(context, input, &object_name),
+        "code" => create_code(context, input, &object_name),
         _ => create_other(context, input, &object_type, &object_name),
     }?;
 
@@ -130,6 +131,44 @@ fn create_file(
     } else {
         return Err(rhai::EvalAltResult::ErrorMismatchDataType(
             "Map | String".to_string(),
+            object.type_name().to_string(),
+            rhai::Position::NONE,
+        )
+        .into());
+    }
+}
+
+/// create a code object.
+fn create_code(
+    context: &mut rhai::EvalContext,
+    input: &[rhai::Expression],
+    object_name: &str,
+) -> EngineResult<rhai::Map> {
+    let object = context.eval_expression_tree(&input[3])?;
+
+    if object.is::<String>() {
+        let mut map = rhai::Map::new();
+        map.insert("type".into(), rhai::Dynamic::from("code"));
+        map.insert("name".into(), rhai::Dynamic::from(object_name.to_string()));
+        map.insert("value".into(), object);
+        Ok(map)
+    } else if object.is::<rhai::Map>() {
+        let mut object: rhai::Map = object.try_cast().ok_or(RuleEngineError::Object)?;
+
+        for key in ["base", "enhanced", "text"] {
+            if !object.contains_key(key) {
+                return Err(
+                    format!("code object {object_name} is missing the '{key}' key.").into(),
+                );
+            }
+        }
+
+        object.insert("type".into(), rhai::Dynamic::from("code".to_string()));
+        object.insert("name".into(), rhai::Dynamic::from(object_name.to_string()));
+        Ok(object)
+    } else {
+        return Err(rhai::EvalAltResult::ErrorMismatchDataType(
+            "Map".to_string(),
             object.type_name().to_string(),
             rhai::Position::NONE,
         )

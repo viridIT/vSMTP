@@ -34,7 +34,10 @@ fn test_connect_rules() {
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
 
     state.get_context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Deny);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Deny(None)
+    );
 }
 
 #[test]

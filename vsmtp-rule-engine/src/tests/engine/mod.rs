@@ -31,8 +31,14 @@ fn test_engine_errors() {
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::MailFrom), Status::Deny);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Deny);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::MailFrom),
+        Status::Deny(None)
+    );
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::RcptTo),
+        Status::Deny(None)
+    );
 }
 
 #[test]

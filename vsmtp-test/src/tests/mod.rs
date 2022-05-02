@@ -16,6 +16,7 @@
 **/
 mod auth;
 mod clair;
+mod custom_codes;
 mod rset;
 mod tls;
 mod utf8;

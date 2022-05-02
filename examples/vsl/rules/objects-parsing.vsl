@@ -54,3 +54,18 @@ object deep_group group = [
   object foo_emails regex = "^[a-z0-9.]+@foo.com$",
   authorized_users,
 ];
+
+/// you can define custom code that you can use with `vsl::info` & `vsl::deny`.
+object custom_code code = "220 this is a custom code.";
+
+/// the complete code declaration enable automatic message folding.
+object complete_code code = #{
+  base: 220,
+  enhanced: "2.0.0",
+  text: "this is a long message, a very very long message ... carriage return will be properly added automaticaly.",
+};
+
+/// FIXME: add real example.
+/// this will produce the following:
+/// 220 2.0.0-this is a long message, a very very long message ...
+/// 220 2.0.0 carriage return will be properly added automaticaly.

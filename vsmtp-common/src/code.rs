@@ -41,10 +41,9 @@
     Debug,
     Ord,
     PartialOrd,
-    Eq,
     PartialEq,
+    Eq,
     Hash,
-    Copy,
     Clone,
     serde::Serialize,
     serde::Deserialize,
@@ -148,12 +147,14 @@ pub enum SMTPReplyCode {
     AuthClientCanceled,
     /// 530 5.7.0 Authentication required
     AuthRequired,
+    /// A custom reply code defined using vsl.
+    Custom(String),
 }
 
 impl SMTPReplyCode {
     /// Is the code considered as an error
     #[must_use]
-    pub const fn is_error(self) -> bool {
+    pub const fn is_error(&self) -> bool {
         match self {
             Self::Help
             | Self::Greetings
@@ -162,7 +163,8 @@ impl SMTPReplyCode {
             | Self::Code250PlainEsmtp
             | Self::Code250SecuredEsmtp
             | Self::Code354
-            | Self::AuthSucceeded => false,
+            | Self::AuthSucceeded
+            | Self::Custom(..) => false,
             Self::Code451Timeout
             | Self::Code451
             | Self::Code452
@@ -224,6 +226,7 @@ impl std::fmt::Display for SMTPReplyCode {
             Self::AuthClientCanceled => "AuthClientCanceled",
             Self::AuthRequired => "AuthRequired",
             Self::TlsAlreadyUnderTls => "TlsAlreadyUnderTls",
+            Self::Custom(_) => "Custom",
         })
     }
 }
@@ -270,6 +273,7 @@ impl std::str::FromStr for SMTPReplyCode {
             "AuthClientCanceled" => Ok(Self::AuthClientCanceled),
             "AuthRequired" => Ok(Self::AuthRequired),
             "TlsAlreadyUnderTls" => Ok(Self::TlsAlreadyUnderTls),
+            "Custom" => Ok(Self::Custom(String::default())),
             _ => Err(anyhow::anyhow!("not a valid SMTPReplyCode: '{}'", s)),
         }
     }
@@ -302,7 +306,7 @@ mod tests {
         for s in <SMTPReplyCode as strum::IntoEnumIterator>::iter() {
             println!("{:?} error={}", s, s.is_error());
             assert_eq!(SMTPReplyCode::from_str(&format!("{}", s)).unwrap(), s);
-            assert_eq!(String::try_from(s).unwrap(), format!("{}", s));
+            assert_eq!(String::try_from(s.clone()).unwrap(), format!("{}", s));
         }
     }
 }

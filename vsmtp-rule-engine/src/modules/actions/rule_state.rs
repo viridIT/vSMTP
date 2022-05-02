@@ -9,37 +9,69 @@ pub mod rule_state {
         modules::actions::create_app_folder,
         modules::actions::transports::transports::disable_delivery_all,
         modules::actions::MailContext, modules::mail_context::mail_context::message_id,
-        modules::EngineResult, server_api::ServerAPI,
+        modules::EngineResult, obj::Object, server_api::ServerAPI,
     };
-    use vsmtp_common::status::Status;
+    use vsmtp_common::status::{InfoPacket, Status};
 
-    /// the transaction if forced accepted, skipping rules of next stages and going the pre-queue
+    /// the transaction is forced accepted, skipping all rules and going strait for delivery.
     #[must_use]
     pub const fn faccept() -> Status {
         Status::Faccept
     }
 
-    /// the transaction if accepted, skipping rules to the next stage
+    /// the transaction is accepted. skipping rules to the next stage.
     #[must_use]
     pub const fn accept() -> Status {
         Status::Accept
     }
 
-    /// the transaction continue to execute rule for that stage
+    /// the transaction continue to execute rule for the current stage.
     #[must_use]
     pub const fn next() -> Status {
         Status::Next
     }
 
-    /// the transaction is denied, reply error to clients
-    #[must_use]
-    pub const fn deny() -> Status {
-        Status::Deny
+    /// the transaction is denied, reply error to clients. (includes a custom code from a string)
+    #[rhai_fn(global, name = "deny")]
+    pub fn deny_with_string(message: &str) -> Status {
+        Status::Deny(Some(InfoPacket::Str(message.to_string())))
     }
 
+    /// the transaction is denied, reply error to clients. (includes a custom code)
+    #[rhai_fn(global, name = "deny", return_raw)]
+    pub fn deny_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
+        match &**code {
+            Object::Str(message) => Ok(Status::Deny(Some(InfoPacket::Str(message.clone())))),
+            Object::Code(code) => Ok(Status::Deny(Some(code.clone()))),
+            object => {
+                Err(format!("deny parameter should be a code, not {}", object.as_str()).into())
+            }
+        }
+    }
+
+    /// the transaction is denied, reply error to clients.
     #[must_use]
-    pub fn send(message: &str) -> Status {
-        Status::Send(vsmtp_common::status::SendPacket::Str(message.to_string()))
+    #[rhai_fn(global)]
+    pub const fn deny() -> Status {
+        Status::Deny(None)
+    }
+
+    /// send a single informative code to the client. (using a code object)
+    #[rhai_fn(global, name = "info", return_raw)]
+    pub fn info_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
+        match &**code {
+            Object::Str(message) => Ok(Status::Info(InfoPacket::Str(message.to_string()))),
+            Object::Code(code) => Ok(Status::Info(code.clone())),
+            object => {
+                Err(format!("deny parameter should be a code, not {}", object.as_str()).into())
+            }
+        }
+    }
+
+    /// send a single informative code to the client. (using a simple string)
+    #[rhai_fn(global)]
+    pub fn info(message: &str) -> Status {
+        Status::Info(InfoPacket::Str(message.to_string()))
     }
 
     /// dump the current email into a quarantine queue, skipping delivery.
@@ -86,7 +118,7 @@ pub mod rule_state {
                     format!("failed to quarantine email: {err:?}").into()
                 })?;
 
-                Ok(Status::Deny)
+                Ok(Status::Deny(None))
             }
             Err(err) => Err(format!("failed to quarantine email: {err:?}").into()),
         }

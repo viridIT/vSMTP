@@ -154,6 +154,7 @@ impl Event {
             Some(smtp_verb) => smtp_verb,
             None => return Err(SMTPReplyCode::Code500),
         };
+
         match (
             smtp_verb.to_ascii_uppercase().as_str(),
             smtp_args.as_slice(),
