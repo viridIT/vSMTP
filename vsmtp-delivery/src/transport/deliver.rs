@@ -14,9 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::transport::log_channels;
 use super::{get_mx_records, Transport};
-
+use crate::transport::log_channels;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{

@@ -14,9 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::transport::log_channels;
 use super::Transport;
-
+use crate::transport::log_channels;
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},

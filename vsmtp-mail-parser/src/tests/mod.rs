@@ -14,8 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::MailParser;
 use crate::parser::MailMimeParser;
+use vsmtp_common::MailParser;
 
 mod mime_parser {
 

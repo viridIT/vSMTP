@@ -14,8 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use anyhow::Context;
 use crate::{envelop::Envelop, mail::Mail, status::Status, MailParser};
+use anyhow::Context;
 
 /// average size of a mail
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
