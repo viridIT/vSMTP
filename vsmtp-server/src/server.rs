@@ -130,41 +130,19 @@ impl Server {
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
         loop {
-            println!("listening");
             let (mut stream, client_addr, kind) = tokio::select! {
-                res = self.listener.accept() => {
-                    match res {
-                        Ok((stream, client_addr)) => (stream, client_addr, ConnectionKind::Opportunistic),
-                        Err(e) => panic!("{e:?}")
-                    }
-                }
-                res = self.listener_submission.accept() => {
-                    match res {
-                        Ok((stream, client_addr)) => (stream, client_addr, ConnectionKind::Submission),
-                        Err(e) => panic!("{e:?}")
-                    }
-                }
-                res = self.listener_submissions.accept() => {
-                    match res {
-                        Ok((stream, client_addr)) => (stream, client_addr, ConnectionKind::Tunneled),
-                        Err(e) => panic!("{e:?}")
-                    }
-                }
-
-                // Ok((stream, client_addr)) = listen1 => {
-                //     (stream, client_addr, ConnectionKind::Opportunistic)
-                // }
-                // Ok((stream, client_addr)) = listen2 => {
-                //     (stream, client_addr, ConnectionKind::Submission)
-                // }
-                // Ok((stream, client_addr)) = listen3 => {
-                //     (stream, client_addr, ConnectionKind::Tunneled)
-                // }
-                // else => panic!("listen panic"),
+                 Ok((stream, client_addr)) = self.listener.accept() => {
+                     (stream, client_addr, ConnectionKind::Opportunistic)
+                 }
+                 Ok((stream, client_addr)) = self.listener_submission.accept() => {
+                     (stream, client_addr, ConnectionKind::Submission)
+                 }
+                 Ok((stream, client_addr)) = self.listener_submissions.accept() => {
+                     (stream, client_addr, ConnectionKind::Tunneled)
+                 }
             };
-            println!("end listen");
-
             stream.set_nodelay(true)?;
+
             log::warn!("Connection from: {:?}, {}", kind, client_addr);
 
             if self.config.server.client_count_max != -1

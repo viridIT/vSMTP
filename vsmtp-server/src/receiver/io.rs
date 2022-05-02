@@ -94,9 +94,9 @@ impl<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin> std::future
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        fn to_output(s: Vec<u8>) -> std::io::Result<Option<String>> {
+        fn to_output(s: Vec<u8>, last: bool) -> std::io::Result<Option<String>> {
             if s.is_empty() {
-                Ok(None)
+                Ok(if last { None } else { Some(String::default()) })
             } else {
                 Ok(Some(String::from_utf8(s).map_err(|e| {
                     std::io::Error::new(std::io::ErrorKind::InvalidData, e)
@@ -108,7 +108,7 @@ impl<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin> std::future
         loop {
             let available = ready!(tokio::io::AsyncBufRead::poll_fill_buf(self.as_mut(), cx))?;
             if available.is_empty() {
-                return std::task::Poll::Ready(to_output(output));
+                return std::task::Poll::Ready(to_output(output, true));
             }
 
             if let Some(i) = available
@@ -118,7 +118,7 @@ impl<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin> std::future
                 let slice = &available[..i];
                 output.extend_from_slice(slice);
                 tokio::io::AsyncBufReadExt::consume(&mut self.as_mut(), i + NEEDLE.len());
-                return std::task::Poll::Ready(to_output(output));
+                return std::task::Poll::Ready(to_output(output, false));
             }
             let len = available.len();
             output.extend_from_slice(available);
@@ -149,8 +149,35 @@ mod tests {
         }
 
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&input).unwrap(),
-            &[has_been_read.join("\r\n"), "\r\n".to_string()].concat()
+            ["a", "b", "c", "d", "e", "f"]
+                .into_iter()
+                .map(str::to_string)
+                .collect::<Vec<_>>(),
+            has_been_read
+        );
+    }
+
+    #[tokio::test]
+    async fn read_empty_line() {
+        let input = ["a\r\n", "\r\n", "c\r\n", "d\r\n", "\r\n", "f\r\n"]
+            .concat()
+            .as_bytes()
+            .to_vec();
+        let mut written = Vec::new();
+        let mut io = AbstractIO::new(Mock::new(input.clone(), &mut written));
+
+        let mut has_been_read = vec![];
+
+        while let Ok(Some(line)) = io.next_line(None).await {
+            has_been_read.push(line);
+        }
+
+        pretty_assertions::assert_eq!(
+            ["a", "", "c", "d", "", "f"]
+                .into_iter()
+                .map(str::to_string)
+                .collect::<Vec<_>>(),
+            has_been_read
         );
     }
 
@@ -169,8 +196,12 @@ mod tests {
             has_been_read.push(line);
         }
         pretty_assertions::assert_eq!(
-            std::str::from_utf8(&input).unwrap(),
-            &has_been_read.join("\r\n"),
+            ["a\r\n", "b\r\n", "c\r\n", "d\r\n", "e\r\n", "f"]
+                .into_iter()
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+                .join(""),
+            has_been_read.join("\r\n"),
         );
     }
 

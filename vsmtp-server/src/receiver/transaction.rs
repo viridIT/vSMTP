@@ -474,6 +474,7 @@ impl Transaction<'_> {
                 }
                 _ => match conn.read(read_timeout).await {
                     Ok(Some(client_message)) => {
+                        println!("{client_message}");
                         match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
                             ProcessedEvent::Nothing => {}
                             ProcessedEvent::Reply(reply_to_send) => {
