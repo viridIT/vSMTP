@@ -74,7 +74,7 @@ impl<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin> tokio::io::
         if self.as_mut().buf.is_empty() {
             let mut raw = vec![0; BUFFER_SIZE];
             let mut buf = tokio::io::ReadBuf::new(&mut raw);
-            ready!(tokio::io::AsyncRead::poll_read(self.as_mut(), cx, &mut buf,))?;
+            ready!(tokio::io::AsyncRead::poll_read(self.as_mut(), cx, &mut buf))?;
             self.as_mut().buf = buf.filled().to_vec();
         }
         std::task::Poll::Ready(Ok(&self.get_mut().buf))
@@ -94,11 +94,21 @@ impl<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin> std::future
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
+        fn to_output(s: Vec<u8>) -> std::io::Result<Option<String>> {
+            if s.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(String::from_utf8(s).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, e)
+                })?))
+            }
+        }
+
         let mut output = vec![];
         loop {
             let available = ready!(tokio::io::AsyncBufRead::poll_fill_buf(self.as_mut(), cx))?;
             if available.is_empty() {
-                return std::task::Poll::Ready(Ok(None));
+                return std::task::Poll::Ready(to_output(output));
             }
 
             if let Some(i) = available
@@ -108,11 +118,7 @@ impl<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin> std::future
                 let slice = &available[..i];
                 output.extend_from_slice(slice);
                 tokio::io::AsyncBufReadExt::consume(&mut self.as_mut(), i + NEEDLE.len());
-
-                return std::task::Poll::Ready(Ok(Some(
-                    String::from_utf8(output)
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?,
-                )));
+                return std::task::Poll::Ready(to_output(output));
             }
             let len = available.len();
             output.extend_from_slice(available);
@@ -139,20 +145,46 @@ mod tests {
         let mut has_been_read = vec![];
 
         while let Ok(Some(line)) = io.next_line(None).await {
-            println!("read:'{}'", line);
             has_been_read.push(line);
         }
 
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&input).unwrap(),
-            &has_been_read
-                .into_iter()
-                .map(|mut i| {
-                    i.push_str("\r\n");
-                    i
-                })
-                .collect::<Vec<_>>()
-                .concat()
+            &[has_been_read.join("\r\n"), "\r\n".to_string()].concat()
+        );
+    }
+
+    #[tokio::test]
+    async fn read_no_final_crlf() {
+        let input = ["a\r\n", "b\r\n", "c\r\n", "d\r\n", "e\r\n", "f"]
+            .concat()
+            .as_bytes()
+            .to_vec();
+        let mut written = Vec::new();
+        let mut io = AbstractIO::new(Mock::new(input.clone(), &mut written));
+
+        let mut has_been_read = vec![];
+
+        while let Ok(Some(line)) = io.next_line(None).await {
+            has_been_read.push(line);
+        }
+        pretty_assertions::assert_eq!(
+            std::str::from_utf8(&input).unwrap(),
+            &has_been_read.join("\r\n"),
+        );
+    }
+
+    #[tokio::test]
+    async fn read_non_utf8() {
+        let input = b"\xc3\x28".to_vec();
+        std::str::from_utf8(&input).unwrap_err();
+
+        let mut written = Vec::new();
+        let mut io = AbstractIO::new(Mock::new(input.clone(), &mut written));
+
+        assert_eq!(
+            io.next_line(None).await.unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
         );
     }
 }

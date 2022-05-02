@@ -93,8 +93,7 @@ macro_rules! test_lang {
                 "date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
                 "\r\n",
                 &include_str!($lang_code).lines().map(str::to_string).collect::<Vec<_>>().join("\r\n"),
-                // adding a "\r\n" after the mail because [`join`] don t add after the final element
-                "\r\n.\r\n",
+                ".\r\n",
                 "QUIT\r\n",
             ]
             .concat(),

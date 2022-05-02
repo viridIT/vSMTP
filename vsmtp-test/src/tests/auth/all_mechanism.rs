@@ -10,6 +10,7 @@ use vsmtp_server::re::tokio;
 use vsmtp_server::Server;
 use vsmtp_server::{auth, ConnectionKind, ProcessMessage};
 
+#[allow(clippy::too_many_lines)]
 async fn test_auth(
     server_config: std::sync::Arc<Config>,
     expected_response: &'static [&str],
