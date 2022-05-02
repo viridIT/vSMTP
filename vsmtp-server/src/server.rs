@@ -131,15 +131,15 @@ impl Server {
 
         loop {
             let (mut stream, client_addr, kind) = tokio::select! {
-                 Ok((stream, client_addr)) = self.listener.accept() => {
-                     (stream, client_addr, ConnectionKind::Opportunistic)
-                 }
-                 Ok((stream, client_addr)) = self.listener_submission.accept() => {
-                     (stream, client_addr, ConnectionKind::Submission)
-                 }
-                 Ok((stream, client_addr)) = self.listener_submissions.accept() => {
-                     (stream, client_addr, ConnectionKind::Tunneled)
-                 }
+                Ok((stream, client_addr)) = self.listener.accept() => {
+                    (stream, client_addr, ConnectionKind::Opportunistic)
+                }
+                Ok((stream, client_addr)) = self.listener_submission.accept() => {
+                    (stream, client_addr, ConnectionKind::Submission)
+                }
+                Ok((stream, client_addr)) = self.listener_submissions.accept() => {
+                    (stream, client_addr, ConnectionKind::Tunneled)
+                }
             };
             stream.set_nodelay(true)?;
 
