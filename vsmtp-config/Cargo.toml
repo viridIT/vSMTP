@@ -41,7 +41,7 @@ trust-dns-resolver = { version = "0.21.2", default-features = false, features = 
     "tokio-runtime",
 ] }
 
-semver = "1.0.7"
+semver = "1.0.9"
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
