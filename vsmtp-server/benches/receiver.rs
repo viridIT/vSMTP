@@ -17,7 +17,7 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp_common::{address::Address, mail_context::MailContext, re::anyhow};
+use vsmtp_common::{addr, mail_context::MailContext, re::anyhow};
 use vsmtp_config::Config;
 use vsmtp_server::{Connection, OnMail};
 
@@ -98,10 +98,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             ) -> anyhow::Result<()> {
                 assert_eq!(mail.envelop.helo, "foobar");
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe");
-                assert_eq!(
-                    mail.envelop.rcpt,
-                    vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
-                );
+                assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
 
                 if matches!(mail.body, vsmtp_common::mail_context::Body::Empty) {
                     panic!("the email is not empty");

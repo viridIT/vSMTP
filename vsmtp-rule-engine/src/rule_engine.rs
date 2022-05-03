@@ -378,7 +378,7 @@ impl RuleEngine {
             .register_custom_syntax_raw("action", parse_action, true, create_action)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
             // NOTE: is their a way to defined iterators directly in modules ?
-            .register_iterator::<Vec<vsmtp_common::address::Address>>()
+            .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
         Ok(engine)

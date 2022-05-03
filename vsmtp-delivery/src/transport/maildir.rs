@@ -38,7 +38,7 @@ impl Transport for Maildir {
         &mut self,
         config: &Config,
         metadata: &MessageMetadata,
-        _: &vsmtp_common::address::Address,
+        _: &vsmtp_common::Address,
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {

@@ -15,8 +15,8 @@
  *
 */
 use crate::{
-    address::Address,
     transfer::{EmailTransferStatus, Transfer},
+    Address,
 };
 
 /// representation of a recipient with it's delivery method.
@@ -112,44 +112,18 @@ pub fn filter_by_domain_mut(
 
 #[cfg(test)]
 mod test {
-
-    use crate::address::Address;
-    use crate::transfer::Transfer;
-
-    use super::{filter_by_transfer_method, Rcpt};
+    use super::*;
 
     fn get_test_rcpt() -> Vec<Rcpt> {
         vec![
-            Rcpt::with_transfer_method(
-                Address::try_from("green@foo.com".to_string()).unwrap(),
-                Transfer::None,
-            ),
-            Address::try_from("john@doe.com".to_string())
-                .unwrap()
-                .into(),
-            Address::try_from("green@foo.com".to_string())
-                .unwrap()
-                .into(),
-            Rcpt::with_transfer_method(
-                Address::try_from("green@bar.com".to_string()).unwrap(),
-                Transfer::None,
-            ),
-            Rcpt::with_transfer_method(
-                Address::try_from("john@localhost".to_string()).unwrap(),
-                Transfer::Mbox,
-            ),
-            Rcpt::with_transfer_method(
-                Address::try_from("green@localhost".to_string()).unwrap(),
-                Transfer::Mbox,
-            ),
-            Rcpt::with_transfer_method(
-                Address::try_from("satan@localhost".to_string()).unwrap(),
-                Transfer::Mbox,
-            ),
-            Rcpt::with_transfer_method(
-                Address::try_from("user@localhost".to_string()).unwrap(),
-                Transfer::Maildir,
-            ),
+            Rcpt::with_transfer_method(addr!("green@foo.com"), Transfer::None),
+            addr!("john@doe.com").into(),
+            addr!("green@foo.com").into(),
+            Rcpt::with_transfer_method(addr!("green@bar.com"), Transfer::None),
+            Rcpt::with_transfer_method(addr!("john@localhost"), Transfer::Mbox),
+            Rcpt::with_transfer_method(addr!("green@localhost"), Transfer::Mbox),
+            Rcpt::with_transfer_method(addr!("satan@localhost"), Transfer::Mbox),
+            Rcpt::with_transfer_method(addr!("user@localhost"), Transfer::Maildir),
         ]
     }
 

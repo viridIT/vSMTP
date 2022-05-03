@@ -44,7 +44,7 @@ impl Transport for MBox {
         &mut self,
         config: &Config,
         metadata: &MessageMetadata,
-        from: &vsmtp_common::address::Address,
+        from: &vsmtp_common::Address,
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
@@ -104,7 +104,7 @@ fn get_mbox_timestamp_format(metadata: &MessageMetadata) -> String {
 }
 
 fn build_mbox_message(
-    from: &vsmtp_common::address::Address,
+    from: &vsmtp_common::Address,
     timestamp: &str,
     content: &str,
 ) -> std::string::String {
@@ -144,7 +144,7 @@ fn write_content_to_mbox(
 #[cfg(test)]
 mod test {
 
-    use vsmtp_common::address::Address;
+    use vsmtp_common::addr;
 
     use super::*;
 
@@ -162,7 +162,7 @@ mod test {
 
     #[test]
     fn test_mbox_message_format() {
-        let from = Address::try_from("john@doe.com".to_string()).unwrap();
+        let from = addr!("john@doe.com");
         let content = r#"from: john doe <john@doe.com>
 to: green@foo.net
 subject: test email

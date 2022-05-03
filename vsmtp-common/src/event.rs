@@ -15,7 +15,7 @@
  *
 */
 use super::code::SMTPReplyCode;
-use crate::{address::Address, mechanism::Mechanism};
+use crate::{mechanism::Mechanism, Address};
 
 /// See "SMTP Service Extension for 8-bit MIME Transport"
 /// https://datatracker.ietf.org/doc/html/rfc6152

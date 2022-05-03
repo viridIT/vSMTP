@@ -45,7 +45,7 @@ pub fn queue_show<OUT: std::io::Write>(
 #[cfg(test)]
 mod tests {
     use vsmtp_common::{
-        address::Address,
+        addr,
         envelop::Envelop,
         mail::{BodyType, Mail},
         mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
@@ -149,9 +149,9 @@ mod tests {
             client_addr: "0.0.0.0:25".parse().unwrap(),
             envelop: Envelop {
                 helo: "toto".to_string(),
-                mail_from: Address::try_from("foo@domain.com".to_string()).unwrap(),
+                mail_from: addr!("foo@domain.com"),
                 rcpt: vec![Rcpt {
-                    address: Address::try_from("foo+1@domain.com".to_string()).unwrap(),
+                    address: addr!("foo+1@domain.com"),
                     transfer_method: Transfer::Mbox,
                     email_status: EmailTransferStatus::Waiting,
                 }],

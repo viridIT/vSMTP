@@ -19,8 +19,8 @@ use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
     Position, RhaiResult, TypeId,
 };
-use vsmtp_common::address::Address;
 use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::Address;
 
 #[doc(hidden)]
 #[allow(dead_code)]
@@ -165,7 +165,7 @@ pub mod mail_context {
     #[rhai_fn(global, get = "rcpt", return_raw)]
     pub fn rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<Vec<vsmtp_common::address::Address>> {
+    ) -> EngineResult<Vec<Address>> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?

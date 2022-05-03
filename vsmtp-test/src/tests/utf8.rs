@@ -15,7 +15,7 @@
  *
 */
 use crate::test_receiver;
-use vsmtp_common::address::Address;
+use vsmtp_common::addr;
 use vsmtp_common::mail::{BodyType, Mail};
 use vsmtp_common::mail_context::Body;
 use vsmtp_common::mail_context::MailContext;
@@ -38,7 +38,7 @@ macro_rules! test_lang {
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(
                     mail.envelop.rcpt,
-                    vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
+                    vec![addr!("aa@bb").into()]
                 );
 
                 let body = mail

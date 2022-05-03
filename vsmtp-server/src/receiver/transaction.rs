@@ -17,7 +17,7 @@
 use super::connection::Connection;
 use crate::log_channels;
 use vsmtp_common::{
-    address::Address,
+    addr,
     auth::Mechanism,
     code::SMTPReplyCode,
     envelop::Envelop,
@@ -26,6 +26,7 @@ use vsmtp_common::{
     re::{anyhow, log},
     state::StateSMTP,
     status::{InfoPacket, Status},
+    Address,
 };
 use vsmtp_config::{Config, TlsSecurityLevel};
 use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
@@ -103,8 +104,7 @@ impl Transaction<'_> {
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
-                    ctx.envelop.mail_from =
-                        Address::try_from("default@domain.com".to_string()).expect("");
+                    ctx.envelop.mail_from = addr!("default@domain.com");
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
@@ -341,7 +341,7 @@ impl Transaction<'_> {
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
-            mail_from: Address::try_from("no@address.net".to_string()).unwrap(),
+            mail_from: addr!("no@address.net"),
             rcpt: vec![],
         };
     }

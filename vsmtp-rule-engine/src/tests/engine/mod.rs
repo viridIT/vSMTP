@@ -100,7 +100,7 @@ fn test_rule_state() {
             ),
             envelop: vsmtp_common::envelop::Envelop {
                 helo: "test".to_string(),
-                mail_from: vsmtp_common::address::Address::try_from("a@a.a".to_string()).unwrap(),
+                mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],
             },
             body: vsmtp_common::mail_context::Body::Empty,

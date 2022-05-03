@@ -18,9 +18,7 @@ use crate::{
     rule_engine::{RuleEngine, RuleState},
     tests::helpers::get_default_state,
 };
-use vsmtp_common::{
-    address::Address, collection, mail_context::Body, state::StateSMTP, status::Status,
-};
+use vsmtp_common::{addr, collection, mail_context::Body, state::StateSMTP, status::Status};
 use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS, Service};
 
 #[test]
@@ -70,8 +68,7 @@ fn test_address() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.get_context().write().unwrap().envelop.mail_from =
-        Address::try_from("mail.from@test.net".to_string()).expect("could not parse address");
+    state.get_context().write().unwrap().envelop.mail_from = addr!("mail.from@test.net");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }

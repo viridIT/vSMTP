@@ -16,7 +16,7 @@
 */
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::{
-    address::Address,
+    addr,
     mail::{BodyType, Mail},
     mail_context::{Body, MessageMetadata},
     state::StateSMTP,
@@ -40,12 +40,8 @@ fn test_email_context() {
         body: BodyType::Regular(vec![]),
     }));
     state.get_context().write().unwrap().envelop.rcpt = vec![
-        Address::try_from("rcpt@toremove.org".to_string())
-            .unwrap()
-            .into(),
-        Address::try_from("rcpt@torewrite.net".to_string())
-            .unwrap()
-            .into(),
+        addr!("rcpt@toremove.org").into(),
+        addr!("rcpt@torewrite.net").into(),
     ];
     state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);

@@ -414,16 +414,17 @@ fn test_hostname() {
 
 #[test]
 fn test_in_domain_and_server_name() {
-    // simple example, using the root domain by default.
     let (mut state, mut config) = get_default_state("./tmp/app");
     config.server.domain = "testserver.com".to_string();
 
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
-
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+}
 
-    // setting up an sni example.
+#[test]
+fn test_in_domain_and_server_name_sni() {
     let (mut state, mut config) = get_default_state("./tmp/app");
+    config.server.domain = "testserver.com".to_string();
     config.server.r#virtual = std::collections::BTreeMap::from_iter([
         ("example.com".to_string(), ConfigServerVirtual::new()),
         ("doe.com".to_string(), ConfigServerVirtual::new()),
@@ -431,6 +432,5 @@ fn test_in_domain_and_server_name() {
     ]);
 
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
-
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
 }

@@ -21,8 +21,8 @@ use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
 };
-use vsmtp_common::address::Address;
 use vsmtp_common::status::Status;
+use vsmtp_common::Address;
 
 #[allow(dead_code)]
 #[allow(clippy::needless_pass_by_value)]

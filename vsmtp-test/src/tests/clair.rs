@@ -16,7 +16,7 @@
 */
 use crate::{config, test_receiver};
 use vsmtp_common::{
-    address::Address,
+    addr,
     mail::{BodyType, Mail},
     mail_context::{Body, MailContext},
     re::anyhow,
@@ -42,10 +42,7 @@ async fn test_receiver_1() {
         ) -> anyhow::Result<()> {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(mail.envelop.mail_from.full(), "john@doe");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
             assert!(mail.metadata.is_some());
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
                 .await?;
@@ -293,9 +290,7 @@ async fn test_receiver_13() {
             );
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![Address::try_from(format!("aa{}@bb", self.count))
-                    .unwrap()
-                    .into()]
+                vec![addr!(format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
                 body,
@@ -388,9 +383,7 @@ async fn test_receiver_14() {
             );
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![Address::try_from(format!("aa{}@bb", self.count))
-                    .unwrap()
-                    .into()]
+                vec![addr!(format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
                 body,

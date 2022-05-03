@@ -45,7 +45,7 @@ impl<'r> Transport for Deliver<'r> {
         &mut self,
         config: &Config,
         metadata: &MessageMetadata,
-        from: &vsmtp_common::address::Address,
+        from: &vsmtp_common::Address,
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
@@ -132,7 +132,7 @@ async fn send_email(
     resolver: &TokioAsyncResolver,
     target: &str,
     envelop: &lettre::address::Envelope,
-    from: &vsmtp_common::address::Address,
+    from: &vsmtp_common::Address,
     content: &str,
 ) -> anyhow::Result<()> {
     lettre::AsyncTransport::send_raw(
@@ -150,7 +150,7 @@ async fn send_email(
 mod test {
 
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::address::Address;
+    use vsmtp_common::addr;
     use vsmtp_config::{Config, ConfigServerDNS};
 
     use crate::transport::deliver::{get_mx_records, send_email};
@@ -185,7 +185,7 @@ mod test {
                 vec!["b@b.b".parse().unwrap()]
             )
             .unwrap(),
-            &Address::try_from("a@a.a".to_string()).unwrap(),
+            &addr!("a@a.a"),
             "content"
         )
         .await

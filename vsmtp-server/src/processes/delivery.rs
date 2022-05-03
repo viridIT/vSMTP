@@ -112,7 +112,7 @@ async fn send_email(
     config: &Config,
     resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
     metadata: &vsmtp_common::mail_context::MessageMetadata,
-    from: &vsmtp_common::address::Address,
+    from: &vsmtp_common::Address,
     to: &[vsmtp_common::rcpt::Rcpt],
     body: &Body,
 ) -> anyhow::Result<Vec<vsmtp_common::rcpt::Rcpt>> {
@@ -318,7 +318,7 @@ mod test {
             ),
             envelop: vsmtp_common::envelop::Envelop {
                 helo: "localhost".to_string(),
-                mail_from: vsmtp_common::address::Address::try_from("a@a.a".to_string()).unwrap(),
+                mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],
             },
             metadata: Some(vsmtp_common::mail_context::MessageMetadata {

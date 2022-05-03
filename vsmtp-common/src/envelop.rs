@@ -14,8 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::address::Address;
 use crate::rcpt::Rcpt;
+use crate::Address;
 
 /// Data receive during a smtp transaction
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -33,7 +33,7 @@ impl Default for Envelop {
         Self {
             helo: String::default(),
             // FIXME:
-            mail_from: Address::try_from("default@domain.com".to_string()).expect("valid address"),
+            mail_from: addr!("default@domain.com"),
             rcpt: vec![],
         }
     }

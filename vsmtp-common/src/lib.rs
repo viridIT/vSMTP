@@ -27,9 +27,13 @@
  *
 */
 
-/// email address representation
 #[macro_use]
-pub mod address;
+mod r#type {
+    #[macro_use]
+    pub mod address;
+}
+
+pub use r#type::address::Address;
 
 /// smtp reply code to client's command
 pub mod code;

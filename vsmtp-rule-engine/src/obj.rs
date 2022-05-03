@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -18,9 +16,9 @@ use std::fmt::Display;
 */
 
 use vsmtp_common::{
-    address::Address,
     re::{addr, anyhow, log},
     status::InfoPacket,
+    Address,
 };
 
 /// Objects are rust's representation of rule engine variables.
@@ -247,7 +245,7 @@ impl Object {
     }
 }
 
-impl Display for Object {
+impl std::fmt::Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

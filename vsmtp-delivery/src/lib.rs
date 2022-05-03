@@ -32,7 +32,7 @@ pub mod transport {
     use anyhow::Context;
     use lettre::Tokio1Executor;
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::{address::Address, mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow};
+    use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow, Address};
     use vsmtp_config::Config;
 
     mod log_channels {
@@ -84,7 +84,7 @@ pub mod transport {
 
     /// build a [lettre] envelop using from address & recipients.
     pub(super) fn build_lettre_envelop(
-        from: &vsmtp_common::address::Address,
+        from: &vsmtp_common::Address,
         rcpt: &[Rcpt],
     ) -> anyhow::Result<lettre::address::Envelope> {
         Ok(lettre::address::Envelope::new(
@@ -106,7 +106,7 @@ pub mod transport {
         config: &Config,
         // will be used for tlsa record resolving.
         _: &TokioAsyncResolver,
-        from: &vsmtp_common::address::Address,
+        from: &vsmtp_common::Address,
         target: &str,
     ) -> anyhow::Result<lettre::AsyncSmtpTransport<Tokio1Executor>> {
         let tls_builder =
@@ -199,7 +199,7 @@ pub mod test {
 
     use super::transport::build_lettre_envelop;
     use vsmtp_common::{
-        address::Address,
+        addr,
         mail_context::ConnectionContext,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
@@ -209,9 +209,9 @@ pub mod test {
     fn test_build_lettre_envelop() {
         assert_eq!(
             build_lettre_envelop(
-                &Address::try_from("a@a.a".to_string()).unwrap(),
+                &addr!("a@a.a"),
                 &[Rcpt {
-                    address: Address::try_from("b@b.b".to_string()).unwrap(),
+                    address: addr!("b@b.b"),
                     transfer_method: Transfer::None,
                     email_status: EmailTransferStatus::Sent
                 }]

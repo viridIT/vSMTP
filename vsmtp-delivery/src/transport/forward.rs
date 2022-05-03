@@ -50,7 +50,7 @@ impl<'r> Transport for Forward<'r> {
         &mut self,
         config: &Config,
         metadata: &MessageMetadata,
-        from: &vsmtp_common::address::Address,
+        from: &vsmtp_common::Address,
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
@@ -103,7 +103,7 @@ impl<'r> Transport for Forward<'r> {
 async fn send_email(
     config: &Config,
     resolver: &TokioAsyncResolver,
-    from: &vsmtp_common::address::Address,
+    from: &vsmtp_common::Address,
     target: &str,
     envelop: &lettre::address::Envelope,
     content: &str,

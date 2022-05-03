@@ -19,7 +19,7 @@ use crate::{
     tests::auth::{safe_auth_config, unsafe_auth_config},
 };
 use vsmtp_common::{
-    address::Address,
+    addr,
     mail_context::MailContext,
     re::{anyhow, base64, rsasl},
 };
@@ -68,10 +68,7 @@ async fn plain_in_clair_unsecured() {
         ) -> anyhow::Result<()> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
                 .await?;
@@ -130,10 +127,7 @@ async fn plain_in_clair_unsecured_utf8() {
         ) -> anyhow::Result<()> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
                 .await?;
@@ -299,10 +293,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
         ) -> anyhow::Result<()> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
                 .await?;

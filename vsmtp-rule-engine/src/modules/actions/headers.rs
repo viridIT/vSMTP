@@ -22,7 +22,7 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod headers {
     use crate::{modules::actions::MailContext, modules::EngineResult};
-    use vsmtp_common::{address::Address, mail_context::Body};
+    use vsmtp_common::{mail_context::Body, Address};
 
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, return_raw, pure)]

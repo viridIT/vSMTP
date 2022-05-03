@@ -31,7 +31,7 @@ pub struct Address {
 #[macro_export]
 macro_rules! addr {
     ($e:expr) => {
-        $crate::address::Address::try_from($e.to_string()).unwrap()
+        $crate::Address::try_from($e.to_string()).unwrap()
     };
 }
 
