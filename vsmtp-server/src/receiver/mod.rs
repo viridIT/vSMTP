@@ -261,7 +261,6 @@ where
             .unwrap_or(&conn.server_name)
             .to_string(),
         conn.timestamp,
-        conn.is_alive,
         conn.config.clone(),
         conn.client_addr,
         conn.error_count,

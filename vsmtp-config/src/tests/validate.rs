@@ -31,12 +31,9 @@ fn get_mechanism_from_config(config: &Config, tls: bool) -> Vec<Mechanism> {
 
     let auth = plain_esmtp
         .split("\r\n")
-        .find(|s| s.starts_with("250-AUTH") || s.starts_with("250 AUTH"))
+        .find(|s| s.starts_with("AUTH"))
         .unwrap();
-    let mechanism = auth
-        .strip_prefix("250-AUTH")
-        .or_else(|| auth.strip_prefix("250 AUTH"))
-        .unwrap();
+    let mechanism = auth.strip_prefix("AUTH").unwrap();
 
     mechanism
         .split_whitespace()

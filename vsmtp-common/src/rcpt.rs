@@ -97,17 +97,15 @@ pub fn filter_by_transfer_method(rcpt: &[Rcpt]) -> std::collections::HashMap<Tra
 pub fn filter_by_domain_mut(
     rcpt: &mut [Rcpt],
 ) -> std::collections::HashMap<String, Vec<&mut Rcpt>> {
-    rcpt.iter_mut()
-        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-            #[allow(clippy::option_if_let_else)]
-            if let Some(domain) = acc.get_mut(rcpt.address.domain()) {
-                domain.push(rcpt);
-            } else {
-                acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
-            }
-
-            acc
-        })
+    let mut acc = std::collections::HashMap::<String, Vec<&mut Rcpt>>::new();
+    for rcpt in rcpt.iter_mut() {
+        if let Some(domain) = acc.get_mut(rcpt.address.domain()) {
+            domain.push(rcpt);
+        } else {
+            acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
+        }
+    }
+    acc
 }
 
 #[cfg(test)]

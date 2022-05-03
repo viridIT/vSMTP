@@ -494,7 +494,7 @@ async fn test_receiver_9() {
             "501 Syntax error in parameters or arguments\r\n",
             "214 joining us https://viridit.com/support\r\n",
             "501 Syntax error in parameters or arguments\r\n",
-            "501-Syntax error in parameters or arguments\r\n",
+            "451-Syntax error in parameters or arguments\r\n",
             "451 Too many errors from the client\r\n"
         ]
         .concat()

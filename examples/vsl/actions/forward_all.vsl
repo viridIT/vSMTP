@@ -32,7 +32,7 @@ object forward_fqdn fqdn = "test.eu";
         action "forward all (ip4 string)" || vsl::forward_all(ctx, "::1"),
     ],
 
-    Data: [
+    data: [
         action "forward all (string object)" || vsl::forward_all(ctx, forward_str),
     ],
 

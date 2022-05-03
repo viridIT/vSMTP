@@ -129,7 +129,7 @@ impl Builder<WantsValidate> {
 
 fn mech_list_to_code(list: &[Mechanism]) -> String {
     format!(
-        "250-AUTH {}\r\n",
+        "AUTH {}\r\n",
         list.iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>()
@@ -200,9 +200,9 @@ impl Config {
                         }
                     })
                     .unwrap_or_default(),
-                "250-STARTTLS\r\n",
-                "250-8BITMIME\r\n",
-                "250 SMTPUTF8\r\n",
+                "STARTTLS\r\n",
+                "8BITMIME\r\n",
+                "SMTPUTF8\r\n",
             ]
             .concat(),
         );
@@ -215,8 +215,8 @@ impl Config {
                     .as_ref()
                     .map(|(must_be_secured, _)| mech_list_to_code(must_be_secured))
                     .unwrap_or_default(),
-                "250-8BITMIME\r\n",
-                "250 SMTPUTF8\r\n",
+                "8BITMIME\r\n",
+                "SMTPUTF8\r\n",
             ]
             .concat(),
         );

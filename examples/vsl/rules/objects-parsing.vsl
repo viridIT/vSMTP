@@ -68,4 +68,4 @@ object complete_code code = #{
 /// FIXME: add real example.
 /// this will produce the following:
 /// 220 2.0.0-this is a long message, a very very long message ...
-/// 220 2.0.0 carriage return will be properly added automaticaly.
+/// 220 2.0.0 carriage return will be properly added automatically.
