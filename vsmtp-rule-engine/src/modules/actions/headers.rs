@@ -23,7 +23,7 @@ pub mod headers {
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn get_header(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         header: &str,

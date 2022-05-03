@@ -7,6 +7,7 @@ fn faccept() { sys::faccept() }
 fn accept() { sys::accept() }
 fn next() { sys::next() }
 fn deny() { sys::deny() }
+fn deny(code) { sys::deny(code) }
 fn info(code) { sys::info(code) }
 fn quarantine(queue) { sys::quarantine(SRV, CTX, queue) }
 

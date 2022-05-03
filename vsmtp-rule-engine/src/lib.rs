@@ -1,7 +1,6 @@
 //! vSMTP rule engine
 
 #![doc(html_no_source)]
-#![deny(missing_docs)]
 //
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
