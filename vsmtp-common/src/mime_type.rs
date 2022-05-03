@@ -49,9 +49,8 @@ pub struct MimeMultipart {
     pub epilogue: String,
 }
 
-impl ToString for MimeHeader {
-    // TODO: fold headers when needed.
-    fn to_string(&self) -> String {
+impl std::fmt::Display for MimeHeader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let args = self
             .args
             .iter()
@@ -59,43 +58,47 @@ impl ToString for MimeHeader {
             .collect::<Vec<_>>()
             .join("; ");
 
-        format!(
-            "{}: {}{}",
-            self.name,
-            self.value,
-            if args.is_empty() {
-                String::default()
-            } else {
-                format!("; {}", args)
-            }
-        )
+        if args.is_empty() {
+            f.write_fmt(format_args!("{}: {}", self.name, self.value))
+        } else {
+            f.write_fmt(format_args!("{}: {}; {}", self.name, self.value, args))
+        }
     }
 }
 
 impl MimeMultipart {
+    ///  preamble
+    ///  --boundary
+    ///  *{ headers \n body \n boundary}
+    ///  epilogue || nothing
+    ///  --end-boundary--
     fn to_raw(&self, boundary: &str) -> String {
-        format!(
-            //
-            //  preamble
-            //  --boundary
-            //  *{ headers \n body \n boundary}
-            //  epilogue || nothing
-            //  --end-boundary--
-            "\n{}\n--{}\n{}\n{}--{}--\n",
-            self.preamble,
-            boundary,
-            self.parts
-                .iter()
-                .map(Mime::to_raw)
-                .collect::<Vec<_>>()
-                .join(&format!("\n--{}\n", boundary)),
-            if self.epilogue.is_empty() {
-                "".to_string()
-            } else {
-                format!("{}\n", self.epilogue)
-            },
-            boundary,
-        )
+        if self.epilogue.is_empty() {
+            format!(
+                "\n{}\n--{}\n{}\n--{}--\n",
+                self.preamble,
+                boundary,
+                self.parts
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(&format!("\n--{}\n", boundary)),
+                boundary,
+            )
+        } else {
+            format!(
+                "\n{}\n--{}\n{}\n{}\n--{}--\n",
+                self.preamble,
+                boundary,
+                self.parts
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(&format!("\n--{}\n", boundary)),
+                self.epilogue,
+                boundary,
+            )
+        }
     }
 }
 
@@ -106,6 +109,16 @@ pub struct Mime {
     pub headers: Vec<MimeHeader>,
     ///
     pub content: MimeBodyType,
+}
+
+impl std::fmt::Display for Mime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{}\n\n{}",
+            self.raw_headers(),
+            self.raw_body()
+        ))
+    }
 }
 
 impl Mime {
@@ -143,12 +156,6 @@ impl Mime {
             }
             MimeBodyType::Embedded(mail) => mail.to_raw(),
         }
-    }
-
-    /// return the original text representation of the mime part.
-    #[must_use]
-    pub fn to_raw(&self) -> String {
-        format!("{}\n\n{}", self.raw_headers(), self.raw_body())
     }
 }
 

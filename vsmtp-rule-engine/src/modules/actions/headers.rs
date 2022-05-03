@@ -49,7 +49,7 @@ pub mod headers {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
             .get_header(header)
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .unwrap_or_default())
     }
 

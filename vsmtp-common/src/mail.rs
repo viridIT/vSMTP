@@ -31,22 +31,25 @@ pub enum BodyType {
     Undefined,
 }
 
-impl ToString for BodyType {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for BodyType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Regular(content) => content
-                .iter()
-                .map(|l| {
-                    if l.starts_with('.') {
-                        ".".to_owned() + l
-                    } else {
-                        l.to_string()
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("\n"),
-            Self::Mime(content) => content.to_raw(),
-            Self::Undefined => String::default(),
+            Self::Regular(content) => f.write_fmt(format_args!(
+                "{}",
+                content
+                    .iter()
+                    .map(|l| {
+                        if l.starts_with('.') {
+                            ".".to_owned() + l
+                        } else {
+                            l.to_string()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )),
+            Self::Mime(content) => f.write_fmt(format_args!("{}", content)),
+            Self::Undefined => f.write_fmt(format_args!("")),
         }
     }
 }
