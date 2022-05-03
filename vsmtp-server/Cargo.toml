@@ -22,7 +22,7 @@ vsmtp-delivery = { version = "^0.10", path = "../vsmtp-delivery" }
 async-trait = "0.1.53"
 fastrand = "1.7.0"
 
-tokio = { version = "1.18.0", features = [
+tokio = { version = "1.18.1", features = [
     "macros",
     "time",
     "sync",
