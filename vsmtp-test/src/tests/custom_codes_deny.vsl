@@ -10,16 +10,16 @@ object deny_evil string = "501 4.7.1 evil is blacklisted on this server\r\n";
     mail: [
         rule "blacklist" || {
             if ctx.mail_from.domain == "satan.org" {
-                sys::deny(deny_satan)
+                deny(deny_satan)
             } else if ctx.mail_from.domain == "evil.com" {
-                sys::deny(deny_evil)
+                deny(deny_evil)
             } else if ctx.mail_from.domain == "unpleasant.eu" {
-                sys::deny("501 4.7.1 unpleasant is blacklisted on this server\r\n")
+                deny("501 4.7.1 unpleasant is blacklisted on this server\r\n")
             } else {
-                sys::next()
+                next()
             }
         },
 
-        rule "mail trailing" || sys::accept(),
+        rule "mail trailing" || accept(),
     ],
 }

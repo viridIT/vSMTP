@@ -6,17 +6,17 @@ import "bcc" as bcc;
         rule "bcc with invalid address (obj ident)" || bcc::invalid_object(ctx, object green ident = "green.foo"),
         rule "bcc with invalid address (obj str)"   || bcc::invalid_object(ctx, object invalid string = "invalid-str-address"),
         rule "add bcc" || {
-            if bcc::add_bcc(ctx, "string@address.com") == sys::next()
-            && bcc::add_bcc(ctx, object str string = "my.string@address.eu") == sys::next()
-            && bcc::add_bcc(ctx, object addr address = "my.addr@address.com") == sys::next()
-            && bcc::add_bcc(ctx, sys::new_address("new.address@address.fr")) == sys::next()
+            if bcc::add_bcc(ctx, "string@address.com") == next()
+            && bcc::add_bcc(ctx, object str string = "my.string@address.eu") == next()
+            && bcc::add_bcc(ctx, object addr address = "my.addr@address.com") == next()
+            && bcc::add_bcc(ctx, sys::new_address("new.address@address.fr")) == next()
             {
-                sys::next()
+                next()
             } else {
-                sys::deny()
+                deny()
             }
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ]
 }

@@ -19,9 +19,9 @@ object string_obj string = "raw@address.net";
 
             try {
                 sys::new_address("bad.address");
-                return sys::deny()
+                return deny()
             } catch {
-                return sys::next()
+                return next()
             }
         },
 
@@ -65,10 +65,10 @@ object string_obj string = "raw@address.net";
             && sys::new_address("add@obj.com") is regex_obj
             && regex_obj is sys::new_address("add@obj.com")
 
-            && !(sys::new_address("my@address.fqdn") in file_obj)
+            && (sys::new_address("my@address.fqdn") in file_obj)
             && sys::new_address("nested@address.com") in file_obj
 
-            && !(sys::new_address("my@address.fqdn") in group_obj)
+            && (sys::new_address("my@address.fqdn") in group_obj)
             && sys::new_address("nested@address.com") in group_obj
 
             && sys::new_address("my@address.fqdn") not identifier_obj
@@ -82,26 +82,26 @@ object string_obj string = "raw@address.net";
             && string_obj not sys::new_address("raw@address.net")
 
             {
-                sys::next()
+                next()
             } else {
-                sys::deny()
+                deny()
             }
         },
 
         rule "test_not_valid_comparison" || {
             try {
                 sys::new_address("raw@address.net") is object ip ip4 = "127.0.0.1";
-                return sys::deny();
+                return deny();
             } catch {}
 
             try {
                 sys::new_address("raw@address.net") in object in_addr address = "impossible@test.com";
-                return sys::deny();
+                return deny();
             } catch {}
 
-            sys::next()
+            next()
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ]
 }

@@ -1,18 +1,18 @@
 fn invalid_object(ctx, obj) {
     try {
-        sys::bcc(ctx, obj);
-        return sys::deny();
+        bcc(obj);
+        return deny();
     } catch (err) {
-        if `'${obj}' could not be converted to a valid rcpt address` in err { return sys::next(); } else { return sys::deny(); }
+        if `'${obj}' could not be converted to a valid rcpt address` in err { return next(); } else { return deny(); }
     }
 }
 
 fn add_bcc(ctx, bcc) {
     if bcc in ctx.rcpt {
-        return sys::deny();
+        return deny();
     }
 
-    sys::bcc(ctx, bcc);
+    bcc(bcc);
 
-    if bcc in ctx.rcpt { sys::next() } else { sys::deny() }
+    if bcc in ctx.rcpt { next() } else { deny() }
 }

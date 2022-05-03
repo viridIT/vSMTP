@@ -1,6 +1,6 @@
 #{
     connect: [
-        rule "ok" || sys::accept()
+        rule "ok" || accept()
     ],
     authenticate: [
         rule "auth hardcoded" || {
@@ -10,19 +10,19 @@
             };
 
             if ctx.is_authenticated {
-                return sys::deny();
+                return deny();
             }
 
             switch ctx.auth.type {
                 "Verify" => {
                     if db[ctx.auth.authid] == ctx.auth.authpass {
-                        sys::accept()
+                        accept()
                     } else {
-                        sys::deny()
+                        deny()
                     }
                 },
                 "Query" => {
-                    sys::info(db[ctx.auth.authid])
+                    info(db[ctx.auth.authid])
                 }
             }
         }

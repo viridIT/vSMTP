@@ -2,9 +2,9 @@
     rcpt: [
         rule "check server_name with sni" || {
             if ctx.server_name == "second.testserver.com" {
-                sys::accept()
+                accept()
             } else {
-                sys::deny()
+                deny()
             }
         }
     ]

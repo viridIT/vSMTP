@@ -1,17 +1,17 @@
 #{
     preq: [
         action "action + set in quarantine" || {
-            sys::quarantine(srv, ctx, "tests/generated/quarantine1");
+            quarantine("tests/generated/quarantine1");
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ],
 
     postq: [
         rule "set in second quarantine + deny" || {
-            sys::quarantine(srv, ctx, "tests/generated/quarantine2")
+            quarantine("tests/generated/quarantine2")
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ]
 }

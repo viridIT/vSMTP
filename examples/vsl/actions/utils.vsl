@@ -1,45 +1,45 @@
 #{
     connect: [
         rule "check root domain" || {
-            if in_domain!(sys::new_address("rcpt@testserver.com"))
-            && in_domain!("rcpt@testserver.com")
+            if in_domain(sys::new_address("rcpt@testserver.com"))
+            && in_domain("rcpt@testserver.com")
             && ctx.server_name == "testserver.com" {
-                sys::accept()
+                accept()
             } else {
-                sys::deny()
+                deny()
             }
         }
     ],
 
     preq: [
         rule "check sni domain" || {
-            if in_domain!(sys::new_address("rcpt@example.com")) == true
-            && in_domain!(sys::new_address("john@unknown.com")) == false
-            && in_domain!("john@unknown.com") == false
-            && in_domain!("invalid") == false {
-                sys::accept()
+            if in_domain(sys::new_address("rcpt@example.com")) == true
+            && in_domain(sys::new_address("john@unknown.com")) == false
+            && in_domain("john@unknown.com") == false
+            && in_domain("invalid") == false {
+                accept()
             } else {
-                sys::deny()
+                deny()
             }
         }
     ],
 
     postq: [
         rule "get hostname" || {
-            print("running get hostname: ");
-            print(sys::hostname());
-            sys::accept()
+            print("running hostname getter: ");
+            print(hostname());
+            accept()
         }
     ],
 
     delivery: [
         rule "find users" || {
-            if !sys::user_exist("john")
-            && sys::user_exist("root")
+            if !user_exist("john")
+            && user_exist("root")
             {
-                sys::accept()
+                accept()
             } else {
-                sys::deny()
+                deny()
             }
         }
     ]

@@ -2,136 +2,136 @@
     connect: [
         rule "fail mail_from rewrite: email not received" || {
             try {
-                sys::rewrite_mail_from(ctx, "impossible@torewrite.com");
-                return sys::deny();
+                rewrite_mail_from("impossible@torewrite.com");
+                return deny();
             } catch (err) {
-                if "the email has not been received yet" in err { return sys::next(); } else { return sys::deny(); }
+                if "the email has not been received yet" in err { return next(); } else { return deny(); }
             }
         },
 
         rule "fail mail_from rewrite: bad address format" || {
             try {
-                sys::rewrite_mail_from(ctx, "invalid");
-                return sys::deny();
+                rewrite_mail_from("invalid");
+                return deny();
             } catch (err) {
-                if "could not rewrite mail_from with 'invalid' because it is not valid address" in err { return sys::next(); } else { return sys::deny(); }
+                if "could not rewrite mail_from with 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
             }
         },
 
         rule "fail rcpt rewrite: 1st bad address format" || {
             try {
-                sys::rewrite_rcpt(ctx, "invalid", "valid@email.com");
-                return sys::deny();
+                rewrite_rcpt("invalid", "valid@email.com");
+                return deny();
             } catch (err) {
-                if "could not rewrite address 'invalid' because it is not valid address" in err { return sys::next(); } else { return sys::deny(); }
+                if "could not rewrite address 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
             }
         },
 
         rule "fail rcpt rewrite: 2nd bad address format" || {
             try {
-                sys::rewrite_rcpt(ctx, "valid@email.com", "invalid");
-                return sys::deny();
+                rewrite_rcpt("valid@email.com", "invalid");
+                return deny();
             } catch (err) {
-                if "could not rewrite address 'valid@email.com' with 'invalid' because it is not valid address" in err { return sys::next(); } else { return sys::deny(); }
+                if "could not rewrite address 'valid@email.com' with 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
             }
         },
 
         rule "unavailable mail timestamp" || {
             try {
                 print(ctx.mail_timestamp);
-                return sys::deny();
+                return deny();
             } catch (err) {
-                if "metadata are not available in this stage" in err { return sys::next(); } else { return sys::deny(); }
+                if "metadata are not available in this stage" in err { return next(); } else { return deny(); }
             }
         },
 
         rule "unavailable message id" || {
             try {
                 print(ctx.message_id);
-                return sys::deny();
+                return deny();
             } catch (err) {
-                if "metadata are not available in this stage" in err { return sys::next(); } else { return sys::deny(); }
+                if "metadata are not available in this stage" in err { return next(); } else { return deny(); }
             }
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ],
 
     preq: [
         rule "failed mail_from rewrite: email not parsed" || {
             try {
-                sys::rewrite_mail_from(ctx, "impossible@torewrite.com");
-                return sys::deny();
+                rewrite_mail_from("impossible@torewrite.com");
+                return deny();
             } catch (err) {
-                if "the email has not been parsed yet" in err { return sys::next(); } else { return sys::deny() }
+                if "the email has not been parsed yet" in err { return next(); } else { return deny() }
             }
         },
 
         rule "failed add rcpt: email not yet parsed" || {
             try {
-                sys::add_rcpt(ctx, "impossible@toadd.com");
-                return sys::deny();
+                add_rcpt("impossible@toadd.com");
+                return deny();
             } catch (err) {
-                if "the email has not been parsed yet" in err { return sys::next(); } else { return sys::deny() }
+                if "the email has not been parsed yet" in err { return next(); } else { return deny() }
             }
         },
 
         rule "failed remove rcpt: email not yet parsed" || {
             try {
-                sys::remove_rcpt(ctx, "impossible@toremove.com");
-                return sys::deny();
+                remove_rcpt("impossible@toremove.com");
+                return deny();
             } catch (err) {
-                if "failed to remove rcpt: the email has not been received or parsed yet." in err { return sys::next(); } else { return sys::deny() }
+                if "failed to remove rcpt: the email has not been received or parsed yet." in err { return next(); } else { return deny() }
             }
         },
 
         rule "failed rewrite rcpt: email not yet parsed" || {
             try {
-                sys::rewrite_rcpt(ctx, "impossible@torewrite.com", "impossible@torewrite.com");
-                return sys::deny();
+                rewrite_rcpt("impossible@torewrite.com", "impossible@torewrite.com");
+                return deny();
             } catch (err) {
-                if "failed to rewrite rcpt: the email has not been received or parsed yet." in err { return sys::next(); } else { return sys::deny() }
+                if "failed to rewrite rcpt: the email has not been received or parsed yet." in err { return next(); } else { return deny() }
             }
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ],
 
     postq: [
         action "printing client data" || {
-            sys::log("debug", "email received.");
-            sys::log("debug", `connexion timestamp: ${ctx.connection_timestamp}`);
-            sys::log("debug", `ip: ${ctx.client_ip}`);
-            sys::log("debug", `helo: ${ctx.helo}`);
-            sys::log("debug", `mail_from: ${ctx.mail_from}`);
-            sys::log("debug", `metadata {\n  mail timestamp: ${ctx.mail_timestamp}\n  message id: ${ctx.message_id}\n}`);
+            log("debug", "email received.");
+            log("debug", `connexion timestamp: ${ctx.connection_timestamp}`);
+            log("debug", `ip: ${ctx.client_ip}`);
+            log("debug", `helo: ${ctx.helo}`);
+            log("debug", `mail_from: ${ctx.mail_from}`);
+            log("debug", `metadata {\n  mail timestamp: ${ctx.mail_timestamp}\n  message id: ${ctx.message_id}\n}`);
 
-            sys::log("trace", ctx.to_string());
-            sys::log("trace", ctx.to_debug());
+            log("trace", ctx.to_string());
+            log("trace", ctx.to_debug());
 
             print(ctx.mail_timestamp.to_string());
             print(ctx.mail_timestamp.to_debug());
         },
 
         action "rewrite" || {
-            sys::add_rcpt(ctx, "added@rcpt.com");
-            sys::remove_rcpt(ctx, "rcpt@toremove.org");
-            sys::rewrite_rcpt(ctx, "rcpt@torewrite.net", "new@rcpt.net");
-            sys::rewrite_mail_from(ctx, "new@mailfrom.eu");
+            add_rcpt("added@rcpt.com");
+            remove_rcpt("rcpt@toremove.org");
+            rewrite_rcpt("rcpt@torewrite.net", "new@rcpt.net");
+            rewrite_mail_from("new@mailfrom.eu");
         },
 
         rule "check_rewrites" || {
             if "added@rcpt.com" in ctx.rcpt
-            && !("rcpt@toremove.org" in ctx.rcpt)
+            && ("rcpt@toremove.org" in ctx.rcpt)
             && "new@rcpt.net" in ctx.rcpt
-            && !("rcpt@torewrite.net" in ctx.rcpt)
+            && ("rcpt@torewrite.net" in ctx.rcpt)
             && ctx.mail_from is "new@mailfrom.eu" {
-                sys::next()
+                next()
             } else {
-                sys::deny()
+                deny()
             }
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ]
 }

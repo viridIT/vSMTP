@@ -17,7 +17,7 @@
 use crate::modules::EngineResult;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
-    Position, RhaiResult, TypeId,
+    RhaiResult, TypeId,
 };
 use vsmtp_common::address::Address;
 use vsmtp_common::mail_context::MailContext;
@@ -27,7 +27,7 @@ use vsmtp_common::mail_context::MailContext;
 #[rhai::plugin::export_module]
 pub mod mail_context {
 
-    #[rhai_fn(global, get = "client_ip", return_raw)]
+    #[rhai_fn(global, get = "client_ip", return_raw, pure)]
     pub fn client_ip(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<std::net::IpAddr> {
@@ -38,7 +38,7 @@ pub mod mail_context {
             .ip())
     }
 
-    #[rhai_fn(global, get = "client_port", return_raw)]
+    #[rhai_fn(global, get = "client_port", return_raw, pure)]
     pub fn client_port(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<i64> {
@@ -50,7 +50,7 @@ pub mod mail_context {
         ))
     }
 
-    #[rhai_fn(global, get = "connection_timestamp", return_raw)]
+    #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
     pub fn connection_timestamp(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<std::time::SystemTime> {
@@ -61,7 +61,7 @@ pub mod mail_context {
             .timestamp)
     }
 
-    #[rhai_fn(global, get = "server_name", return_raw)]
+    #[rhai_fn(global, get = "server_name", return_raw, pure)]
     pub fn server_name(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<String> {
@@ -73,7 +73,7 @@ pub mod mail_context {
             .clone())
     }
 
-    #[rhai_fn(global, get = "is_secured", return_raw)]
+    #[rhai_fn(global, get = "is_secured", return_raw, pure)]
     pub fn is_secured(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<bool> {
@@ -84,7 +84,7 @@ pub mod mail_context {
             .is_secured)
     }
 
-    #[rhai_fn(global, get = "is_authenticated", return_raw)]
+    #[rhai_fn(global, get = "is_authenticated", return_raw, pure)]
     pub fn is_authenticated(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<bool> {
@@ -95,7 +95,7 @@ pub mod mail_context {
             .is_authenticated)
     }
 
-    #[rhai_fn(global, get = "auth", return_raw)]
+    #[rhai_fn(global, get = "auth", return_raw, pure)]
     pub fn auth(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<vsmtp_common::mail_context::AuthCredentials> {
@@ -124,7 +124,7 @@ pub mod mail_context {
         }
     }
 
-    #[rhai_fn(global, get = "authpass", return_raw)]
+    #[rhai_fn(global, get = "authpass", return_raw, pure)]
     pub fn get_authpass(
         my_enum: &mut vsmtp_common::mail_context::AuthCredentials,
     ) -> EngineResult<String> {
@@ -140,7 +140,7 @@ pub mod mail_context {
         }
     }
 
-    #[rhai_fn(global, get = "helo", return_raw)]
+    #[rhai_fn(global, get = "helo", return_raw, pure)]
     pub fn helo(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<String> {
         Ok(this
             .read()
@@ -150,7 +150,7 @@ pub mod mail_context {
             .clone())
     }
 
-    #[rhai_fn(global, get = "mail_from", return_raw)]
+    #[rhai_fn(global, get = "mail_from", return_raw, pure)]
     pub fn mail_from(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<Address> {
@@ -162,7 +162,7 @@ pub mod mail_context {
             .clone())
     }
 
-    #[rhai_fn(global, get = "rcpt", return_raw)]
+    #[rhai_fn(global, get = "rcpt", return_raw, pure)]
     pub fn rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<Vec<vsmtp_common::address::Address>> {
@@ -176,7 +176,7 @@ pub mod mail_context {
             .collect())
     }
 
-    #[rhai_fn(global, get = "mail_timestamp", return_raw)]
+    #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
     pub fn mail_timestamp(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<std::time::SystemTime> {
@@ -191,7 +191,7 @@ pub mod mail_context {
             .timestamp)
     }
 
-    #[rhai_fn(global, get = "message_id", return_raw)]
+    #[rhai_fn(global, get = "message_id", return_raw, pure)]
     pub fn message_id(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<String> {
@@ -207,7 +207,7 @@ pub mod mail_context {
             .clone())
     }
 
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn to_string(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<String> {
@@ -218,7 +218,7 @@ pub mod mail_context {
         ))
     }
 
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn to_debug(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<String> {

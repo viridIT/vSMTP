@@ -5,26 +5,31 @@ object forward_fqdn fqdn = "test.eu";
 
 #{
     connect: [
-        action "add recipients" || {
-            sys::add_rcpt(ctx, "fqdn@example.com");
-            sys::add_rcpt(ctx, "ip4@example.com");
-            sys::add_rcpt(ctx, "ip6@example.com");
-            sys::add_rcpt(ctx, "object.str@example.com");
-            sys::add_rcpt(ctx, "object.ip4@example.com");
-            sys::add_rcpt(ctx, "object.ip6@example.com");
-            sys::add_rcpt(ctx, "object.fqdn@example.com");
+        action "add recipients" |ctx, srv| {
+            print("add recipients rule");
+            add_rcpt("fqdn@example.com");
+            add_rcpt("ip4@example.com");
+            add_rcpt("ip6@example.com");
+            add_rcpt("object.str@example.com");
+            add_rcpt("object.ip4@example.com");
+            add_rcpt("object.ip6@example.com");
+            add_rcpt("object.fqdn@example.com");
+            print("add recipients rule done");
+            // for rcpt in ctx.rcpt {
+            //     print(rcpt);
+            // }
         }
     ],
 
     delivery: [
         action "setup forwarding" || {
-            sys::forward(ctx, "fqdn@example.com", "localhost");
-            sys::forward(ctx, "ip4@example.com", "127.0.0.1");
-            sys::forward(ctx, "ip6@example.com", "::1");
-            sys::forward(ctx, "object.str@example.com", forward_str);
-            sys::forward(ctx, "object.ip4@example.com", forward_ip4);
-            sys::forward(ctx, "object.ip6@example.com", forward_ip6);
-            sys::forward(ctx, "object.fqdn@example.com", forward_fqdn);
+            forward("fqdn@example.com", "localhost");
+            forward("ip4@example.com", "127.0.0.1");
+            forward("ip6@example.com", "::1");
+            forward("object.str@example.com", forward_str);
+            forward("object.ip4@example.com", forward_ip4);
+            forward("object.ip6@example.com", forward_ip6);
+            forward("object.fqdn@example.com", forward_fqdn);
         },
     ]
 }

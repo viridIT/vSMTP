@@ -12,20 +12,20 @@ object staff group = [
 
 #{
   mail: [
-    rule "test_ident" || if ctx.mail_from not john && john not ctx.mail_from { sys::next() } else { sys::deny() },
-    rule "test_fqdn" || if ctx.mail_from is bar { sys::next() } else { sys::deny() },
-    rule "test_addr" || if ctx.mail_from is someone { sys::next() } else { sys::deny() },
-    rule "test_group" || if ctx.mail_from in staff { sys::accept() } else { sys::deny() },
+    rule "test_ident" || if ctx.mail_from not john && john not ctx.mail_from { next() } else { deny() },
+    rule "test_fqdn" || if ctx.mail_from is bar { next() } else { deny() },
+    rule "test_addr" || if ctx.mail_from is someone { next() } else { deny() },
+    rule "test_group" || if ctx.mail_from in staff { accept() } else { deny() },
   ],
 
   // rewrite is available when the email is parsed.
   postq: [
     rule "test_rewrite" || {
       if ctx.mail_from in staff {
-        ctx.rewrite_mail_from("no-reply@example.com");
-        sys::accept()
+        rewrite_mail_from("no-reply@example.com");
+        accept()
       } else {
-        sys::deny()
+        deny()
       }
     },
   ],

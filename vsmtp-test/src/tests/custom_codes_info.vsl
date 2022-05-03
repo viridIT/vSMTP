@@ -17,31 +17,31 @@ object bar_invalid string = "250 I do not accept this email, sorry\r\n";
     helo: [
         rule "helo must be foo.bar" || {
             if ctx.helo == "foo" {
-                sys::info(foo_invalid);
+                info(foo_invalid);
             } else if ctx.helo == "bar" {
-                sys::info(bar_invalid);
+                info(bar_invalid);
             } else if ctx.helo == "example.com" {
-                sys::next()
+                next()
             } else {
-                sys::info(retry_helo(ctx.helo));
+                info(retry_helo(ctx.helo));
             }
         },
 
-        rule "helo trailing" || sys::accept(),
+        rule "helo trailing" || accept(),
     ],
 
     mail: [
         rule "retry mail" || {
             if ctx.mail_from.domain == "satan.org" {
-                sys::info("250 satan.org is not valid, please try again.\r\n");
+                info("250 satan.org is not valid, please try again.\r\n");
             } else {
-                sys::accept()
+                accept()
             }
         }
     ],
 
     preq: [
-        rule "cannot send data" || sys::info("500 I decided that you cannot send data.\r\n")
+        rule "cannot send data" || info("500 I decided that you cannot send data.\r\n")
     ],
 
 }

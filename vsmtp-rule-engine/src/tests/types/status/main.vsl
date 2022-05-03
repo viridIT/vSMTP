@@ -1,23 +1,23 @@
 #{
     connect: [
         rule "test_status" || {
-            if sys::next() is sys::next()
-            && sys::next() == sys::next()
+            if next() is next()
+            && next() == next()
 
-            && sys::next() not sys::accept()
-            && sys::next() != sys::accept()
+            && next() not accept()
+            && next() != accept()
 
-            && sys::next().to_string() == "next"
-            && sys::next().to_debug() == "next" {
+            && next().to_string() == "next"
+            && next().to_debug() == "next" {
 
-                print(sys::next());
-                print(sys::accept());
-                print(sys::faccept());
-                print(sys::deny());
+                print(next());
+                print(accept());
+                print(faccept());
+                print(deny());
 
-                sys::accept()
+                accept()
             } else {
-                sys::deny()
+                deny()
             }
         }
     ]

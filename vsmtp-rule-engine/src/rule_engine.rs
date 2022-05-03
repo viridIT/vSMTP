@@ -76,8 +76,8 @@ impl<'a> RuleState<'a> {
         scope
             .push("date", "")
             .push("time", "")
-            .push("srv", server.clone())
-            .push("ctx", mail_context.clone());
+            .push_constant("SRV", server.clone())
+            .push_constant("CTX", mail_context.clone());
 
         Self {
             scope,
@@ -108,8 +108,8 @@ impl<'a> RuleState<'a> {
         scope
             .push("date", "")
             .push("time", "")
-            .push("srv", server.clone())
-            .push("ctx", mail_context.clone());
+            .push_constant("SRV", server.clone())
+            .push_constant("CTX", mail_context.clone());
 
         Self {
             scope,
@@ -194,6 +194,8 @@ impl RuleEngine {
             }
         };
 
+        // FIXME: it could be possible to evaluate rules once and
+        //        extract the rule executor from a rhai script to rust.
         match self.context.call_fn(
             &mut rule_state.scope,
             &self.ast,
@@ -293,7 +295,9 @@ impl RuleEngine {
 
         log::debug!(target: log_channels::RE, "compiling rhai scripts ...");
 
-        let ast = if let Some(script_path) = &script_path {
+        let mut ast = Self::compile_api(&mut engine).context("failed to compile vsl's api")?;
+
+        ast += if let Some(script_path) = &script_path {
             Self::compile_executor(
                 &engine,
                 &std::fs::read_to_string(&script_path)
@@ -306,7 +310,7 @@ impl RuleEngine {
             );
 
             Self::compile_executor(&engine, include_str!("default_rules.rhai"))
-        }?;
+        }.context("failed to compile your scripts")?;
 
         log::debug!(target: log_channels::RE, "done.");
 
@@ -331,17 +335,12 @@ impl RuleEngine {
         let mut vsl_module = rhai::Module::new();
         let mut toml_module = rhai::Module::new();
 
-        let ast = engine
-            .compile_scripts_with_scope(
-                &rhai::Scope::new(),
-                [include_str!("api/utils.rhai"), include_str!("api/api.rhai")],
-            )
-            .context("failed to compile vsl's api")?;
+        // let ast = Self::compile_api(&mut engine)?;
 
-        let api = rhai::Module::eval_ast_as_new(rhai::Scope::new(), &ast, &engine)
-            .context("failed to create vsl's api module")?;
+        // let api = rhai::Module::eval_ast_as_new(rhai::Scope::new(), &ast, &engine)
+        //     .context("failed to create vsl's api module")?;
 
-        // setting up action, mail context & vsl's special types.
+        // setting up actions, mail context & vsl's special types.
         vsl_module
             .combine(exported_module!(modules::actions::bcc::bcc))
             .combine(exported_module!(modules::actions::headers::headers))
@@ -362,7 +361,7 @@ impl RuleEngine {
         engine
             .register_static_module("sys", vsl_module.into())
             .register_static_module("toml", toml_module.into())
-            .register_global_module(api.into())
+            // .register_global_module(api.into())
             .disable_symbol("eval")
             .on_parse_token(|token, _, _| {
                 match token {
@@ -395,21 +394,33 @@ impl RuleEngine {
         scope
             .push("date", "")
             .push("time", "")
-            .push("srv", "")
-            .push("ctx", "");
+            .push_constant("SRV", "")
+            .push_constant("CTX", "");
 
         let mut ast = engine
             .compile(include_str!("rule_executor.rhai"))
             .context("failed to load the rule executor")?;
 
-        ast += engine
-            .compile_with_scope(&scope, script)
-            .context("failed to load script")?;
+        ast += engine.compile(script).context("failed to load script")?;
 
         engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
             .with_context(|| RuleEngineError::Stage.as_str())?;
 
+        Ok(ast)
+    }
+
+    fn compile_api(engine: &mut rhai::Engine) -> anyhow::Result<rhai::AST> {
+        let ast = engine
+            .compile_scripts_with_scope(
+                &rhai::Scope::new(),
+                [
+                    include_str!("api/sys-api.rhai"),
+                    include_str!("api/rhai-api.rhai"),
+                    include_str!("api/utils.rhai"),
+                ],
+            )
+            .context("failed to compile vsl's api")?;
         Ok(ast)
     }
 

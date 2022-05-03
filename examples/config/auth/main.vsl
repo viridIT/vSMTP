@@ -11,14 +11,14 @@
                     }
 
                     if result.has_code && result.code == 0 {
-                        sys::accept()
+                        accept()
                     } else {
-                        sys::deny()
+                        deny()
                     }
 
                 },
                 "Query" => {
-                    sys::deny()
+                    deny()
                 }
             }
         }

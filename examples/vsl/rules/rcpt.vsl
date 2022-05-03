@@ -4,9 +4,9 @@ object customer address = "customer@company.com";
 
 #{
   rcpt: [
-    rule "test_ident" || if john in ctx.rcpt.local_parts { sys::next() } else { sys::deny() },
-    rule "test_fqdn" || if bar in ctx.rcpt.domains { sys::next() } else { sys::deny() },
-    rule "test_addr" || if customer in ctx.rcpt { sys::accept() } else { sys::deny() },
+    rule "test_ident" || if john in ctx.rcpt.local_parts { next() } else { deny() },
+    rule "test_fqdn" || if bar in ctx.rcpt.domains { next() } else { deny() },
+    rule "test_addr" || if customer in ctx.rcpt { accept() } else { deny() },
   ],
 
   postq: [

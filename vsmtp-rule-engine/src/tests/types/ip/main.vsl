@@ -19,9 +19,9 @@
             && ctx.client_port != 25
 
             {
-                sys::accept()
+                accept()
             } else {
-                sys::deny()
+                deny()
             }
         }
     ]

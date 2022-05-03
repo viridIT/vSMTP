@@ -212,11 +212,11 @@ fn test_forward() {
     let (mut state, _) = get_default_state("./tmp/app");
     state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail::default()));
 
-    re.run_when(&mut state, &StateSMTP::Connect);
-    re.run_when(&mut state, &StateSMTP::Delivery);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Delivery), Status::Next);
 
     let rcpt = state.get_context().read().unwrap().envelop.rcpt.clone();
-    println!("{rcpt:?}");
+    println!("rcpt: {rcpt:?}");
 
     assert_eq!(rcpt[0].address.full(), "fqdn@example.com");
     assert_eq!(

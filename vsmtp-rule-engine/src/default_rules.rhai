@@ -1,5 +1,5 @@
 #{
     connect: [
-        rule "reject by default" || sys::deny(),
+        rule "reject by default" || deny(),
     ]
 }

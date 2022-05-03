@@ -2,32 +2,32 @@
     mail: [
         rule "fail write to disk: body not received" || {
             try {
-                sys::write(srv, ctx, "tests/generated");
-                return sys::deny();
+                write("tests/generated");
+                return deny();
             } catch (err) {
-                if "failed to write email: the body has not been received yet" in err { return sys::next(); } else {
-                    return sys::deny();
+                if "failed to write email: the body has not been received yet" in err { return next(); } else {
+                    return deny();
                 }
             }
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ],
 
     preq: [
         action "write to disk preq" || {
-            sys::write(srv, ctx, "tests/generated");
+            write("tests/generated");
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ],
 
     postq: [
         action "write to disk postq" || {
             // will override the email written in preq.
-            sys::write(srv, ctx, "tests/generated");
+            write("tests/generated");
         },
 
-        rule "trailing" || sys::accept(),
+        rule "trailing" || accept(),
     ]
 }
