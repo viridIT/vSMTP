@@ -26,9 +26,10 @@ use vsmtp_common::status::Status;
 use vsmtp_config::Config;
 
 use crate::dsl::action_parsing::{create_action, parse_action};
+use crate::dsl::directives::{Action, Directive, Directives, Rule};
 use crate::dsl::object_parsing::{create_object, parse_object};
 use crate::dsl::rule_parsing::{create_rule, parse_rule};
-use crate::error::RuleEngineError;
+use crate::modules::EngineResult;
 use crate::obj::Object;
 use crate::{log_channels, modules};
 
@@ -133,37 +134,22 @@ impl<'a> RuleState<'a> {
     }
 }
 
-enum Directive {
-    Rule { name: String, pointer: rhai::FnPtr },
-    Action { name: String, pointer: rhai::FnPtr },
-}
-
-type Directives = std::collections::BTreeMap<String, Vec<Directive>>;
-
 /// a sharable rhai engine.
-/// contains an ast representation of the user's parsed .vsl script files
-/// and objects parsed from rhai's context to rust's. This way,
-/// they can be used directly into rust functions, and the engine
-/// doesn't need to evaluate them each call.
-/// the engine also stores a user cache that is used to fetch
-/// data about system users.
+/// contains an ast representation of the user's parsed .vsl script files.
 pub struct RuleEngine {
     /// ast built from the user's .vsl files.
-    pub(super) ast: AST,
+    ast: AST,
     /// rules & actions registered by the user.
     directives: Directives,
     /// vsl's standard api.
     vsl_package: modules::StandardVSLPackage,
     /// rhai's standard api.
     std_package: rhai::packages::StandardPackage,
-    // system user cache, used for retrieving user information. (used in vsl.USER_EXISTS for example)
-    // pub(super) users: Mutex<U>,
 }
 
 impl RuleEngine {
     /// runs all rules from a stage using the current transaction state.$
     /// # Panics
-    #[allow(clippy::let_unit_value)]
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
         // FIXME: the raw engine could be part of the state instead of building one every run.
         // creating a raw engine every run which is extremely cheap to create.
@@ -202,77 +188,66 @@ impl RuleEngine {
             );
 
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
-            for directive in directive_set {
-                match directive {
-                    Directive::Rule { name, pointer } => {
-                        let result: Status = pointer
-                            .call(&engine, &self.ast, ())
-                            .context(format!("failed to execute '{}'", name))
-                            .unwrap();
-                        println!("'{}' result: {:?}", name, result);
+            match self.execute_directives(&engine, &directive_set[..], smtp_state) {
+                Ok(status) => {
+                    if let Status::Faccept | Status::Deny(_) = status {
+                        log::debug!(
+                        target: log_channels::RE,
+                        "[{}] the rule engine will skip all rules because of the previous result.",
+                        smtp_state
+                    );
+                        rule_state.skip = Some(status.clone());
                     }
-                    Directive::Action { name, pointer } => {
-                        let _: () = pointer
-                            .call(&engine, &self.ast, ())
-                            .context(format!("failed to execute '{}'", name))
-                            .unwrap();
-                        println!("'{}' action successfully executed", name);
-                    }
+
+                    return status;
+                }
+                Err(error) => {
+                    log::error!(
+                        target: log_channels::RE,
+                        "{}",
+                        Self::parse_stage_error(error, smtp_state)
+                    );
+                    return Status::Next;
                 }
             }
         }
 
         Status::Next
+    }
 
-        // let rules = match engine.eval_ast_with_scope::<rhai::Map>(&mut rule_state.scope, &self.ast)
-        // {
-        //     Ok(rules) => rules,
-        //     Err(error) => {
-        //         log::error!(
-        //             target: log_channels::RE,
-        //             "smtp_stage '{}' skipped => rule engine failed to evaluate rules:\n\t{}",
-        //             smtp_state,
-        //             error
-        //         );
-        //         return Status::Next;
-        //     }
-        // };
+    fn execute_directives(
+        &self,
+        engine: &rhai::Engine,
+        directives: &[Box<dyn Directive + Send + Sync>],
+        smtp_state: &StateSMTP,
+    ) -> EngineResult<Status> {
+        let mut status = Status::Next;
 
-        // NOTE: we could now make the rule executor in rust.
-        // FIXME: wrap rules in an Arc to prevent cloning.
-        // match engine.call_fn(
-        //     &mut rule_state.scope,
-        //     &self.ast,
-        //     "run_rules",
-        //     (self.rules.clone(), smtp_state.to_string()),
-        // ) {
-        //     Ok(status) => {
-        //         log::debug!(
-        //             target: log_channels::RE,
-        //             "[{}] evaluated => {:?}.",
-        //             smtp_state,
-        //             status
-        //         );
+        for directive in directives {
+            status = directive.execute(engine, &self.ast)?;
 
-        //         if let Status::Faccept | Status::Deny(_) = status {
-        //             log::debug!(
-        //                 target: log_channels::RE,
-        //                 "[{}] the rule engine will skip all rules because of the previous result.",
-        //                 smtp_state
-        //             );
-        //             rule_state.skip = Some(status.clone());
-        //         }
-        //         status
-        //     }
-        //     Err(error) => {
-        //         log::error!(
-        //             target: log_channels::RE,
-        //             "{}",
-        //             Self::parse_stage_error(error, smtp_state)
-        //         );
-        //         Status::Next
-        //     }
-        // }
+            log::debug!(
+                target: log_channels::RE,
+                "[{}] {} '{}' evaluated => {:?}.",
+                smtp_state,
+                directive.directive_type(),
+                directive.name(),
+                status
+            );
+
+            if status != Status::Next {
+                break;
+            }
+        }
+
+        log::debug!(
+            target: log_channels::RE,
+            "[{}] evaluated => {:?}.",
+            smtp_state,
+            status
+        );
+
+        Ok(status)
     }
 
     fn parse_stage_error(error: Box<EvalAltResult>, smtp_state: &StateSMTP) -> String {
@@ -348,10 +323,10 @@ impl RuleEngine {
         let mut ast = Self::compile_api(&mut engine).context("failed to compile vsl's api")?;
 
         ast += if let Some(script_path) = &script_path {
-            Self::compile_executor(
-                &engine,
+            engine
+            .compile(
                 &std::fs::read_to_string(&script_path)
-                    .context(format!("Failed to read file: '{}'", script_path.display()))?,
+                .context(format!("failed to read file: '{}'", script_path.display()))?
             )
         } else {
             log::warn!(
@@ -359,7 +334,8 @@ impl RuleEngine {
                 "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
             );
 
-            Self::compile_executor(&engine, include_str!("default_rules.rhai"))
+            engine
+            .compile(include_str!("default_rules.rhai"))
         }.context("failed to compile your scripts")?;
 
         let directives = Self::extract_directives(&engine, &ast)?;
@@ -417,34 +393,6 @@ impl RuleEngine {
         Ok(engine)
     }
 
-    /// compile the rule executor with the given script, and then checks
-    /// it with a dry run.
-    /// TODO: to remove.
-    ///
-    /// # Errors
-    /// * could not compile the script.
-    /// * dry run failed.
-    fn compile_executor(engine: &rhai::Engine, script: &str) -> anyhow::Result<rhai::AST> {
-        let mut scope = Scope::new();
-        scope
-            .push("date", "")
-            .push("time", "")
-            .push_constant("CTX", "")
-            .push_constant("SRV", "");
-
-        let mut ast = engine
-            .compile(include_str!("rule_executor.rhai"))
-            .context("failed to load the rule executor")?;
-
-        ast += engine.compile(script).context("failed to load script")?;
-
-        engine
-            .eval_ast_with_scope::<rhai::Map>(&mut scope, &ast)
-            .with_context(|| RuleEngineError::Stage.as_str())?;
-
-        Ok(ast)
-    }
-
     fn compile_api(engine: &mut rhai::Engine) -> anyhow::Result<rhai::AST> {
         let ast = engine
             .compile_scripts_with_scope(
@@ -477,35 +425,34 @@ impl RuleEngine {
         for (stage, directive_set) in raw_directives {
             let directive_set = directive_set
                 .try_cast::<rhai::Array>()
-                .unwrap()
+                .ok_or_else(|| {
+                    anyhow::anyhow!("the stage {} must be declared with an array", stage)
+                })?
                 .into_iter()
-                // .inspect(|rule| println!("type: {}", rule.type_name()))
                 .map(|rule| {
                     let map = rule.try_cast::<rhai::Map>().unwrap();
+                    let directive_type = map
+                        .get("type")
+                        .ok_or_else(|| anyhow::anyhow!("a directive in stage {} does not have a valid type", stage))?
+                        .to_string();
+                    let name = map
+                        .get("name")
+                        .ok_or_else(|| anyhow::anyhow!("a directive in stage {} does not have a name", stage))?
+                        .to_string();
+                    let pointer = map
+                        .get("evaluate")
+                        .ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} does not have an evaluation function", stage, name))?.clone().try_cast::<rhai::FnPtr>().ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} evaluation field must be a function pointer", stage, name))?;
 
-                    match map.get("type").unwrap().to_string().as_str() {
-                        "action" => Directive::Action {
-                            name: map.get("name").unwrap().to_string(),
-                            pointer: map
-                                .get("evaluate")
-                                .unwrap()
-                                .clone()
-                                .try_cast::<rhai::FnPtr>()
-                                .unwrap(),
-                        },
-                        "rule" => Directive::Rule {
-                            name: map.get("name").unwrap().to_string(),
-                            pointer: map
-                                .get("evaluate")
-                                .unwrap()
-                                .clone()
-                                .try_cast::<rhai::FnPtr>()
-                                .unwrap(),
-                        },
-                        _ => todo!(),
-                    }
+                    let directive: Box<dyn Directive + Send + Sync> =
+                        match directive_type.as_str() {
+                            "rule" => Box::new(Rule { name, pointer }),
+                            "action" => Box::new(Action { name, pointer}),
+                            unknown => anyhow::bail!("unknown directive '{}'", unknown),
+                        };
+
+                    Ok(directive)
                 })
-                .collect();
+                .collect::<anyhow::Result<Vec<Box<_>>>>()?;
 
             directives.insert(stage.to_string(), directive_set);
         }
@@ -520,7 +467,8 @@ impl RuleEngine {
     /// * failed to compile the script.
     pub fn from_script(config: &Config, script: &str) -> anyhow::Result<Self> {
         let mut engine = Self::new_raw(config)?;
-        let ast = Self::compile_executor(&engine, script)?;
+        let mut ast = Self::compile_api(&mut engine).context("failed to compile vsl's api")?;
+        ast += engine.compile(script)?;
         let directives = Self::extract_directives(&engine, &ast)?;
         let vsl_package = modules::StandardVSLPackage::new();
         let std_package = rhai::packages::StandardPackage::new();

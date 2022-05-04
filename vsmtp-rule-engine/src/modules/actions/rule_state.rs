@@ -77,7 +77,7 @@ pub mod rule_state {
     /// dump the current email into a quarantine queue, skipping delivery.
     /// the email is written in the specified app directory, inside the "queue" folder.
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn quarantine(
         srv: &mut std::sync::Arc<ServerAPI>,
         mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
