@@ -72,12 +72,17 @@ pub async fn handle_one_in_delivery_queue(
         &message_id
     ))?;
 
-    let mut state = RuleState::with_context(config, ctx);
+    let (state, result) = {
+        let rule_engine = rule_engine
+            .read()
+            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-    let result = rule_engine
-        .read()
-        .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
-        .run_when(&mut state, &vsmtp_common::state::StateSMTP::Delivery);
+        let mut state = RuleState::with_context(config, &rule_engine, ctx);
+        let result = rule_engine.run_when(&mut state, &vsmtp_common::state::StateSMTP::Delivery);
+
+        (state, result)
+    };
+
     {
         // FIXME: cloning here to prevent send_email async error with mutex guard.
         //        the context is wrapped in an RwLock because of the receiver.

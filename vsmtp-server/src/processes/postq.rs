@@ -89,12 +89,17 @@ async fn handle_one_in_working_queue(
 
     ctx.body = ctx.body.to_parsed::<MailMimeParser>()?;
 
-    let mut state = RuleState::with_context(config.as_ref(), ctx);
+    // locking the engine and freeing the lock before any await.
+    let (state, result) = {
+        let rule_engine = rule_engine
+            .read()
+            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-    let result = rule_engine
-        .read()
-        .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
-        .run_when(&mut state, &StateSMTP::PostQ);
+        let mut state = RuleState::with_context(config.as_ref(), &rule_engine, ctx);
+        let result = rule_engine.run_when(&mut state, &StateSMTP::PostQ);
+
+        (state, result)
+    };
 
     if let Status::Deny(_) = result {
         Queue::Dead.write_to_queue(

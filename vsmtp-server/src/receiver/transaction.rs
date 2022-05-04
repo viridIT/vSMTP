@@ -429,22 +429,27 @@ impl Transaction<'_> {
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     ) -> anyhow::Result<TransactionResult> {
+        let rule_state = RuleState::with_connection(
+            conn.config.as_ref(),
+            &*rule_engine
+                .read()
+                .map_err(|_| anyhow::anyhow!("failed to lock rule engine"))?,
+            ConnectionContext {
+                timestamp: conn.timestamp,
+                credentials: None,
+                is_authenticated: conn.is_authenticated,
+                is_secured: conn.is_secured,
+                server_name: conn.server_name.clone(),
+            },
+        );
+
         let mut transaction = Transaction {
             state: if helo_domain.is_none() {
                 StateSMTP::Connect
             } else {
                 StateSMTP::Helo
             },
-            rule_state: RuleState::with_connection(
-                conn.config.as_ref(),
-                ConnectionContext {
-                    timestamp: conn.timestamp,
-                    credentials: None,
-                    is_authenticated: conn.is_authenticated,
-                    is_secured: conn.is_secured,
-                    server_name: conn.server_name.clone(),
-                },
-            ),
+            rule_state,
             rule_engine,
         };
 

@@ -84,15 +84,18 @@ impl
         let mut conn = conn.clone();
         conn.credentials = Some(credentials);
 
-        let mut rule_state = RuleState::with_connection(&config, conn);
+        let result = {
+            let re = rule_engine
+                .read()
+                .map_err(|_| rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
 
-        let result = rule_engine
-            .read()
-            .map_err(|_| rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?
-            .run_when(
+            let mut rule_state = RuleState::with_connection(&config, &re, conn);
+
+            re.run_when(
                 &mut rule_state,
                 &StateSMTP::Authentication(Mechanism::default(), None),
-            );
+            )
+        };
 
         match prop {
             rsasl::Property::GSASL_VALIDATE_SIMPLE if result == Status::Accept => Ok(()),
