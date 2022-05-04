@@ -17,7 +17,7 @@ default-run = "vsmtp"
 
 [package.metadata.deb]
 copyright = "2022, viridIT SAS"
-license-file = ["../LICENSE", "4"]
+license-file = ["../../LICENSE", "4"]
 extended-description = "A high performance MTA written in RUST."
 depends = "$auto"
 section = "mail"
