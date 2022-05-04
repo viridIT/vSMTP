@@ -1,0 +1,38 @@
+[package]
+edition = "2021"
+
+name = "vsmtp"
+version = "1.0~rc2"
+license = "GPL-3.0-only"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+
+publish = false
+
+rust-version = "1.58"
+default-run = "vsmtp"
+
+[package.metadata.deb]
+copyright = "2022, viridIT SAS"
+license-file = ["../LICENSE", "4"]
+extended-description = "A high performance MTA written in RUST."
+depends = "$auto"
+section = "mail"
+priority = "optional"
+assets = [
+    ["target/release/vsmtp", "usr/sbin/", "755"],
+    ["../README.md", "usr/share/doc/vsmtp/README", "644"],
+    ["../"]
+]
+
+
+[dependencies]
+vsmtp-common = { version = "^0.10", path = "./vsmtp-common" }
+vsmtp-server = { version = "^0.10", path = "./vsmtp-server" }
+vsmtp-config = { version = "^0.10", path = "./vsmtp-config" }
+
+clap = { version = "3.1.15", features = ["derive"] }
+diff = "0.1.12"
