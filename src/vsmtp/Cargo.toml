@@ -24,8 +24,7 @@ section = "mail"
 priority = "optional"
 assets = [
     ["target/release/vsmtp", "usr/sbin/", "755"],
-    ["../README.md", "usr/share/doc/vsmtp/README", "644"],
-    ["../"]
+    ["../../README.md", "usr/share/doc/vsmtp/README", "644"],
 ]
 
 
