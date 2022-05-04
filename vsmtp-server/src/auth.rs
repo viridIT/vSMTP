@@ -6,7 +6,7 @@ use vsmtp_common::{
     status::{InfoPacket, Status},
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 /// Backend of SASL implementation
 pub type Backend = rsasl::DiscardOnDrop<

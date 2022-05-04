@@ -18,8 +18,6 @@ use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::packages::Package;
 use rhai::{plugin::EvalAltResult, Engine, Scope, AST};
-use vsmtp_common::envelop::Envelop;
-use vsmtp_common::mail_context::{Body, ConnectionContext, MailContext};
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
@@ -31,174 +29,137 @@ use crate::dsl::object_parsing::{create_object, parse_object};
 use crate::dsl::rule_parsing::{create_rule, parse_rule};
 use crate::modules::EngineResult;
 use crate::obj::Object;
+use crate::rule_state::RuleState;
 use crate::{log_channels, modules};
-
-use super::server_api::ServerAPI;
 
 const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[year]-[month]-[day]");
 const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[hour]:[minute]:[second]");
 
-/// a state container that bridges rhai's & rust contexts.
-pub struct RuleState<'a> {
-    /// a lightweight engine for evaluation.
-    engine: rhai::Engine,
-    /// state containing some variables like date & time.
-    scope: Scope<'a>,
-    /// a pointer to the server api.
-    #[allow(dead_code)]
-    server: std::sync::Arc<ServerAPI>,
-    /// a pointer to the mail context for the current connexion.
-    mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
-    /// does the following rules needs to be skipped ?
-    skip: Option<Status>,
-}
-
-impl<'a> RuleState<'a> {
-    /// creates a new rule engine with an empty scope.
-    #[must_use]
-    pub fn new(config: &Config, rule_engine: &RuleEngine) -> Self {
-        let mut scope = Scope::new();
-        let server = std::sync::Arc::new(ServerAPI {
-            config: config.clone(),
-        });
-
-        let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                is_authenticated: false,
-                is_secured: false,
-                server_name: "testserver.com".to_string(),
-            },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
-            envelop: Envelop::default(),
-            body: Body::Empty,
-            metadata: None,
-        }));
-
-        scope.push("date", "").push("time", "");
-
-        let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
-
-        Self {
-            engine,
-            scope,
-            server,
-            mail_context,
-            skip: None,
-        }
-    }
-
-    /// create a new rule state with connection data.
-    #[must_use]
-    #[allow(clippy::missing_panics_doc)]
-    pub fn with_connection(
-        config: &Config,
-        rule_engine: &RuleEngine,
-        conn: ConnectionContext,
-    ) -> Self {
-        let state = Self::new(config, rule_engine);
-        state.mail_context.write().unwrap().connection = conn;
-        state
-    }
-
-    /// create a RuleState from an existing mail context (f.e. when deserializing a context)
-    #[must_use]
-    pub fn with_context(
-        config: &Config,
-        rule_engine: &RuleEngine,
-        mail_context: MailContext,
-    ) -> Self {
-        let mut scope = Scope::new();
-        let server = std::sync::Arc::new(ServerAPI {
-            config: config.clone(),
-        });
-        let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
-
-        scope.push("date", "").push("time", "");
-
-        let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
-
-        Self {
-            engine,
-            scope,
-            server,
-            mail_context,
-            skip: None,
-        }
-    }
-
-    /// build a cheap rhai engine with vsl's api.
-    fn build_rhai_engine(
-        mail_context: &std::sync::Arc<std::sync::RwLock<MailContext>>,
-        server: &std::sync::Arc<ServerAPI>,
-        rule_engine: &RuleEngine,
-    ) -> rhai::Engine {
-        let mut engine = rhai::Engine::new_raw();
-
-        let mail_context = mail_context.clone();
-        let server = server.clone();
-
-        engine
-            // NOTE: why do we have to clone the arc twice instead of just moving it here ?
-            // injecting the state if the current connection into the engine.
-            .on_var(move |name, _, _| match name {
-                "CTX" => Ok(Some(rhai::Dynamic::from(mail_context.clone()))),
-                "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
-                _ => Ok(None),
-            })
-            .register_global_module(rule_engine.std_package.as_shared_module())
-            .register_static_module("sys", rule_engine.vsl_package.as_shared_module());
-
-        engine
-    }
-
-    /// add data to the scope of the engine.
-    pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T) -> &mut Self
-    where
-        T: Clone + Send + Sync + 'static,
-    {
-        self.scope.set_or_push(name, data);
-        self
-    }
-
-    /// fetch the email context (possibly) mutated by the user's rules.
-    #[must_use]
-    pub fn get_context(&self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
-        self.mail_context.clone()
-    }
-
-    ///
-    #[must_use]
-    pub fn skipped(&self) -> Option<Status> {
-        self.skip.clone()
-    }
-}
-
 /// a sharable rhai engine.
-/// contains an ast representation of the user's parsed .vsl script files.
+/// contains an ast representation of the user's parsed .vsl script files,
+/// and modules / packages to create a cheap rhai runtime.
 pub struct RuleEngine {
     /// ast built from the user's .vsl files.
     ast: AST,
     /// rules & actions registered by the user.
     directives: Directives,
     /// vsl's standard api.
-    vsl_package: modules::StandardVSLPackage,
+    pub(super) vsl_module: rhai::Shared<rhai::Module>,
     /// rhai's standard api.
-    std_package: rhai::packages::StandardPackage,
+    pub(super) std_module: rhai::Shared<rhai::Module>,
+    /// a translation of the toml configuration as a rhai Map.
+    pub(super) toml_module: rhai::Shared<rhai::Module>,
 }
 
 impl RuleEngine {
+    /// creates a new instance of the rule engine, reading all files in the
+    /// `script_path` parameter.
+    /// if `script_path` is `None`, an warning is emitted and a deny-all script
+    /// is loaded.
+    ///
+    /// # Errors
+    /// * failed to register `script_path` as a valid module folder.
+    /// * failed to compile or load any script located at `script_path`.
+    pub fn new(config: &Config, script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
+        log::debug!(
+            target: log_channels::RE,
+            "building vsl compiler and modules ..."
+        );
+
+        let mut compiler = Self::new_compiler();
+
+        let std_module = rhai::packages::StandardPackage::new().as_shared_module();
+        let vsl_module = modules::StandardVSLPackage::new().as_shared_module();
+        let toml_module = rhai::Shared::new(Self::build_toml_module(config, &compiler)?);
+
+        compiler
+            .set_module_resolver(match script_path {
+                Some(script_path) => FileModuleResolver::new_with_path_and_extension(
+                    script_path.parent().ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "file '{}' is not a valid root directory for rules",
+                            script_path.display()
+                        )
+                    })?,
+                    "vsl",
+                ),
+                None => FileModuleResolver::new_with_extension("vsl"),
+            })
+            .register_global_module(std_module.clone())
+            .register_static_module("sys", vsl_module.clone())
+            .register_static_module("toml", toml_module.clone());
+
+        log::debug!(target: log_channels::RE, "compiling rhai scripts ...");
+
+        let mut ast = Self::compile_api(&mut compiler).context("failed to compile vsl's api")?;
+
+        ast += if let Some(script_path) = &script_path {
+            compiler
+            .compile(
+                &std::fs::read_to_string(&script_path)
+                .context(format!("failed to read file: '{}'", script_path.display()))?
+            )
+        } else {
+            log::warn!(
+                target: log_channels::RE,
+                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
+            );
+
+            compiler
+            .compile(include_str!("default_rules.rhai"))
+        }.context("failed to compile your scripts")?;
+
+        let directives = Self::extract_directives(&compiler, &ast)?;
+
+        log::debug!(target: log_channels::RE, "done.");
+
+        Ok(Self {
+            ast,
+            directives,
+            vsl_module,
+            std_module,
+            toml_module,
+        })
+    }
+
+    /// create a rule engine instance from a script.
+    ///
+    /// # Errors
+    ///
+    /// * failed to compile the script.
+    pub fn from_script(config: &Config, script: &str) -> anyhow::Result<Self> {
+        let mut compiler = Self::new_compiler();
+
+        let vsl_module = modules::StandardVSLPackage::new().as_shared_module();
+        let std_module = rhai::packages::StandardPackage::new().as_shared_module();
+        let toml_module = rhai::Shared::new(Self::build_toml_module(config, &compiler)?);
+
+        compiler
+            .register_global_module(std_module.clone())
+            .register_static_module("sys", vsl_module.clone())
+            .register_static_module("toml", toml_module.clone());
+
+        let mut ast = Self::compile_api(&mut compiler).context("failed to compile vsl's api")?;
+        ast += compiler.compile(script)?;
+
+        let directives = Self::extract_directives(&compiler, &ast)?;
+
+        Ok(Self {
+            ast,
+            directives,
+            vsl_module,
+            std_module,
+            toml_module,
+        })
+    }
+
     /// runs all rules from a stage using the current transaction state.$
     /// # Panics
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
-        if let Some(status) = &rule_state.skip {
-            return status.clone();
+        if let Some(status) = rule_state.skipped() {
+            return (*status).clone();
         }
 
         let now = time::OffsetDateTime::now_utc();
@@ -216,7 +177,7 @@ impl RuleEngine {
             );
 
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
-            match self.execute_directives(&rule_state.engine, &directive_set[..], smtp_state) {
+            match self.execute_directives(rule_state.engine(), &directive_set[..], smtp_state) {
                 Ok(status) => {
                     if let Status::Faccept | Status::Deny(_) = status {
                         log::debug!(
@@ -224,7 +185,7 @@ impl RuleEngine {
                         "[{}] the rule engine will skip all rules because of the previous result.",
                         smtp_state
                     );
-                        rule_state.skip = Some(status.clone());
+                        rule_state.skipping(status.clone());
                     }
 
                     return status;
@@ -316,89 +277,11 @@ impl RuleEngine {
         }
     }
 
-    /// creates a new instance of the rule engine, reading all files in the
-    /// `script_path` parameter.
-    /// if `script_path` is `None`, an warning is emitted and a deny-all script
-    /// is loaded.
-    ///
-    /// # Errors
-    /// * failed to register `script_path` as a valid module folder.
-    /// * failed to compile or load any script located at `script_path`.
-    pub fn new(config: &Config, script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
-        let mut engine = Self::new_raw(config)?;
-
-        let std_package = rhai::packages::StandardPackage::new();
-        let vsl_package = modules::StandardVSLPackage::new();
-
-        engine
-            .set_module_resolver(match script_path {
-                Some(script_path) => FileModuleResolver::new_with_path_and_extension(
-                    script_path.parent().ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "File '{}' is not a valid root directory for rules",
-                            script_path.display()
-                        )
-                    })?,
-                    "vsl",
-                ),
-                None => FileModuleResolver::new_with_extension("vsl"),
-            })
-            .register_static_module("sys", vsl_package.as_shared_module())
-            .register_global_module(std_package.as_shared_module());
-
-        log::debug!(target: log_channels::RE, "compiling rhai scripts ...");
-
-        let mut ast = Self::compile_api(&mut engine).context("failed to compile vsl's api")?;
-
-        ast += if let Some(script_path) = &script_path {
-            engine
-            .compile(
-                &std::fs::read_to_string(&script_path)
-                .context(format!("failed to read file: '{}'", script_path.display()))?
-            )
-        } else {
-            log::warn!(
-                target: log_channels::RE,
-                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
-            );
-
-            engine
-            .compile(include_str!("default_rules.rhai"))
-        }.context("failed to compile your scripts")?;
-
-        let directives = Self::extract_directives(&engine, &ast)?;
-
-        log::debug!(target: log_channels::RE, "done.");
-
-        Ok(Self {
-            ast,
-            directives,
-            vsl_package,
-            std_package,
-        })
-    }
-
-    /// create a rhai engine with vsl's configuration.
-    fn new_raw(config: &Config) -> anyhow::Result<rhai::Engine> {
+    /// create a rhai engine to compile all scripts with vsl's configuration.
+    fn new_compiler() -> rhai::Engine {
         let mut engine = Engine::new();
 
-        let server_config = &vsmtp_common::re::serde_json::to_string(&config.server)
-            .context("failed to convert the server configuration to json")?
-            .replace('{', "#{");
-
-        let app_config = &vsmtp_common::re::serde_json::to_string(&config.app)
-            .context("failed to convert the app configuration to json")?
-            .replace('{', "#{");
-
-        let mut toml_module = rhai::Module::new();
-
-        // setting up toml configuration injection.
-        toml_module
-            .set_var("server", engine.parse_json(server_config, true)?)
-            .set_var("app", engine.parse_json(app_config, true)?);
-
         engine
-            .register_static_module("toml", toml_module.into())
             .disable_symbol("eval")
             .on_parse_token(|token, _, _| {
                 match token {
@@ -418,7 +301,7 @@ impl RuleEngine {
             .register_iterator::<Vec<vsmtp_common::address::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
-        Ok(engine)
+        engine
     }
 
     fn compile_api(engine: &mut rhai::Engine) -> anyhow::Result<rhai::AST> {
@@ -488,28 +371,22 @@ impl RuleEngine {
         Ok(directives)
     }
 
-    /// create a rule engine instance from a script.
-    ///
-    /// # Errors
-    ///
-    /// * failed to compile the script.
-    pub fn from_script(config: &Config, script: &str) -> anyhow::Result<Self> {
-        let mut engine = Self::new_raw(config)?;
-        let mut ast = Self::compile_api(&mut engine).context("failed to compile vsl's api")?;
-        ast += engine.compile(script)?;
-        let directives = Self::extract_directives(&engine, &ast)?;
-        let vsl_package = modules::StandardVSLPackage::new();
-        let std_package = rhai::packages::StandardPackage::new();
+    fn build_toml_module(config: &Config, engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
+        let server_config = &vsmtp_common::re::serde_json::to_string(&config.server)
+            .context("failed to convert the server configuration to json")?
+            .replace('{', "#{");
 
-        engine
-            .register_static_module("sys", vsl_package.as_shared_module())
-            .register_global_module(std_package.as_shared_module());
+        let app_config = &vsmtp_common::re::serde_json::to_string(&config.app)
+            .context("failed to convert the app configuration to json")?
+            .replace('{', "#{");
 
-        Ok(Self {
-            ast,
-            directives,
-            vsl_package,
-            std_package,
-        })
+        let mut toml_module = rhai::Module::new();
+
+        // setting up toml configuration injection.
+        toml_module
+            .set_var("server", engine.parse_json(server_config, true)?)
+            .set_var("app", engine.parse_json(app_config, true)?);
+
+        Ok(toml_module)
     }
 }

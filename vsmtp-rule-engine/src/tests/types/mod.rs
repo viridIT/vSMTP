@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    rule_engine::{RuleEngine, RuleState},
-    tests::helpers::get_default_state,
-};
+use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{
     address::Address, collection, mail_context::Body, state::StateSMTP, status::Status,
 };
@@ -70,7 +67,7 @@ fn test_address() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.get_context().write().unwrap().envelop.mail_from =
+    state.context().write().unwrap().envelop.mail_from =
         Address::try_from("mail.from@test.net".to_string()).expect("could not parse address");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
@@ -123,7 +120,7 @@ fn test_services() {
 
     let mut state = RuleState::new(&config, &re);
 
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(String::default());
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
@@ -176,7 +173,7 @@ fn test_config_display() {
     let re = RuleEngine::new(&config, &Some(rules_path!["objects", "main.vsl"])).unwrap();
     let mut state = RuleState::new(&config, &re);
 
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(String::default());
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Accept);
 }

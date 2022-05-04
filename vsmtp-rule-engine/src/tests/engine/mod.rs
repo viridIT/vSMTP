@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 **/
-use crate::{
-    rule_engine::{RuleEngine, RuleState},
-    tests::helpers::get_default_state,
-};
+use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{mail_context::ConnectionContext, state::StateSMTP, status::Status};
 
 #[test]
@@ -111,12 +108,12 @@ fn test_rule_state() {
     );
 
     assert_eq!(
-        state.get_context().read().unwrap().client_addr.ip(),
+        state.context().read().unwrap().client_addr.ip(),
         std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
     );
     assert_eq!(
         state_with_context
-            .get_context()
+            .context()
             .read()
             .unwrap()
             .client_addr

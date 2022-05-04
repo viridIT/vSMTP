@@ -15,7 +15,7 @@ use vsmtp_common::{
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 /// read all entries from the deliver queue & tries to send them.
 pub async fn flush_deliver_queue(
@@ -88,7 +88,7 @@ pub async fn handle_one_in_delivery_queue(
         //        the context is wrapped in an RwLock because of the receiver.
         //        find a way to mutate the context in the rule engine without
         //        using a RwLock.
-        let mut ctx = state.get_context().read().unwrap().clone();
+        let mut ctx = state.context().read().unwrap().clone();
 
         add_trace_information(config, &mut ctx, &result)?;
 

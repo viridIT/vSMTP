@@ -33,13 +33,13 @@ fn test_email_context() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
-    state.get_context().write().unwrap().envelop.rcpt = vec![
+    state.context().write().unwrap().envelop.rcpt = vec![
         Address::try_from("rcpt@toremove.org".to_string())
             .unwrap()
             .into(),
@@ -47,7 +47,7 @@ fn test_email_context() {
             .unwrap()
             .into(),
     ];
-    state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
+    state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }
 
@@ -77,12 +77,12 @@ fn test_email_add_get_set_header() {
         Status::Deny(None)
     );
     let (mut state, _) = get_default_state("./tmp/app");
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
-    state.get_context().write().unwrap().metadata = Some(MessageMetadata::default());
+    state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }

@@ -26,7 +26,7 @@ use vsmtp_common::{
 };
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MailMimeParser;
-use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 /// process that treats incoming email offline with the postq stage.
 ///
@@ -104,12 +104,12 @@ async fn handle_one_in_working_queue(
     if let Status::Deny(_) = result {
         Queue::Dead.write_to_queue(
             &config.server.queues.dirpath,
-            &state.get_context().read().unwrap(),
+            &state.context().read().unwrap(),
         )?;
     } else {
         // using a bool to prevent the lock guard to reach the await call below.
         let delivered = {
-            let ctx = state.get_context();
+            let ctx = state.context();
             let ctx = ctx.read().unwrap();
 
             if ctx

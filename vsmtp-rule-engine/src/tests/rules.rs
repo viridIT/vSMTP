@@ -30,10 +30,10 @@ fn test_connect_rules() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     // ctx.client_addr is 0.0.0.0 by default.
-    state.get_context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
+    state.context().write().unwrap().client_addr = "127.0.0.1:0".parse().unwrap();
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
 
-    state.get_context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
+    state.context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
         Status::Deny(None)
@@ -48,7 +48,7 @@ fn test_helo_rules() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-    state.get_context().write().unwrap().envelop.helo = "example.com".to_string();
+    state.context().write().unwrap().envelop.helo = "example.com".to_string();
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
@@ -64,7 +64,7 @@ fn test_mail_from_rules() {
 
     let (mut state, _) = get_default_state("./tmp/app");
     {
-        let email = state.get_context();
+        let email = state.context();
         let mut email = email.write().unwrap();
 
         email.envelop.mail_from = Address::try_from("staff@example.com".to_string()).unwrap();
@@ -86,7 +86,7 @@ This is a reply to your hello."#,
     );
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
     assert_eq!(
-        state.get_context().read().unwrap().envelop.mail_from.full(),
+        state.context().read().unwrap().envelop.mail_from.full(),
         "no-reply@example.com"
     );
 }
@@ -101,7 +101,7 @@ fn test_rcpt_rules() {
 
     let (mut state, _) = get_default_state("./tmp/app");
     {
-        let email = state.get_context();
+        let email = state.context();
         let mut email = email.write().unwrap();
 
         email.envelop.rcpt = vec![
@@ -131,7 +131,7 @@ This is a reply to your hello."#,
     assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Accept);
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Next);
     assert_eq!(
-        state.get_context().read().unwrap().envelop.rcpt,
+        state.context().read().unwrap().envelop.rcpt,
         vec![
             vsmtp_common::rcpt::Rcpt::new(
                 Address::try_from("johndoe@example.com".to_string()).unwrap()
