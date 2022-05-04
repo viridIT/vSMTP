@@ -44,6 +44,7 @@ pub struct QueueContent {
     dirpath: std::path::PathBuf,
     inner: std::collections::HashMap<String, MessageByLifetime>,
     queue: Queue,
+    error_count: usize,
 }
 
 impl QueueContent {
@@ -78,6 +79,10 @@ impl QueueContent {
         self.inner.insert(key.to_string(), out);
     }
 
+    pub fn add_failed_to_read(&mut self, entries: &[&anyhow::Error]) {
+        self.error_count = entries.len();
+    }
+
     fn lifetimes() -> Vec<u64> {
         (0..9)
             .into_iter()
@@ -105,6 +110,7 @@ impl From<(Queue, std::path::PathBuf, char, std::time::SystemTime)> for QueueCon
             dirpath,
             now,
             inner: collection! {},
+            error_count: 0,
         }
     }
 }
@@ -131,14 +137,21 @@ impl std::fmt::Display for QueueContent {
 
         if self.inner.is_empty() {
             f.write_str(if self.dirpath.exists() {
-                " <EMPTY>\n"
+                "\t<EMPTY>"
             } else {
-                " <MISSING>\n"
+                "\t<MISSING>"
             })?;
-            return Ok(());
+        }
+
+        if self.error_count != 0 {
+            f.write_fmt(format_args!("\twith {} error", self.error_count))?;
         }
 
         f.write_str("\n")?;
+
+        if self.inner.is_empty() {
+            return Ok(());
+        }
 
         f.write_fmt(format_args!("{:>25}", "T"))?;
         for i in &lifetimes {
@@ -148,7 +161,7 @@ impl std::fmt::Display for QueueContent {
             "{max:>5}+",
             max = lifetimes.last().unwrap_or(&0)
         ))?;
-        f.write_fmt(format_args!("\n"))?;
+        f.write_str("\n")?;
 
         f.write_fmt(format_args!(
             "{:>20}{:>5}",
@@ -180,7 +193,7 @@ impl std::fmt::Display for QueueContent {
             "{max:>5}",
             max = token_if_empty!(self.empty_token, sum_where(u64::MAX))
         ))?;
-        f.write_fmt(format_args!("\n"))?;
+        f.write_str("\n")?;
 
         for (key, values) in &self.inner {
             f.write_fmt(format_args!(
@@ -201,7 +214,7 @@ impl std::fmt::Display for QueueContent {
                 "{max:>5}",
                 max = token_if_empty!(self.empty_token, values.get(&u64::MAX).map_or(0, Vec::len))
             ))?;
-            f.write_fmt(format_args!("\n"))?;
+            f.write_str("\n")?;
         }
 
         Ok(())
