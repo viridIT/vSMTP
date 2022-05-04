@@ -49,8 +49,8 @@
 vSMTP is a next-gen *Mail Transfer Agent* (MTA), faster, safer and greener.
 
 - It is 100% built in [Rust](https://www.rust-lang.org).
-- It is Lighting fast.
-- It is Modular and highly customizable.
+- It is lighting fast.
+- It is modular and highly customizable.
 - It has a complete filtering system.
 - It is actively developed and maintained.
 
@@ -58,9 +58,7 @@ vSMTP is a next-gen *Mail Transfer Agent* (MTA), faster, safer and greener.
 
 While optimizing IT resources becomes an increasing challenge, computer attacks remain a constant problem.
 
-Every day, over 300 billion emails are sent and received in the world. Billions
-of attachments are processed, analyzed and delivered, contributing to the increase
-in greenhouse gas emissions.
+Every day, over 300 billion emails are sent and received in the world. Billions of attachments are processed, analyzed and delivered, contributing to the increase in greenhouse gas emissions.
 
 To meet these challenges, viridIT is developing a new technology of email gateways, also called vSMTP.
 
@@ -68,11 +66,9 @@ Follow us on [viridit.com](https://viridit.com)
 
 ## Documentation
 
-For documentation please consult the [vBook](https://vsmtp.rs),
-the online reference and user guide for vSMTP.
+For documentation please consult the [vBook](https://vsmtp.rs), the online reference and user guide for vSMTP.
 
-To stay tuned, ask questions and get in-depth answers feel free to
-register and visit our [community forums](https://www.viridit.com/community-forum).
+To stay tuned, ask questions and get in-depth answers feel free to register and visit our [community forums](https://www.viridit.com/community-forum).
 You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussions).
 
 ## Roadmap
@@ -94,6 +90,4 @@ For any question related to commercial, licensing, etc. you can [contact us] on 
 
 The standard version of vSMTP is free and under an Open Source license.
 
-It is provided as usual without any warranty. Please refer to the
-[license](https://github.com/viridIT/vSMTP/blob/main/LICENSE) for further
-information.
+It is provided as usual without any warranty. Please refer to the [license](https://github.com/viridIT/vSMTP/blob/main/LICENSE) for further information.

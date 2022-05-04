@@ -1,12 +1,12 @@
 [workspace]
 members = [
-    "vqueue",
-    "vsmtp",
-    "vsmtp-common",
-    "vsmtp-config",
-    "vsmtp-delivery",
-    "vsmtp-mail-parser",
-    "vsmtp-rule-engine",
-    "vsmtp-server",
-    "vsmtp-test",
+    "/src/vqueue",
+    "/src/vsmtp",
+    "/src/vsmtp/vsmtp-common",
+    "/src/vsmtp/vsmtp-config",
+    "/src/vsmtp/vsmtp-delivery",
+    "/src/vsmtp/vsmtp-mail-parser",
+    "/src/vsmtp/vsmtp-rule-engine",
+    "/src/vsmtp/vsmtp-server",
+    "/src/vsmtp/vsmtp-test",
 ]
