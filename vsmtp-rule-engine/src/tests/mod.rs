@@ -47,7 +47,7 @@ mod types;
 pub mod helpers {
     use vsmtp_config::Config;
 
-    use crate::rule_engine::RuleState;
+    use crate::rule_engine::{RuleEngine, RuleState};
 
     /// create a rule engine state with it's associated configuration.
     pub(super) fn get_default_state(
@@ -76,6 +76,7 @@ pub mod helpers {
             .validate()
             .unwrap();
 
-        (RuleState::new(&config), config)
+        let re = RuleEngine::from_script(&config, "#{}").unwrap();
+        (RuleState::new(&config, &re), config)
     }
 }

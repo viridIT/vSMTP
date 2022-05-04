@@ -83,9 +83,11 @@ fn test_rule_state() {
         .validate()
         .unwrap();
 
-    let state = RuleState::new(&config);
+    let rule_engine = RuleEngine::from_script(&config, "#{}").unwrap();
+    let state = RuleState::new(&config, &rule_engine);
     let state_with_context = RuleState::with_context(
         &config,
+        &rule_engine,
         vsmtp_common::mail_context::MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),

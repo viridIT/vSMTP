@@ -121,7 +121,7 @@ fn test_services() {
 
     let re = RuleEngine::new(&config, &Some(rules_path!["service", "main.vsl"])).unwrap();
 
-    let mut state = RuleState::new(&config);
+    let mut state = RuleState::new(&config, &re);
 
     state.get_context().write().unwrap().body = Body::Raw(String::default());
 
@@ -174,7 +174,7 @@ fn test_config_display() {
         .unwrap();
 
     let re = RuleEngine::new(&config, &Some(rules_path!["objects", "main.vsl"])).unwrap();
-    let mut state = RuleState::new(&config);
+    let mut state = RuleState::new(&config, &re);
 
     state.get_context().write().unwrap().body = Body::Raw(String::default());
 

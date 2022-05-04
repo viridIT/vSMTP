@@ -40,18 +40,25 @@ const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
 const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[hour]:[minute]:[second]");
 
-///
+/// a state container that bridges rhai's & rust contexts.
 pub struct RuleState<'a> {
+    /// a lightweight engine for evaluation.
+    engine: rhai::Engine,
+    /// state containing some variables like date & time.
     scope: Scope<'a>,
+    /// a pointer to the server api.
+    #[allow(dead_code)]
     server: std::sync::Arc<ServerAPI>,
+    /// a pointer to the mail context for the current connexion.
     mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
+    /// does the following rules needs to be skipped ?
     skip: Option<Status>,
 }
 
 impl<'a> RuleState<'a> {
     /// creates a new rule engine with an empty scope.
     #[must_use]
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &Config, rule_engine: &RuleEngine) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
@@ -76,7 +83,10 @@ impl<'a> RuleState<'a> {
 
         scope.push("date", "").push("time", "");
 
+        let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
+
         Self {
+            engine,
             scope,
             server,
             mail_context,
@@ -87,15 +97,23 @@ impl<'a> RuleState<'a> {
     /// create a new rule state with connection data.
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    pub fn with_connection(config: &Config, conn: ConnectionContext) -> Self {
-        let state = Self::new(config);
+    pub fn with_connection(
+        config: &Config,
+        rule_engine: &RuleEngine,
+        conn: ConnectionContext,
+    ) -> Self {
+        let state = Self::new(config, rule_engine);
         state.mail_context.write().unwrap().connection = conn;
         state
     }
 
     /// create a RuleState from an existing mail context (f.e. when deserializing a context)
     #[must_use]
-    pub fn with_context(config: &Config, mail_context: MailContext) -> Self {
+    pub fn with_context(
+        config: &Config,
+        rule_engine: &RuleEngine,
+        mail_context: MailContext,
+    ) -> Self {
         let mut scope = Scope::new();
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
@@ -104,12 +122,40 @@ impl<'a> RuleState<'a> {
 
         scope.push("date", "").push("time", "");
 
+        let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
+
         Self {
+            engine,
             scope,
             server,
             mail_context,
             skip: None,
         }
+    }
+
+    /// build a cheap rhai engine with vsl's api.
+    fn build_rhai_engine(
+        mail_context: &std::sync::Arc<std::sync::RwLock<MailContext>>,
+        server: &std::sync::Arc<ServerAPI>,
+        rule_engine: &RuleEngine,
+    ) -> rhai::Engine {
+        let mut engine = rhai::Engine::new_raw();
+
+        let mail_context = mail_context.clone();
+        let server = server.clone();
+
+        engine
+            // NOTE: why do we have to clone the arc twice instead of just moving it here ?
+            // injecting the state if the current connection into the engine.
+            .on_var(move |name, _, _| match name {
+                "CTX" => Ok(Some(rhai::Dynamic::from(mail_context.clone()))),
+                "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
+                _ => Ok(None),
+            })
+            .register_global_module(rule_engine.std_package.as_shared_module())
+            .register_static_module("sys", rule_engine.vsl_package.as_shared_module());
+
+        engine
     }
 
     /// add data to the scope of the engine.
@@ -151,24 +197,6 @@ impl RuleEngine {
     /// runs all rules from a stage using the current transaction state.$
     /// # Panics
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
-        // FIXME: the raw engine could be part of the state instead of building one every run.
-        // creating a raw engine every run which is extremely cheap to create.
-        let mut engine = rhai::Engine::new_raw();
-
-        let mail_context = rule_state.mail_context.clone();
-        let server = rule_state.server.clone();
-
-        engine
-            // NOTE: why do we have to clone the arc twice instead of just moving it here ?
-            // injecting the state if the current connection into the engine.
-            .on_var(move |name, _, _| match name {
-                "CTX" => Ok(Some(rhai::Dynamic::from(mail_context.clone()))),
-                "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
-                _ => Ok(None),
-            })
-            .register_global_module(self.std_package.as_shared_module())
-            .register_static_module("sys", self.vsl_package.as_shared_module());
-
         if let Some(status) = &rule_state.skip {
             return status.clone();
         }
@@ -188,7 +216,7 @@ impl RuleEngine {
             );
 
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
-            match self.execute_directives(&engine, &directive_set[..], smtp_state) {
+            match self.execute_directives(&rule_state.engine, &directive_set[..], smtp_state) {
                 Ok(status) => {
                     if let Status::Faccept | Status::Deny(_) = status {
                         log::debug!(
