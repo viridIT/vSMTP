@@ -218,7 +218,6 @@ fn test_forward() {
     assert_eq!(re.run_when(&mut state, &StateSMTP::Delivery), Status::Next);
 
     let rcpt = state.context().read().unwrap().envelop.rcpt.clone();
-    println!("rcpt: {rcpt:?}");
 
     assert_eq!(rcpt[0].address.full(), "fqdn@example.com");
     assert_eq!(

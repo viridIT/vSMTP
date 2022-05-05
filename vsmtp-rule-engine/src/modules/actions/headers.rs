@@ -164,7 +164,6 @@ pub mod headers {
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         new_addr: &str,
     ) -> EngineResult<()> {
-        println!("add rcpt");
         let new_addr = Address::try_from(new_addr.to_string()).map_err(|_| {
             format!(
                 "'{}' could not be converted to a valid rcpt address",
