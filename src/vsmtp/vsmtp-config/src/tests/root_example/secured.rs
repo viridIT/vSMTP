@@ -23,7 +23,7 @@ use crate::{
 
 #[test]
 fn parse() {
-    let toml = include_str!("../../../../examples/config/secured.toml");
+    let toml = include_str!("../../../../../examples/config/secured.toml");
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
