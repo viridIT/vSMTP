@@ -1,0 +1,29 @@
+version_requirement = "<1.0.0"
+
+[server]
+client_count_max = 8
+
+[server.interfaces]
+addr = ["127.0.0.1:10025"]
+addr_submission = ["127.0.0.1:10587"]
+addr_submissions = ["127.0.0.1:10465"]
+
+[server.system.thread_pool]
+receiver = 3
+processing = 3
+delivery = 3
+
+[server.queues]
+dirpath = "./tmp/stress/spool"
+
+[server.logs]
+filepath = "./tmp/stress/vsmtp.log"
+
+[app]
+dirpath = "./tmp/stress/vsmtp"
+
+[app.vsl]
+filepath = "./benchmarks/stress/main.vsl"
+
+[app.logs]
+filepath = "./tmp/stress/app.log"

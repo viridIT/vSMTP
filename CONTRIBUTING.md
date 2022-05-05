@@ -41,7 +41,7 @@ and try to keep code formatting commits separate from functional commits.
 If the change being proposed alters code, the pull request should include one or
 more tests to ensure that vSMTP does not regress in the future. Please follow
 instructions described in the
-[testing policies](https://github.com/viridIT/vSMTP/blob/doc/misc/TESTING.md)
+[testing policies](https://github.com/viridIT/vSMTP/blob/develop/TESTING.md)
 file.
 
 PRs which cause test failures or a significant coverage decrease are unlikely to

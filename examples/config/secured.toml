@@ -74,6 +74,5 @@ mail_from = "200ms"
 rcpt_to = "400ms"
 data = "800ms"
 
-
 [app]
 dirpath = "/var/spool/vsmtp/app"

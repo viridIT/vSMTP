@@ -1,0 +1,33 @@
+[package]
+edition = "2021"
+
+name = "vsmtp-stress"
+version = "0.10.3"
+license = "GPLv3"
+
+authors = ["Team viridIT <https://viridit.com/>"]
+description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+homepage = "https://github.com/viridIT/vSMTP"
+repository = "https://github.com/viridIT/vSMTP"
+
+publish = false
+
+[dependencies]
+tokio = { version = "1.18.1", default-features = false, features = [
+    "macros",
+    "time",
+    "sync",
+    "net",
+    "io-util",
+    "rt-multi-thread",
+] }
+
+opentelemetry = { version = "0.17.0", features = ["rt-tokio", "metrics"] }
+opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"] }
+
+lettre = { version = "0.10.0-rc.6", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }

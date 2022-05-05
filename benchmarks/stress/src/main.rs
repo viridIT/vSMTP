@@ -1,35 +1,23 @@
-/*
- * vSMTP mail transfer agent
- * Copyright (C) 2022 viridIT SAS
- *
- * This program is free software: you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see https://www.gnu.org/licenses/.
- *
-*/
 use opentelemetry::{global, runtime, trace, Context};
-use vsmtp_common::re::serde_json;
 
-#[derive(Debug, serde::Deserialize)]
-struct StressConfig {
-    server_ip: String,
-    server_port: u16,
-    total_client_count: u64,
-    mail_per_client: u64,
-}
+async fn start_server() -> std::io::Result<()> {
+    let vsmtp_path = std::path::PathBuf::from_iter(["./target/release/vsmtp"]);
+    let config_path = std::path::PathBuf::from_iter(["./benchmarks/stress/vsmtp.stress.toml"]);
 
-lazy_static::lazy_static! {
-    static ref STRESS_CONFIG: StressConfig = {
-         std::fs::read_to_string("./tests/stress/send_payload_config.json")
-            .map(|str| serde_json::from_str(&str)).unwrap().unwrap()
-    };
+    let output = std::process::Command::new(vsmtp_path)
+        .args([
+            "-t",
+            "10s",
+            "--no-daemon",
+            "-c",
+            config_path.to_str().unwrap(),
+        ])
+        .spawn()?
+        .wait_with_output()?;
+
+    println!("{:?}", output);
+
+    Ok(())
 }
 
 fn get_mail() -> lettre::Message {
@@ -42,23 +30,35 @@ fn get_mail() -> lettre::Message {
         .unwrap()
 }
 
-async fn run_one_connection(client_nb: u64) -> Result<(), u64> {
+struct StressConfig {
+    server_ip: String,
+    port_relay: u16,
+    port_submission: u16,
+    port_submissions: u16,
+    total_client_count: u64,
+    mail_per_client: u64,
+}
+
+async fn run_one_connection(
+    config: std::sync::Arc<StressConfig>,
+    client_nb: u64,
+) -> Result<(), u64> {
     let tracer = global::tracer("client");
     let span = trace::Tracer::start(&tracer, format!("Connection: {client_nb}"));
     let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
     let mailer = std::sync::Arc::new(
         lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
-            STRESS_CONFIG.server_ip.clone(),
+            config.server_ip.clone(),
         )
-        .port(STRESS_CONFIG.server_port)
+        .port(config.port_relay)
         // TODO:
         // .tls()
         // .credentials()
         .build(),
     );
 
-    for i in 0..STRESS_CONFIG.mail_per_client {
+    for i in 0..config.mail_per_client {
         let sender = mailer.clone();
 
         let x = trace::FutureExt::with_context(
@@ -85,19 +85,21 @@ async fn run_one_connection(client_nb: u64) -> Result<(), u64> {
     Ok(())
 }
 
-fn create_task(id: u64) -> tokio::task::JoinHandle<std::result::Result<(), u64>> {
+fn create_task(
+    config: std::sync::Arc<StressConfig>,
+    id: u64,
+) -> tokio::task::JoinHandle<std::result::Result<(), u64>> {
     let tracer = global::tracer("register-task");
     let span = trace::Tracer::start(&tracer, format!("Register Task: {id}"));
     let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
-    tokio::spawn(trace::FutureExt::with_context(run_one_connection(id), cx))
+    tokio::spawn(trace::FutureExt::with_context(
+        run_one_connection(config, id),
+        cx,
+    ))
 }
 
-#[ignore = "require the test 'listen_and_serve' and a 'jaeger-all-in-one' to run in background"]
-#[tokio::test(flavor = "multi_thread", worker_threads = 16)]
-async fn send_payload() {
-    println!("{:?}", *STRESS_CONFIG);
-
+async fn run_stress(config: std::sync::Arc<StressConfig>) {
     let tracer = opentelemetry_jaeger::new_pipeline()
         .with_service_name("vsmtp-stress")
         .install_batch(runtime::Tokio)
@@ -108,16 +110,16 @@ async fn send_payload() {
 
     trace::FutureExt::with_context(
         async move {
-            let mut task = (0..STRESS_CONFIG.total_client_count)
+            let mut task = (0..config.total_client_count)
                 .into_iter()
-                .map(create_task)
+                .map(|i| create_task(config.clone(), i))
                 .collect::<Vec<_>>();
 
             while !task.is_empty() {
                 let mut new_task = vec![];
                 for i in task {
                     if let Err(id) = i.await.unwrap() {
-                        new_task.push(create_task(id + 1000))
+                        new_task.push(create_task(config.clone(), id + 1000))
                     }
                 }
                 task = new_task;
@@ -128,4 +130,26 @@ async fn send_payload() {
     .await;
 
     global::shutdown_tracer_provider();
+}
+
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    let server = tokio::spawn(start_server());
+
+    let config = std::sync::Arc::new(StressConfig {
+        server_ip: "127.0.0.1".to_string(),
+        port_relay: 10025,
+        port_submission: 10587,
+        port_submissions: 10465,
+        total_client_count: 10,
+        mail_per_client: 1,
+    });
+
+    let clients = run_stress(config);
+
+    tokio::select! {
+        s = server => s??,
+        c = clients => c
+    };
+    Ok(())
 }

@@ -9,4 +9,5 @@ members = [
     "vsmtp-rule-engine",
     "vsmtp-server",
     "vsmtp-test",
+    "benchmarks/stress",
 ]
