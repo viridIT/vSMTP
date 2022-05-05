@@ -25,15 +25,32 @@ pub fn queue_show<OUT: std::io::Write>(
             continue;
         };
 
-        let mut entries = entries
+        // add_failed_to_read
+
+        let mut data = entries
             .into_iter()
             .map(QueueEntry::try_from)
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        entries.sort_by(|a, b| Ord::cmp(&a.message.envelop.helo, &b.message.envelop.helo));
+            .collect::<Vec<_>>();
+        let split_index = itertools::partition(&mut data, Result::is_ok);
 
-        for (key, values) in
-            &itertools::Itertools::group_by(entries.into_iter(), |i| i.message.envelop.helo.clone())
-        {
+        let errors = &data[split_index..];
+        content.add_failed_to_read(
+            &errors
+                .iter()
+                .map(|r| r.as_ref().unwrap_err())
+                .collect::<Vec<_>>(),
+        );
+
+        let mut valid_entries = data[..split_index]
+            .iter()
+            .map(|i| i.as_ref().unwrap())
+            .cloned()
+            .collect::<Vec<_>>();
+        valid_entries.sort_by(|a, b| Ord::cmp(&a.message.envelop.helo, &b.message.envelop.helo));
+
+        for (key, values) in &itertools::Itertools::group_by(valid_entries.into_iter(), |i| {
+            i.message.envelop.helo.clone()
+        }) {
             content.add_entry(&key, values.into_iter().collect::<Vec<_>>());
         }
 
@@ -45,7 +62,7 @@ pub fn queue_show<OUT: std::io::Write>(
 #[cfg(test)]
 mod tests {
     use vsmtp_common::{
-        address::Address,
+        addr,
         envelop::Envelop,
         mail::{BodyType, Mail},
         mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
@@ -78,8 +95,8 @@ mod tests {
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             [
-                "WORKING    is at './tmp/empty/working' : <EMPTY>\n",
-                "DELIVER    is at './tmp/empty/deliver' : <EMPTY>\n",
+                "WORKING    is at './tmp/empty/working' :\t<EMPTY>\n",
+                "DELIVER    is at './tmp/empty/deliver' :\t<EMPTY>\n",
             ]
             .concat(),
         );
@@ -104,10 +121,10 @@ mod tests {
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             [
-                "WORKING    is at './tmp/empty/working' : <EMPTY>\n",
-                "DELIVER    is at './tmp/empty/deliver' : <EMPTY>\n",
-                "DEFERRED   is at './tmp/empty/deferred' : <EMPTY>\n",
-                "DEAD       is at './tmp/empty/dead' : <EMPTY>\n"
+                "WORKING    is at './tmp/empty/working' :\t<EMPTY>\n",
+                "DELIVER    is at './tmp/empty/deliver' :\t<EMPTY>\n",
+                "DEFERRED   is at './tmp/empty/deferred' :\t<EMPTY>\n",
+                "DEAD       is at './tmp/empty/dead' :\t<EMPTY>\n"
             ]
             .concat(),
         );
@@ -128,10 +145,10 @@ mod tests {
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             [
-                "WORKING    is at './tmp/missing/working' : <MISSING>\n",
-                "DELIVER    is at './tmp/missing/deliver' : <MISSING>\n",
-                "DEFERRED   is at './tmp/missing/deferred' : <MISSING>\n",
-                "DEAD       is at './tmp/missing/dead' : <MISSING>\n"
+                "WORKING    is at './tmp/missing/working' :\t<MISSING>\n",
+                "DELIVER    is at './tmp/missing/deliver' :\t<MISSING>\n",
+                "DEFERRED   is at './tmp/missing/deferred' :\t<MISSING>\n",
+                "DEAD       is at './tmp/missing/dead' :\t<MISSING>\n"
             ]
             .concat(),
         );
@@ -149,9 +166,9 @@ mod tests {
             client_addr: "0.0.0.0:25".parse().unwrap(),
             envelop: Envelop {
                 helo: "toto".to_string(),
-                mail_from: Address::try_from("foo@domain.com".to_string()).unwrap(),
+                mail_from: addr!("foo@domain.com"),
                 rcpt: vec![Rcpt {
-                    address: Address::try_from("foo+1@domain.com".to_string()).unwrap(),
+                    address: addr!("foo+1@domain.com"),
                     transfer_method: Transfer::Mbox,
                     email_status: EmailTransferStatus::Waiting,
                 }],
@@ -172,6 +189,33 @@ mod tests {
                 skipped: None,
             }),
         }
+    }
+
+    #[test]
+    fn one_error() {
+        let mut output = vec![];
+
+        queue_path!(create_if_missing => "./tmp/one_error", Queue::Working).unwrap();
+        std::fs::write("./tmp/one_error/working/00", "{}").unwrap();
+
+        queue_show(
+            <Queue as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
+            &std::path::PathBuf::from("./tmp/one_error"),
+            '.',
+            &mut output,
+        )
+        .unwrap();
+
+        pretty_assertions::assert_eq!(
+            std::str::from_utf8(&output).unwrap(),
+            [
+                "WORKING    is at './tmp/one_error/working' :\t<EMPTY>\twith 1 error\n",
+                "DELIVER    is at './tmp/one_error/deliver' :\t<MISSING>\n",
+                "DEFERRED   is at './tmp/one_error/deferred' :\t<MISSING>\n",
+                "DEAD       is at './tmp/one_error/dead' :\t<MISSING>\n"
+            ]
+            .concat(),
+        );
     }
 
     #[test]
@@ -198,9 +242,9 @@ mod tests {
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             [
-                "WORKING    is at './tmp/dead_with_one/working' : <EMPTY>\n",
-                "DELIVER    is at './tmp/dead_with_one/deliver' : <MISSING>\n",
-                "DEFERRED   is at './tmp/dead_with_one/deferred' : <MISSING>\n",
+                "WORKING    is at './tmp/dead_with_one/working' :\t<EMPTY>\n",
+                "DELIVER    is at './tmp/dead_with_one/deliver' :\t<MISSING>\n",
+                "DEFERRED   is at './tmp/dead_with_one/deferred' :\t<MISSING>\n",
                 "DEAD       is at './tmp/dead_with_one/dead' :\n",
                 "                        T    5   10   20   40   80  160  320  640 1280 1280+\n",
                 "               TOTAL    1    1    .    .    .    .    .    .    .    .    .\n",

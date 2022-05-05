@@ -23,7 +23,7 @@
         action "forward all (ip4 string)" || forward_all("::1"),
     ],
 
-    Data: [
+    data: [
         action "forward all (string object)" || {
             object forward_str string = "localhost";
             forward_all(forward_str)

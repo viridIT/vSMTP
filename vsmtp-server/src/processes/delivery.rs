@@ -6,7 +6,7 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
@@ -112,7 +112,7 @@ async fn send_email(
     config: &Config,
     resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
     metadata: &vsmtp_common::mail_context::MessageMetadata,
-    from: &vsmtp_common::address::Address,
+    from: &vsmtp_common::Address,
     to: &[vsmtp_common::rcpt::Rcpt],
     body: &Body,
 ) -> anyhow::Result<Vec<vsmtp_common::rcpt::Rcpt>> {
@@ -318,7 +318,7 @@ mod test {
             ),
             envelop: vsmtp_common::envelop::Envelop {
                 helo: "localhost".to_string(),
-                mail_from: vsmtp_common::address::Address::try_from("a@a.a".to_string()).unwrap(),
+                mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],
             },
             metadata: Some(vsmtp_common::mail_context::MessageMetadata {

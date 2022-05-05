@@ -10,7 +10,7 @@
 //
 #![allow(clippy::doc_markdown)]
 
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -18,17 +18,22 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 
-/// email address representation
-pub mod address;
+#[macro_use]
+mod r#type {
+    #[macro_use]
+    pub mod address;
+}
+
+pub use r#type::address::Address;
 
 /// smtp reply code to client's command
 pub mod code;

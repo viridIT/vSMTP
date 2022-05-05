@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,18 +6,16 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
-use vsmtp_common::{
-    address::Address, collection, mail_context::Body, state::StateSMTP, status::Status,
-};
+use vsmtp_common::{addr, collection, mail_context::Body, state::StateSMTP, status::Status};
 use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS, Service};
 
 #[test]
@@ -65,8 +63,7 @@ fn test_address() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.context().write().unwrap().envelop.mail_from =
-        Address::try_from("mail.from@test.net".to_string()).expect("could not parse address");
+    state.context().write().unwrap().envelop.mail_from = addr!("mail.from@test.net");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }

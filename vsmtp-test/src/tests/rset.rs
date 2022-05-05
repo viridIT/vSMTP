@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,16 +6,16 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use vsmtp_common::{
-    address::Address,
+    addr,
     mail::{BodyType, Mail},
     mail_context::{Body, MailContext},
     re::anyhow,
@@ -43,10 +43,7 @@ async fn reset_helo() {
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "a@b");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("b@c".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("b@c").into()]);
             assert_eq!(
                 body,
                 Body::Parsed(Box::new(Mail {
@@ -158,10 +155,7 @@ async fn reset_rcpt_to_ok() {
 
             assert_eq!(mail.envelop.helo, "foo2");
             assert_eq!(mail.envelop.mail_from.full(), "d@e");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("b@c".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("b@c").into()]);
             assert_eq!(
                 body,
                 Body::Parsed(Box::new(Mail {
@@ -247,10 +241,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
             assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![
-                    Address::try_from("toto2@bar".to_string()).unwrap().into(),
-                    Address::try_from("toto3@bar".to_string()).unwrap().into()
-                ]
+                vec![addr!("toto2@bar").into(), addr!("toto3@bar").into()]
             );
             assert_eq!(
                 body,

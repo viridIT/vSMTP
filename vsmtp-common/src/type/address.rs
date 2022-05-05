@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,15 +6,14 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
-
+*/
 /// Address Email
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq)]
 #[serde(into = "String", try_from = "String")]
@@ -22,6 +21,18 @@ pub struct Address {
     #[serde(skip)]
     at_sign: usize,
     full: String,
+}
+
+/// Syntax sugar Address object from dyn ToString
+///
+/// # Panics
+///
+/// if the argument failed to be converted
+#[macro_export]
+macro_rules! addr {
+    ($e:expr) => {
+        $crate::Address::try_from($e.to_string()).unwrap()
+    };
 }
 
 impl TryFrom<String> for Address {

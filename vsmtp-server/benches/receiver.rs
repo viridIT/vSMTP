@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,18 +6,18 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp_common::{address::Address, mail_context::MailContext, re::anyhow};
+use vsmtp_common::{addr, mail_context::MailContext, re::anyhow};
 use vsmtp_config::Config;
 use vsmtp_server::{Connection, OnMail};
 
@@ -98,10 +98,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             ) -> anyhow::Result<()> {
                 assert_eq!(mail.envelop.helo, "foobar");
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe");
-                assert_eq!(
-                    mail.envelop.rcpt,
-                    vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
-                );
+                assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
 
                 if matches!(mail.body, vsmtp_common::mail_context::Body::Empty) {
                     panic!("the email is not empty");

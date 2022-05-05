@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,14 +6,14 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use super::get_tls_config;
 use crate::tests::tls::test_tls_tunneled;
 use vsmtp_config::{get_rustls_config, ConfigServerVirtual, TlsSecurityLevel};
@@ -80,7 +80,7 @@ async fn starttls_under_tunnel() {
     let (client, server) = test_tls_tunneled(
         "testserver.com",
         std::sync::Arc::new(config),
-        ["NOOP\r\n", "STARTTLS\r\n"]
+        ["NOOP\r\n", "STARTTLS\r\n", "QUIT\r\n"]
             .into_iter()
             .map(str::to_string)
             .collect::<Vec<_>>(),
@@ -89,6 +89,7 @@ async fn starttls_under_tunnel() {
             "250 Ok",
             "220 testserver.com Service ready",
             "554 5.5.1 Error: TLS already active",
+            "221 Service closing transmission channel",
         ]
         .into_iter()
         .map(str::to_string)

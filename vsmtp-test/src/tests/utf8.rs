@@ -6,16 +6,16 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::test_receiver;
-use vsmtp_common::address::Address;
+use vsmtp_common::addr;
 use vsmtp_common::mail::{BodyType, Mail};
 use vsmtp_common::mail_context::Body;
 use vsmtp_common::mail_context::MailContext;
@@ -38,7 +38,7 @@ macro_rules! test_lang {
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(
                     mail.envelop.rcpt,
-                    vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
+                    vec![addr!("aa@bb").into()]
                 );
 
                 let body = mail
@@ -94,7 +94,8 @@ macro_rules! test_lang {
                 "\r\n",
                 &include_str!($lang_code).lines().map(str::to_string).collect::<Vec<_>>().join("\r\n"),
                 // adding a "\r\n" after the mail because [`join`] don t add after the final element
-                "\r\n.\r\n",
+                "\r\n",
+                ".\r\n",
                 "QUIT\r\n",
             ]
             .concat(),

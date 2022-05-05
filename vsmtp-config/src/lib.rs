@@ -18,7 +18,7 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
@@ -74,6 +74,7 @@ pub use trust_dns_helper::build_resolvers;
 
 /// Re-exported dependencies
 pub mod re {
+    pub use humantime_serde::re::humantime;
     pub use log4rs;
     pub use rustls;
     // NOTE: this one should not be re-exported (because tests only)

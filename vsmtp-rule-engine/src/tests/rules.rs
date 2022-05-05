@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,18 +6,16 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::{
-    address::Address, mail_context::Body, state::StateSMTP, status::Status, MailParser,
-};
+use vsmtp_common::{addr, mail_context::Body, state::StateSMTP, status::Status, MailParser};
 use vsmtp_mail_parser::MailMimeParser;
 
 #[test]
@@ -67,7 +65,7 @@ fn test_mail_from_rules() {
         let email = state.context();
         let mut email = email.write().unwrap();
 
-        email.envelop.mail_from = Address::try_from("staff@example.com".to_string()).unwrap();
+        email.envelop.mail_from = addr!("staff@example.com");
         email.body = Body::Parsed(Box::new(
             MailMimeParser::default()
                 .parse(
@@ -105,15 +103,9 @@ fn test_rcpt_rules() {
         let mut email = email.write().unwrap();
 
         email.envelop.rcpt = vec![
-            vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("johndoe@compagny.com".to_string()).unwrap(),
-            ),
-            vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("user@example.com".to_string()).unwrap(),
-            ),
-            vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("customer@company.com".to_string()).unwrap(),
-            ),
+            vsmtp_common::rcpt::Rcpt::new(addr!("johndoe@compagny.com")),
+            vsmtp_common::rcpt::Rcpt::new(addr!("user@example.com")),
+            vsmtp_common::rcpt::Rcpt::new(addr!("customer@company.com")),
         ];
 
         email.body = Body::Parsed(Box::new(
@@ -133,15 +125,9 @@ This is a reply to your hello."#,
     assert_eq!(
         state.context().read().unwrap().envelop.rcpt,
         vec![
-            vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("johndoe@example.com".to_string()).unwrap()
-            ),
-            vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("user@example.com".to_string()).unwrap()
-            ),
-            vsmtp_common::rcpt::Rcpt::new(
-                Address::try_from("no-reply@example.com".to_string()).unwrap()
-            ),
+            vsmtp_common::rcpt::Rcpt::new(addr!("johndoe@example.com")),
+            vsmtp_common::rcpt::Rcpt::new(addr!("user@example.com")),
+            vsmtp_common::rcpt::Rcpt::new(addr!("no-reply@example.com")),
         ]
     );
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,16 +6,16 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
- **/
+*/
 use super::code::SMTPReplyCode;
-use crate::mechanism::Mechanism;
+use crate::{mechanism::Mechanism, Address};
 
 /// See "SMTP Service Extension for 8-bit MIME Transport"
 /// https://datatracker.ietf.org/doc/html/rfc6152
@@ -59,13 +59,13 @@ pub enum Event {
     ///
     /// 3rd argument is an xtext of the identity of the submitter,
     /// "<>" meaning not enough unknown or insufficiently authenticated
-    MailCmd(String, Option<MimeBodyType>, Option<String>),
+    MailCmd(Option<Address>, Option<MimeBodyType>, Option<String>),
     /// This command is used to identify an individual recipient of the mail
     /// data; multiple recipients are specified by multiple uses of this
     /// command.
     /// Syntax = `"RCPT TO:" ( "<Postmaster@" Domain ">" / "<Postmaster>" /
     /// Forward-path ) [SP Rcpt-parameters] CRLF`
-    RcptCmd(String),
+    RcptCmd(Address),
     /// This command causes the mail data to be appended to the mail data
     /// buffer.
     /// Syntax = `"DATA" CRLF`
@@ -258,7 +258,15 @@ impl Event {
                 }
             }
 
-            Ok(Event::MailCmd(path, bitmime, auth_mailbox))
+            Ok(Event::MailCmd(
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(Address::try_from(path).map_err(|_| SMTPReplyCode::Code501)?)
+                },
+                bitmime,
+                auth_mailbox,
+            ))
         }
 
         match args {
@@ -293,7 +301,9 @@ impl Event {
         #[allow(clippy::missing_const_for_fn)]
         fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
             if args.is_empty() {
-                Ok(Event::RcptCmd(path))
+                Ok(Event::RcptCmd(
+                    Address::try_from(path).map_err(|_| SMTPReplyCode::Code501)?,
+                ))
             } else {
                 Err(SMTPReplyCode::Code504)
             }

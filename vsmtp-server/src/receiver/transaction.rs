@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,18 +6,18 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use super::connection::Connection;
 use crate::log_channels;
 use vsmtp_common::{
-    address::Address,
+    addr,
     auth::Mechanism,
     code::SMTPReplyCode,
     envelop::Envelop,
@@ -26,6 +26,7 @@ use vsmtp_common::{
     re::{anyhow, log},
     state::StateSMTP,
     status::{InfoPacket, Status},
+    Address,
 };
 use vsmtp_config::{Config, TlsSecurityLevel};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -103,8 +104,7 @@ impl Transaction {
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
-                    ctx.envelop.mail_from =
-                        Address::try_from("default@domain.com".to_string()).expect("");
+                    ctx.envelop.mail_from = addr!("default@domain.com");
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
@@ -208,7 +208,8 @@ impl Transaction {
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
                 // TODO: store in envelop _body_bit_mime & _auth_mailbox
-                self.set_mail_from(&mail_from, conn);
+                // TODO: handle : mail_from can be "<>""
+                self.set_mail_from(mail_from.unwrap(), conn);
 
                 match self
                     .rule_engine
@@ -226,7 +227,7 @@ impl Transaction {
             }
 
             (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
-                self.set_rcpt_to(&rcpt_to);
+                self.set_rcpt_to(rcpt_to);
 
                 match self
                     .rule_engine
@@ -333,68 +334,58 @@ impl Transaction {
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
-            mail_from: Address::try_from("no@address.net".to_string()).unwrap(),
+            mail_from: addr!("no@address.net"),
             rcpt: vec![],
         };
     }
 
     fn set_mail_from<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        mail_from: &str,
+        mail_from: Address,
         conn: &Connection<S>,
     ) {
-        match Address::try_from(mail_from.to_string()) {
-            Err(_) => todo!(),
-            Ok(mail_from) => {
-                let now = std::time::SystemTime::now();
+        let now = std::time::SystemTime::now();
 
-                let state = self.rule_state.context();
-                let mut ctx = state.write().unwrap();
-                ctx.body = Body::Empty;
-                ctx.envelop.rcpt.clear();
-                ctx.envelop.mail_from = mail_from;
-                ctx.metadata = Some(MessageMetadata {
-                    timestamp: now,
-                    // TODO: find a way to handle SystemTime failure.
-                    message_id: format!(
-                        "{}{}{}{}",
-                        now.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap_or(std::time::Duration::ZERO)
-                            .as_micros(),
-                        conn.timestamp
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap_or(std::time::Duration::ZERO)
-                            .as_millis(),
-                        std::iter::repeat_with(fastrand::alphanumeric)
-                            .take(36)
-                            .collect::<String>(),
-                        std::process::id()
-                    ),
-                    skipped: self.rule_state.skipped().cloned(),
-                });
+        let state = self.rule_state.context();
+        let mut ctx = state.write().unwrap();
+        ctx.body = Body::Empty;
+        ctx.envelop.rcpt.clear();
+        ctx.envelop.mail_from = mail_from;
+        ctx.metadata = Some(MessageMetadata {
+            timestamp: now,
+            // TODO: find a way to handle SystemTime failure.
+            message_id: format!(
+                "{}{}{}{}",
+                now.duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::ZERO)
+                    .as_micros(),
+                conn.timestamp
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::ZERO)
+                    .as_millis(),
+                std::iter::repeat_with(fastrand::alphanumeric)
+                    .take(36)
+                    .collect::<String>(),
+                std::process::id()
+            ),
+            skipped: self.rule_state.skipped().cloned(),
+        });
 
-                log::trace!(
-                    target: log_channels::TRANSACTION,
-                    "envelop=\"{:?}\"",
-                    ctx.envelop,
-                );
-            }
-        }
+        log::trace!(
+            target: log_channels::TRANSACTION,
+            "envelop=\"{:?}\"",
+            ctx.envelop,
+        );
     }
 
-    fn set_rcpt_to(&mut self, rcpt_to: &str) {
-        match Address::try_from(rcpt_to.to_string()) {
-            Err(_) => todo!(),
-            Ok(rcpt_to) => {
-                self.rule_state
-                    .context()
-                    .write()
-                    .unwrap()
-                    .envelop
-                    .rcpt
-                    .push(vsmtp_common::rcpt::Rcpt::new(rcpt_to));
-            }
-        }
+    fn set_rcpt_to(&mut self, rcpt_to: Address) {
+        self.rule_state
+            .context()
+            .write()
+            .unwrap()
+            .envelop
+            .rcpt
+            .push(vsmtp_common::rcpt::Rcpt::new(rcpt_to));
     }
 
     fn send_custom_code(packet: &InfoPacket) -> ProcessedEvent {
@@ -540,16 +531,12 @@ impl Transaction {
                         log::info!(target: log_channels::TRANSACTION, "eof");
                         transaction.state = StateSMTP::Stop;
                     }
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                        log::warn!(target: log_channels::TRANSACTION, "unexpected eof");
-                        transaction.state = StateSMTP::Stop;
-                    }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                         conn.send_code(SMTPReplyCode::Code451Timeout).await?;
                         anyhow::bail!(e)
                     }
                     Err(e) => {
-                        todo!("{:?}", e);
+                        anyhow::bail!(e)
                     }
                 },
             }

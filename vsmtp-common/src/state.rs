@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,14 +6,14 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::mechanism::Mechanism;
 
 /// State of the pipeline SMTP
@@ -76,8 +76,8 @@ impl std::fmt::Display for StateSMTP {
             Self::PostQ => "postq",
             Self::Delivery => "delivery",
             Self::Authentication(_, _) => "authenticate",
+            Self::Data => "data",
             // others
-            Self::Data => "Data",
             Self::Stop => "Stop",
             Self::NegotiationTLS => "NegotiationTLS",
         })
@@ -107,8 +107,8 @@ impl std::str::FromStr for StateSMTP {
                 Mechanism::default(),
                 Option::<Vec<u8>>::default(),
             )),
+            "data" => Ok(Self::Data),
             // others
-            "Data" => Ok(Self::Data),
             "Stop" => Ok(Self::Stop),
             "NegotiationTLS" => Ok(Self::NegotiationTLS),
             _ => anyhow::bail!("not a valid SMTP state: '{}'", s),

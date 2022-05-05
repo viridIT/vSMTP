@@ -15,5 +15,5 @@ fn main() -> anyhow::Result<()> {
         },
     )?;
 
-    execute(args, &config)
+    execute(args.command, &config)
 }

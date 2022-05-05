@@ -8,7 +8,9 @@ producing an error if the format is invalid or a field value is incorrect.
 All the possible errors are detected at startup making the server never
 failing if the configuration is successfully loaded.
 
-All the field are optional, and defaulted if missing. See the [minimal] config.
+All the field are optional, and defaulted if missing.
+
+See the [minimal] config. And use `vsmtp config-show` to see the default values.
 
 * [simple](./simple.toml)
 * [tls](./tls.toml)

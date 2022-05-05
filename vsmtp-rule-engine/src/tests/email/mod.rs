@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,21 +6,21 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::{
     rule_engine::RuleEngine,
     rule_state::RuleState,
     tests::helpers::{get_default_config, get_default_state},
 };
 use vsmtp_common::{
-    address::Address,
+    addr,
     mail::{BodyType, Mail},
     mail_context::{Body, MessageMetadata},
     state::StateSMTP,
@@ -41,12 +41,8 @@ fn test_email_context() {
         body: BodyType::Regular(vec![]),
     }));
     state.context().write().unwrap().envelop.rcpt = vec![
-        Address::try_from("rcpt@toremove.org".to_string())
-            .unwrap()
-            .into(),
-        Address::try_from("rcpt@torewrite.net".to_string())
-            .unwrap()
-            .into(),
+        addr!("rcpt@toremove.org").into(),
+        addr!("rcpt@torewrite.net").into(),
     ];
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);

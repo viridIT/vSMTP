@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,14 +6,14 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 // use super::io_service::{IoService, ReadError};
 use crate::{log_channels, AbstractIO};
 use vsmtp_common::{
@@ -96,7 +96,6 @@ where
         kind: ConnectionKind,
         server_name: String,
         timestamp: std::time::SystemTime,
-        is_alive: bool,
         config: std::sync::Arc<Config>,
         client_addr: std::net::SocketAddr,
         error_count: i64,
@@ -109,7 +108,7 @@ where
             kind,
             server_name,
             timestamp,
-            is_alive,
+            is_alive: true,
             config,
             client_addr,
             error_count,
@@ -117,6 +116,148 @@ where
             is_authenticated,
             authentication_attempt,
             inner: AbstractIO::new(inner),
+        }
+    }
+}
+
+fn fold(code: &str, enhanced: Option<&str>, message: &str) -> String {
+    let size_to_remove = "xyz ".len() + enhanced.map_or(0, |_| "X.Y.Z ".len()) + "\r\n".len();
+
+    let prefix = enhanced.map_or_else(
+        || [code.chars().collect::<Vec<char>>(), [' '].into()].concat::<char>(),
+        |enhanced| {
+            [
+                code.chars().collect::<Vec<char>>(),
+                [' '].into(),
+                enhanced.chars().collect::<Vec<char>>(),
+                [' '].into(),
+            ]
+            .concat::<char>()
+        },
+    );
+
+    let output = message
+        .split("\r\n")
+        .filter(|s| !s.is_empty())
+        .flat_map(|line| {
+            line.chars()
+                .collect::<Vec<char>>()
+                .chunks(80 - size_to_remove)
+                .flat_map(|c| [&prefix, c, &"\r\n".chars().collect::<Vec<_>>()].concat())
+                .collect::<String>()
+                .chars()
+                .collect::<Vec<_>>()
+        })
+        .collect::<String>();
+
+    let mut output = output
+        .split("\r\n")
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+    let len = output.len();
+    for i in &mut output[0..len - 1] {
+        i.replace_range(3..4, "-");
+    }
+
+    output
+        .into_iter()
+        .flat_map(|mut l| {
+            l.push_str("\r\n");
+            l.chars().collect::<Vec<_>>()
+        })
+        .collect::<String>()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fold;
+
+    #[test]
+    fn no_fold() {
+        let output = fold("220", None, "this is a custom code.");
+        pretty_assertions::assert_eq!(output, "220 this is a custom code.\r\n".to_string());
+        for i in output.split("\r\n") {
+            assert!(i.len() <= 78);
+        }
+    }
+
+    #[test]
+    fn one_line() {
+        let output = fold(
+            "220",
+            Some("2.0.0"),
+            &[
+                "this is a long message, a very very long message ...",
+                " carriage return will be properly added automatically.",
+            ]
+            .concat(),
+        );
+        pretty_assertions::assert_eq!(
+            output,
+            [
+                "220-2.0.0 this is a long message, a very very long message ... carriage return\r\n",
+                "220 2.0.0  will be properly added automatically.\r\n",
+            ]
+            .concat()
+        );
+        for i in output.split("\r\n") {
+            assert!(i.len() <= 78);
+        }
+    }
+
+    #[test]
+    fn two_line() {
+        let output = fold(
+            "220",
+            Some("2.0.0"),
+            &[
+                "this is a long message, a very very long message ...",
+                " carriage return will be properly added automatically. Made by",
+                " vSMTP mail transfer agent\nCopyright (C) 2022 viridIT SAS",
+            ]
+            .concat(),
+        );
+        pretty_assertions::assert_eq!(
+            output,
+            [
+                "220-2.0.0 this is a long message, a very very long message ... carriage return\r\n",
+                "220-2.0.0  will be properly added automatically. Made by vSMTP mail transfer a\r\n",
+                "220 2.0.0 gent\nCopyright (C) 2022 viridIT SAS\r\n",
+            ]
+            .concat()
+        );
+        for i in output.split("\r\n") {
+            assert!(i.len() <= 78);
+        }
+    }
+
+    #[test]
+    fn ehlo_response() {
+        let output = fold(
+            "250",
+            None,
+            &[
+                "testserver.com\r\n",
+                "AUTH PLAIN LOGIN CRAM-MD5\r\n",
+                "8BITMIME\r\n",
+                "SMTPUTF8\r\n",
+            ]
+            .concat(),
+        );
+        pretty_assertions::assert_eq!(
+            output,
+            [
+                "250-testserver.com\r\n",
+                "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+                "250-8BITMIME\r\n",
+                "250 SMTPUTF8\r\n",
+            ]
+            .concat()
+        );
+        for i in output.split("\r\n") {
+            assert!(i.len() <= 78);
         }
     }
 }
@@ -133,6 +274,23 @@ where
     ///
     /// * a smtp code is missing, and thus config is ill-formed
     pub async fn send_code(&mut self, reply_to_send: SMTPReplyCode) -> anyhow::Result<()> {
+        fn get_message(config: &Config, code: SMTPReplyCode) -> String {
+            match code {
+                SMTPReplyCode::Custom(message) => message,
+                _ => config.server.smtp.codes.get(&code).unwrap().clone(),
+            }
+        }
+
+        fn make_fold(message: &str) -> String {
+            fold(&message[0..3], None, &message[4..])
+        }
+
+        log::info!(
+            target: log_channels::CONNECTION,
+            "send=\"{:?}\"",
+            reply_to_send
+        );
+
         if reply_to_send.is_error() {
             self.error_count += 1;
 
@@ -140,74 +298,29 @@ where
             let soft_error = self.config.server.smtp.error.soft_count;
 
             if hard_error != -1 && self.error_count >= hard_error {
-                let mut response_begin = self
-                    .config
-                    .server
-                    .smtp
-                    .codes
-                    .get(&reply_to_send)
-                    .unwrap()
-                    .to_string();
-                response_begin.replace_range(3..4, "-");
-                response_begin.push_str(
-                    self.config
-                        .server
-                        .smtp
-                        .codes
-                        .get(&SMTPReplyCode::Code451TooManyError)
-                        .unwrap(),
-                );
-                self.send(&response_begin).await?;
+                let too_many_error_msg =
+                    get_message(&self.config, SMTPReplyCode::Code451TooManyError);
 
-                anyhow::bail!("too many errors")
+                let mut response = get_message(&self.config, reply_to_send);
+                response.push_str("\r\n");
+                response.replace_range(0..4, &format!("{}-", &too_many_error_msg[0..3]));
+                response.push_str(&too_many_error_msg);
+                response.push_str("\r\n");
+
+                self.send(&response).await?;
+
+                anyhow::bail!("{}", SMTPReplyCode::Code451TooManyError)
             }
-            log::info!(
-                target: log_channels::CONNECTION,
-                "send=\"{:?}\"",
-                reply_to_send
-            );
 
-            tokio::io::AsyncWriteExt::write_all(
-                &mut self.inner.inner,
-                match &reply_to_send {
-                    SMTPReplyCode::Custom(message) => message.as_bytes(),
-                    _ => self
-                        .config
-                        .server
-                        .smtp
-                        .codes
-                        .get(&reply_to_send)
-                        .unwrap()
-                        .as_bytes(),
-                },
-            )
-            .await?;
+            self.send(&make_fold(&get_message(&self.config, reply_to_send)))
+                .await?;
 
             if soft_error != -1 && self.error_count >= soft_error {
                 std::thread::sleep(self.config.server.smtp.error.delay);
             }
         } else {
-            log::info!(
-                target: log_channels::CONNECTION,
-                "send=\"{:?}\"",
-                reply_to_send
-            );
-
-            tokio::io::AsyncWriteExt::write_all(
-                &mut self.inner.inner,
-                match &reply_to_send {
-                    SMTPReplyCode::Custom(message) => message.as_bytes(),
-                    _ => self
-                        .config
-                        .server
-                        .smtp
-                        .codes
-                        .get(&reply_to_send)
-                        .unwrap()
-                        .as_bytes(),
-                },
-            )
-            .await?;
+            self.send(&make_fold(&get_message(&self.config, reply_to_send)))
+                .await?;
         }
         Ok(())
     }
@@ -219,9 +332,9 @@ where
     /// * internal connection writer error
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
         log::info!(target: log_channels::CONNECTION, "send=\"{}\"", reply);
-        tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes())
-            .await
-            .map_err(anyhow::Error::new)
+        tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes()).await?;
+        tokio::io::AsyncWriteExt::flush(&mut self.inner.inner).await?;
+        Ok(())
     }
 
     /// read a line from the client

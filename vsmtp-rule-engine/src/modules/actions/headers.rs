@@ -1,3 +1,19 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
@@ -6,7 +22,7 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod headers {
     use crate::{modules::actions::MailContext, modules::EngineResult};
-    use vsmtp_common::{address::Address, mail_context::Body};
+    use vsmtp_common::{mail_context::Body, Address};
 
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, return_raw, pure)]
@@ -33,7 +49,7 @@ pub mod headers {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
             .get_header(header)
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .unwrap_or_default())
     }
 

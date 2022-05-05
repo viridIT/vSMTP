@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,17 +6,17 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use crate::{config, test_receiver};
 use vsmtp_common::{
-    address::Address,
+    addr,
     mail::{BodyType, Mail},
     mail_context::{Body, MailContext},
     re::anyhow,
@@ -42,10 +42,7 @@ async fn test_receiver_1() {
         ) -> anyhow::Result<()> {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(mail.envelop.mail_from.full(), "john@doe");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("aa@bb".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
             assert!(mail.metadata.is_some());
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
                 .await?;
@@ -293,9 +290,7 @@ async fn test_receiver_13() {
             );
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![Address::try_from(format!("aa{}@bb", self.count))
-                    .unwrap()
-                    .into()]
+                vec![addr!(format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
                 body,
@@ -388,9 +383,7 @@ async fn test_receiver_14() {
             );
             assert_eq!(
                 mail.envelop.rcpt,
-                vec![Address::try_from(format!("aa{}@bb", self.count))
-                    .unwrap()
-                    .into()]
+                vec![addr!(format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
                 body,
@@ -501,7 +494,7 @@ async fn test_receiver_9() {
             "501 Syntax error in parameters or arguments\r\n",
             "214 joining us https://viridit.com/support\r\n",
             "501 Syntax error in parameters or arguments\r\n",
-            "501-Syntax error in parameters or arguments\r\n",
+            "451-Syntax error in parameters or arguments\r\n",
             "451 Too many errors from the client\r\n"
         ]
         .concat()

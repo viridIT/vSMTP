@@ -6,7 +6,7 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
@@ -15,8 +15,8 @@
  *
 */
 use crate::{
-    address::Address,
     transfer::{EmailTransferStatus, Transfer},
+    Address,
 };
 
 /// representation of a recipient with it's delivery method.
@@ -97,59 +97,31 @@ pub fn filter_by_transfer_method(rcpt: &[Rcpt]) -> std::collections::HashMap<Tra
 pub fn filter_by_domain_mut(
     rcpt: &mut [Rcpt],
 ) -> std::collections::HashMap<String, Vec<&mut Rcpt>> {
-    rcpt.iter_mut()
-        .fold(std::collections::HashMap::new(), |mut acc, rcpt| {
-            #[allow(clippy::option_if_let_else)]
-            if let Some(domain) = acc.get_mut(rcpt.address.domain()) {
-                domain.push(rcpt);
-            } else {
-                acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
-            }
-
-            acc
-        })
+    let mut acc = std::collections::HashMap::<String, Vec<&mut Rcpt>>::new();
+    for rcpt in rcpt.iter_mut() {
+        if let Some(domain) = acc.get_mut(rcpt.address.domain()) {
+            domain.push(rcpt);
+        } else {
+            acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
+        }
+    }
+    acc
 }
 
 #[cfg(test)]
 mod test {
-
-    use crate::address::Address;
-    use crate::transfer::Transfer;
-
-    use super::{filter_by_transfer_method, Rcpt};
+    use super::*;
 
     fn get_test_rcpt() -> Vec<Rcpt> {
         vec![
-            Rcpt::with_transfer_method(
-                Address::try_from("green@foo.com".to_string()).unwrap(),
-                Transfer::None,
-            ),
-            Address::try_from("john@doe.com".to_string())
-                .unwrap()
-                .into(),
-            Address::try_from("green@foo.com".to_string())
-                .unwrap()
-                .into(),
-            Rcpt::with_transfer_method(
-                Address::try_from("green@bar.com".to_string()).unwrap(),
-                Transfer::None,
-            ),
-            Rcpt::with_transfer_method(
-                Address::try_from("john@localhost".to_string()).unwrap(),
-                Transfer::Mbox,
-            ),
-            Rcpt::with_transfer_method(
-                Address::try_from("green@localhost".to_string()).unwrap(),
-                Transfer::Mbox,
-            ),
-            Rcpt::with_transfer_method(
-                Address::try_from("satan@localhost".to_string()).unwrap(),
-                Transfer::Mbox,
-            ),
-            Rcpt::with_transfer_method(
-                Address::try_from("user@localhost".to_string()).unwrap(),
-                Transfer::Maildir,
-            ),
+            Rcpt::with_transfer_method(addr!("green@foo.com"), Transfer::None),
+            addr!("john@doe.com").into(),
+            addr!("green@foo.com").into(),
+            Rcpt::with_transfer_method(addr!("green@bar.com"), Transfer::None),
+            Rcpt::with_transfer_method(addr!("john@localhost"), Transfer::Mbox),
+            Rcpt::with_transfer_method(addr!("green@localhost"), Transfer::Mbox),
+            Rcpt::with_transfer_method(addr!("satan@localhost"), Transfer::Mbox),
+            Rcpt::with_transfer_method(addr!("user@localhost"), Transfer::Maildir),
         ]
     }
 

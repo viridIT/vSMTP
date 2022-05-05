@@ -1,6 +1,4 @@
-use crate::transport::log_channels;
-
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -8,16 +6,16 @@ use crate::transport::log_channels;
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
-**/
+*/
 use super::Transport;
-
+use crate::transport::log_channels;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 // use anyhow::Context;
@@ -52,7 +50,7 @@ impl<'r> Transport for Forward<'r> {
         &mut self,
         config: &Config,
         metadata: &MessageMetadata,
-        from: &vsmtp_common::address::Address,
+        from: &vsmtp_common::Address,
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
@@ -105,7 +103,7 @@ impl<'r> Transport for Forward<'r> {
 async fn send_email(
     config: &Config,
     resolver: &TokioAsyncResolver,
-    from: &vsmtp_common::address::Address,
+    from: &vsmtp_common::Address,
     target: &str,
     envelop: &lettre::address::Envelope,
     content: &str,

@@ -1,5 +1,3 @@
-use crate::transport::log_channels;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -8,7 +6,7 @@ use crate::transport::log_channels;
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
@@ -17,7 +15,7 @@ use crate::transport::log_channels;
  *
 */
 use super::{get_mx_records, Transport};
-
+use crate::transport::log_channels;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
@@ -47,7 +45,7 @@ impl<'r> Transport for Deliver<'r> {
         &mut self,
         config: &Config,
         metadata: &MessageMetadata,
-        from: &vsmtp_common::address::Address,
+        from: &vsmtp_common::Address,
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
@@ -134,7 +132,7 @@ async fn send_email(
     resolver: &TokioAsyncResolver,
     target: &str,
     envelop: &lettre::address::Envelope,
-    from: &vsmtp_common::address::Address,
+    from: &vsmtp_common::Address,
     content: &str,
 ) -> anyhow::Result<()> {
     lettre::AsyncTransport::send_raw(
@@ -152,7 +150,7 @@ async fn send_email(
 mod test {
 
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::address::Address;
+    use vsmtp_common::addr;
     use vsmtp_config::{Config, ConfigServerDNS};
 
     use crate::transport::deliver::{get_mx_records, send_email};
@@ -187,7 +185,7 @@ mod test {
                 vec!["b@b.b".parse().unwrap()]
             )
             .unwrap(),
-            &Address::try_from("a@a.a".to_string()).unwrap(),
+            &addr!("a@a.a"),
             "content"
         )
         .await

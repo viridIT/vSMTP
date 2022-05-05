@@ -1,3 +1,19 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
 use super::{wants::WantsValidate, with::Builder};
 use crate::{
     config::{
@@ -113,7 +129,7 @@ impl Builder<WantsValidate> {
 
 fn mech_list_to_code(list: &[Mechanism]) -> String {
     format!(
-        "250-AUTH {}\r\n",
+        "AUTH {}\r\n",
         list.iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>()
@@ -184,9 +200,9 @@ impl Config {
                         }
                     })
                     .unwrap_or_default(),
-                "250-STARTTLS\r\n",
-                "250-8BITMIME\r\n",
-                "250 SMTPUTF8\r\n",
+                "STARTTLS\r\n",
+                "8BITMIME\r\n",
+                "SMTPUTF8\r\n",
             ]
             .concat(),
         );
@@ -199,8 +215,8 @@ impl Config {
                     .as_ref()
                     .map(|(must_be_secured, _)| mech_list_to_code(must_be_secured))
                     .unwrap_or_default(),
-                "250-8BITMIME\r\n",
-                "250 SMTPUTF8\r\n",
+                "8BITMIME\r\n",
+                "SMTPUTF8\r\n",
             ]
             .concat(),
         );

@@ -1,3 +1,19 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
 use crate::{log_channels, processes::delivery::send_email};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
@@ -112,7 +128,7 @@ async fn handle_one_in_deferred_queue(
 mod tests {
     use super::*;
     use vsmtp_common::{
-        address::Address,
+        addr,
         envelop::Envelop,
         mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
@@ -143,15 +159,15 @@ mod tests {
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
-                        mail_from: Address::try_from("from@testserver.com".to_string()).unwrap(),
+                        mail_from: addr!("from@testserver.com"),
                         rcpt: vec![
                             Rcpt {
-                                address: Address::try_from("to+1@client.com".to_string()).unwrap(),
+                                address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Maildir,
                                 email_status: EmailTransferStatus::Waiting,
                             },
                             Rcpt {
-                                address: Address::try_from("to+2@client.com".to_string()).unwrap(),
+                                address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
                                 email_status: EmailTransferStatus::Waiting,
                             },
@@ -190,15 +206,15 @@ mod tests {
                 client_addr: "127.0.0.1:80".parse().unwrap(),
                 envelop: Envelop {
                     helo: "client.com".to_string(),
-                    mail_from: Address::try_from("from@testserver.com".to_string()).unwrap(),
+                    mail_from: addr!("from@testserver.com"),
                     rcpt: vec![
                         Rcpt {
-                            address: Address::try_from("to+1@client.com".to_string()).unwrap(),
+                            address: addr!("to+1@client.com"),
                             transfer_method: Transfer::Maildir,
                             email_status: EmailTransferStatus::HeldBack(1),
                         },
                         Rcpt {
-                            address: Address::try_from("to+2@client.com".to_string()).unwrap(),
+                            address: addr!("to+2@client.com"),
                             transfer_method: Transfer::Maildir,
                             email_status: EmailTransferStatus::HeldBack(1),
                         },

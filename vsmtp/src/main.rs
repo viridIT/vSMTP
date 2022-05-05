@@ -1,4 +1,4 @@
-/**
+/*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
@@ -6,14 +6,14 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see https://www.gnu.org/licenses/.
  *
- **/
+ */
 use anyhow::Context;
 use vsmtp::{Args, Commands};
 use vsmtp_common::{
@@ -26,9 +26,14 @@ use vsmtp_server::start_runtime;
 fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
     addr: A,
 ) -> anyhow::Result<std::net::TcpListener> {
-    anyhow::Context::with_context(std::net::TcpListener::bind(&addr), || {
-        format!("Failed to bind socket on addr: '{:?}'", addr)
-    })
+    let socket = std::net::TcpListener::bind(&addr)
+        .with_context(|| format!("Failed to bind socket on addr: '{:?}'", addr))?;
+
+    socket
+        .set_nonblocking(true)
+        .with_context(|| format!("Failed to set non-blocking socket on addr: '{:?}'", addr))?;
+
+    Ok(socket)
 }
 
 fn main() {
@@ -106,7 +111,7 @@ fn try_main() -> anyhow::Result<()> {
         .map(log4rs::init_config)
         .context("Cannot initialize logs")??;
 
-    start_runtime(std::sync::Arc::new(config), sockets).map_err(|e| {
+    start_runtime(config, sockets, args.timeout.map(|t| t.0)).map_err(|e| {
         log::error!("vSMTP terminating error: '{e}'");
         e
     })

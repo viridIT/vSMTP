@@ -1,3 +1,19 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
 #![allow(clippy::module_name_repetitions)]
 
 use crate::{
@@ -280,41 +296,40 @@ impl ConfigServerSMTP {
 
     pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
         let codes: std::collections::BTreeMap<SMTPReplyCode, String> = collection! {
-            SMTPReplyCode::Help => "214 joining us https://viridit.com/support\r\n".to_string(),
-            SMTPReplyCode::Greetings => "220 {domain} Service ready\r\n".to_string(),
-            SMTPReplyCode::Code221 => "221 Service closing transmission channel\r\n".to_string(),
-            SMTPReplyCode::Code250 => "250 Ok\r\n".to_string(),
-            SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>\r\n".to_string(),
-            SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing\r\n".to_string(),
-            SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.\r\n".to_string(),
-            SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client\r\n".to_string(),
-            SMTPReplyCode::Code452 => "452 Requested action not taken: insufficient system storage\r\n".to_string(),
+            SMTPReplyCode::Help => "214 joining us https://viridit.com/support".to_string(),
+            SMTPReplyCode::Greetings => "220 {domain} Service ready".to_string(),
+            SMTPReplyCode::Code221 => "221 Service closing transmission channel".to_string(),
+            SMTPReplyCode::Code250 => "250 Ok".to_string(),
+            SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>".to_string(),
+            SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing".to_string(),
+            SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.".to_string(),
+            SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client".to_string(),
+            SMTPReplyCode::Code452 => "452 Requested action not taken: insufficient system storage".to_string(),
             SMTPReplyCode::Code452TooManyRecipients =>
-                "452 Requested action not taken: to many recipients\r\n".to_string(),
-            SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason\r\n".to_string(),
-            SMTPReplyCode::Code500 => "500 Syntax error command unrecognized\r\n".to_string(),
-            SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments\r\n".to_string(),
-            SMTPReplyCode::Code502unimplemented => "502 Command not implemented\r\n".to_string(),
-            SMTPReplyCode::BadSequence => "503 Bad sequence of commands\r\n".to_string(),
-            SMTPReplyCode::Code504 => "504 Command parameter not implemented\r\n".to_string(),
-            SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first\r\n".to_string(),
-            SMTPReplyCode::Code554 => "554 permanent problems with the remote server\r\n".to_string(),
-            SMTPReplyCode::Code554tls => "554 Command refused due to lack of security\r\n".to_string(),
-            SMTPReplyCode::TlsAlreadyUnderTls => "554 5.5.1 Error: TLS already active\r\n".to_string(),
-            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.\r\n".to_string(),
-            SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported\r\n".to_string(),
-            SMTPReplyCode::AuthSucceeded => "235 2.7.0 Authentication succeeded\r\n".to_string(),
+                "452 Requested action not taken: to many recipients".to_string(),
+            SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason".to_string(),
+            SMTPReplyCode::Code500 => "500 Syntax error command unrecognized".to_string(),
+            SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments".to_string(),
+            SMTPReplyCode::Code502unimplemented => "502 Command not implemented".to_string(),
+            SMTPReplyCode::BadSequence => "503 Bad sequence of commands".to_string(),
+            SMTPReplyCode::Code504 => "504 Command parameter not implemented".to_string(),
+            SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first".to_string(),
+            SMTPReplyCode::Code554 => "554 permanent problems with the remote server".to_string(),
+            SMTPReplyCode::Code554tls => "554 Command refused due to lack of security".to_string(),
+            SMTPReplyCode::TlsAlreadyUnderTls => "554 5.5.1 Error: TLS already active".to_string(),
+            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.".to_string(),
+            SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported".to_string(),
+            SMTPReplyCode::AuthSucceeded => "235 2.7.0 Authentication succeeded".to_string(),
             // 538 5.7.11 (for documentation purpose)
             // 535 (for production)
             SMTPReplyCode::AuthMechanismMustBeEncrypted =>
-                "538 5.7.11 Encryption required for requested authentication mechanism\r\n".to_string(),
+                "538 5.7.11 Encryption required for requested authentication mechanism".to_string(),
             SMTPReplyCode::AuthClientMustNotStart =>
-                "501 5.7.0 Client must not start with this mechanism\r\n".to_string(),
-            SMTPReplyCode::AuthErrorDecode64 => "501 5.5.2 Invalid, not base64\r\n".to_string(),
-            SMTPReplyCode::AuthInvalidCredentials => "535 5.7.8 Authentication credentials invalid\r\n".to_string(),
-            SMTPReplyCode::AuthClientCanceled => "501 Authentication canceled by clients\r\n".to_string(),
-            SMTPReplyCode::AuthRequired => "530 5.7.0 Authentication required\r\n".to_string(),
-            SMTPReplyCode::AuthRequired => "530 5.7.0 Authentication required\r\n".to_string(),
+                "501 5.7.0 Client must not start with this mechanism".to_string(),
+            SMTPReplyCode::AuthErrorDecode64 => "501 5.5.2 Invalid, not base64".to_string(),
+            SMTPReplyCode::AuthInvalidCredentials => "535 5.7.8 Authentication credentials invalid".to_string(),
+            SMTPReplyCode::AuthClientCanceled => "501 Authentication canceled by clients".to_string(),
+            SMTPReplyCode::AuthRequired => "530 5.7.0 Authentication required".to_string(),
             SMTPReplyCode::Custom(String::default()) => String::default(),
         };
 

@@ -6,7 +6,7 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
@@ -159,7 +159,7 @@ mod tests {
     use super::*;
     use crate::ProcessMessage;
     use vsmtp_common::{
-        address::Address,
+        addr,
         envelop::Envelop,
         mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
@@ -213,15 +213,15 @@ mod tests {
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
-                        mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
+                        mail_from: addr!("from@client.com"),
                         rcpt: vec![
                             Rcpt {
-                                address: Address::try_from("to+1@client.com".to_string()).unwrap(),
+                                address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Deliver,
                                 email_status: EmailTransferStatus::Waiting,
                             },
                             Rcpt {
-                                address: Address::try_from("to+2@client.com".to_string()).unwrap(),
+                                address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
                                 email_status: EmailTransferStatus::Waiting,
                             },
@@ -281,15 +281,15 @@ mod tests {
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
                         helo: "client.com".to_string(),
-                        mail_from: Address::try_from("from@client.com".to_string()).unwrap(),
+                        mail_from: addr!("from@client.com"),
                         rcpt: vec![
                             Rcpt {
-                                address: Address::try_from("to+1@client.com".to_string()).unwrap(),
+                                address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Deliver,
                                 email_status: EmailTransferStatus::Waiting,
                             },
                             Rcpt {
-                                address: Address::try_from("to+2@client.com".to_string()).unwrap(),
+                                address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
                                 email_status: EmailTransferStatus::Waiting,
                             },

@@ -1,3 +1,19 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
@@ -234,7 +250,7 @@ mod test {
     use super::*;
     use crate::modules::actions::test::get_default_context;
     use vsmtp_common::{
-        address::Address,
+        addr,
         rcpt::Rcpt,
         transfer::{ForwardTarget, Transfer},
     };
@@ -243,9 +259,7 @@ mod test {
     fn test_set_transport_for() {
         let mut ctx = get_default_context();
 
-        ctx.envelop.rcpt.push(Rcpt::new(
-            Address::try_from("valid@rcpt.foo".to_string()).unwrap(),
-        ));
+        ctx.envelop.rcpt.push(Rcpt::new(addr!("valid@rcpt.foo")));
 
         assert!(set_transport_for(&mut ctx, "valid@rcpt.foo", &Transfer::Deliver).is_ok());
         assert!(set_transport_for(&mut ctx, "invalid@rcpt.foo", &Transfer::Deliver).is_err());

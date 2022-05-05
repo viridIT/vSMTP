@@ -1,9 +1,25 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
 use crate::{
     test_receiver,
     tests::auth::{safe_auth_config, unsafe_auth_config},
 };
 use vsmtp_common::{
-    address::Address,
+    addr,
     mail_context::MailContext,
     re::{anyhow, base64, rsasl},
 };
@@ -52,10 +68,7 @@ async fn plain_in_clair_unsecured() {
         ) -> anyhow::Result<()> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
                 .await?;
@@ -79,7 +92,7 @@ async fn plain_in_clair_unsecured() {
             "MAIL FROM:<foo@bar>\r\n",
             "RCPT TO:<joe@doe>\r\n",
             "DATA\r\n",
-            "\r\n.\r\n",
+            ".\r\n",
             "QUIT\r\n"
         ].concat(),
         [
@@ -114,10 +127,7 @@ async fn plain_in_clair_unsecured_utf8() {
         ) -> anyhow::Result<()> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
                 .await?;
@@ -283,10 +293,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
         ) -> anyhow::Result<()> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
-            assert_eq!(
-                mail.envelop.rcpt,
-                vec![Address::try_from("joe@doe".to_string()).unwrap().into()]
-            );
+            assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
 
             conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
                 .await?;
