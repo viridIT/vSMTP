@@ -18,7 +18,7 @@ use crate::Config;
 
 #[test]
 fn parse() {
-    let toml = include_str!("../../../../../examples/config/simple.toml");
+    let toml = include_str!("../../../../../../examples/config/simple.toml");
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
