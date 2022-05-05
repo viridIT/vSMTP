@@ -91,7 +91,7 @@ async fn listen_and_serve() {
         RuleEngine::new(&config, &None).unwrap(),
     ));
 
-    let mut server = Server::new(
+    let server = Server::new(
         std::sync::Arc::new(config),
         sockets,
         rule_engine,

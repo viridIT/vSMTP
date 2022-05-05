@@ -111,7 +111,7 @@ fn try_main() -> anyhow::Result<()> {
         .map(log4rs::init_config)
         .context("Cannot initialize logs")??;
 
-    start_runtime(std::sync::Arc::new(config), sockets).map_err(|e| {
+    start_runtime(config, sockets, args.timeout.map(|t| t.0)).map_err(|e| {
         log::error!("vSMTP terminating error: '{e}'");
         e
     })
