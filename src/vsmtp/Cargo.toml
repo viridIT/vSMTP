@@ -28,7 +28,7 @@ assets = [
     ["../../README.md", "usr/share/doc/vsmtp/README", "644"],
     ["../../ROADMAP.md", "usr/share/doc/vsmtp/ROADMAP", "644"],
 ]
-maintainer-scripts = "../../tools/debian/"
+maintainer-scripts = "../../tools/install/debian/"
 systemd-units = { enable = false, start = false }
 
 [dependencies]
