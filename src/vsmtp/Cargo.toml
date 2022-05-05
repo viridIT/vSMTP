@@ -26,6 +26,7 @@ assets = [
     ["target/release/vsmtp", "usr/sbin/", "755"],
     ["target/release/vqueue", "usr/sbin/", "755"],
     ["../../README.md", "usr/share/doc/vsmtp/README", "644"],
+    ["../../ROADMAP.md", "usr/share/doc/vsmtp/ROADMAP", "644"],
 ]
 maintainer-scripts = "../../tools/debian/"
 systemd-units = { enable = false, start = false }
