@@ -33,15 +33,13 @@ fn test_status() {
 }
 
 #[test]
-fn test_time() {
+fn test_time_and_date() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
         &Some(rules_path!["time", "main.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-
-    state.add_data("time", std::time::SystemTime::UNIX_EPOCH);
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }

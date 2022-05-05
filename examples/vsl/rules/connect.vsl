@@ -1,8 +1,8 @@
 #{
   connect: [
     rule "test_connect" || {
-      log("trace", `${ctx.client_ip}`);
-      if ctx.client_ip is "127.0.0.1" { next() } else { deny() }
+      log("trace", `${ctx().client_ip}`);
+      if ctx().client_ip is "127.0.0.1" { next() } else { deny() }
     }
   ],
 }

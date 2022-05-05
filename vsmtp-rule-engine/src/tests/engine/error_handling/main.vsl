@@ -2,18 +2,18 @@ import "errors" as err;
 
 #{
     connect: [
-        // `ctx.timestamp` isn't available in 'connect' stage.
-        rule "error parsing" || err::generic_error(ctx),
+        // `ctx().timestamp` isn't available in 'connect' stage.
+        rule "error parsing" || err::generic_error(),
 
         // previous rule should short circuit and return `next`.
-        rule "trailing" || deny(),
+        rule "trailing" || next(),
     ],
 
     helo: [
         rule "user defined throw" || err::throw_error(),
 
         // previous rule should short circuit and return `next`.
-        rule "trailing" || deny(),
+        rule "trailing" || next(),
     ],
 
     mail: [

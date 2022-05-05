@@ -1,12 +1,6 @@
-object forward_str string = "localhost";
-object forward_ip4 ip4 = "127.0.0.1";
-object forward_ip6 ip6 = "::1";
-object forward_fqdn fqdn = "test.eu";
-
 #{
     connect: [
-        action "add recipients" |ctx, srv| {
-            print("add recipients rule");
+        action "add recipients" || {
             add_rcpt("fqdn@example.com");
             add_rcpt("ip4@example.com");
             add_rcpt("ip6@example.com");
@@ -14,15 +8,16 @@ object forward_fqdn fqdn = "test.eu";
             add_rcpt("object.ip4@example.com");
             add_rcpt("object.ip6@example.com");
             add_rcpt("object.fqdn@example.com");
-            print("add recipients rule done");
-            // for rcpt in ctx.rcpt {
-            //     print(rcpt);
-            // }
         }
     ],
 
     delivery: [
         action "setup forwarding" || {
+            object forward_str string = "localhost";
+            object forward_ip4 ip4 = "127.0.0.1";
+            object forward_ip6 ip6 = "::1";
+            object forward_fqdn fqdn = "test.eu";
+
             forward("fqdn@example.com", "localhost");
             forward("ip4@example.com", "127.0.0.1");
             forward("ip6@example.com", "::1");

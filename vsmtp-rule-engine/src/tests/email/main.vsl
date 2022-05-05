@@ -38,7 +38,7 @@
 
         rule "unavailable mail timestamp" || {
             try {
-                print(ctx.mail_timestamp);
+                print(ctx().mail_timestamp);
                 return deny();
             } catch (err) {
                 if "metadata are not available in this stage" in err { return next(); } else { return deny(); }
@@ -47,7 +47,7 @@
 
         rule "unavailable message id" || {
             try {
-                print(ctx.message_id);
+                print(ctx().message_id);
                 return deny();
             } catch (err) {
                 if "metadata are not available in this stage" in err { return next(); } else { return deny(); }
@@ -100,17 +100,17 @@
     postq: [
         action "printing client data" || {
             log("debug", "email received.");
-            log("debug", `connexion timestamp: ${ctx.connection_timestamp}`);
-            log("debug", `ip: ${ctx.client_ip}`);
-            log("debug", `helo: ${ctx.helo}`);
-            log("debug", `mail_from: ${ctx.mail_from}`);
-            log("debug", `metadata {\n  mail timestamp: ${ctx.mail_timestamp}\n  message id: ${ctx.message_id}\n}`);
+            log("debug", `connexion timestamp: ${ctx().connection_timestamp}`);
+            log("debug", `ip: ${ctx().client_ip}`);
+            log("debug", `helo: ${ctx().helo}`);
+            log("debug", `mail_from: ${ctx().mail_from}`);
+            log("debug", `metadata {\n  mail timestamp: ${ctx().mail_timestamp}\n  message id: ${ctx().message_id}\n}`);
 
-            log("trace", ctx.to_string());
-            log("trace", ctx.to_debug());
+            log("trace", ctx().to_string());
+            log("trace", ctx().to_debug());
 
-            print(ctx.mail_timestamp.to_string());
-            print(ctx.mail_timestamp.to_debug());
+            print(ctx().mail_timestamp.to_string());
+            print(ctx().mail_timestamp.to_debug());
         },
 
         action "rewrite" || {
@@ -121,11 +121,11 @@
         },
 
         rule "check_rewrites" || {
-            if "added@rcpt.com" in ctx.rcpt
-            && ("rcpt@toremove.org" in ctx.rcpt)
-            && "new@rcpt.net" in ctx.rcpt
-            && ("rcpt@torewrite.net" in ctx.rcpt)
-            && ctx.mail_from is "new@mailfrom.eu" {
+            if "added@rcpt.com" in ctx().rcpt
+            && !("rcpt@toremove.org" in ctx().rcpt)
+            && "new@rcpt.net" in ctx().rcpt
+            && !("rcpt@torewrite.net" in ctx().rcpt)
+            && ctx().mail_from is "new@mailfrom.eu" {
                 next()
             } else {
                 deny()

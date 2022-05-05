@@ -23,7 +23,8 @@ impl Directive for Rule {
     }
 
     fn execute(&self, engine: &rhai::Engine, ast: &rhai::AST) -> EngineResult<Status> {
-        self.pointer.call(engine, ast, ())
+        engine.call_fn(&mut rhai::Scope::new(), ast, self.pointer.fn_name(), ())
+        // self.pointer.call(engine, ast, ())
     }
 
     fn name(&self) -> &str {
@@ -43,7 +44,9 @@ impl Directive for Action {
     }
 
     fn execute(&self, engine: &rhai::Engine, ast: &rhai::AST) -> EngineResult<Status> {
-        self.pointer.call(engine, ast, ())?;
+        println!("{ast:#?}");
+        engine.call_fn(&mut rhai::Scope::new(), ast, self.pointer.fn_name(), ())?;
+        // let _: () = self.pointer.call(engine, ast, ())?;
 
         Ok(Status::Next)
     }

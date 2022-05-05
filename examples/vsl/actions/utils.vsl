@@ -3,7 +3,7 @@
         rule "check root domain" || {
             if in_domain(sys::new_address("rcpt@testserver.com"))
             && in_domain("rcpt@testserver.com")
-            && ctx.server_name == "testserver.com" {
+            && ctx().server_name == "testserver.com" {
                 accept()
             } else {
                 deny()
@@ -13,10 +13,11 @@
 
     preq: [
         rule "check sni domain" || {
-            if in_domain(sys::new_address("rcpt@example.com")) == true
-            && in_domain(sys::new_address("john@unknown.com")) == false
-            && in_domain("john@unknown.com") == false
-            && in_domain("invalid") == false {
+            print(toml::server.virtual);
+            if in_domain(sys::new_address("rcpt@example.com")) == true {
+            // && in_domain(sys::new_address("john@unknown.com")) == false
+            // && in_domain("john@unknown.com") == false
+            // && in_domain("invalid") == false {
                 accept()
             } else {
                 deny()

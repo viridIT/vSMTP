@@ -1,4 +1,4 @@
-fn invalid_object(ctx, obj) {
+fn invalid_object(obj) {
     try {
         bcc(obj);
         return deny();
@@ -7,12 +7,12 @@ fn invalid_object(ctx, obj) {
     }
 }
 
-fn add_bcc(ctx, bcc) {
-    if bcc in ctx.rcpt {
+fn add_bcc(bcc) {
+    if bcc in ctx().rcpt {
         return deny();
     }
 
     bcc(bcc);
 
-    if bcc in ctx.rcpt { next() } else { deny() }
+    if bcc in ctx().rcpt { next() } else { deny() }
 }

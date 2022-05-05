@@ -1,0 +1,11 @@
+object john ident = "johndoe";
+object bar fqdn = "example.com";
+object someone address = "staff@example.com";
+
+object staff group = [
+  john,
+  object green address = "green@personal.eu",
+  object steven address = "steven@personal.fr",
+  object staff address = "staff@example.com",
+  object ruben address = "ruben@email.ru",
+];

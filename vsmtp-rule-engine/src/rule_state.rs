@@ -110,6 +110,8 @@ impl<'a> RuleState<'a> {
         let mail_context = mail_context.clone();
         let server = server.clone();
 
+        // NOTE: on_var is not deprecated, just subject to change in futur releases.
+        #[allow(deprecated)]
         engine
             // NOTE: why do we have to clone the arc twice instead of just moving it here ?
             // injecting the state if the current connection into the engine.
@@ -120,19 +122,39 @@ impl<'a> RuleState<'a> {
             })
             .register_global_module(rule_engine.std_module.clone())
             .register_static_module("sys", rule_engine.vsl_module.clone())
-            .register_static_module("toml", rule_engine.toml_module.clone());
+            .register_static_module("toml", rule_engine.toml_module.clone())
+            .register_custom_syntax_raw(
+                "rule",
+                crate::dsl::rule_parsing::parse_rule,
+                true,
+                crate::dsl::rule_parsing::create_rule,
+            )
+            .register_custom_syntax_raw(
+                "action",
+                crate::dsl::action_parsing::parse_action,
+                true,
+                crate::dsl::action_parsing::create_action,
+            )
+            .register_custom_syntax_raw(
+                "object",
+                crate::dsl::object_parsing::parse_object,
+                true,
+                crate::dsl::object_parsing::create_object,
+            )
+            .on_debug(move |m, _, _| println!("{m:#?}"))
+            .on_print(|m| println!("{m}"));
 
         engine
     }
 
     /// add data to the scope of the engine.
-    pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T) -> &mut Self
-    where
-        T: Clone + Send + Sync + 'static,
-    {
-        self.scope.set_or_push(name, data);
-        self
-    }
+    // pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T) -> &mut Self
+    // where
+    //     T: Clone + Send + Sync + 'static,
+    // {
+    //     self.scope.set_or_push(name, data);
+    //     self
+    // }
 
     /// fetch the email context (possibly) mutated by the user's rules.
     #[must_use]

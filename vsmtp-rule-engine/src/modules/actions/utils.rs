@@ -3,6 +3,11 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 
+const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
+    time::macros::format_description!("[year]-[month]-[day]");
+const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
+    time::macros::format_description!("[hour]:[minute]:[second]");
+
 #[rhai::plugin::export_module]
 pub mod utils {
 
@@ -67,5 +72,21 @@ pub mod utils {
                 Err("the system's hostname is not UTF-8 valide".into()),
                 |host| Ok(host.to_string()),
             )
+    }
+
+    /// get the current time.
+    pub fn time() -> String {
+        let now = time::OffsetDateTime::now_utc();
+
+        now.format(&TIME_FORMAT)
+            .unwrap_or_else(|_| String::default())
+    }
+
+    /// get the current date.
+    pub fn date() -> String {
+        let now = time::OffsetDateTime::now_utc();
+
+        now.format(&DATE_FORMAT)
+            .unwrap_or_else(|_| String::default())
     }
 }

@@ -4,7 +4,7 @@
 
         action "log_incoming" || {
             log("info", "incoming transaction.");
-            log("trace", `[${date}/${time}] client=${ctx.client_ip}`);
+            log("trace", `[${date}/${time}] client=${ctx().client_ip}`);
         },
 
         rule "stop" || {

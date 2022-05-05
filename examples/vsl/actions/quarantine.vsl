@@ -2,6 +2,9 @@
     preq: [
         action "action + set in quarantine" || {
             quarantine("tests/generated/quarantine1");
+            // last statment of a function is always a return statment in rhai.
+            // https://rhai.rs/book/language/functions.html#implicit-return
+            ()
         },
 
         rule "trailing" || accept(),

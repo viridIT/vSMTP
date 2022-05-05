@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use crate::rule_state::RuleState;
+use crate::tests::helpers::get_default_config;
 /**
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -413,17 +415,17 @@ fn test_hostname() {
 }
 
 #[test]
-fn test_in_domain_and_server_name() {
-    // simple example, using the root domain by default.
-    let (mut state, mut config) = get_default_state("./tmp/app");
-    config.server.domain = "testserver.com".to_string();
+fn test_server_name() {
+    let (mut state, config) = get_default_state("./tmp/app");
 
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+}
 
-    // setting up an sni example.
-    let (mut state, mut config) = get_default_state("./tmp/app");
+#[test]
+fn test_in_domain() {
+    let mut config = get_default_config("./tmp/app");
     config.server.r#virtual = std::collections::BTreeMap::from_iter([
         ("example.com".to_string(), ConfigServerVirtual::new()),
         ("doe.com".to_string(), ConfigServerVirtual::new()),
@@ -431,6 +433,7 @@ fn test_in_domain_and_server_name() {
     ]);
 
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
+    let mut state = RuleState::new(&config, &re);
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
 }

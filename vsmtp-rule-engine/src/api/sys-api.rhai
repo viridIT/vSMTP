@@ -38,7 +38,7 @@ fn run_service(service) { sys::run_service(srv(), ctx(), service) }
 
 /// Delivery methods (transports.rs)
 fn forward(rcpt, forward) { sys::forward(ctx(), rcpt, forward) }
-fn forward_all(forward) { sys::forward(ctx(), forward) }
+fn forward_all(forward) { sys::forward_all(ctx(), forward) }
 fn deliver(rcpt) { sys::deliver(ctx(), rcpt) }
 fn deliver_all() { sys::deliver_all(ctx()) }
 fn mbox(rcpt) { sys::mbox(ctx(), rcpt) }
@@ -52,3 +52,5 @@ fn disable_delivery_all() { sys::disable_delivery_all(ctx()) }
 fn send_mail(from, to, path, relay) { sys::send_mail(from, to, path, relay) }
 fn user_exist(name) { sys::user_exist(name) }
 fn hostname() { sys::hostname() }
+fn date() { sys::date() }
+fn time() { sys::time() }

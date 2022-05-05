@@ -26,8 +26,14 @@ fn test_engine_errors() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Deny(None)
+    );
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Helo),
+        Status::Deny(None)
+    );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
         Status::Deny(None)
@@ -39,6 +45,8 @@ fn test_engine_errors() {
 }
 
 #[test]
+#[ignore]
+// TODO: module errors are parsed at compile time now.
 fn test_engine_rules_syntax() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),

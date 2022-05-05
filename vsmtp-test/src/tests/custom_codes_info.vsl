@@ -3,27 +3,27 @@ fn retry_helo(helo) {
     object retry_helo code = `250 cannot identify with '${helo}'.` + "\r\n";
 }
 
-// using a code object to send an informative message.
-object foo_invalid code = #{
-    base: 250,
-    enhanced: "2.0.0",
-    text: "foo is not accepted as a helo value.\r\n",
-};
-
-// using a string to send a code.
-object bar_invalid string = "250 I do not accept this email, sorry\r\n";
-
 #{
     helo: [
         rule "helo must be foo.bar" || {
-            if ctx.helo == "foo" {
+            if ctx().helo == "foo" {
+                // using a code object to send an informative message.
+                object foo_invalid code = #{
+                    base: 250,
+                    enhanced: "2.0.0",
+                    text: "foo is not accepted as a helo value.\r\n",
+                };
+
                 info(foo_invalid);
-            } else if ctx.helo == "bar" {
+            } else if ctx().helo == "bar" {
+                // using a string to send a code.
+                object bar_invalid string = "250 I do not accept this email, sorry\r\n";
+
                 info(bar_invalid);
-            } else if ctx.helo == "example.com" {
+            } else if ctx().helo == "example.com" {
                 next()
             } else {
-                info(retry_helo(ctx.helo));
+                info(retry_helo(ctx().helo));
             }
         },
 
@@ -32,7 +32,7 @@ object bar_invalid string = "250 I do not accept this email, sorry\r\n";
 
     mail: [
         rule "retry mail" || {
-            if ctx.mail_from.domain == "satan.org" {
+            if ctx().mail_from.domain == "satan.org" {
                 info("250 satan.org is not valid, please try again.\r\n");
             } else {
                 accept()

@@ -1,12 +1,12 @@
-object bar fqdn = "example.com";
-/// A similar syntax will be implemented for files with the 'Database' release
-// object domains file:fqdn = "./helo.txt";
-object com regex = "^[a-z0-9.]+.com$";
-
 #{
   helo: [
     rule "test_fqdn" || {
-      if ctx.helo is bar && bar is ctx.helo {
+      /// A similar syntax will be implemented for files with the 'Database' release
+      // object domains file:fqdn = "./helo.txt";
+      // object are best defined in your own modules !
+      object bar fqdn = "example.com";
+
+      if ctx().helo is bar && bar is ctx().helo {
         next()
       } else {
         deny()
@@ -15,7 +15,7 @@ object com regex = "^[a-z0-9.]+.com$";
 
     /// A similar syntax will be implemented for files with the 'Database' release
     // rule "test_file" || {
-    //   if ctx.helo in domains {
+    //   if ctx().helo in domains {
     //     next()
     //   } else {
     //     deny()
@@ -23,7 +23,9 @@ object com regex = "^[a-z0-9.]+.com$";
     // },
 
     rule "test_regex" || {
-      if ctx.helo is com {
+      object com regex = "^[a-z0-9.]+.com$";
+
+      if ctx().helo is com {
         next()
       } else {
         deny()

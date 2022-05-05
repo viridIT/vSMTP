@@ -2,7 +2,7 @@
     connect: [
         rule "unknown service" || {
             try {
-                srv.run_service(ctx, "unknown");
+                srv().run_service("unknown");
                 return deny();
             } catch (err) {
                 print(err);
@@ -11,7 +11,7 @@
         },
 
         rule "test shell service" || {
-            let result = srv.run_service(ctx, "shell");
+            let result = srv().run_service("shell");
 
             print(`string: ${result.to_string()}`);
             print(`debug: ${result.to_debug()}`);

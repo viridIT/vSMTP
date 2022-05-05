@@ -32,17 +32,12 @@ use crate::obj::Object;
 use crate::rule_state::RuleState;
 use crate::{log_channels, modules};
 
-const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
-    time::macros::format_description!("[year]-[month]-[day]");
-const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
-    time::macros::format_description!("[hour]:[minute]:[second]");
-
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
 /// and modules / packages to create a cheap rhai runtime.
 pub struct RuleEngine {
     /// ast built from the user's .vsl files.
-    ast: AST,
+    pub(super) ast: AST,
     /// rules & actions registered by the user.
     directives: Directives,
     /// vsl's standard api.
@@ -79,7 +74,7 @@ impl RuleEngine {
                 Some(script_path) => FileModuleResolver::new_with_path_and_extension(
                     script_path.parent().ok_or_else(|| {
                         anyhow::anyhow!(
-                            "file '{}' is not a valid root directory for rules",
+                            "file '{}' does not have a valid parent directory for rules",
                             script_path.display()
                         )
                     })?,
@@ -93,14 +88,14 @@ impl RuleEngine {
 
         log::debug!(target: log_channels::RE, "compiling rhai scripts ...");
 
-        let mut ast = Self::compile_api(&mut compiler).context("failed to compile vsl's api")?;
-
-        ast += if let Some(script_path) = &script_path {
+        let mut ast = if let Some(script_path) = &script_path {
             compiler
-            .compile(
-                &std::fs::read_to_string(&script_path)
-                .context(format!("failed to read file: '{}'", script_path.display()))?
-            )
+                .compile_into_self_contained(
+                    &rhai::Scope::new(),
+                    &std::fs::read_to_string(&script_path)
+                        .context(format!("failed to read file: '{}'", script_path.display()))?,
+                )
+                .map_err(|err| anyhow::anyhow!("failed to compile your scripts: {err}"))
         } else {
             log::warn!(
                 target: log_channels::RE,
@@ -108,12 +103,16 @@ impl RuleEngine {
             );
 
             compiler
-            .compile(include_str!("default_rules.rhai"))
-        }.context("failed to compile your scripts")?;
+                .compile(include_str!("default_rules.rhai"))
+                .map_err(|err| anyhow::anyhow!("failed to compile default rules: {err}"))
+        }?;
+
+        ast += Self::compile_api(&mut compiler).context("failed to compile vsl's api")?;
 
         let directives = Self::extract_directives(&compiler, &ast)?;
 
         log::debug!(target: log_channels::RE, "done.");
+        log::trace!(target: log_channels::RE, "{ast:#?}");
 
         Ok(Self {
             ast,
@@ -142,7 +141,7 @@ impl RuleEngine {
             .register_static_module("toml", toml_module.clone());
 
         let mut ast = Self::compile_api(&mut compiler).context("failed to compile vsl's api")?;
-        ast += compiler.compile(script)?;
+        ast += compiler.compile_into_self_contained(&rhai::Scope::new(), script)?;
 
         let directives = Self::extract_directives(&compiler, &ast)?;
 
@@ -162,20 +161,6 @@ impl RuleEngine {
             return (*status).clone();
         }
 
-        let now = time::OffsetDateTime::now_utc();
-
-        rule_state
-            .add_data(
-                "date",
-                now.format(&DATE_FORMAT)
-                    .unwrap_or_else(|_| String::default()),
-            )
-            .add_data(
-                "time",
-                now.format(&TIME_FORMAT)
-                    .unwrap_or_else(|_| String::default()),
-            );
-
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
             match self.execute_directives(rule_state.engine(), &directive_set[..], smtp_state) {
                 Ok(status) => {
@@ -187,16 +172,19 @@ impl RuleEngine {
                     );
                         rule_state.skipping(status.clone());
                     }
+                    println!("[{}] Ok: {:?}", smtp_state, status);
 
                     return status;
                 }
                 Err(error) => {
-                    log::error!(
-                        target: log_channels::RE,
-                        "{}",
-                        Self::parse_stage_error(error, smtp_state)
-                    );
-                    return Status::Next;
+                    let error = Self::parse_stage_error(error, smtp_state);
+                    println!("[{}] KO: {:?}", smtp_state, error);
+
+                    log::error!(target: log_channels::RE, "{}", error);
+
+                    // if an error occurs, the engine denies the connexion by default.
+                    rule_state.skipping(Status::Deny(None));
+                    return Status::Deny(None);
                 }
             }
         }
@@ -281,6 +269,8 @@ impl RuleEngine {
     fn new_compiler() -> rhai::Engine {
         let mut engine = Engine::new();
 
+        // NOTE: on_parse_token is not deprecated, just subject to change in futur releases.
+        #[allow(deprecated)]
         engine
             .disable_symbol("eval")
             .on_parse_token(|token, _, _| {
@@ -322,14 +312,14 @@ impl RuleEngine {
     fn extract_directives(engine: &rhai::Engine, ast: &rhai::AST) -> anyhow::Result<Directives> {
         let mut scope = Scope::new();
         scope
-            .push("date", "")
-            .push("time", "")
-            .push_constant("CTX", "")
-            .push_constant("SRV", "");
+            .push("date", ())
+            .push("time", ())
+            .push_constant("CTX", ())
+            .push_constant("SRV", ());
 
         let raw_directives = engine
             .eval_ast_with_scope::<rhai::Map>(&mut scope, ast)
-            .context("failed to evaluate your rules")?;
+            .context("failed to compile your rules.")?;
 
         let mut directives = Directives::new();
 
@@ -373,12 +363,12 @@ impl RuleEngine {
 
     fn build_toml_module(config: &Config, engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
         let server_config = &vsmtp_common::re::serde_json::to_string(&config.server)
-            .context("failed to convert the server configuration to json")?
-            .replace('{', "#{");
+            .context("failed to convert the server configuration to json")?;
+        // .replace('{', "#{");
 
         let app_config = &vsmtp_common::re::serde_json::to_string(&config.app)
-            .context("failed to convert the app configuration to json")?
-            .replace('{', "#{");
+            .context("failed to convert the app configuration to json")?;
+        // .replace('{', "#{");
 
         let mut toml_module = rhai::Module::new();
 
