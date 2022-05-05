@@ -13,12 +13,12 @@ libfuzzer-sys = "0.4.3"
 async-trait = "0.1.52"
 tokio = { version = "1.17.0", features = ["full"] }
 
-vsmtp-common = { path = "../vsmtp-common" }
-vsmtp-config = { path = "../vsmtp-config" }
-vsmtp-server = { path = "../vsmtp-server" }
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
-vsmtp-test = { path = "../vsmtp-test" }
+vsmtp-common = { path = "./src/vsmtp/vsmtp-common" }
+vsmtp-config = { path = "./src/vsmtp/vsmtp-config" }
+vsmtp-server = { path = "./src/vsmtp/vsmtp-server" }
+vsmtp-rule-engine = { path = "./src/vsmtp/vsmtp-rule-engine" }
+vsmtp-mail-parser = { path = "./src/vsmtp/vsmtp-mail-parser" }
+vsmtp-test = { path = "./src/vsmtp/vsmtp-test" }
 
 # Prevent this from interfering with workspaces
 [workspace]
