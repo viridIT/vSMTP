@@ -75,9 +75,7 @@ pub mod helpers {
     }
 
     /// create a rule engine state with it's associated configuration.
-    pub(super) fn get_default_state(
-        dirpath: impl Into<std::path::PathBuf>,
-    ) -> (RuleState<'static>, Config) {
+    pub(super) fn get_default_state(dirpath: impl Into<std::path::PathBuf>) -> (RuleState, Config) {
         let config = Config::builder()
             .with_version_str("<1.0.0")
             .unwrap()

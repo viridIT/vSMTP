@@ -31,9 +31,9 @@ use vsmtp_config::{Config, TlsSecurityLevel};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
-pub struct Transaction<'re> {
+pub struct Transaction {
     state: StateSMTP,
-    rule_state: RuleState<'re>,
+    rule_state: RuleState,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 }
 
@@ -54,7 +54,7 @@ enum ProcessedEvent {
     TransactionCompleted(Box<MailContext>),
 }
 
-impl Transaction<'_> {
+impl Transaction {
     fn parse_and_apply_and_get_reply<
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
     >(
@@ -412,7 +412,7 @@ impl Transaction<'_> {
     }
 }
 
-impl Transaction<'_> {
+impl Transaction {
     #[allow(clippy::too_many_lines)]
     pub async fn receive<
         'a,
@@ -436,7 +436,7 @@ impl Transaction<'_> {
             },
         );
 
-        let mut transaction = Transaction {
+        let mut transaction = Self {
             state: if helo_domain.is_none() {
                 StateSMTP::Connect
             } else {

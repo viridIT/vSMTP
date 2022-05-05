@@ -172,15 +172,15 @@ impl RuleEngine {
                     );
                         rule_state.skipping(status.clone());
                     }
-                    println!("[{}] Ok: {:?}", smtp_state, status);
 
                     return status;
                 }
                 Err(error) => {
-                    let error = Self::parse_stage_error(error, smtp_state);
-                    println!("[{}] KO: {:?}", smtp_state, error);
-
-                    log::error!(target: log_channels::RE, "{}", error);
+                    log::error!(
+                        target: log_channels::RE,
+                        "{}",
+                        Self::parse_stage_error(error, smtp_state)
+                    );
 
                     // if an error occurs, the engine denies the connexion by default.
                     rule_state.skipping(Status::Deny(None));

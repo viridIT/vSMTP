@@ -7,11 +7,9 @@ use vsmtp_common::status::Status;
 use vsmtp_config::Config;
 
 /// a state container that bridges rhai's & rust contexts.
-pub struct RuleState<'a> {
+pub struct RuleState {
     /// a lightweight engine for evaluation.
     engine: rhai::Engine,
-    /// state containing some variables like date & time.
-    scope: rhai::Scope<'a>,
     /// a pointer to the server api.
     #[allow(dead_code)]
     server: std::sync::Arc<ServerAPI>,
@@ -21,17 +19,13 @@ pub struct RuleState<'a> {
     skip: Option<Status>,
 }
 
-impl<'a> RuleState<'a> {
+impl RuleState {
     /// creates a new rule engine with an empty scope.
     #[must_use]
     pub fn new(config: &Config, rule_engine: &RuleEngine) -> Self {
-        let mut scope = rhai::Scope::new();
-        scope.push("date", "").push("time", "");
-
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
         });
-
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
@@ -48,12 +42,10 @@ impl<'a> RuleState<'a> {
             body: Body::Empty,
             metadata: None,
         }));
-
         let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
 
         Self {
             engine,
-            scope,
             server,
             mail_context,
             skip: None,
@@ -80,19 +72,14 @@ impl<'a> RuleState<'a> {
         rule_engine: &RuleEngine,
         mail_context: MailContext,
     ) -> Self {
-        let mut scope = rhai::Scope::new();
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
         });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
-
-        scope.push("date", "").push("time", "");
-
         let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
 
         Self {
             engine,
-            scope,
             server,
             mail_context,
             skip: None,
@@ -140,21 +127,10 @@ impl<'a> RuleState<'a> {
                 crate::dsl::object_parsing::parse_object,
                 true,
                 crate::dsl::object_parsing::create_object,
-            )
-            .on_debug(move |m, _, _| println!("{m:#?}"))
-            .on_print(|m| println!("{m}"));
+            );
 
         engine
     }
-
-    /// add data to the scope of the engine.
-    // pub(crate) fn add_data<T>(&mut self, name: &'a str, data: T) -> &mut Self
-    // where
-    //     T: Clone + Send + Sync + 'static,
-    // {
-    //     self.scope.set_or_push(name, data);
-    //     self
-    // }
 
     /// fetch the email context (possibly) mutated by the user's rules.
     #[must_use]
