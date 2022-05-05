@@ -112,7 +112,6 @@ impl RuleEngine {
         let directives = Self::extract_directives(&compiler, &ast)?;
 
         log::debug!(target: log_channels::RE, "done.");
-        log::trace!(target: log_channels::RE, "{ast:#?}");
 
         Ok(Self {
             ast,
