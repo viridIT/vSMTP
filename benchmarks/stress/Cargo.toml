@@ -13,6 +13,8 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
+rand = "0.8.5"
+
 tokio = { version = "1.18.1", default-features = false, features = [
     "macros",
     "time",

@@ -1,3 +1,7 @@
+use lettre::transport::smtp::{
+    authentication::{Credentials, Mechanism},
+    client::{Tls, TlsParameters},
+};
 use opentelemetry::{global, runtime, trace, Context};
 
 async fn start_server() -> std::io::Result<()> {
@@ -39,6 +43,14 @@ struct StressConfig {
     mail_per_client: u64,
 }
 
+const USER_DB: [(&str, &str); 5] = [
+    ("stress1", "abc"),
+    ("stress2", "bcd"),
+    ("stress3", "cde"),
+    ("stress4", "efh"),
+    ("stress5", "fhi"),
+];
+
 async fn run_one_connection(
     config: std::sync::Arc<StressConfig>,
     client_nb: u64,
@@ -47,16 +59,53 @@ async fn run_one_connection(
     let span = trace::Tracer::start(&tracer, format!("Connection: {client_nb}"));
     let cx = <Context as trace::TraceContextExt>::current_with_span(span);
 
-    let mailer = std::sync::Arc::new(
+    let params = TlsParameters::builder("stressserver.com".to_string())
+        .dangerous_accept_invalid_certs(true)
+        .build()
+        .unwrap();
+
+    let tls: i8 = rand::random::<i8>().rem_euclid(4);
+    let port = match tls {
+        3 => config.port_submissions,
+        _ => {
+            if rand::random::<bool>() {
+                config.port_submission
+            } else {
+                config.port_relay
+            }
+        }
+    };
+    let tls = match tls {
+        0 => Tls::None,
+        1 => Tls::Opportunistic(params),
+        2 => Tls::Required(params),
+        3 => Tls::Wrapper(params),
+        x => panic!("{x} not handled in range"),
+    };
+
+    let mut mailer_builder =
         lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
             config.server_ip.clone(),
         )
-        .port(config.port_relay)
-        // TODO:
-        // .tls()
-        // .credentials()
-        .build(),
-    );
+        .port(port)
+        .tls(tls);
+
+    if rand::random::<bool>() {
+        let credentials = USER_DB
+            .iter()
+            .nth(rand::random::<usize>().rem_euclid(USER_DB.len()))
+            .unwrap();
+
+        mailer_builder = mailer_builder
+            .authentication(vec![if rand::random::<bool>() {
+                Mechanism::Plain
+            } else {
+                Mechanism::Login
+            }])
+            .credentials(Credentials::from(*credentials));
+    }
+
+    let mailer = std::sync::Arc::new(mailer_builder.build());
 
     for i in 0..config.mail_per_client {
         let sender = mailer.clone();
@@ -128,8 +177,6 @@ async fn run_stress(config: std::sync::Arc<StressConfig>) {
         cx,
     )
     .await;
-
-    global::shutdown_tracer_provider();
 }
 
 #[tokio::main]
@@ -141,7 +188,7 @@ async fn main() -> std::io::Result<()> {
         port_relay: 10025,
         port_submission: 10587,
         port_submissions: 10465,
-        total_client_count: 10,
+        total_client_count: 1000,
         mail_per_client: 1,
     });
 
@@ -151,5 +198,8 @@ async fn main() -> std::io::Result<()> {
         s = server => s??,
         c = clients => c
     };
+
+    global::shutdown_tracer_provider();
+
     Ok(())
 }
