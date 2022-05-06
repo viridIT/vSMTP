@@ -24,8 +24,13 @@ tokio = { version = "1.18.1", default-features = false, features = [
     "rt-multi-thread",
 ] }
 
-opentelemetry = { version = "0.17.0", features = ["rt-tokio", "metrics"] }
-opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"] }
+opentelemetry = { version = "0.17.0", optional = true, features = [
+    "rt-tokio",
+    "metrics",
+] }
+opentelemetry-jaeger = { version = "0.16.0", optional = true, features = [
+    "rt-tokio",
+] }
 
 lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "smtp-transport",
@@ -33,3 +38,6 @@ lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "tokio1-rustls-tls",
     "tracing",
 ] }
+
+[features]
+telemetry = ["dep:opentelemetry", "dep:opentelemetry-jaeger"]
