@@ -17,14 +17,10 @@ mod log_channels {
 
 mod dsl;
 mod error;
-/// vsl prelude
 pub mod modules;
-mod obj;
-/// rust api
 pub mod rule_engine;
 pub mod rule_state;
 mod server_api;
-mod service;
 
 #[cfg(test)]
 mod tests;

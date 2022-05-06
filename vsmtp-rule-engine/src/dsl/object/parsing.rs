@@ -14,9 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use super::Object;
 use crate::error::RuleEngineError;
 use crate::modules::EngineResult;
-use crate::obj::Object;
 /// check of a "object" expression is valid.
 /// the syntax is:
 ///   object $name$ $type[:file_type]$ = #{ value: "...", ... };

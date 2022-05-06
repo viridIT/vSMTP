@@ -15,6 +15,8 @@
  *
 */
 
+pub mod parsing;
+
 use vsmtp_common::{
     re::{addr, anyhow, log},
     status::InfoPacket,

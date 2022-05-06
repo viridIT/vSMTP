@@ -14,6 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+pub mod parsing;
+
 use vsmtp_common::{
     mail_context::{AuthCredentials, Body, MailContext},
     re::{anyhow, log},

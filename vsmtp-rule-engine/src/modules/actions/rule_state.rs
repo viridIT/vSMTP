@@ -22,10 +22,10 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod rule_state {
     use crate::{
-        modules::actions::create_app_folder,
+        dsl::object::Object, modules::actions::create_app_folder,
         modules::actions::transports::transports::disable_delivery_all,
         modules::actions::MailContext, modules::mail_context::mail_context::message_id,
-        modules::EngineResult, obj::Object, server_api::ServerAPI,
+        modules::EngineResult, server_api::ServerAPI,
     };
     use vsmtp_common::status::{InfoPacket, Status};
 

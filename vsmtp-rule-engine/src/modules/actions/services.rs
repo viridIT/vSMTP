@@ -22,8 +22,8 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod services {
     use crate::{
-        modules::actions::MailContext, modules::EngineResult, server_api::ServerAPI,
-        service::ServiceResult,
+        dsl::service::run, dsl::service::ServiceResult, modules::actions::MailContext,
+        modules::EngineResult, server_api::ServerAPI,
     };
 
     /// execute the service named @service_name from the vSMTP configuration definition
@@ -34,7 +34,7 @@ pub mod services {
         ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
         service_name: &str,
     ) -> EngineResult<ServiceResult> {
-        crate::service::run(
+        run(
             srv.config
                 .app
                 .services

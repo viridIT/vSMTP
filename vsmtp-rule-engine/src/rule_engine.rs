@@ -23,12 +23,12 @@ use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
 use vsmtp_config::Config;
 
-use crate::dsl::action_parsing::{create_action, parse_action};
+use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::directives::{Action, Directive, Directives, Rule};
-use crate::dsl::object_parsing::{create_object, parse_object};
-use crate::dsl::rule_parsing::{create_rule, parse_rule};
+use crate::dsl::object::parsing::{create_object, parse_object};
+use crate::dsl::object::Object;
+use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::modules::EngineResult;
-use crate::obj::Object;
 use crate::rule_state::RuleState;
 use crate::{log_channels, modules};
 

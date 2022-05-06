@@ -22,7 +22,7 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod bcc {
 
-    use crate::{modules::actions::MailContext, modules::EngineResult, obj::Object};
+    use crate::{modules::actions::MailContext, modules::EngineResult, dsl::object::Object};
     use vsmtp_common::Address;
 
     /// add a recipient to the list recipient using a raw string.

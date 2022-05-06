@@ -14,9 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::dsl::object::Object;
+use crate::dsl::service::ServiceResult;
 use crate::modules::EngineResult;
-use crate::obj::Object;
-use crate::service::ServiceResult;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,

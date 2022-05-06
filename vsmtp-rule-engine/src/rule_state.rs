@@ -112,21 +112,21 @@ impl RuleState {
             .register_static_module("toml", rule_engine.toml_module.clone())
             .register_custom_syntax_raw(
                 "rule",
-                crate::dsl::rule_parsing::parse_rule,
+                crate::dsl::rule::parsing::parse_rule,
                 true,
-                crate::dsl::rule_parsing::create_rule,
+                crate::dsl::rule::parsing::create_rule,
             )
             .register_custom_syntax_raw(
                 "action",
-                crate::dsl::action_parsing::parse_action,
+                crate::dsl::action::parsing::parse_action,
                 true,
-                crate::dsl::action_parsing::create_action,
+                crate::dsl::action::parsing::create_action,
             )
             .register_custom_syntax_raw(
                 "object",
-                crate::dsl::object_parsing::parse_object,
+                crate::dsl::object::parsing::parse_object,
                 true,
-                crate::dsl::object_parsing::create_object,
+                crate::dsl::object::parsing::create_object,
             );
 
         engine
