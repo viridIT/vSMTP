@@ -15,6 +15,7 @@
  *
 */
 
+mod csv_database;
 pub mod parsing;
 
 use vsmtp_common::{
@@ -148,8 +149,8 @@ pub fn run(this: &Service, ctx: &MailContext) -> anyhow::Result<ServiceResult> {
 
             Ok(ServiceResult::new(status))
         }
-        Service::FileDatabase { .. } => anyhow::bail!(
-            "a file database is not a runnable service, use a db object to query data"
-        ),
+        Service::CSVDatabase { .. } => {
+            anyhow::bail!("a csv database is not a runnable service, use a db object to query data")
+        }
     }
 }

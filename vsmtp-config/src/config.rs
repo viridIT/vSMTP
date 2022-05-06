@@ -464,7 +464,7 @@ pub enum Service {
     },
 
     #[serde(rename = "file")]
-    FileDatabase {
+    CSVDatabase {
         /// optional: a user to run open the database with.
         #[serde(default)]
         user: Option<String>,
