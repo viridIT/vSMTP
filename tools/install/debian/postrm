@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+
+CONF_DIR="/etc/vsmtp"
+CONF_FILE=${CONF_DIR}"vsmtp.toml"
+
+case "$1" in
+purge)
+    # Per https://www.debian.org/doc/debian-policy/ch-files.html#behavior
+    # "configuration files must be preserved when the package is removed, and
+    #  only deleted when the package is purged."
+    if [ -f ${CONF_FILE} ]; then
+        rm ${CONF_FILE}
+    fi
+    ;;
+esac
+
+#DEBHELPER#

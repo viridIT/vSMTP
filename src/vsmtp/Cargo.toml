@@ -15,9 +15,23 @@ publish = false
 rust-version = "1.58"
 default-run = "vsmtp"
 
+[dependencies]
+vsmtp-common = { version = "^0.10", path = "./vsmtp-common" }
+vsmtp-server = { version = "^0.10", path = "./vsmtp-server" }
+vsmtp-config = { version = "^0.10", path = "./vsmtp-config" }
+
+clap = { version = "3.1.15", features = ["derive"] }
+diff = "0.1.12"
+
+# 
+# DEBIAN PACKAGING
+#
+# Note that as the postinst script uses the adduser there's a
+# dependency on the adduser package to keep the lintian tool happy.
+#
 [package.metadata.deb]
 copyright = "2022, viridIT SAS"
-license-file = ["../../LICENSE", "4"]
+license-file = ["../../LICENSE", "0"]
 extended-description = "A high performance MTA written in RUST."
 depends = "$auto"
 section = "mail"
@@ -29,12 +43,4 @@ assets = [
     ["../../ROADMAP.md", "usr/share/doc/vsmtp/ROADMAP", "644"],
 ]
 maintainer-scripts = "../../tools/install/debian/"
-systemd-units = { enable = false, start = false }
-
-[dependencies]
-vsmtp-common = { version = "^0.10", path = "./vsmtp-common" }
-vsmtp-server = { version = "^0.10", path = "./vsmtp-server" }
-vsmtp-config = { version = "^0.10", path = "./vsmtp-config" }
-
-clap = { version = "3.1.15", features = ["derive"] }
-diff = "0.1.12"
+systemd-units = { unit-name = "vsmtp", enable = true, start = false }
