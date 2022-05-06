@@ -15,6 +15,7 @@
  *
 */
 use crate::modules::EngineResult;
+use vsmtp_config::Service;
 
 /// parse a service using rhai's parser.
 pub fn parse_service(
@@ -60,13 +61,10 @@ pub fn create_service(
     let service_name = input[0].get_string_value().unwrap().to_string();
     let service_type = input[1].get_string_value().unwrap().to_string();
 
-    todo!()
-
-    // let object = match object_type.as_str() {
-    //     "file" => create_file(context, input, &object_name),
-    //     "code" => create_code(context, input, &object_name),
-    //     _ => create_other(context, input, &object_type, &object_name),
-    // }?;
+    let service = match service_type.as_str() {
+        "file" => open_file(context, input, &service_name),
+        _ => todo!(),
+    }?;
 
     // let object_ptr = std::sync::Arc::new(
     //     Object::from(&object)
@@ -81,5 +79,40 @@ pub fn create_service(
     //     .push_constant(&object_name, object_ptr.clone())
     //     .set_alias(object_name, "");
 
-    // Ok(rhai::Dynamic::from(object_ptr))
+    Ok(rhai::Dynamic::from(service))
+}
+
+/// open a file database using the csv crate.
+fn open_file(
+    context: &mut rhai::EvalContext,
+    input: &[rhai::Expression],
+    service_name: &str,
+) -> EngineResult<rhai::Map> {
+    let service = context.eval_expression_tree(&input[3])?;
+
+    if service.is::<rhai::Map>() {
+        let mut service: rhai::Map = service
+            .try_cast()
+            .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+                "file database options must be declared with a map #{}".into()
+            })?;
+
+        for key in ["connector"] {
+            if !service.contains_key(key) {
+                return Err(format!("service {service_name} is missing the '{key}' key.").into());
+            }
+        }
+
+        service.insert("type".into(), rhai::Dynamic::from("service".to_string()));
+        service.insert("name".into(), rhai::Dynamic::from(service_name.to_string()));
+
+        Ok(service)
+    } else {
+        Err(rhai::EvalAltResult::ErrorMismatchDataType(
+            "Map".to_string(),
+            service.type_name().to_string(),
+            rhai::Position::NONE,
+        )
+        .into())
+    }
 }

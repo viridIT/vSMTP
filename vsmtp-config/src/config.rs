@@ -462,6 +462,18 @@ pub enum Service {
         /// optional: parameters directly given to the executed program (argc, argv)
         args: Option<String>,
     },
+
+    #[serde(rename = "file")]
+    FileDatabase {
+        /// optional: a user to run open the database with.
+        #[serde(default)]
+        user: Option<String>,
+        /// optional: a group to run open the database with.
+        #[serde(default)]
+        group: Option<String>,
+        /// a unix or web socket descriptor to open the file.
+        connector: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

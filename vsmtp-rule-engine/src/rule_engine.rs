@@ -28,6 +28,7 @@ use crate::dsl::directives::{Action, Directive, Directives, Rule};
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
+use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::modules::EngineResult;
 use crate::rule_state::RuleState;
 use crate::{log_channels, modules};
@@ -285,6 +286,7 @@ impl RuleEngine {
             .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
             .register_custom_syntax_raw("action", parse_action, true, create_action)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
+            .register_custom_syntax_raw("service", parse_service, true, create_service)
             // NOTE: is their a way to defined iterators directly in modules ?
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
