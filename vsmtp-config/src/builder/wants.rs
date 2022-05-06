@@ -21,7 +21,7 @@ use vsmtp_common::{code::SMTPReplyCode, re::log};
 use crate::{
     config::{
         ConfigQueueDelivery, ConfigQueueWorking, ConfigServerDNS, ConfigServerSMTPError,
-        ConfigServerSMTPTimeoutClient, ConfigServerTls, Service,
+        ConfigServerSMTPTimeoutClient, ConfigServerTls,
     },
     ConfigServerSMTPAuth, ConfigServerVirtual,
 };
@@ -126,19 +126,13 @@ pub struct WantsAppLogs {
 }
 
 ///
-pub struct WantsAppServices {
+pub struct WantsServerDNS {
     pub(crate) parent: WantsAppLogs,
     pub(super) filepath: std::path::PathBuf,
     pub(super) level: log::LevelFilter,
     pub(super) format: String,
     pub(super) size_limit: u64,
     pub(super) archive_count: u32,
-}
-
-///
-pub struct WantsServerDNS {
-    pub(crate) parent: WantsAppServices,
-    pub(super) services: std::collections::BTreeMap<String, Service>,
 }
 
 ///

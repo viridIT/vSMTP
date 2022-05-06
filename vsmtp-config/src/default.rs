@@ -23,8 +23,7 @@ use crate::{
         ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPAuth, ConfigServerSMTPError,
         ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
     },
-    Config, ConfigServerTls, ConfigServerVirtualTls, ResolverOptsWrapper, Service,
-    TlsSecurityLevel,
+    Config, ConfigServerTls, ConfigServerVirtualTls, ResolverOptsWrapper, TlsSecurityLevel,
 };
 use vsmtp_common::{
     auth::Mechanism,
@@ -431,7 +430,6 @@ impl Default for ConfigApp {
             dirpath: Self::default_dirpath(),
             vsl: ConfigAppVSL::default(),
             logs: ConfigAppLogs::default(),
-            services: std::collections::BTreeMap::<String, Service>::new(),
         }
     }
 }

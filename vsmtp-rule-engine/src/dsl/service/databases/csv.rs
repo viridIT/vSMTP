@@ -17,7 +17,7 @@
 
 use crate::modules::EngineResult;
 
-pub(super) fn parse_csv_database(db_name: &str, mut options: rhai::Map) -> EngineResult<rhai::Map> {
+pub fn parse_csv_database(db_name: &str, mut options: rhai::Map) -> EngineResult<rhai::Map> {
     options.insert("type".into(), rhai::Dynamic::from("database".to_string()));
     options.insert("format".into(), rhai::Dynamic::from("csv".to_string()));
 

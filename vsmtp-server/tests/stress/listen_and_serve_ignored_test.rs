@@ -59,7 +59,6 @@ async fn listen_and_serve() {
         .with_app_at_location("./tmp/stress")
         .with_vsl("./tests/stress/main.vsl")
         .with_app_logs_at("./tmp/stress/app.log")
-        .without_services()
         .with_system_dns()
         .without_virtual_entries()
         .validate()

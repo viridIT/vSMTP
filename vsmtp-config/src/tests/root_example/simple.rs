@@ -42,7 +42,6 @@ fn parse() {
             .with_default_app()
             .with_default_vsl_settings()
             .with_default_app_logs()
-            .without_services()
             .with_system_dns()
             .without_virtual_entries()
             .validate()

@@ -120,7 +120,7 @@ fn open_database(
         options.insert("name".into(), rhai::Dynamic::from(service_name.to_string()));
 
         let options = match database_type {
-            "csv" => super::csv_database::parse_csv_database(service_name, options)?,
+            "csv" => super::databases::csv::parse_csv_database(service_name, options)?,
             _ => todo!(),
         };
 

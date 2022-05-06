@@ -34,7 +34,7 @@ fn write(dir) { sys::write(srv(), ctx(), dir) }
 fn dump(dir) { sys::dump(srv(), ctx(), dir) }
 
 /// Services (services.rs)
-fn run_service(service) { sys::run_service(srv(), ctx(), service) }
+fn run_service(service) { } // sys::run_service(srv(), ctx(), service) }
 
 /// Delivery methods (transports.rs)
 fn forward(rcpt, forward) { sys::forward(ctx(), rcpt, forward) }
