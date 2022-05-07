@@ -1,7 +1,9 @@
 vmstp (1.0.0) UNRELEASED; urgency=low
+
   [ PR submitter ]
   * Initial relelease. Related PR: 34532
     This is the PR text.
+    
   [ Updated by bibi ]
   * This is an optional bullet point
     At least two spaces are required.
