@@ -117,7 +117,12 @@ async fn run_one_connection(
         #[cfg(feature = "telemetry")]
         let future = future.with_context(cx.clone());
 
-        if future.await.is_err() {
+        if let Err(e) = future.await {
+            if format!("{:?}", e)
+                == r#"lettre::transport::smtp::Error { kind: Connection, source: Os { code: 111, kind: ConnectionRefused, message: "Connection refused" } }"#
+            {
+                return Ok(());
+            }
             return Err(client_nb);
         }
     }
@@ -186,7 +191,7 @@ async fn main() -> std::io::Result<()> {
         port_submission: 10587,
         port_submissions: 10465,
         total_client_count: 100,
-        mail_per_client: 1,
+        mail_per_client: 10,
     });
 
     run_stress(config).await;
