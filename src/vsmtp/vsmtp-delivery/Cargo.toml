@@ -6,7 +6,7 @@ version = "1.0.0"
 license = "GPLv3"
 
 authors = ["Team viridIT <https://viridit.com/>"]
-description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
+description = "Next-gen MTA. Secured, Faster and Greener"
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 
