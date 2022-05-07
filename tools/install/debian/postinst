@@ -6,11 +6,11 @@ VSMTP_USER="vsmtp"
 DPKG_NAME="vsmtp"
 DPKG_VER=`dpkg -s $DPKG_NAME | sed -n 's/^Version: //p'`
 
-CONF_DIR="/etc/vsmtp"
+CONF_DIR="/etc/vsmtp/"
 CONF_FILE=${CONF_DIR}"vsmtp.toml"
 
 LOG_DIR="/var/log/vsmtp/"
-SPOOL_DIR="/var/spool/vsmtp"
+SPOOL_DIR="/var/spool/vsmtp/"
 
 add_user() {
     if id ${VSMTP_USER} > /dev/null 2>&1; then return; fi
