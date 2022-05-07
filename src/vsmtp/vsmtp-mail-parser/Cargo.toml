@@ -13,8 +13,8 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
-vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
-vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
+vsmtp-common = { version = "^1.0.0", path = "../vsmtp-common" }
+vsmtp-config = { version = "^1.0.0", path = "../vsmtp-config" }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"

@@ -16,9 +16,9 @@ rust-version = "1.58"
 default-run = "vsmtp"
 
 [dependencies]
-vsmtp-common = { version = "^0.10", path = "./vsmtp-common" }
-vsmtp-server = { version = "^0.10", path = "./vsmtp-server" }
-vsmtp-config = { version = "^0.10", path = "./vsmtp-config" }
+vsmtp-common = { version = "^1.0.0", path = "./vsmtp-common" }
+vsmtp-server = { version = "^1.0.0", path = "./vsmtp-server" }
+vsmtp-config = { version = "^1.0.0", path = "./vsmtp-config" }
 
 clap = { version = "3.1.15", features = ["derive"] }
 diff = "0.1.12"

@@ -13,8 +13,8 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
-vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
-vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
+vsmtp-common = { version = "^1.0.0", path = "../vsmtp-common" }
+vsmtp-config = { version = "^1.0.0", path = "../vsmtp-config" }
 
 regex = "1.5.5"
 iprange = "0.6.7"
@@ -48,4 +48,4 @@ tokio = { version = "1.18.1", features = [
 wait-timeout = "0.2.0"
 
 [dev-dependencies]
-vsmtp-mail-parser = { version = "^0.10", path = "../vsmtp-mail-parser" }
+vsmtp-mail-parser = { version = "^1.0.0", path = "../vsmtp-mail-parser" }

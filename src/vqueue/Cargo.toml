@@ -15,8 +15,8 @@ publish = false
 rust-version = "1.58"
 
 [dependencies]
-vsmtp-common = { version = "^0.10", path = "../vsmtp/vsmtp-common" }
-vsmtp-config = { version = "^0.10", path = "../vsmtp/vsmtp-config" }
+vsmtp-common = { version = "^1.0.0", path = "../vsmtp/vsmtp-common" }
+vsmtp-config = { version = "^1.0.0", path = "../vsmtp/vsmtp-config" }
 
 clap = { version = "3.1.15", features = ["derive"] }
 itertools = "0.10.3"
