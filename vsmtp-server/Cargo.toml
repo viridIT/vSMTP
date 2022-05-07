@@ -3,7 +3,7 @@ edition = "2021"
 
 name = "vsmtp-server"
 version = "0.10.4"
-license = "GPL-3.0"
+license = "GPL-3.0-only"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
