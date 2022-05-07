@@ -1,6 +1,8 @@
 vmstp (1.0.0) UNRELEASED; urgency=low
+ 
+ * Initial relelease. Related PR: 34532
+   This is the PR text.
 
-* Initial relelease. Closes PR: #34532
-* This is the PR text.
-
--- Pag <pag@viridit.com>  Mon, 4 Mar 2022 00:37:31 +0100
+ * This is an optional bullet point
+   At least two spaces are required.
+  -- Pag <pag@viridit.com>  Mon, 4 Mar 2022 00:37:31 +0100
