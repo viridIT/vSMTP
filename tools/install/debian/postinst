@@ -49,7 +49,7 @@ check_dir() {
 
 check_toml() {
     if [ ! -f "${CONF_FILE}" ]; then
-        echo "version_requirement = ${DPKG_VER}" > ${CONF_FILE}
+        echo "version_requirement = \"${DPKG_VER}\"" > ${CONF_FILE}
         chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_FILE}
         chmod 664 ${CONF_FILE}
     fi
