@@ -43,18 +43,20 @@ jobs:
       - uses: mstachniuk/ci-skip@v1
         with:
           fail-fast: true
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
+          key: "${{ runner.os }}-cargo-registry-nightly-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/git
-          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
+          key: "${{ runner.os }}-cargo-index-nightly-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-target-nightly-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo install cargo-udeps --locked
       - uses: actions-rs/toolchain@v1
         with:
@@ -84,18 +86,22 @@ jobs:
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
-          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
+          key: "${{ runner.os }}-cargo-registry-nightly-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/git
-          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
+          key: "${{ runner.os }}-cargo-index-nightly-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions/cache@v1
         with:
           path: ~/.cargo/bin
-          key: "${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}"
+          key: "${{ runner.os }}-cargo-bin-nightly-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-nightly-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2022-03-22
+          toolchain: nightly
           override: true
       - uses: actions-rs/cargo@v1
         with:
