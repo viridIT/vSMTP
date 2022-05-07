@@ -2070,7 +2070,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vqueue"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "clap 3.1.17",
  "itertools",
@@ -2081,7 +2081,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "clap 3.1.17",
  "diff",
@@ -2092,7 +2092,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "addr",
  "anyhow",
@@ -2109,7 +2109,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-config"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "hostname",
  "humantime-serde",
@@ -2129,7 +2129,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-delivery"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "async-trait",
  "lettre",
@@ -2143,16 +2143,15 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "pretty_assertions",
  "vsmtp-common",
- "vsmtp-config",
 ]
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "hostname",
  "ipnet",
@@ -2170,7 +2169,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "async-trait",
  "criterion",
@@ -2196,7 +2195,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "async-trait",
  "lettre",

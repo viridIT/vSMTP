@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-mail-parser"
-version = "0.10.3"
+version = "0.10.4"
 license = "GPL-3.0"
 
 authors = ["Team viridIT <https://viridit.com/>"]
@@ -14,7 +14,6 @@ publish = false
 
 [dependencies]
 vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
-vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
