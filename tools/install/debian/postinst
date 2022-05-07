@@ -29,7 +29,7 @@ add_user() {
 check_dir() {
     # vSMTP log directory
     if [ ! -d "${LOG_DIR}" ]; then 
-        mkdir ${LOG_DIR} 
+        mkdir ${LOG_DIR}
         chown ${VSMTP_USER}:${VSMTP_USER} ${LOG_DIR}
         chmod 755 ${LOG_DIR}
     fi
@@ -41,11 +41,10 @@ check_dir() {
     fi
     # vSMTP data directory
     if [ ! -d "${CONF_DIR}" ]; then
-        mkdir ${CONF_DIR} ${CONF_DIR}/rules
-        chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_DIR} ${CONF_DIR}/rules
-        chmod 755 ${CONF_DIR} ${CONF_DIR}/rules
+        mkdir ${CONF_DIR}
+        chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_DIR}
+        chmod 755 ${CONF_DIR}
     fi
-    
 }
 
 check_toml() {

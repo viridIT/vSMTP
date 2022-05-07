@@ -30,17 +30,19 @@ diff = "0.1.12"
 # dependency on the adduser package to keep the lintian tool happy.
 #
 [package.metadata.deb]
-copyright = "2022, viridIT SAS"
+name = "vsmtp"
+maintainer = "Pag <pag@viridit.com>"
+copyright = "2022 - viridIT SAS"
 license-file = ["../../LICENSE", "0"]
 extended-description = "A high performance MTA written in RUST."
-depends = "$auto"
+depends = "$auto, passwd"
 section = "mail"
 priority = "optional"
 assets = [
     ["target/release/vsmtp", "usr/sbin/", "755"],
     ["target/release/vqueue", "usr/sbin/", "755"],
     ["../../README.md", "usr/share/doc/vsmtp/README", "644"],
-    ["../../ROADMAP.md", "usr/share/doc/vsmtp/ROADMAP", "644"],
+    ["../../examples/config/*", "usr/share/doc/vsmtp/config/", "644"],
 ]
 maintainer-scripts = "../../tools/install/debian/"
 systemd-units = { unit-name = "vsmtp", enable = true, start = false }
