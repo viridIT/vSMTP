@@ -35,6 +35,12 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
+  cargo-deny:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v3
+      - uses: EmbarkStudios/cargo-deny-action@v1
   ## Runs all test and upload coverage
   test:
     runs-on: ubuntu-latest
