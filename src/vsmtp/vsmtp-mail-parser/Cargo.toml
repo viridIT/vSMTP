@@ -2,8 +2,8 @@
 edition = "2021"
 
 name = "vsmtp-mail-parser"
-version = "0.10.3"
-license = "GPLv3"
+version = "1.0.0"
+license = "GPL-3.0-only"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
