@@ -1,0 +1,23 @@
+.\" Manpage for vqueue
+.\" Please open a github issue to correct errors or typos.
+.TH man 1 "05 May 2022" "1.0.0" "vqueue man page"
+.SH NAME
+vqueue \- manage vSMTP queues and quarantines 
+.SH SYNOPSIS
+vqueue [OPTIONS] <SUBCOMMANDS>
+.SH DESCRIPTION
+vqueue is high level shell program for managing vSMTP queues.
+.SH OPTIONS
+-c, --config <CONFIG>    Path of the vSMTP configuration file (toml format)
+-h, --help               Print help information
+-V, --version            Print version information
+.SH SUBCOMMANDS
+help    Print this message or the help of the given subcommand(s)
+msg     Operate action to a given message
+show    Show the content of the given queue(s)
+.SH SEE ALSO
+vsmtp(1) 
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Team viridIKT (https://viridit.com/)
