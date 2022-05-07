@@ -1,9 +1,9 @@
 #{
     authenticate: [
         rule "auth /etc/shadow" || {
-            switch ctx.auth.type {
+            switch ctx().auth.type {
                 "Verify" => {
-                    let result = srv.run_service(ctx, "saslauthd");
+                    let result = srv().run_service(ctx, "saslauthd");
 
                     if result.has_signal {
                         // timed out
@@ -11,14 +11,14 @@
                     }
 
                     if result.has_code && result.code == 0 {
-                        vsl::accept()
+                        accept()
                     } else {
-                        vsl::deny()
+                        deny()
                     }
 
                 },
                 "Query" => {
-                    vsl::deny()
+                    deny()
                 }
             }
         }

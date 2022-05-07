@@ -47,12 +47,35 @@ mod types;
 pub mod helpers {
     use vsmtp_config::Config;
 
-    use crate::rule_engine::RuleState;
+    use crate::{rule_engine::RuleEngine, rule_state::RuleState};
+
+    pub(super) fn get_default_config(dirpath: impl Into<std::path::PathBuf>) -> Config {
+        Config::builder()
+            .with_version_str("<1.0.0")
+            .unwrap()
+            .with_server_name_and_client_count("testserver.com", 32)
+            .with_user_group_and_default_system("root", "root")
+            .unwrap()
+            .with_ipv4_localhost()
+            .with_default_logs_settings()
+            .with_spool_dir_and_default_queues("./tmp/delivery")
+            .without_tls_support()
+            .with_default_smtp_options()
+            .with_default_smtp_error_handler()
+            .with_default_smtp_codes()
+            .without_auth()
+            .with_app_at_location(dirpath)
+            .with_vsl("./src/tests/empty_main.vsl")
+            .with_default_app_logs()
+            .without_services()
+            .with_system_dns()
+            .without_virtual_entries()
+            .validate()
+            .unwrap()
+    }
 
     /// create a rule engine state with it's associated configuration.
-    pub(super) fn get_default_state(
-        dirpath: impl Into<std::path::PathBuf>,
-    ) -> (RuleState<'static>, Config) {
+    pub(super) fn get_default_state(dirpath: impl Into<std::path::PathBuf>) -> (RuleState, Config) {
         let config = Config::builder()
             .with_version_str("<1.0.0")
             .unwrap()
@@ -76,6 +99,7 @@ pub mod helpers {
             .validate()
             .unwrap();
 
-        (RuleState::new(&config), config)
+        let re = RuleEngine::from_script(&config, "#{}").unwrap();
+        (RuleState::new(&config, &re), config)
     }
 }

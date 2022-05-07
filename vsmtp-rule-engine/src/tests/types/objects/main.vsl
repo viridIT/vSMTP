@@ -59,12 +59,12 @@ import "vars" as vars;
             && toml::app.services["my_shell"].command == "echo"
             && toml::app.dirpath == "./tmp/app"
             && toml::app.vsl.filepath == "./tmp/nothing" {
-                vsl::next()
+                next()
             } else {
-                vsl::deny()
+                deny()
             }
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
    ],
 }

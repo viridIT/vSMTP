@@ -16,7 +16,7 @@
 */
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, Position, RhaiResult, TypeId,
+    PluginFunction, RhaiResult, TypeId,
 };
 
 #[rhai::plugin::export_module]
@@ -39,7 +39,7 @@ pub mod headers {
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn get_header(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         header: &str,
@@ -54,7 +54,7 @@ pub mod headers {
     }
 
     /// add a header to the raw or parsed email contained in ctx.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn add_header(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         header: &str,
@@ -69,7 +69,7 @@ pub mod headers {
     }
 
     /// set a header to the raw or parsed email contained in ctx.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn set_header(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         header: &str,
@@ -83,7 +83,7 @@ pub mod headers {
     }
 
     /// change the sender of the mail
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn rewrite_mail_from(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         new_addr: &str,
@@ -114,7 +114,7 @@ pub mod headers {
     }
 
     /// change a recipient of the mail
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn rewrite_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         old_addr: &str,
@@ -175,7 +175,7 @@ pub mod headers {
     }
 
     /// add a recipient to the mail
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn add_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         new_addr: &str,
@@ -207,7 +207,7 @@ pub mod headers {
     }
 
     /// remove a recipient to the mail
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn remove_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         addr: &str,

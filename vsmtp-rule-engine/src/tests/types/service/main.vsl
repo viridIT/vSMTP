@@ -18,16 +18,16 @@
     connect: [
         rule "unknown service" || {
             try {
-                srv.run_service(ctx, "unknown");
-                return vsl::deny();
+                srv().run_service("unknown");
+                return deny();
             } catch (err) {
                 print(err);
-                if "" in err { return vsl::next(); } else { return vsl::deny(); }
+                if "" in err { return next(); } else { return deny(); }
             }
         },
 
         rule "test shell service" || {
-            let result = srv.run_service(ctx, "shell");
+            let result = srv().run_service("shell");
 
             print(`string: ${result.to_string()}`);
             print(`debug: ${result.to_debug()}`);
@@ -38,15 +38,15 @@
             {
                 try {
                     result.signal;
-                    return vsl::deny();
+                    return deny();
                 } catch {
-                    return vsl::next();
+                    return next();
                 }
             } else {
-                vsl::deny()
+                deny()
             }
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
     ]
 }

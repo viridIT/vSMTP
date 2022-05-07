@@ -29,12 +29,12 @@ use vsmtp_common::{
     Address,
 };
 use vsmtp_config::{Config, TlsSecurityLevel};
-use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
-pub struct Transaction<'re> {
+pub struct Transaction {
     state: StateSMTP,
-    rule_state: RuleState<'re>,
+    rule_state: RuleState,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 }
 
@@ -55,7 +55,7 @@ enum ProcessedEvent {
     TransactionCompleted(Box<MailContext>),
 }
 
-impl Transaction<'_> {
+impl Transaction {
     fn parse_and_apply_and_get_reply<
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
     >(
@@ -99,7 +99,7 @@ impl Transaction<'_> {
 
             (_, Event::RsetCmd) => {
                 {
-                    let state = self.rule_state.get_context();
+                    let state = self.rule_state.context();
                     let mut ctx = state.write().unwrap();
                     ctx.body = Body::Empty;
                     ctx.metadata = None;
@@ -237,14 +237,7 @@ impl Transaction<'_> {
                 {
                     Status::Info(packet) => Self::send_custom_code(&packet),
                     Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
-                    _ if self
-                        .rule_state
-                        .get_context()
-                        .read()
-                        .unwrap()
-                        .envelop
-                        .rcpt
-                        .len()
+                    _ if self.rule_state.context().read().unwrap().envelop.rcpt.len()
                         >= conn.config.server.smtp.rcpt_count_max =>
                     {
                         ProcessedEvent::ReplyChangeState(
@@ -259,13 +252,13 @@ impl Transaction<'_> {
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
-                self.rule_state.get_context().write().unwrap().body =
+                self.rule_state.context().write().unwrap().body =
                     Body::Raw(String::with_capacity(MAIL_CAPACITY));
                 ProcessedEvent::ReplyChangeState(StateSMTP::Data, SMTPReplyCode::Code354)
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
-                let state = self.rule_state.get_context();
+                let state = self.rule_state.context();
                 if let Body::Raw(body) = &mut state.write().unwrap().body {
                     body.push_str(&line);
                     body.push('\n');
@@ -285,7 +278,7 @@ impl Transaction<'_> {
                     _ => {}
                 }
 
-                let state = self.rule_state.get_context();
+                let state = self.rule_state.context();
                 let mut ctx = state.write().unwrap();
 
                 // TODO: find a better way to propagate force accept.
@@ -296,7 +289,7 @@ impl Transaction<'_> {
                 //  - return ProcessedEvent::CompletedMimeSkipped
                 //  - set body to Body::ParsingFailed or Body::ParsingSkipped.
                 if let Some(metadata) = &mut ctx.metadata {
-                    metadata.skipped = self.rule_state.skipped();
+                    metadata.skipped = self.rule_state.skipped().cloned();
                 }
 
                 let mut output = MailContext {
@@ -326,7 +319,7 @@ impl Transaction<'_> {
         &mut self,
         conn: &Connection<S>,
     ) {
-        let state = self.rule_state.get_context();
+        let state = self.rule_state.context();
         let ctx = &mut state.write().unwrap();
 
         ctx.client_addr = conn.client_addr;
@@ -334,7 +327,7 @@ impl Transaction<'_> {
     }
 
     fn set_helo(&mut self, helo: String) {
-        let state = self.rule_state.get_context();
+        let state = self.rule_state.context();
         let mut ctx = state.write().unwrap();
 
         ctx.body = Body::Empty;
@@ -353,7 +346,7 @@ impl Transaction<'_> {
     ) {
         let now = std::time::SystemTime::now();
 
-        let state = self.rule_state.get_context();
+        let state = self.rule_state.context();
         let mut ctx = state.write().unwrap();
         ctx.body = Body::Empty;
         ctx.envelop.rcpt.clear();
@@ -375,7 +368,7 @@ impl Transaction<'_> {
                     .collect::<String>(),
                 std::process::id()
             ),
-            skipped: self.rule_state.skipped(),
+            skipped: self.rule_state.skipped().cloned(),
         });
 
         log::trace!(
@@ -387,7 +380,7 @@ impl Transaction<'_> {
 
     fn set_rcpt_to(&mut self, rcpt_to: Address) {
         self.rule_state
-            .get_context()
+            .context()
             .write()
             .unwrap()
             .envelop
@@ -410,7 +403,7 @@ impl Transaction<'_> {
     }
 }
 
-impl Transaction<'_> {
+impl Transaction {
     #[allow(clippy::too_many_lines)]
     pub async fn receive<
         'a,
@@ -420,22 +413,27 @@ impl Transaction<'_> {
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     ) -> anyhow::Result<TransactionResult> {
-        let mut transaction = Transaction {
+        let rule_state = RuleState::with_connection(
+            conn.config.as_ref(),
+            &*rule_engine
+                .read()
+                .map_err(|_| anyhow::anyhow!("failed to lock rule engine"))?,
+            ConnectionContext {
+                timestamp: conn.timestamp,
+                credentials: None,
+                is_authenticated: conn.is_authenticated,
+                is_secured: conn.is_secured,
+                server_name: conn.server_name.clone(),
+            },
+        );
+
+        let mut transaction = Self {
             state: if helo_domain.is_none() {
                 StateSMTP::Connect
             } else {
                 StateSMTP::Helo
             },
-            rule_state: RuleState::with_connection(
-                conn.config.as_ref(),
-                ConnectionContext {
-                    timestamp: conn.timestamp,
-                    credentials: None,
-                    is_authenticated: conn.is_authenticated,
-                    is_secured: conn.is_secured,
-                    server_name: conn.server_name.clone(),
-                },
-            ),
+            rule_state,
             rule_engine,
         };
 
@@ -480,7 +478,7 @@ impl Transaction<'_> {
                     return Ok(TransactionResult::Authentication(
                         transaction
                             .rule_state
-                            .get_context()
+                            .context()
                             .read()
                             .unwrap()
                             .envelop

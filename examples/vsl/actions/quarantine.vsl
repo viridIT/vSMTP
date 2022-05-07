@@ -1,17 +1,20 @@
 #{
     preq: [
         action "action + set in quarantine" || {
-            vsl::quarantine(srv, ctx, "tests/generated/quarantine1");
+            quarantine("tests/generated/quarantine1");
+            // last statment of a function is always a return statment in rhai.
+            // https://rhai.rs/book/language/functions.html#implicit-return
+            ()
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
     ],
 
     postq: [
         rule "set in second quarantine + deny" || {
-            vsl::quarantine(srv, ctx, "tests/generated/quarantine2")
+            quarantine("tests/generated/quarantine2")
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
     ]
 }

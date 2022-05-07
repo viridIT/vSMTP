@@ -16,7 +16,7 @@
 */
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, Position, RhaiResult, TypeId,
+    PluginFunction, RhaiResult, TypeId,
 };
 
 #[rhai::plugin::export_module]
@@ -26,7 +26,7 @@ pub mod bcc {
     use vsmtp_common::Address;
 
     /// add a recipient to the list recipient using a raw string.
-    #[rhai_fn(global, name = "bcc", return_raw)]
+    #[rhai_fn(global, name = "bcc", return_raw, pure)]
     pub fn from_str(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         bcc: &str,
@@ -45,7 +45,7 @@ pub mod bcc {
     }
 
     /// add a recipient to the list recipient using an address.
-    #[rhai_fn(global, name = "bcc", return_raw)]
+    #[rhai_fn(global, name = "bcc", return_raw, pure)]
     pub fn from_addr(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         bcc: Address,
@@ -61,7 +61,7 @@ pub mod bcc {
 
     /// add a recipient to the list recipient using an object.
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "bcc", return_raw)]
+    #[rhai_fn(global, name = "bcc", return_raw, pure)]
     pub fn from_object(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         bcc: std::sync::Arc<Object>,

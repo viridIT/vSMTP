@@ -22,16 +22,16 @@
                 "héllo": "wÖrld"
             };
 
-            switch ctx.auth.type {
+            switch ctx().auth.type {
                 "Verify" => {
-                    if db[ctx.auth.authid] == ctx.auth.authpass {
-                        vsl::accept()
+                    if db[ctx().auth.authid] == ctx().auth.authpass {
+                        accept()
                     } else {
-                        vsl::deny()
+                        deny()
                     }
                 },
                 "Query" => {
-                    vsl::info(db[ctx.auth.authid])
+                    info(db[ctx().auth.authid])
                 }
             }
         }

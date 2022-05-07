@@ -1,0 +1,3 @@
+object john ident = "johndoe";
+object bar fqdn = "example.com";
+object customer address = "customer@company.com";

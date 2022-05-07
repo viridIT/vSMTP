@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    rule_engine::{RuleEngine, RuleState},
-    tests::helpers::get_default_state,
-};
+use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{mail_context::ConnectionContext, state::StateSMTP, status::Status};
 
 #[test]
@@ -29,8 +26,14 @@ fn test_engine_errors() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Deny(None)
+    );
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Helo),
+        Status::Deny(None)
+    );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
         Status::Deny(None)
@@ -42,6 +45,8 @@ fn test_engine_errors() {
 }
 
 #[test]
+#[ignore]
+// TODO: module errors are parsed at compile time now.
 fn test_engine_rules_syntax() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
@@ -83,9 +88,11 @@ fn test_rule_state() {
         .validate()
         .unwrap();
 
-    let state = RuleState::new(&config);
+    let rule_engine = RuleEngine::from_script(&config, "#{}").unwrap();
+    let state = RuleState::new(&config, &rule_engine);
     let state_with_context = RuleState::with_context(
         &config,
+        &rule_engine,
         vsmtp_common::mail_context::MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
@@ -109,12 +116,12 @@ fn test_rule_state() {
     );
 
     assert_eq!(
-        state.get_context().read().unwrap().client_addr.ip(),
+        state.context().read().unwrap().client_addr.ip(),
         std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
     );
     assert_eq!(
         state_with_context
-            .get_context()
+            .context()
             .read()
             .unwrap()
             .client_addr

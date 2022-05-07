@@ -18,24 +18,24 @@ import "../error_handling/errors" as err;
 
 #{
     connect: [
-        rule "short rule" || vsl::next(),
+        rule "short rule" || next(),
         action "short action" || {},
 
         rule "extended rule format" #{
             evaluate: || {
-                vsl::next()
+                next()
             },
             description: "an extended rule",
             color: "#ffffff",
         },
 
         action "extended action format" #{
-            evaluate: || vsl::next(),
+            evaluate: || next(),
             description: "an extended rule",
             color: "#ffffff",
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
     ],
 
     helo: [
@@ -44,7 +44,7 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing" || vsl::deny(),
+        rule "trailing" || deny(),
     ],
 
     mail: [
@@ -53,14 +53,14 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing" || vsl::deny(),
+        rule "trailing" || deny(),
     ],
 
     rcpt: [
         rule "invalid action" || import "bad_action",
 
         // should not be reached.
-        rule "trailing" || vsl::deny(),
+        rule "trailing" || deny(),
     ],
 
     preq: [
@@ -69,7 +69,7 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing" || vsl::deny(),
+        rule "trailing" || deny(),
     ],
 
     postq: [
@@ -78,6 +78,6 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing" || vsl::deny(),
+        rule "trailing" || deny(),
     ],
 }

@@ -122,7 +122,6 @@ impl Body {
 
                 #[allow(clippy::option_if_let_else)]
                 if let Some(header_end) = header_end {
-                    println!("start {header_start}, end {header_end}");
                     raw.replace_range(
                         header_start..header_start + header_end,
                         &format!("{name}: {value}"),

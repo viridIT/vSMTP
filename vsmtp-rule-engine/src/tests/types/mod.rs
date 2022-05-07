@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    rule_engine::{RuleEngine, RuleState},
-    tests::helpers::get_default_state,
-};
+use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{addr, collection, mail_context::Body, state::StateSMTP, status::Status};
 use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS, Service};
 
@@ -34,15 +31,13 @@ fn test_status() {
 }
 
 #[test]
-fn test_time() {
+fn test_time_and_date() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),
         &Some(rules_path!["time", "main.vsl"]),
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-
-    state.add_data("time", std::time::SystemTime::UNIX_EPOCH);
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
@@ -68,7 +63,7 @@ fn test_address() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.get_context().write().unwrap().envelop.mail_from = addr!("mail.from@test.net");
+    state.context().write().unwrap().envelop.mail_from = addr!("mail.from@test.net");
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
@@ -118,9 +113,9 @@ fn test_services() {
 
     let re = RuleEngine::new(&config, &Some(rules_path!["service", "main.vsl"])).unwrap();
 
-    let mut state = RuleState::new(&config);
+    let mut state = RuleState::new(&config, &re);
 
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(String::default());
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
@@ -171,9 +166,9 @@ fn test_config_display() {
         .unwrap();
 
     let re = RuleEngine::new(&config, &Some(rules_path!["objects", "main.vsl"])).unwrap();
-    let mut state = RuleState::new(&config);
+    let mut state = RuleState::new(&config, &re);
 
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(String::default());
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Accept);
 }

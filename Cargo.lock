@@ -230,9 +230,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.1.15"
+version = "3.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85a35a599b11c089a7f49105658d089b8f2cf0882993c17daf6de15285c2c35d"
+checksum = "f52d4f8e4a1419219935762e32913b4430f37cb0c0200ad17a89ee18c0188a9f"
 dependencies = [
  "atty",
  "bitflags",
@@ -1435,9 +1435,8 @@ dependencies = [
 
 [[package]]
 name = "rhai"
-version = "1.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ef3d57e55ca044c53ced279d2d3ee9df229b247556b005a23713d5206a2ecfc"
+version = "1.7.0"
+source = "git+https://github.com/schungx/rhai?rev=b23d64bec02edf70b7dc1414b708e04b1c23582c#b23d64bec02edf70b7dc1414b708e04b1c23582c"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1451,8 +1450,7 @@ dependencies = [
 [[package]]
 name = "rhai_codegen"
 version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faa0ff1c9dc19c9f8bba510a2a75d3f0449f6233570c2672c7e31c692a11a59a"
+source = "git+https://github.com/schungx/rhai?rev=b23d64bec02edf70b7dc1414b708e04b1c23582c#b23d64bec02edf70b7dc1414b708e04b1c23582c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1880,9 +1878,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-rustls"
-version = "0.23.3"
+version = "0.23.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4151fda0cf2798550ad0b34bcfc9b9dcc2a9d2471c895c68f3a8818e54f2389e"
+checksum = "c43ee83903113e03984cb9e5cebe6c04a5116269e900e3ddba8f068a62adda59"
 dependencies = [
  "rustls",
  "tokio",
@@ -2062,7 +2060,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vqueue"
 version = "0.10.3"
 dependencies = [
- "clap 3.1.15",
+ "clap 3.1.16",
  "itertools",
  "pretty_assertions",
  "vsmtp-common",
@@ -2073,7 +2071,7 @@ dependencies = [
 name = "vsmtp"
 version = "0.10.3"
 dependencies = [
- "clap 3.1.15",
+ "clap 3.1.16",
  "diff",
  "vsmtp-common",
  "vsmtp-config",

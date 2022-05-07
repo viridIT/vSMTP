@@ -16,7 +16,7 @@
 */
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, Position, RhaiResult, TypeId,
+    PluginFunction, RhaiResult, TypeId,
 };
 
 #[rhai::plugin::export_module]
@@ -28,7 +28,7 @@ pub mod services {
 
     /// execute the service named @service_name from the vSMTP configuration definition
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn run_service(
         srv: &mut std::sync::Arc<ServerAPI>,
         ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
