@@ -33,11 +33,12 @@ diff = "0.1.12"
 name = "vsmtp"
 maintainer = "Pag <pag@viridit.com>"
 copyright = "2022 - viridIT SAS"
-license-file = ["../../LICENSE", "0"]
+license-file = ["../../LICENSE", "4"]
 extended-description = "A high performance MTA written in RUST."
-depends = "$auto, passwd"
+depends = "$auto, adduser"
 section = "mail"
 priority = "optional"
+# TODO: recursive cp for example folders ?
 assets = [
     ["target/release/vsmtp", "usr/sbin/", "755"],
     ["target/release/vqueue", "usr/sbin/", "755"],
@@ -46,3 +47,7 @@ assets = [
 ]
 maintainer-scripts = "../../tools/install/debian/"
 systemd-units = { unit-name = "vsmtp", enable = true, start = false }
+
+# 
+# RPM PACKAGING
+#
