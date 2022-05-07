@@ -15,17 +15,32 @@
  *
 */
 
-use crate::modules::EngineResult;
+use std::str::FromStr;
 
-pub fn parse_csv_database(db_name: &str, mut options: rhai::Map) -> EngineResult<rhai::Map> {
-    options.insert("type".into(), rhai::Dynamic::from("database".to_string()));
-    options.insert("format".into(), rhai::Dynamic::from("csv".to_string()));
+use crate::{dsl::service::Service, modules::EngineResult};
 
-    for key in ["connector", "open", "refresh", "pattern"] {
+use super::{AccessMode, Refresh};
+
+pub fn parse_csv_database(db_name: &str, options: &rhai::Map) -> EngineResult<Service> {
+    for key in ["connector", "access", "refresh", "pattern"] {
         if !options.contains_key(key) {
-            return Err(format!("database {db_name} is missing the '{key}' key.").into());
+            return Err(format!("database {db_name} is missing the '{key}' option.").into());
         }
     }
 
-    Ok(options)
+    let connector = options.get("connector").unwrap().to_string();
+    let access = options.get("access").unwrap().to_string();
+    let refresh = options.get("refresh").unwrap().to_string();
+    let pattern = options.get("pattern").unwrap().to_string();
+
+    Ok(Service::CSVDatabase {
+        path: std::path::PathBuf::from_str(&connector).unwrap(),
+        access: AccessMode::from_str(&access).map_err::<Box<rhai::EvalAltResult>, _>(|_| {
+            format!("{} is not a correct database access mode", access).into()
+        })?,
+        refresh: Refresh::from_str(&refresh).map_err::<Box<rhai::EvalAltResult>, _>(|_| {
+            format!("{} is not a correct database refresh rate", refresh).into()
+        })?,
+        pattern,
+    })
 }

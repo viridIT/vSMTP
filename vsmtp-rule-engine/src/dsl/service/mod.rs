@@ -17,6 +17,7 @@
 
 mod databases;
 pub mod parsing;
+mod shell;
 
 use vsmtp_common::{
     mail_context::{AuthCredentials, Body, MailContext},
@@ -27,7 +28,7 @@ use vsmtp_config::re::users;
 use crate::log_channels;
 
 #[derive(Debug)]
-enum Service {
+pub enum Service {
     /// A service can be a program to run in a subprocess
     UnixShell {
         /// a duration after which the subprocess will be forced-kill
@@ -45,11 +46,11 @@ enum Service {
     /// a database connector based on the csv file format.
     CSVDatabase {
         /// a path to the file to open.
-        connector: std::path::PathBuf,
+        path: std::path::PathBuf,
         /// access mode to the database.
         access: databases::AccessMode,
-        /// does the database need to be refreshed for each call ?
-        refresh: bool,
+        /// database refresh mode.
+        refresh: databases::Refresh,
         /// the pattern separating elements of each rows.
         pattern: String,
     },

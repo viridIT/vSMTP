@@ -287,7 +287,7 @@ impl RuleEngine {
             .register_custom_syntax_raw("action", parse_action, true, create_action)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
             .register_custom_syntax_raw("service", parse_service, true, create_service)
-            // NOTE: is their a way to defined iterators directly in modules ?
+            // NOTE: is their a way to define iterators directly in modules ?
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 

@@ -16,20 +16,20 @@
 */
 use crate::modules::EngineResult;
 
+use super::{shell::parse_shell_service, Service};
+
 /// parse a service using rhai's parser.
 pub fn parse_service(
     symbols: &[rhai::ImmutableString],
     look_ahead: &str,
 ) -> Result<Option<rhai::ImmutableString>, rhai::ParseError> {
     match symbols.len() {
-        // 'service' keyword, then the name of the service.
+        // service keyword, then the name of it.
         1 | 2 => Ok(Some("$ident$".into())),
         // type of the service.
-        3 => match look_ahead {
-            // then a separator for the database type.
-            "db" => Ok(Some(":".into())),
-            // then options for the service
-            "shell" => Ok(Some("$expr$".into())),
+        3 => match symbols[2].as_str() {
+            // for a regular service, next is the '=' token or ':' token in case of the db type.
+            "shell" | "db" => Ok(Some("$symbol$".into())),
             entry => Err(rhai::ParseError(
                 Box::new(rhai::ParseErrorType::BadInput(
                     rhai::LexError::ImproperSymbol(
@@ -40,26 +40,34 @@ pub fn parse_service(
                 rhai::Position::NONE,
             )),
         },
-        4 => match look_ahead {
-            // the service is a database, the next token will be the type.
+        4 => match symbols[3].as_str() {
+            // ':' token for a database format, next is the actual format.
             ":" => Ok(Some("$ident$".into())),
-            // options as a rhai::Map, we are done parsing.
-            _ => Ok(None),
-        },
-        5 => match look_ahead {
-            // database types, then the service options.
-            "csv" => Ok(Some("$expr$".into())),
-            db_type => Err(rhai::ParseError(
+            // '=' token for another service type, next is the options of the service.
+            "=" => Ok(Some("$expr$".into())),
+            entry => Err(rhai::ParseError(
                 Box::new(rhai::ParseErrorType::BadInput(
                     rhai::LexError::ImproperSymbol(
-                        db_type.into(),
-                        format!("Unknown database type '{}'.", db_type),
+                        entry.into(),
+                        "Improper symbol when parsing service".to_string(),
                     ),
                 )),
                 rhai::Position::NONE,
             )),
         },
-        6 => Ok(None),
+        5 => match symbols[4].as_str() {
+            // database formats
+            "csv" => Ok(Some("=".into())),
+            // an expression, in the case of a regular service, whe are done parsing.
+            _ => Ok(None),
+        },
+        6 => match symbols[5].as_str() {
+            // the '=' token, next is the database options.
+            "=" => Ok(Some("$expr$".into())),
+            // option map for a service, we are done parsing.
+            _ => Ok(None),
+        },
+        7 => Ok(None),
         _ => Err(rhai::ParseError(
             Box::new(rhai::ParseErrorType::BadInput(
                 rhai::LexError::UnexpectedInput(format!(
@@ -82,23 +90,21 @@ pub fn create_service(
 
     let service = match service_type.as_str() {
         "db" => open_database(context, input, &service_name),
+        "shell" => parse_shell_service(context, input, &service_name),
         _ => todo!(),
     }?;
 
-    // let object_ptr = std::sync::Arc::new(
-    //     Object::from(&object)
-    //         .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?,
-    // );
+    let ptr = std::sync::Arc::new(service);
 
-    // // Pushing object in scope, preventing a "let _" statement,
-    // // and returning a reference to the object in case of a parent group.
-    // // Also, exporting the variable by default using `set_alias`.
-    // context
-    //     .scope_mut()
-    //     .push_constant(&object_name, object_ptr.clone())
-    //     .set_alias(object_name, "");
+    // Pushing service in scope, preventing a "let _" statement,
+    // and returning a reference to the object in case of a parent group.
+    // Also, exporting the variable by default using `set_alias`.
+    context
+        .scope_mut()
+        .push_constant(&service_name, ptr.clone())
+        .set_alias(service_name, "");
 
-    Ok(rhai::Dynamic::from(service))
+    Ok(rhai::Dynamic::from(ptr))
 }
 
 /// open a file database using the csv crate.
@@ -106,7 +112,7 @@ fn open_database(
     context: &mut rhai::EvalContext,
     input: &[rhai::Expression],
     service_name: &str,
-) -> EngineResult<rhai::Map> {
+) -> EngineResult<Service> {
     let database_type = input[3].get_string_value().unwrap();
     let options = context.eval_expression_tree(&input[4])?;
 
@@ -119,12 +125,12 @@ fn open_database(
 
         options.insert("name".into(), rhai::Dynamic::from(service_name.to_string()));
 
-        let options = match database_type {
-            "csv" => super::databases::csv::parse_csv_database(service_name, options)?,
+        let service = match database_type {
+            "csv" => super::databases::csv::parse_csv_database(service_name, &options)?,
             _ => todo!(),
         };
 
-        Ok(options)
+        Ok(service)
     } else {
         Err(rhai::EvalAltResult::ErrorMismatchDataType(
             "Map".to_string(),
