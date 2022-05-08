@@ -35,6 +35,24 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
+  check-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mstachniuk/ci-skip@v1
+        with:
+          fail-fast: true
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --manifest-path ./fuzz/Cargo.toml
   ## Runs all test and upload coverage
   test:
     runs-on: ubuntu-latest
