@@ -23,8 +23,8 @@ use rhai::{
 pub mod services {
 
     use crate::dsl::service::shell::run;
+    use crate::dsl::service::shell::ShellResult;
     use crate::dsl::service::Service;
-    use crate::dsl::service::ServiceResult;
     use crate::modules::EngineResult;
 
     #[rhai_fn(global, pure)]
@@ -39,7 +39,7 @@ pub mod services {
 
     /// execute the given shell service.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn run_shell(service: &mut std::sync::Arc<Service>) -> EngineResult<ServiceResult> {
+    pub fn run_shell(service: &mut std::sync::Arc<Service>) -> EngineResult<ShellResult> {
         run(service).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
     }
 }
