@@ -41,6 +41,7 @@ macro_rules! root_example {
 mod actions;
 mod email;
 mod engine;
+mod integrations;
 mod rules;
 mod types;
 

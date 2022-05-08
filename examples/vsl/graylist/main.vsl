@@ -1,0 +1,22 @@
+import "db" as db;
+
+fn contains(key) {
+    this.db_query(key.to_string()).len() != 0
+}
+
+fn set(mail) {
+    this.db_add([mail.to_string()])
+}
+
+#{
+    mail: [
+        rule "graylist" || {
+            if db::graylist.contains(ctx().mail_from) {
+                accept()
+            } else {
+                db::graylist.set(ctx().mail_from);
+                deny()
+            }
+        }
+    ],
+}
