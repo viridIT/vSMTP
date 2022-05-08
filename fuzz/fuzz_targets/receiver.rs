@@ -3,20 +3,22 @@ use libfuzzer_sys::fuzz_target;
 use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext, re::anyhow};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{handle_connection, Connection, ConnectionKind, IoService, OnMail};
+use vsmtp_server::{handle_connection, Connection, ConnectionKind, OnMail};
 use vsmtp_test::receiver::Mock;
 
 struct FuzzOnMail;
 
 #[async_trait::async_trait]
 impl OnMail for FuzzOnMail {
-    async fn on_mail<S: std::io::Read + std::io::Write + Send>(
+    async fn on_mail<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + std::marker::Unpin,
+    >(
         &mut self,
-        conn: &mut Connection<'_, S>,
+        conn: &mut Connection<S>,
         _: Box<MailContext>,
         _: &mut Option<String>,
     ) -> anyhow::Result<()> {
-        conn.send_code(SMTPReplyCode::Code250)?;
+        conn.send_code(SMTPReplyCode::Code250).await?;
         Ok(())
     }
 }
@@ -46,14 +48,15 @@ fuzz_target!(|data: &[u8]| {
     config.server.smtp.error.soft_count = -1;
     config.server.smtp.error.hard_count = -1;
 
+    let config = std::sync::Arc::new(config);
+
     let mut written_data = Vec::new();
-    let mut mock = Mock::new(std::io::Cursor::new(data.to_vec()), &mut written_data);
-    let mut io = IoService::new(&mut mock);
+    let mut mock = Mock::new(data.to_vec(), &mut written_data);
     let mut conn = Connection::new(
         ConnectionKind::Opportunistic,
         "0.0.0.0:0".parse().unwrap(),
-        std::sync::Arc::new(config.clone()),
-        &mut io,
+        config.clone(),
+        &mut mock,
     );
 
     let re = std::sync::Arc::new(std::sync::RwLock::new(
