@@ -14,35 +14,32 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use rhai::plugin::Module;
+use rhai::{
+    plugin::{FnAccess, FnNamespace, Module, PluginFunction, RhaiResult, TypeId},
+    Dynamic, EvalAltResult, NativeCallContext,
+};
 
 #[rhai::plugin::export_module]
 pub mod services {
-    // use crate::{
-    //     dsl::service::run, dsl::service::ServiceResult, modules::actions::MailContext,
-    //     modules::EngineResult, server_api::ServerAPI,
-    // };
 
-    // /// execute the service named @service_name from the vSMTP configuration definition
-    // #[allow(clippy::needless_pass_by_value)]
-    // #[rhai_fn(global, return_raw, pure)]
-    // pub fn run_service(
-    //     srv: &mut std::sync::Arc<ServerAPI>,
-    //     ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
-    //     service_name: &str,
-    // ) -> EngineResult<ServiceResult> {
-    //     run(
-    //         srv.config
-    //             .app
-    //             .services
-    //             .get(service_name)
-    //             .ok_or_else::<Box<EvalAltResult>, _>(|| {
-    //                 format!("No service in config named: '{service_name}'").into()
-    //             })?,
-    //         &*ctx
-    //             .read()
-    //             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
-    //     )
-    //     .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
-    // }
+    use crate::dsl::service::shell::run;
+    use crate::dsl::service::Service;
+    use crate::dsl::service::ServiceResult;
+    use crate::modules::EngineResult;
+
+    #[rhai_fn(global, pure)]
+    pub fn to_string(service: &mut std::sync::Arc<Service>) -> String {
+        service.to_string()
+    }
+
+    #[rhai_fn(global, pure)]
+    pub fn to_debug(service: &mut std::sync::Arc<Service>) -> String {
+        format!("{service:#?}")
+    }
+
+    /// execute the given shell service.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn run_shell(service: &mut std::sync::Arc<Service>) -> EngineResult<ServiceResult> {
+        run(service).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
+    }
 }

@@ -15,7 +15,11 @@
  *
 */
 
+use crate::dsl::service::ServiceResult;
+use crate::log_channels;
 use crate::{dsl::service::Service, modules::EngineResult};
+use vsmtp_common::re::{anyhow, log};
+use vsmtp_config::re::users;
 
 pub fn parse_shell_service(
     context: &mut rhai::EvalContext,
@@ -48,4 +52,63 @@ pub fn parse_shell_service(
         command,
         args: Some(args),
     })
+}
+
+/// run a shell service.
+/// # Errors
+///
+/// * if the user used to launch commands is not found.
+/// * if the group used to launch commands is not found.
+/// * if the shell service failed to spawn.
+/// * if the shell returned an error.
+pub fn run(service: &Service) -> anyhow::Result<ServiceResult> {
+    if let Service::UnixShell {
+        timeout,
+        command,
+        user,
+        group,
+        ..
+    } = service
+    {
+        let mut child = std::process::Command::new(command);
+
+        if let Some(user_name) = user {
+            if let Some(user) = users::get_user_by_name(&user_name) {
+                std::os::unix::prelude::CommandExt::uid(&mut child, user.uid());
+            } else {
+                anyhow::bail!("user not found: '{user_name}'")
+            }
+        }
+        if let Some(group_name) = group {
+            if let Some(group) = users::get_group_by_name(group_name) {
+                std::os::unix::prelude::CommandExt::gid(&mut child, group.gid());
+            } else {
+                anyhow::bail!("group not found: '{group_name}'")
+            }
+        }
+
+        log::trace!(
+            target: log_channels::SERVICES,
+            "shell running command: {:#?}",
+            child
+        );
+
+        let mut child = match child.spawn() {
+            Ok(child) => child,
+            Err(err) => anyhow::bail!("shell process failed to spawn: {err:?}"),
+        };
+
+        let status = match wait_timeout::ChildExt::wait_timeout(&mut child, *timeout) {
+            Ok(status) => status.unwrap_or_else(|| {
+                child.kill().expect("child has already exited");
+                child.wait().expect("command wasn't running")
+            }),
+
+            Err(err) => anyhow::bail!("shell unexpected error: {err:?}"),
+        };
+
+        Ok(ServiceResult::new(status))
+    } else {
+        anyhow::bail!("only a shell service can use the 'run' function")
+    }
 }
