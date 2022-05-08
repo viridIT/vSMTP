@@ -1,0 +1,42 @@
+version_requirement = "<1.0.0"
+
+[server]
+domain = "stressserver.com"
+client_count_max = 1
+
+[server.interfaces]
+addr = ["127.0.0.1:10025"]
+addr_submission = ["127.0.0.1:10587"]
+addr_submissions = ["127.0.0.1:10465"]
+
+[server.system.thread_pool]
+receiver = 1
+processing = 1
+delivery = 1
+
+[server.queues]
+dirpath = "./tmp/stress/spool"
+
+[server.logs]
+filepath = "./tmp/stress/vsmtp.log"
+
+[server.logs.level]
+default = "warn"
+
+[server.tls]
+security_level = "May"
+preempt_cipherlist = false
+handshake_timeout = "200ms"
+protocol_version = "TLSv1.3"
+certificate = "./examples/config/tls/certificate.crt"
+private_key = "./examples/config/tls/private_key.key"
+
+
+[app]
+dirpath = "./tmp/stress/vsmtp"
+
+[app.vsl]
+filepath = "./benchmarks/stress/main.vsl"
+
+[app.logs]
+filepath = "./tmp/stress/app.log"
