@@ -7,7 +7,7 @@ name: Fuzz
       - "ci/fuzz"
 
 jobs:
-  check-fuzz:
+  run-fuzz:
     runs-on: ubuntu-latest # self-hosted
     steps:
       - name: Install gsasl
