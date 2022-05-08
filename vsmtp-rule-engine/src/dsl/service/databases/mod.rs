@@ -8,6 +8,20 @@ pub enum AccessMode {
     ReadWrite,
 }
 
+impl std::fmt::Display for AccessMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                AccessMode::Read => "readonly",
+                AccessMode::Write => "writeonly",
+                AccessMode::ReadWrite => "readwrite",
+            }
+        )
+    }
+}
+
 impl std::str::FromStr for AccessMode {
     type Err = ();
 

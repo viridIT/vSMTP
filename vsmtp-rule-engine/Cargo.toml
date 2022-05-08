@@ -20,6 +20,7 @@ vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
 regex = "1.5.5"
 iprange = "0.6.7"
 ipnet = "2.5.0"
+csv = "1.1"
 
 hostname = "0.3.1"
 time = { version = "0.3.9", default-features = false, features = [

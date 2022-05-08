@@ -15,7 +15,7 @@
  *
 */
 
-mod databases;
+pub mod databases;
 pub mod parsing;
 pub mod shell;
 
@@ -41,10 +41,12 @@ pub enum Service {
         path: std::path::PathBuf,
         /// access mode to the database.
         access: databases::AccessMode,
+        /// delimiter character to separate fields in records.
+        delimiter: u8,
         /// database refresh mode.
         refresh: databases::Refresh,
-        /// the pattern separating elements of each rows.
-        pattern: String,
+        /// raw content of the database.
+        content: String,
     },
 }
 

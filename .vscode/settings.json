@@ -43,6 +43,7 @@
         "postq",
         "preq",
         "rcpts",
+        "readwrite",
         "repr",
         "rhai",
         "roadmap",
@@ -71,6 +72,7 @@
         "vsl's",
         "vsmtp",
         "VSMTP",
+        "writeonly",
         "Xoauth"
     ],
     "todohighlight.isCaseSensitive": false,

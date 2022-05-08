@@ -16,12 +16,13 @@
 */
 use rhai::{
     plugin::{mem, FnAccess, FnNamespace, Module, PluginFunction, RhaiResult, TypeId},
-    Dynamic, EvalAltResult, NativeCallContext,
+    Dynamic, EvalAltResult, ImmutableString, NativeCallContext,
 };
 
 #[rhai::plugin::export_module]
 pub mod services {
 
+    use crate::dsl::service::databases::csv::query_key;
     use crate::dsl::service::shell::run;
     use crate::dsl::service::shell::ShellResult;
     use crate::dsl::service::Service;
@@ -79,7 +80,36 @@ pub mod services {
             run(timeout, command, user, group, &Some(args))
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
         } else {
-            Err("{service} cannot be run as a shell script.".into())
+            Err(format!("{service} cannot be run as a shell script.").into())
+        }
+    }
+
+    #[rhai_fn(global, name = "query_csv", return_raw, pure)]
+    pub fn query_csv_key(
+        service: &mut std::sync::Arc<Service>,
+        key: &str,
+    ) -> EngineResult<rhai::Array> {
+        if let Service::CSVDatabase {
+            path,
+            access,
+            delimiter,
+            refresh,
+            content,
+        } = &**service
+        {
+            query_key(path, access, *delimiter, refresh, content, key)
+                .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
+                .map_or_else(
+                    || Ok(rhai::Array::default()),
+                    |record| {
+                        Ok(record
+                            .into_iter()
+                            .map(|field| rhai::Dynamic::from(field.to_string()))
+                            .collect())
+                    },
+                )
+        } else {
+            Err(format!("{service} cannot be run as a shell script.").into())
         }
     }
 }
