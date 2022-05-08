@@ -15,7 +15,7 @@
  *
 */
 use rhai::{
-    plugin::{FnAccess, FnNamespace, Module, PluginFunction, RhaiResult, TypeId},
+    plugin::{mem, FnAccess, FnNamespace, Module, PluginFunction, RhaiResult, TypeId},
     Dynamic, EvalAltResult, NativeCallContext,
 };
 
@@ -38,8 +38,48 @@ pub mod services {
     }
 
     /// execute the given shell service.
-    #[rhai_fn(global, return_raw, pure)]
+    #[rhai_fn(global, name = "run_shell", return_raw, pure)]
     pub fn run_shell(service: &mut std::sync::Arc<Service>) -> EngineResult<ShellResult> {
-        run(service).map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
+        if let Service::UnixShell {
+            timeout,
+            user,
+            group,
+            command,
+            args,
+        } = &**service
+        {
+            run(timeout, command, user, group, args)
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
+        } else {
+            Err("{service} cannot be run as a shell script.".into())
+        }
+    }
+
+    /// execute the given shell service with dynamic arguments.
+    #[rhai_fn(global, name = "run_shell", return_raw, pure)]
+    pub fn run_shell_with_args(
+        service: &mut std::sync::Arc<Service>,
+        args: rhai::Array,
+    ) -> EngineResult<ShellResult> {
+        if let Service::UnixShell {
+            timeout,
+            user,
+            group,
+            command,
+            ..
+        } = &**service
+        {
+            let args = args
+                .into_iter()
+                .map(rhai::Dynamic::try_cast)
+                .collect::<Option<Vec<String>>>()
+                .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                    "all shell arguments must be strings".into()
+                })?;
+            run(timeout, command, user, group, &Some(args))
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
+        } else {
+            Err("{service} cannot be run as a shell script.".into())
+        }
     }
 }

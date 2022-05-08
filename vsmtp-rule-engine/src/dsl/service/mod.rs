@@ -32,7 +32,7 @@ pub enum Service {
         /// the command to execute in the subprocess
         command: String,
         /// optional: parameters directly given to the executed program (argc, argv)
-        args: Option<String>,
+        args: Option<Vec<String>>,
     },
 
     /// a database connector based on the csv file format.
