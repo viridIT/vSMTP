@@ -83,6 +83,7 @@ pub mod services {
         }
     }
 
+    /// a generic function to add a record to any database.
     #[rhai_fn(global, name = "db_add", return_raw, pure)]
     pub fn database_add(
         service: &mut std::sync::Arc<Service>,
@@ -104,6 +105,20 @@ pub mod services {
                     })?;
 
                 crate::dsl::service::databases::csv::add_record(path, *delimiter, fd, &record[..])
+                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
+            }
+            Service::UnixShell { .. } => {
+                Err(format!("cannot use 'db_add' method on a {service} service.").into())
+            }
+        }
+    }
+
+    /// a generic function to remove a record to any database.
+    #[rhai_fn(global, name = "db_rm", return_raw, pure)]
+    pub fn database_remove(service: &mut std::sync::Arc<Service>, key: &str) -> EngineResult<()> {
+        match &**service {
+            Service::CSVDatabase { path, .. } => {
+                crate::dsl::service::databases::csv::remove_record(path, key)
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
             }
             Service::UnixShell { .. } => {

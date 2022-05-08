@@ -15,7 +15,7 @@
  *
 */
 
-use std::str::FromStr;
+use std::{io::Write, str::FromStr};
 
 use vsmtp_common::re::anyhow::{self, Context};
 
@@ -67,7 +67,42 @@ pub fn add_record(
 
     writer
         .write_record(record)
-        .context(format!("failed to write from csv database at {path:?}"))?;
+        .context(format!("failed to write to csv database at {path:?}"))?;
+
+    writer
+        .flush()
+        .context(format!("failed to write to csv database at {path:?}"))?;
+
+    Ok(())
+}
+
+/// remove a record from a csv database.
+pub fn remove_record(path: &std::path::PathBuf, key: &str) -> anyhow::Result<()> {
+    let content = std::fs::read_to_string(path)
+        .context(format!("failed to read a csv database at {path:?}"))?;
+
+    let mut writer = std::io::BufWriter::new(
+        std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .context(format!("failed to open a csv database at {path:?}"))?,
+    );
+
+    for line in content.lines() {
+        if !line.starts_with(key) {
+            writer
+                .write_vectored(&[
+                    std::io::IoSlice::new(line.as_bytes()),
+                    std::io::IoSlice::new(b"\n"),
+                ])
+                .context(format!("failed to update a csv database at {path:?}"))?;
+        }
+    }
+
+    writer
+        .flush()
+        .context(format!("failed to update a csv database at {path:?}"))?;
 
     Ok(())
 }
