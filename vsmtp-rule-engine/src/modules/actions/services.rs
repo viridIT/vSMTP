@@ -38,7 +38,7 @@ pub mod services {
     }
 
     /// execute the given shell service.
-    #[rhai_fn(global, name = "run_shell", return_raw, pure)]
+    #[rhai_fn(global, name = "shell_run", return_raw, pure)]
     pub fn run_shell(service: &mut std::sync::Arc<Service>) -> EngineResult<ShellResult> {
         if let Service::UnixShell {
             timeout,
