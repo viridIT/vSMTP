@@ -46,7 +46,7 @@ pub enum Service {
         /// database refresh mode.
         refresh: databases::Refresh,
         /// raw content of the database.
-        content: String,
+        fd: std::fs::File,
     },
 }
 

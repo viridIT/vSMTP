@@ -22,7 +22,6 @@ use rhai::{
 #[rhai::plugin::export_module]
 pub mod services {
 
-    use crate::dsl::service::databases::csv::query_key;
     use crate::dsl::service::shell::run;
     use crate::dsl::service::shell::ShellResult;
     use crate::dsl::service::Service;
@@ -57,7 +56,7 @@ pub mod services {
     }
 
     /// execute the given shell service with dynamic arguments.
-    #[rhai_fn(global, name = "run_shell", return_raw, pure)]
+    #[rhai_fn(global, name = "shell_run", return_raw, pure)]
     pub fn run_shell_with_args(
         service: &mut std::sync::Arc<Service>,
         args: rhai::Array,
@@ -84,20 +83,50 @@ pub mod services {
         }
     }
 
-    #[rhai_fn(global, name = "query_csv", return_raw, pure)]
-    pub fn query_csv_key(
+    #[rhai_fn(global, name = "db_add", return_raw, pure)]
+    pub fn database_add(
+        service: &mut std::sync::Arc<Service>,
+        record: rhai::Array,
+    ) -> EngineResult<()> {
+        match &**service {
+            Service::CSVDatabase {
+                path,
+                delimiter,
+                fd,
+                ..
+            } => {
+                let record = record
+                    .into_iter()
+                    .map(rhai::Dynamic::try_cast)
+                    .collect::<Option<Vec<String>>>()
+                    .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+                        "all fields in a record must be strings".into()
+                    })?;
+
+                crate::dsl::service::databases::csv::add_record(path, *delimiter, fd, &record[..])
+                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
+            }
+            Service::UnixShell { .. } => {
+                Err(format!("cannot use 'db_add' method on a {service} service.").into())
+            }
+        }
+    }
+
+    /// a generic query by key implementation for all databases.
+    #[rhai_fn(global, name = "db_query", return_raw, pure)]
+    pub fn database_query_key(
         service: &mut std::sync::Arc<Service>,
         key: &str,
     ) -> EngineResult<rhai::Array> {
         if let Service::CSVDatabase {
             path,
-            access,
             delimiter,
             refresh,
-            content,
+            fd,
+            ..
         } = &**service
         {
-            query_key(path, access, *delimiter, refresh, content, key)
+            crate::dsl::service::databases::csv::query_key(path, *delimiter, refresh, fd, key)
                 .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
                 .map_or_else(
                     || Ok(rhai::Array::default()),

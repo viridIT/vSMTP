@@ -23,8 +23,8 @@ import "services" as services;
             print(services::echo.to_string());
             print(services::echo.to_debug());
 
-            let result1 = services::echo.run_shell();
-            let result2 = services::echo.run_shell(["-e", "with custom arguments\r\n"]);
+            let result1 = services::echo.shell_run();
+            let result2 = services::echo.shell_run(["-e", "with custom arguments\r\n"]);
 
             print(`string: ${result1.to_string()}`);
             print(`debug: ${result1.to_debug()}`);

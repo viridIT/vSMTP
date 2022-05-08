@@ -17,7 +17,7 @@
 
 use std::str::FromStr;
 
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::anyhow::{self, Context};
 
 use crate::{dsl::service::Service, modules::EngineResult};
 
@@ -26,36 +26,50 @@ use super::{AccessMode, Refresh};
 /// query a record matching the first element.
 pub fn query_key(
     path: &std::path::PathBuf,
-    access: &AccessMode,
     delimiter: u8,
     _: &Refresh,
-    content: &str,
+    fd: &std::fs::File,
     key: &str,
 ) -> anyhow::Result<Option<csv::StringRecord>> {
-    if let AccessMode::Read | AccessMode::ReadWrite = access {
-        let mut reader = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .trim(csv::Trim::All)
-            .delimiter(delimiter)
-            .from_reader(content.as_bytes());
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .trim(csv::Trim::All)
+        .delimiter(delimiter)
+        .from_reader(fd);
 
-        for record in reader.records() {
-            match record {
-                Ok(record) => {
-                    if record.get(0).filter(|fst| *fst == key).is_some() {
-                        return Ok(Some(record));
-                    }
+    for record in reader.records() {
+        match record {
+            Ok(record) => {
+                if record.get(0).filter(|fst| *fst == key).is_some() {
+                    return Ok(Some(record));
                 }
-                Err(err) => anyhow::bail!(
-                    "tried to read from csv database {path:?}, but an error occurred: {err}"
-                ),
-            };
-        }
-
-        Ok(None)
-    } else {
-        anyhow::bail!("tried to read from csv database {path:?}, but the access mode was {access}")
+            }
+            Err(err) => anyhow::bail!(
+                "tried to read from csv database {path:?}, but an error occurred: {err}"
+            ),
+        };
     }
+
+    Ok(None)
+}
+
+/// add a record to the csv database.
+pub fn add_record(
+    path: &std::path::PathBuf,
+    delimiter: u8,
+    fd: &std::fs::File,
+    record: &[String],
+) -> anyhow::Result<()> {
+    let mut writer = csv::WriterBuilder::new()
+        .has_headers(false)
+        .delimiter(delimiter)
+        .from_writer(fd);
+
+    writer
+        .write_record(record)
+        .context(format!("failed to write from csv database at {path:?}"))?;
+
+    Ok(())
 }
 
 pub fn parse_csv_database(db_name: &str, options: &rhai::Map) -> EngineResult<Service> {
@@ -86,8 +100,18 @@ pub fn parse_csv_database(db_name: &str, options: &rhai::Map) -> EngineResult<Se
         format!("{} is not a correct database access mode", access).into()
     })?;
 
-    let content =
-        std::fs::read_to_string(&connector).map_err::<Box<rhai::EvalAltResult>, _>(|err| {
+    let fd = std::fs::OpenOptions::new()
+        .append(true)
+        .read(match access {
+            AccessMode::ReadWrite | AccessMode::Read => true,
+            AccessMode::Write => false,
+        })
+        .write(match access {
+            AccessMode::ReadWrite | AccessMode::Write => true,
+            AccessMode::Read => false,
+        })
+        .open(&connector)
+        .map_err::<Box<rhai::EvalAltResult>, _>(|err| {
             format!("could not load database at {connector:?}: {err}").into()
         })?;
 
@@ -96,6 +120,6 @@ pub fn parse_csv_database(db_name: &str, options: &rhai::Map) -> EngineResult<Se
         delimiter,
         access,
         refresh,
-        content,
+        fd,
     })
 }
