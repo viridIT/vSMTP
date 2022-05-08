@@ -18,6 +18,7 @@
 use crate::dsl::service::ServiceResult;
 use crate::log_channels;
 use crate::{dsl::service::Service, modules::EngineResult};
+use rhai::EvalAltResult;
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_config::re::users;
 
@@ -41,12 +42,18 @@ pub fn parse_shell_service(
         }
     }
 
-    let timeout = options.get("timeout").unwrap().to_string();
+    let timeout: std::time::Duration = options
+        .get("timeout")
+        .unwrap()
+        .to_string()
+        .parse::<vsmtp_config::re::humantime::Duration>()
+        .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
+        .into();
     let command = options.get("command").unwrap().to_string();
     let args = options.get("args").unwrap().to_string();
 
     Ok(Service::UnixShell {
-        timeout: std::time::Duration::from_secs(1),
+        timeout,
         user: None,
         group: None,
         command,

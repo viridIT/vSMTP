@@ -19,14 +19,6 @@ mod databases;
 pub mod parsing;
 pub mod shell;
 
-use vsmtp_common::{
-    mail_context::{AuthCredentials, Body, MailContext},
-    re::{anyhow, log},
-};
-use vsmtp_config::re::users;
-
-use crate::log_channels;
-
 #[derive(Debug)]
 pub enum Service {
     /// A service can be a program to run in a subprocess
