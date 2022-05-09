@@ -5,14 +5,14 @@ name = "vqueue"
 version = "0.10.4"
 license = "GPL-3.0-only"
 
+rust-version = "1.58"
+
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "vQUEUE : the vSMTP's queues mananger. Secured, Faster and Greener"
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
 
 publish = false
-
-rust-version = "1.58"
 
 [dependencies]
 vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
