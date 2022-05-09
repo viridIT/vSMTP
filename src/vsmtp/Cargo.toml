@@ -52,7 +52,7 @@ assets = [
     ["../../examples/config/auth/*", "usr/share/doc/vsmtp/config/auth/", "644"],
     ["../../examples/config/tls/*", "usr/share/doc/vsmtp/config/tls/", "644"],
 ]
-maintainer-scripts = "../../tools/install/debian/"
+maintainer-scripts = "../../tools/install/deb/"
 systemd-units = { unit-name = "vsmtp", enable = true, start = false }
 
 # 
