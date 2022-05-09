@@ -101,7 +101,7 @@ pub fn start_runtime(
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
         &config,
-        &Some(config.app.vsl.filepath.clone()),
+        &config.app.vsl.filepath.clone(),
     )?));
 
     let config_arc = std::sync::Arc::new(config);
