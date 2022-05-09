@@ -45,6 +45,7 @@ assets = [
     ["target/release/vqueue", "usr/sbin/", "755"],
     ["../../README.md", "usr/share/doc/vsmtp/README", "644"],
     ["../../examples/config/*", "usr/share/doc/vsmtp/config/", "644"],
+    ["../../tools/install/man/*", "usr/share/man/", "644"],
 ]
 maintainer-scripts = "../../tools/install/debian/"
 systemd-units = { unit-name = "vsmtp", enable = true, start = false }

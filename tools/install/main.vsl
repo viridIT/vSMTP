@@ -1,5 +1,0 @@
-#{
-    preq: [
-        rule "good for delivery" || vsl::accept(),
-    ]
-}
