@@ -14,9 +14,9 @@ impl std::fmt::Display for AccessMode {
             f,
             "{}",
             match self {
-                AccessMode::Read => "readonly",
-                AccessMode::Write => "writeonly",
-                AccessMode::ReadWrite => "readwrite",
+                AccessMode::Read => "O_RDONLY",
+                AccessMode::Write => "O_WRONLY",
+                AccessMode::ReadWrite => "O_RDWR",
             }
         )
     }
@@ -27,9 +27,9 @@ impl std::str::FromStr for AccessMode {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "readonly" => Ok(Self::Read),
-            "writeonly" => Ok(Self::Write),
-            "readwrite" => Ok(Self::ReadWrite),
+            "O_RDONLY" => Ok(Self::Read),
+            "O_WRONLY" => Ok(Self::Write),
+            "O_RDWR" => Ok(Self::ReadWrite),
             _ => Err(()),
         }
     }

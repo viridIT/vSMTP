@@ -1,6 +1,0 @@
-service graylist db:csv = #{
-    connector: "../examples/vsl/graylist/graylist.csv",
-    access: "readwrite",
-    refresh: "no",
-    delimiter: ',',
-};
