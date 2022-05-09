@@ -15,19 +15,12 @@
  *
 */
 #{
-    connect: [
-        rule "ok" || accept()
-    ],
     authenticate: [
         rule "auth hardcoded" || {
             let db = #{
                 "hello": "world",
                 "héllo": "wÖrld"
             };
-
-            if ctx().is_authenticated {
-                return deny();
-            }
 
             switch ctx().auth.type {
                 "Verify" => {

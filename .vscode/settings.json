@@ -19,6 +19,7 @@
         "Expn",
         "Faccept",
         "fastrand",
+        "flamegraph",
         "fullchain",
         "getpwuid",
         "GSASL",

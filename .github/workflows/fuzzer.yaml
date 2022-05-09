@@ -7,7 +7,7 @@ name: Fuzz
       - "ci/fuzz"
 
 jobs:
-  check-fuzz:
+  run-fuzz:
     runs-on: ubuntu-latest # self-hosted
     steps:
       - name: Install gsasl
@@ -31,6 +31,7 @@ jobs:
           toolchain: nightly
           override: true
       - uses: actions-rs/cargo@v1
+        id: check
         with:
           command: check
           args: --manifest-path ./fuzz/Cargo.toml
@@ -38,12 +39,9 @@ jobs:
         run: cargo install cargo-fuzz
       - name: Run fuzz receiver
         run: cargo +nightly fuzz run receiver -- -max_total_time=1200 -dict="./fuzz/dict/receiver.dict"
-      - name: List Artifacts
-        id: fuzz-artifact
-        run: echo ""::set-output name=exit_code::$((! find fuzz/artifacts/receiver -prune -type d -empty | grep -q '^'))""
-      - name: Save Artifacts if not empty
-        if: steps.fuzz-artifact.outputs.exit_code != 0
-        uses: actions/upload-artifact@v2
+      - name: Upload Crash
+        uses: actions/upload-artifact@v1
+        if: failure() && steps.check.outcome == 'success'
         with:
-          name: fuzz-artifacts-receiver
-          path: fuzz/artifacts/receiver
+          name: artifacts
+          path: ./fuzz/artifacts

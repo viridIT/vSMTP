@@ -2174,13 +2174,8 @@ dependencies = [
  "async-trait",
  "criterion",
  "fastrand",
- "lazy_static",
  "lettre",
- "opentelemetry",
- "opentelemetry-jaeger",
  "pretty_assertions",
- "serde",
- "serde_derive",
  "time 0.3.9",
  "tokio",
  "tokio-rustls",
@@ -2191,6 +2186,17 @@ dependencies = [
  "vsmtp-mail-parser",
  "vsmtp-rule-engine",
  "vsmtp-test",
+]
+
+[[package]]
+name = "vsmtp-stress"
+version = "0.10.3"
+dependencies = [
+ "lettre",
+ "opentelemetry",
+ "opentelemetry-jaeger",
+ "rand",
+ "tokio",
 ]
 
 [[package]]
