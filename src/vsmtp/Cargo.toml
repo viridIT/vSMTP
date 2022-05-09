@@ -43,7 +43,7 @@ priority = "optional"
 assets = [
     ["target/release/vsmtp", "usr/sbin/", "755"],
     ["target/release/vqueue", "usr/sbin/", "755"],
-    ["../../tools/install/man/*", "usr/share/man/", "644"],
+    ["../../tools/install/man/*", "usr/share/man/man1", "644"],
     ["../../README.md", "usr/share/doc/vsmtp/README", "644"],
     ["../../examples/config/*", "usr/share/doc/vsmtp/config/", "644"],
     ["../../examples/config/vsl", "usr/share/doc/vsmtp/config/vsl", "644"],
