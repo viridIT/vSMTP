@@ -51,3 +51,8 @@ fn user_exist(name) { sys::user_exist(name) }
 fn hostname() { sys::hostname() }
 fn date() { sys::date() }
 fn time() { sys::time() }
+
+/// Databases (services.rs)
+fn get(key) { this.db_query(key.to_string()) }
+fn set(record) { this.db_add(record) }
+fn rm(key) { this.db_rm(key.to_string()) }

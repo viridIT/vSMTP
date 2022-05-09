@@ -1,20 +1,12 @@
 import "db" as db;
 
-fn contains(key) {
-    this.db_query(key.to_string()).len() != 0
-}
-
-fn set(mail) {
-    this.db_add([mail.to_string()])
-}
-
 #{
     mail: [
         rule "greylist" || {
-            if db::greylist.contains(ctx().mail_from) {
+            if db::greylist.get(ctx().mail_from).len() != 0 {
                 accept()
             } else {
-                db::greylist.set(ctx().mail_from);
+                db::greylist.set([ctx().mail_from.to_string()]);
                 deny()
             }
         }
