@@ -2,8 +2,10 @@
 edition = "2021"
 
 name = "vsmtp-mail-parser"
-version = "0.10.3"
-license = "GPLv3"
+version = "0.10.4"
+license = "GPL-3.0-only"
+
+rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
@@ -14,7 +16,6 @@ publish = false
 
 [dependencies]
 vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
-vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
