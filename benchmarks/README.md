@@ -19,26 +19,26 @@ This program helps to monitor 3 characteristics :
 ### Generate a flamegraph
 
 ```sh
-cargo build --bin vsmtp-stress
+cargo build --bin vsmtp-stress --manifest-path=benchmarks/stress/Cargo.toml
 CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --deterministic \
     --bin vsmtp -- -t 10s --no-daemon -c benchmarks/stress/vsmtp.stress.toml &
-./target/debug/vsmtp-stress
+./benchmarks/stress/target/debug/vsmtp-stress
 ```
 
 ### Generate telemetries
 
 ```sh
 cargo build --release --bin vsmtp
-cargo build --bin vsmtp-stress --features telemetry
+cargo build --bin vsmtp-stress --features telemetry --manifest-path=benchmarks/stress/Cargo.toml
 jaeger-all-in-one & # (see <https://www.jaegertracing.io/docs/1.33/getting-started/>)
 cargo run --release --bin vsmtp -- -t 10s --no-daemon -c benchmarks/stress/vsmtp.stress.toml &
-cargo run --bin vsmtp-stress --features telemetry
+./benchmarks/stress/target/debug/vsmtp-stress
 ```
 
 ### Measure CPU instructions
 
 ```sh
-cargo build --bin vsmtp-stress
+cargo build --bin vsmtp-stress --manifest-path=benchmarks/stress/Cargo.toml
 ./tools/instructions.sh
-./target/debug/vsmtp-stress
+./benchmarks/stress/target/debug/vsmtp-stress
 ```
