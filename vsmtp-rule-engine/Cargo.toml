@@ -46,7 +46,7 @@ lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "tracing",
 ] }
 
-tokio = { version = "1.18.1", default-features = false, features = [
+tokio = { version = "1.18.2", default-features = false, features = [
     "macros",
     "time",
     "sync",
