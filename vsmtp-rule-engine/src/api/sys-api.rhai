@@ -33,9 +33,6 @@ fn log(level, message) { sys::log(level, message) }
 fn write(dir) { sys::write(srv(), ctx(), dir) }
 fn dump(dir) { sys::dump(srv(), ctx(), dir) }
 
-/// Services (services.rs)
-fn run_service(service) { sys::run_service(srv(), ctx(), service) }
-
 /// Delivery methods (transports.rs)
 fn forward(rcpt, forward) { sys::forward(ctx(), rcpt, forward) }
 fn forward_all(forward) { sys::forward_all(ctx(), forward) }
@@ -54,3 +51,8 @@ fn user_exist(name) { sys::user_exist(name) }
 fn hostname() { sys::hostname() }
 fn date() { sys::date() }
 fn time() { sys::time() }
+
+/// Databases (services.rs)
+fn get(key) { this.db_query(key.to_string()) }
+fn set(record) { this.db_add(record) }
+fn rm(key) { this.db_rm(key.to_string()) }

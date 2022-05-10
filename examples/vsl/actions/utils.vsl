@@ -14,10 +14,10 @@
     preq: [
         rule "check sni domain" || {
             print(toml::server.virtual);
-            if in_domain(sys::new_address("rcpt@example.com")) == true {
-            // && in_domain(sys::new_address("john@unknown.com")) == false
-            // && in_domain("john@unknown.com") == false
-            // && in_domain("invalid") == false {
+            if in_domain(sys::new_address("rcpt@example.com")) == true
+            && in_domain(sys::new_address("john@unknown.com")) == false
+            && in_domain("john@unknown.com") == false
+            && in_domain("invalid") == false {
                 accept()
             } else {
                 deny()

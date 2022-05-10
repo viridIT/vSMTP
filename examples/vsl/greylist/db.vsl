@@ -1,0 +1,6 @@
+service greylist db:csv = #{
+    connector: "../examples/vsl/greylist/greylist.csv",
+    access: "O_RDWR",
+    refresh: "always",
+    delimiter: ',',
+};

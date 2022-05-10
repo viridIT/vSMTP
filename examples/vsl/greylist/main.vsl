@@ -1,0 +1,14 @@
+import "db" as db;
+
+#{
+    mail: [
+        rule "greylist" || {
+            if db::greylist.get(ctx().mail_from).len() != 0 {
+                accept()
+            } else {
+                db::greylist.set([ctx().mail_from.to_string()]);
+                deny()
+            }
+        }
+    ],
+}

@@ -61,7 +61,6 @@ fn parse() {
             .with_default_app()
             .with_default_vsl_settings()
             .with_default_app_logs()
-            .without_services()
             .with_dns(
                 {
                     let mut cfg = trust_dns_resolver::config::ResolverConfig::new();

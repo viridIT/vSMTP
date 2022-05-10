@@ -14,9 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::collection;
-
-use crate::{Config, Service};
+use crate::Config;
 
 #[test]
 fn parse() {
@@ -39,15 +37,6 @@ fn parse() {
             .with_default_app()
             .with_vsl("./examples/config/antivirus/main.vsl")
             .with_default_app_logs()
-            .with_services(collection! {
-                "clamscan".to_string() => Service::UnixShell {
-                    timeout: std::time::Duration::from_secs(15),
-                    user: None,
-                    group: None,
-                    command: "./examples/config/antivirus/clamscan.sh".to_string(),
-                    args: Some("{mail}".to_string())
-                }
-            })
             .with_system_dns()
             .without_virtual_entries()
             .validate()

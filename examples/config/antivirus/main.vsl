@@ -1,5 +1,8 @@
-fn has_virus(srv) {
-    let result = srv().run_service("clamscan");
+import "service" as service;
+
+fn has_virus() {
+    // runnnig the service with the email's content as an argument.
+    let result = service::antivirus.shell_run([`${ctx().mail}`]);
     debug(`${result}`);
 
     if result.has_signal {
@@ -13,7 +16,7 @@ fn has_virus(srv) {
 #{
     preq: [
         rule "antivirus" || {
-            if has_virus(srv) {
+            if has_virus() {
                 log("warn", "virus detected, email quarantined.");
                 quarantine("virus")
             } else {

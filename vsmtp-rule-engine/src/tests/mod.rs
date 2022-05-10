@@ -41,6 +41,7 @@ macro_rules! root_example {
 mod actions;
 mod email;
 mod engine;
+mod integrations;
 mod rules;
 mod types;
 
@@ -67,7 +68,6 @@ pub mod helpers {
             .with_app_at_location(dirpath)
             .with_vsl("./src/tests/empty_main.vsl")
             .with_default_app_logs()
-            .without_services()
             .with_system_dns()
             .without_virtual_entries()
             .validate()
@@ -93,7 +93,6 @@ pub mod helpers {
             .with_app_at_location(dirpath)
             .with_vsl("./src/tests/empty_main.vsl")
             .with_default_app_logs()
-            .without_services()
             .with_system_dns()
             .without_virtual_entries()
             .validate()

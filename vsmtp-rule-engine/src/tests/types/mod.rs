@@ -15,8 +15,8 @@
  *
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
-use vsmtp_common::{addr, collection, mail_context::Body, state::StateSMTP, status::Status};
-use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS, Service};
+use vsmtp_common::{addr, mail_context::Body, state::StateSMTP, status::Status};
+use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS};
 
 #[test]
 fn test_status() {
@@ -99,13 +99,6 @@ fn test_services() {
         .with_app_at_location("./tmp/app")
         .with_vsl("./tmp/nothing")
         .with_default_app_logs()
-        .with_services(collection! {"shell".to_string() => Service::UnixShell {
-            timeout: std::time::Duration::from_secs(2),
-            user: None,
-            group: None,
-            command: "echo".to_string(),
-            args: Some("test".to_string()),
-        }})
         .with_system_dns()
         .without_virtual_entries()
         .validate()
@@ -139,13 +132,6 @@ fn test_config_display() {
         .with_app_at_location("./tmp/app")
         .with_vsl("./tmp/nothing")
         .with_default_app_logs()
-        .with_services(collection! {"my_shell".to_string() => Service::UnixShell {
-            timeout: std::time::Duration::from_secs(2),
-            user: None,
-            group: None,
-            command: "echo".to_string(),
-            args: Some("test".to_string()),
-        }})
         .with_system_dns()
         .with_virtual_entries(&[VirtualEntry {
             domain: "domain@example.com".to_string(),
