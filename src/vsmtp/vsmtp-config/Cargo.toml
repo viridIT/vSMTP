@@ -47,4 +47,4 @@ semver = "1.0.9"
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
-vsmtp-test = { version = "1.0.0", path = "../vsmtp-test" }
+vsmtp-test = { path = "../vsmtp-test" }

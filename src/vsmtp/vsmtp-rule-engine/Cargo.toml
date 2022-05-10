@@ -58,4 +58,4 @@ tokio = { version = "1.18.2", default-features = false, features = [
 wait-timeout = "0.2.0"
 
 [dev-dependencies]
-vsmtp-mail-parser = { version = "^1.0.0", path = "../vsmtp-mail-parser" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }

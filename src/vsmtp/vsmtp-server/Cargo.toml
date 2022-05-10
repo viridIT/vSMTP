@@ -43,7 +43,7 @@ time = { version = "0.3.9", default-features = false, features = [
 tokio-rustls = "0.23.4"
 
 [dev-dependencies]
-vsmtp-test = { version = "^1.0.0", path = "../vsmtp-test" }
+vsmtp-test = { path = "../vsmtp-test" }
 pretty_assertions = "1.2.1"
 
 ## Benchmark

@@ -25,7 +25,7 @@ fn parse() {
             .with_version_str("=1.0.0")
             .unwrap()
             .with_server_name("my.fqdn.com")
-            .with_user_group_and_default_system("vsmtp", "vsmtp")
+            .with_user_group_and_default_system("root", "root")
             .unwrap()
             .with_interfaces(
                 &["127.0.0.1:25".parse().unwrap()],

@@ -21,14 +21,14 @@ add_user() {
 # TOCHECK : Automatic directory creation w/ systemd
 # https://www.freedesktop.org/software/systemd/man/systemd.exec.html
 # but... "the innermost specified directories will be owned by the user
-# and group specified in User= and Group=. If the specified directories 
+# and group specified in User= and Group=. If the specified directories
 # already exist and their owning user or group do not match the configured
 # ones, all files and directories below the specified directories as well
 # as the directories themselves will have their file ownership recursively
 # changed to match what is configured.
 check_dir() {
     # vSMTP log directory
-    if [ ! -d "${LOG_DIR}" ]; then 
+    if [ ! -d "${LOG_DIR}" ]; then
         mkdir ${LOG_DIR}
         chown ${VSMTP_USER}:${VSMTP_USER} ${LOG_DIR}
         chmod 755 ${LOG_DIR}
@@ -49,7 +49,7 @@ check_dir() {
 
 check_toml() {
     if [ ! -f "${CONF_FILE}" ]; then
-        echo "version_requirement = \"${DPKG_VER}\"" > ${CONF_FILE}
+        echo "version_requirement = \">=${DPKG_VER}\"" > ${CONF_FILE}
         chown ${VSMTP_USER}:${VSMTP_USER} ${CONF_FILE}
         chmod 664 ${CONF_FILE}
     fi
