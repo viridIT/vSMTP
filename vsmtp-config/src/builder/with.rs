@@ -28,11 +28,10 @@ use super::{
 };
 use crate::{
     config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
-        ConfigServer, ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs,
-        ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
-        ConfigServerSystem, ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerVirtual,
-        TlsSecurityLevel,
+        ConfigApp, ConfigAppLogs, ConfigQueueDelivery, ConfigQueueWorking, ConfigServer,
+        ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
+        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
+        ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerVirtual, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
     ConfigServerSMTPAuth, ResolverOptsWrapper, Service,
@@ -552,7 +551,12 @@ impl Builder<WantsAppVSL> {
     ///
     #[must_use]
     pub fn with_default_vsl_settings(self) -> Builder<WantsAppLogs> {
-        self.with_vsl(ConfigAppVSL::default_filepath())
+        Builder::<WantsAppLogs> {
+            state: WantsAppLogs {
+                parent: self.state,
+                filepath: None,
+            },
+        }
     }
 
     ///
@@ -561,7 +565,7 @@ impl Builder<WantsAppVSL> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                filepath: entry_point.into(),
+                filepath: Some(entry_point.into()),
             },
         }
     }

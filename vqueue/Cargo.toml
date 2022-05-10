@@ -2,8 +2,10 @@
 edition = "2021"
 
 name = "vqueue"
-version = "0.10.3"
-license = "GPLv3"
+version = "0.10.4"
+license = "GPL-3.0-only"
+
+rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "vQUEUE : the vSMTP's queues mananger. Secured, Faster and Greener"
@@ -12,13 +14,11 @@ repository = "https://github.com/viridIT/vSMTP"
 
 publish = false
 
-rust-version = "1.58"
-
 [dependencies]
 vsmtp-common = { version = "^0.10", path = "../vsmtp-common" }
 vsmtp-config = { version = "^0.10", path = "../vsmtp-config" }
 
-clap = { version = "3.1.16", features = ["derive"] }
+clap = { version = "3.1.17", features = ["derive"] }
 itertools = "0.10.3"
 
 [dev-dependencies]

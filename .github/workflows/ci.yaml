@@ -5,7 +5,6 @@ name: CI
       - "**"
       - "!doc/**"
 jobs:
-  ## Fast checking build state
   check:
     runs-on: ubuntu-latest
     steps:
@@ -17,16 +16,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/cache@v1
         with:
-          path: ~/.cargo/registry
-          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions/cache@v1
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            target
+          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -44,6 +40,15 @@ jobs:
           fail-fast: true
       - name: Install gsasl
         run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      - uses: actions/cache@v1
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            target
+          key: "${{ runner.os }}-cargo-build-nightly-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -53,7 +58,44 @@ jobs:
         with:
           command: check
           args: --manifest-path ./fuzz/Cargo.toml
-  ## Runs all test and upload coverage
+  cargo-udeps:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mstachniuk/ci-skip@v1
+        with:
+          fail-fast: true
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      - uses: actions/cache@v1
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            target
+          key: "${{ runner.os }}-cargo-build-nightly-${{ hashFiles('**/Cargo.lock') }}"
+      - run: cargo install cargo-udeps --locked
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: udeps
+  cargo-deny:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v3
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          rust-version: "1.58.0"
+          command: check
+          arguments: ""
   test:
     runs-on: ubuntu-latest
     needs: check
@@ -66,19 +108,16 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/cache@v1
         with:
-          path: ~/.cargo/registry
-          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/bin
-          key: "${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}"
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            target
+          key: "${{ runner.os }}-cargo-build-nightly-test-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2022-03-22
+          toolchain: nightly
           override: true
       - uses: actions-rs/cargo@v1
         with:
@@ -90,7 +129,6 @@ jobs:
           RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
       - uses: actions-rs/grcov@v0.1
       - uses: codecov/codecov-action@v2
-  ## Run linter (fmt + clippy)
   lints:
     runs-on: ubuntu-latest
     needs: check
@@ -103,16 +141,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/cache@v1
         with:
-          path: ~/.cargo/registry
-          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions/cache@v1
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            target
+          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -127,7 +162,6 @@ jobs:
         with:
           command: clippy
           args: "--all-targets --all-features -- -D warnings"
-  ## Only on stable branch run the benchmark
   bench:
     runs-on: ubuntu-latest
     needs: check
@@ -141,16 +175,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/cache@v1
         with:
-          path: ~/.cargo/registry
-          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: "${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}"
-      - uses: actions/cache@v1
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            target
+          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal

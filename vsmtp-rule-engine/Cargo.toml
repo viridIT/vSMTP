@@ -2,8 +2,10 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "0.10.3"
-license = "GPLv3"
+version = "0.10.4"
+license = "GPL-3.0-only"
+
+rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"
@@ -42,7 +44,7 @@ lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "tracing",
 ] }
 
-tokio = { version = "1.18.1", default-features = false, features = [
+tokio = { version = "1.18.2", default-features = false, features = [
     "macros",
     "time",
     "sync",

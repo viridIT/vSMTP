@@ -442,20 +442,6 @@ impl ConfigApp {
     }
 }
 
-impl Default for ConfigAppVSL {
-    fn default() -> Self {
-        Self {
-            filepath: Self::default_filepath(),
-        }
-    }
-}
-
-impl ConfigAppVSL {
-    pub(crate) fn default_filepath() -> std::path::PathBuf {
-        "/etc/vsmtp/rules/main.vsl".into()
-    }
-}
-
 impl Default for ConfigAppLogs {
     fn default() -> Self {
         Self {
