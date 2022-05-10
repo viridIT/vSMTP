@@ -48,7 +48,7 @@ fn get_tls_auth_config() -> Config {
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn simple() {
     let mut config = get_tls_auth_config();
-    config.app.vsl.filepath = "./src/tests/auth.vsl".into();
+    config.app.vsl.filepath = Some("./src/tests/auth.vsl".into());
 
     let (client, server) = test_tls_tunneled(
         "testserver.com",

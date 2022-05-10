@@ -122,7 +122,7 @@ pub struct WantsAppVSL {
 ///
 pub struct WantsAppLogs {
     pub(crate) parent: WantsAppVSL,
-    pub(super) filepath: std::path::PathBuf,
+    pub(super) filepath: Option<std::path::PathBuf>,
 }
 
 ///

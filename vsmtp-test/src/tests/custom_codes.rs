@@ -23,7 +23,7 @@ use vsmtp_server::re::tokio;
 async fn info_message() {
     let mut config = config::local_test();
     config.app.vsl.filepath =
-        std::path::PathBuf::from_str("./src/tests/custom_codes_info.vsl").unwrap();
+        Some(std::path::PathBuf::from_str("./src/tests/custom_codes_info.vsl").unwrap());
 
     assert!(test_receiver! {
         with_config => config,
@@ -60,7 +60,7 @@ async fn info_message() {
 async fn deny_message() {
     let mut config = config::local_test();
     config.app.vsl.filepath =
-        std::path::PathBuf::from_str("./src/tests/custom_codes_deny.vsl").unwrap();
+        Some(std::path::PathBuf::from_str("./src/tests/custom_codes_deny.vsl").unwrap());
 
     assert!(test_receiver! {
         with_config => config.clone(),

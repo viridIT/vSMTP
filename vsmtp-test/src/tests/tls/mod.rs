@@ -98,10 +98,7 @@ async fn test_starttls(
             None,
             std::sync::Arc::new(std::sync::RwLock::new(
                 anyhow::Context::context(
-                    RuleEngine::new(
-                        &server_config,
-                        &Some(server_config.app.vsl.filepath.clone()),
-                    ),
+                    RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()),
                     "failed to initialize the engine",
                 )
                 .unwrap(),
@@ -234,11 +231,7 @@ async fn test_tls_tunneled(
             get_tls_config(&server_config),
             get_auth_config(&server_config),
             std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::new(
-                    &server_config,
-                    &Some(server_config.app.vsl.filepath.clone()),
-                )
-                .unwrap(),
+                RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
             )),
             working_sender,
             delivery_sender,
