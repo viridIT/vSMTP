@@ -15,11 +15,11 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
-vsmtp-common = { version = "^1.0.0", path = "../vsmtp-common" }
-vsmtp-config = { version = "^1.0.0", path = "../vsmtp-config" }
-vsmtp-rule-engine = { version = "^1.0.0", path = "../vsmtp-rule-engine" }
-vsmtp-mail-parser = { version = "^1.0.0", path = "../vsmtp-mail-parser" }
-vsmtp-delivery = { version = "^1.0.0", path = "../vsmtp-delivery" }
+vsmtp-common = { path = "../vsmtp-common" }
+vsmtp-config = { path = "../vsmtp-config" }
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
+vsmtp-delivery = { path = "../vsmtp-delivery" }
 
 async-trait = "0.1.53"
 fastrand = "1.7.0"

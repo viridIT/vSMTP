@@ -15,8 +15,8 @@ repository = "https://github.com/viridIT/vSMTP"
 publish = false
 
 [dependencies]
-vsmtp-common = { version = "^1.0.0", path = "../vsmtp-common" }
-vsmtp-config = { version = "^1.0.0", path = "../vsmtp-config" }
+vsmtp-common = { path = "../vsmtp-common" }
+vsmtp-config = { path = "../vsmtp-config" }
 
 async-trait = "0.1.53"
 
