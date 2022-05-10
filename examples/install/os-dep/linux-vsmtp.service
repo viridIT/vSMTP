@@ -11,7 +11,6 @@ UMask=007
 ExecStart=/usr/sbin/vsmtp -c /etc/vsmtp/vsmtp.toml
 Restart=on-failure
 TimeoutStopSec=300
-StartLimitBurst=0
 
 [Install]
 WantedBy=multi-user.target

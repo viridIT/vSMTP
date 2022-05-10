@@ -66,14 +66,6 @@ To meet these challenges, viridIT is developing a new technology of email gatewa
 
 Follow us on [viridit.com](https://viridit.com)
 
-## Performance
-
-Yet, few times has been spent on enhancing the performance.
-
-**But if we compare `vsmtp` to `postfix`:** (see [the comparison script](./tools/diff.sh))
-
-![plot-whisker](assets/plot-whisker.png)
-
 ## Documentation
 
 For documentation please consult the [vBook](https://vsmtp.rs),
