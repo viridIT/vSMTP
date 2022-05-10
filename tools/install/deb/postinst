@@ -15,7 +15,7 @@ SPOOL_DIR="/var/spool/vsmtp/"
 add_user() {
     if id ${VSMTP_USER} > /dev/null 2>&1; then return; fi
     adduser --system --shell /usr/sbin/nologin --no-create-home \
-    --group --disabled-password --disabled-login ${VSMTP_USER}
+    --group --disabled-password --disabled-login --no-create-home --home /noexistent ${VSMTP_USER}
 }
 
 # TOCHECK : Automatic directory creation w/ systemd
