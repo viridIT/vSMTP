@@ -20,7 +20,6 @@ fuzz_target!(|data: &[u8]| {
         .with_default_app()
         .with_vsl("./main.vsl")
         .with_default_app_logs()
-        .without_services()
         .with_system_dns()
         .without_virtual_entries()
         .validate()
