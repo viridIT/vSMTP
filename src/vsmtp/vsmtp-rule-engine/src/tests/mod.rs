@@ -21,7 +21,7 @@ macro_rules! rules_path {
             .parent()
             .unwrap()
             .join(std::path::PathBuf::from_iter([ $( $x, )* ]))
-            .strip_prefix("vsmtp-rule-engine")
+            .strip_prefix("src/vsmtp/vsmtp-rule-engine")
             .unwrap()
             .to_path_buf()
     ];
@@ -30,6 +30,10 @@ macro_rules! rules_path {
 macro_rules! root_example {
     ( $( $x:expr ),* ) => {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
             .parent()
             .unwrap()
             .join("examples/vsl")
@@ -41,18 +45,41 @@ macro_rules! root_example {
 mod actions;
 mod email;
 mod engine;
+mod integrations;
 mod rules;
 mod types;
 
 pub mod helpers {
     use vsmtp_config::Config;
 
-    use crate::rule_engine::RuleState;
+    use crate::{rule_engine::RuleEngine, rule_state::RuleState};
+
+    pub(super) fn get_default_config(dirpath: impl Into<std::path::PathBuf>) -> Config {
+        Config::builder()
+            .with_version_str("<1.0.0")
+            .unwrap()
+            .with_server_name_and_client_count("testserver.com", 32)
+            .with_user_group_and_default_system("root", "root")
+            .unwrap()
+            .with_ipv4_localhost()
+            .with_default_logs_settings()
+            .with_spool_dir_and_default_queues("./tmp/delivery")
+            .without_tls_support()
+            .with_default_smtp_options()
+            .with_default_smtp_error_handler()
+            .with_default_smtp_codes()
+            .without_auth()
+            .with_app_at_location(dirpath)
+            .with_vsl("./src/tests/empty_main.vsl")
+            .with_default_app_logs()
+            .with_system_dns()
+            .without_virtual_entries()
+            .validate()
+            .unwrap()
+    }
 
     /// create a rule engine state with it's associated configuration.
-    pub(super) fn get_default_state(
-        dirpath: impl Into<std::path::PathBuf>,
-    ) -> (RuleState<'static>, Config) {
+    pub(super) fn get_default_state(dirpath: impl Into<std::path::PathBuf>) -> (RuleState, Config) {
         let config = Config::builder()
             .with_version_str("<1.0.0")
             .unwrap()
@@ -70,12 +97,12 @@ pub mod helpers {
             .with_app_at_location(dirpath)
             .with_vsl("./src/tests/empty_main.vsl")
             .with_default_app_logs()
-            .without_services()
             .with_system_dns()
             .without_virtual_entries()
             .validate()
             .unwrap();
 
-        (RuleState::new(&config), config)
+        let re = RuleEngine::from_script(&config, "#{}").unwrap();
+        (RuleState::new(&config, &re), config)
     }
 }

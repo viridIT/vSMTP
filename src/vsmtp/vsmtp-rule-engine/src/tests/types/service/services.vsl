@@ -1,0 +1,5 @@
+service echo shell = #{
+    timeout: "2s",
+    command: "echo",
+    args: ["-e", "using shell to print to stdout\r\n"],
+};

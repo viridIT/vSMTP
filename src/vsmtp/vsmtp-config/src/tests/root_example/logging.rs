@@ -24,7 +24,7 @@ fn parse() {
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
-            .with_version_str("<1.0.0")
+            .with_version_str("=1.0.0")
             .unwrap()
             .with_hostname()
             .with_default_system()
@@ -58,7 +58,6 @@ fn parse() {
                 20_971_520,
                 100,
             )
-            .without_services()
             .with_system_dns()
             .without_virtual_entries()
             .validate()

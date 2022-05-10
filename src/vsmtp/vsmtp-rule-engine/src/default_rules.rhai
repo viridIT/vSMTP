@@ -16,6 +16,6 @@
 */
 #{
     connect: [
-        rule "reject by default" || vsl::deny(),
+        rule "reject by default" || deny(),
     ]
 }

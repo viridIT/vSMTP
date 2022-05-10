@@ -141,7 +141,7 @@ mod tests {
     async fn basic() {
         let mut config = config::local_test();
         config.server.queues.dirpath = "./tmp".into();
-        config.app.vsl.filepath = "./src/tests/empty_main.vsl".into();
+        config.app.vsl.filepath = Some("./src/tests/empty_main.vsl".into());
 
         let now = std::time::SystemTime::now();
 

@@ -56,15 +56,14 @@ import "vars" as vars;
             && toml::server.system.group == "root"
             && toml::server.virtual["domain@example.com"].tls.protocol_version == ["TLSv1.3"]
 
-            && toml::app.services["my_shell"].command == "echo"
             && toml::app.dirpath == "./tmp/app"
             && toml::app.vsl.filepath == "./tmp/nothing" {
-                vsl::next()
+                next()
             } else {
-                vsl::deny()
+                deny()
             }
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
    ],
 }

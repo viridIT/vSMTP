@@ -14,39 +14,39 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
+import "services" as services;
+
 #{
     connect: [
-        rule "unknown service" || {
-            try {
-                srv.run_service(ctx, "unknown");
-                return vsl::deny();
-            } catch (err) {
-                print(err);
-                if "" in err { return vsl::next(); } else { return vsl::deny(); }
-            }
-        },
-
         rule "test shell service" || {
-            let result = srv.run_service(ctx, "shell");
+            print(services::echo.to_string());
+            print(services::echo.to_debug());
 
-            print(`string: ${result.to_string()}`);
-            print(`debug: ${result.to_debug()}`);
+            let result1 = services::echo.shell_run();
+            let result2 = services::echo.shell_run(["-e", "with custom arguments\r\n"]);
 
-            if result.has_code
-            && result.code == 0
-            && !result.has_signal
+            print(`string: ${result1.to_string()}`);
+            print(`debug: ${result1.to_debug()}`);
+
+            print(`custom args string: ${result2.to_string()}`);
+            print(`custom args debug: ${result2.to_debug()}`);
+
+            if result1.has_code
+            && result1.code == 0
+            && !result1.has_signal
             {
                 try {
-                    result.signal;
-                    return vsl::deny();
+                    result1.signal;
+                    return deny();
                 } catch {
-                    return vsl::next();
+                    return next();
                 }
             } else {
-                vsl::deny()
+                deny()
             }
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
     ]
 }

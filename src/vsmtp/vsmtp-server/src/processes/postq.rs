@@ -26,7 +26,7 @@ use vsmtp_common::{
 };
 use vsmtp_config::Config;
 use vsmtp_mail_parser::MailMimeParser;
-use vsmtp_rule_engine::rule_engine::{RuleEngine, RuleState};
+use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 /// process that treats incoming email offline with the postq stage.
 ///
@@ -89,22 +89,27 @@ async fn handle_one_in_working_queue(
 
     ctx.body = ctx.body.to_parsed::<MailMimeParser>()?;
 
-    let mut state = RuleState::with_context(config.as_ref(), ctx);
+    // locking the engine and freeing the lock before any await.
+    let (state, result) = {
+        let rule_engine = rule_engine
+            .read()
+            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-    let result = rule_engine
-        .read()
-        .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?
-        .run_when(&mut state, &StateSMTP::PostQ);
+        let mut state = RuleState::with_context(config.as_ref(), &rule_engine, ctx);
+        let result = rule_engine.run_when(&mut state, &StateSMTP::PostQ);
+
+        (state, result)
+    };
 
     if let Status::Deny(_) = result {
         Queue::Dead.write_to_queue(
             &config.server.queues.dirpath,
-            &state.get_context().read().unwrap(),
+            &state.context().read().unwrap(),
         )?;
     } else {
         // using a bool to prevent the lock guard to reach the await call below.
         let delivered = {
-            let ctx = state.get_context();
+            let ctx = state.context();
             let ctx = ctx.read().unwrap();
 
             if ctx
@@ -310,7 +315,7 @@ mod tests {
             std::sync::Arc::new(std::sync::RwLock::new(
                 RuleEngine::from_script(
                     &config,
-                    &format!("#{{ {}: [ rule \"\" || vsl::deny() ] }}", StateSMTP::PostQ),
+                    &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", StateSMTP::PostQ),
                 )
                 .context("failed to initialize the engine")
                 .unwrap(),

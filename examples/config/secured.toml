@@ -1,4 +1,4 @@
-version_requirement = "<1.0.0"
+version_requirement = "=1.0.0"
 
 [server]
 client_count_max = 8
@@ -73,7 +73,6 @@ helo = "100ms"
 mail_from = "200ms"
 rcpt_to = "400ms"
 data = "800ms"
-
 
 [app]
 dirpath = "/var/spool/vsmtp/app"

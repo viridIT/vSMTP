@@ -1,19 +1,17 @@
-object john ident = "johndoe";
-object bar fqdn = "example.com";
-object customer address = "customer@company.com";
+import "rcpt_identifiers" as ident;
 
 #{
   rcpt: [
-    rule "test_ident" || if john in ctx.rcpt.local_parts { vsl::next() } else { vsl::deny() },
-    rule "test_fqdn" || if bar in ctx.rcpt.domains { vsl::next() } else { vsl::deny() },
-    rule "test_addr" || if customer in ctx.rcpt { vsl::accept() } else { vsl::deny() },
+    rule "test_ident" || if ident::john in ctx().rcpt.local_parts { next() } else { deny() },
+    rule "test_fqdn" || if ident::bar in ctx().rcpt.domains { next() } else { deny() },
+    rule "test_addr" || if ident::customer in ctx().rcpt { accept() } else { deny() },
   ],
 
   postq: [
     action "test_rewrite" || {
-      ctx.rewrite_rcpt("johndoe@compagny.com", "johndoe@example.com");
-      ctx.remove_rcpt("customer@company.com");
-      ctx.add_rcpt("no-reply@example.com");
+      ctx().rewrite_rcpt("johndoe@compagny.com", "johndoe@example.com");
+      ctx().remove_rcpt("customer@company.com");
+      ctx().add_rcpt("no-reply@example.com");
     },
   ]
 }

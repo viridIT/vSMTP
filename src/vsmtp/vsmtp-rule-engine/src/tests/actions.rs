@@ -16,6 +16,8 @@
 */
 use std::str::FromStr;
 
+use crate::rule_state::RuleState;
+use crate::tests::helpers::get_default_config;
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
 use vsmtp_common::auth::Mechanism;
 use vsmtp_common::re::serde_json;
@@ -76,7 +78,7 @@ fn test_context_write() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.get_context().write().unwrap().metadata = Some(MessageMetadata {
+    state.context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
         skipped: None,
@@ -85,7 +87,7 @@ fn test_context_write() {
         re.run_when(&mut state, &StateSMTP::MailFrom),
         Status::Accept
     );
-    state.get_context().write().unwrap().body = Body::Raw(
+    state.context().write().unwrap().body = Body::Raw(
         r#"From: john doe <john@doe.com>
 To: green@foo.net
 Subject: test email
@@ -122,14 +124,14 @@ fn test_context_dump() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.get_context().write().unwrap().metadata = Some(MessageMetadata {
+    state.context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),
@@ -142,7 +144,7 @@ fn test_context_dump() {
     assert_eq!(
         std::fs::read_to_string("./tmp/app/tests/generated/test_message_id.json")
             .expect("could not read 'test_message_id'"),
-        serde_json::to_string_pretty(&*state.get_context().read().unwrap())
+        serde_json::to_string_pretty(&*state.context().read().unwrap())
             .expect("couldn't convert context into string")
     );
 
@@ -159,16 +161,16 @@ fn test_quarantine() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    state.get_context().write().unwrap().metadata = Some(MessageMetadata {
+    state.context().write().unwrap().metadata = Some(MessageMetadata {
         message_id: "test_message_id".to_string(),
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    state.get_context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
 
     assert!(state
-        .get_context()
+        .context()
         .read()
         .unwrap()
         .envelop
@@ -176,7 +178,7 @@ fn test_quarantine() {
         .iter()
         .all(|rcpt| rcpt.transfer_method == Transfer::None));
 
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),
@@ -192,7 +194,7 @@ fn test_quarantine() {
     assert_eq!(
         std::fs::read_to_string("./tmp/app/tests/generated/quarantine2/test_message_id.json")
             .expect("could not read 'test_message_id'"),
-        serde_json::to_string_pretty(&*state.get_context().read().unwrap())
+        serde_json::to_string_pretty(&*state.context().read().unwrap())
             .expect("couldn't convert context into string")
     );
 
@@ -210,13 +212,12 @@ fn test_forward() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail::default()));
+    state.context().write().unwrap().body = Body::Parsed(Box::new(Mail::default()));
 
-    re.run_when(&mut state, &StateSMTP::Connect);
-    re.run_when(&mut state, &StateSMTP::Delivery);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Delivery), Status::Next);
 
-    let rcpt = state.get_context().read().unwrap().envelop.rcpt.clone();
-    println!("{rcpt:?}");
+    let rcpt = state.context().read().unwrap().envelop.rcpt.clone();
 
     assert_eq!(rcpt[0].address.full(), "fqdn@example.com");
     assert_eq!(
@@ -272,7 +273,7 @@ fn test_forward_all() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-    state.get_context().write().unwrap().body = Body::Parsed(Box::new(Mail::default()));
+    state.context().write().unwrap().body = Body::Parsed(Box::new(Mail::default()));
 
     re.run_when(&mut state, &StateSMTP::Connect);
 
@@ -282,7 +283,7 @@ fn test_forward_all() {
     );
 
     state
-        .get_context()
+        .context()
         .read()
         .unwrap()
         .envelop
@@ -298,7 +299,7 @@ fn test_forward_all() {
     re.run_when(&mut state, &StateSMTP::MailFrom);
 
     state
-        .get_context()
+        .context()
         .read()
         .unwrap()
         .envelop
@@ -316,7 +317,7 @@ fn test_forward_all() {
     re.run_when(&mut state, &StateSMTP::RcptTo);
 
     state
-        .get_context()
+        .context()
         .read()
         .unwrap()
         .envelop
@@ -334,7 +335,7 @@ fn test_forward_all() {
     re.run_when(&mut state, &StateSMTP::Data);
 
     state
-        .get_context()
+        .context()
         .read()
         .unwrap()
         .envelop
@@ -350,7 +351,7 @@ fn test_forward_all() {
     re.run_when(&mut state, &StateSMTP::PreQ);
 
     state
-        .get_context()
+        .context()
         .read()
         .unwrap()
         .envelop
@@ -368,7 +369,7 @@ fn test_forward_all() {
     re.run_when(&mut state, &StateSMTP::PostQ);
 
     state
-        .get_context()
+        .context()
         .read()
         .unwrap()
         .envelop
@@ -386,7 +387,7 @@ fn test_forward_all() {
     re.run_when(&mut state, &StateSMTP::Delivery);
 
     state
-        .get_context()
+        .context()
         .read()
         .unwrap()
         .envelop
@@ -414,17 +415,15 @@ fn test_hostname() {
 
 #[test]
 fn test_in_domain_and_server_name() {
-    let (mut state, mut config) = get_default_state("./tmp/app");
-    config.server.domain = "testserver.com".to_string();
-
+    let (mut state, config) = get_default_state("./tmp/app");
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
+
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
 }
 
 #[test]
 fn test_in_domain_and_server_name_sni() {
-    let (mut state, mut config) = get_default_state("./tmp/app");
-    config.server.domain = "testserver.com".to_string();
+    let mut config = get_default_config("./tmp/app");
     config.server.r#virtual = std::collections::BTreeMap::from_iter([
         ("example.com".to_string(), ConfigServerVirtual::new()),
         ("doe.com".to_string(), ConfigServerVirtual::new()),
@@ -432,5 +431,7 @@ fn test_in_domain_and_server_name_sni() {
     ]);
 
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
+    let mut state = RuleState::new(&config, &re);
+
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
 }

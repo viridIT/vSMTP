@@ -1,4 +1,4 @@
-version_requirement = "<1.0.0"
+version_requirement = "=1.0.0"
 
 [server]
 domain = "testserver.com"
@@ -8,8 +8,8 @@ security_level = "May"
 preempt_cipherlist = false
 handshake_timeout = "200ms"
 protocol_version = "TLSv1.3"
-certificate = "../examples/config/tls/certificate.crt"
-private_key = "../examples/config/tls/private_key.key"
+certificate = "../../../examples/config/tls/certificate.crt"
+private_key = "../../../examples/config/tls/private_key.key"
 
 [server.virtual."testserver1.com"]
 
@@ -18,13 +18,13 @@ type = "system"
 
 [server.virtual."testserver3.com".tls]
 protocol_version = "TLSv1.3"
-certificate = "../examples/config/tls/certificate.crt"
-private_key = "../examples/config/tls/private_key.key"
+certificate = "../../../examples/config/tls/certificate.crt"
+private_key = "../../../examples/config/tls/private_key.key"
 
 [server.virtual."testserver4.com".tls]
 protocol_version = "TLSv1.3"
-certificate = "../examples/config/tls/certificate.crt"
-private_key = "../examples/config/tls/private_key.key"
+certificate = "../../../examples/config/tls/certificate.crt"
+private_key = "../../../examples/config/tls/private_key.key"
 
 [server.virtual."testserver4.com".dns]
 type = "google"

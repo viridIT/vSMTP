@@ -19,23 +19,22 @@
 
 use super::{
     wants::{
-        WantsApp, WantsAppLogs, WantsAppServices, WantsAppVSL, WantsServer, WantsServerDNS,
-        WantsServerInterfaces, WantsServerLogs, WantsServerQueues, WantsServerSMTPConfig1,
-        WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
-        WantsValidate, WantsVersion,
+        WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
+        WantsServerLogs, WantsServerQueues, WantsServerSMTPConfig1, WantsServerSMTPConfig2,
+        WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig, WantsValidate,
+        WantsVersion,
     },
     WantsServerSMTPAuth, WantsServerVirtual,
 };
 use crate::{
     config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
-        ConfigServer, ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs,
-        ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
-        ConfigServerSystem, ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerVirtual,
-        TlsSecurityLevel,
+        ConfigApp, ConfigAppLogs, ConfigQueueDelivery, ConfigQueueWorking, ConfigServer,
+        ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
+        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
+        ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerVirtual, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
-    ConfigServerSMTPAuth, ResolverOptsWrapper, Service,
+    ConfigServerSMTPAuth, ResolverOptsWrapper,
 };
 use vsmtp_common::{
     auth::Mechanism,
@@ -552,7 +551,12 @@ impl Builder<WantsAppVSL> {
     ///
     #[must_use]
     pub fn with_default_vsl_settings(self) -> Builder<WantsAppLogs> {
-        self.with_vsl(ConfigAppVSL::default_filepath())
+        Builder::<WantsAppLogs> {
+            state: WantsAppLogs {
+                parent: self.state,
+                filepath: None,
+            },
+        }
     }
 
     ///
@@ -561,7 +565,7 @@ impl Builder<WantsAppVSL> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
                 parent: self.state,
-                filepath: entry_point.into(),
+                filepath: Some(entry_point.into()),
             },
         }
     }
@@ -570,7 +574,7 @@ impl Builder<WantsAppVSL> {
 impl Builder<WantsAppLogs> {
     ///
     #[must_use]
-    pub fn with_default_app_logs(self) -> Builder<WantsAppServices> {
+    pub fn with_default_app_logs(self) -> Builder<WantsServerDNS> {
         self.with_app_logs_at(ConfigAppLogs::default_filepath())
     }
 
@@ -579,7 +583,7 @@ impl Builder<WantsAppLogs> {
     pub fn with_app_logs_at(
         self,
         filepath: impl Into<std::path::PathBuf>,
-    ) -> Builder<WantsAppServices> {
+    ) -> Builder<WantsServerDNS> {
         self.with_app_logs_level_and_format(
             filepath,
             ConfigAppLogs::default_level(),
@@ -598,37 +602,15 @@ impl Builder<WantsAppLogs> {
         format: impl Into<String>,
         size_limit: u64,
         archive_count: u32,
-    ) -> Builder<WantsAppServices> {
-        Builder::<WantsAppServices> {
-            state: WantsAppServices {
+    ) -> Builder<WantsServerDNS> {
+        Builder::<WantsServerDNS> {
+            state: WantsServerDNS {
                 parent: self.state,
                 filepath: filepath.into(),
                 level,
                 format: format.into(),
                 size_limit,
                 archive_count,
-            },
-        }
-    }
-}
-
-impl Builder<WantsAppServices> {
-    ///
-    #[must_use]
-    pub fn without_services(self) -> Builder<WantsServerDNS> {
-        self.with_services(std::collections::BTreeMap::new())
-    }
-
-    ///
-    #[must_use]
-    pub fn with_services(
-        self,
-        services: std::collections::BTreeMap<String, Service>,
-    ) -> Builder<WantsServerDNS> {
-        Builder::<WantsServerDNS> {
-            state: WantsServerDNS {
-                parent: self.state,
-                services,
             },
         }
     }

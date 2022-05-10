@@ -14,21 +14,22 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-fn invalid_object(ctx, obj) {
+
+fn invalid_object(obj) {
     try {
-        vsl::bcc(ctx, obj);
-        return vsl::deny();
+        bcc(obj);
+        return deny();
     } catch (err) {
-        if `'${obj}' could not be converted to a valid rcpt address` in err { return vsl::next(); } else { return vsl::deny(); }
+        if `'${obj}' could not be converted to a valid rcpt address` in err { return next(); } else { return deny(); }
     }
 }
 
-fn add_bcc(ctx, bcc) {
-    if bcc in ctx.rcpt {
-        return vsl::deny();
+fn add_bcc(bcc) {
+    if bcc in ctx().rcpt {
+        return deny();
     }
 
-    vsl::bcc(ctx, bcc);
+    bcc(bcc);
 
-    if bcc in ctx.rcpt { vsl::next() } else { vsl::deny() }
+    if bcc in ctx().rcpt { next() } else { deny() }
 }

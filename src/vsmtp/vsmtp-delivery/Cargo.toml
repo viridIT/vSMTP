@@ -3,7 +3,9 @@ edition = "2021"
 
 name = "vsmtp-delivery"
 version = "1.0.0"
-license = "GPLv3"
+license = "GPL-3.0-only"
+
+rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -37,10 +39,10 @@ lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "tracing",
 ] }
 
-tokio = { version = "1.18.1", default-features = false, features = ["macros"] }
+tokio = { version = "1.18.2", default-features = false, features = ["macros"] }
 
 [dev-dependencies]
-tokio = { version = "1.18.1", features = [
+tokio = { version = "1.18.2", default-features = false, features = [
     "macros",
     "time",
     "sync",

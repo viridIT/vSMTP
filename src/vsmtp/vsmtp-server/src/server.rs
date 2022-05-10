@@ -17,6 +17,7 @@
 use crate::{
     auth,
     channel_message::ProcessMessage,
+    log_channels,
     receiver::{
         handle_connection, {Connection, ConnectionKind},
     },
@@ -126,7 +127,12 @@ impl Server {
     ///
     /// * [tokio::spawn]
     /// * [tokio::select]
-    pub async fn listen_and_serve(&mut self) -> anyhow::Result<()> {
+    pub async fn listen_and_serve(self) -> anyhow::Result<()> {
+        log::info!(
+            target: log_channels::SERVER,
+            "Listening on: {:?}",
+            self.addr()
+        );
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
         loop {
@@ -143,7 +149,12 @@ impl Server {
             };
             stream.set_nodelay(true)?;
 
-            log::warn!("Connection from: {:?}, {}", kind, client_addr);
+            log::warn!(
+                target: log_channels::SERVER,
+                "Connection from: {:?}, {}",
+                kind,
+                client_addr
+            );
 
             if self.config.server.client_count_max != -1
                 && client_counter.load(std::sync::atomic::Ordering::SeqCst)
@@ -161,11 +172,11 @@ impl Server {
                 )
                 .await
                 {
-                    log::warn!("{}", e);
+                    log::warn!(target: log_channels::SERVER, "{}", e);
                 }
 
                 if let Err(e) = tokio::io::AsyncWriteExt::shutdown(&mut stream).await {
-                    log::warn!("{}", e);
+                    log::warn!(target: log_channels::SERVER, "{}", e);
                 }
                 continue;
             }
@@ -186,7 +197,7 @@ impl Server {
             let client_counter_copy = client_counter.clone();
             tokio::spawn(async move {
                 if let Err(e) = session.await {
-                    log::warn!("{}", e);
+                    log::warn!(target: log_channels::SERVER, "{}", e);
                 }
 
                 client_counter_copy.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
@@ -209,7 +220,11 @@ impl Server {
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
         let begin = std::time::SystemTime::now();
-        log::warn!("Handling client: {}", client_addr);
+        log::warn!(
+            target: log_channels::SERVER,
+            "Handling client: {}",
+            client_addr
+        );
 
         match handle_connection(
             &mut Connection::new(kind, client_addr, config.clone(), stream),
@@ -225,6 +240,7 @@ impl Server {
         {
             Ok(_) => {
                 log::warn!(
+                    target: log_channels::SERVER,
                     "{{ elapsed: {:?} }} Connection {} closed cleanly",
                     begin.elapsed(),
                     client_addr,
@@ -233,6 +249,7 @@ impl Server {
             }
             Err(error) => {
                 log::error!(
+                    target: log_channels::SERVER,
                     "{{ elapsed: {:?} }} Connection {} closed with an error {}",
                     begin.elapsed(),
                     client_addr,
@@ -270,7 +287,7 @@ mod tests {
                 config.server.queues.working.channel_size,
             );
 
-            let mut s = Server::new(
+            let s = Server::new(
                 config.clone(),
                 (
                     std::net::TcpListener::bind(&config.server.interfaces.addr[..]).unwrap(),

@@ -27,7 +27,7 @@ fn parse() {
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
-            .with_version_str("<1.0.0")
+            .with_version_str("=1.0.0")
             .unwrap()
             .with_hostname_and_client_count_max(8)
             .with_default_user_and_thread_pool(3, 3, 3)
@@ -61,7 +61,6 @@ fn parse() {
             .with_default_app()
             .with_default_vsl_settings()
             .with_default_app_logs()
-            .without_services()
             .with_dns(
                 {
                     let mut cfg = trust_dns_resolver::config::ResolverConfig::new();

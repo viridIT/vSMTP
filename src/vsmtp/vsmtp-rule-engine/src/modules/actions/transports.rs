@@ -16,7 +16,7 @@
 */
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, Position, RhaiResult, TypeId,
+    PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_common::{mail_context::MailContext, re::anyhow};
 
@@ -25,9 +25,9 @@ use vsmtp_common::{mail_context::MailContext, re::anyhow};
 pub mod transports {
     use vsmtp_common::transfer::ForwardTarget;
 
-    use crate::{modules::actions::MailContext, modules::EngineResult, obj::Object};
+    use crate::{dsl::object::Object, modules::actions::MailContext, modules::EngineResult};
 
-    #[rhai_fn(global, name = "forward", return_raw)]
+    #[rhai_fn(global, name = "forward", return_raw, pure)]
     pub fn forward_obj(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
@@ -42,7 +42,7 @@ pub mod transports {
     }
 
     /// set the delivery method to "Forward" for a single recipient.
-    #[rhai_fn(global, name = "forward", return_raw)]
+    #[rhai_fn(global, name = "forward", return_raw, pure)]
     pub fn forward_str(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
@@ -64,7 +64,7 @@ pub mod transports {
         .map_err(|err| err.to_string().into())
     }
 
-    #[rhai_fn(global, name = "forward_all", return_raw)]
+    #[rhai_fn(global, name = "forward_all", return_raw, pure)]
     pub fn forward_all_obj(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         forward: std::sync::Arc<Object>,
@@ -78,7 +78,7 @@ pub mod transports {
     }
 
     /// set the delivery method to "Forward" for all recipients.
-    #[rhai_fn(global, name = "forward_all", return_raw)]
+    #[rhai_fn(global, name = "forward_all", return_raw, pure)]
     pub fn forward_all_str(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         forward: &str,
@@ -100,7 +100,7 @@ pub mod transports {
     }
 
     /// set the delivery method to "Deliver" for a single recipient.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn deliver(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
@@ -116,7 +116,7 @@ pub mod transports {
     }
 
     /// set the delivery method to "Deliver" for all recipients.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn deliver_all(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<()> {
@@ -131,7 +131,7 @@ pub mod transports {
     }
 
     /// set the delivery method to "Mbox" for a single recipient.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn mbox(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
@@ -147,7 +147,7 @@ pub mod transports {
     }
 
     /// set the delivery method to "Mbox" for all recipients.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn mbox_all(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<()> {
         set_transport(
             &mut *this
@@ -160,7 +160,7 @@ pub mod transports {
     }
 
     /// set the delivery method to "Maildir" for a single recipient.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn maildir(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
@@ -176,7 +176,7 @@ pub mod transports {
     }
 
     /// set the delivery method to "Maildir" for all recipients.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn maildir_all(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<()> {
@@ -191,7 +191,7 @@ pub mod transports {
     }
 
     /// remove the delivery method for a specific recipient.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn disable_delivery(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
         rcpt: &str,
@@ -207,7 +207,7 @@ pub mod transports {
     }
 
     /// remove the delivery method for all recipient.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn disable_delivery_all(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
     ) -> EngineResult<()> {

@@ -17,9 +17,11 @@
 #{
     connect: [
         rule "test_time" || {
-            print(time.to_string());
-            print(time.to_debug());
-            vsl::accept()
+            print(time().to_string());
+            print(time().to_debug());
+            print(date().to_string());
+            print(date().to_debug());
+            accept()
         }
     ]
 }

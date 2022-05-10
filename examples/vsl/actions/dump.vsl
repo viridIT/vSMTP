@@ -1,17 +1,17 @@
 #{
     preq: [
         action "dump raw email to disk" || {
-            vsl::dump(srv, ctx, "tests/generated");
+            dump("tests/generated");
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
     ],
 
     postq: [
         action "dump parsed email to disk" || {
-            vsl::dump(srv, ctx, "tests/generated");
+            dump("tests/generated");
         },
 
-        rule "trailing" || vsl::accept(),
+        rule "trailing" || accept(),
     ]
 }

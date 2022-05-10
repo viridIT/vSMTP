@@ -14,6 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-pub mod action_parsing;
-pub mod object_parsing;
-pub mod rule_parsing;
+
+pub mod action;
+pub mod directives;
+pub mod object;
+pub mod rule;
+pub mod service;

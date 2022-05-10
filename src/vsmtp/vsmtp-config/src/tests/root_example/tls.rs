@@ -23,7 +23,7 @@ fn parse() {
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
-            .with_version_str("<1.0.0")
+            .with_version_str("=1.0.0")
             .unwrap()
             .with_server_name("testserver.com")
             .with_default_system()
@@ -31,8 +31,8 @@ fn parse() {
             .with_default_logs_settings()
             .with_default_delivery()
             .with_safe_tls_config(
-                "../examples/config/tls/certificate.crt",
-                "../examples/config/tls/private_key.key"
+                "../../../examples/config/tls/certificate.crt",
+                "../../../examples/config/tls/private_key.key"
             )
             .unwrap()
             .with_default_smtp_options()
@@ -42,7 +42,6 @@ fn parse() {
             .with_default_app()
             .with_default_vsl_settings()
             .with_default_app_logs()
-            .without_services()
             .with_system_dns()
             .with_virtual_entries(&[
                 VirtualEntry {
@@ -58,16 +57,16 @@ fn parse() {
                 VirtualEntry {
                     domain: "testserver3.com".to_string(),
                     tls: Some((
-                        "../examples/config/tls/certificate.crt".to_string(),
-                        "../examples/config/tls/private_key.key".to_string()
+                        "../../../examples/config/tls/certificate.crt".to_string(),
+                        "../../../examples/config/tls/private_key.key".to_string()
                     )),
                     dns: None,
                 },
                 VirtualEntry {
                     domain: "testserver4.com".to_string(),
                     tls: Some((
-                        "../examples/config/tls/certificate.crt".to_string(),
-                        "../examples/config/tls/private_key.key".to_string()
+                        "../../../examples/config/tls/certificate.crt".to_string(),
+                        "../../../examples/config/tls/private_key.key".to_string()
                     )),
                     dns: Some(ConfigServerDNS::Google {
                         options: ResolverOptsWrapper::default()

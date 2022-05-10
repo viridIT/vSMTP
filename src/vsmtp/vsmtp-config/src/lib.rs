@@ -74,6 +74,7 @@ pub use trust_dns_helper::build_resolvers;
 
 /// Re-exported dependencies
 pub mod re {
+    pub use humantime_serde::re::humantime;
     pub use log4rs;
     pub use rustls;
     // NOTE: this one should not be re-exported (because tests only)

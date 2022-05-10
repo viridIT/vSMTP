@@ -5,6 +5,8 @@ name = "vsmtp-test"
 version = "1.0.0"
 license = "GPL-3.0-only"
 
+rust-version = "1.58"
+
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
 homepage = "https://github.com/viridIT/vSMTP"
@@ -30,4 +32,4 @@ lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "tracing",
 ] }
 
-tokio-rustls = "0.23.3"
+tokio-rustls = "0.23.4"

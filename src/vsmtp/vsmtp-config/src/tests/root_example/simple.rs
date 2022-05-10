@@ -22,10 +22,10 @@ fn parse() {
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
-            .with_version_str("<1.0.0")
+            .with_version_str("=1.0.0")
             .unwrap()
             .with_server_name("my.fqdn.com")
-            .with_user_group_and_default_system("root", "root")
+            .with_user_group_and_default_system("vsmtp", "vsmtp")
             .unwrap()
             .with_interfaces(
                 &["127.0.0.1:25".parse().unwrap()],
@@ -42,7 +42,6 @@ fn parse() {
             .with_default_app()
             .with_default_vsl_settings()
             .with_default_app_logs()
-            .without_services()
             .with_system_dns()
             .without_virtual_entries()
             .validate()

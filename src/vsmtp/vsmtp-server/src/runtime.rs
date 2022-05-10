@@ -34,6 +34,7 @@ fn init_runtime<F: 'static>(
     name: impl Into<String>,
     worker_thread_count: usize,
     future: F,
+    timeout: Option<std::time::Duration>,
 ) -> anyhow::Result<std::thread::JoinHandle<anyhow::Result<()>>>
 where
     F: std::future::Future<Output = anyhow::Result<()>> + Send,
@@ -48,19 +49,23 @@ where
     std::thread::Builder::new()
         .name(format!("{name}-main"))
         .spawn(move || {
-            let output = if cfg!(test) {
-                Ok(())
-            } else {
-                runtime
-                    .block_on({
-                        log::info!(
-                            target: log_channels::RUNTIME,
-                            "Runtime '{name}' started successfully"
-                        );
-                        future
-                    })
-                    .context(format!("An error terminated the '{name}' runtime"))
-            };
+            let name_rt = name.clone();
+            let output = runtime
+                .block_on(async move {
+                    log::info!(
+                        target: log_channels::RUNTIME,
+                        "Runtime '{name_rt}' started successfully"
+                    );
+
+                    match timeout {
+                        Some(duration) => {
+                            tokio::time::timeout(duration, future).await.unwrap_err();
+                            anyhow::Ok(())
+                        }
+                        None => future.await,
+                    }
+                })
+                .context(format!("An error terminated the '{name}' runtime"));
 
             sender.blocking_send(output)?;
             Ok(())
@@ -74,12 +79,13 @@ where
 ///
 #[allow(clippy::module_name_repetitions)]
 pub fn start_runtime(
-    config: std::sync::Arc<Config>,
+    config: Config,
     sockets: (
         std::net::TcpListener,
         std::net::TcpListener,
         std::net::TcpListener,
     ),
+    timeout: Option<std::time::Duration>,
 ) -> anyhow::Result<()> {
     <Queue as strum::IntoEnumIterator>::iter()
         .map(|q| vsmtp_common::queue_path!(create_if_missing => &config.server.queues.dirpath, q))
@@ -95,48 +101,49 @@ pub fn start_runtime(
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
         &config,
-        &Some(config.app.vsl.filepath.clone()),
+        &config.app.vsl.filepath.clone(),
     )?));
+
+    let config_arc = std::sync::Arc::new(config);
 
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
         "vsmtp-delivery",
-        config.server.system.thread_pool.delivery,
-        delivery::start(config.clone(), rule_engine.clone(), delivery_channel.1),
+        config_arc.server.system.thread_pool.delivery,
+        delivery::start(config_arc.clone(), rule_engine.clone(), delivery_channel.1),
+        timeout,
     )?;
 
     let _tasks_processing = init_runtime(
         error_handler.0.clone(),
         "vsmtp-processing",
-        config.server.system.thread_pool.processing,
+        config_arc.server.system.thread_pool.processing,
         postq::start(
-            config.clone(),
+            config_arc.clone(),
             rule_engine.clone(),
             working_channel.1,
             delivery_channel.0.clone(),
         ),
+        timeout,
     )?;
 
     let _tasks_receiver = init_runtime(
         error_handler.0,
         "vsmtp-receiver",
-        config.server.system.thread_pool.receiver,
+        config_arc.server.system.thread_pool.receiver,
         async move {
-            let mut server = Server::new(
-                config,
+            Server::new(
+                config_arc.clone(),
                 sockets,
-                rule_engine,
-                working_channel.0,
-                delivery_channel.0,
-            )?;
-            log::info!(
-                target: log_channels::RUNTIME,
-                "Listening on: {:?}",
-                server.addr()
-            );
-            server.listen_and_serve().await
+                rule_engine.clone(),
+                working_channel.0.clone(),
+                delivery_channel.0.clone(),
+            )?
+            .listen_and_serve()
+            .await
         },
-    )?;
+        timeout,
+    );
 
     error_handler
         .1
@@ -160,12 +167,13 @@ mod tests {
     #[test]
     fn basic() -> anyhow::Result<()> {
         start_runtime(
-            std::sync::Arc::new(config::local_test()),
+            config::local_test(),
             (
                 std::net::TcpListener::bind("0.0.0.0:22001").unwrap(),
                 std::net::TcpListener::bind("0.0.0.0:22002").unwrap(),
                 std::net::TcpListener::bind("0.0.0.0:22003").unwrap(),
             ),
+            Some(std::time::Duration::from_millis(100)),
         )
     }
 }

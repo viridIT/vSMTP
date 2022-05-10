@@ -17,10 +17,10 @@
 #{
     rcpt: [
         rule "check server_name with sni" || {
-            if ctx.server_name == "second.testserver.com" {
-                vsl::accept()
+            if ctx().server_name == "second.testserver.com" {
+                accept()
             } else {
-                vsl::deny()
+                deny()
             }
         }
     ]

@@ -10,3 +10,5 @@ members = [
     "src/vsmtp/vsmtp-server",
     "src/vsmtp/vsmtp-test",
 ]
+
+exclude = ["fuzz", "benchmarks/stress"]

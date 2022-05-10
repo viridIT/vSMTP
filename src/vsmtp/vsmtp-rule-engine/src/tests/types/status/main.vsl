@@ -17,23 +17,23 @@
 #{
     connect: [
         rule "test_status" || {
-            if vsl::next() is vsl::next()
-            && vsl::next() == vsl::next()
+            if next() is next()
+            && next() == next()
 
-            && vsl::next() not vsl::accept()
-            && vsl::next() != vsl::accept()
+            && next() not accept()
+            && next() != accept()
 
-            && vsl::next().to_string() == "next"
-            && vsl::next().to_debug() == "next" {
+            && next().to_string() == "next"
+            && next().to_debug() == "next" {
 
-                print(vsl::next());
-                print(vsl::accept());
-                print(vsl::faccept());
-                print(vsl::deny());
+                print(next());
+                print(accept());
+                print(faccept());
+                print(deny());
 
-                vsl::accept()
+                accept()
             } else {
-                vsl::deny()
+                deny()
             }
         }
     ]

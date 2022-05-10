@@ -1,31 +1,21 @@
-object john ident = "johndoe";
-object bar fqdn = "example.com";
-object someone address = "staff@example.com";
-
-object staff group = [
-  john,
-  object green address = "green@personal.eu",
-  object steven address = "steven@personal.fr",
-  object staff address = "staff@example.com",
-  object ruben address = "ruben@email.ru",
-];
+import "users" as users;
 
 #{
   mail: [
-    rule "test_ident" || if ctx.mail_from not john && john not ctx.mail_from { vsl::next() } else { vsl::deny() },
-    rule "test_fqdn" || if ctx.mail_from is bar { vsl::next() } else { vsl::deny() },
-    rule "test_addr" || if ctx.mail_from is someone { vsl::next() } else { vsl::deny() },
-    rule "test_group" || if ctx.mail_from in staff { vsl::accept() } else { vsl::deny() },
+    rule "test_ident" || if ctx().mail_from not users::john && users::john not ctx().mail_from { next() } else { deny() },
+    rule "test_fqdn" || if ctx().mail_from is users::bar { next() } else { deny() },
+    rule "test_addr" || if ctx().mail_from is users::someone { next() } else { deny() },
+    rule "test_group" || if ctx().mail_from in users::staff { accept() } else { deny() },
   ],
 
   // rewrite is available when the email is parsed.
   postq: [
     rule "test_rewrite" || {
-      if ctx.mail_from in staff {
-        ctx.rewrite_mail_from("no-reply@example.com");
-        vsl::accept()
+      if ctx().mail_from in users::staff {
+        rewrite_mail_from("no-reply@example.com");
+        accept()
       } else {
-        vsl::deny()
+        deny()
       }
     },
   ],

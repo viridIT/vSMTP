@@ -17,27 +17,27 @@
 #{
     connect: [
         rule "test_socket" || {
-            print(ctx.client_ip.to_string());
-            print(ctx.client_ip.to_debug());
-            print(ctx.client_port);
+            print(ctx().client_ip.to_string());
+            print(ctx().client_ip.to_debug());
+            print(ctx().client_port);
 
-            if ctx.client_ip.to_string() is "0.0.0.0"
-            && ctx.client_ip.to_debug() is "0.0.0.0"
-            && ctx.client_port is 0
+            if ctx().client_ip.to_string() is "0.0.0.0"
+            && ctx().client_ip.to_debug() is "0.0.0.0"
+            && ctx().client_port is 0
 
-            && ctx.client_ip is "0.0.0.0"
-            && ctx.client_ip == "0.0.0.0"
-            && ctx.client_port is 0
-            && ctx.client_port == 0
-            && ctx.client_ip not "127.0.0.1"
-            && ctx.client_ip != "127.0.0.1"
-            && ctx.client_port not 25
-            && ctx.client_port != 25
+            && ctx().client_ip is "0.0.0.0"
+            && ctx().client_ip == "0.0.0.0"
+            && ctx().client_port is 0
+            && ctx().client_port == 0
+            && ctx().client_ip not "127.0.0.1"
+            && ctx().client_ip != "127.0.0.1"
+            && ctx().client_port not 25
+            && ctx().client_port != 25
 
             {
-                vsl::accept()
+                accept()
             } else {
-                vsl::deny()
+                deny()
             }
         }
     ]

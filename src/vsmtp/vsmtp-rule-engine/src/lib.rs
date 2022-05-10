@@ -1,7 +1,6 @@
 //! vSMTP rule engine
 
 #![doc(html_no_source)]
-#![deny(missing_docs)]
 //
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
@@ -18,13 +17,10 @@ mod log_channels {
 
 mod dsl;
 mod error;
-/// vsl prelude
 pub mod modules;
-mod obj;
-/// rust api
 pub mod rule_engine;
+pub mod rule_state;
 mod server_api;
-mod service;
 
 #[cfg(test)]
 mod tests;

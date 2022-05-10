@@ -14,9 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::dsl::object::Object;
+use crate::dsl::service::shell::ShellResult;
 use crate::modules::EngineResult;
-use crate::obj::Object;
-use crate::service::ServiceResult;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
@@ -52,22 +52,22 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "to_debug")]
-    pub fn service_result_to_debug(this: &mut ServiceResult) -> String {
+    pub fn shell_result_to_debug(this: &mut ShellResult) -> String {
         format!("{:?}", this)
     }
 
     #[rhai_fn(global, name = "to_string")]
-    pub fn service_result_to_string(this: &mut ServiceResult) -> String {
+    pub fn shell_result_to_string(this: &mut ShellResult) -> String {
         format!("{}", this)
     }
 
     #[rhai_fn(global, get = "has_code")]
-    pub fn service_result_has_code(this: &mut ServiceResult) -> bool {
+    pub fn shell_result_has_code(this: &mut ShellResult) -> bool {
         this.has_code()
     }
 
     #[rhai_fn(global, get = "code", return_raw)]
-    pub fn service_result_get_code(this: &mut ServiceResult) -> EngineResult<i64> {
+    pub fn shell_result_get_code(this: &mut ShellResult) -> EngineResult<i64> {
         this.get_code().ok_or_else(|| {
             "service result has been terminated by a signal"
                 .to_string()
@@ -76,12 +76,12 @@ pub mod types {
     }
 
     #[rhai_fn(global, get = "has_signal")]
-    pub fn service_result_has_signal(this: &mut ServiceResult) -> bool {
+    pub fn shell_result_has_signal(this: &mut ShellResult) -> bool {
         this.has_signal()
     }
 
     #[rhai_fn(global, get = "signal", return_raw)]
-    pub fn service_result_get_signal(this: &mut ServiceResult) -> EngineResult<i64> {
+    pub fn shell_result_get_signal(this: &mut ShellResult) -> EngineResult<i64> {
         this.get_signal()
             .ok_or_else(|| "service result has status code".to_string().into())
     }

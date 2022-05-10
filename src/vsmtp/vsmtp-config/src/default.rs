@@ -23,8 +23,7 @@ use crate::{
         ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPAuth, ConfigServerSMTPError,
         ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
     },
-    Config, ConfigServerTls, ConfigServerVirtualTls, ResolverOptsWrapper, Service,
-    TlsSecurityLevel,
+    Config, ConfigServerTls, ConfigServerVirtualTls, ResolverOptsWrapper, TlsSecurityLevel,
 };
 use vsmtp_common::{
     auth::Mechanism,
@@ -36,7 +35,7 @@ use vsmtp_common::{
 impl Default for Config {
     fn default() -> Self {
         Self::ensure(Self {
-            version_requirement: semver::VersionReq::parse("<1.0.0").unwrap(),
+            version_requirement: semver::VersionReq::parse(">=1.0.0").unwrap(),
             server: ConfigServer::default(),
             app: ConfigApp::default(),
         })
@@ -431,7 +430,6 @@ impl Default for ConfigApp {
             dirpath: Self::default_dirpath(),
             vsl: ConfigAppVSL::default(),
             logs: ConfigAppLogs::default(),
-            services: std::collections::BTreeMap::<String, Service>::new(),
         }
     }
 }
@@ -439,20 +437,6 @@ impl Default for ConfigApp {
 impl ConfigApp {
     pub(crate) fn default_dirpath() -> std::path::PathBuf {
         "/var/spool/vsmtp/app".into()
-    }
-}
-
-impl Default for ConfigAppVSL {
-    fn default() -> Self {
-        Self {
-            filepath: Self::default_filepath(),
-        }
-    }
-}
-
-impl ConfigAppVSL {
-    pub(crate) fn default_filepath() -> std::path::PathBuf {
-        "/etc/vsmtp/rules/main.vsl".into()
     }
 }
 

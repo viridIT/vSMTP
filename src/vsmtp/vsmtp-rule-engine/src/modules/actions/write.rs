@@ -16,7 +16,7 @@
 */
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-    PluginFunction, Position, RhaiResult, TypeId,
+    PluginFunction, RhaiResult, TypeId,
 };
 
 #[rhai::plugin::export_module]
@@ -30,7 +30,7 @@ pub mod write {
     use vsmtp_common::mail_context::Body;
 
     /// write the current email to a specified folder.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn write(
         srv: &mut std::sync::Arc<ServerAPI>,
         mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -77,7 +77,7 @@ pub mod write {
     }
 
     /// write the content of the current email with it's metadata in a json file.
-    #[rhai_fn(global, return_raw)]
+    #[rhai_fn(global, return_raw, pure)]
     pub fn dump(
         srv: &mut std::sync::Arc<ServerAPI>,
         mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,

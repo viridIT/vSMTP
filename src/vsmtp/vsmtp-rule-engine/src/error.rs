@@ -51,7 +51,7 @@ impl RuleEngineError {
 
     rule "name" || {
         ... // your code to execute.
-        vsl::next() // must end with a status. (next, accept, faccept ...)
+        sys::next() // must end with a status. (next, accept, faccept ...)
     },
 "#
             }
