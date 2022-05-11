@@ -11,8 +11,8 @@ Depending on versions fixes and user feedbacks, the production version is expect
  This version is the first pre-production release.
 
 - Databases support for VSL.
-  - implementation of the databases access syntax.
-  - support for file databases.
+  - Implementation of the databases access syntax.
+  - Support for file databases.
 - Queues and quarantines management.
 
 ## Planned features and releases
@@ -20,7 +20,7 @@ Depending on versions fixes and user feedbacks, the production version is expect
 ### Release 1.1.x : May 2022
 
 - Security delegation via SMTP.
-- support of the [Null MX](https://datatracker.ietf.org/doc/html/rfc7505) record.
+- Support of the [Null MX](https://datatracker.ietf.org/doc/html/rfc7505) record.
 - [SPF](https://datatracker.ietf.org/doc/html/rfc7208) support.
 
 ### Release 1.2.x : June 2022
