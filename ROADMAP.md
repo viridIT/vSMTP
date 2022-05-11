@@ -27,7 +27,7 @@ Depending on versions fixes and user feedbacks, the production version is expect
 
 - [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) and [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
 - [DANE](https://blog.apnic.net/2019/11/20/better-mail-security-with-dane-for-smtp/) support for vSMTP's transport system.
-- SQL database support.
+- SQL databases support.
 - Performance improvement : connection caches.
 
 ### Release 1.3.x
