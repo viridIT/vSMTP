@@ -17,6 +17,10 @@
     <img src="https://img.shields.io/badge/read-book-yellowgreen"
       alt="documentation" />
   </a>
+  <a href="https://discord.gg/N8JGBRBshf">
+    <img src="https://img.shields.io/badge/join-discord-blue"
+      alt="discord" />
+  </a>
   <a href="https://www.gnu.org/licenses/gpl-3.0">
     <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg"
       alt="License GPLv3" />
@@ -68,14 +72,14 @@ Follow us on [viridit.com](https://viridit.com)
 
 For documentation please consult the [vBook](https://vsmtp.rs), the online reference and user guide for vSMTP.
 
-To stay tuned, ask questions and get in-depth answers feel free to register and visit our [community forums](https://www.viridit.com/community-forum).
+To stay tuned, ask questions and get in-depth answers feel free to join our [Discord](https://discord.gg/N8JGBRBshf) server.
 You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussions).
 
 ## Roadmap
 
 > vSMTP is currently under development.
 
-The next release "1.1.x" will focus on sender authentication mechanismes (SPF, NullMX records, etc.) and on security delegation via SMTP. You can find more information about the project agenda in the [roadmap](ROADMAP.md).
+The next release "1.1.x" will focus on sender authentication mechanisms (SPF, NullMX records, etc.) and on security delegation via SMTP. You can find more information about the project agenda in the [roadmap](ROADMAP.md).
 
 A guideline about contributing to vSMTP can be found in the [contributing](CONTRIBUTING.md) section.
 
