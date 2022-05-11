@@ -28,17 +28,17 @@ Depending on versions fixes and user feedbacks, the production version is expect
 - [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) and [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
 - [DANE](https://blog.apnic.net/2019/11/20/better-mail-security-with-dane-for-smtp/) support for vSMTP's transport system.
 - SQL database support.
-- Performance improvement : connection caches
+- Performance improvement : connection caches.
 
 ### Release 1.3.x
 
 - Redis, Memcached & LDAP databases support.
 - Security shield : DDoS, zombies and SPAM bots countermeasures.
-- Performance improvement : content caches
+- Performance improvement : content caches.
 
 ## Unplanned features
 
-- Direct connections to anti-virus (ClamAV, Sophos, etc.) through internal plugins
+- Direct connections to anti-virus (ClamAV, Sophos, etc.) through internal plugins.
 - [ARC](https://datatracker.ietf.org/doc/html/rfc8617) support.
 - [BIMI](https://www.ietf.org/archive/id/draft-blank-ietf-bimi-02.txt) support.
 
