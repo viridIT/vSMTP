@@ -18,7 +18,7 @@
       alt="documentation" />
   </a>
   <a href="https://discord.gg/N8JGBRBshf">
-    <img src="https://img.shields.io/badge/join-discord-blue"
+    <img src="https://img.shields.io/badge/join-discord-blue?logo=discord"
       alt="discord" />
   </a>
   <a href="https://www.gnu.org/licenses/gpl-3.0">
