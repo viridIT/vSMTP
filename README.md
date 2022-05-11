@@ -75,8 +75,7 @@ You can also open GitHub [discussions](https://github.com/viridIT/vSMTP/discussi
 
 > vSMTP is currently under development.
 
-The next release "0.11.x" focuses on the delivery process and email filtering.
-You can find more information about the project agenda in the [roadmap](ROADMAP.md).
+The next release "1.1.x" will focus on sender authentication mechanismes (SPF, NullMX records, etc.) and on security delegation via SMTP. You can find more information about the project agenda in the [roadmap](ROADMAP.md).
 
 A guideline about contributing to vSMTP can be found in the [contributing](CONTRIBUTING.md) section.
 

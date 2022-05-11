@@ -2,40 +2,49 @@
 
 ## Production release
 
-Depending on versions fixes and user feedbacks, the production version is
-expected for end of Q3/2022.
+Depending on versions fixes and user feedbacks, the production version is expected for end of Q3/2022.
 
-> Release before 1.0 should not be used for production purpose.
+> Release before should not be used for production purpose.
 
-## Release 0.13.x : available in july 2022
+## Current version : 1.0.0
 
-- [ARC](https://datatracker.ietf.org/doc/html/rfc8617) and [BIMI](https://www.ietf.org/archive/id/draft-blank-ietf-bimi-02.txt) support.
-- MySQL database support.
-- Integration of the [ClamAV](https://www.clamav.net/) anti-virus.
-- performance improvements and message transfer optimisation.
+ This version is the first pre-production release.
 
-## Release 0.12.x : available in june 2022
-
-This version will be the first pre-production release, focusing on expending databases support and new security protocols.
-
-- [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) and [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
-- Redis, Memcached & LDAP databases support.
-- [DANE](https://blog.apnic.net/2019/11/20/better-mail-security-with-dane-for-smtp/) support for vSMTP's transport system.
-
-## Release 0.11.x : available in mai 2022
-
-- implementation of The vSMTP Policy Server (vPS), a module dedicated to the integration of third-party software.
-  - manages complex filtering and security rules for incoming emails.
-  - accepts delegation trough the SMTP protocol via Unix & Inet sockets.
-- databases support for VSL.
+- Databases support for VSL.
   - implementation of the databases access syntax.
   - support for file databases.
-- support of the [Null MX](https://datatracker.ietf.org/doc/html/rfc7505) record for vSMTP's transport.
-- [SPF](https://datatracker.ietf.org/doc/html/rfc7208) support.
-- DDOS, zombies and SPAM bots countermeasures.
-- a vqueue program that will be used to show queues content, move, remove and re-send messages.
+- Queues and quarantines management.
 
-## Release 0.10.x : current version
+## Planned features and releases
+
+### Release 1.1.x : May 2022
+
+- Security delegation via SMTP.
+- support of the [Null MX](https://datatracker.ietf.org/doc/html/rfc7505) record.
+- [SPF](https://datatracker.ietf.org/doc/html/rfc7208) support.
+
+### Release 1.2.x : June 2022
+
+- [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) and [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
+- [DANE](https://blog.apnic.net/2019/11/20/better-mail-security-with-dane-for-smtp/) support for vSMTP's transport system.
+- SQL database support.
+- Performance improvement : connection caches
+
+### Release 1.3.x
+
+- Redis, Memcached & LDAP databases support.
+- Security shield : DDoS, zombies and SPAM bots countermeasures.
+- Performance improvement : content caches
+
+## Unplanned features
+
+- Direct connections to anti-virus (ClamAV, Sophos, etc.) through internal plugins
+- [ARC](https://datatracker.ietf.org/doc/html/rfc8617) support.
+- [BIMI](https://www.ietf.org/archive/id/draft-blank-ietf-bimi-02.txt) support.
+
+## Older releases
+
+### Releases 0.10.x
 
 - Configuration improvements.
   - Folders restrictions for user-defined quarantines.
@@ -46,7 +55,7 @@ This version will be the first pre-production release, focusing on expending dat
   - stabilizing VSL's syntax.
 - optimisation and performance improvements.
 
-## Release 0.9.x
+### Releases 0.9.x
 
 - TLS integration.
 - vSL grammar and syntax.
@@ -63,7 +72,7 @@ About filtering features:
 - Headers manipulation.
 - Bcc() action.
 
-## Release 0.8.x
+### Releases 0.8.x
 
 - The delivery process and the related queues for local and remote mails.
 - The Post-queue filtering.
@@ -75,7 +84,7 @@ About filtering functionalities :
 - Offline filtering stage (post-queue).
 - Deliver stage related rules and actions.
 
-## Release 0.7.x
+### Release 0.7.x
 
 - Handling network connections, including TLS support.
 - SMTP compliancy (RFC 5321/5322).
