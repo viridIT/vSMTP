@@ -70,7 +70,15 @@ Follow us on [viridit.com](https://viridit.com)
 
 ## Filtering
 
-vSMTP enable you to create complex set of rules to filter your emails using the vsl programming language based on [Rhai](https://github.com/rhaiscript/rhai). You can connect to databases, run commands, inspect and modify the content of incoming emails and much more.
+vSMTP enable you to create complex set of rules to filter your emails using the vsl programming language based on [Rhai](https://github.com/rhaiscript/rhai).
+You can:
+- inspect / modify the content of incoming emails.
+- forward and deliver emails locally or remotely.
+- connect to databases.
+- run commands.
+- quarantine emails.
+
+and much more.
 
 ```js
 // -- database.vsl
@@ -93,15 +101,18 @@ import "database" as db;
 #{
   // hook on the 'mail from' stage.
   mail: [
-    // a rule alter the filtering machine by returning a status (accept, deny, next ...)
+    // you can decide to accept or deny an email with a "rule".
     rule "greylist" || {
+
+      let sender = ctx().mail_from;
+
       // is the user in our greylist ?
-      if db::greylist.get(ctx().mail_from).len() != 0 {
+      if db::greylist.get(sender).len() != 0 {
         // it is, we accept the email.
         accept()
       } else {
         // it does not, we add the address to the database, then deny the email.
-        db::greylist.set([ ctx().mail_from ]);
+        db::greylist.set([ sender ]);
         deny()
       }
     }
@@ -109,8 +120,11 @@ import "database" as db;
 
   // hook on delivery, just before emails are sent to all recipients.
   delivery: [
-    // an action does not need to return a status.
+    // you can setup delivery, log information, dump an email etc ... with an "action"
     action "setup delivery" || {
+
+      log("info", `setting up delivery for ${ctx().client_ip}`);
+
       // forward all recipients with the 'example.com' domain.
       for rcpt in ctx().rcpt {
         if rcpt.domain is "example.com" {
