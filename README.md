@@ -68,6 +68,64 @@ To meet these challenges, viridIT is developing a new technology of email gatewa
 
 Follow us on [viridit.com](https://viridit.com)
 
+## Filtering
+
+vSMTP enable you to create complex set of rules to filter your emails using the vsl programming language based on [Rhai](https://github.com/rhaiscript/rhai). You can connect to databases, run commands, inspect and modify the content of incoming emails and much more.
+
+```js
+// -- database.vsl
+// here we declare our services.
+// connect to a database with the csv format.
+service greylist db:csv = #{
+  connector: "/db/greylist.csv",
+  access: "O_RDWR",
+  refresh: "always",
+  delimiter: ',',
+};
+```
+
+```js
+// -- main.vsl
+// here we declare our rules for filtering.
+
+import "database" as db;
+
+#{
+  // hook on the 'mail from' stage.
+  mail: [
+    // a rule alter the filtering machine by returning a status (accept, deny, next ...)
+    rule "greylist" || {
+      // is the user in our greylist ?
+      if db::greylist.get(ctx().mail_from).len() != 0 {
+        // it is, we accept the email.
+        accept()
+      } else {
+        // it does not, we add the address to the database, then deny the email.
+        db::greylist.set([ ctx().mail_from ]);
+        deny()
+      }
+    }
+  ],
+
+  // hook on delivery, just before emails are sent to all recipients.
+  delivery: [
+    // an action does not need to return a status.
+    action "setup delivery" || {
+      // forward all recipients with the 'example.com' domain.
+      for rcpt in ctx().rcpt {
+        if rcpt.domain is "example.com" {
+          forward(rcpt, "mta.example.com");
+        } else {
+          deliver(rcpt);
+        }
+      }
+
+    }
+  ]
+}
+```
+
+
 ## Documentation
 
 For documentation please consult the [vBook](https://vsmtp.rs), the online reference and user guide for vSMTP.
