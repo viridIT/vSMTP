@@ -18,7 +18,7 @@ publish = false
 vsmtp-common = { path = "../vsmtp/vsmtp-common" }
 vsmtp-config = { path = "../vsmtp/vsmtp-config" }
 
-clap = { version = "3.1.17", features = ["derive"] }
+clap = { version = "3.1.18", features = ["derive"] }
 itertools = "0.10.3"
 
 [dev-dependencies]

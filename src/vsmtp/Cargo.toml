@@ -20,7 +20,7 @@ vsmtp-common = { path = "./vsmtp-common" }
 vsmtp-server = { path = "./vsmtp-server" }
 vsmtp-config = { path = "./vsmtp-config" }
 
-clap = { version = "3.1.15", features = ["derive"] }
+clap = { version = "3.1.18", features = ["derive"] }
 diff = "0.1.12"
 
 #
