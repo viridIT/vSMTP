@@ -15,6 +15,7 @@
  *
 */
 use crate::modules::EngineResult;
+use crate::server_api::ServerAPI;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
     RhaiResult, TypeId,
@@ -222,25 +223,23 @@ pub mod mail_context {
         )
     }
 
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn to_string(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<String> {
-        Ok(format!(
-            "{:?}",
-            this.read()
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-        ))
+    #[rhai_fn(global, name = "to_string", pure)]
+    pub fn ctx_to_string(_: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> String {
+        "MailContext".to_string()
     }
 
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn to_debug(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<String> {
-        Ok(format!(
-            "{:#?}",
-            this.read()
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-        ))
+    #[rhai_fn(global, name = "to_debug", pure)]
+    pub fn ctx_to_debug(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> String {
+        ctx_to_string(this)
+    }
+
+    #[rhai_fn(global, name = "to_string", pure)]
+    pub fn srv_to_string(_: &mut std::sync::Arc<ServerAPI>) -> String {
+        "Server".to_string()
+    }
+
+    #[rhai_fn(global, name = "to_debug", pure)]
+    pub fn srv_to_debug(this: &mut std::sync::Arc<ServerAPI>) -> String {
+        srv_to_string(this)
     }
 }

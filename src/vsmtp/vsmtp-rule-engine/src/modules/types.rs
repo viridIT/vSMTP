@@ -17,10 +17,12 @@
 use crate::dsl::object::Object;
 use crate::dsl::service::shell::ShellResult;
 use crate::modules::EngineResult;
+use crate::server_api::ServerAPI;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
 };
+use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::status::Status;
 use vsmtp_common::Address;
 
@@ -28,6 +30,10 @@ use vsmtp_common::Address;
 #[allow(clippy::needless_pass_by_value)]
 #[rhai::plugin::export_module]
 pub mod types {
+
+    // type aliases for complex struct names
+    pub type Context = std::sync::Arc<std::sync::RwLock<MailContext>>;
+    pub type Server = std::sync::Arc<ServerAPI>;
 
     // Status
 

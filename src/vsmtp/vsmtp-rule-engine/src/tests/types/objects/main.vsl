@@ -19,6 +19,11 @@ import "vars" as vars;
 #{
     connect: [
         action "test_print_objects" || {
+            print(ctx());
+            print(srv());
+            print(ctx().to_debug());
+            print(srv().to_debug());
+
             print(vars::ip4);
             print(vars::ip6);
             print(vars::rg4);
