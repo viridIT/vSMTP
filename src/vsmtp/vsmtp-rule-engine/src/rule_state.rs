@@ -107,6 +107,7 @@ impl RuleState {
                 "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
                 _ => Ok(None),
             })
+            .on_def_var(|_, info, _| Ok(!matches!(info.name, "CTX" | "SRV")))
             .register_global_module(rule_engine.std_module.clone())
             .register_static_module("sys", rule_engine.vsl_module.clone())
             .register_static_module("toml", rule_engine.toml_module.clone())
