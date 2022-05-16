@@ -37,7 +37,10 @@ fn test_email_context() {
     state.context().write().unwrap().body = Body::Raw(String::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
     state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
-        headers: vec![],
+        headers: vec![(
+            "to".to_string(),
+            "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
+        )],
         body: BodyType::Regular(vec![]),
     }));
     state.context().write().unwrap().envelop.rcpt = vec![
@@ -46,6 +49,11 @@ fn test_email_context() {
     ];
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
+
+    assert_eq!(
+        state.context().read().unwrap().body.get_header("to"),
+        Some("other.new@rcpt.net, other.added@rcpt.com")
+    );
 }
 
 #[test]

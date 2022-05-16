@@ -217,7 +217,7 @@ pub mod headers {
             .body
         {
             Body::Empty | Body::Raw(_) => {
-                Err("failed to remove rcpt: the email has not been parsed yet.".into())
+                Err("failed to add rcpt: the email has not been parsed yet.".into())
             }
             Body::Parsed(body) => {
                 body.add_rcpt(new_addr.full());

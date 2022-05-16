@@ -85,7 +85,7 @@
 
         rule "failed add rcpt: email not yet parsed" || {
             try {
-                add_rcpt("impossible@toadd.com");
+                add_to("impossible@toadd.com");
                 return deny();
             } catch (err) {
                 if "the email has not been parsed yet" in err { return next(); } else { return deny() }
@@ -94,19 +94,19 @@
 
         rule "failed remove rcpt: email not yet parsed" || {
             try {
-                remove_rcpt("impossible@toremove.com");
+                remove_to("impossible@toremove.com");
                 return deny();
             } catch (err) {
-                if "failed to remove rcpt: the email has not been received or parsed yet." in err { return next(); } else { return deny() }
+                if "failed to remove rcpt: the email has not been parsed yet." in err { return next(); } else { return deny() }
             }
         },
 
         rule "failed rewrite rcpt: email not yet parsed" || {
             try {
-                rewrite_rcpt("impossible@torewrite.com", "impossible@torewrite.com");
+                rewrite_to("impossible@torewrite.com", "impossible@torewrite.com");
                 return deny();
             } catch (err) {
-                if "failed to rewrite rcpt: the email has not been received or parsed yet." in err { return next(); } else { return deny() }
+                if "failed to rewrite rcpt: the email has not been parsed yet." in err { return next(); } else { return deny() }
             }
         },
 
@@ -129,14 +129,20 @@
             print(ctx().mail_timestamp.to_debug());
         },
 
-        action "rewrite" || {
+        action "rewrite envelop" || {
             add_rcpt("added@rcpt.com");
             remove_rcpt("rcpt@toremove.org");
             rewrite_rcpt("rcpt@torewrite.net", "new@rcpt.net");
             rewrite_mail_from("new@mailfrom.eu");
         },
 
-        rule "check_rewrites" || {
+        action "rewrite to headers" || {
+            add_to("other.added@rcpt.com");
+            remove_to("other.rcpt@toremove.org");
+            rewrite_to("other.rcpt@torewrite.net", "other.new@rcpt.net");
+        },
+
+        rule "check rewrites" || {
             if "added@rcpt.com" in ctx().rcpt
             && !("rcpt@toremove.org" in ctx().rcpt)
             && "new@rcpt.net" in ctx().rcpt

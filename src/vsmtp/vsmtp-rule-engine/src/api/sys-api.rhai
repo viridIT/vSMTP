@@ -16,8 +16,9 @@ fn has_header(header) { sys::has_header(ctx(), header) }
 fn get_header(header) { sys::get_header(ctx(), header) }
 fn add_header(header, value) { sys::add_header(ctx(), header, value) }
 fn set_header(header, value) { sys::set_header(ctx(), header, value) }
-// fn add_to(addr) { sys::add_to(ctx(), addr) }
-// fn remove_to(addr) { sys::remove_to(ctx(), addr) }
+fn add_to(addr) { sys::add_to(ctx(), addr) }
+fn remove_to(addr) { sys::remove_to(ctx(), addr) }
+fn rewrite_to(old_addr, new_addr) { sys::rewrite_to(ctx(), old_addr, new_addr) }
 
 // Envelop handling (envelop.rs)
 fn rewrite_mail_from(new_addr) { sys::rewrite_mail_from(ctx(), new_addr) }
