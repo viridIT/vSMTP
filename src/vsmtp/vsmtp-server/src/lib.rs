@@ -33,6 +33,8 @@ mod processes {
     pub mod postq;
 }
 
+pub use receiver::MailHandler;
+
 /// SMTP auth extension implementation
 pub mod auth;
 pub use channel_message::ProcessMessage;

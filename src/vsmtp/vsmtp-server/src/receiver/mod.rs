@@ -49,7 +49,9 @@ pub trait OnMail {
 
 /// default mail handler for production.
 pub struct MailHandler {
+    /// message pipe to the working process.
     pub working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    /// message pipe to the delivery process.
     pub delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
 
@@ -82,7 +84,7 @@ impl OnMail for MailHandler {
                     Err(err) => anyhow::bail!("failed to quarantine email: {err:?}"),
                 }?;
 
-                log::warn!("postq skipped due to quarantine.");
+                log::warn!("postq & delivery skipped due to quarantine.");
                 conn.send_code(SMTPReplyCode::Code250).await?;
                 return Ok(());
             }
