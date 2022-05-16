@@ -101,9 +101,9 @@ pub mod re {
     pub use base64;
     pub use libc;
     pub use log;
-    pub use rsasl;
     pub use serde_json;
     pub use strum;
+    pub use vsmtp_rsasl;
 }
 
 #[doc(hidden)]

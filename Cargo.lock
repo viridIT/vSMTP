@@ -590,7 +590,7 @@ checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 [[package]]
 name = "gsasl-sys"
 version = "0.2.4"
-source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#9da27213ed1560fe3927bc19f892ae80fc1c10c3"
+source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#bb88e88896f1e804f446d074b102ae1075480775"
 dependencies = [
  "bindgen",
 ]
@@ -738,9 +738,9 @@ checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 
 [[package]]
 name = "itoa"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aab8fc367588b89dcee83ab0fd66b72b50b72fa1904d7095045ace2b0c81c35"
+checksum = "112c678d4050afce233f4f2852bb2eb519230b3cf12f33585275537d7e41578d"
 
 [[package]]
 name = "js-sys"
@@ -1039,9 +1039,9 @@ dependencies = [
 
 [[package]]
 name = "os_str_bytes"
-version = "6.0.0"
+version = "6.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
+checksum = "029d8d0b2f198229de29dca79676f2738ff952edf3fde542eb8bf94d8c21b435"
 
 [[package]]
 name = "output_vt100"
@@ -1186,9 +1186,9 @@ dependencies = [
 
 [[package]]
 name = "psl"
-version = "2.0.87"
+version = "2.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "676a055de12d26776790188a69ec2969f9272f85e00ab0555df81f74db867434"
+checksum = "027244bd67547f5897fa12d991182bf3af92fcfd55860410fbb5ccbebd80b579"
 dependencies = [
  "psl-types",
 ]
@@ -1252,9 +1252,9 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.5.2"
+version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd249e82c21598a9a426a4e00dd7adc1d640b22445ec8545feef801d1a74c221"
+checksum = "bd99e5772ead8baa5215278c9b15bf92087709e9c1b2d1f97cdb5a183c933a7d"
 dependencies = [
  "autocfg",
  "crossbeam-deque",
@@ -1264,9 +1264,9 @@ dependencies = [
 
 [[package]]
 name = "rayon-core"
-version = "1.9.2"
+version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f51245e1e62e1f1629cbfec37b5793bbabcaeb90f30e94d2ba03564687353e4"
+checksum = "258bcdb5ac6dad48491bb2992db6b7cf74878b0384908af124823d118c99683f"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
@@ -1356,16 +1356,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsasl"
-version = "1.4.2"
-source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#9da27213ed1560fe3927bc19f892ae80fc1c10c3"
-dependencies = [
- "discard",
- "gsasl-sys",
- "libc",
-]
-
-[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1382,9 +1372,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.20.4"
+version = "0.20.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fbfeb8d0ddb84706bc597a5574ab8912817c52a397f819e5b614e2265206921"
+checksum = "a024a432ae760ab3bff924ad91ce1cfa52cb57ed16e1ef32d0d249cfee1a6c13"
 dependencies = [
  "log",
  "ring",
@@ -1418,9 +1408,9 @@ checksum = "f2cc38e8fa666e2de3c4aba7edeb5ffc5246c1c2ed0e3d17e560aeeba736b23f"
 
 [[package]]
 name = "ryu"
-version = "1.0.9"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73b4b750c782965c211b42f022f59af1fbceabdd026623714f104152f1ec149f"
+checksum = "f3f6f92acf49d1b98f7a81226834412ada05458b7364277387724a237f062695"
 
 [[package]]
 name = "same-file"
@@ -1489,7 +1479,7 @@ version = "1.0.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b7ce2b32a1aed03c558dc61a5cd328f15aff2dbc17daad8fb8af04d2100e15c"
 dependencies = [
- "itoa 1.0.1",
+ "itoa 1.0.2",
  "ryu",
  "serde",
 ]
@@ -1534,12 +1524,12 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.4.5"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca642ba17f8b2995138b1d7711829c92e98c0a25ea019de790f4f09279c4e296"
+checksum = "66d72b759436ae32898a2af0a14218dbf55efde3feeb170eb623637db85ee1e0"
 dependencies = [
  "libc",
- "windows-sys",
+ "winapi",
 ]
 
 [[package]]
@@ -1590,9 +1580,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.92"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ff7c592601f11445996a06f8ad0c27f094a58857c2f89e97974ab9235b92c52"
+checksum = "a07e33e919ebcd69113d5be0e4d70c5707004ff45188910106854f38b960df4a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1670,7 +1660,7 @@ version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2702e08a7a860f005826c6815dcac101b19b5eb330c27fe4a5928fec1d20ddd"
 dependencies = [
- "itoa 1.0.1",
+ "itoa 1.0.2",
  "libc",
  "num_threads",
  "time-macros",
@@ -1919,7 +1909,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "clap 3.1.18",
  "diff",
@@ -1930,19 +1920,19 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "addr",
  "anyhow",
  "base64",
  "libc",
  "log",
- "rsasl",
  "serde",
  "serde_derive",
  "serde_json",
  "strum",
  "users",
+ "vsmtp-rsasl",
 ]
 
 [[package]]
@@ -1988,6 +1978,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vsmtp-rsasl"
+version = "1.5.0"
+source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#bb88e88896f1e804f446d074b102ae1075480775"
+dependencies = [
+ "discard",
+ "gsasl-sys",
+ "libc",
+]
+
+[[package]]
 name = "vsmtp-rule-engine"
 version = "1.0.0"
 dependencies = [
@@ -2008,7 +2008,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "async-trait",
  "criterion",
@@ -2029,7 +2029,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "async-trait",
  "lettre",

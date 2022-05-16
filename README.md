@@ -41,7 +41,7 @@
       alt="dependency status" />
   </a>
   <a href="https://www.whatrustisit.com">
-    <img src="https://img.shields.io/badge/rustc-1.58%2B-informational.svg"
+    <img src="https://img.shields.io/badge/rustc-1.58%2B-informational.svg?logo=rust"
       alt="Rustc Version 1.58.0" />
   </a>
 </div>
@@ -72,6 +72,7 @@ Follow us on [viridit.com](https://viridit.com)
 
 vSMTP enable you to create complex set of rules to filter your emails using the vsl programming language based on [Rhai](https://github.com/rhaiscript/rhai).
 You can:
+
 - inspect / modify the content of incoming emails.
 - forward and deliver emails locally or remotely.
 - connect to databases.
@@ -138,7 +139,6 @@ import "database" as db;
   ]
 }
 ```
-
 
 ## Documentation
 

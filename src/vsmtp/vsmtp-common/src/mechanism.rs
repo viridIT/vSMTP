@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn supported() {
-        let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+        let mut rsasl = vsmtp_rsasl::SASL::new_untyped().unwrap();
 
         let mut supported_by_backend = std::collections::HashMap::new();
         for m in rsasl.server_mech_list().unwrap().iter() {

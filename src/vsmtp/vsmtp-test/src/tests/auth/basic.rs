@@ -21,7 +21,7 @@ use crate::{
 use vsmtp_common::{
     addr,
     mail_context::MailContext,
-    re::{anyhow, base64, rsasl},
+    re::{anyhow, base64, vsmtp_rsasl},
 };
 use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
@@ -32,7 +32,7 @@ async fn plain_in_clair_secured() {
     let config = safe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
         },
@@ -79,7 +79,7 @@ async fn plain_in_clair_unsecured() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
@@ -138,7 +138,7 @@ async fn plain_in_clair_unsecured_utf8() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
@@ -177,7 +177,7 @@ async fn plain_in_clair_invalid_credentials() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
@@ -212,7 +212,7 @@ async fn plain_in_clair_unsecured_cancel() {
 
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
@@ -254,7 +254,7 @@ async fn plain_in_clair_unsecured_bad_base64() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
@@ -304,7 +304,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl
@@ -376,7 +376,7 @@ async fn client_must_not_start() {
     let config = unsafe_auth_config();
     assert!(test_receiver! {
         with_auth => {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
             rsasl

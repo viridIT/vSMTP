@@ -11,12 +11,13 @@ authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
-
-publish = false
+readme = "../../../README.md"
+keywords = ["vsmtp"]
+categories = ["network-programming"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common" }
-vsmtp-config = { path = "../vsmtp-config" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
+vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
 
 async-trait = "0.1.53"
 

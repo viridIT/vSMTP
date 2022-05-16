@@ -17,7 +17,7 @@
 use super::unsafe_auth_config;
 use vsmtp_common::{
     auth::Mechanism,
-    re::{anyhow, base64, rsasl, strum},
+    re::{anyhow, base64, strum, vsmtp_rsasl},
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -73,11 +73,11 @@ async fn test_auth(
                 .unwrap(),
         );
 
-        let mut rsasl = rsasl::SASL::new_untyped().unwrap();
+        let mut rsasl = vsmtp_rsasl::SASL::new_untyped().unwrap();
         let mut session = rsasl.client_start(mech.to_string().as_str()).unwrap();
 
-        session.set_property(rsasl::Property::GSASL_AUTHID, username.as_bytes());
-        session.set_property(rsasl::Property::GSASL_PASSWORD, password.as_bytes());
+        session.set_property(vsmtp_rsasl::Property::GSASL_AUTHID, username.as_bytes());
+        session.set_property(vsmtp_rsasl::Property::GSASL_PASSWORD, password.as_bytes());
 
         let greetings = stream.next_line(None).await.unwrap().unwrap();
         tokio::io::AsyncWriteExt::write_all(&mut stream.inner, b"EHLO client.com\r\n")
@@ -115,8 +115,8 @@ async fn test_auth(
 
             let res = session.step(&line).unwrap();
             let (buffer, done) = match res {
-                rsasl::Step::Done(buffer) => (buffer, true),
-                rsasl::Step::NeedsMore(buffer) => (buffer, false),
+                vsmtp_rsasl::Step::Done(buffer) => (buffer, true),
+                vsmtp_rsasl::Step::NeedsMore(buffer) => (buffer, false),
             };
             tokio::io::AsyncWriteExt::write_all(
                 &mut stream.inner,
@@ -165,7 +165,7 @@ async fn plain() {
         20015,
         Mechanism::Plain,
         {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(config));
             std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
@@ -193,7 +193,7 @@ async fn login() {
         20016,
         Mechanism::Login,
         {
-            let mut rsasl = rsasl::SASL::new().unwrap();
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
             rsasl.install_callback::<auth::Callback>();
             rsasl.store(Box::new(config));
             std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))
@@ -208,7 +208,7 @@ async fn login() {
 async fn all_supported_by_rsasl() {
     let config = std::sync::Arc::new(unsafe_auth_config());
 
-    let mut rsasl = rsasl::SASL::new().unwrap();
+    let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
     rsasl.install_callback::<auth::Callback>();
     rsasl.store(Box::new(config.clone()));
 

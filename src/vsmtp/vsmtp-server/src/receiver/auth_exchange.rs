@@ -24,7 +24,7 @@ use vsmtp_common::{
     auth::Mechanism,
     code::SMTPReplyCode,
     mail_context::ConnectionContext,
-    re::{anyhow, base64, log, rsasl},
+    re::{anyhow, base64, log, vsmtp_rsasl},
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
@@ -46,7 +46,7 @@ pub enum AuthExchangeError {
 
 async fn auth_step<S>(
     conn: &mut Connection<S>,
-    session: &mut rsasl::DiscardOnDrop<Session>,
+    session: &mut vsmtp_rsasl::DiscardOnDrop<Session>,
     buffer: &[u8],
 ) -> Result<bool, AuthExchangeError>
 where
@@ -59,7 +59,7 @@ where
     let bytes64decoded = base64::decode(buffer).map_err(|_| AuthExchangeError::InvalidBase64)?;
 
     match session.step(&bytes64decoded) {
-        Ok(rsasl::Step::Done(buffer)) => {
+        Ok(vsmtp_rsasl::Step::Done(buffer)) => {
             if !buffer.is_empty() {
                 // TODO: send buffer ?
                 println!(
@@ -73,7 +73,7 @@ where
                 .map_err(AuthExchangeError::Other)?;
             Ok(true)
         }
-        Ok(rsasl::Step::NeedsMore(buffer)) => {
+        Ok(vsmtp_rsasl::Step::NeedsMore(buffer)) => {
             let reply = format!(
                 "334 {}\r\n",
                 base64::encode(std::str::from_utf8(&*buffer).unwrap())
@@ -82,7 +82,7 @@ where
             conn.send(&reply).await.map_err(AuthExchangeError::Other)?;
             Ok(false)
         }
-        Err(e) if e.matches(rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
+        Err(e) if e.matches(vsmtp_rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
             Err(AuthExchangeError::Failed)
         }
         Err(e) => Err(AuthExchangeError::Other(anyhow::anyhow!("{}", e))),

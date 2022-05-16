@@ -16,7 +16,7 @@
 */
 use super::{TEST_SERVER_CERT, TEST_SERVER_KEY};
 use crate::tests::tls::test_tls_tunneled;
-use vsmtp_common::re::{base64, rsasl};
+use vsmtp_common::re::{base64, vsmtp_rsasl};
 use vsmtp_config::{get_rustls_config, Config};
 use vsmtp_server::{auth, re::tokio};
 
@@ -95,7 +95,7 @@ async fn simple() {
         },
         |config| {
             Some({
-                let mut rsasl = rsasl::SASL::new().unwrap();
+                let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
                 rsasl.install_callback::<auth::Callback>();
                 rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
                 std::sync::Arc::new(tokio::sync::Mutex::new(rsasl))

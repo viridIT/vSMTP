@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-server"
-version = "1.0.0"
+version = "1.0.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
@@ -11,15 +11,16 @@ authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
-
-publish = false
+readme = "../../../README.md"
+keywords = ["vsmtp"]
+categories = ["network-programming"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common" }
-vsmtp-config = { path = "../vsmtp-config" }
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
-vsmtp-delivery = { path = "../vsmtp-delivery" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.0.1" }
+vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.0.0-rc.1" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.0.0-rc.1" }
+vsmtp-delivery = { path = "../vsmtp-delivery", version = "1.0.0-rc.1" }
 
 async-trait = "0.1.53"
 fastrand = "1.7.0"
