@@ -109,7 +109,7 @@ impl Mail {
         }
     }
 
-    /// change one recipients value from @old to @new
+    /// change one recipients value from @old to @new.
     pub fn rewrite_rcpt(&mut self, old: &str, new: &str) {
         if let Some((_, rcpts)) = self.headers.iter_mut().find(|(header, _)| header == "to") {
             *rcpts = rcpts.replace(old, new);

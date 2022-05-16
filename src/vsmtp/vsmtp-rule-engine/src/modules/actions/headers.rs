@@ -113,7 +113,47 @@ pub mod headers {
             }
     }
 
-    /// change a recipient of the mail
+    /// change a recipient of the 'To' header.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn rewrite_to(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        old_addr: &str,
+        new_addr: &str,
+    ) -> EngineResult<()> {
+        let old_addr =
+            Address::try_from(old_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
+                format!(
+                    "could not rewrite address '{}' because it is not valid address",
+                    old_addr,
+                )
+                .into()
+            })?;
+
+        let new_addr =
+            Address::try_from(new_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
+                format!(
+                    "could not rewrite address '{}' with '{}' because it is not valid address",
+                    old_addr, new_addr,
+                )
+                .into()
+            })?;
+
+        match &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+        {
+            Body::Empty | Body::Raw(_) => {
+                Err("failed to rewrite rcpt: the email has not been parsed yet.".into())
+            }
+            Body::Parsed(body) => {
+                body.rewrite_rcpt(old_addr.full(), new_addr.full());
+                Ok(())
+            }
+        }
+    }
+
+    /// change a recipient of the envelop.
     #[rhai_fn(global, return_raw, pure)]
     pub fn rewrite_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -142,9 +182,10 @@ pub mod headers {
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        if let Body::Empty | Body::Raw(_) = &email.body {
-            return Err("failed to rewrite rcpt: the email has not been received or parsed yet. Use this method in postq or later.".into());
-        }
+        email
+            .envelop
+            .rcpt
+            .push(vsmtp_common::rcpt::Rcpt::new(new_addr));
 
         if let Some(index) = email
             .envelop
@@ -152,29 +193,40 @@ pub mod headers {
             .iter()
             .position(|rcpt| rcpt.address == old_addr)
         {
-            email
-                .envelop
-                .rcpt
-                .push(vsmtp_common::rcpt::Rcpt::new(new_addr.clone()));
             email.envelop.rcpt.swap_remove(index);
+        }
+        Ok(())
+    }
 
-            match &mut email.body {
-                Body::Parsed(body) => {
-                    body.rewrite_rcpt(old_addr.full(), new_addr.full());
-                    Ok(())
-                }
-                _ => unreachable!(),
-            }
-        } else {
-            Err(format!(
-                "could not rewrite address '{}' because it does not resides in rcpt.",
-                old_addr
+    /// add a recipient to the 'To' mail header.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn add_to(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        new_addr: &str,
+    ) -> EngineResult<()> {
+        let new_addr = Address::try_from(new_addr.to_string()).map_err(|_| {
+            format!(
+                "'{}' could not be converted to a valid rcpt address",
+                new_addr
             )
-            .into())
+        })?;
+
+        match &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+        {
+            Body::Empty | Body::Raw(_) => {
+                Err("failed to remove rcpt: the email has not been parsed yet.".into())
+            }
+            Body::Parsed(body) => {
+                body.add_rcpt(new_addr.full());
+                Ok(())
+            }
         }
     }
 
-    /// add a recipient to the mail
+    /// add a recipient to the envelop.
     #[rhai_fn(global, return_raw, pure)]
     pub fn add_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -187,26 +239,40 @@ pub mod headers {
             )
         })?;
 
-        let email = &mut this
-            .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
-
-        email
+        this.write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
             .rcpt
-            .push(vsmtp_common::rcpt::Rcpt::new(new_addr.clone()));
+            .push(vsmtp_common::rcpt::Rcpt::new(new_addr));
 
-        match &mut email.body {
-                Body::Empty => Err("failed to rewrite rcpt: the email has not been received yet. Use this method in postq or later.".into()),
-                Body::Raw(_) => Err("failed to rewrite rcpt: the email has not been parsed yet. Use this method in postq or later.".into()),
-                Body::Parsed(body) => {
-                    body.add_rcpt(new_addr.full());
-                    Ok(())
-                },
-            }
+        Ok(())
     }
 
-    /// remove a recipient to the mail
+    /// remove a recipient from the mail 'To' header.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn remove_to(
+        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
+        addr: &str,
+    ) -> EngineResult<()> {
+        let addr = Address::try_from(addr.to_string())
+            .map_err(|_| format!("{} could not be converted to a valid rcpt address", addr))?;
+
+        match &mut this
+            .write()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+        {
+            Body::Parsed(body) => {
+                body.remove_rcpt(addr.full());
+                Ok(())
+            }
+            Body::Empty | Body::Raw(_) => {
+                Err("failed to remove rcpt: the email has not been parsed yet.".into())
+            }
+        }
+    }
+
+    /// remove a recipient from the envelop.
     #[rhai_fn(global, return_raw, pure)]
     pub fn remove_rcpt(
         this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
@@ -219,10 +285,6 @@ pub mod headers {
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        if let Body::Empty | Body::Raw(_) = &email.body {
-            return Err("failed to remove rcpt: the email has not been received or parsed yet. Use this method in postq or later.".into());
-        }
-
         if let Some(index) = email
             .envelop
             .rcpt
@@ -230,14 +292,10 @@ pub mod headers {
             .position(|rcpt| rcpt.address == addr)
         {
             email.envelop.rcpt.remove(index);
-            match &mut email.body {
-                Body::Parsed(body) => body.remove_rcpt(addr.full()),
-                _ => unreachable!(),
-            };
             Ok(())
         } else {
             Err(format!(
-                "could not remove address '{}' because it does not resides in rcpt.",
+                "could not remove address '{}' because it does not resides in the envelop.",
                 addr
             )
             .into())
