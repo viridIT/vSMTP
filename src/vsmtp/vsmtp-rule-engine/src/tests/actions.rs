@@ -188,20 +188,8 @@ fn test_quarantine() {
     }));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
-        Status::Deny(None)
+        Status::Quarantine("tests/generated/quarantine2".to_string())
     );
-
-    assert_eq!(
-        std::fs::read_to_string("./tmp/app/tests/generated/quarantine2/test_message_id.json")
-            .expect("could not read 'test_message_id'"),
-        serde_json::to_string_pretty(&*state.context().read().unwrap())
-            .expect("couldn't convert context into string")
-    );
-
-    std::fs::remove_file("./tmp/app/tests/generated/quarantine1/test_message_id.json")
-        .expect("could not remove generated test file");
-    std::fs::remove_file("./tmp/app/tests/generated/quarantine2/test_message_id.json")
-        .expect("could not remove generated test file");
 }
 
 #[test]

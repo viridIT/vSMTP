@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{mail_context::MailContext, re::anyhow};
+use vsmtp_common::mail_context::MailContext;
 
 pub mod bcc;
 pub mod headers;
@@ -25,29 +25,10 @@ pub mod transports;
 pub mod utils;
 pub mod write;
 
-/// create a folder at `[app.dirpath]` if needed, or just create the app folder.
-fn create_app_folder(
-    config: &vsmtp_config::Config,
-    path: Option<&str>,
-) -> anyhow::Result<std::path::PathBuf> {
-    let path = path.map_or_else(
-        || config.app.dirpath.clone(),
-        |path| config.app.dirpath.join(path),
-    );
-
-    if !path.exists() {
-        std::fs::create_dir_all(&path)?;
-    }
-
-    Ok(path)
-}
-
 #[cfg(test)]
 mod test {
 
-    use super::create_app_folder;
     use vsmtp_common::mail_context::{ConnectionContext, MailContext};
-    use vsmtp_config::Config;
 
     pub fn get_default_context() -> MailContext {
         MailContext {
@@ -69,28 +50,5 @@ mod test {
                 ..vsmtp_common::mail_context::MessageMetadata::default()
             }),
         }
-    }
-
-    #[test]
-    fn test_create_app_folder() {
-        let mut config = Config::default();
-        config.app.dirpath = "./tests/generated".into();
-
-        let app_folder = create_app_folder(&config, None).unwrap();
-        let nested_folder = create_app_folder(&config, Some("folder")).unwrap();
-        let deep_folder = create_app_folder(&config, Some("deep/folder")).unwrap();
-
-        assert_eq!(app_folder, config.app.dirpath);
-        assert!(app_folder.exists());
-        assert_eq!(
-            nested_folder,
-            std::path::PathBuf::from_iter([config.app.dirpath.to_str().unwrap(), "folder"])
-        );
-        assert!(nested_folder.exists());
-        assert_eq!(
-            deep_folder,
-            std::path::PathBuf::from_iter([config.app.dirpath.to_str().unwrap(), "deep", "folder"])
-        );
-        assert!(deep_folder.exists());
     }
 }

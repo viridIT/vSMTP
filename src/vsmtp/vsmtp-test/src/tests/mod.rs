@@ -18,5 +18,6 @@ mod auth;
 mod clair;
 mod custom_codes;
 mod rset;
+mod rules;
 mod tls;
 mod utf8;

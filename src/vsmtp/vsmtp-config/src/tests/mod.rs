@@ -24,3 +24,26 @@ mod root_example {
 }
 
 mod validate;
+
+#[test]
+fn test_create_app_folder() {
+    let mut config = crate::Config::default();
+    config.app.dirpath = "./tests/generated".into();
+
+    let app_folder = crate::create_app_folder(&config, None).unwrap();
+    let nested_folder = crate::create_app_folder(&config, Some("folder")).unwrap();
+    let deep_folder = crate::create_app_folder(&config, Some("deep/folder")).unwrap();
+
+    assert_eq!(app_folder, config.app.dirpath);
+    assert!(app_folder.exists());
+    assert_eq!(
+        nested_folder,
+        std::path::PathBuf::from_iter([config.app.dirpath.to_str().unwrap(), "folder"])
+    );
+    assert!(nested_folder.exists());
+    assert_eq!(
+        deep_folder,
+        std::path::PathBuf::from_iter([config.app.dirpath.to_str().unwrap(), "deep", "folder"])
+    );
+    assert!(deep_folder.exists());
+}

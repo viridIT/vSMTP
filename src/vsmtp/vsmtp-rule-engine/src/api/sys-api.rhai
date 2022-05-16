@@ -9,7 +9,7 @@ fn next() { sys::next() }
 fn deny() { sys::deny() }
 fn deny(code) { sys::deny(code) }
 fn info(code) { sys::info(code) }
-fn quarantine(queue) { sys::quarantine(srv(), ctx(), queue) }
+fn quarantine(queue) { sys::quarantine(ctx(), queue) }
 
 /// Header handling (headers.rs)
 fn has_header(header) { sys::has_header(ctx(), header) }

@@ -135,3 +135,23 @@ impl Config {
             .map_err(anyhow::Error::new)?
     }
 }
+
+/// create a folder at `[app.dirpath]` if needed, or just create the app folder.
+///
+/// # Errors
+/// * failed to create the app directory.
+pub fn create_app_folder(
+    config: &Config,
+    path: Option<&str>,
+) -> anyhow::Result<std::path::PathBuf> {
+    let path = path.map_or_else(
+        || config.app.dirpath.clone(),
+        |path| config.app.dirpath.join(path),
+    );
+
+    if !path.exists() {
+        std::fs::create_dir_all(&path)?;
+    }
+
+    Ok(path)
+}
