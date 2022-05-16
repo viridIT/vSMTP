@@ -22,8 +22,9 @@ use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
     re::{anyhow, log},
+    status::Status,
 };
-use vsmtp_config::re::rustls;
+use vsmtp_config::{create_app_folder, re::rustls};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod auth_exchange;
@@ -48,7 +49,9 @@ pub trait OnMail {
 
 /// default mail handler for production.
 pub struct MailHandler {
+    /// message pipe to the working process.
     pub working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    /// message pipe to the delivery process.
     pub delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
 
@@ -65,6 +68,26 @@ impl OnMail for MailHandler {
         let metadata = mail.metadata.as_ref().unwrap();
 
         let next_queue = match &metadata.skipped {
+            Some(Status::Quarantine(path)) => {
+                let mut path = create_app_folder(&conn.config, Some(path))?;
+                path.push(format!("{}.json", metadata.message_id));
+
+                match std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                {
+                    Ok(mut file) => std::io::Write::write_all(
+                        &mut file,
+                        vsmtp_common::re::serde_json::to_string_pretty(&*mail)?.as_bytes(),
+                    ),
+                    Err(err) => anyhow::bail!("failed to quarantine email: {err:?}"),
+                }?;
+
+                log::warn!("postq & delivery skipped due to quarantine.");
+                conn.send_code(SMTPReplyCode::Code250).await?;
+                return Ok(());
+            }
             Some(reason) => {
                 log::warn!("postq skipped due to '{}'.", reason);
                 Queue::Deliver

@@ -1,0 +1,11 @@
+#{
+    mail: [
+        rule "quarantine john" || {
+            if ctx().mail_from.local_part == "john.doe" {
+                quarantine("john")
+            } else {
+                accept()
+            }
+        }
+    ]
+}

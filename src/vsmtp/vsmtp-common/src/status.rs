@@ -69,6 +69,10 @@ pub enum Status {
 
     /// ignore all future rules for the current transaction.
     Faccept,
+
+    /// ignore all future rules for the current transaction.
+    /// the String parameter is the path to the quarantine folder.
+    Quarantine(String),
 }
 
 impl std::fmt::Display for Status {
@@ -77,11 +81,12 @@ impl std::fmt::Display for Status {
             f,
             "{}",
             match self {
+                Status::Info(_) => "info",
                 Status::Accept => "accept",
                 Status::Next => "next",
                 Status::Deny(_) => "deny",
                 Status::Faccept => "faccept",
-                Status::Info(_) => "info",
+                Status::Quarantine(_) => "quarantine",
             }
         )
     }
@@ -96,12 +101,13 @@ mod test {
     #[test]
     fn display_status() {
         println!(
-            "{}, {}, {}, {}, {}",
+            "{}, {}, {}, {}, {}, {}",
+            Status::Info(InfoPacket::Str(String::default())),
             Status::Accept,
             Status::Next,
             Status::Deny(None),
             Status::Faccept,
-            Status::Info(InfoPacket::Str(String::default()))
+            Status::Quarantine(String::default()),
         );
     }
 

@@ -17,6 +17,7 @@
         "ehlo",
         "ENHANCEDSTATUSCODES",
         "Expn",
+        "faccept",
         "Faccept",
         "fastrand",
         "flamegraph",

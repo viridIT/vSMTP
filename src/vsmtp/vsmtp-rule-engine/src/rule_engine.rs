@@ -164,7 +164,7 @@ impl RuleEngine {
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
             match self.execute_directives(rule_state.engine(), &directive_set[..], smtp_state) {
                 Ok(status) => {
-                    if let Status::Faccept | Status::Deny(_) = status {
+                    if let Status::Faccept | Status::Deny(_) | Status::Quarantine(_) = status {
                         log::debug!(
                         target: log_channels::RE,
                         "[{}] the rule engine will skip all rules because of the previous result.",

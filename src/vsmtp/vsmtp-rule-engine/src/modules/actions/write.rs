@@ -23,11 +23,11 @@ use rhai::plugin::{
 pub mod write {
 
     use crate::{
-        modules::actions::create_app_folder, modules::actions::MailContext,
-        modules::mail_context::mail_context::message_id, modules::EngineResult,
-        server_api::ServerAPI,
+        modules::actions::MailContext, modules::mail_context::mail_context::message_id,
+        modules::EngineResult, server_api::ServerAPI,
     };
     use vsmtp_common::mail_context::Body;
+    use vsmtp_config::create_app_folder;
 
     /// write the current email to a specified folder.
     #[rhai_fn(global, return_raw, pure)]
