@@ -1,3 +1,4 @@
+use crate::dsl::object::Object;
 use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
@@ -129,7 +130,9 @@ impl RuleState {
                 crate::dsl::object::parsing::parse_object,
                 true,
                 crate::dsl::object::parsing::create_object,
-            );
+            )
+            .register_iterator::<Vec<vsmtp_common::Address>>()
+            .register_iterator::<Vec<std::sync::Arc<Object>>>();
 
         engine
     }
