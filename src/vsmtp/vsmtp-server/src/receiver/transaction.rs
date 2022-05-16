@@ -281,13 +281,12 @@ impl Transaction {
                 let state = self.rule_state.context();
                 let mut ctx = state.write().unwrap();
 
-                // TODO: find a better way to propagate force accept.
-                // the "skipped" field is updated by the rule engine internal state,
-                // which does result in hard to read code, but it was the fastest way
-                // to propagate the force accept to the server.
-                // Alternatives:
-                //  - return ProcessedEvent::CompletedMimeSkipped
-                //  - set body to Body::ParsingFailed or Body::ParsingSkipped.
+                // NOTE: the "skipped" field is updated by the rule engine internal state,
+                //       which does result in hard to read code, but it was the fastest way
+                //       to propagate the force accept to the server.
+                //       Alternatives:
+                //        - return ProcessedEvent::CompletedMimeSkipped
+                //        - set body to Body::ParsingFailed or Body::ParsingSkipped.
                 if let Some(metadata) = &mut ctx.metadata {
                     metadata.skipped = self.rule_state.skipped().cloned();
                 }
