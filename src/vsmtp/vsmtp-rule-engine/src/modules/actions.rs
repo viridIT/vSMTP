@@ -18,6 +18,7 @@ pub mod bcc;
 pub mod headers;
 pub mod logging;
 pub mod rule_state;
+pub mod security;
 pub mod services;
 pub mod transports;
 pub mod utils;

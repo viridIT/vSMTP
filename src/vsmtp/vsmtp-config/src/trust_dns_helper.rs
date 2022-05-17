@@ -17,6 +17,9 @@
 use crate::{Config, ConfigServerDNS, ResolverOptsWrapper};
 use trust_dns_resolver::{config::ResolverConfig, error::ResolveError, TokioAsyncResolver};
 
+/// dns resolvers filtered by domain. (root & sni)
+pub type Resolvers = std::collections::HashMap<String, TokioAsyncResolver>;
+
 /// construct a [trust-dns] `ResolverOpts` struct from our wrapper.
 ///
 /// # Notes
@@ -39,13 +42,11 @@ pub fn resolver_opts_from_config(
     opts
 }
 
-/// build the default resolver from the dns config, and multiple resolvers
+/// build the default resolver from the dns config, and one resolver
 /// for each virtual domains.
 ///
 /// # Errors
-pub fn build_resolvers(
-    config: &Config,
-) -> Result<std::collections::HashMap<String, TokioAsyncResolver>, ResolveError> {
+pub fn build_resolvers(config: &Config) -> Result<Resolvers, ResolveError> {
     let mut resolvers = std::collections::HashMap::<String, TokioAsyncResolver>::with_capacity(
         config.server.r#virtual.len() + 1,
     );

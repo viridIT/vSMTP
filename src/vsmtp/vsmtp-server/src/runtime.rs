@@ -104,13 +104,22 @@ pub fn start_runtime(
         &config.app.vsl.filepath.clone(),
     )?));
 
+    let resolvers = std::sync::Arc::new(
+        vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
+    );
+
     let config_arc = std::sync::Arc::new(config);
 
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
         "vsmtp-delivery",
         config_arc.server.system.thread_pool.delivery,
-        delivery::start(config_arc.clone(), rule_engine.clone(), delivery_channel.1),
+        delivery::start(
+            config_arc.clone(),
+            rule_engine.clone(),
+            resolvers.clone(),
+            delivery_channel.1,
+        ),
         timeout,
     )?;
 
@@ -121,6 +130,7 @@ pub fn start_runtime(
         postq::start(
             config_arc.clone(),
             rule_engine.clone(),
+            resolvers.clone(),
             working_channel.1,
             delivery_channel.0.clone(),
         ),
@@ -136,6 +146,7 @@ pub fn start_runtime(
                 config_arc.clone(),
                 sockets,
                 rule_engine.clone(),
+                resolvers.clone(),
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),
             )?

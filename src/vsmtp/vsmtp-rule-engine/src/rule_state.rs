@@ -5,7 +5,7 @@ use super::server_api::ServerAPI;
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, ConnectionContext, MailContext};
 use vsmtp_common::status::Status;
-use vsmtp_config::Config;
+use vsmtp_config::{Config, Resolvers};
 
 /// a state container that bridges rhai's & rust contexts.
 pub struct RuleState {
@@ -23,9 +23,14 @@ pub struct RuleState {
 impl RuleState {
     /// creates a new rule engine with an empty scope.
     #[must_use]
-    pub fn new(config: &Config, rule_engine: &RuleEngine) -> Self {
+    pub fn new(
+        config: &Config,
+        resolvers: std::sync::Arc<Resolvers>,
+        rule_engine: &RuleEngine,
+    ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
+            resolvers,
         });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
             connection: ConnectionContext {
@@ -58,10 +63,11 @@ impl RuleState {
     #[allow(clippy::missing_panics_doc)]
     pub fn with_connection(
         config: &Config,
+        resolvers: std::sync::Arc<Resolvers>,
         rule_engine: &RuleEngine,
         conn: ConnectionContext,
     ) -> Self {
-        let state = Self::new(config, rule_engine);
+        let state = Self::new(config, resolvers, rule_engine);
         state.mail_context.write().unwrap().connection = conn;
         state
     }
@@ -70,11 +76,13 @@ impl RuleState {
     #[must_use]
     pub fn with_context(
         config: &Config,
+        resolvers: std::sync::Arc<Resolvers>,
         rule_engine: &RuleEngine,
         mail_context: MailContext,
     ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
+            resolvers,
         });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);

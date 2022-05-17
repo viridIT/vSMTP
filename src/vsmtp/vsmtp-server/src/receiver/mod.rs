@@ -24,7 +24,7 @@ use vsmtp_common::{
     re::{anyhow, log},
     status::Status,
 };
-use vsmtp_config::{create_app_folder, re::rustls};
+use vsmtp_config::{create_app_folder, re::rustls, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod auth_exchange;
@@ -119,10 +119,12 @@ impl OnMail for MailHandler {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_auth<S>(
     conn: &mut Connection<S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
     helo_domain: &mut Option<String>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
@@ -131,7 +133,16 @@ async fn handle_auth<S>(
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
-    match on_authentication(conn, rsasl, rule_engine, mechanism, initial_response).await {
+    match on_authentication(
+        conn,
+        rsasl,
+        rule_engine,
+        resolvers,
+        mechanism,
+        initial_response,
+    )
+    .await
+    {
         Err(auth_exchange::AuthExchangeError::Failed) => {
             conn.send_code(SMTPReplyCode::AuthInvalidCredentials)
                 .await?;
@@ -193,6 +204,7 @@ pub async fn handle_connection<S, M>(
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
     mail_handler: &mut M,
 ) -> anyhow::Result<()>
 where
@@ -201,8 +213,15 @@ where
 {
     if let ConnectionKind::Tunneled = conn.kind {
         if let Some(tls_config) = tls_config {
-            return handle_connection_secured(conn, tls_config, rsasl, rule_engine, mail_handler)
-                .await;
+            return handle_connection_secured(
+                conn,
+                tls_config,
+                rsasl,
+                rule_engine,
+                resolvers,
+                mail_handler,
+            )
+            .await;
         }
         anyhow::bail!("config ill-formed, handling a secured connection without valid config")
     }
@@ -212,7 +231,9 @@ where
     conn.send_code(SMTPReplyCode::Greetings).await?;
 
     while conn.is_alive {
-        match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
+        match Transaction::receive(conn, &helo_domain, rule_engine.clone(), resolvers.clone())
+            .await?
+        {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
                 mail_handler.on_mail(conn, mail, &mut helo_domain).await?;
@@ -224,6 +245,7 @@ where
                         tls_config,
                         rsasl,
                         rule_engine,
+                        resolvers,
                         mail_handler,
                     )
                     .await;
@@ -237,6 +259,7 @@ where
                         conn,
                         rsasl.clone(),
                         rule_engine.clone(),
+                        resolvers.clone(),
                         &mut helo_domain,
                         mechanism,
                         initial_response,
@@ -258,6 +281,7 @@ async fn handle_connection_secured<S, M>(
     tls_config: std::sync::Arc<rustls::ServerConfig>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
     mail_handler: &mut M,
 ) -> anyhow::Result<()>
 where
@@ -300,7 +324,14 @@ where
     let mut helo_domain = None;
 
     while secured_conn.is_alive {
-        match Transaction::receive(&mut secured_conn, &helo_domain, rule_engine.clone()).await? {
+        match Transaction::receive(
+            &mut secured_conn,
+            &helo_domain,
+            rule_engine.clone(),
+            resolvers.clone(),
+        )
+        .await?
+        {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
                 mail_handler
@@ -318,6 +349,7 @@ where
                         &mut secured_conn,
                         rsasl.clone(),
                         rule_engine.clone(),
+                        resolvers.clone(),
                         &mut helo_domain,
                         mechanism,
                         initial_response,

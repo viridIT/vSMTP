@@ -88,9 +88,11 @@ fn test_rule_state() {
         .unwrap();
 
     let rule_engine = RuleEngine::from_script(&config, "#{}").unwrap();
-    let state = RuleState::new(&config, &rule_engine);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let state = RuleState::new(&config, resolvers.clone(), &rule_engine);
     let state_with_context = RuleState::with_context(
         &config,
+        resolvers,
         &rule_engine,
         vsmtp_common::mail_context::MailContext {
             connection: ConnectionContext {

@@ -33,7 +33,7 @@ use vsmtp_common::{
     status::Status,
     transfer::{EmailTransferStatus, Transfer},
 };
-use vsmtp_config::Config;
+use vsmtp_config::{Config, Resolvers};
 use vsmtp_delivery::transport::{deliver as deliver2, forward, maildir, mbox, Transport};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
@@ -53,13 +53,10 @@ mod deliver;
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) -> anyhow::Result<()> {
     log::info!(target: log_channels::DELIVERY, "booting, flushing queue.",);
-
-    let resolvers = std::sync::Arc::new(
-        vsmtp_config::build_resolvers(&config).context("could not initialize dns for delivery")?,
-    );
 
     flush_deliver_queue(&config, &resolvers, &rule_engine).await?;
 

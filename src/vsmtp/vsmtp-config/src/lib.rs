@@ -70,7 +70,7 @@ mod default;
 pub use config::*;
 pub use log4rs_helper::get_log4rs_config;
 pub use rustls_helper::get_rustls_config;
-pub use trust_dns_helper::build_resolvers;
+pub use trust_dns_helper::{build_resolvers, Resolvers};
 
 /// Re-exported dependencies
 pub mod re {
