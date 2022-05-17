@@ -1,3 +1,16 @@
+vmstp (1.0.1) UNRELEASED; urgency=low
+
+  [ Updated by ltabis ]
+  * Rule Engine Enhancements:
+    - Preventing variable shadowing for CTX & SRV constants.
+    - registered display names for complex objects like CTX & SRV
+    - added add_to, remove_to, rewrite_to vsl actions to manipulate the 'To' header from a mail.
+      add_rcpt, remove_rcpt & rewrite_rcpt no longer change the content of the email body, only those in the envelop.
+  * Bug fixes
+    - the quarantine action postpone writing to a quarantine queue when the message body is received.
+
+ -- ltabis <l.tabis@viridit.com>  Tue, 17 May 2022 10:40:31 +0100
+
 vmstp (1.0.0) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
