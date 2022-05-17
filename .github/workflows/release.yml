@@ -1,0 +1,30 @@
+name: Release
+on:
+  push:
+    branches:
+      - "main"
+jobs:
+  check-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      - uses: actions/cache@v1
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            target
+          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: cargo install cargo-release
+      - uses: actions-rs/cargo@v1
+        with:
+          command: release rc --workspace

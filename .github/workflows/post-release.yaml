@@ -1,0 +1,92 @@
+## Fom https://github.com/crate-ci/cargo-release/blob/master/.github/workflows/post-release.yml
+
+name: Post-Release
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  BIN_NAME: vsmtp
+
+jobs:
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      release_version: ${{ env.RELEASE_VERSION }}
+    steps:
+      - name: Get the release version from the tag
+        shell: bash
+        if: env.RELEASE_VERSION == ''
+        run: |
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "version is: ${{ env.RELEASE_VERSION }}"
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Generate Release Notes
+        run: |
+          ./.github/release-notes.py --tag ${{ env.RELEASE_VERSION }} --output notes-${{ env.RELEASE_VERSION }}.md
+          cat notes-${{ env.RELEASE_VERSION }}.md
+      - name: Create GitHub release
+        id: release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.RELEASE_VERSION }}
+          release_name: ${{ env.RELEASE_VERSION }}
+          body_path: notes-${{ env.RELEASE_VERSION }}.md
+  build-release:
+    name: build-release
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [linux]
+        include:
+          - build: linux
+            os: ubuntu-18.04
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Install packages (Ubuntu)
+        if: matrix.os == 'ubuntu-18.04'
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+      - name: Build release binary
+        run: cargo build --target ${{ matrix.target }} --verbose --release
+      - name: Build archive
+        shell: bash
+        run: |
+          outdir="./target/${{ env.TARGET_DIR }}/release"
+          staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
+          mkdir -p "$staging"/{complete,doc}
+          cp {README.md,LICENSE-*} "$staging/"
+          cp {CHANGELOG.md,docs/*} "$staging/doc/"
+          cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
+          tar czf "$staging.tar.gz" -C "$staging" .
+          echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+      - name: Upload release archive
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
