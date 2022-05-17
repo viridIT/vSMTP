@@ -17,7 +17,7 @@
 use rhai::{
     plugin::{
         mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-        PluginFunction, RhaiResult, TypeId,
+        PluginFunction, Position, RhaiResult, TypeId,
     },
     EvalAltResult,
 };
@@ -29,8 +29,32 @@ pub mod security {
         EngineResult,
     };
 
+    #[derive(Default, Clone)]
+    pub struct SpfResult {
+        pub result: String,
+        pub cause: String,
+    }
+
+    impl SpfResult {
+        /// create a instance from viaspf query result struct.
+        pub fn from_query_result(q_result: viaspf::QueryResult) -> Self {
+            Self {
+                result: q_result.spf_result.to_string(),
+                cause: q_result
+                    .cause
+                    .map_or("default".to_string(), |cause| match cause {
+                        viaspf::SpfResultCause::Match(mechanism) => mechanism.to_string(),
+                        viaspf::SpfResultCause::Error(error) => error.to_string(),
+                    }),
+            }
+        }
+    }
+
+    /// evaluate a sender identity.
+    /// the identity parameter can ether be 'mail_from' or 'helo'.
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw, pure)]
-    pub fn check_spf(ctx: &mut Context, srv: Server, identity: &str) -> EngineResult<()> {
+    pub fn check_spf(ctx: &mut Context, srv: Server, identity: &str) -> EngineResult<SpfResult> {
         let (helo, mail_from, ip) = {
             let ctx = &ctx
                 .read()
@@ -48,7 +72,11 @@ pub mod security {
             .resolvers
             .get(mail_from.domain())
             .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                format!("dns configuration for {} not found.", mail_from.domain()).into()
+                format!(
+                    "no dns configuration found for {} while checking spf.",
+                    mail_from.domain()
+                )
+                .into()
             })?;
 
         match identity {
@@ -56,31 +84,29 @@ pub mod security {
                 let sender = viaspf::Sender::new(mail_from.full()).unwrap();
                 let helo_domain = helo.parse().ok();
 
-                let _ = handle.block_on(viaspf::evaluate_sender(
-                    resolver,
-                    &config,
-                    ip,
-                    &sender,
-                    helo_domain.as_ref(),
-                ));
-
-                Ok(())
+                Ok(SpfResult::from_query_result(handle.block_on(
+                    viaspf::evaluate_sender(resolver, &config, ip, &sender, helo_domain.as_ref()),
+                )))
             }
             "helo" => {
                 let sender = viaspf::Sender::from_domain(&helo).unwrap();
                 let helo_domain = sender.domain();
 
-                let _ = handle.block_on(viaspf::evaluate_sender(
-                    resolver,
-                    &config,
-                    ip,
-                    &sender,
-                    Some(helo_domain),
-                ));
-
-                Ok(())
+                Ok(SpfResult::from_query_result(handle.block_on(
+                    viaspf::evaluate_sender(resolver, &config, ip, &sender, Some(helo_domain)),
+                )))
             }
             _ => Err("you can only perform a spf query on mail_from or helo identities".into()),
         }
+    }
+
+    #[rhai_fn(get = "result")]
+    pub fn get_spf_result(spf: &mut SpfResult) -> String {
+        spf.result.clone()
+    }
+
+    #[rhai_fn(get = "cause")]
+    pub fn get_spf_cause(spf: &mut SpfResult) -> String {
+        spf.cause.clone()
     }
 }
