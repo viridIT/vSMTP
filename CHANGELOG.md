@@ -1,5 +1,4 @@
 # Changelog
 
-## [Unreleased] - ReleaseDate
-
 <!-- next-header -->
+## [Unreleased] - ReleaseDate
