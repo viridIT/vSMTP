@@ -14,13 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::modules::types::types::{Context, Server};
 use crate::modules::EngineResult;
-use crate::server_api::ServerAPI;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
     RhaiResult, TypeId,
 };
-use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::Address;
 
 #[doc(hidden)]
@@ -29,9 +28,7 @@ use vsmtp_common::Address;
 pub mod mail_context {
 
     #[rhai_fn(global, get = "client_ip", return_raw, pure)]
-    pub fn client_ip(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<std::net::IpAddr> {
+    pub fn client_ip(this: &mut Context) -> EngineResult<std::net::IpAddr> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -40,9 +37,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "client_port", return_raw, pure)]
-    pub fn client_port(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<i64> {
+    pub fn client_port(this: &mut Context) -> EngineResult<i64> {
         Ok(i64::from(
             this.read()
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -52,9 +47,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
-    pub fn connection_timestamp(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<std::time::SystemTime> {
+    pub fn connection_timestamp(this: &mut Context) -> EngineResult<std::time::SystemTime> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -63,9 +56,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "server_name", return_raw, pure)]
-    pub fn server_name(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<String> {
+    pub fn server_name(this: &mut Context) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -75,9 +66,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "is_secured", return_raw, pure)]
-    pub fn is_secured(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<bool> {
+    pub fn is_secured(this: &mut Context) -> EngineResult<bool> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -86,9 +75,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "is_authenticated", return_raw, pure)]
-    pub fn is_authenticated(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<bool> {
+    pub fn is_authenticated(this: &mut Context) -> EngineResult<bool> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -97,9 +84,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "auth", return_raw, pure)]
-    pub fn auth(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<vsmtp_common::mail_context::AuthCredentials> {
+    pub fn auth(this: &mut Context) -> EngineResult<vsmtp_common::mail_context::AuthCredentials> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -142,7 +127,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "helo", return_raw, pure)]
-    pub fn helo(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<String> {
+    pub fn helo(this: &mut Context) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -152,9 +137,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "mail_from", return_raw, pure)]
-    pub fn mail_from(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<Address> {
+    pub fn mail_from(this: &mut Context) -> EngineResult<Address> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -164,9 +147,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw, pure)]
-    pub fn rcpt(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<Vec<Address>> {
+    pub fn rcpt(this: &mut Context) -> EngineResult<Vec<Address>> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -178,9 +159,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
-    pub fn mail_timestamp(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<std::time::SystemTime> {
+    pub fn mail_timestamp(this: &mut Context) -> EngineResult<std::time::SystemTime> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -193,9 +172,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
-    pub fn message_id(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-    ) -> EngineResult<String> {
+    pub fn message_id(this: &mut Context) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -209,7 +186,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "mail", return_raw, pure)]
-    pub fn mail(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> EngineResult<String> {
+    pub fn mail(this: &mut Context) -> EngineResult<String> {
         Ok(
             match &this
                 .read()
@@ -224,22 +201,22 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, name = "to_string", pure)]
-    pub fn ctx_to_string(_: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> String {
+    pub fn ctx_to_string(_: &mut Context) -> String {
         "MailContext".to_string()
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn ctx_to_debug(this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>) -> String {
+    pub fn ctx_to_debug(this: &mut Context) -> String {
         ctx_to_string(this)
     }
 
     #[rhai_fn(global, name = "to_string", pure)]
-    pub fn srv_to_string(_: &mut std::sync::Arc<ServerAPI>) -> String {
+    pub fn srv_to_string(_: &mut Server) -> String {
         "Server".to_string()
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn srv_to_debug(this: &mut std::sync::Arc<ServerAPI>) -> String {
+    pub fn srv_to_debug(this: &mut Server) -> String {
         srv_to_string(this)
     }
 }

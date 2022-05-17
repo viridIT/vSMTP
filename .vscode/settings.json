@@ -69,6 +69,7 @@
         "tlsa",
         "tokio",
         "unencrypted",
+        "viaspf",
         "viridit",
         "vmta",
         "vqueue",

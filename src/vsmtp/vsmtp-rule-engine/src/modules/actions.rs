@@ -14,8 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::mail_context::MailContext;
-
 pub mod bcc;
 pub mod headers;
 pub mod logging;
