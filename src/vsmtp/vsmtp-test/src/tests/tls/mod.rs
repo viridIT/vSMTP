@@ -103,6 +103,7 @@ async fn test_starttls(
                 )
                 .unwrap(),
             )),
+            std::sync::Arc::new(std::collections::HashMap::new()),
             working_sender,
             delivery_sender,
         )
@@ -233,6 +234,7 @@ async fn test_tls_tunneled(
             std::sync::Arc::new(std::sync::RwLock::new(
                 RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
             )),
+            std::sync::Arc::new(std::collections::HashMap::new()),
             working_sender,
             delivery_sender,
         )
