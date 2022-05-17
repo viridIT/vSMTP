@@ -166,8 +166,6 @@ mod tests {
 
         let now = std::time::SystemTime::now();
 
-        let resolvers = build_resolvers(&config).unwrap();
-
         Queue::Deliver
             .write_to_queue(
                 &config.server.queues.dirpath,
@@ -209,6 +207,8 @@ mod tests {
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
             RuleEngine::from_script(&config, "#{}").unwrap(),
         ));
+
+        let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
 
         handle_one_in_delivery_queue(
             &config,

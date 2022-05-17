@@ -182,7 +182,7 @@ mod tests {
         let config = std::sync::Arc::new(config);
 
         let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
+            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
         );
 
         assert!(handle_one_in_working_queue(
@@ -251,7 +251,7 @@ mod tests {
         let config = std::sync::Arc::new(config);
 
         let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
+            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
         );
 
         handle_one_in_working_queue(
@@ -324,7 +324,7 @@ mod tests {
         let config = std::sync::Arc::new(config);
 
         let resolvers = std::sync::Arc::new(
-            vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
+            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
         );
 
         handle_one_in_working_queue(
