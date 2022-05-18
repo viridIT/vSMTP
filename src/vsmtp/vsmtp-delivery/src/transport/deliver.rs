@@ -103,6 +103,20 @@ impl<'r> Transport for Deliver<'r> {
                 for record in records.by_ref() {
                     let host = record.exchange().to_ascii();
 
+                    // checking for a null mx record.
+                    // see https://datatracker.ietf.org/doc/html/rfc7505
+                    if host == "." {
+                        log::warn!(
+                            target: log_channels::DELIVER,
+                            "(msg={}) trying to delivery to '{query}', but a null mx record was found. '{query}' does not want to receive messages.",
+                            metadata.message_id
+                        );
+
+                        update_rcpt_failed(rcpt, "null record found for this domain");
+
+                        break;
+                    }
+
                     match send_email(config, self.resolver, &host, &envelop, from, content).await {
                         // if a transfer succeeded, we can stop the lookup.
                         Ok(_) => break,
@@ -167,6 +181,12 @@ fn update_rcpt_sent(rcpt: &mut [&mut Rcpt]) {
     }
 }
 
+fn update_rcpt_failed(rcpt: &mut [&mut Rcpt], reason: &str) {
+    for rcpt in rcpt.iter_mut() {
+        rcpt.email_status = EmailTransferStatus::Failed(reason.to_string());
+    }
+}
+
 #[cfg(test)]
 mod test {
 
@@ -174,7 +194,9 @@ mod test {
     use vsmtp_common::{addr, rcpt::Rcpt, transfer::EmailTransferStatus};
     use vsmtp_config::{Config, ConfigServerDNS};
 
-    use crate::transport::deliver::{get_mx_records, send_email, update_rcpt_sent};
+    use crate::transport::deliver::{
+        get_mx_records, send_email, update_rcpt_failed, update_rcpt_sent,
+    };
 
     use super::update_rcpt_held_back;
 
@@ -198,6 +220,12 @@ mod test {
         assert!(rcpt
             .iter()
             .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent)));
+
+        update_rcpt_failed(&mut rcpt[..], "could not send email to this domain");
+
+        assert!(rcpt
+            .iter()
+            .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Failed(_))));
     }
 
     #[tokio::test]
