@@ -14,10 +14,4 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-mod auth;
-mod clair;
-mod examples;
-mod rset;
-mod rules;
-mod tls;
-mod utf8;
+mod doe_family;
