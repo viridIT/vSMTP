@@ -8,6 +8,7 @@
       alt="vSMTP" />
   </a>
 </div>
+
 <div align="center">
   <a href="https://www.viridit.com">
     <img src="https://img.shields.io/badge/visit-website-green"
@@ -18,12 +19,27 @@
       alt="documentation" />
   </a>
   <a href="https://discord.gg/N8JGBRBshf">
-    <img src="https://img.shields.io/badge/join-discord-blue?logo=discord"
+    <img src="https://img.shields.io/badge/join-discord-blue?logo=discord&color=blueviolet"
       alt="discord" />
   </a>
   <a href="https://www.gnu.org/licenses/gpl-3.0">
     <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg"
       alt="License GPLv3" />
+  </a>
+</div>
+
+<div align="center">
+  <a href="https://www.whatrustisit.com">
+    <img src="https://img.shields.io/badge/rustc-1.58%2B-informational.svg?logo=rust"
+      alt="Rustc Version 1.58.0" />
+  </a>
+  <a href="https://crates.io/crates/vsmtp">
+    <img src="https://img.shields.io/crates/v/vsmtp.svg"
+      alt="Crates.io" />
+  </a>
+  <a href="https://docs.rs/vsmtp">
+    <img src="https://docs.rs/vsmtp/badge.svg"
+      alt="docs" />
   </a>
 </div>
 
@@ -40,11 +56,15 @@
     <img src="https://deps.rs/repo/github/viridIT/vSMTP/status.svg"
       alt="dependency status" />
   </a>
-  <a href="https://www.whatrustisit.com">
-    <img src="https://img.shields.io/badge/rustc-1.58%2B-informational.svg?logo=rust"
-      alt="Rustc Version 1.58.0" />
+</div>
+
+<!--
+<div align="center">
+  <a href="https://github.com/viridIT/vSMTP/releases">
+    <img src="https://img.shields.io/github/v/release/viridIT/vSMTP">
   </a>
 </div>
+-->
 
 ---
 

@@ -15,7 +15,7 @@ Depending on versions fixes and user feedbacks, the production version is expect
   - Support for file databases.
 - Shell services.
 - Custom codes.
-- Authentification pipeline.
+- Authentication pipeline.
 - Queues and quarantines management.
 
 ## Planned features and releases
