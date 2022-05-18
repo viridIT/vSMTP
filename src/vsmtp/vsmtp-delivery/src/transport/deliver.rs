@@ -71,53 +71,59 @@ impl<'r> Transport for Deliver<'r> {
                     );
 
                     // could not find any mx records, we just skip all recipient in the group.
-                    for rcpt in rcpt.iter_mut() {
-                        rcpt.email_status = match rcpt.email_status {
-                            EmailTransferStatus::HeldBack(count) => {
-                                EmailTransferStatus::HeldBack(count + 1)
-                            }
-                            _ => EmailTransferStatus::HeldBack(0),
-                        };
-                    }
+                    update_rcpt_held_back(rcpt);
 
                     continue;
                 }
             };
 
-            let mut records = records.iter();
-
-            for record in records.by_ref() {
-                let host = record.exchange().to_ascii();
-
-                match send_email(config, self.resolver, &host, &envelop, from, content).await {
-                    // if a transfer succeeded, we can stop the lookup.
-                    Ok(_) => break,
-                    Err(err) => log::warn!(
-                        target: log_channels::DELIVER,
-                        "(msg={}) failed to send message from '{from}' for '{query}': {err}",
-                        metadata.message_id
-                    ),
-                }
-            }
-
-            if records.next().is_none() {
-                log::error!(
+            if records.is_empty() {
+                log::warn!(
                     target: log_channels::DELIVER,
-                    "(msg={}) no valid mail exchanger found for '{query}', check warnings above.",
+                    "(msg={}) empty set of MX records found for '{query}'",
                     metadata.message_id
                 );
 
-                for rcpt in rcpt.iter_mut() {
-                    rcpt.email_status = match rcpt.email_status {
-                        EmailTransferStatus::HeldBack(count) => {
-                            EmailTransferStatus::HeldBack(count + 1)
-                        }
-                        _ => EmailTransferStatus::HeldBack(0),
-                    };
+                // using directly the AAAA record instead of an mx record.
+                // see https://www.rfc-editor.org/rfc/rfc5321#section-5.1
+                match send_email(config, self.resolver, query, &envelop, from, content).await {
+                    Ok(()) => update_rcpt_sent(rcpt),
+                    Err(err) => {
+                        update_rcpt_held_back(rcpt);
+
+                        log::error!(
+                            target: log_channels::DELIVER,
+                            "(msg={}) failed to send message from '{from}' for '{query}': {err}",
+                            metadata.message_id
+                        );
+                    }
                 }
             } else {
-                for rcpt in rcpt.iter_mut() {
-                    rcpt.email_status = EmailTransferStatus::Sent;
+                let mut records = records.iter();
+                for record in records.by_ref() {
+                    let host = record.exchange().to_ascii();
+
+                    match send_email(config, self.resolver, &host, &envelop, from, content).await {
+                        // if a transfer succeeded, we can stop the lookup.
+                        Ok(_) => break,
+                        Err(err) => log::warn!(
+                            target: log_channels::DELIVER,
+                            "(msg={}) failed to send message from '{from}' for '{query}': {err}",
+                            metadata.message_id
+                        ),
+                    }
+                }
+
+                if records.next().is_none() {
+                    log::error!(
+                        target: log_channels::DELIVER,
+                        "(msg={}) no valid mail exchanger found for '{query}', check warnings above.",
+                        metadata.message_id
+                    );
+
+                    update_rcpt_held_back(rcpt);
+                } else {
+                    update_rcpt_sent(rcpt);
                 }
             }
         }
@@ -146,16 +152,53 @@ async fn send_email(
     Ok(())
 }
 
+fn update_rcpt_held_back(rcpt: &mut [&mut Rcpt]) {
+    for rcpt in rcpt.iter_mut() {
+        rcpt.email_status = match rcpt.email_status {
+            EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count + 1),
+            _ => EmailTransferStatus::HeldBack(0),
+        };
+    }
+}
+
+fn update_rcpt_sent(rcpt: &mut [&mut Rcpt]) {
+    for rcpt in rcpt.iter_mut() {
+        rcpt.email_status = EmailTransferStatus::Sent;
+    }
+}
+
 #[cfg(test)]
 mod test {
 
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::addr;
+    use vsmtp_common::{addr, rcpt::Rcpt, transfer::EmailTransferStatus};
     use vsmtp_config::{Config, ConfigServerDNS};
 
-    use crate::transport::deliver::{get_mx_records, send_email};
+    use crate::transport::deliver::{get_mx_records, send_email, update_rcpt_sent};
+
+    use super::update_rcpt_held_back;
 
     // use super::*;
+
+    #[test]
+    fn test_update_rcpt_held_back() {
+        let mut rcpt1 = Rcpt::new(addr!("john.doe@example.com"));
+        let mut rcpt2 = Rcpt::new(addr!("green.foo@example.com"));
+        let mut rcpt3 = Rcpt::new(addr!("bar@example.com"));
+        let mut rcpt = vec![&mut rcpt1, &mut rcpt2, &mut rcpt3];
+
+        update_rcpt_held_back(&mut rcpt[..]);
+
+        assert!(rcpt
+            .iter()
+            .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(_))));
+
+        update_rcpt_sent(&mut rcpt[..]);
+
+        assert!(rcpt
+            .iter()
+            .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent)));
+    }
 
     #[tokio::test]
     async fn test_get_mx_records() {
