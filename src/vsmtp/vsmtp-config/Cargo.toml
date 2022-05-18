@@ -34,7 +34,7 @@ humantime-serde = "1.1.1"
 
 toml = "0.5.9"
 
-rustls = { version = "0.20.4", features = ["tls12", "logging"] }
+rustls = { version = "0.20.6", features = ["tls12", "logging"] }
 rustls-pemfile = "1.0.0"
 
 hostname = "0.3.1"
