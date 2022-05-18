@@ -1,13 +1,38 @@
 name: Release
 on:
-  push:
+  pull_request:
     branches:
       - "main"
+    types: [closed]
+
 jobs:
-  check-package:
+  release-crates-io:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      - name: Get bump method
+        id: get-bump-method
+        run: |
+          echo ${{ github.event.pull_request.labels.*.name }}
+          if ${{ contains(github.event.pull_request.labels.*.name, 'B-candidate') }}; then
+            echo '::set-output name=BUMP::rc'
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'B-patch') }}; then
+            echo '::set-output name=BUMP::patch'
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'B-minor') }}; then
+            echo '::set-output name=BUMP::minor'
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'B-major') }}; then
+            echo '::set-output name=BUMP::major'
+          else
+            exit 1
+          fi
+      - run: echo ${{ steps.get-bump-method.outputs.BUMP }}
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PAT }}
+      - uses: mstachniuk/ci-skip@v1
+        with:
+          fail-fast: true
+          commit-filter: "(cargo-release)"
       - name: Install gsasl
         run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
       - uses: actions/cache@v1
@@ -17,7 +42,7 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db/
-            target
+            ./target
           key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
@@ -25,6 +50,7 @@ jobs:
           toolchain: stable
           override: true
       - run: cargo install cargo-release
-      - uses: actions-rs/cargo@v1
-        with:
-          command: release rc --workspace
+      - run: |
+          git config --global user.name 'Mathieu LALA [bot]'
+          git config --global user.email 'mathieu.lala@epitech.eu'
+      - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} --workspace --execute --no-confirm --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

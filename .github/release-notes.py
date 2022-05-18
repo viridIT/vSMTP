@@ -1,5 +1,3 @@
-
-
 #!/usr/bin/env python3
 
 import argparse
@@ -7,9 +5,7 @@ import re
 import pathlib
 import sys
 
-
 _STDIO = pathlib.Path("-")
-
 
 def main():
     parser = argparse.ArgumentParser()

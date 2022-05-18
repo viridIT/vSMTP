@@ -76,7 +76,7 @@ jobs:
           outdir="./target/${{ env.TARGET_DIR }}/release"
           staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
           mkdir -p "$staging"/{complete,doc}
-          cp {README.md,LICENSE-*} "$staging/"
+          cp {README.md,LICENSE*} "$staging/"
           cp {CHANGELOG.md,docs/*} "$staging/doc/"
           cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
           tar czf "$staging.tar.gz" -C "$staging" .
