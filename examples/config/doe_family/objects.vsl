@@ -1,0 +1,23 @@
+// IP addresses of the MTA and the internal IP range
+object local_mta ip4 = "192.168.1.254";
+object internal_net rg4 = "192.168.0.0/24";
+
+// Doe's family domain name
+object family_domain fqdn = "doe-family.com";
+
+// The mailboxes
+object john address = "john.doe@doe-family.com";
+object jane address = "jane.doe@doe-family.com";
+object jimmy address = "jimmy.doe@doe-family.com";
+object jenny address = "jenny.doe@doe-family.com";
+object fridge address = "IOT-fridge@doe-family.com";
+
+// A group to manipulate the mailboxes
+object family_addr group = [john, jane, jimmy, jenny];
+
+// A quarantine for unknown mailboxes
+object unknown_quarantine string = "doe/bad_user";
+object virus_queue string = "doe/virus";
+
+// A user blacklist file
+object blacklist file:fqdn = "../../../examples/config/doe_family/blacklist.txt";
