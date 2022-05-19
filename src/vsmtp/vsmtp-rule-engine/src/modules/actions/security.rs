@@ -17,7 +17,7 @@
 use rhai::{
     plugin::{
         mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-        PluginFunction, Position, RhaiResult, TypeId,
+        PluginFunction, RhaiResult, TypeId,
     },
     EvalAltResult,
 };
@@ -29,32 +29,11 @@ pub mod security {
         EngineResult,
     };
 
-    #[derive(Default, Clone)]
-    pub struct SpfResult {
-        pub result: String,
-        pub cause: String,
-    }
-
-    impl SpfResult {
-        /// create a instance from viaspf query result struct.
-        pub fn from_query_result(q_result: viaspf::QueryResult) -> Self {
-            Self {
-                result: q_result.spf_result.to_string(),
-                cause: q_result
-                    .cause
-                    .map_or("default".to_string(), |cause| match cause {
-                        viaspf::SpfResultCause::Match(mechanism) => mechanism.to_string(),
-                        viaspf::SpfResultCause::Error(error) => error.to_string(),
-                    }),
-            }
-        }
-    }
-
     /// evaluate a sender identity.
     /// the identity parameter can ether be 'mail_from' or 'helo'.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw, pure)]
-    pub fn check_spf(ctx: &mut Context, srv: Server, identity: &str) -> EngineResult<SpfResult> {
+    pub fn check_spf(ctx: &mut Context, srv: Server, identity: &str) -> EngineResult<rhai::Map> {
         let (helo, mail_from, ip) = {
             let ctx = &ctx
                 .read()
@@ -96,7 +75,7 @@ pub mod security {
                     })
                 });
 
-                Ok(SpfResult::from_query_result(result))
+                Ok(map_from_query_result(&result))
             }
             "helo" => {
                 let result = tokio::task::block_in_place(move || {
@@ -114,19 +93,31 @@ pub mod security {
                     })
                 });
 
-                Ok(SpfResult::from_query_result(result))
+                Ok(map_from_query_result(&result))
             }
             _ => Err("you can only perform a spf query on mail_from or helo identities".into()),
         }
     }
+}
 
-    #[rhai_fn(get = "result")]
-    pub fn get_spf_result(spf: &mut SpfResult) -> String {
-        spf.result.clone()
-    }
-
-    #[rhai_fn(get = "cause")]
-    pub fn get_spf_cause(spf: &mut SpfResult) -> String {
-        spf.cause.clone()
-    }
+/// create a instance from viaspf query result struct.
+pub fn map_from_query_result(q_result: &viaspf::QueryResult) -> rhai::Map {
+    rhai::Map::from_iter([
+        (
+            "result".into(),
+            rhai::Dynamic::from(q_result.spf_result.to_string()),
+        ),
+        (
+            "cause".into(),
+            q_result
+                .cause
+                .as_ref()
+                .map_or(rhai::Dynamic::from("default"), |cause| match cause {
+                    viaspf::SpfResultCause::Match(mechanism) => {
+                        rhai::Dynamic::from(mechanism.to_string())
+                    }
+                    viaspf::SpfResultCause::Error(error) => rhai::Dynamic::from(error.to_string()),
+                }),
+        ),
+    ])
 }
