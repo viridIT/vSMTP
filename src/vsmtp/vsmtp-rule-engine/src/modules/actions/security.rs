@@ -67,7 +67,6 @@ pub mod security {
             )
         };
         let config = viaspf::Config::default();
-        let handle = tokio::runtime::Handle::current();
         let resolver = srv
             .resolvers
             .get(mail_from.domain())
@@ -81,20 +80,41 @@ pub mod security {
 
         match identity {
             "mail_from" => {
-                let sender = viaspf::Sender::new(mail_from.full()).unwrap();
-                let helo_domain = helo.parse().ok();
+                let result = tokio::task::block_in_place(move || {
+                    let sender = viaspf::Sender::new(mail_from.full()).unwrap();
+                    let helo_domain = helo.parse().ok();
 
-                Ok(SpfResult::from_query_result(handle.block_on(
-                    viaspf::evaluate_sender(resolver, &config, ip, &sender, helo_domain.as_ref()),
-                )))
+                    tokio::runtime::Handle::current().block_on(async move {
+                        viaspf::evaluate_sender(
+                            resolver,
+                            &config,
+                            ip,
+                            &sender,
+                            helo_domain.as_ref(),
+                        )
+                        .await
+                    })
+                });
+
+                Ok(SpfResult::from_query_result(result))
             }
             "helo" => {
-                let sender = viaspf::Sender::from_domain(&helo).unwrap();
-                let helo_domain = sender.domain();
+                let result = tokio::task::block_in_place(move || {
+                    let sender = viaspf::Sender::from_domain(&helo).unwrap();
 
-                Ok(SpfResult::from_query_result(handle.block_on(
-                    viaspf::evaluate_sender(resolver, &config, ip, &sender, Some(helo_domain)),
-                )))
+                    tokio::runtime::Handle::current().block_on(async move {
+                        viaspf::evaluate_sender(
+                            resolver,
+                            &config,
+                            ip,
+                            &sender,
+                            Some(sender.domain()),
+                        )
+                        .await
+                    })
+                });
+
+                Ok(SpfResult::from_query_result(result))
             }
             _ => Err("you can only perform a spf query on mail_from or helo identities".into()),
         }
