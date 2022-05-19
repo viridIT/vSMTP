@@ -69,6 +69,7 @@ fuzz_target!(|data: &[u8]| {
             None,
             None,
             re,
+            std::sync::Arc::new(std::collections::HashMap::new()),
             &mut FuzzOnMail,
         ));
 });
