@@ -21,7 +21,7 @@ use rhai::plugin::{
 
 #[rhai::plugin::export_module]
 pub mod rule_state {
-    use crate::modules::types::types::{Context};
+    use crate::modules::types::types::Context;
     use crate::{
         dsl::object::Object, modules::actions::transports::transports::disable_delivery_all,
         modules::EngineResult,

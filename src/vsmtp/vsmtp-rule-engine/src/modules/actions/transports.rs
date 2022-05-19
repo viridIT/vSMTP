@@ -25,7 +25,7 @@ use vsmtp_common::{mail_context::MailContext, re::anyhow};
 pub mod transports {
     use vsmtp_common::transfer::ForwardTarget;
 
-    use crate::modules::types::types::{Context};
+    use crate::modules::types::types::Context;
     use crate::{dsl::object::Object, modules::EngineResult};
 
     #[rhai_fn(global, name = "forward", return_raw, pure)]
