@@ -173,8 +173,8 @@ where
             .await?;
             tokio::io::AsyncWriteExt::flush(&mut self.inner.inner).await?;
 
-            // anyhow::bail!("{:?}", CodeID::TooManyError)
-            return Ok(());
+            anyhow::bail!("{:?}", CodeID::TooManyError)
+            // return Ok(());
         }
 
         self.send(&reply.fold()).await?;

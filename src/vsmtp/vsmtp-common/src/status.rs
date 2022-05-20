@@ -15,32 +15,14 @@
  *
 */
 
-use crate::{Reply, ReplyOrCodeID};
-
-/// A packet send from the application (.vsl) to the server (vsmtp)
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub enum InfoPacket {
-    /// a string
-    Str(String),
-    /// a custom code.
-    Code(Reply),
-}
-
-impl std::fmt::Display for InfoPacket {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InfoPacket::Str(string) => write!(f, "{string}"),
-            InfoPacket::Code(reply) => write!(f, "{} {}", reply.code(), reply.text()),
-        }
-    }
-}
+use crate::ReplyOrCodeID;
 
 /// Status of the mail context treated by the rule engine
 #[derive(Debug, Clone, PartialEq, Eq, strum::AsRefStr, serde::Deserialize, serde::Serialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum Status {
     /// informational data needs to be sent to the client.
-    Info(InfoPacket),
+    Info(ReplyOrCodeID),
 
     /// accepts the current stage value, skips all rules in the stage.
     Accept,
@@ -57,32 +39,7 @@ pub enum Status {
     /// ignore all future rules for the current transaction.
     /// the String parameter is the path to the quarantine folder.
     Quarantine(String),
-}
 
-#[cfg(test)]
-mod test {
-    use crate::{Reply, ReplyCode};
-
-    use super::InfoPacket;
-
-    #[test]
-    fn to_string() {
-        assert_eq!(
-            InfoPacket::Str("packet".to_string()).to_string().as_str(),
-            "packet"
-        );
-
-        assert_eq!(
-            InfoPacket::Code(Reply::new(
-                ReplyCode::Enhanced {
-                    code: 250,
-                    enhanced: "2.0.0".to_string(),
-                },
-                "custom message".to_string()
-            ))
-            .to_string()
-            .as_str(),
-            "250 2.0.0 custom message"
-        );
-    }
+    /// used to send data from .vsl to vsmtp's server
+    Packet(String),
 }

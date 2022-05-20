@@ -19,7 +19,7 @@ use vsmtp_common::{
     mail_context::{AuthCredentials, ConnectionContext},
     re::vsmtp_rsasl,
     state::StateSMTP,
-    status::{InfoPacket, Status},
+    status::Status,
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -118,7 +118,7 @@ impl
             vsmtp_rsasl::Property::GSASL_VALIDATE_SIMPLE if result == Status::Accept => Ok(()),
             vsmtp_rsasl::Property::GSASL_PASSWORD => {
                 let authpass = match result {
-                    Status::Info(InfoPacket::Str(authpass)) => authpass,
+                    Status::Packet(authpass) => authpass,
                     _ => return Err(vsmtp_rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR),
                 };
 

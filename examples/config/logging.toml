@@ -14,11 +14,13 @@ delivery = "error"
 parser = "trace"
 
 [server.smtp.codes]
-Greetings = "220 {domain} ESMTP Service ready\r\n"
+Greetings = "220 {domain} ESMTP Service ready"
 
 [server.smtp.codes.Help]
-code = 500
-text = "ok"
+code = 214
+text = """
+This server supports the following commands
+HELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"""
 
 [server.smtp.codes.TlsRequired]
 code = 451

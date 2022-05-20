@@ -25,7 +25,7 @@ use vsmtp_common::{
     rcpt::Rcpt,
     re::{anyhow, log},
     state::StateSMTP,
-    status::{InfoPacket, Status},
+    status::Status,
     Address, CodeID, ReplyOrCodeID,
 };
 use vsmtp_config::{Config, TlsSecurityLevel};
@@ -130,7 +130,7 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
-                    Status::Info(packet) => Self::send_custom_code(packet),
+                    Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
                     }
@@ -154,7 +154,7 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
-                    Status::Info(packet) => Self::send_custom_code(packet),
+                    Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
                     }
@@ -228,7 +228,7 @@ impl Transaction {
                     .run_when(&mut self.rule_state, &StateSMTP::MailFrom);
                 println!("{result:?}");
                 match result {
-                    Status::Info(packet) => Self::send_custom_code(packet),
+                    Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
                     }
@@ -248,7 +248,7 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
                 {
-                    Status::Info(packet) => Self::send_custom_code(packet),
+                    Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
                     }
@@ -292,7 +292,7 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::PreQ)
                 {
-                    Status::Info(packet) => return Self::send_custom_code(packet),
+                    Status::Info(packet) => return ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         return ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
                     }
@@ -407,14 +407,6 @@ impl Transaction {
             .rcpt
             .push(Rcpt::new(rcpt_to));
     }
-
-    fn send_custom_code(packet: InfoPacket) -> ProcessedEvent {
-        println!("send with = {packet:?}");
-        ProcessedEvent::Reply(ReplyOrCodeID::Reply(match packet {
-            InfoPacket::Str(buffer) => todo!(),
-            InfoPacket::Code(reply) => reply,
-        }))
-    }
 }
 
 impl Transaction {
@@ -461,8 +453,8 @@ impl Transaction {
 
             match status {
                 Status::Info(packet) => match packet {
-                    InfoPacket::Str(buffer) => conn.send(&buffer).await?,
-                    InfoPacket::Code(reply) => conn.send_reply(reply).await?,
+                    ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
+                    ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
                 },
                 Status::Deny(packet) => {
                     match packet {

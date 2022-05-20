@@ -39,11 +39,9 @@ pub enum ReplyCode {
 impl ReplyCode {
     ///
     #[must_use]
-    pub const fn is_error(&self) -> bool {
+    pub fn is_error(&self) -> bool {
         match self {
-            ReplyCode::Code { code } | ReplyCode::Enhanced { code, .. } => {
-                code.rem_euclid(100) >= 4
-            }
+            ReplyCode::Code { code } | ReplyCode::Enhanced { code, .. } => code / 100 >= 4,
         }
     }
 
@@ -199,14 +197,3 @@ mod tests {
         );
     }
 }
-
-// ///
-// pub const UNRECOGNIZED_COMMAND: ReplyCode = ReplyCode::Code(500);
-// ///
-// pub const SYNTAX_ERROR_PARAMS: ReplyCode = ReplyCode::Code(501);
-// ///
-// pub const UNIMPLEMENTED: ReplyCode = ReplyCode::Code(504);
-//
-// ///
-// pub static AUTH_MECH_NOT_SUPPORTED: ReplyCode = ReplyCode::Enhanced(504, "5.5.4".to_string());
-//

@@ -31,7 +31,7 @@
                     }
                 },
                 "Query" => {
-                    info(db[ctx().auth.authid])
+                    packet(db[ctx().auth.authid])
                 }
             }
         }

@@ -25,10 +25,7 @@ pub mod rule_state {
         dsl::object::Object, modules::actions::transports::transports::disable_delivery_all,
         modules::actions::MailContext, modules::EngineResult,
     };
-    use vsmtp_common::{
-        status::{InfoPacket, Status},
-        CodeID, Reply, ReplyOrCodeID,
-    };
+    use vsmtp_common::{status::Status, CodeID, Reply, ReplyOrCodeID};
 
     /// the transaction is forced accepted, skipping all rules and going strait for delivery.
     #[must_use]
@@ -83,16 +80,24 @@ pub mod rule_state {
     #[rhai_fn(global, name = "info", return_raw)]
     pub fn info_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
         match &**code {
-            Object::Str(message) => Ok(Status::Info(InfoPacket::Str(message.to_string()))),
-            Object::Code(code) => Ok(Status::Info(InfoPacket::Code(code.clone()))),
-            object => Err(format!("deny parameter must be a code, not {}", object.as_ref()).into()),
+            Object::Code(code) => Ok(Status::Info(ReplyOrCodeID::Reply(code.clone()))),
+            object => Err(format!("info parameter must be a code, not {}", object.as_ref()).into()),
         }
     }
 
     /// send a single informative code to the client. (using a simple string)
-    #[rhai_fn(global)]
-    pub fn info(message: &str) -> Status {
-        Status::Info(InfoPacket::Str(message.to_string()))
+    #[rhai_fn(global, name = "info", return_raw)]
+    pub fn info(reply_to_parse: &str) -> EngineResult<Status> {
+        Ok(Status::Info(ReplyOrCodeID::Reply(
+            match Reply::parse_str(reply_to_parse) {
+                Ok(reply) => reply,
+                Err(_) => {
+                    return Err(
+                        format!("info parameter must be a code, not {:?}", reply_to_parse).into(),
+                    )
+                }
+            },
+        )))
     }
 
     /// tells the state machine to quarantine the email & skip delivery.
@@ -106,5 +111,10 @@ pub mod rule_state {
         disable_delivery_all(ctx)?;
 
         Ok(Status::Quarantine(queue.to_string()))
+    }
+
+    #[rhai_fn(global)]
+    pub const fn packet(buffer: String) -> Status {
+        Status::Packet(buffer)
     }
 }
