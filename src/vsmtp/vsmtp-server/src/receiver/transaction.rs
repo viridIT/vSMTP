@@ -221,13 +221,12 @@ impl Transaction {
                 // TODO: handle : mail_from can be "<>""
                 self.set_mail_from(mail_from.unwrap(), conn);
 
-                let result = self
+                match self
                     .rule_engine
                     .read()
                     .unwrap()
-                    .run_when(&mut self.rule_state, &StateSMTP::MailFrom);
-                println!("{result:?}");
-                match result {
+                    .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
+                {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
