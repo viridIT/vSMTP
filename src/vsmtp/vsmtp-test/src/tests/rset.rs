@@ -36,10 +36,9 @@ async fn reset_helo() {
     impl OnMail for T {
         async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<S>,
+            _: &mut Connection<S>,
             mail: Box<MailContext>,
-            _: &mut Option<String>,
-        ) -> anyhow::Result<()> {
+        ) -> anyhow::Result<CodeID> {
             let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
@@ -59,8 +58,7 @@ async fn reset_helo() {
                 }))
             );
 
-            conn.send_code(CodeID::Ok).await?;
-            Ok(())
+            Ok(CodeID::Ok)
         }
     }
 
@@ -147,10 +145,9 @@ async fn reset_rcpt_to_ok() {
     impl OnMail for T {
         async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<S>,
+            _: &mut Connection<S>,
             mail: Box<MailContext>,
-            _: &mut Option<String>,
-        ) -> anyhow::Result<()> {
+        ) -> anyhow::Result<CodeID> {
             let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo2");
@@ -163,9 +160,7 @@ async fn reset_rcpt_to_ok() {
                     body: BodyType::Undefined
                 }))
             );
-            conn.send_code(CodeID::Ok).await?;
-
-            Ok(())
+            Ok(CodeID::Ok)
         }
     }
 
@@ -230,10 +225,9 @@ async fn reset_rcpt_to_multiple_rcpt() {
     impl OnMail for T {
         async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<S>,
+            _: &mut Connection<S>,
             mail: Box<MailContext>,
-            _: &mut Option<String>,
-        ) -> anyhow::Result<()> {
+        ) -> anyhow::Result<CodeID> {
             let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
@@ -255,9 +249,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
                     body: BodyType::Undefined
                 }))
             );
-            conn.send_code(CodeID::Ok).await?;
-
-            Ok(())
+            Ok(CodeID::Ok)
         }
     }
 

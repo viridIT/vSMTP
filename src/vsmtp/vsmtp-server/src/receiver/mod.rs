@@ -43,8 +43,7 @@ pub trait OnMail {
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
-        helo_domain: &mut Option<String>,
-    ) -> anyhow::Result<()>;
+    ) -> anyhow::Result<CodeID>;
 }
 
 /// default mail handler for production.
@@ -61,10 +60,7 @@ impl OnMail for MailHandler {
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
-        helo_domain: &mut Option<String>,
-    ) -> anyhow::Result<()> {
-        *helo_domain = Some(mail.envelop.helo.clone());
-
+    ) -> anyhow::Result<CodeID> {
         let metadata = mail.metadata.as_ref().unwrap();
 
         let next_queue = match &metadata.skipped {
@@ -72,21 +68,18 @@ impl OnMail for MailHandler {
                 let mut path = create_app_folder(&conn.config, Some(path))?;
                 path.push(format!("{}.json", metadata.message_id));
 
-                match std::fs::OpenOptions::new()
+                let mut file = std::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
-                    .open(path)
-                {
-                    Ok(mut file) => std::io::Write::write_all(
-                        &mut file,
-                        vsmtp_common::re::serde_json::to_string_pretty(&*mail)?.as_bytes(),
-                    ),
-                    Err(err) => anyhow::bail!("failed to quarantine email: {err:?}"),
-                }?;
+                    .open(path)?;
+
+                std::io::Write::write_all(
+                    &mut file,
+                    vsmtp_common::re::serde_json::to_string_pretty(&*mail)?.as_bytes(),
+                )?;
 
                 log::warn!("postq & delivery skipped due to quarantine.");
-                conn.send_code(CodeID::Ok).await?;
-                return Ok(());
+                return Ok(CodeID::Ok);
             }
             Some(reason) => {
                 log::warn!("postq skipped due to '{}'.", reason.as_ref());
@@ -95,11 +88,9 @@ impl OnMail for MailHandler {
             None => Queue::Working,
         };
 
-        let response = if let Err(error) =
-            next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail)
-        {
+        if let Err(error) = next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail) {
             log::error!("couldn't write to '{}' queue: {}", next_queue, error);
-            CodeID::Denied
+            Ok(CodeID::Denied)
         } else {
             match next_queue {
                 Queue::Working => &self.working_sender,
@@ -111,11 +102,8 @@ impl OnMail for MailHandler {
             })
             .await?;
 
-            CodeID::Ok
-        };
-
-        conn.send_code(response).await?;
-        Ok(())
+            Ok(CodeID::Ok)
+        }
     }
 }
 
@@ -214,7 +202,10 @@ where
         match Transaction::receive(conn, &helo_domain, rule_engine.clone()).await? {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
-                mail_handler.on_mail(conn, mail, &mut helo_domain).await?;
+                let helo = mail.envelop.helo.clone();
+                let code = mail_handler.on_mail(conn, mail).await?;
+                helo_domain = Some(helo);
+                conn.send_code(code).await?;
             }
             TransactionResult::TlsUpgrade => {
                 if let Some(tls_config) = tls_config {
@@ -302,9 +293,10 @@ where
         match Transaction::receive(&mut secured_conn, &helo_domain, rule_engine.clone()).await? {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
-                mail_handler
-                    .on_mail(&mut secured_conn, mail, &mut helo_domain)
-                    .await?;
+                let helo = mail.envelop.helo.clone();
+                let code = mail_handler.on_mail(&mut secured_conn, mail).await?;
+                helo_domain = Some(helo);
+                secured_conn.send_code(code).await?;
             }
             TransactionResult::TlsUpgrade => {
                 secured_conn.send_code(CodeID::AlreadyUnderTLS).await?;

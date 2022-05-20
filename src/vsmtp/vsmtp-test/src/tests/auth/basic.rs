@@ -63,16 +63,13 @@ async fn plain_in_clair_unsecured() {
     impl OnMail for T {
         async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<S>,
+            _: &mut Connection<S>,
             mail: Box<MailContext>,
-            _: &mut Option<String>,
-        ) -> anyhow::Result<()> {
+        ) -> anyhow::Result<CodeID> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            conn.send_code(CodeID::Ok).await?;
-
-            Ok(())
+            Ok(CodeID::Ok)
         }
     }
 
@@ -121,16 +118,13 @@ async fn plain_in_clair_unsecured_utf8() {
     impl OnMail for T {
         async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<S>,
+            _: &mut Connection<S>,
             mail: Box<MailContext>,
-            _: &mut Option<String>,
-        ) -> anyhow::Result<()> {
+        ) -> anyhow::Result<CodeID> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            conn.send_code(CodeID::Ok).await?;
-
-            Ok(())
+            Ok(CodeID::Ok)
         }
     }
 
@@ -286,16 +280,13 @@ async fn plain_in_clair_unsecured_without_initial_response() {
     impl OnMail for T {
         async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<S>,
+            _: &mut Connection<S>,
             mail: Box<MailContext>,
-            _: &mut Option<String>,
-        ) -> anyhow::Result<()> {
+        ) -> anyhow::Result<CodeID> {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            conn.send_code(CodeID::Ok).await?;
-
-            Ok(())
+            Ok(CodeID::Ok)
         }
     }
 
