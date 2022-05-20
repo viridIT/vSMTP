@@ -81,12 +81,12 @@ impl std::fmt::Display for Status {
             f,
             "{}",
             match self {
-                Status::Info(_) => "info",
-                Status::Accept => "accept",
-                Status::Next => "next",
-                Status::Deny(_) => "deny",
-                Status::Faccept => "faccept",
-                Status::Quarantine(_) => "quarantine",
+                Self::Info(_) => "info",
+                Self::Accept => "accept",
+                Self::Next => "next",
+                Self::Deny(_) => "deny",
+                Self::Faccept => "faccept",
+                Self::Quarantine(_) => "quarantine",
             }
         )
     }

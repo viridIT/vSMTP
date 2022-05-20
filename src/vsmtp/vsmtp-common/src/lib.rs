@@ -7,6 +7,8 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+// false positives found when deriving serde Serialize & Deserialize traits.
+#![allow(clippy::use_self)]
 //
 #![allow(clippy::doc_markdown)]
 

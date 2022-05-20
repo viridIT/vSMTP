@@ -33,16 +33,16 @@ pub type ParserResult<T> = Result<T, ParserError>;
 impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParserError::InvalidInput => {
+            Self::InvalidInput => {
                 write!(f, "input is invalid")
             }
-            ParserError::InvalidMail(message) => {
+            Self::InvalidMail(message) => {
                 write!(f, "parsing email failed: {}", message)
             }
-            ParserError::MandatoryHeadersNotFound(header) => {
+            Self::MandatoryHeadersNotFound(header) => {
                 write!(f, "Mandatory header '{}' not found", header)
             }
-            ParserError::BoundaryNotFound(message) => {
+            Self::BoundaryNotFound(message) => {
                 write!(
                     f,
                     "Boundary not found in content-type header parameters, {}",

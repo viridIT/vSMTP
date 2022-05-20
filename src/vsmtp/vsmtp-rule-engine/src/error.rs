@@ -26,7 +26,7 @@ pub enum RuleEngineError {
 impl RuleEngineError {
     pub const fn as_str(&self) -> &'static str {
         match self {
-            RuleEngineError::Object => {
+            Self::Object => {
                 r#"failed to parse an object.
     use the extended syntax:
 
@@ -45,7 +45,7 @@ impl RuleEngineError {
 "#
             }
 
-            RuleEngineError::Rule => {
+            Self::Rule => {
                 r#"failed to parse a rule.
     use the following syntax:
 
@@ -56,7 +56,7 @@ impl RuleEngineError {
 "#
             }
 
-            RuleEngineError::Action => {
+            Self::Action => {
                 r#"failed to parse an action.
     use the following syntax:
 
@@ -66,7 +66,7 @@ impl RuleEngineError {
 "#
             }
 
-            RuleEngineError::Stage => {
+            Self::Stage => {
                 r#"failed to parse a stage.
     declare stages this way:
 

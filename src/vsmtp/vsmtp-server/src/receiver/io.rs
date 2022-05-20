@@ -57,7 +57,7 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     ///
-    pub fn new(stream: S) -> Self {
+    pub const fn new(stream: S) -> Self {
         Self {
             inner: stream,
             buf: Vec::new(),
@@ -215,8 +215,7 @@ mod tests {
             ["a\r\n", "b\r\n", "c\r\n", "d\r\n", "e\r\n", "f"]
                 .into_iter()
                 .map(str::to_string)
-                .collect::<Vec<_>>()
-                .join(""),
+                .collect::<String>(),
             has_been_read.join("\r\n"),
         );
     }
