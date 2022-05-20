@@ -29,6 +29,7 @@ use vsmtp_common::{
     status::Status,
     transfer::Transfer,
 };
+use vsmtp_common::{CodeID, ReplyOrCodeID};
 use vsmtp_config::ConfigServerVirtual;
 
 #[test]
@@ -41,7 +42,7 @@ fn test_logs() {
     let (mut state, _) = get_default_state("./tmp/app");
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Deny(None)
+        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
 }
 

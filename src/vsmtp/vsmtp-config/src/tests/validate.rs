@@ -15,7 +15,7 @@
  *
 */
 use crate::Config;
-use vsmtp_common::{auth::Mechanism, CodesID};
+use vsmtp_common::{auth::Mechanism, CodeID};
 
 fn get_mechanism_from_config(config: &Config, tls: bool) -> Vec<Mechanism> {
     let plain_esmtp = &config
@@ -23,9 +23,9 @@ fn get_mechanism_from_config(config: &Config, tls: bool) -> Vec<Mechanism> {
         .smtp
         .codes
         .get(if tls {
-            &CodesID::EhloSecured
+            &CodeID::EhloSecured
         } else {
-            &CodesID::EhloPain
+            &CodeID::EhloPain
         })
         .unwrap()
         .text();

@@ -20,7 +20,7 @@ use vsmtp_common::{
     mail::{BodyType, Mail},
     mail_context::{Body, MailContext},
     re::anyhow,
-    CodesID,
+    CodeID,
 };
 use vsmtp_server::{re::tokio, Connection, OnMail};
 
@@ -74,7 +74,7 @@ macro_rules! test_lang {
                         )
                     }))
                 );
-                conn.send_code(CodesID::Ok).await?;
+                conn.send_code(CodeID::Ok).await?;
                 Ok(())
             }
         }

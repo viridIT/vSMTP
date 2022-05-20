@@ -172,14 +172,29 @@ impl Reply {
             .collect::<String>()
     }
 
-    fn parse_str(line: &str) -> anyhow::Result<Self> {
+    ///
+    /// # Errors
+    ///
+    /// * @line is not a valid SMTP reply format
+    pub fn parse_str(line: &str) -> anyhow::Result<Self> {
         let (code, text) = ReplyCode::parse(line)?;
         Ok(Self::new(code, text.to_string()))
+    }
+
+    ///
+    #[must_use]
+    pub fn combine(informational: &Self, response: &Self) -> Self {
+        Self {
+            code: response.code.clone(),
+            text: format!("{}\r\n{}", informational.text, response.text),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::{Reply, ReplyCode};
+
     mod fold {
         use crate::{Reply, ReplyCode};
 
@@ -319,5 +334,27 @@ mod tests {
                 }
             );
         }
+    }
+
+    #[test]
+    fn combine() {
+        assert_eq!(
+            Reply::combine(
+                &Reply::new(
+                    ReplyCode::Code { code: 454 },
+                    "TLS not available due to temporary reason"
+                ),
+                &Reply::new(
+                    ReplyCode::Code { code: 451 },
+                    "Too many errors from the client"
+                ),
+            )
+            .fold(),
+            [
+                "451-TLS not available due to temporary reason\r\n",
+                "451 Too many errors from the client\r\n"
+            ]
+            .concat()
+        );
     }
 }

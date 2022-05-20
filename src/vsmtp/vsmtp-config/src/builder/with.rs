@@ -43,7 +43,7 @@ use vsmtp_common::{
         log,
     },
     state::StateSMTP,
-    CodesID, Reply,
+    CodeID, Reply,
 };
 
 ///
@@ -464,7 +464,7 @@ impl Builder<WantsServerSMTPConfig3> {
     #[must_use]
     pub fn with_smtp_codes(
         self,
-        codes: std::collections::BTreeMap<CodesID, Reply>,
+        codes: std::collections::BTreeMap<CodeID, Reply>,
     ) -> Builder<WantsServerSMTPAuth> {
         Builder::<WantsServerSMTPAuth> {
             state: WantsServerSMTPAuth {

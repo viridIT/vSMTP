@@ -49,12 +49,13 @@ pub mod types {
 
     #[rhai_fn(global, pure)]
     pub fn to_string(status: &mut Status) -> String {
-        format!("{}", status)
+        status.as_ref().to_string()
     }
 
+    // note: same as to_string ?
     #[rhai_fn(global, pure)]
     pub fn to_debug(status: &mut Status) -> String {
-        format!("{}", status)
+        status.as_ref().to_string()
     }
 
     #[rhai_fn(global, name = "to_debug")]

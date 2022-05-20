@@ -25,7 +25,10 @@ pub mod rule_state {
         dsl::object::Object, modules::actions::transports::transports::disable_delivery_all,
         modules::actions::MailContext, modules::EngineResult,
     };
-    use vsmtp_common::status::{InfoPacket, Status};
+    use vsmtp_common::{
+        status::{InfoPacket, Status},
+        CodeID, Reply, ReplyOrCodeID,
+    };
 
     /// the transaction is forced accepted, skipping all rules and going strait for delivery.
     #[must_use]
@@ -45,29 +48,35 @@ pub mod rule_state {
         Status::Next
     }
 
-    /// the transaction is denied, reply error to clients. (includes a custom code from a string)
-    #[rhai_fn(global, name = "deny")]
-    pub fn deny_with_string(message: &str) -> Status {
-        Status::Deny(Some(InfoPacket::Str(message.to_string())))
-    }
-
     /// the transaction is denied, reply error to clients. (includes a custom code)
     #[rhai_fn(global, name = "deny", return_raw)]
     pub fn deny_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
         match &**code {
-            Object::Str(message) => Ok(Status::Deny(Some(InfoPacket::Str(message.clone())))),
-            Object::Code(code) => Ok(Status::Deny(Some(code.clone()))),
-            object => {
-                Err(format!("deny parameter should be a code, not {}", object.as_str()).into())
-            }
+            Object::Code(code) => Ok(Status::Deny(ReplyOrCodeID::Reply(code.clone()))),
+            object => Err(format!("deny parameter must be a code, not {}", object.as_ref()).into()),
         }
+    }
+
+    /// the transaction is denied, reply error to clients. (includes a custom code)
+    #[rhai_fn(global, name = "deny", return_raw)]
+    pub fn deny_with_string(reply_to_parse: &str) -> EngineResult<Status> {
+        Ok(Status::Deny(ReplyOrCodeID::Reply(
+            match Reply::parse_str(reply_to_parse) {
+                Ok(reply) => reply,
+                Err(_) => {
+                    return Err(
+                        format!("deny parameter must be a code, not {:?}", reply_to_parse).into(),
+                    )
+                }
+            },
+        )))
     }
 
     /// the transaction is denied, reply error to clients.
     #[must_use]
     #[rhai_fn(global)]
     pub const fn deny() -> Status {
-        Status::Deny(None)
+        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     }
 
     /// send a single informative code to the client. (using a code object)
@@ -75,10 +84,8 @@ pub mod rule_state {
     pub fn info_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
         match &**code {
             Object::Str(message) => Ok(Status::Info(InfoPacket::Str(message.to_string()))),
-            Object::Code(code) => Ok(Status::Info(code.clone())),
-            object => {
-                Err(format!("deny parameter should be a code, not {}", object.as_str()).into())
-            }
+            Object::Code(code) => Ok(Status::Info(InfoPacket::Code(code.clone()))),
+            object => Err(format!("deny parameter must be a code, not {}", object.as_ref()).into()),
         }
     }
 

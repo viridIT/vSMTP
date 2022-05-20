@@ -18,7 +18,7 @@
 #[strum(serialize_all = "PascalCase")]
 #[serde(rename_all = "PascalCase")]
 #[strum_discriminants(derive(serde::Serialize, serde::Deserialize))]
-pub enum CodesID {
+pub enum CodeID {
     //
     // Specials Messages
     //
@@ -41,6 +41,8 @@ pub enum CodesID {
     Ok,
     ///
     Denied,
+    ///
+    Failure,
     //
     // Parsing Command
     //

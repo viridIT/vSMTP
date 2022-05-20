@@ -19,7 +19,7 @@ use vsmtp_common::{
     mail::{BodyType, Mail},
     mail_context::{Body, MailContext},
     re::anyhow,
-    CodesID,
+    CodeID,
 };
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_server::re::tokio;
@@ -59,7 +59,7 @@ async fn reset_helo() {
                 }))
             );
 
-            conn.send_code(CodesID::Ok).await?;
+            conn.send_code(CodeID::Ok).await?;
             Ok(())
         }
     }
@@ -163,7 +163,7 @@ async fn reset_rcpt_to_ok() {
                     body: BodyType::Undefined
                 }))
             );
-            conn.send_code(CodesID::Ok).await?;
+            conn.send_code(CodeID::Ok).await?;
 
             Ok(())
         }
@@ -255,7 +255,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
                     body: BodyType::Undefined
                 }))
             );
-            conn.send_code(CodesID::Ok).await?;
+            conn.send_code(CodeID::Ok).await?;
 
             Ok(())
         }

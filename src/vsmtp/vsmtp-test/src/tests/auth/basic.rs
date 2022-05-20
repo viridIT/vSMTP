@@ -22,7 +22,7 @@ use vsmtp_common::{
     addr,
     mail_context::MailContext,
     re::{anyhow, base64, vsmtp_rsasl},
-    CodesID,
+    CodeID,
 };
 use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
@@ -70,7 +70,7 @@ async fn plain_in_clair_unsecured() {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            conn.send_code(CodesID::Ok).await?;
+            conn.send_code(CodeID::Ok).await?;
 
             Ok(())
         }
@@ -128,7 +128,7 @@ async fn plain_in_clair_unsecured_utf8() {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            conn.send_code(CodesID::Ok).await?;
+            conn.send_code(CodeID::Ok).await?;
 
             Ok(())
         }
@@ -236,11 +236,11 @@ async fn plain_in_clair_unsecured_cancel() {
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
             "334 \r\n",
-            "501 Authentication canceled by clients\r\n",
+            "501 Authentication canceled by client\r\n",
             "334 \r\n",
-            "501 Authentication canceled by clients\r\n",
+            "501 Authentication canceled by client\r\n",
             "334 \r\n",
-            "501 Authentication canceled by clients\r\n",
+            "501 Authentication canceled by client\r\n",
             "334 \r\n",
             "530 5.7.0 Authentication required\r\n"
         ].concat()
@@ -293,7 +293,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            conn.send_code(CodesID::Ok).await?;
+            conn.send_code(CodeID::Ok).await?;
 
             Ok(())
         }

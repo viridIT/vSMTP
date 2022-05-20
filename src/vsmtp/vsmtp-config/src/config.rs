@@ -23,7 +23,7 @@ use serde_with::serde_as;
 use vsmtp_common::{
     auth::Mechanism,
     re::{anyhow, log},
-    CodesID, Reply,
+    CodeID, Reply,
 };
 
 ///
@@ -361,7 +361,7 @@ pub struct ConfigServerSMTP {
     pub timeout_client: ConfigServerSMTPTimeoutClient,
     #[serde(default)]
     #[serde_as(as = "std::collections::BTreeMap<serde_with::DisplayFromStr, _>")]
-    pub codes: std::collections::BTreeMap<CodesID, Reply>,
+    pub codes: std::collections::BTreeMap<CodeID, Reply>,
     // NOTE: extension settings here
     pub auth: Option<ConfigServerSMTPAuth>,
 }

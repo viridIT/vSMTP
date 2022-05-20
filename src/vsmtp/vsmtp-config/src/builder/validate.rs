@@ -26,7 +26,7 @@ use crate::{
 use vsmtp_common::{
     auth::Mechanism,
     re::{anyhow, strum},
-    CodesID, Reply, ReplyCode,
+    CodeID, Reply, ReplyCode,
 };
 
 impl Builder<WantsValidate> {
@@ -159,7 +159,7 @@ impl Config {
                 .map(|auth| auth.mechanisms.iter().partition(|m| m.must_be_under_tls()));
 
             config.server.smtp.codes.insert(
-                CodesID::EhloPain,
+                CodeID::EhloPain,
                 Reply::new(
                     ReplyCode::Code { code: 250 },
                     [
@@ -190,7 +190,7 @@ impl Config {
             );
 
             config.server.smtp.codes.insert(
-                CodesID::EhloSecured,
+                CodeID::EhloSecured,
                 Reply::new(
                     ReplyCode::Code { code: 250 },
                     [
@@ -211,7 +211,7 @@ impl Config {
         let default_values = ConfigServerSMTP::default_smtp_codes();
         let reply_codes = &mut config.server.smtp.codes;
 
-        for key in <CodesID as strum::IntoEnumIterator>::iter() {
+        for key in <CodeID as strum::IntoEnumIterator>::iter() {
             reply_codes
                 .entry(key)
                 .or_insert_with_key(|key| default_values.get(key).unwrap().clone());

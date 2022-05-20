@@ -262,7 +262,9 @@ fn create_received_stamp(
 fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -> String {
     format!(
         "id='{}'\n\tversion='{}'\n\tstatus='{}'",
-        message_id, version, status
+        message_id,
+        version,
+        status.as_ref()
     )
 }
 

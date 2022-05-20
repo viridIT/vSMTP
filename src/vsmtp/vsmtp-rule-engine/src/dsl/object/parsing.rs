@@ -171,7 +171,7 @@ fn create_code(
     } else if object.is::<rhai::Map>() {
         let mut object: rhai::Map = object.try_cast().ok_or(RuleEngineError::Object)?;
 
-        for key in ["base", "enhanced", "text"] {
+        for key in ["code", "enhanced", "text"] {
             if !object.contains_key(key) {
                 return Err(
                     format!("code object {object_name} is missing the '{key}' key.").into(),

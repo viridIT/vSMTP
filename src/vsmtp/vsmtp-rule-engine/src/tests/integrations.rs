@@ -19,9 +19,8 @@
 //       it's here right now because of the convenient macros
 //       to locate vsl's example scripts.
 
-use vsmtp_common::{state::StateSMTP, status::Status};
-
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_config};
+use vsmtp_common::{state::StateSMTP, status::Status, CodeID, ReplyOrCodeID};
 
 #[test]
 fn test_greylist() {
@@ -33,7 +32,7 @@ fn test_greylist() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Deny(None)
+        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
 
     let re = RuleEngine::new(&config, &Some(root_example!["greylist/main.vsl"])).unwrap();

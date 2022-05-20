@@ -18,7 +18,7 @@
 use crate::{log_channels, AbstractIO};
 use vsmtp_common::{
     re::{anyhow, log},
-    CodesID, Reply,
+    CodeID, Reply,
 };
 use vsmtp_config::Config;
 
@@ -126,62 +126,61 @@ where
 {
     ///
     /// # Errors
-    ///
-    /// # Panics
-    ///
-    /// * config miss `code_id` (ill-formed)
-    pub async fn send_code(&mut self, code_id: CodesID) -> anyhow::Result<()> {
-        self.send_reply(self.config.server.smtp.codes.get(&code_id).unwrap().clone())
-            .await
+    pub async fn send_code(&mut self, code_id: CodeID) -> anyhow::Result<()> {
+        self.send_reply(
+            self.config
+                .server
+                .smtp
+                .codes
+                .get(&code_id)
+                .expect("config is ill-formed")
+                .clone(),
+        )
+        .await
     }
 
     /// send a reply code to the client
     ///
     /// # Errors
-    ///
-    /// # Panics
-    ///
-    /// * a smtp code is missing, and thus config is ill-formed
     pub async fn send_reply(&mut self, reply: Reply) -> anyhow::Result<()> {
         log::info!(
             target: log_channels::CONNECTION,
             "sending reply=\"{reply:?}\"",
         );
 
-        if reply.code().is_error() {
-            self.error_count += 1;
-
-            let hard_error = self.config.server.smtp.error.hard_count;
-            let soft_error = self.config.server.smtp.error.soft_count;
-
-            if hard_error != -1 && self.error_count >= hard_error {
-                let too_many_error_msg = self
-                    .config
-                    .server
-                    .smtp
-                    .codes
-                    .get(&CodesID::TooManyError)
-                    .unwrap()
-                    .fold();
-
-                let mut response = reply.fold();
-                response.push_str("\r\n");
-                response.replace_range(0..4, &format!("{}-", &too_many_error_msg[0..3]));
-                response.push_str(&too_many_error_msg);
-                response.push_str("\r\n");
-
-                self.send(&response).await?;
-
-                anyhow::bail!("{:?}", CodesID::TooManyError)
-            }
-
+        if !reply.code().is_error() {
             self.send(&reply.fold()).await?;
+            return Ok(());
+        }
+        self.error_count += 1;
 
-            if soft_error != -1 && self.error_count >= soft_error {
-                tokio::time::sleep(self.config.server.smtp.error.delay).await;
-            }
-        } else {
-            self.send(&reply.fold()).await?;
+        let hard_error = self.config.server.smtp.error.hard_count;
+        let soft_error = self.config.server.smtp.error.soft_count;
+
+        if hard_error != -1 && self.error_count >= hard_error {
+            self.send(
+                &Reply::combine(
+                    &reply,
+                    self.config
+                        .server
+                        .smtp
+                        .codes
+                        .get(&CodeID::TooManyError)
+                        .expect("config is ill-formed"),
+                )
+                .fold(),
+            )
+            .await?;
+            tokio::io::AsyncWriteExt::flush(&mut self.inner.inner).await?;
+
+            // anyhow::bail!("{:?}", CodeID::TooManyError)
+            return Ok(());
+        }
+
+        self.send(&reply.fold()).await?;
+
+        if soft_error != -1 && self.error_count >= soft_error {
+            tokio::time::sleep(self.config.server.smtp.error.delay).await;
         }
         Ok(())
     }
@@ -194,16 +193,15 @@ where
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
         log::info!(target: log_channels::CONNECTION, "send=\"{:?}\"", reply);
         tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes()).await?;
-        tokio::io::AsyncWriteExt::flush(&mut self.inner.inner).await?;
         Ok(())
     }
 
-    /// read a line from the client
+    /// Read a line from the client
     ///
     /// # Errors
     ///
     /// * timed-out
-    /// * stream's error
+    /// * internal connection reader error
     pub async fn read(
         &mut self,
         timeout: std::time::Duration,

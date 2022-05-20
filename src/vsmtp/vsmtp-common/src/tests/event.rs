@@ -17,7 +17,7 @@
 use crate::{
     event::{Event, MimeBodyType},
     mechanism::Mechanism,
-    CodesID,
+    CodeID,
 };
 
 #[test]
@@ -68,19 +68,19 @@ fn data_valid() {
 fn data_invalid() {
     assert_eq!(
         Event::parse_data(std::str::from_utf8(&vec![b'_'; 1000][..]).unwrap()),
-        Err(CodesID::UnrecognizedCommand)
+        Err(CodeID::UnrecognizedCommand)
     );
 }
 
 #[test]
 fn command_invalid() {
-    assert_eq!(Event::parse_cmd(""), Err(CodesID::UnrecognizedCommand));
-    assert_eq!(Event::parse_cmd("     "), Err(CodesID::UnrecognizedCommand));
+    assert_eq!(Event::parse_cmd(""), Err(CodeID::UnrecognizedCommand));
+    assert_eq!(Event::parse_cmd("     "), Err(CodeID::UnrecognizedCommand));
     assert_eq!(
         Event::parse_cmd(std::str::from_utf8(&vec![b'_'; 100][..]).unwrap()),
-        Err(CodesID::UnrecognizedCommand)
+        Err(CodeID::UnrecognizedCommand)
     );
-    assert_eq!(Event::parse_cmd("    foo"), Err(CodesID::SyntaxErrorParams));
+    assert_eq!(Event::parse_cmd("    foo"), Err(CodeID::SyntaxErrorParams));
 }
 
 #[test]
@@ -99,20 +99,20 @@ fn command_helo() {
     );
     assert_eq!(
         Event::parse_cmd("hElO  not\\a.valid\"domain"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
-    assert_eq!(Event::parse_cmd("hElO  "), Err(CodesID::SyntaxErrorParams));
+    assert_eq!(Event::parse_cmd("hElO  "), Err(CodeID::SyntaxErrorParams));
     assert_eq!(
         Event::parse_cmd("   hElO  valid_domain"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("HELO one two"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("HELO 0.0.0.0"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -128,7 +128,7 @@ fn ehlo_command() {
     );
     assert_eq!(
         Event::parse_cmd("hElO  not\\a.valid\"domain"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("EHLO   [127.0.0.1]  "),
@@ -142,18 +142,18 @@ fn ehlo_command() {
             "11:2233:4455:6677:8899:aabb:ccdd:eeff".to_string()
         ))
     );
-    assert_eq!(Event::parse_cmd("EHLO  "), Err(CodesID::SyntaxErrorParams));
+    assert_eq!(Event::parse_cmd("EHLO  "), Err(CodeID::SyntaxErrorParams));
     assert_eq!(
         Event::parse_cmd("   EHLO  valid_domain"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("EHLO one two"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("EHLO 0.0.0.0"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -193,14 +193,14 @@ fn command_mail_from() {
     );
     assert_eq!(
         Event::parse_cmd("Mail  From:  "),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("Mail From ko"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 
-    assert_eq!(Event::parse_cmd("Mail"), Err(CodesID::SyntaxErrorParams));
+    assert_eq!(Event::parse_cmd("Mail"), Err(CodeID::SyntaxErrorParams));
 }
 
 #[test]
@@ -225,23 +225,23 @@ fn command_mail_from_8bitmime() {
 
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> Foo"),
-        Err(CodesID::ParameterUnimplemented)
+        Err(CodeID::ParameterUnimplemented)
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY="),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY"),
-        Err(CodesID::ParameterUnimplemented)
+        Err(CodeID::ParameterUnimplemented)
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=bar"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> BODY=8BITMIME BODY=7BIT"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -257,7 +257,7 @@ fn command_mail_from_international() {
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<ned@ymir.claremont.edu> SMTPUTF8=foo"),
-        Err(CodesID::ParameterUnimplemented)
+        Err(CodeID::ParameterUnimplemented)
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<用户@例子.广告> SMTPUTF8"),
@@ -285,7 +285,7 @@ fn command_mail_from_auth() {
     );
     assert_eq!(
         Event::parse_cmd("MAIL FROM:<用户@例子.广告> AUTH"),
-        Err(CodesID::ParameterUnimplemented)
+        Err(CodeID::ParameterUnimplemented)
     );
 }
 
@@ -303,7 +303,7 @@ fn command_rcpt_to() {
     );
     assert_eq!(
         Event::parse_cmd("RCPT TO:   <>  "),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     // assert_eq!(
     //     Event::parse_cmd("RCPT tO:   <local.part@[127.0.0.1]>  "),
@@ -315,18 +315,18 @@ fn command_rcpt_to() {
     );
     assert_eq!(
         Event::parse_cmd("RCPT TO:   <ibm@com>  extra_arg "),
-        Err(CodesID::ParameterUnimplemented)
+        Err(CodeID::ParameterUnimplemented)
     );
     assert_eq!(
         Event::parse_cmd("RcpT  TO:  "),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("RCPT TO ko"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 
-    assert_eq!(Event::parse_cmd("RCPT"), Err(CodesID::SyntaxErrorParams));
+    assert_eq!(Event::parse_cmd("RCPT"), Err(CodeID::SyntaxErrorParams));
 }
 
 #[test]
@@ -343,7 +343,7 @@ fn command_data() {
     assert_eq!(Event::parse_cmd("dAtA"), Ok(Event::DataCmd));
     assert_eq!(
         Event::parse_cmd("data dummy"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -353,7 +353,7 @@ fn command_quit() {
     assert_eq!(Event::parse_cmd("quit"), Ok(Event::QuitCmd));
     assert_eq!(
         Event::parse_cmd("QUIT dummy"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -363,7 +363,7 @@ fn command_rset() {
     assert_eq!(Event::parse_cmd("RsEt"), Ok(Event::RsetCmd));
     assert_eq!(
         Event::parse_cmd("RSET dummy"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -381,7 +381,7 @@ fn command_verify() {
         Event::parse_cmd("VrFy foobar"),
         Ok(Event::VrfyCmd("foobar".to_string()))
     );
-    assert_eq!(Event::parse_cmd("VRFY"), Err(CodesID::SyntaxErrorParams));
+    assert_eq!(Event::parse_cmd("VRFY"), Err(CodeID::SyntaxErrorParams));
     assert_eq!(
         Event::parse_cmd("vrfy     dummy"),
         Ok(Event::VrfyCmd("dummy".to_string()))
@@ -392,7 +392,7 @@ fn command_verify() {
     );
     assert_eq!(
         Event::parse_cmd("vRrY       dummy        toto"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -402,7 +402,7 @@ fn command_expand() {
         Event::parse_cmd("EXPN foobar"),
         Ok(Event::ExpnCmd("foobar".to_string()))
     );
-    assert_eq!(Event::parse_cmd("eXpN"), Err(CodesID::SyntaxErrorParams));
+    assert_eq!(Event::parse_cmd("eXpN"), Err(CodeID::SyntaxErrorParams));
     assert_eq!(
         Event::parse_cmd("eXpN     dummy"),
         Ok(Event::ExpnCmd("dummy".to_string()))
@@ -413,7 +413,7 @@ fn command_expand() {
     );
     assert_eq!(
         Event::parse_cmd("expn       dummy        toto"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -430,7 +430,7 @@ fn command_help() {
     );
     assert_eq!(
         Event::parse_cmd("hELp       dummy        toto"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
@@ -440,16 +440,16 @@ fn command_starttls() {
     assert_eq!(Event::parse_cmd("STARTTLS"), Ok(Event::StartTls));
     assert_eq!(
         Event::parse_cmd("STARTTLS dummy"),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 }
 
 #[test]
 fn command_auth() {
-    assert_eq!(Event::parse_cmd("AUTH"), Err(CodesID::SyntaxErrorParams));
+    assert_eq!(Event::parse_cmd("AUTH"), Err(CodeID::SyntaxErrorParams));
     assert_eq!(
         Event::parse_cmd("auth not_supported"),
-        Err(CodesID::AuthMechNotSupported)
+        Err(CodeID::AuthMechNotSupported)
     );
     assert_eq!(
         Event::parse_cmd("auth PLAIN"),
@@ -468,16 +468,16 @@ fn command_auth() {
 fn parse_path() {
     assert_eq!(
         Event::from_path("foo@bar", false),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::from_path("foo@bar", true),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(Event::from_path("<>", true), Ok("".to_string()));
     assert_eq!(
         Event::from_path("<>", false),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 
     assert_eq!(
@@ -486,7 +486,7 @@ fn parse_path() {
     );
     assert_eq!(
         Event::from_path("<not-a-valid-address>", false),
-        Err(CodesID::SyntaxErrorParams)
+        Err(CodeID::SyntaxErrorParams)
     );
 
     assert_eq!(

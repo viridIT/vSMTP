@@ -3,18 +3,18 @@
         rule "blacklist" || {
             if ctx().mail_from.domain == "satan.org" {
                 object deny_satan code = #{
-                    base: 501,
+                    code: 501,
                     enhanced: "4.7.1",
-                    text: "satan is blacklisted on this server\r\n",
+                    text: "satan is blacklisted on this server",
                 };
 
                 deny(deny_satan)
             } else if ctx().mail_from.domain == "evil.com" {
-                object deny_evil string = "501 4.7.1 evil is blacklisted on this server\r\n";
+                object deny_evil code = "501 4.7.1 evil is blacklisted on this server";
 
                 deny(deny_evil)
             } else if ctx().mail_from.domain == "unpleasant.eu" {
-                deny("501 4.7.1 unpleasant is blacklisted on this server\r\n")
+                deny("501 4.7.1 unpleasant is blacklisted on this server")
             } else {
                 next()
             }

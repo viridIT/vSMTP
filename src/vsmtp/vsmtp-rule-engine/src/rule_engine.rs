@@ -29,6 +29,7 @@ use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
+use crate::modules::actions::rule_state::rule_state::deny;
 use crate::modules::EngineResult;
 use crate::rule_state::RuleState;
 use crate::{log_channels, modules};
@@ -182,9 +183,10 @@ impl RuleEngine {
                         Self::parse_stage_error(error, smtp_state)
                     );
 
-                    // if an error occurs, the engine denies the connexion by default.
-                    rule_state.skipping(Status::Deny(None));
-                    return Status::Deny(None);
+                    // if an error occurs, the engine denies the connection by default.
+                    let state_if_error = deny();
+                    rule_state.skipping(state_if_error.clone());
+                    return state_if_error;
                 }
             }
         }

@@ -42,12 +42,21 @@ pub const SUBMISSIONS_PORT: u16 = 465;
 mod r#type {
     #[macro_use]
     pub mod address;
-    pub mod codes_id;
+    pub mod code_id;
     pub mod reply;
     pub mod reply_code;
 }
 
-pub use r#type::{address::Address, codes_id::CodesID, reply::Reply, reply_code::*};
+pub use r#type::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
+
+///
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum ReplyOrCodeID {
+    ///
+    CodeID(CodeID),
+    ///
+    Reply(Reply),
+}
 
 /// envelop of a transaction
 pub mod envelop;

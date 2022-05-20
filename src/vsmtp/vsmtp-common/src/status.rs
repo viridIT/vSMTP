@@ -15,7 +15,7 @@
  *
 */
 
-use std::fmt::Display;
+use crate::{Reply, ReplyOrCodeID};
 
 /// A packet send from the application (.vsl) to the server (vsmtp)
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -23,37 +23,21 @@ pub enum InfoPacket {
     /// a string
     Str(String),
     /// a custom code.
-    Code {
-        /// the base code (550, 250 ...)
-        base: i64,
-        /// the enhanced code {5.7.1 ...}
-        enhanced: String,
-        /// a message to send.
-        text: String,
-    },
+    Code(Reply),
 }
 
-impl Display for InfoPacket {
+impl std::fmt::Display for InfoPacket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                InfoPacket::Str(string) => string.clone(),
-                InfoPacket::Code {
-                    base,
-                    enhanced,
-                    text,
-                } => {
-                    format!("{base} {enhanced} {text}")
-                }
-            }
-        )
+        match self {
+            InfoPacket::Str(string) => write!(f, "{string}"),
+            InfoPacket::Code(reply) => write!(f, "{} {}", reply.code(), reply.text()),
+        }
     }
 }
 
 /// Status of the mail context treated by the rule engine
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, strum::AsRefStr, serde::Deserialize, serde::Serialize)]
+#[strum(serialize_all = "snake_case")]
 pub enum Status {
     /// informational data needs to be sent to the client.
     Info(InfoPacket),
@@ -65,7 +49,7 @@ pub enum Status {
     Next,
 
     /// immediately stops the transaction and send an error code.
-    Deny(Option<InfoPacket>),
+    Deny(ReplyOrCodeID),
 
     /// ignore all future rules for the current transaction.
     Faccept,
@@ -75,41 +59,11 @@ pub enum Status {
     Quarantine(String),
 }
 
-impl std::fmt::Display for Status {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Status::Info(_) => "info",
-                Status::Accept => "accept",
-                Status::Next => "next",
-                Status::Deny(_) => "deny",
-                Status::Faccept => "faccept",
-                Status::Quarantine(_) => "quarantine",
-            }
-        )
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use crate::status::Status;
+    use crate::{Reply, ReplyCode};
 
     use super::InfoPacket;
-
-    #[test]
-    fn display_status() {
-        println!(
-            "{}, {}, {}, {}, {}, {}",
-            Status::Info(InfoPacket::Str(String::default())),
-            Status::Accept,
-            Status::Next,
-            Status::Deny(None),
-            Status::Faccept,
-            Status::Quarantine(String::default()),
-        );
-    }
 
     #[test]
     fn to_string() {
@@ -119,11 +73,13 @@ mod test {
         );
 
         assert_eq!(
-            InfoPacket::Code {
-                base: 250,
-                enhanced: "2.0.0".to_string(),
-                text: "custom message".to_string()
-            }
+            InfoPacket::Code(Reply::new(
+                ReplyCode::Enhanced {
+                    code: 250,
+                    enhanced: "2.0.0".to_string(),
+                },
+                "custom message".to_string()
+            ))
             .to_string()
             .as_str(),
             "250 2.0.0 custom message"
