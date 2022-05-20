@@ -27,12 +27,13 @@ use crate::mechanism::Mechanism;
     PartialOrd,
     serde::Deserialize,
     serde::Serialize,
-    strum::EnumIter,
+    strum::EnumString,
+    strum::Display,
 )]
 #[serde(untagged)]
-#[serde(into = "String")]
-#[serde(try_from = "String")]
 #[allow(clippy::module_name_repetitions)]
+#[strum(serialize_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum StateSMTP {
     /// After TCP/IP socket has been accepted
     Connect,
@@ -41,10 +42,12 @@ pub enum StateSMTP {
     /// After receiving STARTTLS command
     NegotiationTLS,
     /// After receiving AUTH command
-    Authentication(Mechanism, Option<Vec<u8>>),
+    Authenticate(Mechanism, Option<Vec<u8>>),
     /// After receiving MAIL FROM command
+    #[strum(serialize = "mail")]
     MailFrom,
     /// After receiving RCPT TO command
+    #[strum(serialize = "rcpt")]
     RcptTo,
     /// After receiving DATA command
     Data,
@@ -61,91 +64,5 @@ pub enum StateSMTP {
 impl Default for StateSMTP {
     fn default() -> Self {
         Self::Connect
-    }
-}
-
-impl std::fmt::Display for StateSMTP {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            // format used by vSL
-            Self::Connect => "connect",
-            Self::Helo => "helo",
-            Self::MailFrom => "mail",
-            Self::RcptTo => "rcpt",
-            Self::PreQ => "preq",
-            Self::PostQ => "postq",
-            Self::Delivery => "delivery",
-            Self::Authentication(_, _) => "authenticate",
-            Self::Data => "data",
-            // others
-            Self::Stop => "Stop",
-            Self::NegotiationTLS => "NegotiationTLS",
-        })
-    }
-}
-
-impl From<StateSMTP> for String {
-    fn from(state: StateSMTP) -> Self {
-        format!("{}", state)
-    }
-}
-
-impl std::str::FromStr for StateSMTP {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            // format used by vSL
-            "connect" => Ok(Self::Connect),
-            "helo" => Ok(Self::Helo),
-            "mail" => Ok(Self::MailFrom),
-            "rcpt" => Ok(Self::RcptTo),
-            "preq" => Ok(Self::PreQ),
-            "postq" => Ok(Self::PostQ),
-            "delivery" => Ok(Self::Delivery),
-            "authenticate" => Ok(Self::Authentication(
-                Mechanism::default(),
-                Option::<Vec<u8>>::default(),
-            )),
-            "data" => Ok(Self::Data),
-            // others
-            "Stop" => Ok(Self::Stop),
-            "NegotiationTLS" => Ok(Self::NegotiationTLS),
-            _ => anyhow::bail!("not a valid SMTP state: '{}'", s),
-        }
-    }
-}
-
-impl TryFrom<String> for StateSMTP {
-    type Error = anyhow::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        <Self as std::str::FromStr>::from_str(&value)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use super::StateSMTP;
-
-    #[test]
-    fn error() {
-        assert_eq!(
-            format!("{}", StateSMTP::from_str("foobar").unwrap_err()),
-            "not a valid SMTP state: 'foobar'"
-        );
-    }
-
-    #[test]
-    fn same() {
-        for s in <StateSMTP as strum::IntoEnumIterator>::iter() {
-            println!("{:?}", s);
-            assert_eq!(StateSMTP::from_str(&format!("{}", s)).unwrap(), s);
-            assert_eq!(String::try_from(s.clone()).unwrap(), format!("{}", s));
-            let str: String = s.clone().into();
-            assert_eq!(str, format!("{}", s));
-        }
     }
 }

@@ -110,7 +110,7 @@ impl
 
             re.run_when(
                 &mut rule_state,
-                &StateSMTP::Authentication(Mechanism::default(), None),
+                &StateSMTP::Authenticate(Mechanism::default(), None),
             )
         };
 

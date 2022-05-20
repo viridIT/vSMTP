@@ -266,10 +266,7 @@ fn test_forward_all() {
 
     re.run_when(&mut state, &StateSMTP::Connect);
 
-    re.run_when(
-        &mut state,
-        &StateSMTP::Authentication(Mechanism::Login, None),
-    );
+    re.run_when(&mut state, &StateSMTP::Authenticate(Mechanism::Login, None));
 
     state
         .context()

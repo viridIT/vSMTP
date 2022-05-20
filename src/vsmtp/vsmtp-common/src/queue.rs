@@ -18,7 +18,8 @@ use crate::mail_context::MailContext;
 use anyhow::Context;
 
 /// identifiers for all mail queues.
-#[derive(Debug, PartialEq, Copy, Clone, strum::EnumIter)]
+#[derive(Debug, PartialEq, Copy, Clone, strum::Display, strum::EnumString, strum::EnumIter)]
+#[strum(serialize_all = "lowercase")]
 pub enum Queue {
     /// postq
     Working,
@@ -28,31 +29,6 @@ pub enum Queue {
     Deferred,
     /// too many attempts failed
     Dead,
-}
-
-impl std::fmt::Display for Queue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Working => "working",
-            Self::Deliver => "deliver",
-            Self::Deferred => "deferred",
-            Self::Dead => "dead",
-        })
-    }
-}
-
-impl std::str::FromStr for Queue {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "working" => Ok(Self::Working),
-            "deliver" => Ok(Self::Deliver),
-            "deferred" => Ok(Self::Deferred),
-            "dead" => Ok(Self::Dead),
-            _ => anyhow::bail!("not a valid queue: '{}'", s),
-        }
-    }
 }
 
 /// Syntax sugar for access of queues folder and queues items
@@ -144,28 +120,5 @@ impl Queue {
         log::debug!("mail {} successfully written to {} queue", message_id, self);
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use super::Queue;
-
-    #[test]
-    fn error() {
-        assert_eq!(
-            format!("{}", Queue::from_str("foobar").unwrap_err()),
-            "not a valid queue: 'foobar'"
-        );
-    }
-
-    #[test]
-    fn same() {
-        for s in <Queue as strum::IntoEnumIterator>::iter() {
-            println!("{:?}", s);
-            assert_eq!(Queue::from_str(&format!("{}", s)).unwrap(), s);
-        }
     }
 }

@@ -187,7 +187,7 @@ impl Transaction {
             (StateSMTP::Helo, Event::Auth(mechanism, initial_response))
                 if !conn.is_authenticated =>
             {
-                ProcessedEvent::ChangeState(StateSMTP::Authentication(mechanism, initial_response))
+                ProcessedEvent::ChangeState(StateSMTP::Authenticate(mechanism, initial_response))
             }
 
             (StateSMTP::Helo, Event::MailCmd(..))
@@ -475,7 +475,7 @@ impl Transaction {
         loop {
             match transaction.state {
                 StateSMTP::NegotiationTLS => return Ok(TransactionResult::TlsUpgrade),
-                StateSMTP::Authentication(mechanism, initial_response) => {
+                StateSMTP::Authenticate(mechanism, initial_response) => {
                     return Ok(TransactionResult::Authentication(
                         transaction
                             .rule_state
