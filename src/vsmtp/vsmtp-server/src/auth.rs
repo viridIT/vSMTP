@@ -115,7 +115,11 @@ impl
         };
 
         match prop {
-            vsmtp_rsasl::Property::GSASL_VALIDATE_SIMPLE if result == Status::Accept => Ok(()),
+            vsmtp_rsasl::Property::GSASL_VALIDATE_SIMPLE
+                if matches!(result, Status::Accept(..)) =>
+            {
+                Ok(())
+            }
             vsmtp_rsasl::Property::GSASL_PASSWORD => {
                 let authpass = match result {
                     Status::Packet(authpass) => authpass,

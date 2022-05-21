@@ -57,7 +57,10 @@ fn test_engine_rules_syntax() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::MailFrom), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Next);
@@ -140,6 +143,12 @@ fn test_deny_constant_definitions() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Helo),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }

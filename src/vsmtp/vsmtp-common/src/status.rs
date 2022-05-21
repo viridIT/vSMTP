@@ -25,7 +25,7 @@ pub enum Status {
     Info(ReplyOrCodeID),
 
     /// accepts the current stage value, skips all rules in the stage.
-    Accept,
+    Accept(ReplyOrCodeID),
 
     /// continue to the next rule / stage.
     Next,
@@ -34,7 +34,7 @@ pub enum Status {
     Deny(ReplyOrCodeID),
 
     /// ignore all future rules for the current transaction.
-    Faccept,
+    Faccept(ReplyOrCodeID),
 
     /// ignore all future rules for the current transaction.
     /// the String parameter is the path to the quarantine folder.

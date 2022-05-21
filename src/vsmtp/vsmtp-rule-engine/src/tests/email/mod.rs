@@ -34,9 +34,15 @@ fn test_email_context() {
     let re = RuleEngine::new(&config, &Some(rules_path!["main.vsl"])).unwrap();
     let mut state = RuleState::new(&config, &re);
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
     state.context().write().unwrap().body = Body::Raw(String::default());
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PreQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
     state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![(
             "to".to_string(),
@@ -49,7 +55,10 @@ fn test_email_context() {
         addr!("rcpt@torewrite.net").into(),
     ];
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 
     assert_eq!(
         state.context().read().unwrap().body.get_header("to"),
@@ -63,7 +72,10 @@ fn test_email_bcc() {
     let re = RuleEngine::new(&config, &Some(rules_path!["bcc", "main.vsl"])).unwrap();
     let mut state = RuleState::new(&config, &re);
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -78,11 +90,17 @@ fn test_email_add_get_set_header() {
     );
     let (mut state, _) = get_default_state("./tmp/app");
     state.context().write().unwrap().body = Body::Raw(String::default());
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PreQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
     state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }

@@ -164,6 +164,7 @@ where
 
 // NOTE: handle_connection and handle_connection_secured do the same things..
 // but i struggle to unify these function because of recursive type
+// see `rustc --explain E0275`
 
 /// Receives the incomings mail of a connection
 ///
