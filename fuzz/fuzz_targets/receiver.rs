@@ -12,12 +12,10 @@ struct FuzzOnMail;
 impl OnMail for FuzzOnMail {
     async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        conn: &mut Connection<S>,
+        _: &mut Connection<S>,
         _: Box<MailContext>,
-        _: &mut Option<String>,
-    ) -> anyhow::Result<()> {
-        conn.send_code(CodeID::Ok).await?;
-        Ok(())
+    ) -> anyhow::Result<CodeID> {
+        Ok(CodeID::Ok)
     }
 }
 
