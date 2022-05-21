@@ -136,7 +136,7 @@ impl Transaction {
                     }
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
-                        ReplyOrCodeID::CodeID(CodeID::Ok),
+                        ReplyOrCodeID::CodeID(CodeID::Helo),
                     ),
                 }
             }
@@ -231,10 +231,15 @@ impl Transaction {
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
                     }
-                    _ => ProcessedEvent::ReplyChangeState(
-                        StateSMTP::MailFrom,
-                        ReplyOrCodeID::CodeID(CodeID::Ok),
-                    ),
+                    Status::Accept(packet) | Status::Faccept(packet) => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::MailFrom, packet)
+                    }
+                    Status::Next | Status::Quarantine(_) | Status::Packet(_) => {
+                        ProcessedEvent::ReplyChangeState(
+                            StateSMTP::MailFrom,
+                            ReplyOrCodeID::CodeID(CodeID::Ok),
+                        )
+                    }
                 }
             }
 
@@ -254,21 +259,24 @@ impl Transaction {
                     _ if self.rule_state.context().read().unwrap().envelop.rcpt.len()
                         >= conn.config.server.smtp.rcpt_count_max =>
                     {
+                        ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::TooManyRecipients))
+                    }
+                    Status::Accept(packet) | Status::Faccept(packet) => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::RcptTo, packet)
+                    }
+                    Status::Next | Status::Quarantine(_) | Status::Packet(_) => {
                         ProcessedEvent::ReplyChangeState(
                             StateSMTP::RcptTo,
-                            ReplyOrCodeID::CodeID(CodeID::TooManyRecipients),
+                            ReplyOrCodeID::CodeID(CodeID::Ok),
                         )
                     }
-                    _ => ProcessedEvent::ReplyChangeState(
-                        StateSMTP::RcptTo,
-                        ReplyOrCodeID::CodeID(CodeID::Ok),
-                    ),
                 }
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
                 self.rule_state.context().write().unwrap().body =
                     Body::Raw(String::with_capacity(MAIL_CAPACITY));
+
                 ProcessedEvent::ReplyChangeState(
                     StateSMTP::Data,
                     ReplyOrCodeID::CodeID(CodeID::DataStart),

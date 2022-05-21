@@ -30,6 +30,8 @@ pub enum CodeID {
     ///
     Closing,
     ///
+    Helo,
+    ///
     EhloPain,
     ///
     EhloSecured,

@@ -1,0 +1,37 @@
+{
+  "connection": {
+    "timestamp": {
+      "secs_since_epoch": 1653130018,
+      "nanos_since_epoch": 514268113
+    },
+    "credentials": null,
+    "server_name": "testserver.com",
+    "is_authenticated": false,
+    "is_secured": false
+  },
+  "client_addr": "127.0.0.1:0",
+  "envelop": {
+    "helo": "foobar",
+    "mail_from": "john.doe@example.com",
+    "rcpt": [
+      {
+        "address": "aa@bb",
+        "transfer_method": "Deliver",
+        "email_status": "waiting"
+      }
+    ]
+  },
+  "body": {
+    "Raw": "from: 'abc'\nto: 'def'\n"
+  },
+  "metadata": {
+    "timestamp": {
+      "secs_since_epoch": 1653130018,
+      "nanos_since_epoch": 608390742
+    },
+    "message_id": "16531300186083901653130018514EqCuKclEVmHb5xBA7e4sNb5stfjQuAayoQgh55878",
+    "skipped": {
+      "Quarantine": "john"
+    }
+  }
+}
