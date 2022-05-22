@@ -23,7 +23,10 @@ use crate::{
     },
 };
 use vsmtp_common::{
-    re::{anyhow, log, vsmtp_rsasl},
+    re::{
+        anyhow::{self, Context},
+        log, vsmtp_rsasl,
+    },
     CodeID,
 };
 use vsmtp_config::{get_rustls_config, re::rustls, Config};
@@ -40,6 +43,25 @@ pub struct Server {
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+}
+
+/// Create a TCPListener ready to be listened to
+///
+/// # Errors
+///
+/// * failed to bind to the socket address
+/// * failed to set the listener to non blocking
+pub fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
+    addr: A,
+) -> anyhow::Result<std::net::TcpListener> {
+    let socket = std::net::TcpListener::bind(&addr)
+        .with_context(|| format!("Failed to bind socket on addr: '{:?}'", addr))?;
+
+    socket
+        .set_nonblocking(true)
+        .with_context(|| format!("Failed to set non-blocking socket on addr: '{:?}'", addr))?;
+
+    Ok(socket)
 }
 
 impl Server {
@@ -137,6 +159,7 @@ impl Server {
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
         loop {
+            println!("listening");
             let (mut stream, client_addr, kind) = tokio::select! {
                 Ok((stream, client_addr)) = self.listener.accept() => {
                     (stream, client_addr, ConnectionKind::Opportunistic)
@@ -266,18 +289,18 @@ impl Server {
 #[cfg(test)]
 mod tests {
 
+    use crate::{socket_bind_anyhow, ProcessMessage, Server};
     use vsmtp_rule_engine::rule_engine::RuleEngine;
     use vsmtp_test::config;
 
-    use crate::{ProcessMessage, Server};
-
     macro_rules! listen_with {
-        ($addr:expr, $addr_submission:expr, $addr_submissions:expr, $timeout:expr) => {{
+        ($addr:expr, $addr_submission:expr, $addr_submissions:expr, $timeout:expr, $client_count_max:expr) => {{
             let config = std::sync::Arc::new({
                 let mut config = config::local_test();
                 config.server.interfaces.addr = $addr;
                 config.server.interfaces.addr_submission = $addr_submission;
                 config.server.interfaces.addr_submissions = $addr_submissions;
+                config.server.client_count_max = $client_count_max;
                 config
             });
 
@@ -292,11 +315,9 @@ mod tests {
             let s = Server::new(
                 config.clone(),
                 (
-                    std::net::TcpListener::bind(&config.server.interfaces.addr[..]).unwrap(),
-                    std::net::TcpListener::bind(&config.server.interfaces.addr_submission[..])
-                        .unwrap(),
-                    std::net::TcpListener::bind(&config.server.interfaces.addr_submissions[..])
-                        .unwrap(),
+                    socket_bind_anyhow(&config.server.interfaces.addr[..]).unwrap(),
+                    socket_bind_anyhow(&config.server.interfaces.addr_submission[..]).unwrap(),
+                    socket_bind_anyhow(&config.server.interfaces.addr_submissions[..]).unwrap(),
                 ),
                 std::sync::Arc::new(std::sync::RwLock::new(
                     RuleEngine::new(&config, &None).unwrap(),
@@ -335,7 +356,110 @@ mod tests {
             vec!["0.0.0.0:10026".parse().unwrap()],
             vec!["0.0.0.0:10588".parse().unwrap()],
             vec!["0.0.0.0:10466".parse().unwrap()],
-            10
+            10,
+            1
         ];
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn one_client_max_ok() {
+        let server = tokio::spawn(async move {
+            listen_with![
+                vec!["127.0.0.1:10016".parse().unwrap()],
+                vec!["127.0.0.1:10578".parse().unwrap()],
+                vec!["127.0.0.1:10456".parse().unwrap()],
+                1000,
+                1
+            ];
+        });
+
+        let client = tokio::spawn(async move {
+            let mail = lettre::Message::builder()
+                .from("NoBody <nobody@domain.tld>".parse().unwrap())
+                .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
+                .to("Hei <hei@domain.tld>".parse().unwrap())
+                .subject("Happy new year")
+                .body(String::from("Be happy!"))
+                .unwrap();
+
+            let sender = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
+                "127.0.0.1",
+            )
+            .port(10016)
+            .build();
+
+            lettre::AsyncTransport::send(&sender, mail).await
+        });
+
+        let (client, server) = tokio::join!(client, server);
+        server.unwrap();
+        // client transaction is ok, but has been denied (because there is no rules)
+        assert_eq!(
+            format!("{}", client.unwrap().unwrap_err()),
+            "permanent error (554): permanent problems with the remote server"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn one_client_max_err() {
+        let server = tokio::spawn(async move {
+            listen_with![
+                vec!["127.0.0.1:10006".parse().unwrap()],
+                vec!["127.0.0.1:10568".parse().unwrap()],
+                vec!["127.0.0.1:10446".parse().unwrap()],
+                1000,
+                1
+            ];
+        });
+
+        let client = tokio::spawn(async move {
+            let mail = lettre::Message::builder()
+                .from("NoBody <nobody@domain.tld>".parse().unwrap())
+                .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
+                .to("Hei <hei@domain.tld>".parse().unwrap())
+                .subject("Happy new year")
+                .body(String::from("Be happy!"))
+                .unwrap();
+
+            let sender = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
+                "127.0.0.1",
+            )
+            .port(10006)
+            .build();
+
+            lettre::AsyncTransport::send(&sender, mail).await
+        });
+
+        let client2 = tokio::spawn(async move {
+            let mail = lettre::Message::builder()
+                .from("NoBody <nobody2@domain.tld>".parse().unwrap())
+                .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
+                .to("Hei <hei@domain.tld>".parse().unwrap())
+                .subject("Happy new year")
+                .body(String::from("Be happy!"))
+                .unwrap();
+
+            let sender = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
+                "127.0.0.1",
+            )
+            .port(10006)
+            .build();
+
+            lettre::AsyncTransport::send(&sender, mail).await
+        });
+
+        let (server, client, client2) = tokio::join!(server, client, client2);
+        server.unwrap();
+
+        let client1 = format!("{}", client.unwrap().unwrap_err());
+        let client2 = format!("{}", client2.unwrap().unwrap_err());
+
+        // one of the client has been denied on connection, but we cant know which one
+        assert!(
+            (client1 == "permanent error (554): permanent problems with the remote server"
+                && client2 == "permanent error (554): Cannot process connection, closing")
+                || (client2 == "permanent error (554): permanent problems with the remote server"
+                    && client1 == "permanent error (554): Cannot process connection, closing")
+        );
     }
 }
