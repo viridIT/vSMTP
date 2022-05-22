@@ -73,8 +73,6 @@ fn check_relay(allowed_hosts) {
 /// ```
 fn check_spf(policy, helo, header) {
 
-    let srv_domain = in_domain();
-
     if policy == "none" {
         return next();
     }
@@ -111,19 +109,22 @@ fn check_spf(policy, helo, header) {
         "fail" => return deny(code550_7_23),
         "temperror" => return deny(code451_7_24),
         "permerror" => return deny(code550_7_24),
-        _ => set_header("Subject", "JUNK: " + get_header("Subject")),
+        _ => set_header("subject", "JUNK: " + get_header("subject")),
     }
 
     // Record the result in a header (RFC 7208-9)
-    let spf_header = query.result
-        + if query.result == "fail" { ` ( ${query.cause} )` }
-        + `\n receiver=${hostname()}; client-ip=${ctx().client_ip};`
-        + `\n identity=mailfrom; envelope_from=${ctx().mail_from};`
-        + if query.result == "pass" { `\n mechanism=${query.cause};` }
-        + if (query.result == "temperror" || query.result == "permerror") { `\n problem=${query.cause};` };
+    let spf_header =
+        // + if query.result == "fail" { ` ( ${query.cause} )` }
+`${query.result}
+ receiver=${hostname()}; client-ip=${ctx().client_ip};
+ identity=mailfrom; envelope_from=${ctx().mail_from};
+ ${if query.result == "pass" { `mechanism=${query.cause};` }}`;
+        // + if (query.result == "temperror" || query.result == "permerror") { "\n problem=${query.cause};" };
 
-    let auth_header = `${hostname()}; spf=${query.result}`
-        + `\n reason=\"${spf_header}\" smtp.mailfrom=${ctx().mail_from}`;
+    let auth_header =
+`${hostname()}; spf=${query.result}
+ reason=\"${spf_header}\" smtp.mailfrom=${ctx().mail_from}
+`;
 
     // The Received-SPF header field is a trace field
     // and SHOULD be prepended to the existing header, above the Received: field

@@ -34,18 +34,38 @@ pub mod security {
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw, pure)]
     pub fn check_spf(ctx: &mut Context, srv: Server, identity: &str) -> EngineResult<rhai::Map> {
+        fn query_spf(
+            resolver: &impl viaspf::lookup::Lookup,
+            ip: std::net::IpAddr,
+            sender: &viaspf::Sender,
+            helo_domain: Option<&viaspf::DomainName>,
+        ) -> rhai::Map {
+            let result = tokio::task::block_in_place(move || {
+                tokio::runtime::Handle::current().block_on(async move {
+                    viaspf::evaluate_sender(
+                        resolver,
+                        &viaspf::Config::default(),
+                        ip,
+                        sender,
+                        helo_domain,
+                    )
+                    .await
+                })
+            });
+
+            map_from_query_result(&result)
+        }
+
         let (helo, mail_from, ip) = {
             let ctx = &ctx
                 .read()
                 .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?;
-
             (
                 ctx.envelop.helo.clone(),
                 ctx.envelop.mail_from.clone(),
                 ctx.client_addr.ip(),
             )
         };
-        let config = viaspf::Config::default();
         let resolver = srv
             .resolvers
             .get(mail_from.domain())
@@ -59,41 +79,17 @@ pub mod security {
 
         match identity {
             "mail_from" => {
-                let result = tokio::task::block_in_place(move || {
-                    let sender = viaspf::Sender::new(mail_from.full()).unwrap();
-                    let helo_domain = helo.parse().ok();
-
-                    tokio::runtime::Handle::current().block_on(async move {
-                        viaspf::evaluate_sender(
-                            resolver,
-                            &config,
-                            ip,
-                            &sender,
-                            helo_domain.as_ref(),
-                        )
-                        .await
-                    })
-                });
-
-                Ok(map_from_query_result(&result))
+                dbg!("mail from: ");
+                let sender = viaspf::Sender::new(mail_from.full())
+                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+                let helo_domain = helo.parse().ok();
+                Ok(query_spf(resolver, ip, &sender, helo_domain.as_ref()))
             }
             "helo" => {
-                let result = tokio::task::block_in_place(move || {
-                    let sender = viaspf::Sender::from_domain(&helo).unwrap();
-
-                    tokio::runtime::Handle::current().block_on(async move {
-                        viaspf::evaluate_sender(
-                            resolver,
-                            &config,
-                            ip,
-                            &sender,
-                            Some(sender.domain()),
-                        )
-                        .await
-                    })
-                });
-
-                Ok(map_from_query_result(&result))
+                dbg!("helo: ", &helo);
+                let sender = viaspf::Sender::from_domain(&helo)
+                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+                Ok(query_spf(resolver, ip, &sender, Some(sender.domain())))
             }
             _ => Err("you can only perform a spf query on mail_from or helo identities".into()),
         }
