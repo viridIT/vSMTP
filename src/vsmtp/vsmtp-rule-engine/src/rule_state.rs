@@ -1,4 +1,8 @@
+use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::object::Object;
+use crate::dsl::object::parsing::{parse_object, create_object};
+use crate::dsl::rule::parsing::{create_rule, parse_rule};
+use crate::dsl::service::parsing::{parse_service, create_service};
 use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
@@ -116,30 +120,17 @@ impl RuleState {
                 "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
                 _ => Ok(None),
             })
-            .on_def_var(|_, info, _| Ok(!matches!(info.name, "CTX" | "SRV")))
             .on_print(|msg| println!("{msg}"))
             .register_global_module(rule_engine.std_module.clone())
             .register_global_module(rule_engine.vsl_rhai_module.clone())
             .register_static_module("sys", rule_engine.vsl_native_module.clone())
             .register_static_module("toml", rule_engine.toml_module.clone())
-            .register_custom_syntax_raw(
-                "rule",
-                crate::dsl::rule::parsing::parse_rule,
-                true,
-                crate::dsl::rule::parsing::create_rule,
-            )
-            .register_custom_syntax_raw(
-                "action",
-                crate::dsl::action::parsing::parse_action,
-                true,
-                crate::dsl::action::parsing::create_action,
-            )
-            .register_custom_syntax_raw(
-                "object",
-                crate::dsl::object::parsing::parse_object,
-                true,
-                crate::dsl::object::parsing::create_object,
-            )
+            // FIXME: the following 4 lines should be remove for performance improvement.
+            //        need to check out how to construct directives as a module.
+            .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
+            .register_custom_syntax_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_raw("object", parse_object, true, create_object)
+            .register_custom_syntax_raw("service", parse_service, true, create_service)
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 

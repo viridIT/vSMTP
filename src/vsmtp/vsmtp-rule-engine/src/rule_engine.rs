@@ -241,35 +241,25 @@ impl RuleEngine {
         match *error {
             // NOTE: since all errors are caught and thrown in "run_rules", errors
             //       are always wrapped in ErrorInFunctionCall.
-            EvalAltResult::ErrorInFunctionCall(_, _, error, _) => match *error {
-                EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
-                    let error = error.cast::<rhai::Map>();
-                    let rule = error
-                        .get("rule")
-                        .map_or_else(|| "unknown rule".to_string(), ToString::to_string);
-                    let error = error.get("message").map_or_else(
-                        || "vsl internal unexpected error".to_string(),
-                        ToString::to_string,
-                    );
+            EvalAltResult::ErrorRuntime(error, _) if error.is::<rhai::Map>() => {
+                let error = error.cast::<rhai::Map>();
+                let rule = error
+                    .get("rule")
+                    .map_or_else(|| "unknown rule".to_string(), ToString::to_string);
+                let error = error.get("message").map_or_else(
+                    || "vsl internal unexpected error".to_string(),
+                    ToString::to_string,
+                );
 
-                    format!(
-                        "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
-                        smtp_state, rule, error
-                    )
-                }
-                _ => {
-                    format!(
-                        "stage '{}' skipped => rule engine failed:\n\t{}",
-                        smtp_state, error,
-                    )
-                }
-            },
-            // NOTE: all errors are caught in "run_rules", should this code be replaced
-            //       with `unreachable!` ?
+                format!(
+                    "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
+                    smtp_state, rule, error
+                )
+            }
             _ => {
                 format!(
-                    "rule engine unexpected error in stage '{}':\n\t{:?}",
-                    smtp_state, error
+                    "stage '{}' skipped => rule engine failed:\n\t{}",
+                    smtp_state, error,
                 )
             }
         }

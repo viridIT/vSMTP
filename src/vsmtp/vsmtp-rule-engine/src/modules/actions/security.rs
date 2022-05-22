@@ -79,14 +79,12 @@ pub mod security {
 
         match identity {
             "mail_from" => {
-                dbg!("mail from: ");
                 let sender = viaspf::Sender::new(mail_from.full())
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
                 let helo_domain = helo.parse().ok();
                 Ok(query_spf(resolver, ip, &sender, helo_domain.as_ref()))
             }
             "helo" => {
-                dbg!("helo: ", &helo);
                 let sender = viaspf::Sender::from_domain(&helo)
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
                 Ok(query_spf(resolver, ip, &sender, Some(sender.domain())))

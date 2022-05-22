@@ -130,16 +130,3 @@ fn test_rule_state() {
         std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))
     );
 }
-
-#[test]
-fn test_deny_constant_definitions() {
-    let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["constants", "main.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Accept);
-}
