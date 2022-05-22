@@ -89,7 +89,9 @@ impl RuleEngine {
 
         log::debug!(target: log_channels::RE, "compiling rhai scripts ...");
 
-        let mut ast = if let Some(script_path) = &script_path {
+        let mut ast = Self::compile_api(&compiler).context("failed to compile vsl's api")?;
+
+        ast += if let Some(script_path) = &script_path {
             compiler
                 .compile_into_self_contained(
                     &rhai::Scope::new(),
@@ -107,8 +109,6 @@ impl RuleEngine {
                 .compile(include_str!("default_rules.rhai"))
                 .map_err(|err| anyhow::anyhow!("failed to compile default rules: {err}"))
         }?;
-
-        ast += Self::compile_api(&mut compiler).context("failed to compile vsl's api")?;
 
         let directives = Self::extract_directives(&compiler, &ast)?;
 
@@ -140,7 +140,7 @@ impl RuleEngine {
             .register_static_module("sys", vsl_module.clone())
             .register_static_module("toml", toml_module.clone());
 
-        let mut ast = Self::compile_api(&mut compiler).context("failed to compile vsl's api")?;
+        let mut ast = Self::compile_api(&compiler).context("failed to compile vsl's api")?;
         ast += compiler.compile_into_self_contained(&rhai::Scope::new(), script)?;
 
         let directives = Self::extract_directives(&compiler, &ast)?;
@@ -293,11 +293,14 @@ impl RuleEngine {
         engine
     }
 
-    fn compile_api(engine: &mut rhai::Engine) -> anyhow::Result<rhai::AST> {
+    fn compile_api(engine: &rhai::Engine) -> anyhow::Result<rhai::AST> {
         let ast = engine
             .compile_scripts_with_scope(
                 &rhai::Scope::new(),
                 [
+                    include_str!("api/codes.rhai"),
+                    include_str!("api/networks.rhai"),
+                    include_str!("api/auth.rhai"),
                     include_str!("api/sys-api.rhai"),
                     include_str!("api/rhai-api.rhai"),
                     include_str!("api/utils.rhai"),

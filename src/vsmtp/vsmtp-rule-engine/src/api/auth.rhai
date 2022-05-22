@@ -15,14 +15,6 @@
  *
 */
 
-/// check spf record.
-///
-/// @policy: "strict" | "soft" (default) | "none"
-/// @helo: false | true (default)
-/// @header: "spf" | "auth" | "both" (default) | "none"
-fn check_spf(policy, helo, header) { sys::check_spf(policy, helo, header) }
-
-
 //
 // standard library for authentication
 //
@@ -60,40 +52,41 @@ fn check_relay(allowed_hosts) {
     sys::next();
 }
 
-///
+/// check spf record.
 /// Sender Policy Framework (RFC 7208).
 ///
-/// - args : no
-/// - return : deny() or next()
+/// # Args
+/// @policy: "strict" | "soft" (default) | "none"
+/// @helo: false | true (default)
+/// @header: "spf" | "auth" | "both" (default) | "none"
 ///
-/// vsmtp.toml variables required :
-/// - server.auth.spf.strict (boolean)
-/// - server.auth.spf.header (spf | auth | both | none)
+/// # Return
+/// - deny() or next()
 ///
-/// ### Required stage : rcpt+
+/// # Required stage : rcpt+
 ///
-/// ### Example
+/// # Example
 /// ```
 /// rcpt: [
-///     rule "check spf" || vsl::check_spf!()
+///     rule "check spf" || check_spf("soft", false, "spf")
 /// ]
 /// ```
-fn check_spf() {
+fn check_spf(policy, helo, header) {
 
-    let srv_domain = get_domain();
+    let srv_domain = in_domain();
 
-    // Check if policy is already applied or set to none.
-    if (srv_domain.auth.spf.trigger != "vsl") || (srv_domain.auth.spf.policy == "none") {
-        return sys::next();
+    if policy == "none" {
+        return next();
     }
 
     // Open issue - see hereunder.
-    let helo_domain = "";
-    if srv_domain.auth.spf.helo {
-        // helo_domain = ctx().helo;
-    }
+    let identity = if helo {
+        "helo"
+    } else {
+        "mail_from"
+    };
 
-    let query = sys::check_spf(ctx().client_ip, ctx().mail_from, helo_domain);
+    let query = sys::check_spf(ctx(), srv(), identity);
     // sys::check_spf() : a wrapper for viaspf::evaluate_sender (viaspf crate)
     //
     // - return :
@@ -115,10 +108,10 @@ fn check_spf() {
 
     switch query.result {
         "pass" => {},
-        "fail" => return sys::deny(code550_7_23),
-        "temperror" => return sys::deny(code451_7_24),
-        "permerror" => return sys::deny(code550_7_24),
-        _ => sys::set_header(ctx(), "Subject", "JUNK:" + sys::get_header(ctx(), "Subject")),
+        "fail" => return deny(code550_7_23),
+        "temperror" => return deny(code451_7_24),
+        "permerror" => return deny(code550_7_24),
+        _ => set_header("Subject", "JUNK: " + get_header("Subject")),
     }
 
     // Record the result in a header (RFC 7208-9)
@@ -130,23 +123,23 @@ fn check_spf() {
         + if (query.result == "temperror" || query.result == "permerror") { `\n problem=${query.cause};` };
 
     let auth_header = `${hostname()}; spf=${query.result}`
-        + `\n reason=\" ${spf_header} \" smtp.mailfrom=${ctx().mail_from}`;
+        + `\n reason=\"${spf_header}\" smtp.mailfrom=${ctx().mail_from}`;
 
     // The Received-SPF header field is a trace field
     // and SHOULD be prepended to the existing header, above the Received: field
     // It MUST appear above all other Received-SPF fields in the message.
-    switch srv_domain.auth.spf.header {
+    switch header {
         // It is RECOMMENDED that SMTP receivers record the result"
         "none" => {},
-        "spf" => sys::add_header(ctx(), "Received-SPF", spf_header),
-        "auth" => sys::add_header(ctx(), "Authentication-Results", auth_header),
+        "spf" => add_header("Received-SPF", spf_header),
+        "auth" => add_header("Authentication-Results", auth_header),
         _ => {
-            sys::add_header(ctx(), "Authentication-Results", auth_header);
-            sys::add_header(ctx(), "Received-SPF", spf_header);
+            add_header("Authentication-Results", auth_header);
+            add_header("Received-SPF", spf_header);
         },
     }
 
-    return sys::next();
+    next()
 }
 
 
