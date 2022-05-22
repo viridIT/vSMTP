@@ -119,7 +119,8 @@ impl RuleState {
             .on_def_var(|_, info, _| Ok(!matches!(info.name, "CTX" | "SRV")))
             .on_print(|msg| println!("{msg}"))
             .register_global_module(rule_engine.std_module.clone())
-            .register_static_module("sys", rule_engine.vsl_module.clone())
+            .register_global_module(rule_engine.vsl_rhai_module.clone())
+            .register_static_module("sys", rule_engine.vsl_native_module.clone())
             .register_static_module("toml", rule_engine.toml_module.clone())
             .register_custom_syntax_raw(
                 "rule",
