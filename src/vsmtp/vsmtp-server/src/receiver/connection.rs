@@ -24,13 +24,13 @@ use vsmtp_config::Config;
 
 /// how the server would react to tls interaction for this connection
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, vsmtp_common::re::strum::Display)]
 pub enum ConnectionKind {
-    /// connection may use STARTTLS
-    Opportunistic,
-    /// Opportunistic and enforced security (auth)
+    /// Connection coming for relay (MTA on port 25)
+    Relay,
+    /// Connection coming for submission (MSA on port 587)
     Submission,
-    /// within TLS
+    /// Connection coming for submissionS (MSA on port 465)
     Tunneled,
 }
 

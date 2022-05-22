@@ -111,7 +111,7 @@ where
     let mut written_data = Vec::new();
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut conn = Connection::new(
-        ConnectionKind::Opportunistic,
+        ConnectionKind::Relay,
         address.parse().unwrap(),
         config.clone(),
         &mut mock,

@@ -71,9 +71,30 @@ fn try_main() -> anyhow::Result<()> {
     }
 
     let sockets = (
-        socket_bind_anyhow(&config.server.interfaces.addr[..])?,
-        socket_bind_anyhow(&config.server.interfaces.addr_submission[..])?,
-        socket_bind_anyhow(&config.server.interfaces.addr_submissions[..])?,
+        config
+            .server
+            .interfaces
+            .addr
+            .iter()
+            .cloned()
+            .map(socket_bind_anyhow)
+            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
+        config
+            .server
+            .interfaces
+            .addr_submission
+            .iter()
+            .cloned()
+            .map(socket_bind_anyhow)
+            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
+        config
+            .server
+            .interfaces
+            .addr_submissions
+            .iter()
+            .cloned()
+            .map(socket_bind_anyhow)
+            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
     );
 
     if !args.no_daemon {

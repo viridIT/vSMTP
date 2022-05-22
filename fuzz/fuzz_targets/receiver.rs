@@ -50,7 +50,7 @@ fuzz_target!(|data: &[u8]| {
     let mut written_data = Vec::new();
     let mut mock = Mock::new(data.to_vec(), &mut written_data);
     let mut conn = Connection::new(
-        ConnectionKind::Opportunistic,
+        ConnectionKind::Relay,
         "0.0.0.0:0".parse().unwrap(),
         config.clone(),
         &mut mock,
