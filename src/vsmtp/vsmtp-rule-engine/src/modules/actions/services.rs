@@ -57,7 +57,7 @@ pub mod services {
 
     /// execute the given shell service with dynamic arguments.
     #[rhai_fn(global, name = "shell_run", return_raw, pure)]
-    pub fn run_shell_with_args(
+    pub fn shell_run_with_args(
         service: &mut std::sync::Arc<Service>,
         args: rhai::Array,
     ) -> EngineResult<ShellResult> {
@@ -107,9 +107,7 @@ pub mod services {
                 crate::dsl::service::databases::csv::add_record(path, *delimiter, fd, &record[..])
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
             }
-            Service::UnixShell { .. } => {
-                Err(format!("cannot use 'db_add' method on a {service} service.").into())
-            }
+            _ => Err(format!("cannot use 'db_add' method on a {service} service.").into()),
         }
     }
 
@@ -121,9 +119,7 @@ pub mod services {
                 crate::dsl::service::databases::csv::remove_record(path, key)
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
             }
-            Service::UnixShell { .. } => {
-                Err(format!("cannot use 'db_add' method on a {service} service.").into())
-            }
+            _ => Err(format!("cannot use 'db_add' method on a {service} service.").into()),
         }
     }
 
@@ -133,15 +129,14 @@ pub mod services {
         service: &mut std::sync::Arc<Service>,
         key: &str,
     ) -> EngineResult<rhai::Array> {
-        if let Service::CSVDatabase {
-            path,
-            delimiter,
-            refresh,
-            fd,
-            ..
-        } = &**service
-        {
-            crate::dsl::service::databases::csv::query_key(path, *delimiter, refresh, fd, key)
+        match &**service {
+            Service::CSVDatabase {
+                path,
+                delimiter,
+                refresh,
+                fd,
+                ..
+            } => crate::dsl::service::databases::csv::query_key(path, *delimiter, refresh, fd, key)
                 .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
                 .map_or_else(
                     || Ok(rhai::Array::default()),
@@ -151,9 +146,19 @@ pub mod services {
                             .map(|field| rhai::Dynamic::from(field.to_string()))
                             .collect())
                     },
-                )
-        } else {
-            Err(format!("{service} cannot be run as a shell script.").into())
+                ),
+            _ => Err(format!("{service} cannot be run as a shell script.").into()),
+        }
+    }
+
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn delegate(service: &mut std::sync::Arc<Service>) -> EngineResult<()> {
+        match &**service {
+            Service::Smtp { transport } => {
+                // crate::dsl::service::smtp::delegate(transport).unwrap();
+                Ok(())
+            }
+            _ => Err(format!("cannot delegate security with '{service}' service.").into()),
         }
     }
 }

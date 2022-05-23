@@ -18,35 +18,42 @@
 pub mod databases;
 pub mod parsing;
 pub mod shell;
+pub mod smtp;
 
 #[derive(Debug)]
 pub enum Service {
     /// A service can be a program to run in a subprocess
     UnixShell {
-        /// a duration after which the subprocess will be forced-kill
+        /// A duration after which the subprocess will be forced-kill
         timeout: std::time::Duration,
-        /// optional: a user to run the subprocess under
+        /// Optional: a user to run the subprocess under
         user: Option<String>,
-        /// optional: a group to run the subprocess under
+        /// Optional: a group to run the subprocess under
         group: Option<String>,
-        /// the command to execute in the subprocess
+        /// The command to execute in the subprocess
         command: String,
-        /// optional: parameters directly given to the executed program (argc, argv)
+        /// Optional: parameters directly given to the executed program (argc, argv)
         args: Option<Vec<String>>,
     },
 
-    /// a database connector based on the csv file format.
+    /// A database connector based on the csv file format.
     CSVDatabase {
-        /// a path to the file to open.
+        /// A path to the file to open.
         path: std::path::PathBuf,
-        /// access mode to the database.
+        /// Access mode to the database.
         access: databases::AccessMode,
-        /// delimiter character to separate fields in records.
+        /// Delimiter character to separate fields in records.
         delimiter: u8,
-        /// database refresh mode.
+        /// Database refresh mode.
         refresh: databases::Refresh,
-        /// raw content of the database.
+        /// Raw content of the database.
         fd: std::fs::File,
+    },
+
+    /// A service that handles smtp transactions.
+    Smtp {
+        /// A transport to handle transactions.
+        transport: lettre::AsyncSmtpTransport<lettre::Tokio1Executor>,
     },
 }
 
@@ -56,8 +63,9 @@ impl std::fmt::Display for Service {
             f,
             "{}",
             match self {
-                Service::UnixShell { .. } => "shell",
-                Service::CSVDatabase { .. } => "csv-database",
+                Self::UnixShell { .. } => "shell",
+                Self::CSVDatabase { .. } => "csv-database",
+                Self::Smtp { .. } => "smtp",
             }
         )
     }

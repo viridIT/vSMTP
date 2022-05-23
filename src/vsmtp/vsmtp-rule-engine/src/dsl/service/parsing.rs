@@ -16,7 +16,7 @@
 */
 use crate::modules::EngineResult;
 
-use super::{shell::parse_shell_service, Service};
+use super::{shell::parse_shell_service, Service, smtp::parse_smtp_service};
 
 /// parse a service using rhai's parser.
 pub fn parse_service(
@@ -91,6 +91,7 @@ pub fn create_service(
     let service = match service_type.as_str() {
         "db" => open_database(context, input, &service_name),
         "shell" => parse_shell_service(context, input, &service_name),
+        "smtp" => parse_smtp_service(context, input, &service_name),
         _ => todo!(),
     }?;
 
