@@ -56,9 +56,9 @@ fn check_relay(allowed_hosts) {
 /// Sender Policy Framework (RFC 7208).
 ///
 /// # Args
-/// @policy: "strict" | "soft" (default) | "none"
-/// @helo: false | true (default)
-/// @header: "spf" | "auth" | "both" (default) | "none"
+/// @policy: "strict" | "soft"
+/// @identity: "helo" | "mail_from" | "both"
+/// @header: "spf" | "auth" | "both" | "none"
 ///
 /// # Return
 /// - deny() or next()
@@ -71,18 +71,7 @@ fn check_relay(allowed_hosts) {
 ///     rule "check spf" || check_spf("soft", false, "spf")
 /// ]
 /// ```
-fn check_spf(policy, helo, header) {
-
-    if policy == "none" {
-        return next();
-    }
-
-    // Open issue - see hereunder.
-    let identity = if helo {
-        "helo"
-    } else {
-        "mail_from"
-    };
+fn check_spf(policy, identity, header) {
 
     let query = sys::check_spf(ctx(), srv(), identity);
     // sys::check_spf() : a wrapper for viaspf::evaluate_sender (viaspf crate)
@@ -98,11 +87,6 @@ fn check_spf(policy, helo, header) {
     // - args : client ip, sender address, an optional helo/ehlo string.
     //
     // - comments : HELO check is only performed when the HELO string is a valid domain name.
-    //
-    // ISSUE: Identity checked (RFC 7208-9.1). identity= "mailfrom" / "helo" / "other"
-    //        Required to fill helo or envelope-from fields. Currently identity is forced to mailfrom
-    //        by passing an empty string in the last argument.
-    //        Check if it can be extract from viaspf::trace::Trace.
 
     switch query.result {
         "pass" => {},

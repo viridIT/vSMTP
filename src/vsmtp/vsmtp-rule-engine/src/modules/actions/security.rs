@@ -66,6 +66,7 @@ pub mod security {
                 ctx.client_addr.ip(),
             )
         };
+
         let resolver = srv
             .resolvers
             .get(mail_from.domain())
@@ -81,15 +82,22 @@ pub mod security {
             "mail_from" => {
                 let sender = viaspf::Sender::new(mail_from.full())
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                let helo_domain = helo.parse().ok();
-                Ok(query_spf(resolver, ip, &sender, helo_domain.as_ref()))
+                Ok(query_spf(resolver, ip, &sender, Some(sender.domain())))
             }
             "helo" => {
                 let sender = viaspf::Sender::from_domain(&helo)
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
                 Ok(query_spf(resolver, ip, &sender, Some(sender.domain())))
             }
-            _ => Err("you can only perform a spf query on mail_from or helo identities".into()),
+            // "both" checks first the helo identity and falls back to mail from.
+            "both" => {
+                let sender = viaspf::Sender::from_domain(&helo)
+                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+                let domain = viaspf::DomainName::new(mail_from.domain())
+                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+                Ok(query_spf(resolver, ip, &sender, Some(&domain)))
+            }
+            _ => Err("spf identity argument must be 'helo', 'mail_from' or 'both'".into()),
         }
     }
 }
