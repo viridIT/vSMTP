@@ -18,7 +18,6 @@ use crate::{
     log_channels,
     processes::delivery::{add_trace_information, move_to_queue, send_email},
 };
-use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
@@ -30,13 +29,13 @@ use vsmtp_common::{
     status::Status,
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::Config;
+use vsmtp_config::{Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 /// read all entries from the deliver queue & tries to send them.
 pub async fn flush_deliver_queue(
     config: &Config,
-    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
+    resolvers: &std::sync::Arc<Resolvers>,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
     let dir_entries =
@@ -71,7 +70,7 @@ pub async fn flush_deliver_queue(
 /// # Panics
 pub async fn handle_one_in_delivery_queue(
     config: &Config,
-    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
+    resolvers: &std::sync::Arc<Resolvers>,
     path: &std::path::Path,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
@@ -93,7 +92,7 @@ pub async fn handle_one_in_delivery_queue(
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-        let mut state = RuleState::with_context(config, &rule_engine, ctx);
+        let mut state = RuleState::with_context(config, resolvers.clone(), &rule_engine, ctx);
         let result = rule_engine.run_when(&mut state, &vsmtp_common::state::StateSMTP::Delivery);
 
         (state, result)
@@ -167,8 +166,6 @@ mod tests {
 
         let now = std::time::SystemTime::now();
 
-        let resolvers = build_resolvers(&config).unwrap();
-
         Queue::Deliver
             .write_to_queue(
                 &config.server.queues.dirpath,
@@ -210,6 +207,8 @@ mod tests {
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
             RuleEngine::from_script(&config, "#{}").unwrap(),
         ));
+
+        let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
 
         handle_one_in_delivery_queue(
             &config,

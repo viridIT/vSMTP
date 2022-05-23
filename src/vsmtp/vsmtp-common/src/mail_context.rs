@@ -57,9 +57,9 @@ pub enum Body {
 impl std::fmt::Display for Body {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&match self {
-            Body::Empty => "".to_string(),
-            Body::Raw(data) => data.clone(),
-            Body::Parsed(mail) => mail.to_raw(),
+            Self::Empty => "".to_string(),
+            Self::Raw(data) => data.clone(),
+            Self::Parsed(mail) => mail.to_raw(),
         })
     }
 }
@@ -72,7 +72,7 @@ impl Body {
     /// * Fail to parse using the provided [`MailParser`]
     pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
         Ok(match self {
-            Body::Raw(raw) => Self::Parsed(Box::new(P::default().parse(raw.as_bytes())?)),
+            Self::Raw(raw) => Self::Parsed(Box::new(P::default().parse(raw.as_bytes())?)),
             otherwise => otherwise,
         })
     }
@@ -81,8 +81,8 @@ impl Body {
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {
         match self {
-            Body::Empty => None,
-            Body::Raw(raw) => {
+            Self::Empty => None,
+            Self::Raw(raw) => {
                 for line in raw.lines() {
                     let mut split = line.splitn(2, ": ");
                     match (split.next(), split.next()) {
@@ -96,15 +96,15 @@ impl Body {
 
                 None
             }
-            Body::Parsed(parsed) => parsed.get_header(name),
+            Self::Parsed(parsed) => parsed.get_header(name),
         }
     }
 
     /// rewrite a header with a new value or add it to the header section.
     pub fn set_header(&mut self, name: &str, value: &str) {
         match self {
-            Body::Empty => {}
-            Body::Raw(raw) => {
+            Self::Empty => {}
+            Self::Raw(raw) => {
                 let mut header_start = 0;
                 let mut header_end = None;
 
@@ -130,16 +130,16 @@ impl Body {
                     self.add_header(name, value);
                 }
             }
-            Body::Parsed(parsed) => parsed.set_header(name, value),
+            Self::Parsed(parsed) => parsed.set_header(name, value),
         }
     }
 
     /// prepend a header to the header section.
     pub fn add_header(&mut self, name: &str, value: &str) {
         match self {
-            Body::Empty => {}
-            Body::Raw(raw) => *raw = format!("{name}: {value}\n{raw}"),
-            Body::Parsed(parsed) => {
+            Self::Empty => {}
+            Self::Raw(raw) => *raw = format!("{name}: {value}\n{raw}"),
+            Self::Parsed(parsed) => {
                 parsed.prepend_headers(vec![(name.to_string(), value.to_string())]);
             }
         }

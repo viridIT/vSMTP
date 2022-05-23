@@ -103,6 +103,7 @@ pub mod helpers {
             .unwrap();
 
         let re = RuleEngine::from_script(&config, "#{}").unwrap();
-        (RuleState::new(&config, &re), config)
+        let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+        (RuleState::new(&config, resolvers, &re), config)
     }
 }

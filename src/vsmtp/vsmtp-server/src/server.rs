@@ -26,7 +26,7 @@ use vsmtp_common::{
     re::{anyhow, log, vsmtp_rsasl},
     CodeID,
 };
-use vsmtp_config::{get_rustls_config, re::rustls, Config};
+use vsmtp_config::{get_rustls_config, re::rustls, Config, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// TCP/IP server
@@ -38,6 +38,7 @@ pub struct Server {
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
@@ -58,6 +59,7 @@ impl Server {
             std::net::TcpListener,
         ),
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        resolvers: std::sync::Arc<Resolvers>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<Self> {
@@ -98,6 +100,7 @@ impl Server {
             },
             config,
             rule_engine,
+            resolvers,
             working_sender,
             delivery_sender,
         })
@@ -193,6 +196,7 @@ impl Server {
                 self.tls_config.clone(),
                 self.rsasl.clone(),
                 self.rule_engine.clone(),
+                self.resolvers.clone(),
                 self.working_sender.clone(),
                 self.delivery_sender.clone(),
             );
@@ -218,6 +222,7 @@ impl Server {
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        resolvers: std::sync::Arc<Resolvers>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
@@ -233,6 +238,7 @@ impl Server {
             tls_config,
             rsasl,
             rule_engine,
+            resolvers,
             &mut crate::receiver::MailHandler {
                 working_sender,
                 delivery_sender,
@@ -301,6 +307,7 @@ mod tests {
                 std::sync::Arc::new(std::sync::RwLock::new(
                     RuleEngine::new(&config, &None).unwrap(),
                 )),
+                std::sync::Arc::new(std::collections::HashMap::new()),
                 working.0,
                 delivery.0,
             )

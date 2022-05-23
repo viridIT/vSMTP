@@ -21,9 +21,10 @@ use rhai::plugin::{
 
 #[rhai::plugin::export_module]
 pub mod rule_state {
+    use crate::modules::types::types::Context;
     use crate::{
         dsl::object::Object, modules::actions::transports::transports::disable_delivery_all,
-        modules::actions::MailContext, modules::EngineResult,
+        modules::EngineResult,
     };
     use vsmtp_common::{status::Status, CodeID, Reply, ReplyOrCodeID};
 
@@ -104,10 +105,7 @@ pub mod rule_state {
     /// the email will be written in the specified app directory, in the "queue" folder.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw, pure)]
-    pub fn quarantine(
-        ctx: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        queue: &str,
-    ) -> EngineResult<Status> {
+    pub fn quarantine(ctx: &mut Context, queue: &str) -> EngineResult<Status> {
         disable_delivery_all(ctx)?;
 
         Ok(Status::Quarantine(queue.to_string()))

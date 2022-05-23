@@ -123,7 +123,10 @@ where
             .unwrap(),
     ));
 
-    let result = handle_connection(&mut conn, None, rsasl, rule_engine, mail_handler).await;
+    let receivers = std::sync::Arc::new(std::collections::HashMap::new());
+
+    let result =
+        handle_connection(&mut conn, None, rsasl, rule_engine, receivers, mail_handler).await;
     tokio::io::AsyncWriteExt::flush(&mut conn.inner.inner)
         .await
         .unwrap();

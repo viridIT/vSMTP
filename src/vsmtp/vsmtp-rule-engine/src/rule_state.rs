@@ -1,11 +1,15 @@
+use crate::dsl::action::parsing::{create_action, parse_action};
+use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
+use crate::dsl::rule::parsing::{create_rule, parse_rule};
+use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{Body, ConnectionContext, MailContext};
 use vsmtp_common::status::Status;
-use vsmtp_config::Config;
+use vsmtp_config::{Config, Resolvers};
 
 /// a state container that bridges rhai's & rust contexts.
 pub struct RuleState {
@@ -23,9 +27,14 @@ pub struct RuleState {
 impl RuleState {
     /// creates a new rule engine with an empty scope.
     #[must_use]
-    pub fn new(config: &Config, rule_engine: &RuleEngine) -> Self {
+    pub fn new(
+        config: &Config,
+        resolvers: std::sync::Arc<Resolvers>,
+        rule_engine: &RuleEngine,
+    ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
+            resolvers,
         });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(MailContext {
             connection: ConnectionContext {
@@ -58,10 +67,11 @@ impl RuleState {
     #[allow(clippy::missing_panics_doc)]
     pub fn with_connection(
         config: &Config,
+        resolvers: std::sync::Arc<Resolvers>,
         rule_engine: &RuleEngine,
         conn: ConnectionContext,
     ) -> Self {
-        let state = Self::new(config, rule_engine);
+        let state = Self::new(config, resolvers, rule_engine);
         state.mail_context.write().unwrap().connection = conn;
         state
     }
@@ -70,11 +80,13 @@ impl RuleState {
     #[must_use]
     pub fn with_context(
         config: &Config,
+        resolvers: std::sync::Arc<Resolvers>,
         rule_engine: &RuleEngine,
         mail_context: MailContext,
     ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
+            resolvers,
         });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
@@ -108,29 +120,17 @@ impl RuleState {
                 "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
                 _ => Ok(None),
             })
-            .on_def_var(|_, info, _| Ok(!matches!(info.name, "CTX" | "SRV")))
             .on_print(|msg| println!("{msg}"))
             .register_global_module(rule_engine.std_module.clone())
-            .register_static_module("sys", rule_engine.vsl_module.clone())
+            .register_global_module(rule_engine.vsl_rhai_module.clone())
+            .register_static_module("sys", rule_engine.vsl_native_module.clone())
             .register_static_module("toml", rule_engine.toml_module.clone())
-            .register_custom_syntax_raw(
-                "rule",
-                crate::dsl::rule::parsing::parse_rule,
-                true,
-                crate::dsl::rule::parsing::create_rule,
-            )
-            .register_custom_syntax_raw(
-                "action",
-                crate::dsl::action::parsing::parse_action,
-                true,
-                crate::dsl::action::parsing::create_action,
-            )
-            .register_custom_syntax_raw(
-                "object",
-                crate::dsl::object::parsing::parse_object,
-                true,
-                crate::dsl::object::parsing::create_object,
-            )
+            // FIXME: the following 4 lines should be remove for performance improvement.
+            //        need to check out how to construct directives as a module.
+            .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
+            .register_custom_syntax_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_raw("object", parse_object, true, create_object)
+            .register_custom_syntax_raw("service", parse_service, true, create_service)
             .register_iterator::<Vec<vsmtp_common::Address>>()
             .register_iterator::<Vec<std::sync::Arc<Object>>>();
 

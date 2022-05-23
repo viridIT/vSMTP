@@ -25,6 +25,7 @@ iprange = "0.6.7"
 ipnet = "2.5.0"
 csv = "1.1"
 
+viaspf = { version = "0.4.0", features = ["trust-dns-resolver"] }
 hostname = "0.3.1"
 time = { version = "0.3.9", default-features = false, features = [
     "std",
@@ -32,7 +33,7 @@ time = { version = "0.3.9", default-features = false, features = [
     "macros",
 ] }
 
-rhai = { version = "1.7.0", git = "https://github.com/schungx/rhai", rev = "b23d64bec02edf70b7dc1414b708e04b1c23582c", features = [
+rhai = { version = "1.7.0", git = "https://github.com/schungx/rhai", rev = "5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82", features = [
     "unchecked",
     "sync",
     "internals",

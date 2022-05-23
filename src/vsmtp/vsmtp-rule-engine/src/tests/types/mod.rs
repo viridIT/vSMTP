@@ -105,8 +105,8 @@ fn test_services() {
         .unwrap();
 
     let re = RuleEngine::new(&config, &Some(rules_path!["service", "main.vsl"])).unwrap();
-
-    let mut state = RuleState::new(&config, &re);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers, &re);
 
     state.context().write().unwrap().body = Body::Raw(String::default());
 
@@ -152,7 +152,8 @@ fn test_config_display() {
         .unwrap();
 
     let re = RuleEngine::new(&config, &Some(rules_path!["objects", "main.vsl"])).unwrap();
-    let mut state = RuleState::new(&config, &re);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers, &re);
 
     state.context().write().unwrap().body = Body::Raw(String::default());
 

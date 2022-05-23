@@ -14,12 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::mail_context::MailContext;
-
 pub mod bcc;
 pub mod headers;
 pub mod logging;
 pub mod rule_state;
+pub mod security;
 pub mod services;
 pub mod transports;
 pub mod utils;
