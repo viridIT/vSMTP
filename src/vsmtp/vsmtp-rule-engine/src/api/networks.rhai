@@ -6,7 +6,7 @@
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
@@ -15,11 +15,14 @@
  *
 */
 
-/// here are declared all wrappers around vsl's functions declared in rhai.
+// standard library for network objects
 
-/// black boxed functions used to access the engine state.
-fn ctx() { CTX }
-fn srv() { SRV }
+object net_192 rg4 = "192.168.0.0/16";
+object net_172 rg4 = "172.16.0.0/12";
+object net_10 rg4 = "10.0.0.0/8";
 
-/// utils.rhai
-fn in_domain(rcpt) { __in_domain(rcpt) }
+object non_routable_net group = [
+    net_192,
+    net_172,
+    net_10
+];

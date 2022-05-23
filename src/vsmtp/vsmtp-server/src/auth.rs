@@ -21,7 +21,7 @@ use vsmtp_common::{
     state::StateSMTP,
     status::Status,
 };
-use vsmtp_config::Config;
+use vsmtp_config::{Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 /// Backend of SASL implementation
@@ -30,6 +30,7 @@ pub type Backend = vsmtp_rsasl::DiscardOnDrop<
         std::sync::Arc<Config>,
         (
             std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+            std::sync::Arc<Resolvers>,
             ConnectionContext,
         ),
     >,
@@ -38,6 +39,7 @@ pub type Backend = vsmtp_rsasl::DiscardOnDrop<
 /// SASL session data.
 pub type Session = vsmtp_rsasl::Session<(
     std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    std::sync::Arc<Resolvers>,
     ConnectionContext,
 )>;
 
@@ -49,6 +51,7 @@ impl
         std::sync::Arc<Config>,
         (
             std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+            std::sync::Arc<Resolvers>,
             ConnectionContext,
         ),
     > for Callback
@@ -58,6 +61,7 @@ impl
             std::sync::Arc<Config>,
             (
                 std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+                std::sync::Arc<Resolvers>,
                 ConnectionContext,
             ),
         >,
@@ -94,7 +98,7 @@ impl
             _ => return Err(vsmtp_rsasl::ReturnCode::GSASL_NO_CALLBACK),
         };
 
-        let (rule_engine, conn) = session
+        let (rule_engine, resolvers, conn) = session
             .retrieve_mut()
             .ok_or(vsmtp_rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
 
@@ -106,7 +110,7 @@ impl
                 .read()
                 .map_err(|_| vsmtp_rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
 
-            let mut rule_state = RuleState::with_connection(&config, &re, conn);
+            let mut rule_state = RuleState::with_connection(&config, resolvers.clone(), &re, conn);
 
             re.run_when(
                 &mut rule_state,

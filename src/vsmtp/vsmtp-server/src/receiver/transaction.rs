@@ -28,7 +28,7 @@ use vsmtp_common::{
     status::Status,
     Address, CodeID, ReplyOrCodeID,
 };
-use vsmtp_config::{Config, TlsSecurityLevel};
+use vsmtp_config::{Config, Resolvers, TlsSecurityLevel};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
@@ -414,9 +414,11 @@ impl Transaction {
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        resolvers: std::sync::Arc<Resolvers>,
     ) -> anyhow::Result<TransactionResult> {
         let rule_state = RuleState::with_connection(
             conn.config.as_ref(),
+            resolvers,
             &*rule_engine
                 .read()
                 .map_err(|_| anyhow::anyhow!("failed to lock rule engine"))?,

@@ -22,15 +22,13 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod bcc {
 
-    use crate::{dsl::object::Object, modules::actions::MailContext, modules::EngineResult};
+    use crate::modules::types::types::Context;
+    use crate::{dsl::object::Object, modules::EngineResult};
     use vsmtp_common::Address;
 
     /// add a recipient to the list recipient using a raw string.
     #[rhai_fn(global, name = "bcc", return_raw, pure)]
-    pub fn from_str(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        bcc: &str,
-    ) -> EngineResult<()> {
+    pub fn from_str(this: &mut Context, bcc: &str) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
@@ -46,10 +44,7 @@ pub mod bcc {
 
     /// add a recipient to the list recipient using an address.
     #[rhai_fn(global, name = "bcc", return_raw, pure)]
-    pub fn from_addr(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        bcc: Address,
-    ) -> EngineResult<()> {
+    pub fn from_addr(this: &mut Context, bcc: Address) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop
@@ -62,10 +57,7 @@ pub mod bcc {
     /// add a recipient to the list recipient using an object.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "bcc", return_raw, pure)]
-    pub fn from_object(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        bcc: std::sync::Arc<Object>,
-    ) -> EngineResult<()> {
+    pub fn from_object(this: &mut Context, bcc: std::sync::Arc<Object>) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop

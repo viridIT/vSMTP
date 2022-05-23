@@ -26,6 +26,7 @@ use vsmtp_common::{
     re::{anyhow, base64, log, vsmtp_rsasl},
     CodeID,
 };
+use vsmtp_config::Resolvers;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// Result of the AUTH command
@@ -93,6 +94,7 @@ pub async fn on_authentication<S>(
     conn: &mut Connection<S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,
 ) -> Result<(), AuthExchangeError>
@@ -140,6 +142,7 @@ where
     let mut session = guard.server_start(&String::from(mechanism)).unwrap();
     session.store(Box::new((
         rule_engine,
+        resolvers,
         ConnectionContext {
             timestamp: conn.timestamp,
             credentials: None,

@@ -67,8 +67,8 @@ impl Mechanism {
     #[must_use]
     pub const fn client_first(self) -> bool {
         match self {
-            Mechanism::Plain => true,
-            Mechanism::Login | Mechanism::CramMd5 => false,
+            Self::Plain => true,
+            Self::Login | Self::CramMd5 => false,
         }
     }
 
@@ -76,7 +76,7 @@ impl Mechanism {
     #[must_use]
     pub const fn must_be_under_tls(self) -> bool {
         match self {
-            Mechanism::Plain | Mechanism::Login | Mechanism::CramMd5 => true,
+            Self::Plain | Self::Login | Self::CramMd5 => true,
         }
     }
 }
@@ -84,9 +84,9 @@ impl Mechanism {
 impl std::fmt::Display for Mechanism {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Mechanism::Plain => "PLAIN",
-            Mechanism::Login => "LOGIN",
-            Mechanism::CramMd5 => "CRAM-MD5",
+            Self::Plain => "PLAIN",
+            Self::Login => "LOGIN",
+            Self::CramMd5 => "CRAM-MD5",
         })
     }
 }

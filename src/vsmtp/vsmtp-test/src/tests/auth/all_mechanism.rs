@@ -51,6 +51,8 @@ async fn test_auth(
                 .expect("failed to initialize the engine"),
         ));
 
+        let receivers = std::sync::Arc::new(std::collections::HashMap::new());
+
         Server::run_session(
             client_stream,
             client_addr,
@@ -59,6 +61,7 @@ async fn test_auth(
             None,
             Some(rsasl),
             rule_engine,
+            receivers,
             working_sender,
             delivery_sender,
         )

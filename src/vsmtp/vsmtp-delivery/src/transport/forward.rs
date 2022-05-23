@@ -54,7 +54,7 @@ impl<'r> Transport for Forward<'r> {
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
-        let envelop = super::build_lettre_envelop(from, &to[..])
+        let envelop = super::build_lettre_envelop(from, to)
             .context("failed to build envelop to forward email")?;
 
         // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).

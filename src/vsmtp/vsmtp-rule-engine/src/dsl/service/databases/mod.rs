@@ -14,9 +14,9 @@ impl std::fmt::Display for AccessMode {
             f,
             "{}",
             match self {
-                AccessMode::Read => "O_RDONLY",
-                AccessMode::Write => "O_WRONLY",
-                AccessMode::ReadWrite => "O_RDWR",
+                Self::Read => "O_RDONLY",
+                Self::Write => "O_WRONLY",
+                Self::ReadWrite => "O_RDWR",
             }
         )
     }

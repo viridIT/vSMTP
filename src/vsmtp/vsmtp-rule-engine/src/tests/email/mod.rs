@@ -32,7 +32,8 @@ use vsmtp_common::{
 fn test_email_context() {
     let config = get_default_config("./tmp/app");
     let re = RuleEngine::new(&config, &Some(rules_path!["main.vsl"])).unwrap();
-    let mut state = RuleState::new(&config, &re);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
     state.context().write().unwrap().body = Body::Raw(String::default());
@@ -61,7 +62,8 @@ fn test_email_context() {
 fn test_email_bcc() {
     let config = get_default_config("./tmp/app");
     let re = RuleEngine::new(&config, &Some(rules_path!["bcc", "main.vsl"])).unwrap();
-    let mut state = RuleState::new(&config, &re);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
 }
@@ -70,7 +72,8 @@ fn test_email_bcc() {
 fn test_email_add_get_set_header() {
     let config = get_default_config("./tmp/app");
     let re = RuleEngine::new(&config, &Some(rules_path!["mutate_header", "main.vsl"])).unwrap();
-    let mut state = RuleState::new(&config, &re);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),

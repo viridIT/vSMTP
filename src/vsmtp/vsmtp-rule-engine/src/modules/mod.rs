@@ -31,6 +31,7 @@ rhai::def_package! {
             .combine(exported_module!(super::modules::actions::headers::headers))
             .combine(exported_module!(super::modules::actions::logging::logging))
             .combine(exported_module!(super::modules::actions::rule_state::rule_state))
+            .combine(exported_module!(super::modules::actions::security::security))
             .combine(exported_module!(super::modules::actions::services::services))
             .combine(exported_module!(super::modules::actions::transports::transports))
             .combine(exported_module!(super::modules::actions::utils::utils))

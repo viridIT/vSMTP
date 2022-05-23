@@ -21,15 +21,13 @@ use rhai::plugin::{
 
 #[rhai::plugin::export_module]
 pub mod headers {
-    use crate::{modules::actions::MailContext, modules::EngineResult};
+    use crate::modules::types::types::Context;
+    use crate::modules::EngineResult;
     use vsmtp_common::{mail_context::Body, Address};
 
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn has_header(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        header: &str,
-    ) -> EngineResult<bool> {
+    pub fn has_header(this: &mut Context, header: &str) -> EngineResult<bool> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -40,10 +38,7 @@ pub mod headers {
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn get_header(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        header: &str,
-    ) -> EngineResult<String> {
+    pub fn get_header(this: &mut Context, header: &str) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -55,11 +50,7 @@ pub mod headers {
 
     /// add a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn add_header(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        header: &str,
-        value: &str,
-    ) -> EngineResult<()> {
+    pub fn add_header(this: &mut Context, header: &str, value: &str) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
@@ -70,11 +61,7 @@ pub mod headers {
 
     /// set a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn set_header(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        header: &str,
-        value: &str,
-    ) -> EngineResult<()> {
+    pub fn set_header(this: &mut Context, header: &str, value: &str) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
@@ -84,10 +71,7 @@ pub mod headers {
 
     /// change the sender of the mail
     #[rhai_fn(global, return_raw, pure)]
-    pub fn rewrite_mail_from(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        new_addr: &str,
-    ) -> EngineResult<()> {
+    pub fn rewrite_mail_from(this: &mut Context, new_addr: &str) -> EngineResult<()> {
         let new_addr =
             Address::try_from(new_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
                 format!(
@@ -115,11 +99,7 @@ pub mod headers {
 
     /// change a recipient of the 'To' header.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn rewrite_to(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        old_addr: &str,
-        new_addr: &str,
-    ) -> EngineResult<()> {
+    pub fn rewrite_to(this: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
         let old_addr =
             Address::try_from(old_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
                 format!(
@@ -155,11 +135,7 @@ pub mod headers {
 
     /// change a recipient of the envelop.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn rewrite_rcpt(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        old_addr: &str,
-        new_addr: &str,
-    ) -> EngineResult<()> {
+    pub fn rewrite_rcpt(this: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
         let old_addr =
             Address::try_from(old_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
                 format!(
@@ -200,10 +176,7 @@ pub mod headers {
 
     /// add a recipient to the 'To' mail header.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn add_to(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        new_addr: &str,
-    ) -> EngineResult<()> {
+    pub fn add_to(this: &mut Context, new_addr: &str) -> EngineResult<()> {
         let new_addr = Address::try_from(new_addr.to_string()).map_err(|_| {
             format!(
                 "'{}' could not be converted to a valid rcpt address",
@@ -228,10 +201,7 @@ pub mod headers {
 
     /// add a recipient to the envelop.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn add_rcpt(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        new_addr: &str,
-    ) -> EngineResult<()> {
+    pub fn add_rcpt(this: &mut Context, new_addr: &str) -> EngineResult<()> {
         let new_addr = Address::try_from(new_addr.to_string()).map_err(|_| {
             format!(
                 "'{}' could not be converted to a valid rcpt address",
@@ -250,10 +220,7 @@ pub mod headers {
 
     /// remove a recipient from the mail 'To' header.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn remove_to(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        addr: &str,
-    ) -> EngineResult<()> {
+    pub fn remove_to(this: &mut Context, addr: &str) -> EngineResult<()> {
         let addr = Address::try_from(addr.to_string())
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", addr))?;
 
@@ -274,10 +241,7 @@ pub mod headers {
 
     /// remove a recipient from the envelop.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn remove_rcpt(
-        this: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        addr: &str,
-    ) -> EngineResult<()> {
+    pub fn remove_rcpt(this: &mut Context, addr: &str) -> EngineResult<()> {
         let addr = Address::try_from(addr.to_string())
             .map_err(|_| format!("{} could not be converted to a valid rcpt address", addr))?;
 

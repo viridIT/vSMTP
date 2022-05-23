@@ -420,7 +420,8 @@ fn test_in_domain_and_server_name_sni() {
     ]);
 
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
-    let mut state = RuleState::new(&config, &re);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
 }

@@ -39,10 +39,10 @@ impl EmailTransferStatus {
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
-            EmailTransferStatus::Waiting => "waiting",
-            EmailTransferStatus::Sent => "sent",
-            EmailTransferStatus::HeldBack(_) => "held back",
-            EmailTransferStatus::Failed(_) => "failed",
+            Self::Waiting => "waiting",
+            Self::Sent => "sent",
+            Self::HeldBack(_) => "held back",
+            Self::Failed(_) => "failed",
         }
     }
 }
