@@ -16,6 +16,7 @@
 */
 use crate::test_receiver;
 use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::CodeID;
 use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
@@ -39,8 +40,7 @@ async fn test_doe_family_setup() {
                 .find(|rcpt| rcpt.address.full() == "jane.doe@doe-family.com")
                 .unwrap();
 
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
-                .await?;
+            conn.send_code(CodeID::Ok).await?;
             Ok(())
         }
     }

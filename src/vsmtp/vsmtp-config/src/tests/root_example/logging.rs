@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{code::SMTPReplyCode, collection, re::log};
+use vsmtp_common::{collection, re::log, CodeID, Reply, ReplyCode};
 
 use crate::Config;
 
@@ -45,8 +45,15 @@ fn parse() {
             .with_default_smtp_options()
             .with_default_smtp_error_handler()
             .with_smtp_codes(collection! {
-                SMTPReplyCode::Help => "214 my custom help message\r\n".to_string(),
-                SMTPReplyCode::Greetings => "220 {domain} ESMTP Service ready\r\n".to_string(),
+                // SMTPReplyCode::Help => "214 my custom help message\r\n".to_string(),
+                // SMTPReplyCode::Greetings => "220 {domain} ESMTP Service ready\r\n".to_string(),
+                CodeID::Help => Reply::new(ReplyCode::Code{ code: 214 },
+                    "This server supports the following commands\nHELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"
+                        .to_string()),
+                CodeID::Greetings => Reply::parse_str("220 {domain} ESMTP Service ready").unwrap(),
+                CodeID::TlsRequired => Reply::new(
+                    ReplyCode::Enhanced{code: 451, enhanced: "5.7.3".to_string() }, "STARTTLS is required to send mail"
+                )
             })
             .without_auth()
             .with_default_app()

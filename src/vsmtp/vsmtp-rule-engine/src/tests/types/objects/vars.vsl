@@ -36,7 +36,7 @@ object group group = [
 
 object custom_code code = "220 this is a custom code.";
 object complete_code code = #{
-  base: 220,
+  code: 220,
   enhanced: "2.0.0",
   text: "this is a long message, a very very long message ... carriage return will be properly added automaticaly.",
 };

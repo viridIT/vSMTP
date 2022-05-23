@@ -14,8 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::code::SMTPReplyCode;
-use crate::{mechanism::Mechanism, Address};
+use crate::{mechanism::Mechanism, Address, CodeID};
 
 /// See "SMTP Service Extension for 8-bit MIME Transport"
 /// https://datatracker.ietf.org/doc/html/rfc6152
@@ -29,13 +28,13 @@ pub enum MimeBodyType {
 }
 
 impl std::str::FromStr for MimeBodyType {
-    type Err = SMTPReplyCode;
+    type Err = CodeID;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "7BIT" => Ok(Self::SevenBit),
             "8BITMIME" => Ok(Self::EightBitMime),
-            _ => Err(SMTPReplyCode::Code501),
+            _ => Err(CodeID::SyntaxErrorParams),
         }
     }
 }
@@ -133,10 +132,10 @@ impl Event {
     /// See https://datatracker.ietf.org/doc/html/rfc5321#section-4.1
     ///
     /// # Errors
-    pub fn parse_cmd(input: &str) -> Result<Self, SMTPReplyCode> {
+    pub fn parse_cmd(input: &str) -> Result<Self, CodeID> {
         // 88 = 80 - "\r\n".len() + (SMTPUTF8 ? 10 : 0)
         if input.len() > 88 || input.is_empty() {
-            return Err(SMTPReplyCode::Code500);
+            return Err(CodeID::UnrecognizedCommand);
         }
 
         let words = input
@@ -149,10 +148,10 @@ impl Event {
             // TODO: verify rfc about that..
             // NOTE: if the first word is not the beginning of the input (whitespace before)
             Some(fist_word) if &input[..fist_word.len()] != *fist_word => {
-                return Err(SMTPReplyCode::Code501);
+                return Err(CodeID::SyntaxErrorParams);
             }
             Some(smtp_verb) => smtp_verb,
-            None => return Err(SMTPReplyCode::Code500),
+            None => return Err(CodeID::UnrecognizedCommand),
         };
 
         match (
@@ -185,7 +184,7 @@ impl Event {
                 Self::parse_arg_auth(mechanism, Some(initial_response))
             }
 
-            _ => Err(SMTPReplyCode::Code501),
+            _ => Err(CodeID::SyntaxErrorParams),
         }
     }
 
@@ -202,21 +201,21 @@ impl Event {
         }
     }
 
-    fn parse_arg_helo(args: &[&str]) -> Result<Self, SMTPReplyCode> {
+    fn parse_arg_helo(args: &[&str]) -> Result<Self, CodeID> {
         match Self::parse_domain_or_address_literal(args) {
             Ok(out) => Ok(Self::HeloCmd(out)),
-            Err(_) => Err(SMTPReplyCode::Code501),
+            Err(_) => Err(CodeID::SyntaxErrorParams),
         }
     }
 
-    fn parse_arg_ehlo(args: &[&str]) -> Result<Self, SMTPReplyCode> {
+    fn parse_arg_ehlo(args: &[&str]) -> Result<Self, CodeID> {
         match Self::parse_domain_or_address_literal(args) {
             Ok(out) => Ok(Self::EhloCmd(out)),
-            Err(_) => Err(SMTPReplyCode::Code501),
+            Err(_) => Err(CodeID::SyntaxErrorParams),
         }
     }
 
-    pub(super) fn from_path(input: &str, may_be_empty: bool) -> Result<String, SMTPReplyCode> {
+    pub(super) fn from_path(input: &str, may_be_empty: bool) -> Result<String, CodeID> {
         if input.starts_with('<') && input.ends_with('>') {
             match &input[1..input.len() - 1] {
                 "" if may_be_empty => Ok("".to_string()),
@@ -224,16 +223,16 @@ impl Event {
                 // https://datatracker.ietf.org/doc/html/rfc5321#section-4.1.2
                 mailbox => match addr::parse_email_address(mailbox) {
                     Ok(mailbox) => Ok(mailbox.to_string()),
-                    Err(_) => Err(SMTPReplyCode::Code501),
+                    Err(_) => Err(CodeID::SyntaxErrorParams),
                 },
             }
         } else {
-            Err(SMTPReplyCode::Code501)
+            Err(CodeID::SyntaxErrorParams)
         }
     }
 
-    fn parse_arg_mail_from(args: &[&str]) -> Result<Self, SMTPReplyCode> {
-        fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
+    fn parse_arg_mail_from(args: &[&str]) -> Result<Self, CodeID> {
+        fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, CodeID> {
             let mut bitmime = None;
             let mut auth_mailbox = None;
 
@@ -242,7 +241,7 @@ impl Event {
                     if bitmime.is_none() {
                         bitmime = Some(<MimeBodyType as std::str::FromStr>::from_str(raw)?);
                     } else {
-                        return Err(SMTPReplyCode::Code501);
+                        return Err(CodeID::SyntaxErrorParams);
                     }
                 } else if *arg == "SMTPUTF8" {
                     // TODO: ?
@@ -251,10 +250,10 @@ impl Event {
                     if auth_mailbox.is_none() {
                         auth_mailbox = Some(mailbox.to_string());
                     } else {
-                        return Err(SMTPReplyCode::Code501);
+                        return Err(CodeID::SyntaxErrorParams);
                     }
                 } else {
-                    return Err(SMTPReplyCode::Code504);
+                    return Err(CodeID::ParameterUnimplemented);
                 }
             }
 
@@ -262,7 +261,7 @@ impl Event {
                 if path.is_empty() {
                     None
                 } else {
-                    Some(Address::try_from(path).map_err(|_| SMTPReplyCode::Code501)?)
+                    Some(Address::try_from(path).map_err(|_| CodeID::SyntaxErrorParams)?)
                 },
                 bitmime,
                 auth_mailbox,
@@ -278,17 +277,17 @@ impl Event {
                 .to_ascii_uppercase()
                 .strip_prefix("FROM:")
             {
-                Some("") | None => Err(SMTPReplyCode::Code501),
+                Some("") | None => Err(CodeID::SyntaxErrorParams),
                 Some(_) => parse_esmtp_args(
                     Self::from_path(&from_and_reverse_path["FROM:".len()..], true)?,
                     &args[1..],
                 ),
             },
-            _ => Err(SMTPReplyCode::Code501),
+            _ => Err(CodeID::SyntaxErrorParams),
         }
     }
 
-    fn parse_arg_rcpt_to(args: &[&str]) -> Result<Self, SMTPReplyCode> {
+    fn parse_arg_rcpt_to(args: &[&str]) -> Result<Self, CodeID> {
         // TODO: https://datatracker.ietf.org/doc/html/rfc5321#section-4.1.1.3
         // Syntax = "RCPT TO:" ( "<Postmaster@" Domain ">" / "<Postmaster>" /
         //         Forward-path ) [SP Rcpt-parameters] CRLF
@@ -299,13 +298,13 @@ impl Event {
         // TODO: parse "<Postmaster@" Domain ">" / "<Postmaster>"
 
         #[allow(clippy::missing_const_for_fn)]
-        fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, SMTPReplyCode> {
+        fn parse_esmtp_args(path: String, args: &[&str]) -> Result<Event, CodeID> {
             if args.is_empty() {
                 Ok(Event::RcptCmd(
-                    Address::try_from(path).map_err(|_| SMTPReplyCode::Code501)?,
+                    Address::try_from(path).map_err(|_| CodeID::SyntaxErrorParams)?,
                 ))
             } else {
-                Err(SMTPReplyCode::Code504)
+                Err(CodeID::ParameterUnimplemented)
             }
         }
 
@@ -316,24 +315,21 @@ impl Event {
             }
             [to_and_forward_path, ..] => {
                 match to_and_forward_path.to_ascii_uppercase().strip_prefix("TO:") {
-                    Some("") | None => Err(SMTPReplyCode::Code501),
+                    Some("") | None => Err(CodeID::SyntaxErrorParams),
                     Some(_) => parse_esmtp_args(
                         Self::from_path(&to_and_forward_path["TO:".len()..], false)?,
                         &args[1..],
                     ),
                 }
             }
-            _ => Err(SMTPReplyCode::Code501),
+            _ => Err(CodeID::SyntaxErrorParams),
         }
     }
 
-    fn parse_arg_auth(
-        mechanism: &str,
-        initial_response: Option<&str>,
-    ) -> Result<Self, SMTPReplyCode> {
+    fn parse_arg_auth(mechanism: &str, initial_response: Option<&str>) -> Result<Self, CodeID> {
         Ok(Self::Auth(
             <Mechanism as std::str::FromStr>::from_str(mechanism)
-                .map_err(|_| SMTPReplyCode::AuthMechanismNotSupported)?,
+                .map_err(|_| CodeID::AuthMechNotSupported)?,
             initial_response.map(|s| s.as_bytes().to_vec()),
         ))
     }
@@ -344,10 +340,10 @@ impl Event {
     /// # Errors
     ///
     /// * input length is too long (> 998)
-    pub fn parse_data(input: &str) -> Result<Self, SMTPReplyCode> {
+    pub fn parse_data(input: &str) -> Result<Self, CodeID> {
         match input {
             "." => Ok(Self::DataEnd),
-            too_long if too_long.len() > 998 => Err(SMTPReplyCode::Code500),
+            too_long if too_long.len() > 998 => Err(CodeID::UnrecognizedCommand),
             dot_string if dot_string.starts_with('.') => {
                 // https://www.rfc-editor.org/rfc/rfc5321#section-4.5.2
                 Ok(Self::DataLine(dot_string[1..].to_string()))

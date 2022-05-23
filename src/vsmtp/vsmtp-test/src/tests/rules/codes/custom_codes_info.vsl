@@ -1,6 +1,6 @@
 /// an example with a code object accepting string interpolation.
 fn retry_helo(helo) {
-    object retry_helo code = `250 cannot identify with '${helo}'.` + "\r\n";
+    object retry_helo code = `250 cannot identify with '${helo}'.`;
 }
 
 #{
@@ -9,15 +9,14 @@ fn retry_helo(helo) {
             if ctx().helo == "foo" {
                 // using a code object to send an informative message.
                 object foo_invalid code = #{
-                    base: 250,
+                    code: 250,
                     enhanced: "2.0.0",
-                    text: "foo is not accepted as a helo value.\r\n",
+                    text: "foo is not accepted as a helo value.",
                 };
 
                 info(foo_invalid);
             } else if ctx().helo == "bar" {
-                // using a string to send a code.
-                object bar_invalid string = "250 I do not accept this email, sorry\r\n";
+                object bar_invalid code = "250 I do not accept this email, sorry";
 
                 info(bar_invalid);
             } else if ctx().helo == "example.com" {
@@ -33,7 +32,7 @@ fn retry_helo(helo) {
     mail: [
         rule "retry mail" || {
             if ctx().mail_from.domain == "satan.org" {
-                info("250 satan.org is not valid, please try again.\r\n");
+                info("250 satan.org is not valid, please try again.");
             } else {
                 accept()
             }
@@ -41,7 +40,7 @@ fn retry_helo(helo) {
     ],
 
     preq: [
-        rule "cannot send data" || info("500 I decided that you cannot send data.\r\n")
+        rule "cannot send data" || info("500 I decided that you cannot send data.")
     ],
 
 }

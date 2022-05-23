@@ -20,6 +20,7 @@ use vsmtp_common::{
     mail::{BodyType, Mail},
     mail_context::{Body, MailContext},
     re::anyhow,
+    CodeID,
 };
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_server::re::tokio;
@@ -44,9 +45,7 @@ async fn test_receiver_1() {
             assert_eq!(mail.envelop.mail_from.full(), "john@doe");
             assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
             assert!(mail.metadata.is_some());
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
-                .await?;
-
+            conn.send_code(CodeID::Ok).await?;
             Ok(())
         }
     }
@@ -257,8 +256,8 @@ async fn max_rcpt_reached() {
             "250 Ok\r\n",
             "250 Ok\r\n",
             "250 Ok\r\n",
-            "452 Requested action not taken: to many recipients\r\n",
-            "452 Requested action not taken: to many recipients\r\n",
+            "452 Requested action not taken: too many recipients\r\n",
+            "452 Requested action not taken: too many recipients\r\n",
         ]
         .concat()
     }
@@ -310,10 +309,7 @@ async fn test_receiver_13() {
             );
 
             self.count += 1;
-
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
-                .await?;
-
+            conn.send_code(CodeID::Ok).await?;
             Ok(())
         }
     }
@@ -403,9 +399,7 @@ async fn test_receiver_14() {
             );
 
             self.count += 1;
-
-            conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
-                .await?;
+            conn.send_code(CodeID::Ok).await?;
 
             Ok(())
         }

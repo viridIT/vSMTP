@@ -17,7 +17,7 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp_common::{addr, mail_context::MailContext, re::anyhow};
+use vsmtp_common::{addr, mail_context::MailContext, re::anyhow, CodeID};
 use vsmtp_config::Config;
 use vsmtp_server::{Connection, OnMail};
 
@@ -32,8 +32,7 @@ impl OnMail for DefaultMailHandler {
         _: Box<MailContext>,
         _: &mut Option<String>,
     ) -> anyhow::Result<()> {
-        conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
-            .await?;
+        conn.send_code(CodeID::Ok).await?;
         Ok(())
     }
 }
@@ -102,9 +101,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 if matches!(mail.body, vsmtp_common::mail_context::Body::Empty) {
                     panic!("the email is not empty");
                 }
-
-                conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
-                    .await?;
+                conn.send_code(CodeID::Ok).await?;
 
                 Ok(())
             }

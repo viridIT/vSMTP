@@ -38,12 +38,12 @@ use crate::{
 };
 use vsmtp_common::{
     auth::Mechanism,
-    code::SMTPReplyCode,
     re::{
         anyhow::{self, Context},
         log,
     },
     state::StateSMTP,
+    CodeID, Reply,
 };
 
 ///
@@ -464,7 +464,7 @@ impl Builder<WantsServerSMTPConfig3> {
     #[must_use]
     pub fn with_smtp_codes(
         self,
-        codes: std::collections::BTreeMap<SMTPReplyCode, String>,
+        codes: std::collections::BTreeMap<CodeID, Reply>,
     ) -> Builder<WantsServerSMTPAuth> {
         Builder::<WantsServerSMTPAuth> {
             state: WantsServerSMTPAuth {

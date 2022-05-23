@@ -19,17 +19,18 @@ use crate::log_channels;
 use vsmtp_common::{
     addr,
     auth::Mechanism,
-    code::SMTPReplyCode,
     envelop::Envelop,
     event::Event,
     mail_context::{Body, ConnectionContext, MailContext, MessageMetadata, MAIL_CAPACITY},
+    rcpt::Rcpt,
     re::{anyhow, log},
     state::StateSMTP,
-    status::{InfoPacket, Status},
-    Address,
+    status::Status,
+    Address, CodeID, ReplyOrCodeID,
 };
 use vsmtp_config::{Config, Resolvers, TlsSecurityLevel};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+
 const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
 pub struct Transaction {
@@ -49,9 +50,9 @@ pub enum TransactionResult {
 // Generated from a string received
 enum ProcessedEvent {
     Nothing,
-    Reply(SMTPReplyCode),
+    Reply(ReplyOrCodeID),
     ChangeState(StateSMTP),
-    ReplyChangeState(StateSMTP, SMTPReplyCode),
+    ReplyChangeState(StateSMTP, ReplyOrCodeID),
     TransactionCompleted(Box<MailContext>),
 }
 
@@ -81,9 +82,10 @@ impl Transaction {
             command_or_code
         );
 
-        command_or_code.map_or_else(ProcessedEvent::Reply, |command| {
-            self.process_event(conn, command)
-        })
+        command_or_code.map_or_else(
+            |c| ProcessedEvent::Reply(ReplyOrCodeID::CodeID(c)),
+            |command| self.process_event(conn, command),
+        )
     }
 
     #[allow(clippy::too_many_lines)]
@@ -93,9 +95,9 @@ impl Transaction {
         event: Event,
     ) -> ProcessedEvent {
         match (&self.state, event) {
-            (_, Event::NoopCmd) => ProcessedEvent::Reply(SMTPReplyCode::Code250),
+            (_, Event::NoopCmd) => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Ok)),
 
-            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(SMTPReplyCode::Help),
+            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Help)),
 
             (_, Event::RsetCmd) => {
                 {
@@ -107,16 +109,17 @@ impl Transaction {
                     ctx.envelop.mail_from = addr!("default@domain.com");
                 }
 
-                ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250)
+                ProcessedEvent::ReplyChangeState(StateSMTP::Helo, ReplyOrCodeID::CodeID(CodeID::Ok))
             }
 
             (_, Event::ExpnCmd(_) | Event::VrfyCmd(_) /*| Event::PrivCmd*/) => {
-                ProcessedEvent::Reply(SMTPReplyCode::Code502unimplemented)
+                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Unimplemented))
             }
 
-            (_, Event::QuitCmd) => {
-                ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code221)
-            }
+            (_, Event::QuitCmd) => ProcessedEvent::ReplyChangeState(
+                StateSMTP::Stop,
+                ReplyOrCodeID::CodeID(CodeID::Closing),
+            ),
 
             (_, Event::HeloCmd(helo)) => {
                 self.set_helo(helo);
@@ -127,14 +130,19 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
-                    Status::Info(packet) => Self::send_custom_code(&packet),
-                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
-                    _ => ProcessedEvent::ReplyChangeState(StateSMTP::Helo, SMTPReplyCode::Code250),
+                    Status::Info(packet) => ProcessedEvent::Reply(packet),
+                    Status::Deny(packet) => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
+                    }
+                    _ => ProcessedEvent::ReplyChangeState(
+                        StateSMTP::Helo,
+                        ReplyOrCodeID::CodeID(CodeID::Ok),
+                    ),
                 }
             }
 
             (_, Event::EhloCmd(_)) if conn.config.server.smtp.disable_ehlo => {
-                ProcessedEvent::Reply(SMTPReplyCode::Code502unimplemented)
+                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Unimplemented))
             }
 
             (_, Event::EhloCmd(helo)) => {
@@ -146,15 +154,17 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
-                    Status::Info(packet) => Self::send_custom_code(&packet),
-                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
+                    Status::Info(packet) => ProcessedEvent::Reply(packet),
+                    Status::Deny(packet) => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
+                    }
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
-                        if conn.is_secured {
-                            SMTPReplyCode::Code250SecuredEsmtp
+                        ReplyOrCodeID::CodeID(if conn.is_secured {
+                            CodeID::EhloSecured
                         } else {
-                            SMTPReplyCode::Code250PlainEsmtp
-                        },
+                            CodeID::EhloPain
+                        }),
                     ),
                 }
             }
@@ -162,7 +172,7 @@ impl Transaction {
             (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
                 if conn.config.server.tls.is_none() =>
             {
-                ProcessedEvent::Reply(SMTPReplyCode::Code454)
+                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::TlsNotAvailable))
             }
 
             (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
@@ -170,7 +180,7 @@ impl Transaction {
             {
                 ProcessedEvent::ReplyChangeState(
                     StateSMTP::NegotiationTLS,
-                    SMTPReplyCode::Greetings,
+                    ReplyOrCodeID::CodeID(CodeID::Greetings),
                 )
             }
 
@@ -190,7 +200,7 @@ impl Transaction {
                         .map(|smtps| smtps.security_level)
                         == Some(TlsSecurityLevel::Encrypt) =>
             {
-                ProcessedEvent::Reply(SMTPReplyCode::Code530)
+                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::TlsRequired))
             }
 
             (StateSMTP::Helo, Event::MailCmd(..))
@@ -203,7 +213,7 @@ impl Transaction {
                         .as_ref()
                         .map_or(false, |auth| auth.must_be_authenticated) =>
             {
-                ProcessedEvent::Reply(SMTPReplyCode::AuthRequired)
+                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::AuthRequired))
             }
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
@@ -217,11 +227,13 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
                 {
-                    Status::Info(packet) => Self::send_custom_code(&packet),
-                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
+                    Status::Info(packet) => ProcessedEvent::Reply(packet),
+                    Status::Deny(packet) => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
+                    }
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::MailFrom,
-                        SMTPReplyCode::Code250,
+                        ReplyOrCodeID::CodeID(CodeID::Ok),
                     ),
                 }
             }
@@ -235,26 +247,32 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
                 {
-                    Status::Info(packet) => Self::send_custom_code(&packet),
-                    Status::Deny(packet) => Self::deny_with_custom_code(packet.as_ref()),
+                    Status::Info(packet) => ProcessedEvent::Reply(packet),
+                    Status::Deny(packet) => {
+                        ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
+                    }
                     _ if self.rule_state.context().read().unwrap().envelop.rcpt.len()
                         >= conn.config.server.smtp.rcpt_count_max =>
                     {
                         ProcessedEvent::ReplyChangeState(
                             StateSMTP::RcptTo,
-                            SMTPReplyCode::Code452TooManyRecipients,
+                            ReplyOrCodeID::CodeID(CodeID::TooManyRecipients),
                         )
                     }
-                    _ => {
-                        ProcessedEvent::ReplyChangeState(StateSMTP::RcptTo, SMTPReplyCode::Code250)
-                    }
+                    _ => ProcessedEvent::ReplyChangeState(
+                        StateSMTP::RcptTo,
+                        ReplyOrCodeID::CodeID(CodeID::Ok),
+                    ),
                 }
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
                 self.rule_state.context().write().unwrap().body =
                     Body::Raw(String::with_capacity(MAIL_CAPACITY));
-                ProcessedEvent::ReplyChangeState(StateSMTP::Data, SMTPReplyCode::Code354)
+                ProcessedEvent::ReplyChangeState(
+                    StateSMTP::Data,
+                    ReplyOrCodeID::CodeID(CodeID::DataStart),
+                )
             }
 
             (StateSMTP::Data, Event::DataLine(line)) => {
@@ -273,8 +291,10 @@ impl Transaction {
                     .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::PreQ)
                 {
-                    Status::Info(packet) => return Self::send_custom_code(&packet),
-                    Status::Deny(packet) => return Self::deny_with_custom_code(packet.as_ref()),
+                    Status::Info(packet) => return ProcessedEvent::Reply(packet),
+                    Status::Deny(packet) => {
+                        return ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
+                    }
                     _ => {}
                 }
 
@@ -310,7 +330,7 @@ impl Transaction {
                 ProcessedEvent::TransactionCompleted(Box::new(output))
             }
 
-            _ => ProcessedEvent::Reply(SMTPReplyCode::BadSequence),
+            _ => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::BadSequence)),
         }
     }
 
@@ -384,30 +404,13 @@ impl Transaction {
             .unwrap()
             .envelop
             .rcpt
-            .push(vsmtp_common::rcpt::Rcpt::new(rcpt_to));
-    }
-
-    fn send_custom_code(packet: &InfoPacket) -> ProcessedEvent {
-        ProcessedEvent::Reply(SMTPReplyCode::Custom(packet.to_string()))
-    }
-
-    fn deny_with_custom_code(packet: Option<&InfoPacket>) -> ProcessedEvent {
-        match packet {
-            Some(packet) => ProcessedEvent::ReplyChangeState(
-                StateSMTP::Stop,
-                SMTPReplyCode::Custom(packet.to_string()),
-            ),
-            None => ProcessedEvent::ReplyChangeState(StateSMTP::Stop, SMTPReplyCode::Code554),
-        }
+            .push(Rcpt::new(rcpt_to));
     }
 }
 
 impl Transaction {
     #[allow(clippy::too_many_lines)]
-    pub async fn receive<
-        'a,
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin,
-    >(
+    pub async fn receive<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin>(
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -450,16 +453,15 @@ impl Transaction {
                 .run_when(&mut transaction.rule_state, &StateSMTP::Connect);
 
             match status {
-                Status::Info(packet) => {
-                    conn.send_code(SMTPReplyCode::Custom(packet.to_string()))
-                        .await?;
-                }
+                Status::Info(packet) => match packet {
+                    ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
+                    ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
+                },
                 Status::Deny(packet) => {
-                    conn.send_code(match packet {
-                        Some(packet) => SMTPReplyCode::Custom(packet.to_string()),
-                        None => SMTPReplyCode::Code554,
-                    })
-                    .await?;
+                    match packet {
+                        ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
+                        ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
+                    }
 
                     anyhow::bail!(
                         "connection at '{}' has been denied when connecting.",
@@ -497,9 +499,10 @@ impl Transaction {
                     Ok(Some(client_message)) => {
                         match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
                             ProcessedEvent::Nothing => {}
-                            ProcessedEvent::Reply(reply_to_send) => {
-                                conn.send_code(reply_to_send).await?;
-                            }
+                            ProcessedEvent::Reply(reply_to_send) => match reply_to_send {
+                                ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
+                                ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
+                            },
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
@@ -521,7 +524,10 @@ impl Transaction {
                                 transaction.state = new_state;
                                 read_timeout =
                                     get_timeout_for_state(&conn.config, &transaction.state);
-                                conn.send_code(reply_to_send).await?;
+                                match reply_to_send {
+                                    ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
+                                    ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
+                                }
                             }
                             ProcessedEvent::TransactionCompleted(mail) => {
                                 return Ok(TransactionResult::Mail(mail));
@@ -533,7 +539,7 @@ impl Transaction {
                         transaction.state = StateSMTP::Stop;
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                        conn.send_code(SMTPReplyCode::Code451Timeout).await?;
+                        conn.send_code(CodeID::Timeout).await?;
                         anyhow::bail!(e)
                     }
                     Err(e) => {

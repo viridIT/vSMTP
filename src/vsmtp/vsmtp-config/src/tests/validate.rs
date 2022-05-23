@@ -15,19 +15,20 @@
  *
 */
 use crate::Config;
-use vsmtp_common::{auth::Mechanism, code::SMTPReplyCode};
+use vsmtp_common::{auth::Mechanism, CodeID};
 
 fn get_mechanism_from_config(config: &Config, tls: bool) -> Vec<Mechanism> {
-    let plain_esmtp = config
+    let plain_esmtp = &config
         .server
         .smtp
         .codes
         .get(if tls {
-            &SMTPReplyCode::Code250SecuredEsmtp
+            &CodeID::EhloSecured
         } else {
-            &SMTPReplyCode::Code250PlainEsmtp
+            &CodeID::EhloPain
         })
-        .unwrap();
+        .unwrap()
+        .text();
 
     let auth = plain_esmtp
         .split("\r\n")

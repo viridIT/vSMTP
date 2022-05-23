@@ -15,7 +15,9 @@
  *
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
-use vsmtp_common::{mail_context::ConnectionContext, state::StateSMTP, status::Status};
+use vsmtp_common::{
+    mail_context::ConnectionContext, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
+};
 
 #[test]
 fn test_engine_errors() {
@@ -28,19 +30,19 @@ fn test_engine_errors() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Deny(None)
+        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Helo),
-        Status::Deny(None)
+        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Deny(None)
+        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::RcptTo),
-        Status::Deny(None)
+        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
 }
 

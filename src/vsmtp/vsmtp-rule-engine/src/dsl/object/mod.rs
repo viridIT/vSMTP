@@ -18,14 +18,14 @@
 pub mod parsing;
 
 use vsmtp_common::{
-    re::{addr, anyhow, log},
-    status::InfoPacket,
-    Address,
+    re::{addr, anyhow, log, strum},
+    Address, Reply, ReplyCode,
 };
 
 /// Objects are rust's representation of rule engine variables.
 /// multiple types are supported.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, strum::AsRefStr)]
+#[strum(serialize_all = "snake_case")]
 pub enum Object {
     /// ip v4 address. (a.b.c.d)
     Ip4(std::net::Ipv4Addr),
@@ -48,14 +48,17 @@ pub enum Object {
     /// a user.
     Identifier(String),
     /// a simple string.
+    #[strum(serialize = "string")]
     Str(String),
     /// a custom smtp reply code.
-    Code(InfoPacket),
+    Code(Reply),
 }
 
+// cannot implement PartialEq, Eq on `Object` because `regex::Regex` does not implement it
 impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (a, b) if a.as_ref() != b.as_ref() => false,
             (Self::Ip4(l0), Self::Ip4(r0)) => l0 == r0,
             (Self::Ip6(l0), Self::Ip6(r0)) => l0 == r0,
             (Self::Rg4(l0), Self::Rg4(r0)) => l0 == r0,
@@ -67,7 +70,9 @@ impl PartialEq for Object {
             (Self::Identifier(l0), Self::Identifier(r0)) | (Self::Str(l0), Self::Str(r0)) => {
                 l0 == r0
             }
-            _ => false,
+            (Self::Regex(r0), Self::Regex(l0)) => r0.as_str() == l0.as_str(),
+            (Self::Code(r0), Self::Code(l0)) => r0 == l0,
+            _ => unimplemented!(),
         }
     }
 }
@@ -214,63 +219,40 @@ impl Object {
 
             "code" => {
                 if let Ok(code) = Self::value::<S, String>(map, "value") {
-                    Ok(Self::Code(InfoPacket::Str(code)))
+                    Ok(Self::Code(Reply::parse_str(&code)?))
                 } else {
-                    Ok(Self::Code(InfoPacket::Code {
-                        base: Self::value::<S, i64>(map, "base")?,
-                        enhanced: Self::value::<S, String>(map, "enhanced")?,
-                        text: Self::value::<S, String>(map, "text")?,
-                    }))
+                    let code = u16::try_from(Self::value::<S, i64>(map, "code")?)?;
+
+                    Ok(Self::Code(Reply::new(
+                        if let Ok(enhanced) = Self::value::<S, String>(map, "enhanced") {
+                            ReplyCode::Enhanced { code, enhanced }
+                        } else {
+                            ReplyCode::Code { code }
+                        },
+                        Self::value::<S, String>(map, "text")?,
+                    )))
                 }
             }
             _ => anyhow::bail!("'{}' is an unknown object type.", t),
-        }
-    }
-
-    /// get the type of the object.
-    #[must_use]
-    pub const fn as_str(&self) -> &str {
-        match self {
-            Object::Ip4(_) => "ip4",
-            Object::Ip6(_) => "ip6",
-            Object::Rg4(_) => "rg4",
-            Object::Rg6(_) => "rg6",
-            Object::Address(_) => "address",
-            Object::Fqdn(_) => "fqdn",
-            Object::Regex(_) => "regex",
-            Object::File(_) => "file",
-            Object::Group(_) => "group",
-            Object::Identifier(_) => "identifier",
-            Object::Str(_) => "string",
-            Object::Code(_) => "code",
         }
     }
 }
 
 impl std::fmt::Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Object::Ip4(ip) => ip.to_string(),
-                Object::Ip6(ip) => ip.to_string(),
-                Object::Rg4(range) => format!("{range:?}"),
-                Object::Rg6(range) => format!("{range:?}"),
-                Object::Address(addr) => addr.to_string(),
-                Object::Fqdn(fqdn) => fqdn.clone(),
-                Object::Regex(regex) => regex.to_string(),
-                Object::File(file) => format!("{file:?}"),
-                Object::Group(group) => format!("{group:?}"),
-                Object::Identifier(string) | Object::Str(string) => string.clone(),
-                Object::Code(InfoPacket::Str(message)) => message.clone(),
-                Object::Code(InfoPacket::Code {
-                    base,
-                    enhanced,
-                    text,
-                }) => format!("{base} {enhanced} {text}"),
-            }
-        )
+        match self {
+            Object::Ip4(ip) => write!(f, "{ip}"),
+            Object::Ip6(ip) => write!(f, "{ip}"),
+            Object::Rg4(range) => write!(f, "{range:?}"),
+            Object::Rg6(range) => write!(f, "{range:?}"),
+            Object::Address(addr) => write!(f, "{addr}"),
+            Object::Fqdn(fqdn) => write!(f, "{fqdn}"),
+            Object::Regex(regex) => write!(f, "{regex}"),
+            Object::File(file) => write!(f, "{file:?}"),
+            Object::Group(group) => write!(f, "{group:?}"),
+            Object::Identifier(string) | Object::Str(string) => write!(f, "{string}"),
+            Object::Code(reply) => write!(f, "{} {}", reply.code(), reply.text()),
+        }
     }
 }
 
@@ -278,6 +260,8 @@ impl std::fmt::Display for Object {
 mod test {
 
     use super::Object;
+    use std::net::Ipv4Addr;
+    use vsmtp_common::{addr, Reply, ReplyCode};
 
     #[test]
     #[allow(clippy::too_many_lines)]
@@ -288,26 +272,38 @@ mod test {
             ("value".into(), rhai::Dynamic::from("127.0.0.1".to_string())),
         ]))
         .unwrap();
+        assert_eq!(ip4, Object::Ip4(Ipv4Addr::new(127, 0, 0, 1)));
 
-        let ip6 = Object::from(&rhai::Map::from_iter([
-            ("ip6".into(), rhai::Dynamic::from("ip6".to_string())),
-            ("type".into(), rhai::Dynamic::from("ip6".to_string())),
-            (
-                "value".into(),
-                rhai::Dynamic::from("2001:0db8:0000:85a3:0000:0000:ac1f:8001".to_string()),
-            ),
-        ]))
-        .unwrap();
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                ("ip6".into(), rhai::Dynamic::from("ip6".to_string())),
+                ("type".into(), rhai::Dynamic::from("ip6".to_string())),
+                (
+                    "value".into(),
+                    rhai::Dynamic::from("2001:0db8:0000:85a3:0000:0000:ac1f:8001".to_string()),
+                ),
+            ]))
+            .unwrap(),
+            Object::Ip6("2001:0db8:0000:85a3:0000:0000:ac1f:8001".parse().unwrap())
+        );
 
-        let rg4 = Object::from(&rhai::Map::from_iter([
-            ("name".into(), rhai::Dynamic::from("rg4".to_string())),
-            ("type".into(), rhai::Dynamic::from("rg4".to_string())),
-            (
-                "value".into(),
-                rhai::Dynamic::from("192.168.0.0/24".to_string()),
-            ),
-        ]))
-        .unwrap();
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                ("name".into(), rhai::Dynamic::from("rg4".to_string())),
+                ("type".into(), rhai::Dynamic::from("rg4".to_string())),
+                (
+                    "value".into(),
+                    rhai::Dynamic::from("192.168.0.0/24".to_string()),
+                ),
+            ]))
+            .unwrap(),
+            Object::Rg4(
+                ["192.168.0.0/24"]
+                    .into_iter()
+                    .map(|x| x.parse().unwrap())
+                    .collect()
+            )
+        );
 
         let rg6 = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("rg6".to_string())),
@@ -318,6 +314,15 @@ mod test {
             ),
         ]))
         .unwrap();
+        assert_eq!(
+            rg6,
+            Object::Rg6(
+                ["2001:db8:1234::/48"]
+                    .into_iter()
+                    .map(|x| x.parse().unwrap())
+                    .collect()
+            )
+        );
 
         let fqdn = Object::from(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("fqdn".to_string())),
@@ -328,84 +333,167 @@ mod test {
             ),
         ]))
         .unwrap();
+        assert_eq!(fqdn, Object::Fqdn("example.com".to_string()));
 
-        let address = Object::from(&rhai::Map::from_iter([
-            ("name".into(), rhai::Dynamic::from("address".to_string())),
-            ("type".into(), rhai::Dynamic::from("address".to_string())),
-            (
-                "value".into(),
-                rhai::Dynamic::from("john@doe.com".to_string()),
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                ("name".into(), rhai::Dynamic::from("address".to_string())),
+                ("type".into(), rhai::Dynamic::from("address".to_string())),
+                (
+                    "value".into(),
+                    rhai::Dynamic::from("john@doe.com".to_string()),
+                ),
+            ]))
+            .unwrap(),
+            Object::Address(addr!("john@doe.com"))
+        );
+
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                ("name".into(), rhai::Dynamic::from("ident".to_string())),
+                ("type".into(), rhai::Dynamic::from("ident".to_string())),
+                ("value".into(), rhai::Dynamic::from("john".to_string())),
+            ]))
+            .unwrap(),
+            Object::Identifier("john".to_string())
+        );
+
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                ("name".into(), rhai::Dynamic::from("string".to_string())),
+                ("type".into(), rhai::Dynamic::from("string".to_string())),
+                (
+                    "value".into(),
+                    rhai::Dynamic::from("a text string".to_string()),
+                ),
+            ]))
+            .unwrap(),
+            Object::Str("a text string".to_string())
+        );
+
+        assert_eq!(
+            format!(
+                "{}",
+                Object::from(&rhai::Map::from_iter([
+                    ("name".into(), rhai::Dynamic::from("regex".to_string())),
+                    ("type".into(), rhai::Dynamic::from("regex".to_string())),
+                    (
+                        "value".into(),
+                        rhai::Dynamic::from("^[a-z0-9.]+.com$".to_string()),
+                    ),
+                ]))
+                .unwrap()
             ),
-        ]))
-        .unwrap();
-
-        let identifier = Object::from(&rhai::Map::from_iter([
-            ("name".into(), rhai::Dynamic::from("ident".to_string())),
-            ("type".into(), rhai::Dynamic::from("ident".to_string())),
-            ("value".into(), rhai::Dynamic::from("john".to_string())),
-        ]))
-        .unwrap();
-
-        let string = Object::from(&rhai::Map::from_iter([
-            ("name".into(), rhai::Dynamic::from("string".to_string())),
-            ("type".into(), rhai::Dynamic::from("string".to_string())),
-            (
-                "value".into(),
-                rhai::Dynamic::from("a text string".to_string()),
-            ),
-        ]))
-        .unwrap();
-
-        let regex = Object::from(&rhai::Map::from_iter([
-            ("name".into(), rhai::Dynamic::from("regex".to_string())),
-            ("type".into(), rhai::Dynamic::from("regex".to_string())),
-            (
-                "value".into(),
-                rhai::Dynamic::from("^[a-z0-9.]+.com$".to_string()),
-            ),
-        ]))
-        .unwrap();
+            regex::Regex::new("^[a-z0-9.]+.com$").unwrap().as_str()
+        );
 
         // TODO: test all possible content types.
-        let file = Object::from(&rhai::Map::from_iter([
-            ("name".into(), rhai::Dynamic::from("file".to_string())),
-            ("type".into(), rhai::Dynamic::from("file".to_string())),
-            (
-                "content_type".into(),
-                rhai::Dynamic::from("address".to_string()),
-            ),
-            (
-                "value".into(),
-                rhai::Dynamic::from("./src/tests/types/address/whitelist.txt".to_string()),
-            ),
-        ]))
-        .unwrap();
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                ("name".into(), rhai::Dynamic::from("file".to_string())),
+                ("type".into(), rhai::Dynamic::from("file".to_string())),
+                (
+                    "content_type".into(),
+                    rhai::Dynamic::from("address".to_string()),
+                ),
+                (
+                    "value".into(),
+                    rhai::Dynamic::from("./src/tests/types/address/whitelist.txt".to_string()),
+                ),
+            ]))
+            .unwrap(),
+            Object::File(vec![
+                Object::Address(addr!("foo@bar.net")),
+                Object::Address(addr!("nested@address.com")),
+                Object::Address(addr!("john@doe.com"))
+            ])
+        );
 
-        let group = Object::from(&rhai::Map::from_iter([
-            ("name".into(), rhai::Dynamic::from("group".to_string())),
-            ("type".into(), rhai::Dynamic::from("group".to_string())),
-            (
-                "value".into(),
-                rhai::Dynamic::from(rhai::Array::from_iter([
-                    rhai::Dynamic::from(std::sync::Arc::new(ip4.clone())),
-                    rhai::Dynamic::from(std::sync::Arc::new(rg6.clone())),
-                    rhai::Dynamic::from(std::sync::Arc::new(fqdn.clone())),
-                ])),
-            ),
-        ]))
-        .unwrap();
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                ("name".into(), rhai::Dynamic::from("group".to_string())),
+                ("type".into(), rhai::Dynamic::from("group".to_string())),
+                (
+                    "value".into(),
+                    rhai::Dynamic::from(rhai::Array::from_iter([
+                        rhai::Dynamic::from(std::sync::Arc::new(ip4)),
+                        rhai::Dynamic::from(std::sync::Arc::new(rg6)),
+                        rhai::Dynamic::from(std::sync::Arc::new(fqdn)),
+                    ])),
+                ),
+            ]))
+            .unwrap(),
+            Object::Group(vec![
+                std::sync::Arc::new(Object::Ip4(Ipv4Addr::new(127, 0, 0, 1))),
+                std::sync::Arc::new(Object::Rg6(
+                    ["2001:db8:1234::/48"]
+                        .into_iter()
+                        .map(|x| x.parse().unwrap())
+                        .collect()
+                )),
+                std::sync::Arc::new(Object::Fqdn("example.com".to_string())),
+            ])
+        );
 
-        let code = Object::from(&rhai::Map::from_iter([
-            ("name".into(), rhai::Dynamic::from("code".to_string())),
-            ("type".into(), rhai::Dynamic::from("code".to_string())),
-            ("base".into(), rhai::Dynamic::from(550_i64)),
-            ("enhanced".into(), rhai::Dynamic::from("5.7.2".to_string())),
-            (
-                "text".into(),
-                rhai::Dynamic::from("nice to meet you, client".to_string()),
-            ),
-        ]))
-        .unwrap();
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                (
+                    "name".into(),
+                    rhai::Dynamic::from("code_enhanced".to_string()),
+                ),
+                ("type".into(), rhai::Dynamic::from("code".to_string())),
+                ("code".into(), rhai::Dynamic::from(550_i64)),
+                ("enhanced".into(), rhai::Dynamic::from("5.7.2".to_string())),
+                (
+                    "text".into(),
+                    rhai::Dynamic::from("nice to meet you, client".to_string()),
+                ),
+            ]))
+            .unwrap(),
+            Object::Code(Reply::new(
+                ReplyCode::Enhanced {
+                    code: 550,
+                    enhanced: "5.7.2".to_string(),
+                },
+                "nice to meet you, client".to_string()
+            ))
+        );
+
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                ("name".into(), rhai::Dynamic::from("code".to_string())),
+                ("type".into(), rhai::Dynamic::from("code".to_string())),
+                ("code".into(), rhai::Dynamic::from(550_i64)),
+                (
+                    "text".into(),
+                    rhai::Dynamic::from("nice to meet you, client".to_string()),
+                ),
+            ]))
+            .unwrap(),
+            Object::Code(Reply::new(
+                ReplyCode::Code { code: 550 },
+                "nice to meet you, client".to_string()
+            ))
+        );
+
+        assert_eq!(
+            Object::from(&rhai::Map::from_iter([
+                (
+                    "name".into(),
+                    rhai::Dynamic::from("code_from_string".to_string()),
+                ),
+                ("type".into(), rhai::Dynamic::from("code".to_string())),
+                (
+                    "value".into(),
+                    rhai::Dynamic::from("220 nice to meet you, foobar".to_string()),
+                ),
+            ]))
+            .unwrap(),
+            Object::Code(Reply::new(
+                ReplyCode::Code { code: 220 },
+                "nice to meet you, foobar".to_string()
+            ))
+        );
 
         Object::from(&rhai::Map::from_iter([
             (
@@ -416,21 +504,5 @@ mod test {
             ("value".into(), rhai::Dynamic::from("250 ok".to_string())),
         ]))
         .unwrap();
-
-        println!(
-            "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
-            ip4.as_str(),
-            ip6.as_str(),
-            rg4.as_str(),
-            rg6.as_str(),
-            fqdn.as_str(),
-            address.as_str(),
-            identifier.as_str(),
-            string.as_str(),
-            regex.as_str(),
-            file.as_str(),
-            group.as_str(),
-            code.as_str(),
-        );
     }
 }

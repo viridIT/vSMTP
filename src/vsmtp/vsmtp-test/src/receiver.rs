@@ -16,7 +16,7 @@
 */
 
 use anyhow::Context;
-use vsmtp_common::re::anyhow;
+use vsmtp_common::{re::anyhow, CodeID};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{auth, handle_connection, re::tokio, Connection, ConnectionKind, OnMail};
@@ -83,8 +83,7 @@ impl OnMail for DefaultMailHandler {
         helo_domain: &mut Option<String>,
     ) -> anyhow::Result<()> {
         *helo_domain = Some(mail.envelop.helo.clone());
-        conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
-            .await?;
+        conn.send_code(CodeID::Ok).await?;
         Ok(())
     }
 }

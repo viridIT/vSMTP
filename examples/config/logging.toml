@@ -14,9 +14,18 @@ delivery = "error"
 parser = "trace"
 
 [server.smtp.codes]
-Help = "214 my custom help message\r\n"
-Greetings = "220 {domain} ESMTP Service ready\r\n"
+Greetings = "220 {domain} ESMTP Service ready"
 
+[server.smtp.codes.Help]
+code = 214
+text = """
+This server supports the following commands
+HELO EHLO STARTTLS RCPT DATA RSET MAIL QUIT HELP AUTH"""
+
+[server.smtp.codes.TlsRequired]
+code = 451
+enhanced = "5.7.3"
+text = "STARTTLS is required to send mail"
 
 [app.logs]
 filepath = "/var/log/vsmtp/app.log"

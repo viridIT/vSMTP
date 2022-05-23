@@ -22,9 +22,9 @@ use crate::{
 use super::Connection;
 use vsmtp_common::{
     auth::Mechanism,
-    code::SMTPReplyCode,
     mail_context::ConnectionContext,
     re::{anyhow, base64, log, vsmtp_rsasl},
+    CodeID,
 };
 use vsmtp_config::Resolvers;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -69,7 +69,7 @@ where
                 );
             }
 
-            conn.send_code(SMTPReplyCode::AuthSucceeded)
+            conn.send_code(CodeID::AuthSucceeded)
                 .await
                 .map_err(AuthExchangeError::Other)?;
             Ok(true)
@@ -117,23 +117,25 @@ where
                 "An unsecured AUTH mechanism ({mechanism}) is used on a non-encrypted connection!"
             );
         } else {
-            conn.send_code(SMTPReplyCode::AuthMechanismMustBeEncrypted)
+            conn.send_code(CodeID::AuthMechanismMustBeEncrypted)
                 .await
                 .map_err(AuthExchangeError::Other)?;
 
             return Err(AuthExchangeError::Other(anyhow::anyhow!(
-                SMTPReplyCode::AuthMechanismMustBeEncrypted.to_string()
+                "{:?}",
+                CodeID::AuthMechanismMustBeEncrypted
             )));
         }
     }
 
     if !mechanism.client_first() && initial_response.is_some() {
-        conn.send_code(SMTPReplyCode::AuthClientMustNotStart)
+        conn.send_code(CodeID::AuthClientMustNotStart)
             .await
             .map_err(AuthExchangeError::Other)?;
 
         return Err(AuthExchangeError::Other(anyhow::anyhow!(
-            SMTPReplyCode::AuthClientMustNotStart.to_string()
+            "{:?}",
+            CodeID::AuthClientMustNotStart
         )));
     }
     let mut guard = rsasl.lock().await;

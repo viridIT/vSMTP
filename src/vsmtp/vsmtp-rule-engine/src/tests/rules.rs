@@ -15,7 +15,9 @@
  *
 */
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::{addr, mail_context::Body, state::StateSMTP, status::Status, MailParser};
+use vsmtp_common::{
+    addr, mail_context::Body, state::StateSMTP, status::Status, CodeID, MailParser, ReplyOrCodeID,
+};
 use vsmtp_mail_parser::MailMimeParser;
 
 #[test]
@@ -34,7 +36,7 @@ fn test_connect_rules() {
     state.context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Deny(None)
+        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
 }
 

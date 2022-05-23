@@ -1,17 +1,5 @@
 //! vSMTP common definition
 
-#![doc(html_no_source)]
-#![deny(missing_docs)]
-//
-#![warn(clippy::all)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::nursery)]
-#![warn(clippy::cargo)]
-// false positives found when deriving serde Serialize & Deserialize traits.
-#![allow(clippy::use_self)]
-//
-#![allow(clippy::doc_markdown)]
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -29,16 +17,46 @@
  *
 */
 
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::doc_markdown)]
+
+/// Default smtp port
+pub const SMTP_PORT: u16 = 25;
+
+/// Default submission port
+pub const SUBMISSION_PORT: u16 = 587;
+
+/// Default submission over TLS port
+///
+/// Defined in [RFC8314](https://tools.ietf.org/html/rfc8314)
+pub const SUBMISSIONS_PORT: u16 = 465;
+
 #[macro_use]
 mod r#type {
     #[macro_use]
     pub mod address;
+    pub mod code_id;
+    pub mod reply;
+    pub mod reply_code;
 }
 
-pub use r#type::address::Address;
+pub use r#type::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 
-/// smtp reply code to client's command
-pub mod code;
+///
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum ReplyOrCodeID {
+    ///
+    CodeID(CodeID),
+    ///
+    Reply(Reply),
+}
 
 /// envelop of a transaction
 pub mod envelop;
@@ -72,9 +90,6 @@ pub mod queue;
 
 /// transfer method for delivery / forwarding.
 pub mod transfer;
-
-/// smtp related constants.
-pub mod smtp;
 
 mod mechanism;
 

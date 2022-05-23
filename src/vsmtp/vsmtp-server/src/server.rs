@@ -23,8 +23,8 @@ use crate::{
     },
 };
 use vsmtp_common::{
-    code::SMTPReplyCode,
     re::{anyhow, log, vsmtp_rsasl},
+    CodeID,
 };
 use vsmtp_config::{get_rustls_config, re::rustls, Config, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -170,8 +170,9 @@ impl Server {
                         .server
                         .smtp
                         .codes
-                        .get(&SMTPReplyCode::ConnectionMaxReached)
+                        .get(&CodeID::ConnectionMaxReached)
                         .unwrap()
+                        .fold()
                         .as_bytes(),
                 )
                 .await

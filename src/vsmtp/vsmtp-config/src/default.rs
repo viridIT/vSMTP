@@ -27,9 +27,9 @@ use crate::{
 };
 use vsmtp_common::{
     auth::Mechanism,
-    code::SMTPReplyCode,
     collection,
     re::{log, strum},
+    CodeID, Reply, ReplyCode,
 };
 
 impl Default for Config {
@@ -293,53 +293,102 @@ impl ConfigServerSMTP {
             .collect()
     }
 
-    pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<SMTPReplyCode, String> {
-        let codes: std::collections::BTreeMap<SMTPReplyCode, String> = collection! {
-            SMTPReplyCode::Help => "214 joining us https://viridit.com/support".to_string(),
-            SMTPReplyCode::Greetings => "220 {domain} Service ready".to_string(),
-            SMTPReplyCode::Code221 => "221 Service closing transmission channel".to_string(),
-            SMTPReplyCode::Code250 => "250 Ok".to_string(),
-            SMTPReplyCode::Code354 => "354 Start mail input; end with <CRLF>.<CRLF>".to_string(),
-            SMTPReplyCode::Code451 => "451 Requested action aborted: local error in processing".to_string(),
-            SMTPReplyCode::Code451Timeout => "451 Timeout - closing connection.".to_string(),
-            SMTPReplyCode::Code451TooManyError => "451 Too many errors from the client".to_string(),
-            SMTPReplyCode::Code452 => "452 Requested action not taken: insufficient system storage".to_string(),
-            SMTPReplyCode::Code452TooManyRecipients =>
-                "452 Requested action not taken: to many recipients".to_string(),
-            SMTPReplyCode::Code454 => "454 TLS not available due to temporary reason".to_string(),
-            SMTPReplyCode::Code500 => "500 Syntax error command unrecognized".to_string(),
-            SMTPReplyCode::Code501 => "501 Syntax error in parameters or arguments".to_string(),
-            SMTPReplyCode::Code502unimplemented => "502 Command not implemented".to_string(),
-            SMTPReplyCode::BadSequence => "503 Bad sequence of commands".to_string(),
-            SMTPReplyCode::Code504 => "504 Command parameter not implemented".to_string(),
-            SMTPReplyCode::Code530 => "530 Must issue a STARTTLS command first".to_string(),
-            SMTPReplyCode::Code554 => "554 permanent problems with the remote server".to_string(),
-            SMTPReplyCode::Code554tls => "554 Command refused due to lack of security".to_string(),
-            SMTPReplyCode::TlsAlreadyUnderTls => "554 5.5.1 Error: TLS already active".to_string(),
-            SMTPReplyCode::ConnectionMaxReached => "554 Cannot process connection, closing.".to_string(),
-            SMTPReplyCode::AuthMechanismNotSupported => "504 5.5.4 Mechanism is not supported".to_string(),
-            SMTPReplyCode::AuthSucceeded => "235 2.7.0 Authentication succeeded".to_string(),
-            // 538 5.7.11 (for documentation purpose)
-            // 535 (for production)
-            SMTPReplyCode::AuthMechanismMustBeEncrypted =>
-                "538 5.7.11 Encryption required for requested authentication mechanism".to_string(),
-            SMTPReplyCode::AuthClientMustNotStart =>
-                "501 5.7.0 Client must not start with this mechanism".to_string(),
-            SMTPReplyCode::AuthErrorDecode64 => "501 5.5.2 Invalid, not base64".to_string(),
-            SMTPReplyCode::AuthInvalidCredentials => "535 5.7.8 Authentication credentials invalid".to_string(),
-            SMTPReplyCode::AuthClientCanceled => "501 Authentication canceled by clients".to_string(),
-            SMTPReplyCode::AuthRequired => "530 5.7.0 Authentication required".to_string(),
-            SMTPReplyCode::Custom(String::default()) => String::default(),
+    pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<CodeID, Reply> {
+        let codes: std::collections::BTreeMap<CodeID, Reply> = collection! {
+            CodeID::Greetings => Reply::new(
+                ReplyCode::Code{ code: 220 }, "{domain} Service ready"
+            ),
+            CodeID::Help => Reply::new(
+                ReplyCode::Code{ code: 214 }, "joining us https://viridit.com/support"
+            ),
+            CodeID::Closing => Reply::new(
+                ReplyCode::Code{ code: 221 }, "Service closing transmission channel"
+            ),
+            // CodesID::EhloPain => Reply::new(
+            //     ReplyCode::Code{ code: 200 }, ""
+            // ),
+            // CodesID::EhloSecured => Reply::new(
+            //     ReplyCode::Code{ code: 200 }, ""
+            // ),
+            CodeID::DataStart => Reply::new(
+                ReplyCode::Code{ code: 354 }, "Start mail input; end with <CRLF>.<CRLF>"
+            ),
+            CodeID::Ok => Reply::new(
+                ReplyCode::Code{ code: 250 }, "Ok"
+            ),
+            CodeID::Failure => Reply::new(
+                ReplyCode::Code{ code: 451 }, "Requested action aborted: local error in processing"
+            ),
+            CodeID::Denied => Reply::new(
+                ReplyCode::Code{ code: 554 }, "permanent problems with the remote server"
+            ),
+            CodeID::UnrecognizedCommand => Reply::new(
+                ReplyCode::Code{ code: 500 }, "Syntax error command unrecognized"
+            ),
+            CodeID::SyntaxErrorParams => Reply::new(
+                ReplyCode::Code{ code: 501 }, "Syntax error in parameters or arguments"
+            ),
+            CodeID::ParameterUnimplemented => Reply::new(
+                ReplyCode::Code{ code: 504 }, "Command parameter not implemented"
+            ),
+            CodeID::Unimplemented => Reply::new(
+                ReplyCode::Code{ code: 502 }, "Command not implemented"
+            ),
+            CodeID::BadSequence => Reply::new(
+                ReplyCode::Code{ code: 503 }, "Bad sequence of commands"
+            ),
+            CodeID::TlsNotAvailable => Reply::new(
+                ReplyCode::Code{ code: 454 }, "TLS not available due to temporary reason"
+            ),
+            CodeID::AlreadyUnderTLS => Reply::new(
+                ReplyCode::Enhanced{ code: 554, enhanced: "5.5.1".to_string() }, "Error: TLS already active"
+            ),
+            CodeID::TlsRequired => Reply::new(
+                ReplyCode::Code{ code: 530 }, "Must issue a STARTTLS command first"
+            ),
+            CodeID::AuthSucceeded => Reply::new(
+                ReplyCode::Enhanced{ code: 235, enhanced: "2.7.0".to_string() }, "Authentication succeeded"
+            ),
+            CodeID::AuthMechNotSupported => Reply::new(
+                ReplyCode::Enhanced{ code: 504, enhanced: "5.5.4".to_string() }, "Mechanism is not supported"
+            ),
+            CodeID::AuthClientMustNotStart => Reply::new(
+                ReplyCode::Enhanced{ code: 501, enhanced: "5.7.0".to_string() }, "Client must not start with this mechanism"
+            ),
+            CodeID::AuthMechanismMustBeEncrypted => Reply::new(
+                ReplyCode::Enhanced{ code: 538, enhanced: "5.7.11".to_string() },
+                    "Encryption required for requested authentication mechanism"
+            ),
+            CodeID::AuthInvalidCredentials => Reply::new(
+                ReplyCode::Enhanced{ code: 535, enhanced: "5.7.8".to_string() }, "Authentication credentials invalid"
+            ),
+            CodeID::AuthRequired => Reply::new(
+                ReplyCode::Enhanced{ code: 530, enhanced: "5.7.0".to_string() }, "Authentication required"
+            ),
+            CodeID::AuthClientCanceled => Reply::new(
+                ReplyCode::Code{ code: 501 }, "Authentication canceled by client"
+            ),
+            CodeID::AuthErrorDecode64 => Reply::new(
+                ReplyCode::Enhanced{ code: 501, enhanced: "5.5.2".to_string() }, "Invalid, not base64"
+            ),
+            CodeID::ConnectionMaxReached => Reply::new(
+                ReplyCode::Code{ code: 554 }, "Cannot process connection, closing"
+            ),
+            CodeID::TooManyError => Reply::new(
+                ReplyCode::Code{ code: 451 }, "Too many errors from the client"
+            ),
+            CodeID::Timeout => Reply::new(
+                ReplyCode::Code{ code: 451 }, "Timeout - closing connection"
+            ),
+            CodeID::TooManyRecipients => Reply::new(
+                ReplyCode::Code{ code: 452 }, "Requested action not taken: too many recipients"
+            ),
         };
 
         assert!(
-            <SMTPReplyCode as strum::IntoEnumIterator>::iter()
+            <CodeID as strum::IntoEnumIterator>::iter()
                 // exclude these codes because they are generated by the [Config::ensure] and vsl.
-                .filter(|i| ![
-                    SMTPReplyCode::Code250PlainEsmtp,
-                    SMTPReplyCode::Code250SecuredEsmtp,
-                ]
-                .contains(i))
+                .filter(|i| ![CodeID::EhloPain, CodeID::EhloSecured,].contains(i))
                 .all(|i| codes.contains_key(&i)),
             "default SMTPReplyCode are ill-formed "
         );

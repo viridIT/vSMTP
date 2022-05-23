@@ -1,6 +1,6 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use vsmtp_common::{code::SMTPReplyCode, mail_context::MailContext, re::anyhow};
+use vsmtp_common::{mail_context::MailContext, re::anyhow, CodeID};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{handle_connection, Connection, ConnectionKind, OnMail};
@@ -10,15 +10,13 @@ struct FuzzOnMail;
 
 #[async_trait::async_trait]
 impl OnMail for FuzzOnMail {
-    async fn on_mail<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + std::marker::Unpin,
-    >(
+    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
         conn: &mut Connection<S>,
         _: Box<MailContext>,
         _: &mut Option<String>,
     ) -> anyhow::Result<()> {
-        conn.send_code(SMTPReplyCode::Code250).await?;
+        conn.send_code(CodeID::Ok).await?;
         Ok(())
     }
 }

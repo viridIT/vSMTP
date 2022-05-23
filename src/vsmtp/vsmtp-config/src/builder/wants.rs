@@ -16,7 +16,7 @@
 */
 #![allow(clippy::module_name_repetitions)]
 
-use vsmtp_common::{code::SMTPReplyCode, re::log};
+use vsmtp_common::{re::log, CodeID, Reply};
 
 use crate::{
     config::{
@@ -104,7 +104,7 @@ pub struct WantsServerSMTPConfig3 {
 ///
 pub struct WantsServerSMTPAuth {
     pub(crate) parent: WantsServerSMTPConfig3,
-    pub(super) codes: std::collections::BTreeMap<SMTPReplyCode, String>,
+    pub(super) codes: std::collections::BTreeMap<CodeID, Reply>,
 }
 
 ///

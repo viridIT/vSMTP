@@ -15,11 +15,13 @@
  *
 */
 use crate::test_receiver;
-use vsmtp_common::addr;
-use vsmtp_common::mail::{BodyType, Mail};
-use vsmtp_common::mail_context::Body;
-use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::re::anyhow;
+use vsmtp_common::{
+    addr,
+    mail::{BodyType, Mail},
+    mail_context::{Body, MailContext},
+    re::anyhow,
+    CodeID,
+};
 use vsmtp_server::{re::tokio, Connection, OnMail};
 
 macro_rules! test_lang {
@@ -72,9 +74,7 @@ macro_rules! test_lang {
                         )
                     }))
                 );
-
-                conn.send_code(vsmtp_common::code::SMTPReplyCode::Code250)
-                    .await?;
+                conn.send_code(CodeID::Ok).await?;
                 Ok(())
             }
         }
