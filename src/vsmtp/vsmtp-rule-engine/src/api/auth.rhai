@@ -53,12 +53,23 @@ fn check_relay(allowed_hosts) {
 }
 
 /// check spf record.
+/// a wrapper with the policy set to "strict" by default.
+///
+/// # Args
+/// @identity: "helo" | "mail_from" | "both"
+/// @header: "spf" | "auth" | "both" | "none"
+///
+fn check_spf(identity, header) {
+    check_spf(identity, header, "strict")
+}
+
+/// check spf record.
 /// Sender Policy Framework (RFC 7208).
 ///
 /// # Args
-/// @policy: "strict" | "soft"
 /// @identity: "helo" | "mail_from" | "both"
 /// @header: "spf" | "auth" | "both" | "none"
+/// @policy: "strict" | "soft"
 ///
 /// # Return
 /// - deny() or next()
@@ -71,29 +82,18 @@ fn check_relay(allowed_hosts) {
 ///     rule "check spf" || check_spf("soft", false, "spf")
 /// ]
 /// ```
-fn check_spf(policy, identity, header) {
+fn check_spf(identity, header, policy) {
 
     let query = sys::check_spf(ctx(), srv(), identity);
-    // sys::check_spf() : a wrapper for viaspf::evaluate_sender (viaspf crate)
-    //
-    // - return :
-    //    * result : the result of an SPF evaluation.
-    //      <string> <== Enum viaspf::SpfResult
-    //
-    //    * cause : the "mechanism" that matched or the "problem" error (RFC 7208-9.1).
-    //      <string> <== Enum viaspf::SpfResultCause
-    //                   Set to "default" if no mechanisms matched w/o error
-    //
-    // - args : client ip, sender address, an optional helo/ehlo string.
-    //
-    // - comments : HELO check is only performed when the HELO string is a valid domain name.
 
-    switch query.result {
-        "pass" => {},
-        "fail" => return deny(code550_7_23),
-        "temperror" => return deny(code451_7_24),
-        "permerror" => return deny(code550_7_24),
-        _ => set_header("subject", "JUNK: " + get_header("subject")),
+    if policy == "strict" {
+        switch query.result {
+            "pass" => {},
+            "fail" => return deny(code550_7_23),
+            "temperror" => return deny(code451_7_24),
+            "permerror" => return deny(code550_7_24),
+            _ => set_header("subject", "JUNK: " + get_header("subject")),
+        }
     }
 
     // Record the result in a header (RFC 7208-9)
@@ -126,7 +126,6 @@ fn check_spf(policy, identity, header) {
 
     next()
 }
-
 
 ///
 /// Null MX sender policy (RFC 7505).

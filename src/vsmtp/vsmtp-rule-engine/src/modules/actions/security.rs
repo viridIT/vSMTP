@@ -30,7 +30,11 @@ pub mod security {
     };
 
     /// evaluate a sender identity.
-    /// the identity parameter can ether be 'mail_from' or 'helo'.
+    /// the identity parameter can be 'helo', 'mail_from' or 'both'.
+    /// # Results
+    /// a rhai Map with:
+    //    * result (String) : the result of an SPF evaluation.
+    //    * cause  (String) : the "mechanism" that matched or the "problem" error (RFC 7208-9.1).
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw, pure)]
     pub fn check_spf(ctx: &mut Context, srv: Server, identity: &str) -> EngineResult<rhai::Map> {
