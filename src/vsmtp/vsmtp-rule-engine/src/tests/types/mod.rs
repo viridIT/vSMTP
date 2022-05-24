@@ -15,7 +15,9 @@
  *
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
-use vsmtp_common::{addr, mail_context::Body, state::StateSMTP, status::Status};
+use vsmtp_common::{
+    addr, mail_context::Body, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
+};
 use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS};
 
 #[test]
@@ -27,7 +29,10 @@ fn test_status() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -39,7 +44,10 @@ fn test_time_and_date() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -51,7 +59,10 @@ fn test_ip() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -65,7 +76,10 @@ fn test_address() {
 
     state.context().write().unwrap().envelop.mail_from = addr!("mail.from@test.net");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -110,7 +124,10 @@ fn test_services() {
 
     state.context().write().unwrap().body = Body::Raw(String::default());
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -157,5 +174,8 @@ fn test_config_display() {
 
     state.context().write().unwrap().body = Body::Raw(String::default());
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Helo),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }

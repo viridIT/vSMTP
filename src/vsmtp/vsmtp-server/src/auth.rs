@@ -114,12 +114,16 @@ impl
 
             re.run_when(
                 &mut rule_state,
-                &StateSMTP::Authentication(Mechanism::default(), None),
+                &StateSMTP::Authenticate(Mechanism::default(), None),
             )
         };
 
         match prop {
-            vsmtp_rsasl::Property::GSASL_VALIDATE_SIMPLE if result == Status::Accept => Ok(()),
+            vsmtp_rsasl::Property::GSASL_VALIDATE_SIMPLE
+                if matches!(result, Status::Accept(..)) =>
+            {
+                Ok(())
+            }
             vsmtp_rsasl::Property::GSASL_PASSWORD => {
                 let authpass = match result {
                     Status::Packet(authpass) => authpass,

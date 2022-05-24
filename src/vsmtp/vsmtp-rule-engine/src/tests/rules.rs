@@ -82,9 +82,12 @@ This is a reply to your hello."#,
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
     assert_eq!(
         state.context().read().unwrap().envelop.mail_from.full(),
         "no-reply@example.com"
@@ -122,7 +125,10 @@ This is a reply to your hello."#,
         ));
     }
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::RcptTo),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Next);
     assert_eq!(
         state.context().read().unwrap().envelop.rcpt,

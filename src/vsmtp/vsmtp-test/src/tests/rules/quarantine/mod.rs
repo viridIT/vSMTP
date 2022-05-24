@@ -23,7 +23,7 @@ use vsmtp_server::ProcessMessage;
 #[tokio::test]
 async fn test_quarantine() {
     let mut config = crate::config::local_test();
-    config.app.dirpath = "./src/tests/rules/quarantine/".into();
+    config.app.dirpath = "./tmp/tests/rules/quarantine/".into();
     config.app.vsl.filepath = Some("./src/tests/rules/quarantine/main.vsl".into());
 
     let (delivery_sender, _d) =
@@ -59,7 +59,7 @@ async fn test_quarantine() {
     }
     .is_ok());
 
-    let message = std::fs::read_dir("./src/tests/rules/quarantine/john/")
+    let message = std::fs::read_dir("./tmp/tests/rules/quarantine/john/")
         .unwrap()
         .next()
         .unwrap()

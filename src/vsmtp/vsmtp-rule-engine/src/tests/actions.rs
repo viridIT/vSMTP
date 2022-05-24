@@ -57,7 +57,7 @@ fn test_users() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Delivery),
-        Status::Accept
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
 
@@ -67,7 +67,10 @@ fn test_send_mail() {
     let re = RuleEngine::new(&config, &Some(root_example!["actions/send_mail.vsl"])).unwrap();
 
     // TODO: add test to send a valid email.
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -86,7 +89,7 @@ fn test_context_write() {
     });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
     state.context().write().unwrap().body = Body::Raw(
         r#"From: john doe <john@doe.com>
@@ -97,8 +100,14 @@ This is a raw email.
 "#
         .to_string(),
     );
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PreQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 
     // raw mail should have been written on disk.
     assert_eq!(
@@ -131,7 +140,10 @@ fn test_context_dump() {
         skipped: None,
     });
     state.context().write().unwrap().body = Body::Raw(String::default());
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PreQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
     state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
@@ -140,7 +152,10 @@ fn test_context_dump() {
         ],
         body: vsmtp_common::mail::BodyType::Regular(vec!["this is an empty body".to_string()]),
     }));
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 
     assert_eq!(
         std::fs::read_to_string("./tmp/app/tests/generated/test_message_id.json")
@@ -168,7 +183,10 @@ fn test_quarantine() {
         skipped: None,
     });
     state.context().write().unwrap().body = Body::Raw(String::default());
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PreQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 
     assert!(state
         .context()
@@ -266,10 +284,7 @@ fn test_forward_all() {
 
     re.run_when(&mut state, &StateSMTP::Connect);
 
-    re.run_when(
-        &mut state,
-        &StateSMTP::Authentication(Mechanism::Login, None),
-    );
+    re.run_when(&mut state, &StateSMTP::Authenticate(Mechanism::Login, None));
 
     state
         .context()
@@ -399,7 +414,10 @@ fn test_hostname() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PostQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -407,7 +425,10 @@ fn test_in_domain_and_server_name() {
     let (mut state, config) = get_default_state("./tmp/app");
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::Connect),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }
 
 #[test]
@@ -423,5 +444,8 @@ fn test_in_domain_and_server_name_sni() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::PreQ), Status::Accept);
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::PreQ),
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+    );
 }

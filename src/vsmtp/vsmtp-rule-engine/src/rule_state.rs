@@ -18,7 +18,7 @@ pub struct RuleState {
     /// a pointer to the server api.
     #[allow(dead_code)]
     server: std::sync::Arc<ServerAPI>,
-    /// a pointer to the mail context for the current connexion.
+    /// a pointer to the mail context for the current connection.
     mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
     /// does the following rules needs to be skipped ?
     skip: Option<Status>,

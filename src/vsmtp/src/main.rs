@@ -21,20 +21,7 @@ use vsmtp_common::{
     re::{anyhow, log, serde_json},
 };
 use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
-use vsmtp_server::start_runtime;
-
-fn socket_bind_anyhow<A: std::net::ToSocketAddrs + std::fmt::Debug>(
-    addr: A,
-) -> anyhow::Result<std::net::TcpListener> {
-    let socket = std::net::TcpListener::bind(&addr)
-        .with_context(|| format!("Failed to bind socket on addr: '{:?}'", addr))?;
-
-    socket
-        .set_nonblocking(true)
-        .with_context(|| format!("Failed to set non-blocking socket on addr: '{:?}'", addr))?;
-
-    Ok(socket)
-}
+use vsmtp_server::{socket_bind_anyhow, start_runtime};
 
 fn main() {
     if let Err(err) = try_main() {
@@ -84,9 +71,30 @@ fn try_main() -> anyhow::Result<()> {
     }
 
     let sockets = (
-        socket_bind_anyhow(&config.server.interfaces.addr[..])?,
-        socket_bind_anyhow(&config.server.interfaces.addr_submission[..])?,
-        socket_bind_anyhow(&config.server.interfaces.addr_submissions[..])?,
+        config
+            .server
+            .interfaces
+            .addr
+            .iter()
+            .cloned()
+            .map(socket_bind_anyhow)
+            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
+        config
+            .server
+            .interfaces
+            .addr_submission
+            .iter()
+            .cloned()
+            .map(socket_bind_anyhow)
+            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
+        config
+            .server
+            .interfaces
+            .addr_submissions
+            .iter()
+            .cloned()
+            .map(socket_bind_anyhow)
+            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
     );
 
     if !args.no_daemon {
