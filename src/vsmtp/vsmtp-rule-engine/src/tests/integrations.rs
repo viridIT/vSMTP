@@ -28,7 +28,8 @@ fn test_greylist() {
 
     let config = get_default_config("./tmp/app");
     let re = RuleEngine::new(&config, &Some(root_example!["greylist/main.vsl"])).unwrap();
-    let mut state = RuleState::new(&config, &re);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers.clone(), &re);
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
@@ -36,7 +37,7 @@ fn test_greylist() {
     );
 
     let re = RuleEngine::new(&config, &Some(root_example!["greylist/main.vsl"])).unwrap();
-    let mut state = RuleState::new(&config, &re);
+    let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),

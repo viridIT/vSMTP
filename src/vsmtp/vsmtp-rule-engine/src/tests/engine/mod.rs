@@ -93,9 +93,11 @@ fn test_rule_state() {
         .unwrap();
 
     let rule_engine = RuleEngine::from_script(&config, "#{}").unwrap();
-    let state = RuleState::new(&config, &rule_engine);
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let state = RuleState::new(&config, resolvers.clone(), &rule_engine);
     let state_with_context = RuleState::with_context(
         &config,
+        resolvers,
         &rule_engine,
         vsmtp_common::mail_context::MailContext {
             connection: ConnectionContext {
@@ -131,24 +133,5 @@ fn test_rule_state() {
             .client_addr
             .ip(),
         std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))
-    );
-}
-
-#[test]
-fn test_deny_constant_definitions() {
-    let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["constants", "main.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
-    );
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Helo),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }

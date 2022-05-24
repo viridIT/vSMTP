@@ -22,9 +22,7 @@ vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.0.0-rc.1" }
 vsmtp-server = { path = "../vsmtp-server", version = "1.0.0-rc.1" }
 
 async-trait = "0.1.53"
-
 pretty_assertions = "1.2.1"
-
 lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "smtp-transport",
     "builder",

@@ -22,20 +22,14 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod write {
 
-    use crate::{
-        modules::actions::MailContext, modules::mail_context::mail_context::message_id,
-        modules::EngineResult, server_api::ServerAPI,
-    };
+    use crate::modules::types::types::{Context, Server};
+    use crate::{modules::mail_context::mail_context::message_id, modules::EngineResult};
     use vsmtp_common::mail_context::Body;
     use vsmtp_config::create_app_folder;
 
     /// write the current email to a specified folder.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn write(
-        srv: &mut std::sync::Arc<ServerAPI>,
-        mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
-        dir: &str,
-    ) -> EngineResult<()> {
+    pub fn write(srv: &mut Server, mut ctx: Context, dir: &str) -> EngineResult<()> {
         let mut dir =
             create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
                 format!(
@@ -78,11 +72,7 @@ pub mod write {
 
     /// write the content of the current email with it's metadata in a json file.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn dump(
-        srv: &mut std::sync::Arc<ServerAPI>,
-        mut ctx: std::sync::Arc<std::sync::RwLock<MailContext>>,
-        dir: &str,
-    ) -> EngineResult<()> {
+    pub fn dump(srv: &mut Server, mut ctx: Context, dir: &str) -> EngineResult<()> {
         let mut dir =
             create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
                 format!(

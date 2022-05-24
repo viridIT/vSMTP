@@ -14,10 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_config::Config;
+use vsmtp_config::{Config, Resolvers};
 
 /// the frontend available in the rule engine to interact with the server.
 #[derive(Debug, Clone)]
 pub struct ServerAPI {
     pub config: Config,
+    pub resolvers: std::sync::Arc<Resolvers>,
 }

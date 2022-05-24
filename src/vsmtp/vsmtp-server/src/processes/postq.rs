@@ -24,7 +24,7 @@ use vsmtp_common::{
     state::StateSMTP,
     status::Status,
 };
-use vsmtp_config::Config;
+use vsmtp_config::{Config, Resolvers};
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
@@ -34,6 +34,7 @@ use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
@@ -42,6 +43,7 @@ pub async fn start(
             if let Err(err) = tokio::spawn(handle_one_in_working_queue(
                 config.clone(),
                 rule_engine.clone(),
+                resolvers.clone(),
                 pm,
                 delivery_sender.clone(),
             ))
@@ -60,6 +62,7 @@ pub async fn start(
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
@@ -95,7 +98,7 @@ async fn handle_one_in_working_queue(
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-        let mut state = RuleState::with_context(config.as_ref(), &rule_engine, ctx);
+        let mut state = RuleState::with_context(config.as_ref(), resolvers, &rule_engine, ctx);
         let result = rule_engine.run_when(&mut state, &StateSMTP::PostQ);
 
         (state, result)
@@ -178,6 +181,10 @@ mod tests {
 
         let config = std::sync::Arc::new(config);
 
+        let resolvers = std::sync::Arc::new(
+            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
+        );
+
         assert!(handle_one_in_working_queue(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
@@ -185,6 +192,7 @@ mod tests {
                     .context("failed to initialize the engine")
                     .unwrap(),
             )),
+            resolvers,
             ProcessMessage {
                 message_id: "not_such_message_named_like_this".to_string(),
             },
@@ -242,6 +250,10 @@ mod tests {
 
         let config = std::sync::Arc::new(config);
 
+        let resolvers = std::sync::Arc::new(
+            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
+        );
+
         handle_one_in_working_queue(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
@@ -249,6 +261,7 @@ mod tests {
                     .context("failed to initialize the engine")
                     .unwrap(),
             )),
+            resolvers,
             ProcessMessage {
                 message_id: "test".to_string(),
             },
@@ -310,6 +323,10 @@ mod tests {
 
         let config = std::sync::Arc::new(config);
 
+        let resolvers = std::sync::Arc::new(
+            vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
+        );
+
         handle_one_in_working_queue(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
@@ -320,6 +337,7 @@ mod tests {
                 .context("failed to initialize the engine")
                 .unwrap(),
             )),
+            resolvers,
             ProcessMessage {
                 message_id: "test_denied".to_string(),
             },

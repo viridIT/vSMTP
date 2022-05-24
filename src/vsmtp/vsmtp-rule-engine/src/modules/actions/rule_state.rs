@@ -16,7 +16,7 @@
 */
 use crate::{
     dsl::object::Object, modules::actions::transports::transports::disable_delivery_all,
-    modules::actions::MailContext, modules::EngineResult,
+    modules::types::types::Context, modules::EngineResult,
 };
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -117,10 +117,7 @@ pub mod rule_state {
     /// the email will be written in the specified app directory, in the "queue" folder.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw, pure)]
-    pub fn quarantine(
-        ctx: &mut std::sync::Arc<std::sync::RwLock<MailContext>>,
-        queue: &str,
-    ) -> EngineResult<Status> {
+    pub fn quarantine(ctx: &mut Context, queue: &str) -> EngineResult<Status> {
         disable_delivery_all(ctx)?;
 
         Ok(Status::Quarantine(queue.to_string()))

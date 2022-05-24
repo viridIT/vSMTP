@@ -22,6 +22,7 @@ pub type MailHeaders = Vec<(String, String)>;
 
 /// see rfc5322 (section 2.1 and 2.3)
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[allow(clippy::use_self)]
 pub enum BodyType {
     /// Text message body
     Regular(Vec<String>),
