@@ -29,6 +29,7 @@ use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
+use crate::dsl::service::Service;
 use crate::modules::actions::rule_state::rule_state::deny;
 use crate::modules::EngineResult;
 use crate::rule_state::RuleState;
@@ -365,6 +366,24 @@ impl RuleEngine {
         }
 
         Ok(directives)
+    }
+
+    /// extract service data from the user's script.
+    pub fn extract_services(&self) -> Vec<std::sync::Arc<Service>> {
+        self.ast.resolver().map_or_else(Vec::default, |resolver| {
+            resolver
+                .iter()
+                .flat_map(|(_, module)| {
+                    module.iter_var().filter_map(|(_, var)| {
+                        if var.is::<std::sync::Arc<Service>>() {
+                            Some(var.clone_cast())
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .collect::<Vec<std::sync::Arc<Service>>>()
+        })
     }
 
     fn build_toml_module(config: &Config, engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {

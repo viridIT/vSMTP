@@ -104,6 +104,9 @@ pub fn start_runtime(
         &config.app.vsl.filepath.clone(),
     )?));
 
+    let services = rule_engine.read().unwrap().extract_services();
+    dbg!(services);
+
     let resolvers = std::sync::Arc::new(
         vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
     );
