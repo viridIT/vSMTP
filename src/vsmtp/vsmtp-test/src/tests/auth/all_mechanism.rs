@@ -56,7 +56,7 @@ async fn test_auth(
         Server::run_session(
             client_stream,
             client_addr,
-            ConnectionKind::Opportunistic,
+            ConnectionKind::Relay,
             server_config,
             None,
             Some(rsasl),

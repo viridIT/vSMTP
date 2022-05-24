@@ -16,6 +16,7 @@
 */
 use crate::test_receiver;
 use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::re::anyhow;
 use vsmtp_common::CodeID;
 use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
@@ -30,18 +31,16 @@ async fn test_doe_family_setup() {
     impl OnMail for MailHandler {
         async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
             &mut self,
-            conn: &mut Connection<S>,
+            _: &mut Connection<S>,
             ctx: Box<MailContext>,
-            _: &mut Option<String>,
-        ) -> vsmtp_common::re::anyhow::Result<()> {
+        ) -> anyhow::Result<CodeID> {
             ctx.envelop
                 .rcpt
                 .iter()
                 .find(|rcpt| rcpt.address.full() == "jane.doe@doe-family.com")
                 .unwrap();
 
-            conn.send_code(CodeID::Ok).await?;
-            Ok(())
+            Ok(CodeID::Ok)
         }
     }
 

@@ -18,6 +18,7 @@
 #[strum(serialize_all = "PascalCase")]
 #[serde(rename_all = "PascalCase")]
 #[strum_discriminants(derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
 pub enum CodeID {
     //
     // Specials Messages
@@ -28,6 +29,8 @@ pub enum CodeID {
     Help,
     ///
     Closing,
+    ///
+    Helo,
     ///
     EhloPain,
     ///

@@ -9,6 +9,7 @@
 #![warn(clippy::cargo)]
 //
 #![allow(clippy::doc_markdown)]
+#![allow(clippy::use_self)]
 
 #[cfg(test)]
 mod tests;
@@ -40,7 +41,7 @@ pub mod auth;
 pub use channel_message::ProcessMessage;
 pub use receiver::{handle_connection, AbstractIO, Connection, ConnectionKind, OnMail};
 pub use runtime::start_runtime;
-pub use server::Server;
+pub use server::{socket_bind_anyhow, Server};
 
 /// re-exported module
 pub mod re {

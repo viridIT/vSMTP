@@ -41,7 +41,7 @@ fn test_greylist() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 
     std::fs::remove_file(root_example!["greylist/greylist.csv"]).unwrap();

@@ -304,10 +304,13 @@ impl ConfigServerSMTP {
             CodeID::Closing => Reply::new(
                 ReplyCode::Code{ code: 221 }, "Service closing transmission channel"
             ),
-            // CodesID::EhloPain => Reply::new(
+            CodeID::Helo => Reply::new(
+                ReplyCode::Code{ code: 250 }, "Ok"
+            ),
+            // CodeID::EhloPain => Reply::new(
             //     ReplyCode::Code{ code: 200 }, ""
             // ),
-            // CodesID::EhloSecured => Reply::new(
+            // CodeID::EhloSecured => Reply::new(
             //     ReplyCode::Code{ code: 200 }, ""
             // ),
             CodeID::DataStart => Reply::new(

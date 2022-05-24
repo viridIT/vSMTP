@@ -78,13 +78,10 @@ pub struct DefaultMailHandler;
 impl OnMail for DefaultMailHandler {
     async fn on_mail<S: tokio::io::AsyncWrite + tokio::io::AsyncRead + Send + Unpin>(
         &mut self,
-        conn: &mut Connection<S>,
-        mail: Box<vsmtp_common::mail_context::MailContext>,
-        helo_domain: &mut Option<String>,
-    ) -> anyhow::Result<()> {
-        *helo_domain = Some(mail.envelop.helo.clone());
-        conn.send_code(CodeID::Ok).await?;
-        Ok(())
+        _: &mut Connection<S>,
+        _: Box<vsmtp_common::mail_context::MailContext>,
+    ) -> anyhow::Result<CodeID> {
+        Ok(CodeID::Ok)
     }
 }
 
@@ -111,7 +108,7 @@ where
     let mut written_data = Vec::new();
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut conn = Connection::new(
-        ConnectionKind::Opportunistic,
+        ConnectionKind::Relay,
         address.parse().unwrap(),
         config.clone(),
         &mut mock,

@@ -12,12 +12,10 @@ struct FuzzOnMail;
 impl OnMail for FuzzOnMail {
     async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        conn: &mut Connection<S>,
+        _: &mut Connection<S>,
         _: Box<MailContext>,
-        _: &mut Option<String>,
-    ) -> anyhow::Result<()> {
-        conn.send_code(CodeID::Ok).await?;
-        Ok(())
+    ) -> anyhow::Result<CodeID> {
+        Ok(CodeID::Ok)
     }
 }
 
@@ -50,7 +48,7 @@ fuzz_target!(|data: &[u8]| {
     let mut written_data = Vec::new();
     let mut mock = Mock::new(data.to_vec(), &mut written_data);
     let mut conn = Connection::new(
-        ConnectionKind::Opportunistic,
+        ConnectionKind::Relay,
         "0.0.0.0:0".parse().unwrap(),
         config.clone(),
         &mut mock,

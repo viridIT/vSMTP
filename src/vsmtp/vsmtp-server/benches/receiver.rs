@@ -28,12 +28,10 @@ struct DefaultMailHandler;
 impl OnMail for DefaultMailHandler {
     async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        conn: &mut Connection<S>,
+        _: &mut Connection<S>,
         _: Box<MailContext>,
-        _: &mut Option<String>,
-    ) -> anyhow::Result<()> {
-        conn.send_code(CodeID::Ok).await?;
-        Ok(())
+    ) -> anyhow::Result<CodeID> {
+        Ok(CodeID::Ok)
     }
 }
 
@@ -90,10 +88,9 @@ fn criterion_benchmark(c: &mut Criterion) {
         impl OnMail for T {
             async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
                 &mut self,
-                conn: &mut Connection<S>,
+                _: &mut Connection<S>,
                 mail: Box<MailContext>,
-                _: &mut Option<String>,
-            ) -> anyhow::Result<()> {
+            ) -> anyhow::Result<CodeID> {
                 assert_eq!(mail.envelop.helo, "foobar");
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe");
                 assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
@@ -101,9 +98,8 @@ fn criterion_benchmark(c: &mut Criterion) {
                 if matches!(mail.body, vsmtp_common::mail_context::Body::Empty) {
                     panic!("the email is not empty");
                 }
-                conn.send_code(CodeID::Ok).await?;
 
-                Ok(())
+                Ok(CodeID::Ok)
             }
         }
 

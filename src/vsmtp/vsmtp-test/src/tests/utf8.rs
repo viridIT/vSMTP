@@ -32,10 +32,9 @@ macro_rules! test_lang {
         impl OnMail for T {
             async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
                 &mut self,
-                conn: &mut Connection<S>,
+                _: &mut Connection<S>,
                 mail: Box<MailContext>,
-                _: &mut Option<String>,
-            ) -> anyhow::Result<()> {
+            ) -> anyhow::Result<CodeID> {
                 assert_eq!(mail.envelop.helo, "foobar".to_string());
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(
@@ -74,8 +73,7 @@ macro_rules! test_lang {
                         )
                     }))
                 );
-                conn.send_code(CodeID::Ok).await?;
-                Ok(())
+                Ok(CodeID::Ok)
             }
         }
 

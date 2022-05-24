@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,14 +14,19 @@ use std::str::FromStr;
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{config, test_receiver};
+use crate::{config, test_receiver, tests::auth::unsafe_auth_config};
+use vsmtp_common::re::{base64, vsmtp_rsasl};
+use vsmtp_server::auth;
 use vsmtp_server::re::tokio;
 
 #[tokio::test]
 async fn info_message() {
     let mut config = config::local_test();
     config.app.vsl.filepath = Some(
-        std::path::PathBuf::from_str("./src/tests/rules/codes/custom_codes_info.vsl").unwrap(),
+        <std::path::PathBuf as std::str::FromStr>::from_str(
+            "./src/tests/rules/codes/custom_codes_info.vsl",
+        )
+        .unwrap(),
     );
 
     assert!(test_receiver! {
@@ -61,7 +64,10 @@ async fn info_message() {
 async fn deny_message() {
     let mut config = config::local_test();
     config.app.vsl.filepath = Some(
-        std::path::PathBuf::from_str("./src/tests/rules/codes/custom_codes_deny.vsl").unwrap(),
+        <std::path::PathBuf as std::str::FromStr>::from_str(
+            "./src/tests/rules/codes/custom_codes_deny.vsl",
+        )
+        .unwrap(),
     );
 
     assert!(test_receiver! {
@@ -107,6 +113,41 @@ async fn deny_message() {
             "220 testserver.com Service ready\r\n",
             "250 Ok\r\n",
             "501 4.7.1 unpleasant is blacklisted on this server\r\n",
+        ]
+        .concat()
+    }
+    .is_ok());
+}
+
+#[tokio::test]
+async fn accept_message() {
+    let mut config = unsafe_auth_config();
+    config.app.vsl.filepath = Some(
+        <std::path::PathBuf as std::str::FromStr>::from_str(
+            "./src/tests/rules/codes/custom_codes_accept.vsl",
+        )
+        .unwrap(),
+    );
+
+    assert!(test_receiver! {
+        with_auth => {
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
+            rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
+            rsasl
+        },
+        with_config => config.clone(),
+        [
+            "HELO client.com\r\n",
+            &format!("AUTH PLAIN {}\r\n", base64::encode(format!("\0{}\0{}", "admin", "password"))),
+            "MAIL FROM:<admin@company.com>\r\n",
+        ]
+        .concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250 Ok\r\n",
+            "235 2.7.0 Authentication succeeded\r\n",
+            "250 welcome aboard chief\r\n"
         ]
         .concat()
     }
