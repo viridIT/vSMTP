@@ -24,7 +24,12 @@ addr = { version = "0.15.3" }
 vsmtp-rsasl = { git = "https://github.com/viridIT/rsasl.git", branch = "fix/async", version = "1.5" }
 strum = { version = "0.24.0", features = ["derive"] }
 libc = "0.2.126"
-
+lettre = { version = "0.10.0-rc.6", default-features = false, features = [
+    "smtp-transport",
+    "builder",
+    "tokio1-rustls-tls",
+    "tracing",
+] }
 serde = { version = "1.0.137", features = ["derive"] }
 serde_derive = "1.0.136"
 

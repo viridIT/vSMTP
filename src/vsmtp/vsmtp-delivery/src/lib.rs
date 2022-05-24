@@ -82,24 +82,6 @@ pub mod transport {
         }
     }
 
-    /// build a [lettre] envelop using from address & recipients.
-    pub(super) fn build_lettre_envelop(
-        from: &vsmtp_common::Address,
-        rcpt: &[Rcpt],
-    ) -> anyhow::Result<lettre::address::Envelope> {
-        Ok(lettre::address::Envelope::new(
-            Some(
-                from.full()
-                    .parse()
-                    .context("failed to parse from address")?,
-            ),
-            rcpt.iter()
-                // NOTE: address that couldn't be converted will be silently dropped.
-                .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
-                .collect(),
-        )?)
-    }
-
     /// build a transport using opportunistic tls and toml specified certificates.
     /// TODO: resulting transport should be cached.
     fn build_transport(
@@ -168,60 +150,5 @@ pub mod transport {
         records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
 
         Ok(records_by_priority)
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    #[must_use]
-    /// create an empty email context for testing purposes.
-    pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
-        vsmtp_common::mail_context::MailContext {
-            body: vsmtp_common::mail_context::Body::Empty,
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                is_authenticated: false,
-                is_secured: false,
-                server_name: "testserver.com".to_string(),
-            },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
-            envelop: vsmtp_common::envelop::Envelop::default(),
-            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                ..vsmtp_common::mail_context::MessageMetadata::default()
-            }),
-        }
-    }
-
-    use super::transport::build_lettre_envelop;
-    use vsmtp_common::{
-        addr,
-        mail_context::ConnectionContext,
-        rcpt::Rcpt,
-        transfer::{EmailTransferStatus, Transfer},
-    };
-
-    #[test]
-    fn test_build_lettre_envelop() {
-        assert_eq!(
-            build_lettre_envelop(
-                &addr!("a@a.a"),
-                &[Rcpt {
-                    address: addr!("b@b.b"),
-                    transfer_method: Transfer::None,
-                    email_status: EmailTransferStatus::Sent
-                }]
-            )
-            .expect("failed to build lettre envelop"),
-            lettre::address::Envelope::new(
-                Some("a@a.a".parse().unwrap()),
-                vec!["b@b.b".parse().unwrap()]
-            )
-            .unwrap()
-        );
     }
 }

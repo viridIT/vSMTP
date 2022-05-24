@@ -65,7 +65,7 @@ impl std::fmt::Display for Body {
 }
 
 impl Body {
-    /// Convert a the instance into a [`Body::Parsed`] or [`Body::Empty`]
+    /// Convert an instance into a [`Body::Parsed`] if the body is raw.
     ///
     /// # Errors
     ///

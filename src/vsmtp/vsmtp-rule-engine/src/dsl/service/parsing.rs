@@ -16,7 +16,7 @@
 */
 use crate::modules::EngineResult;
 
-use super::{shell::parse_shell_service, Service, smtp::parse_smtp_service};
+use super::{shell::parse_shell_service, smtp::parse_smtp_service, Service};
 
 /// parse a service using rhai's parser.
 pub fn parse_service(
@@ -29,7 +29,7 @@ pub fn parse_service(
         // type of the service.
         3 => match symbols[2].as_str() {
             // for a regular service, next is the '=' token or ':' token in case of the db type.
-            "shell" | "db" => Ok(Some("$symbol$".into())),
+            "shell" | "smtp" | "db" => Ok(Some("$symbol$".into())),
             entry => Err(rhai::ParseError(
                 Box::new(rhai::ParseErrorType::BadInput(
                     rhai::LexError::ImproperSymbol(

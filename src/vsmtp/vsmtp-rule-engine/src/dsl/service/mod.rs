@@ -53,7 +53,7 @@ pub enum Service {
     /// A service that handles smtp transactions.
     Smtp {
         /// A transport to handle transactions.
-        transport: lettre::AsyncSmtpTransport<lettre::Tokio1Executor>,
+        transport: SmtpTransport,
     },
 }
 
@@ -68,5 +68,15 @@ impl std::fmt::Display for Service {
                 Self::Smtp { .. } => "smtp",
             }
         )
+    }
+}
+
+/// a transport using the smtp protocol.
+/// (mostly a new type over lettre::SmtpTransport to implement debug)
+pub struct SmtpTransport(pub lettre::SmtpTransport);
+
+impl std::fmt::Debug for SmtpTransport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SmtpTransport").finish()
     }
 }

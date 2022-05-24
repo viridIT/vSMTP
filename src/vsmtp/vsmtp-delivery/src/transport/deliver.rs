@@ -50,7 +50,7 @@ impl<'r> Transport for Deliver<'r> {
         content: &str,
     ) -> anyhow::Result<()> {
         for (query, rcpt) in &mut filter_by_domain_mut(to) {
-            let envelop = super::build_lettre_envelop(
+            let envelop = vsmtp_common::envelop::build_lettre(
                 from,
                 // TODO: 'to' parameter should be immutable, and the deliver
                 //       implementor should return a new set of recipients.

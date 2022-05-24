@@ -15,14 +15,16 @@
  *
 */
 
-use crate::log_channels;
 use crate::{dsl::service::Service, modules::EngineResult};
-use lettre::AsyncTransport;
+use lettre::Transport;
 use rhai::EvalAltResult;
+use vsmtp_common::envelop::build_lettre;
 use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::re::{anyhow, log};
+use vsmtp_common::re::anyhow;
+use vsmtp_common::re::anyhow::Context;
 use vsmtp_common::Address;
-use vsmtp_config::re::users;
+
+use super::SmtpTransport;
 
 pub fn parse_smtp_service(
     context: &mut rhai::EvalContext,
@@ -47,6 +49,14 @@ pub fn parse_smtp_service(
     // TODO: add a 'unix'/'net' modifier.
     // TODO: add tls options. (is it really that useful in case of an antivirus ?)
     let target = options.get("target").unwrap().to_string();
+    let port = options
+        .get("port")
+        .get_or_insert(&rhai::Dynamic::from(25))
+        .clone()
+        .try_cast::<i64>()
+        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+            "the port parameter for a smtp service must be a u16 number".into()
+        })?;
     let timeout: std::time::Duration = options
         .get("timeout")
         .get_or_insert(&rhai::Dynamic::from("60s"))
@@ -57,25 +67,28 @@ pub fn parse_smtp_service(
 
     Ok(Service::Smtp {
         transport: {
-            lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(target)
-                .timeout(Some(timeout))
-                .build()
+            #[allow(clippy::cast_sign_loss)]
+            #[allow(clippy::cast_possible_truncation)]
+            SmtpTransport(
+                lettre::SmtpTransport::builder_dangerous(target)
+                    .timeout(Some(timeout))
+                    .port(port as u16)
+                    .build(),
+            )
         },
     })
 }
 
 /// delegate security handling via the smtp protocol.
-pub async fn delegate(
-    transport: &lettre::AsyncSmtpTransport<lettre::Tokio1Executor>,
+pub fn delegate(
+    transport: &lettre::SmtpTransport,
     from: &Address,
     to: &[Rcpt],
-    email: &str,
-) {
-    log::trace!(
-        target: log_channels::SERVICES,
-        "delegation on: {:#?}",
-        "target"
-    );
+    email: &[u8],
+) -> anyhow::Result<lettre::transport::smtp::response::Response> {
+    let envelope = build_lettre(from, to)?;
 
-    // transport.send_raw(envelope, email).await
+    transport
+        .send_raw(&envelope, email)
+        .context("failed to delegate email security")
 }

@@ -25,6 +25,7 @@ pub mod services {
     use crate::dsl::service::shell::run;
     use crate::dsl::service::shell::ShellResult;
     use crate::dsl::service::Service;
+    use crate::modules::types::types::Context;
     use crate::modules::EngineResult;
 
     #[rhai_fn(global, pure)]
@@ -151,12 +152,56 @@ pub mod services {
         }
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw, pure)]
-    pub fn delegate(service: &mut std::sync::Arc<Service>) -> EngineResult<()> {
+    pub fn delegate(
+        service: &mut std::sync::Arc<Service>,
+        ctx: Context,
+    ) -> EngineResult<rhai::Map> {
         match &**service {
             Service::Smtp { transport } => {
-                // crate::dsl::service::smtp::delegate(transport).unwrap();
-                Ok(())
+                let (from, rcpt, body) = {
+                    let ctx = ctx.read().map_err::<Box<EvalAltResult>, _>(|_| {
+                        "rule engine mutex poisoned".into()
+                    })?;
+
+                    let body = match &ctx.body {
+                        vsmtp_common::mail_context::Body::Empty => {
+                            return Err(
+                                "tried to delegate email security but the body was empty".into()
+                            )
+                        }
+                        vsmtp_common::mail_context::Body::Raw(raw) => raw.clone(),
+                        vsmtp_common::mail_context::Body::Parsed(parsed) => parsed.to_raw(),
+                    };
+
+                    (
+                        ctx.envelop.mail_from.clone(),
+                        ctx.envelop.rcpt.clone(),
+                        body,
+                    )
+                };
+
+                let response = crate::dsl::service::smtp::delegate(
+                    &transport.0,
+                    &from,
+                    &rcpt,
+                    body.as_bytes(),
+                )
+                .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+
+                Ok(rhai::Map::from_iter([
+                    ("code".into(), Dynamic::from(response.code().to_string())),
+                    (
+                        "message".into(),
+                        Dynamic::from(
+                            response
+                                .message()
+                                .map(|line| Dynamic::from(line.to_string()))
+                                .collect::<rhai::Array>(),
+                        ),
+                    ),
+                ]))
             }
             _ => Err(format!("cannot delegate security with '{service}' service.").into()),
         }
