@@ -448,8 +448,13 @@ mod tests {
             ];
         });
 
+        let now = tokio::time::Instant::now();
+        let until = now
+            .checked_add(std::time::Duration::from_millis(100))
+            .unwrap();
+
         let client = tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            tokio::time::sleep_until(until).await;
             let mail = lettre::Message::builder()
                 .from("NoBody <nobody@domain.tld>".parse().unwrap())
                 .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
@@ -468,7 +473,7 @@ mod tests {
         });
 
         let client2 = tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            tokio::time::sleep_until(until).await;
             let mail = lettre::Message::builder()
                 .from("NoBody <nobody2@domain.tld>".parse().unwrap())
                 .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
@@ -493,11 +498,13 @@ mod tests {
         let client2 = format!("{}", client2.unwrap().unwrap_err());
 
         // one of the client has been denied on connection, but we cant know which one
-        assert!(
-            (client1 == "permanent error (554): permanent problems with the remote server"
-                && client2 == "permanent error (554): Cannot process connection, closing")
-                || (client2 == "permanent error (554): permanent problems with the remote server"
-                    && client1 == "permanent error (554): Cannot process connection, closing")
-        );
+        let ok1_failed2 = client1
+            == "permanent error (554): permanent problems with the remote server"
+            && client2 == "permanent error (554): Cannot process connection, closing";
+        let ok2_failed1 = client2
+            == "permanent error (554): permanent problems with the remote server"
+            && client1 == "permanent error (554): Cannot process connection, closing";
+
+        assert!(ok1_failed2 || ok2_failed1);
     }
 }
