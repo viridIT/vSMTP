@@ -82,7 +82,7 @@ async fn test_starttls(
         Server::run_session(
             client_stream,
             client_addr,
-            ConnectionKind::Opportunistic,
+            ConnectionKind::Relay,
             server_config.clone(),
             if with_valid_config {
                 Some(std::sync::Arc::new(

@@ -81,9 +81,9 @@ where
 pub fn start_runtime(
     config: Config,
     sockets: (
-        std::net::TcpListener,
-        std::net::TcpListener,
-        std::net::TcpListener,
+        Vec<std::net::TcpListener>,
+        Vec<std::net::TcpListener>,
+        Vec<std::net::TcpListener>,
     ),
     timeout: Option<std::time::Duration>,
 ) -> anyhow::Result<()> {
@@ -144,13 +144,12 @@ pub fn start_runtime(
         async move {
             Server::new(
                 config_arc.clone(),
-                sockets,
                 rule_engine.clone(),
                 resolvers.clone(),
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),
             )?
-            .listen_and_serve()
+            .listen_and_serve(sockets)
             .await
         },
         timeout,
@@ -180,9 +179,9 @@ mod tests {
         start_runtime(
             config::local_test(),
             (
-                std::net::TcpListener::bind("0.0.0.0:22001").unwrap(),
-                std::net::TcpListener::bind("0.0.0.0:22002").unwrap(),
-                std::net::TcpListener::bind("0.0.0.0:22003").unwrap(),
+                vec![std::net::TcpListener::bind("0.0.0.0:22001").unwrap()],
+                vec![std::net::TcpListener::bind("0.0.0.0:22002").unwrap()],
+                vec![std::net::TcpListener::bind("0.0.0.0:22003").unwrap()],
             ),
             Some(std::time::Duration::from_millis(100)),
         )

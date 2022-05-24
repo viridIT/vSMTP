@@ -199,7 +199,7 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
     M: OnMail + Send,
 {
-    if let ConnectionKind::Tunneled = conn.kind {
+    if conn.kind == ConnectionKind::Tunneled {
         if let Some(tls_config) = tls_config {
             return handle_connection_secured(
                 conn,
@@ -308,7 +308,7 @@ where
         stream,
     );
 
-    if let ConnectionKind::Tunneled = secured_conn.kind {
+    if secured_conn.kind == ConnectionKind::Tunneled {
         secured_conn.send_code(CodeID::Greetings).await?;
     }
 
