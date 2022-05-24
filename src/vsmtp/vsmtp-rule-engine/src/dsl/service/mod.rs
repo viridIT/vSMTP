@@ -15,6 +15,8 @@
  *
 */
 
+use vsmtp_common::state::StateSMTP;
+
 pub mod databases;
 pub mod parsing;
 pub mod shell;
@@ -52,8 +54,14 @@ pub enum Service {
 
     /// A service that handles smtp transactions.
     Smtp {
-        /// A transport to handle transactions.
-        transport: SmtpTransport,
+        /// A transport to handle transactions to the delegate.
+        delegator: SmtpTransport,
+        /// Metadata to register a new receiver waiting for delegation results.
+        /// TODO: add accepted ip ranges / whitelist.
+        receiver: (std::net::IpAddr, u16),
+        /// Where the email will be re-injected in the rule engine
+        /// on delegation results.
+        run_on: StateSMTP,
     },
 }
 

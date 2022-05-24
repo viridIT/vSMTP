@@ -159,7 +159,7 @@ pub mod services {
         ctx: Context,
     ) -> EngineResult<rhai::Map> {
         match &**service {
-            Service::Smtp { transport } => {
+            Service::Smtp { delegator, .. } => {
                 let (from, rcpt, body) = {
                     let ctx = ctx.read().map_err::<Box<EvalAltResult>, _>(|_| {
                         "rule engine mutex poisoned".into()
@@ -183,7 +183,7 @@ pub mod services {
                 };
 
                 let response = crate::dsl::service::smtp::delegate(
-                    &transport.0,
+                    &delegator.0,
                     &from,
                     &rcpt,
                     body.as_bytes(),

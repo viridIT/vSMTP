@@ -15,6 +15,8 @@
  *
 */
 
+use std::str::FromStr;
+
 use crate::{dsl::service::Service, modules::EngineResult};
 use lettre::Transport;
 use rhai::EvalAltResult;
@@ -22,6 +24,7 @@ use vsmtp_common::envelop::build_lettre;
 use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::re::anyhow;
 use vsmtp_common::re::anyhow::Context;
+use vsmtp_common::state::StateSMTP;
 use vsmtp_common::Address;
 
 use super::SmtpTransport;
@@ -31,6 +34,38 @@ pub fn parse_smtp_service(
     input: &[rhai::Expression],
     service_name: &str,
 ) -> EngineResult<Service> {
+    /// extract a value from a rhai::Map, optionally inserting a default value.
+    fn get_or_default<T: Clone + Send + Sync + 'static>(
+        map_name: &str,
+        map: &rhai::Map,
+        key: &str,
+        default: Option<T>,
+    ) -> EngineResult<T> {
+        fn try_cast<T: Clone + Send + Sync + 'static>(
+            name: &str,
+            value: &rhai::Dynamic,
+        ) -> EngineResult<T> {
+            value
+                .clone()
+                .try_cast::<T>()
+                .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
+                    format!(
+                        "the {name} parameter for a smtp service must be a {}",
+                        std::any::type_name::<T>()
+                    )
+                    .into()
+                })
+        }
+
+        match (map.get(key), default) {
+            (Some(value), _) => try_cast(key, value),
+            (mut value, Some(default)) => {
+                try_cast(key, value.get_or_insert(&rhai::Dynamic::from(default)))
+            }
+            _ => Err(format!("key {key} was not found in {map_name}").into()),
+        }
+    }
+
     let options: rhai::Map = context
         .eval_expression_tree(&input[3])?
         .try_cast()
@@ -38,44 +73,45 @@ pub fn parse_smtp_service(
             "smtp service options must be a map".into()
         })?;
 
-    for key in ["target"] {
-        if !options.contains_key(key) {
-            return Err(
-                format!("smtp service '{service_name}' is missing the '{key}' option.").into(),
-            );
-        }
-    }
+    let delegator: rhai::Map = get_or_default(service_name, &options, "delegator", None)?;
+    let receiver: rhai::Map = get_or_default(service_name, &options, "receiver", None)?;
+    let run_on: String = get_or_default(service_name, &options, "run_on", None)?;
 
     // TODO: add a 'unix'/'net' modifier.
-    // TODO: add tls options. (is it really that useful in case of an antivirus ?)
-    let target = options.get("target").unwrap().to_string();
-    let port = options
-        .get("port")
-        .get_or_insert(&rhai::Dynamic::from(25))
-        .clone()
-        .try_cast::<i64>()
-        .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-            "the port parameter for a smtp service must be a u16 number".into()
-        })?;
-    let timeout: std::time::Duration = options
-        .get("timeout")
-        .get_or_insert(&rhai::Dynamic::from("60s"))
-        .to_string()
-        .parse::<vsmtp_config::re::humantime::Duration>()
-        .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
-        .into();
+    let delegator_ip = get_or_default::<String>("delegator", &delegator, "ip", None)?
+        .parse::<std::net::IpAddr>()
+        .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+    let delegator_port: i64 = get_or_default("delegator", &delegator, "port", Some(10025))?;
+    let delegator_timeout: std::time::Duration =
+        get_or_default::<String>(service_name, &options, "timeout", Some("60s".to_string()))?
+            .parse::<vsmtp_config::re::humantime::Duration>()
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
+            .into();
 
+    let receiver_ip = get_or_default::<String>("receiver", &receiver, "ip", None)?
+        .parse::<std::net::IpAddr>()
+        .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+    let receiver_port: i64 = get_or_default("receiver", &receiver, "port", Some(10026))?;
+
+    // FIXME: safely convert / prevent port casting to u16.
     Ok(Service::Smtp {
-        transport: {
+        delegator: {
             #[allow(clippy::cast_sign_loss)]
             #[allow(clippy::cast_possible_truncation)]
             SmtpTransport(
-                lettre::SmtpTransport::builder_dangerous(target)
-                    .timeout(Some(timeout))
-                    .port(port as u16)
+                lettre::SmtpTransport::builder_dangerous(delegator_ip.to_string())
+                    .timeout(Some(delegator_timeout))
+                    .port(delegator_port as u16)
                     .build(),
             )
         },
+        receiver: {
+            #[allow(clippy::cast_sign_loss)]
+            #[allow(clippy::cast_possible_truncation)]
+            (receiver_ip, receiver_port as u16)
+        },
+        run_on: StateSMTP::from_str(&run_on)
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
     })
 }
 
