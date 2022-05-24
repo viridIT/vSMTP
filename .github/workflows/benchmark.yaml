@@ -1,0 +1,80 @@
+name: Benchmarks
+
+on:
+  pull_request:
+
+jobs:
+  iai_benchmark:
+    runs-on: ubuntu-latest
+    name: IAI Benchmarks
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev valgrind
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Checkout main
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.base_ref }}
+
+      - uses: actions/cache@v1
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            ./target/release
+          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+
+      - name: Run bench against baseline
+        continue-on-error: true
+        run: cargo bench --workspace --bench "*iai*"
+
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v3
+        with:
+          name: baseline
+          path: ./target/iai
+
+      - name: Checkout PR
+        uses: actions/checkout@v3
+
+      - name: Download a single artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v3
+        with:
+          name: baseline
+          path: ./target/iai
+
+      - name: Run bench against baseline
+        run: cargo bench --workspace --bench "*iai*" > iai_feature
+
+      # This will create a new comment on each runs on the pull request
+      # TODO: Improve using https://github.com/marketplace/actions/create-or-update-comment
+      - name: Write result in PR
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const fs = require('fs');
+
+            // read the output file
+            // const criterion_result = fs.readFileSync("bench_result", {encoding:'utf8', flag:'r'});
+            // const iai_baseline = fs.readFileSync("iai_baseline", {encoding:'utf8', flag:'r'});
+            const iai_feature = fs.readFileSync("iai_feature", {encoding:'utf8', flag:'r'});
+
+            // form message
+            const quote = "```";
+            const message = `👋\n\niai changes:\n ${quote}txt\n${iai_feature}${quote}`;
+
+            // post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            })

@@ -51,6 +51,7 @@ pretty_assertions = "1.2.1"
 
 ## Benchmark
 criterion = { version = "0.3.5", features = ["async_tokio"] }
+iai = "0.1.1"
 
 lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "smtp-transport",
@@ -62,3 +63,13 @@ lettre = { version = "0.10.0-rc.6", default-features = false, features = [
 [[bench]]
 name = "receiver"
 harness = false
+
+[[bench]]
+name = "iai_proof"
+harness = false
+path = "benches/iai/proof.rs"
+
+[[bench]]
+name = "iai_proof2"
+harness = false
+path = "benches/iai/proof2.rs"
