@@ -19,7 +19,7 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@v3
         with:
-          ref: main
+          ref: ${{ github.base_ref }}
 
       - uses: actions/cache@v1
         with:
@@ -32,6 +32,7 @@ jobs:
           key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
 
       - name: Run bench against baseline
+        continue-on-error: true
         run: cargo bench --workspace --bench "*iai*"
 
       - name: "Upload Artifact"
