@@ -54,7 +54,6 @@ jobs:
           name: baseline
           path: ./target/iai
 
-      - run: cp -r ./target/iai/vsmtp-server ./src/vsmtp/vsmtp-server/target/iai
       - run: mkdir -p ./src/vsmtp/vsmtp-server/target/iai && cp -r ./target/iai/vsmtp-server/* ./src/vsmtp/vsmtp-server/target/iai
 
       - name: Run bench against baseline
