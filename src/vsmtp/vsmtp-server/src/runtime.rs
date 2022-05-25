@@ -17,8 +17,9 @@
 use crate::{
     log_channels,
     processes::{delivery, postq},
-    ProcessMessage, Server,
+    socket_bind_anyhow, ProcessMessage, Server,
 };
+use std::str::FromStr;
 use vsmtp_common::{
     queue::Queue,
     re::{
@@ -27,7 +28,7 @@ use vsmtp_common::{
     },
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::{rule_engine::RuleEngine, Service};
 
 fn init_runtime<F: 'static>(
     sender: tokio::sync::mpsc::Sender<anyhow::Result<()>>,
@@ -99,13 +100,32 @@ pub fn start_runtime(
     let working_channel =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-        &config,
-        &config.app.vsl.filepath.clone(),
-    )?));
+    let rule_engine = RuleEngine::new(&config, &config.app.vsl.filepath.clone())?;
 
-    let services = rule_engine.read().unwrap().extract_services();
-    dbg!(services);
+    let services = rule_engine.extract_services();
+
+    let mut service_receivers = vec![];
+    for service in services {
+        if let Service::Smtp {
+            receiver: (ip, port),
+            ..
+        } = &*service
+        {
+            service_receivers.push(
+                std::net::SocketAddr::from_str(&format!("{}:{}", ip, port)).context(format!(
+                    "failed to connect to connect to {} for a smtp service.",
+                    ip
+                ))?,
+            );
+        }
+    }
+
+    let service_receivers = service_receivers
+        .into_iter()
+        .map(socket_bind_anyhow)
+        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?;
+
+    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(rule_engine));
 
     let resolvers = std::sync::Arc::new(
         vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
@@ -152,7 +172,7 @@ pub fn start_runtime(
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),
             )?
-            .listen_and_serve(sockets)
+            .listen_and_serve(sockets, service_receivers)
             .await
         },
         timeout,

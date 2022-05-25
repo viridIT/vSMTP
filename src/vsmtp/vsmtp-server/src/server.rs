@@ -150,10 +150,11 @@ impl Server {
             Vec<std::net::TcpListener>,
             Vec<std::net::TcpListener>,
         ),
+        service_receivers: Vec<std::net::TcpListener>,
     ) -> anyhow::Result<()> {
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
-        let (listener, listener_submission, listener_tunneled) = (
+        let (listener, listener_submission, listener_tunneled, listener_services) = (
             sockets
                 .0
                 .into_iter()
@@ -169,12 +170,21 @@ impl Server {
                 .into_iter()
                 .map(tokio::net::TcpListener::from_std)
                 .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()?,
+            service_receivers
+                .into_iter()
+                .map(tokio::net::TcpListener::from_std)
+                .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()?,
         );
 
-        let addr = [&listener, &listener_submission, &listener_tunneled]
-            .iter()
-            .flat_map(|array| array.iter().map(tokio::net::TcpListener::local_addr))
-            .collect::<Vec<_>>();
+        let addr = [
+            &listener,
+            &listener_submission,
+            &listener_tunneled,
+            &listener_services,
+        ]
+        .iter()
+        .flat_map(|array| array.iter().map(tokio::net::TcpListener::local_addr))
+        .collect::<Vec<_>>();
 
         log::info!(target: log_channels::SERVER, "Listening on: {addr:?}",);
 
@@ -347,35 +357,38 @@ mod tests {
 
             tokio::time::timeout(
                 std::time::Duration::from_millis($timeout),
-                s.listen_and_serve((
-                    config
-                        .server
-                        .interfaces
-                        .addr
-                        .iter()
-                        .cloned()
-                        .map(socket_bind_anyhow)
-                        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
-                        .unwrap(),
-                    config
-                        .server
-                        .interfaces
-                        .addr_submission
-                        .iter()
-                        .cloned()
-                        .map(socket_bind_anyhow)
-                        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
-                        .unwrap(),
-                    config
-                        .server
-                        .interfaces
-                        .addr_submissions
-                        .iter()
-                        .cloned()
-                        .map(socket_bind_anyhow)
-                        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
-                        .unwrap(),
-                )),
+                s.listen_and_serve(
+                    (
+                        config
+                            .server
+                            .interfaces
+                            .addr
+                            .iter()
+                            .cloned()
+                            .map(socket_bind_anyhow)
+                            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
+                            .unwrap(),
+                        config
+                            .server
+                            .interfaces
+                            .addr_submission
+                            .iter()
+                            .cloned()
+                            .map(socket_bind_anyhow)
+                            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
+                            .unwrap(),
+                        config
+                            .server
+                            .interfaces
+                            .addr_submissions
+                            .iter()
+                            .cloned()
+                            .map(socket_bind_anyhow)
+                            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
+                            .unwrap(),
+                    ),
+                    vec![],
+                ),
             )
             .await
             .unwrap_err();
