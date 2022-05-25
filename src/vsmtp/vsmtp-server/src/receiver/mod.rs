@@ -222,14 +222,14 @@ where
         match Transaction::receive(conn, &helo_domain, rule_engine.clone(), resolvers.clone())
             .await?
         {
-            TransactionResult::Nothing => {}
-            TransactionResult::Mail(mail) => {
+            None => {}
+            Some(TransactionResult::Mail(mail)) => {
                 let helo = mail.envelop.helo.clone();
                 let code = mail_handler.on_mail(conn, mail).await?;
                 helo_domain = Some(helo);
                 conn.send_code(code).await?;
             }
-            TransactionResult::TlsUpgrade => {
+            Some(TransactionResult::TlsUpgrade) => {
                 if let Some(tls_config) = tls_config {
                     return handle_connection_secured(
                         conn,
@@ -244,7 +244,7 @@ where
                 conn.send_code(CodeID::TlsNotAvailable).await?;
                 anyhow::bail!("{:?}", CodeID::TlsNotAvailable)
             }
-            TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
+            Some(TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response)) => {
                 if let Some(rsasl) = &rsasl {
                     handle_auth(
                         conn,
@@ -323,17 +323,17 @@ where
         )
         .await?
         {
-            TransactionResult::Nothing => {}
-            TransactionResult::Mail(mail) => {
+            None => {}
+            Some(TransactionResult::Mail(mail)) => {
                 let helo = mail.envelop.helo.clone();
                 let code = mail_handler.on_mail(&mut secured_conn, mail).await?;
                 helo_domain = Some(helo);
                 secured_conn.send_code(code).await?;
             }
-            TransactionResult::TlsUpgrade => {
+            Some(TransactionResult::TlsUpgrade) => {
                 secured_conn.send_code(CodeID::AlreadyUnderTLS).await?;
             }
-            TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
+            Some(TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response)) => {
                 if let Some(rsasl) = &rsasl {
                     handle_auth(
                         &mut secured_conn,

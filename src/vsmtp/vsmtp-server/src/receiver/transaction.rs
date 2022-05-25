@@ -41,7 +41,6 @@ pub struct Transaction {
 
 #[allow(clippy::module_name_repetitions)]
 pub enum TransactionResult {
-    Nothing,
     Mail(Box<MailContext>),
     TlsUpgrade,
     Authentication(String, Mechanism, Option<Vec<u8>>),
@@ -70,11 +69,7 @@ impl Transaction {
             client_message
         );
 
-        let command_or_code = if self.state == StateSMTP::Data {
-            Event::parse_data
-        } else {
-            Event::parse_cmd
-        }(client_message);
+        let command_or_code = Event::parse_cmd(client_message);
 
         log::trace!(
             target: log_channels::TRANSACTION,
@@ -283,7 +278,17 @@ impl Transaction {
                 )
             }
 
-            (StateSMTP::Data, Event::DataLine(line)) => {
+            _ => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::BadSequence)),
+        }
+    }
+
+    fn process_data<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        &mut self,
+        conn: &Connection<S>,
+        event: Option<String>,
+    ) -> ProcessedEvent {
+        match (&self.state, event) {
+            (StateSMTP::Data, Some(line)) => {
                 let state = self.rule_state.context();
                 if let Body::Raw(body) = &mut state.write().unwrap().body {
                     body.push_str(&line);
@@ -292,7 +297,7 @@ impl Transaction {
                 ProcessedEvent::Nothing
             }
 
-            (StateSMTP::Data, Event::DataEnd) => {
+            (StateSMTP::Data, None) => {
                 match self
                     .rule_engine
                     .read()
@@ -337,8 +342,7 @@ impl Transaction {
 
                 ProcessedEvent::TransactionCompleted(Box::new(output))
             }
-
-            _ => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::BadSequence)),
+            _ => todo!(),
         }
     }
 
@@ -423,7 +427,7 @@ impl Transaction {
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         resolvers: std::sync::Arc<Resolvers>,
-    ) -> anyhow::Result<TransactionResult> {
+    ) -> anyhow::Result<Option<TransactionResult>> {
         let rule_state = RuleState::with_connection(
             conn.config.as_ref(),
             resolvers,
@@ -484,9 +488,9 @@ impl Transaction {
 
         loop {
             match transaction.state {
-                StateSMTP::NegotiationTLS => return Ok(TransactionResult::TlsUpgrade),
+                StateSMTP::NegotiationTLS => return Ok(Some(TransactionResult::TlsUpgrade)),
                 StateSMTP::Authenticate(mechanism, initial_response) => {
-                    return Ok(TransactionResult::Authentication(
+                    return Ok(Some(TransactionResult::Authentication(
                         transaction
                             .rule_state
                             .context()
@@ -497,16 +501,84 @@ impl Transaction {
                             .clone(),
                         mechanism,
                         initial_response,
-                    ));
+                    )));
                 }
                 StateSMTP::Stop => {
                     conn.is_alive = false;
-                    return Ok(TransactionResult::Nothing);
+                    return Ok(None);
+                }
+                StateSMTP::Data => {
+                    while transaction.state == StateSMTP::Data {
+                        match conn.read(read_timeout).await {
+                            Ok(Some(client_message)) => {
+                                log::trace!(
+                                    target: log_channels::TRANSACTION,
+                                    "buffer=\"{}\"",
+                                    client_message
+                                );
+
+                                let command_or_code = Event::parse_data(&client_message);
+                                log::trace!(
+                                    target: log_channels::TRANSACTION,
+                                    "parsed=\"{:?}\"",
+                                    command_or_code
+                                );
+
+                                let status = command_or_code.map_or_else(
+                                    |c| ProcessedEvent::Reply(ReplyOrCodeID::CodeID(c)),
+                                    |command| transaction.process_data(conn, command),
+                                );
+
+                                match status {
+                                    ProcessedEvent::Nothing => {}
+                                    ProcessedEvent::TransactionCompleted(mail) => {
+                                        return Ok(Some(TransactionResult::Mail(mail)));
+                                    }
+                                    ProcessedEvent::Reply(reply_to_send) => match reply_to_send {
+                                        ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
+                                        ReplyOrCodeID::Reply(reply) => {
+                                            conn.send_reply(reply).await?;
+                                        }
+                                    },
+                                    ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
+                                        log::info!(
+                                            target: log_channels::TRANSACTION,
+                                            "================ STATE: /{:?}/ => /{:?}/",
+                                            transaction.state,
+                                            new_state
+                                        );
+                                        transaction.state = new_state;
+                                        read_timeout =
+                                            get_timeout_for_state(&conn.config, &transaction.state);
+                                        match reply_to_send {
+                                            ReplyOrCodeID::CodeID(code) => {
+                                                conn.send_code(code).await?;
+                                            }
+                                            ReplyOrCodeID::Reply(reply) => {
+                                                conn.send_reply(reply).await?;
+                                            }
+                                        }
+                                    }
+                                    ProcessedEvent::ChangeState(_) => unreachable!(),
+                                }
+                            }
+                            Ok(None) => {
+                                log::info!(target: log_channels::TRANSACTION, "eof");
+                                transaction.state = StateSMTP::Stop;
+                            }
+                            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                                conn.send_code(CodeID::Timeout).await?;
+                                anyhow::bail!(e)
+                            }
+                            Err(e) => {
+                                anyhow::bail!(e)
+                            }
+                        }
+                    }
                 }
                 _ => match conn.read(read_timeout).await {
                     Ok(Some(client_message)) => {
                         match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
-                            ProcessedEvent::Nothing => {}
                             ProcessedEvent::Reply(reply_to_send) => match reply_to_send {
                                 ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
                                 ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
@@ -537,9 +609,7 @@ impl Transaction {
                                     ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
                                 }
                             }
-                            ProcessedEvent::TransactionCompleted(mail) => {
-                                return Ok(TransactionResult::Mail(mail));
-                            }
+                            _ => unreachable!(),
                         }
                     }
                     Ok(None) => {
