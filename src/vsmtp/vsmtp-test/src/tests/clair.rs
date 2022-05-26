@@ -18,7 +18,7 @@ use crate::{config, test_receiver};
 use vsmtp_common::{
     addr,
     mail::{BodyType, Mail},
-    mail_context::{MessageBody, MailContext},
+    mail_context::{MailContext, MessageBody},
     re::anyhow,
     CodeID,
 };

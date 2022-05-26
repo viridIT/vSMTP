@@ -84,7 +84,7 @@ mod tests {
         addr,
         envelop::Envelop,
         mail::{BodyType, Mail},
-        mail_context::{MessageBody, ConnectionContext, MailContext, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         queue_path,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},

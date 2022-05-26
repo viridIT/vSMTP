@@ -26,7 +26,7 @@ use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::{MessageBody, MailContext},
+    mail_context::{MailContext, MessageBody},
     queue::Queue,
     queue_path,
     re::{anyhow, log},
@@ -252,7 +252,7 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::mail_context::{MessageBody, ConnectionContext};
+    use vsmtp_common::mail_context::{ConnectionContext, MessageBody};
 
     /*
     /// This test produce side-effect and may make other test fails

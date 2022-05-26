@@ -7,7 +7,7 @@ use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
 use vsmtp_common::envelop::Envelop;
-use vsmtp_common::mail_context::{MessageBody, ConnectionContext, MailContext};
+use vsmtp_common::mail_context::{ConnectionContext, MailContext, MessageBody};
 use vsmtp_common::status::Status;
 use vsmtp_config::{Config, Resolvers};
 

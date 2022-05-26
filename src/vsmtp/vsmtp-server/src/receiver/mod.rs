@@ -19,7 +19,7 @@ use crate::{auth, receiver::auth_exchange::on_authentication};
 use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
-    mail_context::{MessageBody, ConnectionContext, MailContext},
+    mail_context::{ConnectionContext, MailContext, MessageBody},
     re::anyhow,
     state::StateSMTP,
     status::Status,

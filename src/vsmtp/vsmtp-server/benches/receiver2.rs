@@ -1,3 +1,4 @@
+use criterion::{criterion_group, criterion_main, Criterion};
 use vsmtp_common::re::anyhow;
 use vsmtp_config::build_resolvers;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -92,12 +93,17 @@ fn run_benchmark(body_size: u64, port: u16) {
         });
 }
 
-fn iai_receiver_1024() {
-    run_benchmark(1024, 11025);
+fn criterion_receiver_1024(c: &mut Criterion) {
+    c.bench_function("iai_receiver_1024", |b| {
+        b.iter(|| run_benchmark(1024, 12000 + rand::random::<u16>().rem_euclid(10000)))
+    });
 }
 
-fn iai_receiver_1048576() {
-    run_benchmark(1048576, 11026);
+fn criterion_receiver_1048576(c: &mut Criterion) {
+    c.bench_function("iai_receiver_1048576", |b| {
+        b.iter(|| run_benchmark(1048576, 12000 + rand::random::<u16>().rem_euclid(10000)))
+    });
 }
 
-iai::main!(iai_receiver_1024, iai_receiver_1048576);
+criterion_group!(benches, criterion_receiver_1024, criterion_receiver_1048576);
+criterion_main!(benches);
