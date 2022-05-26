@@ -79,15 +79,16 @@ fn run_benchmark(body_size: u64, port: u16) {
             });
 
             tokio::select! {
-                client = client => {
-                    let mut file = std::fs::File::create("./tmp/client.txt").unwrap();
-                    std::io::Write::write_all(&mut file, format!("{:?}", client).as_bytes()).unwrap();
-                    client.unwrap().unwrap();
-                },
+                biased;
                 server = server => {
                     let mut file = std::fs::File::create("./tmp/server.txt").unwrap();
                     std::io::Write::write_all(&mut file, format!("{:?}", server).as_bytes()).unwrap();
                     server.unwrap();
+                },
+                client = client => {
+                    let mut file = std::fs::File::create("./tmp/client.txt").unwrap();
+                    std::io::Write::write_all(&mut file, format!("{:?}", client).as_bytes()).unwrap();
+                    client.unwrap().unwrap();
                 },
             }
         });
