@@ -23,7 +23,7 @@ use vsmtp_common::{
     re::anyhow,
     state::StateSMTP,
     status::Status,
-    CodeID,
+    CodeID, MailParserOnFly,
 };
 use vsmtp_config::{re::rustls, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -104,6 +104,23 @@ where
     Ok(())
 }
 
+#[derive(Default)]
+struct NoParsing;
+
+#[async_trait::async_trait]
+impl MailParserOnFly for NoParsing {
+    async fn parse<'a>(
+        &'a mut self,
+        mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
+    ) -> anyhow::Result<Body> {
+        let mut buffer = vec![];
+        while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
+            buffer.push(line);
+        }
+        Ok(Body::Raw(buffer))
+    }
+}
+
 async fn handle_stream<S, M>(
     conn: &mut Connection<S>,
     mail_handler: &mut M,
@@ -114,24 +131,16 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
     M: OnMail + Send,
 {
-    let message = {
+    let body = {
         let stream = Transaction::stream(conn);
         tokio::pin!(stream);
-
-        // TODO: here send to mail parser
-        let mut message = vec![];
-        while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
-            message.push(line);
-        }
-        message
+        NoParsing::default().parse(stream).await?
     };
 
     let state = transaction.rule_state.context();
     {
         let mut state_writer = state.write().unwrap();
-        if let Body::Raw(body) = &mut state_writer.body {
-            *body = message;
-        }
+        state_writer.body = body;
     }
 
     let status = transaction

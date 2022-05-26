@@ -14,14 +14,46 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::mail::Mail;
+use crate::mail_context::Body;
 
 /// An abstract mail parser
 pub trait MailParser: Default {
-    /// Return a RFC valid [`Mail`] object
+    /// Return a RFC valid [`Mail`] object from a buffer of strings
     ///
     /// # Errors
     ///
     /// * the input is not compliant
-    fn parse(&mut self, raw: Vec<String>) -> anyhow::Result<Mail>;
+    fn parse(&mut self, raw: Vec<String>) -> anyhow::Result<Body>;
+}
+
+/// An abstract async mail parser
+#[allow(clippy::module_name_repetitions)]
+#[async_trait::async_trait]
+pub trait MailParserOnFly: Default {
+    /// Return a RFC valid [`Mail`] object from a stream of strings
+    ///
+    /// # Errors
+    ///
+    /// * the input is not compliant
+    async fn parse<'a>(
+        &'a mut self,
+        stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
+    ) -> anyhow::Result<Body>;
+}
+
+#[async_trait::async_trait]
+impl<T> MailParserOnFly for T
+where
+    T: MailParser + Send + Sync,
+{
+    async fn parse<'a>(
+        &'a mut self,
+        mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
+    ) -> anyhow::Result<Body> {
+        let mut buffer = vec![];
+        while let Some(i) = tokio_stream::StreamExt::next(&mut stream).await {
+            buffer.push(i);
+        }
+        self.parse(buffer)
+    }
 }

@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::Body,
     MailParser,
 };
 
@@ -15,7 +16,7 @@ fn simple() {
                     .collect::<Vec<_>>()
             )
             .unwrap(),
-        Mail {
+        Body::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "John Doe <jdoe@machine.example>"),
                 ("to", "Mary Smith <mary@example.net>"),
@@ -32,7 +33,7 @@ fn simple() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }
 
@@ -47,7 +48,7 @@ fn reply_simple() {
                     .collect::<Vec<_>>()
             )
             .unwrap(),
-        Mail {
+        Body::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "Mary Smith <mary@example.net>"),
                 ("to", "John Doe <jdoe@machine.example>"),
@@ -70,7 +71,7 @@ fn reply_simple() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }
 
@@ -85,7 +86,7 @@ fn reply_reply() {
                     .collect::<Vec<_>>()
             )
             .unwrap(),
-        Mail {
+        Body::Parsed(Box::new(Mail {
             headers: vec![
                 (
                     "to",
@@ -110,6 +111,6 @@ fn reply_reply() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::Body,
     MailParser,
 };
 
@@ -15,7 +16,7 @@ fn white_space_and_comments() {
                     .collect::<Vec<_>>()
             )
             .unwrap(),
-        Mail {
+        Body::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "Pete <pete@silly.test>"),
                 (
@@ -50,6 +51,6 @@ fn white_space_and_comments() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

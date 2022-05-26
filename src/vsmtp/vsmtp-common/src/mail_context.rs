@@ -72,7 +72,7 @@ impl Body {
     /// * Fail to parse using the provided [`MailParser`]
     pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
         Ok(match self {
-            Self::Raw(raw) => Self::Parsed(Box::new(P::default().parse(raw)?)),
+            Self::Raw(raw) => P::default().parse(raw)?,
             otherwise => otherwise,
         })
     }

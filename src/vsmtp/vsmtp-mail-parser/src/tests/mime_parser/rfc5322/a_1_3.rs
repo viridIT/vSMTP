@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::Body,
     MailParser,
 };
 
@@ -12,7 +13,7 @@ fn group_addresses() {
         MailMimeParser::default()
             .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
             .unwrap(),
-        Mail {
+        Body::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "Pete <pete@silly.example>"),
                 (
@@ -32,6 +33,6 @@ fn group_addresses() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

@@ -1,0 +1,1 @@
+Ok(Ok(Response { code: Code { severity: PositiveCompletion, category: MailSystem, detail: Zero }, message: ["Ok"] }))

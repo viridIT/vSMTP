@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::Body,
     MailParser,
 };
 
@@ -15,7 +16,7 @@ fn tracing() {
                     .collect::<Vec<_>>()
             )
             .unwrap(),
-        Mail {
+        Body::Parsed(Box::new(Mail {
             headers: vec![
                 (
                     "received",
@@ -47,6 +48,6 @@ fn tracing() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

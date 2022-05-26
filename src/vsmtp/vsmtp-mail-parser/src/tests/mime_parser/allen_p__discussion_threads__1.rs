@@ -17,6 +17,7 @@
 use vsmtp_common::{
     collection,
     mail::{BodyType, Mail},
+    mail_context::Body,
     mime_type::{Mime, MimeBodyType, MimeHeader},
     MailParser,
 };
@@ -31,7 +32,7 @@ fn mime_parser() {
         MailMimeParser::default()
             .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
             .unwrap(),
-        Mail {
+        Body::Parsed(Box::new(Mail {
             headers: vec![
                 (
                     "message-id",
@@ -94,6 +95,6 @@ fn mime_parser() {
                     .collect::<Vec<_>>()
                 )
             }))
-        }
+        }))
     );
 }

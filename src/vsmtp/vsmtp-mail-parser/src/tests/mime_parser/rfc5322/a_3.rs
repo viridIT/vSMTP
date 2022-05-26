@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::Body,
     MailParser,
 };
 
@@ -15,7 +16,7 @@ fn resent() {
                     .collect::<Vec<_>>()
             )
             .unwrap(),
-        Mail {
+        Body::Parsed(Box::new(Mail {
             headers: vec![
                 ("resent-from", "Mary Smith <mary@example.net>"),
                 ("resent-to", "Jane Brown <j-brown@other.example>"),
@@ -36,6 +37,6 @@ fn resent() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }
