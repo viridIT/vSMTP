@@ -18,7 +18,7 @@ use crate::test_receiver;
 use vsmtp_common::{
     addr,
     mail::{BodyType, Mail},
-    mail_context::{Body, MailContext},
+    mail_context::{MailContext, MessageBody},
     re::anyhow,
     CodeID,
 };
@@ -49,7 +49,7 @@ macro_rules! test_lang {
 
                 pretty_assertions::assert_eq!(
                     body,
-                    Body::Parsed(Box::new(Mail {
+                    MessageBody::Parsed(Box::new(Mail {
                         headers: [
                             ("from", "john doe <john@doe>"),
                             ("subject", "ar"),

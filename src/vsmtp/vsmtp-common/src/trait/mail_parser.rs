@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::mail_context::Body;
+use crate::mail_context::MessageBody;
 
 /// An abstract mail parser
 pub trait MailParser: Default {
@@ -23,7 +23,7 @@ pub trait MailParser: Default {
     /// # Errors
     ///
     /// * the input is not compliant
-    fn parse(&mut self, raw: Vec<String>) -> anyhow::Result<Body>;
+    fn parse(&mut self, raw: Vec<String>) -> anyhow::Result<MessageBody>;
 }
 
 /// An abstract async mail parser
@@ -38,7 +38,7 @@ pub trait MailParserOnFly: Default {
     async fn parse<'a>(
         &'a mut self,
         stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> anyhow::Result<Body>;
+    ) -> anyhow::Result<MessageBody>;
 }
 
 #[async_trait::async_trait]
@@ -49,7 +49,7 @@ where
     async fn parse<'a>(
         &'a mut self,
         mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> anyhow::Result<Body> {
+    ) -> anyhow::Result<MessageBody> {
         let mut buffer = vec![];
         while let Some(i) = tokio_stream::StreamExt::next(&mut stream).await {
             buffer.push(i);

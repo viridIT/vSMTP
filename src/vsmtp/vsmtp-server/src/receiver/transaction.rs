@@ -21,7 +21,7 @@ use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
     event::Event,
-    mail_context::{Body, ConnectionContext, MessageMetadata, MAIL_CAPACITY},
+    mail_context::{ConnectionContext, MessageBody, MessageMetadata, MAIL_CAPACITY},
     rcpt::Rcpt,
     re::{anyhow, log},
     state::StateSMTP,
@@ -93,7 +93,7 @@ impl Transaction {
                 {
                     let state = self.rule_state.context();
                     let mut ctx = state.write().unwrap();
-                    ctx.body = Body::Empty;
+                    ctx.body = MessageBody::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = addr!("default@domain.com");
@@ -265,7 +265,7 @@ impl Transaction {
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
                 self.rule_state.context().write().unwrap().body =
-                    Body::Raw(Vec::with_capacity(MAIL_CAPACITY / 1000));
+                    MessageBody::Raw(Vec::with_capacity(MAIL_CAPACITY / 1000));
 
                 ProcessedEvent::ReplyChangeState(
                     StateSMTP::Data,
@@ -292,7 +292,7 @@ impl Transaction {
         let state = self.rule_state.context();
         let mut ctx = state.write().unwrap();
 
-        ctx.body = Body::Empty;
+        ctx.body = MessageBody::Empty;
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
@@ -310,7 +310,7 @@ impl Transaction {
 
         let state = self.rule_state.context();
         let mut ctx = state.write().unwrap();
-        ctx.body = Body::Empty;
+        ctx.body = MessageBody::Empty;
         ctx.envelop.rcpt.clear();
         ctx.envelop.mail_from = mail_from;
         ctx.metadata = Some(MessageMetadata {
@@ -406,7 +406,9 @@ impl Transaction {
                         match command_or_code {
                             Ok(Some(line)) => yield line,
                             Ok(None) => has_data_end = true,
-                            Err(code) => todo!(),
+                            Err(code) => {
+                                connection.send_code(code).await.unwrap();
+                            },
                         }
                     }
                     _ => todo!(),

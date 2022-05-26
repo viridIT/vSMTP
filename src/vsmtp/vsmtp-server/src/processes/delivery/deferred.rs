@@ -130,7 +130,7 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
+        mail_context::{MessageBody, ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
@@ -173,7 +173,7 @@ mod tests {
                             },
                         ],
                     },
-                    body: Body::Raw(
+                    body: MessageBody::Raw(
                         ["Date: bar", "From: foo", "Hello world"]
                             .into_iter()
                             .map(str::to_string)
@@ -225,7 +225,7 @@ mod tests {
                         },
                     ],
                 },
-                body: Body::Raw(
+                body: MessageBody::Raw(
                     ["Date: bar", "From: foo", "Hello world"]
                         .into_iter()
                         .map(str::to_string)

@@ -66,16 +66,6 @@ name = "receiver"
 harness = false
 
 [[bench]]
-name = "iai_proof"
-harness = false
-path = "benches/iai/proof.rs"
-
-[[bench]]
-name = "iai_proof2"
-harness = false
-path = "benches/iai/proof2.rs"
-
-[[bench]]
 name = "iai_receiver"
 harness = false
 path = "benches/iai/receiver.rs"

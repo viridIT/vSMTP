@@ -24,7 +24,7 @@ pub mod write {
 
     use crate::modules::types::types::{Context, Server};
     use crate::{modules::mail_context::mail_context::message_id, modules::EngineResult};
-    use vsmtp_common::mail_context::Body;
+    use vsmtp_common::mail_context::MessageBody;
     use vsmtp_config::create_app_folder;
 
     /// write the current email to a specified folder.
@@ -53,7 +53,7 @@ pub mod write {
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body;
-        if Body::Empty == *body {
+        if MessageBody::Empty == *body {
             return Err("failed to write email: the body has not been received yet.".into());
         }
 

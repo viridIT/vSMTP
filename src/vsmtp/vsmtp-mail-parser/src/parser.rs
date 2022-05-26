@@ -20,7 +20,7 @@ use super::error::{ParserError, ParserResult};
 use super::helpers::get_mime_type;
 use super::helpers::read_header;
 use vsmtp_common::mail::{BodyType, Mail, MailHeaders};
-use vsmtp_common::mail_context::Body;
+use vsmtp_common::mail_context::MessageBody;
 use vsmtp_common::mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
 use vsmtp_common::re::anyhow::Context;
 use vsmtp_common::re::{anyhow, log};
@@ -42,9 +42,9 @@ pub struct MailMimeParser {
 }
 
 impl MailParser for MailMimeParser {
-    fn parse(&mut self, data: Vec<String>) -> anyhow::Result<Body> {
+    fn parse(&mut self, data: Vec<String>) -> anyhow::Result<MessageBody> {
         let data = data.iter().map(String::as_str).collect::<Vec<_>>();
-        Ok(Body::Parsed(Box::new(
+        Ok(MessageBody::Parsed(Box::new(
             self.parse_inner(&mut &data[..]).context("parsing failed")?,
         )))
     }

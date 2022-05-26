@@ -21,7 +21,6 @@ use anyhow::Context;
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
 /// metadata
-/// TODO: remove retry & resolver fields.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MessageMetadata {
     /// instant when the last "MAIL FROM" has been received.
@@ -45,16 +44,16 @@ impl Default for MessageMetadata {
 
 /// Message body issued by a SMTP transaction
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub enum Body {
+pub enum MessageBody {
     /// Nothing
     Empty,
     /// The raw representation of the message
     Raw(Vec<String>),
-    /// The message parsed using [MailMimeParser]
+    /// The message parsed using a [`MailParser`]
     Parsed(Box<Mail>),
 }
 
-impl std::fmt::Display for Body {
+impl std::fmt::Display for MessageBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Empty => f.write_str(""),
@@ -64,8 +63,8 @@ impl std::fmt::Display for Body {
     }
 }
 
-impl Body {
-    /// Convert a the instance into a [`Body::Parsed`] or [`Body::Empty`]
+impl MessageBody {
+    /// Convert a the instance into a [`MessageBody::Parsed`] or [`MessageBody::Empty`]
     ///
     /// # Errors
     ///
@@ -105,31 +104,19 @@ impl Body {
         match self {
             Self::Empty => {}
             Self::Raw(raw) => {
-                let mut header_start = 0;
-                let mut header_end = None;
+                // TODO: handle folded header, but at this point the function should parse the mail...
 
                 for line in raw {
                     let mut split = line.splitn(2, ": ");
                     match (split.next(), split.next()) {
-                        (Some(old_name), Some(_)) if old_name == name => {
-                            header_end = Some(line.len());
-                            break;
+                        (Some(key), Some(_)) if key == name => {
+                            *line = format!("{key}: {value}");
+                            return;
                         }
-                        (Some(_), Some(_)) => header_start += line.len() + 1,
-                        _ => break,
+                        _ => {}
                     }
                 }
-
-                #[allow(clippy::option_if_let_else)]
-                if let Some(header_end) = header_end {
-                    unimplemented!();
-                    // raw.replace_range(
-                    //     header_start..header_start + header_end,
-                    //     &format!("{name}: {value}"),
-                    // );
-                } else {
-                    self.add_header(name, value);
-                }
+                self.add_header(name, value);
             }
             Self::Parsed(parsed) => parsed.set_header(name, value),
         }
@@ -193,7 +180,7 @@ pub struct MailContext {
     /// envelop of the message
     pub envelop: Envelop,
     /// content of the message
-    pub body: Body,
+    pub body: MessageBody,
     /// metadata
     pub metadata: Option<MessageMetadata>,
 }

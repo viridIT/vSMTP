@@ -23,7 +23,7 @@ use rhai::plugin::{
 pub mod headers {
     use crate::modules::types::types::Context;
     use crate::modules::EngineResult;
-    use vsmtp_common::{mail_context::Body, Address};
+    use vsmtp_common::{mail_context::MessageBody, Address};
 
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, return_raw, pure)]
@@ -88,9 +88,9 @@ pub mod headers {
         email.envelop.mail_from = new_addr.clone();
 
         match &mut email.body {
-                Body::Empty => Err("failed to rewrite mail_from: the email has not been received yet. Use this method in postq or later.".into()),
-                Body::Raw(_) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
-                Body::Parsed(body) => {
+                MessageBody::Empty => Err("failed to rewrite mail_from: the email has not been received yet. Use this method in postq or later.".into()),
+                MessageBody::Raw(_) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
+                MessageBody::Parsed(body) => {
                     body.rewrite_mail_from(new_addr.full());
                     Ok(())
                 },
@@ -123,10 +123,10 @@ pub mod headers {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
         {
-            Body::Empty | Body::Raw(_) => {
+            MessageBody::Empty | MessageBody::Raw(_) => {
                 Err("failed to rewrite rcpt: the email has not been parsed yet.".into())
             }
-            Body::Parsed(body) => {
+            MessageBody::Parsed(body) => {
                 body.rewrite_rcpt(old_addr.full(), new_addr.full());
                 Ok(())
             }
@@ -189,10 +189,10 @@ pub mod headers {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
         {
-            Body::Empty | Body::Raw(_) => {
+            MessageBody::Empty | MessageBody::Raw(_) => {
                 Err("failed to add rcpt: the email has not been parsed yet.".into())
             }
-            Body::Parsed(body) => {
+            MessageBody::Parsed(body) => {
                 body.add_rcpt(new_addr.full());
                 Ok(())
             }
@@ -229,11 +229,11 @@ pub mod headers {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
         {
-            Body::Parsed(body) => {
+            MessageBody::Parsed(body) => {
                 body.remove_rcpt(addr.full());
                 Ok(())
             }
-            Body::Empty | Body::Raw(_) => {
+            MessageBody::Empty | MessageBody::Raw(_) => {
                 Err("failed to remove rcpt: the email has not been parsed yet.".into())
             }
         }

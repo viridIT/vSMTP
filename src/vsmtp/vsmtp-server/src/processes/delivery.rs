@@ -26,7 +26,7 @@ use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::{Body, MailContext},
+    mail_context::{MessageBody, MailContext},
     queue::Queue,
     queue_path,
     re::{anyhow, log},
@@ -111,7 +111,7 @@ async fn send_email(
     metadata: &vsmtp_common::mail_context::MessageMetadata,
     from: &vsmtp_common::Address,
     to: &[vsmtp_common::rcpt::Rcpt],
-    body: &Body,
+    body: &MessageBody,
 ) -> anyhow::Result<Vec<vsmtp_common::rcpt::Rcpt>> {
     // filtering recipients by domains and delivery method.
     let mut triage = vsmtp_common::rcpt::filter_by_transfer_method(to);
@@ -212,7 +212,7 @@ fn add_trace_information(
         rule_engine_result,
     );
 
-    if ctx.body == Body::Empty {
+    if ctx.body == MessageBody::Empty {
         anyhow::bail!("could not add trace information to email header: body is empty");
     }
 
@@ -252,7 +252,7 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::mail_context::{Body, ConnectionContext};
+    use vsmtp_common::mail_context::{MessageBody, ConnectionContext};
 
     /*
     /// This test produce side-effect and may make other test fails
@@ -287,7 +287,7 @@ mod test {
     #[test]
     fn test_add_trace_information() {
         let mut ctx = vsmtp_common::mail_context::MailContext {
-            body: vsmtp_common::mail_context::Body::Empty,
+            body: vsmtp_common::mail_context::MessageBody::Empty,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::UNIX_EPOCH,
                 credentials: None,
@@ -319,13 +319,13 @@ mod test {
             "could not add trace information to email header: body is empty"
         );
 
-        ctx.body = Body::Raw(vec![]);
+        ctx.body = MessageBody::Raw(vec![]);
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &mut ctx, &vsmtp_common::status::Status::Next).unwrap();
 
         assert_eq!(
             ctx.body,
-            Body::Raw(vec![
+            MessageBody::Raw(vec![
                 [
                     "Received: from localhost\n".to_string(),
                     format!("\tby {domain}\n", domain = config.server.domain),

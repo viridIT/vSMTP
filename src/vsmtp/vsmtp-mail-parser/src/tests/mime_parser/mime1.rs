@@ -18,7 +18,7 @@ use crate::parser::MailMimeParser;
 use vsmtp_common::{
     collection,
     mail::{BodyType, Mail},
-    mail_context::Body,
+    mail_context::MessageBody,
     mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart},
     MailParser,
 };
@@ -32,7 +32,7 @@ fn mime_parser() {
         MailMimeParser::default()
         .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
         .unwrap(),
-        Body::Parsed(Box::new(Mail { headers:
+        MessageBody::Parsed(Box::new(Mail { headers:
             vec![
                 ("from", "\"Sender Name\" <sender@example.com>"),
                 ("to", "recipient@example.com"),

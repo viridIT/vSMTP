@@ -19,7 +19,7 @@ use crate::{auth, receiver::auth_exchange::on_authentication};
 use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
-    mail_context::{Body, ConnectionContext, MailContext},
+    mail_context::{MessageBody, ConnectionContext, MailContext},
     re::anyhow,
     state::StateSMTP,
     status::Status,
@@ -112,12 +112,12 @@ impl MailParserOnFly for NoParsing {
     async fn parse<'a>(
         &'a mut self,
         mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> anyhow::Result<Body> {
+    ) -> anyhow::Result<MessageBody> {
         let mut buffer = vec![];
         while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
             buffer.push(line);
         }
-        Ok(Body::Raw(buffer))
+        Ok(MessageBody::Raw(buffer))
     }
 }
 
@@ -179,7 +179,7 @@ where
             10000,
         )),
         envelop: Envelop::default(),
-        body: Body::Empty,
+        body: MessageBody::Empty,
         metadata: None,
     };
 

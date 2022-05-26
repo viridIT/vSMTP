@@ -16,7 +16,7 @@
 */
 
 use crate::test_receiver;
-use vsmtp_common::mail_context::{Body, MailContext};
+use vsmtp_common::mail_context::{MailContext, MessageBody};
 use vsmtp_server::re::tokio;
 use vsmtp_server::ProcessMessage;
 
@@ -68,7 +68,7 @@ async fn test_quarantine() {
 
     assert_eq!(
         MailContext::from_file(&message).unwrap().body,
-        Body::Raw(
+        MessageBody::Raw(
             ["from: 'abc'", "to: 'def'"]
                 .into_iter()
                 .map(str::to_string)
