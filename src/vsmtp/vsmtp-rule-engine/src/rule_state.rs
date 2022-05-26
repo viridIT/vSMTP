@@ -159,4 +159,9 @@ impl RuleState {
     pub fn skipping(&mut self, status: Status) {
         self.skip = Some(status);
     }
+
+    /// future rules can be resumed.
+    pub fn resume(&mut self) {
+        self.skip = None;
+    }
 }

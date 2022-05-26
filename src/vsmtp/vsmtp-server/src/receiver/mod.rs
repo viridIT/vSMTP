@@ -25,7 +25,7 @@ use vsmtp_common::{
     CodeID,
 };
 use vsmtp_config::{create_app_folder, re::rustls, Resolvers};
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::{rule_engine::RuleEngine, Service};
 
 mod auth_exchange;
 mod connection;
@@ -79,6 +79,10 @@ impl OnMail for MailHandler {
                 )?;
 
                 log::warn!("postq & delivery skipped due to quarantine.");
+                return Ok(CodeID::Ok);
+            }
+            Some(Status::Delegated) => {
+                log::warn!("email delegated, processing will be resumed when results are ready.");
                 return Ok(CodeID::Ok);
             }
             Some(reason) => {
@@ -194,6 +198,7 @@ pub async fn handle_connection<S, M>(
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: std::sync::Arc<Resolvers>,
     mail_handler: &mut M,
+    smtp_service: Option<std::sync::Arc<Service>>,
 ) -> anyhow::Result<()>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
@@ -208,6 +213,7 @@ where
                 rule_engine,
                 resolvers,
                 mail_handler,
+                smtp_service,
             )
             .await;
         }
@@ -219,8 +225,14 @@ where
     conn.send_code(CodeID::Greetings).await?;
 
     while conn.is_alive {
-        match Transaction::receive(conn, &helo_domain, rule_engine.clone(), resolvers.clone())
-            .await?
+        match Transaction::receive(
+            conn,
+            &helo_domain,
+            rule_engine.clone(),
+            resolvers.clone(),
+            smtp_service.clone(),
+        )
+        .await?
         {
             TransactionResult::Nothing => {}
             TransactionResult::Mail(mail) => {
@@ -238,6 +250,7 @@ where
                         rule_engine,
                         resolvers,
                         mail_handler,
+                        smtp_service,
                     )
                     .await;
                 }
@@ -274,6 +287,7 @@ async fn handle_connection_secured<S, M>(
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: std::sync::Arc<Resolvers>,
     mail_handler: &mut M,
+    smtp_service: Option<std::sync::Arc<Service>>,
 ) -> anyhow::Result<()>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
@@ -320,6 +334,7 @@ where
             &helo_domain,
             rule_engine.clone(),
             resolvers.clone(),
+            smtp_service.clone(),
         )
         .await?
         {

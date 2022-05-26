@@ -56,9 +56,8 @@ pub enum Service {
     Smtp {
         /// A transport to handle transactions to the delegate.
         delegator: SmtpTransport,
-        /// Metadata to register a new receiver waiting for delegation results.
-        /// TODO: add accepted ip ranges / whitelist.
-        receiver: (std::net::IpAddr, u16),
+        /// Delegation results address.
+        receiver: std::net::SocketAddr,
         /// Where the email will be re-injected in the rule engine
         /// on delegation results.
         run_on: StateSMTP,

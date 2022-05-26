@@ -27,6 +27,7 @@ pub mod services {
     use crate::dsl::service::Service;
     use crate::modules::types::types::Context;
     use crate::modules::EngineResult;
+    use vsmtp_common::status::Status;
 
     #[rhai_fn(global, pure)]
     pub fn to_string(service: &mut std::sync::Arc<Service>) -> String {
@@ -154,10 +155,7 @@ pub mod services {
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw, pure)]
-    pub fn delegate(
-        service: &mut std::sync::Arc<Service>,
-        ctx: Context,
-    ) -> EngineResult<rhai::Map> {
+    pub fn delegate(service: &mut std::sync::Arc<Service>, ctx: Context) -> EngineResult<Status> {
         match &**service {
             Service::Smtp { delegator, .. } => {
                 let (from, rcpt, body) = {
@@ -182,26 +180,23 @@ pub mod services {
                     )
                 };
 
-                let response = crate::dsl::service::smtp::delegate(
-                    &delegator.0,
-                    &from,
-                    &rcpt,
-                    body.as_bytes(),
-                )
-                .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+                crate::dsl::service::smtp::delegate(&delegator.0, &from, &rcpt, body.as_bytes())
+                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
-                Ok(rhai::Map::from_iter([
-                    ("code".into(), Dynamic::from(response.code().to_string())),
-                    (
-                        "message".into(),
-                        Dynamic::from(
-                            response
-                                .message()
-                                .map(|line| Dynamic::from(line.to_string()))
-                                .collect::<rhai::Array>(),
-                        ),
-                    ),
-                ]))
+                Ok(Status::Delegated)
+
+                // Ok(rhai::Map::from_iter([
+                //     ("code".into(), Dynamic::from(response.code().to_string())),
+                //     (
+                //         "message".into(),
+                //         Dynamic::from(
+                //             response
+                //                 .message()
+                //                 .map(|line| Dynamic::from(line.to_string()))
+                //                 .collect::<rhai::Array>(),
+                //         ),
+                //     ),
+                // ]))
             }
             _ => Err(format!("cannot delegate security with '{service}' service.").into()),
         }

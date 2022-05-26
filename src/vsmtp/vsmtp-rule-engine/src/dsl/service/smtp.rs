@@ -73,43 +73,33 @@ pub fn parse_smtp_service(
             "smtp service options must be a map".into()
         })?;
 
-    let delegator: rhai::Map = get_or_default(service_name, &options, "delegator", None)?;
-    let receiver: rhai::Map = get_or_default(service_name, &options, "receiver", None)?;
     let run_on: String = get_or_default(service_name, &options, "run_on", None)?;
 
-    // TODO: add a 'unix'/'net' modifier.
-    let delegator_ip = get_or_default::<String>("delegator", &delegator, "ip", None)?
-        .parse::<std::net::IpAddr>()
+    let receiver_addr = get_or_default::<String>(service_name, &options, "receiver", None)?
+        .parse::<std::net::SocketAddr>()
         .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-    let delegator_port: i64 = get_or_default("delegator", &delegator, "port", Some(10025))?;
+
+    // TODO: add a 'unix'/'net' modifier.
+    let delegator: rhai::Map = get_or_default(service_name, &options, "delegator", None)?;
+    let delegator_addr = get_or_default::<String>("delegator", &delegator, "address", None)?
+        .parse::<std::net::SocketAddr>()
+        .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
     let delegator_timeout: std::time::Duration =
         get_or_default::<String>(service_name, &options, "timeout", Some("60s".to_string()))?
             .parse::<vsmtp_config::re::humantime::Duration>()
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
             .into();
 
-    let receiver_ip = get_or_default::<String>("receiver", &receiver, "ip", None)?
-        .parse::<std::net::IpAddr>()
-        .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-    let receiver_port: i64 = get_or_default("receiver", &receiver, "port", Some(10026))?;
-
-    // FIXME: safely convert / prevent port casting to u16.
     Ok(Service::Smtp {
         delegator: {
-            #[allow(clippy::cast_sign_loss)]
-            #[allow(clippy::cast_possible_truncation)]
             SmtpTransport(
-                lettre::SmtpTransport::builder_dangerous(delegator_ip.to_string())
+                lettre::SmtpTransport::builder_dangerous(delegator_addr.ip().to_string())
                     .timeout(Some(delegator_timeout))
-                    .port(delegator_port as u16)
+                    .port(delegator_addr.port())
                     .build(),
             )
         },
-        receiver: {
-            #[allow(clippy::cast_sign_loss)]
-            #[allow(clippy::cast_possible_truncation)]
-            (receiver_ip, receiver_port as u16)
-        },
+        receiver: receiver_addr,
         run_on: StateSMTP::from_str(&run_on)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
     })

@@ -17,9 +17,8 @@
 use crate::{
     log_channels,
     processes::{delivery, postq},
-    socket_bind_anyhow, ProcessMessage, Server,
+    ProcessMessage, Server,
 };
-use std::str::FromStr;
 use vsmtp_common::{
     queue::Queue,
     re::{
@@ -102,28 +101,20 @@ pub fn start_runtime(
 
     let rule_engine = RuleEngine::new(&config, &config.app.vsl.filepath.clone())?;
 
-    let services = rule_engine.extract_services();
-
-    let mut service_receivers = vec![];
-    for service in services {
-        if let Service::Smtp {
-            receiver: (ip, port),
-            ..
-        } = &*service
-        {
-            service_receivers.push(
-                std::net::SocketAddr::from_str(&format!("{}:{}", ip, port)).context(format!(
-                    "failed to connect to connect to {} for a smtp service.",
-                    ip
-                ))?,
-            );
-        }
-    }
-
-    let service_receivers = service_receivers
+    let smtp_services = rule_engine
+        .extract_services()
         .into_iter()
-        .map(socket_bind_anyhow)
-        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?;
+        .filter(|service| matches!(**service, Service::Smtp { .. }))
+        .map(|service| match &*service {
+            Service::Smtp { receiver, .. } => {
+                if !config.server.interfaces.addr.contains(receiver) {
+                    anyhow::bail!("a smtp service tried to receive delegation on '{receiver}', but that address was not found in the toml configuration. Add '{receiver}' to your list of listeners in the 'addr' array.");
+                }
+                Ok(service)
+            }
+            _ => unreachable!("filtered service are all smtp services"),
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(rule_engine));
 
@@ -172,7 +163,7 @@ pub fn start_runtime(
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),
             )?
-            .listen_and_serve(sockets, service_receivers)
+            .listen_and_serve(sockets, smtp_services)
             .await
         },
         timeout,

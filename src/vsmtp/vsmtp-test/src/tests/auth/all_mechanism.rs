@@ -57,6 +57,7 @@ async fn test_auth(
             client_stream,
             client_addr,
             ConnectionKind::Relay,
+            None,
             server_config,
             None,
             Some(rsasl),

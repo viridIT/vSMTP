@@ -30,7 +30,7 @@ use vsmtp_common::{
     CodeID,
 };
 use vsmtp_config::{get_rustls_config, re::rustls, Config, Resolvers};
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::{rule_engine::RuleEngine, Service};
 
 /// TCP/IP server
 pub struct Server {
@@ -133,6 +133,7 @@ impl Server {
         })
     }
 
+    #[allow(clippy::too_many_lines)]
     /// Main loop of vSMTP's server
     ///
     /// # Errors
@@ -150,11 +151,12 @@ impl Server {
             Vec<std::net::TcpListener>,
             Vec<std::net::TcpListener>,
         ),
-        service_receivers: Vec<std::net::TcpListener>,
+        smtp_services: Vec<std::sync::Arc<Service>>,
     ) -> anyhow::Result<()> {
+        let smtp_services = std::sync::Arc::new(smtp_services);
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
-        let (listener, listener_submission, listener_tunneled, listener_services) = (
+        let (listener, listener_submission, listener_tunneled) = (
             sockets
                 .0
                 .into_iter()
@@ -170,23 +172,19 @@ impl Server {
                 .into_iter()
                 .map(tokio::net::TcpListener::from_std)
                 .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()?,
-            service_receivers
-                .into_iter()
-                .map(tokio::net::TcpListener::from_std)
-                .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()?,
         );
 
-        let addr = [
-            &listener,
-            &listener_submission,
-            &listener_tunneled,
-            &listener_services,
-        ]
-        .iter()
-        .flat_map(|array| array.iter().map(tokio::net::TcpListener::local_addr))
-        .collect::<Vec<_>>();
+        {
+            let addr = [&listener, &listener_submission, &listener_tunneled]
+                .iter()
+                .flat_map(|array| array.iter().map(tokio::net::TcpListener::local_addr))
+                .collect::<Vec<_>>();
 
-        log::info!(target: log_channels::SERVER, "Listening on: {addr:?}",);
+            log::info!(
+                target: log_channels::SERVER,
+                "Listening for clients on: {addr:?}",
+            );
+        }
 
         let mut map = tokio_stream::StreamMap::new();
         for (kind, sockets) in [
@@ -194,11 +192,11 @@ impl Server {
             (ConnectionKind::Submission, &listener_submission),
             (ConnectionKind::Tunneled, &listener_tunneled),
         ] {
-            for i in sockets {
-                let accept = listener_to_stream(i);
+            for listener in sockets {
+                let accept = listener_to_stream(listener);
                 let transform = tokio_stream::StreamExt::map(accept, move |client| (kind, client));
 
-                map.insert(i.local_addr().unwrap(), Box::pin(transform));
+                map.insert(listener.local_addr().unwrap(), Box::pin(transform));
             }
         }
 
@@ -244,6 +242,13 @@ impl Server {
                 stream,
                 client_addr,
                 kind,
+                smtp_services
+                    .iter()
+                    .find(|service| match &***service {
+                        Service::Smtp { receiver, .. } => *receiver == server_addr,
+                        _ => unreachable!(),
+                    })
+                    .cloned(),
                 self.config.clone(),
                 self.tls_config.clone(),
                 self.rsasl.clone(),
@@ -271,6 +276,7 @@ impl Server {
         stream: tokio::net::TcpStream,
         client_addr: std::net::SocketAddr,
         kind: ConnectionKind,
+        smtp_service: Option<std::sync::Arc<Service>>,
         config: std::sync::Arc<Config>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
@@ -295,6 +301,7 @@ impl Server {
                 working_sender,
                 delivery_sender,
             },
+            smtp_service,
         )
         .await;
         let elapsed = begin.elapsed().expect("do not go back to the future");

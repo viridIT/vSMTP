@@ -169,14 +169,20 @@ impl RuleEngine {
     /// runs all rules from a stage using the current transaction state.$
     /// # Panics
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
-        if let Some(status) = rule_state.skipped() {
-            return (*status).clone();
+        match rule_state.skipped() {
+            Some(Status::DelegationResult(state)) => {
+                if state == smtp_state {
+                    rule_state.resume();
+                }
+            }
+            Some(status) => return (*status).clone(),
+            None => {}
         }
 
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
             match self.execute_directives(rule_state.engine(), &directive_set[..], smtp_state) {
                 Ok(status) => {
-                    if let Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) = status {
+                    if status.stop() {
                         log::debug!(
                             target: log_channels::RE,
                             "[{}] the rule engine will skip all rules because of the previous result.",

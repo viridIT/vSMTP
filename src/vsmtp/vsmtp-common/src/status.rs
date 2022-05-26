@@ -15,7 +15,7 @@
  *
 */
 
-use crate::ReplyOrCodeID;
+use crate::{state::StateSMTP, ReplyOrCodeID};
 
 /// Status of the mail context treated by the rule engine
 #[derive(Debug, Clone, PartialEq, Eq, strum::AsRefStr, serde::Deserialize, serde::Serialize)]
@@ -42,4 +42,27 @@ pub enum Status {
 
     /// used to send data from .vsl to vsmtp's server
     Packet(String),
+
+    // TODO: add rule / action name,
+    /// the email as been delegated to another service.
+    Delegated,
+
+    /// the rule engine must skip all rules until the given
+    /// smtp state because the message received is a delegation
+    /// result, it would be worthless to re-execute all rules.
+    DelegationResult(StateSMTP),
+}
+
+impl Status {
+    /// Checks if current status stops evaluation of
+    /// the next rules.
+    #[must_use]
+    pub const fn stop(&self) -> bool {
+        match self {
+            Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated => {
+                true
+            }
+            _ => false,
+        }
+    }
 }
