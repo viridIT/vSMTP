@@ -39,7 +39,7 @@ fn test_email_context() {
         re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    state.context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(vec![]);
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -92,7 +92,7 @@ fn test_email_add_get_set_header() {
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
     let (mut state, _) = get_default_state("./tmp/app");
-    state.context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(vec![]);
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),

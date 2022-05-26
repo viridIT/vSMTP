@@ -116,15 +116,7 @@ async fn send_email(
     // filtering recipients by domains and delivery method.
     let mut triage = vsmtp_common::rcpt::filter_by_transfer_method(to);
 
-    // getting a raw copy of the email.
-    let content = match &body {
-        Body::Empty => anyhow::bail!(
-            "empty body found in message '{}' in delivery queue",
-            metadata.message_id
-        ),
-        Body::Raw(raw) => raw.clone(),
-        Body::Parsed(parsed) => parsed.to_raw(),
-    };
+    let content = body.to_string();
 
     for (method, rcpt) in &mut triage {
         let mut transport: Box<dyn Transport + Send> = match method {
@@ -216,24 +208,16 @@ fn add_trace_information(
 
     let vsmtp_status = create_vsmtp_status_stamp(
         &ctx.metadata.as_ref().unwrap().message_id,
-        &config.version_requirement.to_string(),
+        env!("CARGO_PKG_VERSION"),
         rule_engine_result,
     );
 
-    match &mut ctx.body {
-        Body::Empty => {
-            anyhow::bail!("could not add trace information to email header: body is empty")
-        }
-        Body::Raw(raw) => {
-            *raw = format!("Received: {}\nX-VSMTP: {}\n{}", stamp, vsmtp_status, raw);
-        }
-        Body::Parsed(parsed) => {
-            parsed.prepend_headers(vec![
-                ("Received".to_string(), stamp),
-                ("X-VSMTP".to_string(), vsmtp_status),
-            ]);
-        }
-    };
+    if ctx.body == Body::Empty {
+        anyhow::bail!("could not add trace information to email header: body is empty");
+    }
+
+    ctx.body.add_header("X-VSMTP", &vsmtp_status);
+    ctx.body.add_header("Received", &stamp);
 
     Ok(())
 }
@@ -335,24 +319,42 @@ mod test {
             "could not add trace information to email header: body is empty"
         );
 
-        ctx.body = Body::Raw("".to_string());
+        ctx.body = Body::Raw(vec![]);
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &mut ctx, &vsmtp_common::status::Status::Next).unwrap();
 
         assert_eq!(
-            ctx.body ,
-            Body::Raw(
-            format!(
-                "Received: from localhost\n\tby {}\n\twith SMTP\n\tid {};\n\t{}\nX-VSMTP: id='{}'\n\tversion='{}'\n\tstatus='next'\n",
-                config.server.domain,
-                ctx.metadata.as_ref().unwrap().message_id,
-                {
-                    let odt: time::OffsetDateTime = ctx.metadata.as_ref().unwrap().timestamp.into();
-                    odt.format(&time::format_description::well_known::Rfc2822).unwrap()
-                },
-                ctx.metadata.as_ref().unwrap().message_id,
-                config.version_requirement,
-            ))
+            ctx.body,
+            Body::Raw(vec![
+                [
+                    "Received: from localhost\n".to_string(),
+                    format!("\tby {domain}\n", domain = config.server.domain),
+                    "\twith SMTP\n".to_string(),
+                    format!(
+                        "\tid {id};\n",
+                        id = ctx.metadata.as_ref().unwrap().message_id
+                    ),
+                    format!(
+                        "\t{odt}",
+                        odt = {
+                            let odt: time::OffsetDateTime =
+                                ctx.metadata.as_ref().unwrap().timestamp.into();
+                            odt.format(&time::format_description::well_known::Rfc2822)
+                                .unwrap()
+                        }
+                    ),
+                ]
+                .concat(),
+                [
+                    format!(
+                        "X-VSMTP: id='{id}'\n",
+                        id = ctx.metadata.as_ref().unwrap().message_id
+                    ),
+                    format!("\tversion='{}'\n", env!("CARGO_PKG_VERSION")),
+                    "\tstatus='next'".to_string()
+                ]
+                .concat()
+            ])
         );
     }
 }

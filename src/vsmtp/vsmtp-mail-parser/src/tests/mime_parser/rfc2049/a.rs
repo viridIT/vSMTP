@@ -6,12 +6,14 @@ use vsmtp_common::{
     MailParser,
 };
 
+const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");
+
 #[test]
 #[allow(clippy::too_many_lines)]
 fn simple() {
     pretty_assertions::assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc2049/A.eml"))
+            .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
             .unwrap(),
         Mail {
             headers: vec![

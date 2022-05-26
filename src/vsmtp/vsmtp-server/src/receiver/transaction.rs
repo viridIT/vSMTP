@@ -31,7 +31,6 @@ use vsmtp_common::{
 use vsmtp_config::{Config, Resolvers, TlsSecurityLevel};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
-// Generated from a string received
 enum ProcessedEvent {
     Reply(ReplyOrCodeID),
     ChangeState(StateSMTP),
@@ -46,7 +45,6 @@ pub struct Transaction {
 
 #[allow(clippy::module_name_repetitions)]
 pub enum TransactionResult {
-    // Stream(std::pin::Pin<Box<dyn tokio_stream::Stream<Item = String> + 'a + Send>>),
     Data,
     TlsUpgrade,
     Authentication(String, Mechanism, Option<Vec<u8>>),
@@ -267,7 +265,7 @@ impl Transaction {
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
                 self.rule_state.context().write().unwrap().body =
-                    Body::Raw(String::with_capacity(MAIL_CAPACITY));
+                    Body::Raw(Vec::with_capacity(MAIL_CAPACITY / 1000));
 
                 ProcessedEvent::ReplyChangeState(
                     StateSMTP::Data,
@@ -278,72 +276,6 @@ impl Transaction {
             _ => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::BadSequence)),
         }
     }
-
-    /*
-    fn process_data<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
-        &mut self,
-        conn: &Connection<S>,
-        event: Option<String>,
-    ) -> ProcessedEvent {
-        match (&self.state, event) {
-            (StateSMTP::Data, Some(line)) => {
-                let state = self.rule_state.context();
-                if let Body::Raw(body) = &mut state.write().unwrap().body {
-                    body.push_str(&line);
-                    body.push('\n');
-                }
-                ProcessedEvent::Nothing
-            }
-
-            (StateSMTP::Data, None) => {
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, &StateSMTP::PreQ)
-                {
-                    Status::Info(packet) => return ProcessedEvent::Reply(packet),
-                    Status::Deny(packet) => {
-                        return ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
-                    }
-                    _ => {}
-                }
-
-                let state = self.rule_state.context();
-                let mut ctx = state.write().unwrap();
-
-                // NOTE: the "skipped" field is updated by the rule engine internal state,
-                //       which does result in hard to read code, but it was the fastest way
-                //       to propagate the force accept to the server.
-                //       Alternatives:
-                //        - return ProcessedEvent::CompletedMimeSkipped
-                //        - set body to Body::ParsingFailed or Body::ParsingSkipped.
-                if let Some(metadata) = &mut ctx.metadata {
-                    metadata.skipped = self.rule_state.skipped().cloned();
-                }
-
-                let mut output = MailContext {
-                    connection: ConnectionContext {
-                        timestamp: std::time::SystemTime::now(),
-                        credentials: None,
-                        is_authenticated: conn.is_authenticated,
-                        is_secured: conn.is_secured,
-                        server_name: conn.server_name.clone(),
-                    },
-                    client_addr: ctx.client_addr,
-                    envelop: Envelop::default(),
-                    body: Body::Empty,
-                    metadata: None,
-                };
-
-                std::mem::swap(&mut *ctx, &mut output);
-
-                ProcessedEvent::TransactionCompleted(Box::new(output))
-            }
-            _ => todo!(),
-        }
-    }
-    */
 
     fn set_connect<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,

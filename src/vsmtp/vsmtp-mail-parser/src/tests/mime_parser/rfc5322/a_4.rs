@@ -8,7 +8,12 @@ use vsmtp_common::{
 fn tracing() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.4.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.4.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
         Mail {
             headers: vec![

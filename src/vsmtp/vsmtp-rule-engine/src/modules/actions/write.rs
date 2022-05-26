@@ -38,36 +38,27 @@ pub mod write {
                 )
                 .into()
             })?;
-
         dir.push(format!("{}.eml", message_id(&mut ctx)?));
 
-        match std::fs::OpenOptions::new()
+        let file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
             .open(&dir)
-        {
-            Ok(file) => {
-                let mut writer = std::io::LineWriter::new(file);
+            .map_err::<Box<EvalAltResult>, _>(|err| {
+                format!("failed to write email at {dir:?}: {err}").into()
+            })?;
+        let mut writer = std::io::LineWriter::new(file);
 
-                match &ctx
-                    .read()
-                    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-                    .body
-                {
-                    Body::Empty => {
-                        return Err(
-                            "failed to write email: the body has not been received yet.".into()
-                        )
-                    }
-                    Body::Raw(raw) => std::io::Write::write_all(&mut writer, raw.as_bytes()),
-                    Body::Parsed(email) => {
-                        std::io::Write::write_all(&mut writer, email.to_raw().as_bytes())
-                    }
-                }
-            }
-            .map_err(|err| format!("failed to write email at {dir:?}: {err}").into()),
-            Err(err) => Err(format!("failed to write email at {dir:?}: {err}").into()),
+        let body = &ctx
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body;
+        if Body::Empty == *body {
+            return Err("failed to write email: the body has not been received yet.".into());
         }
+
+        std::io::Write::write_all(&mut writer, body.to_string().as_bytes())
+            .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
     }
 
     /// write the content of the current email with it's metadata in a json file.

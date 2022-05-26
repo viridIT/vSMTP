@@ -68,7 +68,12 @@ async fn test_quarantine() {
 
     assert_eq!(
         MailContext::from_file(&message).unwrap().body,
-        Body::Raw("from: 'abc'\nto: 'def'\n".to_string())
+        Body::Raw(
+            ["from: 'abc'", "to: 'def'"]
+                .into_iter()
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        )
     );
 
     std::fs::remove_file(message).unwrap();

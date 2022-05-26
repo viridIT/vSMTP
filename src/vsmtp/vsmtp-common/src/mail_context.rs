@@ -49,18 +49,18 @@ pub enum Body {
     /// Nothing
     Empty,
     /// The raw representation of the message
-    Raw(String),
+    Raw(Vec<String>),
     /// The message parsed using [MailMimeParser]
     Parsed(Box<Mail>),
 }
 
 impl std::fmt::Display for Body {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&match self {
-            Self::Empty => "".to_string(),
-            Self::Raw(data) => data.clone(),
-            Self::Parsed(mail) => mail.to_raw(),
-        })
+        match self {
+            Self::Empty => f.write_str(""),
+            Self::Raw(data) => f.write_fmt(format_args!("{}\n", data.join("\n"))),
+            Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
+        }
     }
 }
 
@@ -72,7 +72,7 @@ impl Body {
     /// * Fail to parse using the provided [`MailParser`]
     pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
         Ok(match self {
-            Self::Raw(raw) => Self::Parsed(Box::new(P::default().parse(raw.as_bytes())?)),
+            Self::Raw(raw) => Self::Parsed(Box::new(P::default().parse(raw)?)),
             otherwise => otherwise,
         })
     }
@@ -83,7 +83,7 @@ impl Body {
         match self {
             Self::Empty => None,
             Self::Raw(raw) => {
-                for line in raw.lines() {
+                for line in raw {
                     let mut split = line.splitn(2, ": ");
                     match (split.next(), split.next()) {
                         (Some(header), Some(value)) if header == name => {
@@ -108,7 +108,7 @@ impl Body {
                 let mut header_start = 0;
                 let mut header_end = None;
 
-                for line in raw.lines() {
+                for line in raw {
                     let mut split = line.splitn(2, ": ");
                     match (split.next(), split.next()) {
                         (Some(old_name), Some(_)) if old_name == name => {
@@ -122,10 +122,11 @@ impl Body {
 
                 #[allow(clippy::option_if_let_else)]
                 if let Some(header_end) = header_end {
-                    raw.replace_range(
-                        header_start..header_start + header_end,
-                        &format!("{name}: {value}"),
-                    );
+                    unimplemented!();
+                    // raw.replace_range(
+                    //     header_start..header_start + header_end,
+                    //     &format!("{name}: {value}"),
+                    // );
                 } else {
                     self.add_header(name, value);
                 }
@@ -138,7 +139,11 @@ impl Body {
     pub fn add_header(&mut self, name: &str, value: &str) {
         match self {
             Self::Empty => {}
-            Self::Raw(raw) => *raw = format!("{name}: {value}\n{raw}"),
+            Self::Raw(raw) => {
+                let mut new_raw = vec![format!("{name}: {value}")];
+                new_raw.extend_from_slice(raw);
+                *raw = new_raw;
+            }
             Self::Parsed(parsed) => {
                 parsed.prepend_headers(vec![(name.to_string(), value.to_string())]);
             }

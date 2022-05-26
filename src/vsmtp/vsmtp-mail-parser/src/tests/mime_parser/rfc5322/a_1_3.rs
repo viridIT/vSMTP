@@ -9,7 +9,9 @@ const MAIL: &str = include_str!("../../mail/rfc5322/A.1.3.eml");
 #[test]
 fn group_addresses() {
     assert_eq!(
-        MailMimeParser::default().parse(MAIL.as_bytes()).unwrap(),
+        MailMimeParser::default()
+            .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+            .unwrap(),
         Mail {
             headers: vec![
                 ("from", "Pete <pete@silly.example>"),

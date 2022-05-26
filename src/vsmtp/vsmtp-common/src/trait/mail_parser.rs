@@ -23,5 +23,5 @@ pub trait MailParser: Default {
     /// # Errors
     ///
     /// * the input is not compliant
-    fn parse(&mut self, bytes: &[u8]) -> anyhow::Result<Mail>;
+    fn parse(&mut self, raw: Vec<String>) -> anyhow::Result<Mail>;
 }

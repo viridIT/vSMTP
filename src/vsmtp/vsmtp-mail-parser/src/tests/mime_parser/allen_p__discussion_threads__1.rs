@@ -28,7 +28,9 @@ const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");
 #[test]
 fn mime_parser() {
     assert_eq!(
-        MailMimeParser::default().parse(MAIL.as_bytes()).unwrap(),
+        MailMimeParser::default()
+            .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+            .unwrap(),
         Mail {
             headers: vec![
                 (

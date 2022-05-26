@@ -39,10 +39,10 @@ Content-Transfer-Encoding: 7bit
 
     (
         Body::Empty,
-        Body::Raw(raw_email.to_string()),
+        Body::Raw(raw_email.lines().map(str::to_string).collect::<Vec<_>>()),
         Body::Parsed(Box::new(
             MailMimeParser::default()
-                .parse(raw_email.as_bytes())
+                .parse(raw_email.lines().map(str::to_string).collect::<Vec<_>>())
                 .unwrap(),
         )),
     )

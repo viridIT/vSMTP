@@ -8,7 +8,12 @@ use vsmtp_common::{
 fn simple() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.1.1.a.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.1.1.a.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
         Mail {
             headers: vec![
@@ -35,7 +40,12 @@ fn simple() {
 fn forward() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.1.1.b.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.1.1.b.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
         Mail {
             headers: vec![

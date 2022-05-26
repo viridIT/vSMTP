@@ -9,7 +9,9 @@ const MAIL: &str = include_str!("../../mail/rfc5322/A.1.2.eml");
 #[test]
 fn types_mailboxes() {
     assert_eq!(
-        MailMimeParser::default().parse(MAIL.as_bytes()).unwrap(),
+        MailMimeParser::default()
+            .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+            .unwrap(),
         Mail {
             headers: vec![
                 ("from", "\"Joe Q. Public\" <john.q.public@example.com>"),

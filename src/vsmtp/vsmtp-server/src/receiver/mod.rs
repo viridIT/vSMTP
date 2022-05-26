@@ -123,10 +123,6 @@ where
         while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
             message.push(line);
         }
-        let mut message = message.join("\n");
-        if !message.is_empty() {
-            message.push('\n');
-        }
         message
     };
 

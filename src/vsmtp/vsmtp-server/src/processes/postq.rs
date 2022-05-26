@@ -235,7 +235,12 @@ mod tests {
                             },
                         ],
                     },
-                    body: Body::Raw("Date: bar\r\nFrom: foo\r\nHello world\r\n".to_string()),
+                    body: Body::Raw(
+                        ["Date: bar", "From: foo", "Hello world"]
+                            .into_iter()
+                            .map(str::to_string)
+                            .collect::<Vec<_>>(),
+                    ),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test".to_string(),
@@ -308,7 +313,12 @@ mod tests {
                             },
                         ],
                     },
-                    body: Body::Raw("Date: bar\r\nFrom: foo\r\nHello world\r\n".to_string()),
+                    body: Body::Raw(
+                        ["Date: bar", "From: foo", "Hello world"]
+                            .into_iter()
+                            .map(str::to_string)
+                            .collect::<Vec<_>>(),
+                    ),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test_denied".to_string(),

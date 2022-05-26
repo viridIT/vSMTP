@@ -98,7 +98,9 @@ Subject: test email
 
 This is a raw email.
 "#
-        .to_string(),
+        .lines()
+        .map(str::to_string)
+        .collect::<Vec<_>>(),
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
@@ -139,7 +141,7 @@ fn test_context_dump() {
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    state.context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(vec![]);
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -182,7 +184,7 @@ fn test_quarantine() {
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    state.context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = Body::Raw(vec![]);
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
