@@ -50,8 +50,9 @@ vsmtp-test = { path = "../vsmtp-test" }
 pretty_assertions = "1.2.1"
 
 ## Benchmark
-criterion = { version = "0.3.5", features = ["async_tokio"] }
+criterion = { version = "0.3.5", features = ["async_tokio", "html_reports"] }
 iai = "0.1.1"
+rand = "0.8.5"
 
 lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "smtp-transport",
@@ -61,15 +62,10 @@ lettre = { version = "0.10.0-rc.6", default-features = false, features = [
 ] }
 
 [[bench]]
-name = "receiver"
+name = "receiver2"
 harness = false
 
 [[bench]]
-name = "iai_proof"
+name = "iai_receiver"
 harness = false
-path = "benches/iai/proof.rs"
-
-[[bench]]
-name = "iai_proof2"
-harness = false
-path = "benches/iai/proof2.rs"
+path = "benches/iai/receiver.rs"

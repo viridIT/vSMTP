@@ -95,7 +95,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe");
                 assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
 
-                if matches!(mail.body, vsmtp_common::mail_context::Body::Empty) {
+                if matches!(mail.body, vsmtp_common::mail_context::MessageBody::Empty) {
                     panic!("the email is not empty");
                 }
 

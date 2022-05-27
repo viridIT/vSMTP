@@ -22,7 +22,7 @@ use crate::{
 use vsmtp_common::{
     addr,
     mail::{BodyType, Mail},
-    mail_context::{Body, MessageMetadata},
+    mail_context::{MessageBody, MessageMetadata},
     state::StateSMTP,
     status::Status,
     CodeID, ReplyOrCodeID,
@@ -39,12 +39,12 @@ fn test_email_context() {
         re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    state.context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = MessageBody::Raw(vec![]);
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.context().write().unwrap().body = MessageBody::Parsed(Box::new(Mail {
         headers: vec![(
             "to".to_string(),
             "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
@@ -92,12 +92,11 @@ fn test_email_add_get_set_header() {
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
     let (mut state, _) = get_default_state("./tmp/app");
-    state.context().write().unwrap().body = Body::Raw(String::default());
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::PreQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
-    );
-    state.context().write().unwrap().body = Body::Parsed(Box::new(Mail {
+    state.context().write().unwrap().body = MessageBody::Raw(vec![]);
+    let status = re.run_when(&mut state, &StateSMTP::PreQ);
+    println!("{status:?} {}", state.context().read().unwrap().body);
+    assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),);
+    state.context().write().unwrap().body = MessageBody::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     }));

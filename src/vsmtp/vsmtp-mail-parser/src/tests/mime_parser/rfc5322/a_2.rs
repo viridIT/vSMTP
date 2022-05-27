@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::MessageBody,
     MailParser,
 };
 
@@ -8,9 +9,14 @@ use vsmtp_common::{
 fn simple() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.2.a.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.2.a.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
-        Mail {
+        MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "John Doe <jdoe@machine.example>"),
                 ("to", "Mary Smith <mary@example.net>"),
@@ -27,7 +33,7 @@ fn simple() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }
 
@@ -35,9 +41,14 @@ fn simple() {
 fn reply_simple() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.2.b.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.2.b.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
-        Mail {
+        MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "Mary Smith <mary@example.net>"),
                 ("to", "John Doe <jdoe@machine.example>"),
@@ -60,7 +71,7 @@ fn reply_simple() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }
 
@@ -68,9 +79,14 @@ fn reply_simple() {
 fn reply_reply() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.2.c.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.2.c.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
-        Mail {
+        MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 (
                     "to",
@@ -95,6 +111,6 @@ fn reply_reply() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::MessageBody,
     MailParser,
 };
 
@@ -9,8 +10,10 @@ const MAIL: &str = include_str!("../../mail/rfc5322/A.1.2.eml");
 #[test]
 fn types_mailboxes() {
     assert_eq!(
-        MailMimeParser::default().parse(MAIL.as_bytes()).unwrap(),
-        Mail {
+        MailMimeParser::default()
+            .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+            .unwrap(),
+        MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "\"Joe Q. Public\" <john.q.public@example.com>"),
                 (
@@ -33,6 +36,6 @@ fn types_mailboxes() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

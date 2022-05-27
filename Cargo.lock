@@ -2045,6 +2045,7 @@ version = "1.0.1"
 dependencies = [
  "addr",
  "anyhow",
+ "async-trait",
  "base64",
  "lettre",
  "libc",
@@ -2054,6 +2055,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "strum",
+ "tokio-stream",
  "users",
  "vsmtp-rsasl",
 ]
@@ -2142,6 +2144,7 @@ dependencies = [
  "iai",
  "lettre",
  "pretty_assertions",
+ "rand",
  "time 0.3.9",
  "tokio",
  "tokio-rustls",

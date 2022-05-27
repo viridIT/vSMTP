@@ -35,6 +35,9 @@ jobs:
         continue-on-error: true
         run: cargo bench --workspace --bench "*iai*"
 
+      # The artifact are generated under the member of the workspace, and not at the root
+      - run: mkdir -p ./target/iai/vsmtp-server && cp -r ./src/vsmtp/vsmtp-server/target/iai/* ./target/iai/vsmtp-server
+
       - name: "Upload Artifact"
         uses: actions/upload-artifact@v3
         with:
@@ -50,6 +53,8 @@ jobs:
         with:
           name: baseline
           path: ./target/iai
+
+      - run: mkdir -p ./src/vsmtp/vsmtp-server/target/iai && cp -r ./target/iai/vsmtp-server/* ./src/vsmtp/vsmtp-server/target/iai
 
       - name: Run bench against baseline
         run: cargo bench --workspace --bench "*iai*" > iai_feature

@@ -103,7 +103,7 @@ mod r#trait {
     pub mod mail_parser;
 }
 
-pub use r#trait::mail_parser::MailParser;
+pub use r#trait::mail_parser::{MailParser, MailParserOnFly};
 
 #[cfg(test)]
 mod tests {

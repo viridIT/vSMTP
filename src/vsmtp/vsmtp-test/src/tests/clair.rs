@@ -18,7 +18,7 @@ use crate::{config, test_receiver};
 use vsmtp_common::{
     addr,
     mail::{BodyType, Mail},
-    mail_context::{Body, MailContext},
+    mail_context::{MailContext, MessageBody},
     re::anyhow,
     CodeID,
 };
@@ -288,7 +288,7 @@ async fn test_receiver_13() {
             );
             pretty_assertions::assert_eq!(
                 body,
-                Body::Parsed(Box::new(Mail {
+                MessageBody::Parsed(Box::new(Mail {
                     headers: [
                         (
                             "from",
@@ -376,7 +376,7 @@ async fn test_receiver_14() {
             );
             pretty_assertions::assert_eq!(
                 body,
-                Body::Parsed(Box::new(Mail {
+                MessageBody::Parsed(Box::new(Mail {
                     headers: [
                         (
                             "from",

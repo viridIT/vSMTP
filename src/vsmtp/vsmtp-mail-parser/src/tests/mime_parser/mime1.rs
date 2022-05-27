@@ -18,6 +18,7 @@ use crate::parser::MailMimeParser;
 use vsmtp_common::{
     collection,
     mail::{BodyType, Mail},
+    mail_context::MessageBody,
     mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart},
     MailParser,
 };
@@ -28,8 +29,10 @@ const MAIL: &str = include_str!("../mail/mime1.eml");
 #[test]
 fn mime_parser() {
     assert_eq!(
-        MailMimeParser::default().parse(MAIL.as_bytes()).unwrap(),
-        Mail { headers:
+        MailMimeParser::default()
+        .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+        .unwrap(),
+        MessageBody::Parsed(Box::new(Mail { headers:
             vec![
                 ("from", "\"Sender Name\" <sender@example.com>"),
                 ("to", "recipient@example.com"),
@@ -155,6 +158,6 @@ fn mime_parser() {
                     epilogue: "".to_string()
                 })
             }))
-        }
+        }))
     );
 }

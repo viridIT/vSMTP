@@ -113,48 +113,23 @@ pub struct Mime {
 
 impl std::fmt::Display for Mime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{}\n\n{}",
-            self.raw_headers(),
-            self.raw_body()
-        ))
-    }
-}
+        for i in &self.headers {
+            f.write_fmt(format_args!("{i}\n"))?;
+        }
+        std::fmt::Write::write_char(f, '\n')?;
 
-impl Mime {
-    /// get the original mime header section of the part.
-    #[must_use]
-    pub fn raw_headers(&self) -> String {
-        self.headers
-            .iter()
-            .map(MimeHeader::to_string)
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    /// get the original body section of the part.
-    ///
-    /// # Panics
-    ///
-    /// * @self is a multipart ill formed (no boundary in header)
-    #[must_use]
-    pub fn raw_body(&self) -> String {
         match &self.content {
-            MimeBodyType::Regular(regular) => regular.join("\n"),
+            MimeBodyType::Regular(regular) => write!(f, "{}", regular.join("\n")),
             MimeBodyType::Multipart(multipart) => {
-                let boundary = self
+                let mime_with_boundary = self
                     .headers
                     .iter()
                     .find(|header| header.args.get("boundary").is_some());
-                multipart.to_raw(
-                    boundary
-                        .expect("multipart mime message is missing it's boundary argument.")
-                        .args
-                        .get("boundary")
-                        .unwrap(),
-                )
+                let boundary = mime_with_boundary.unwrap().args.get("boundary").unwrap();
+
+                write!(f, "{}", multipart.to_raw(boundary))
             }
-            MimeBodyType::Embedded(mail) => mail.to_raw(),
+            MimeBodyType::Embedded(mail) => write!(f, "{mail}"),
         }
     }
 }

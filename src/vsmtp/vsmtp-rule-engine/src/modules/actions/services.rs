@@ -164,13 +164,12 @@ pub mod services {
                     })?;
 
                     let body = match &ctx.body {
-                        vsmtp_common::mail_context::Body::Empty => {
+                        vsmtp_common::mail_context::MessageBody::Empty => {
                             return Err(
                                 "tried to delegate email security but the body was empty".into()
                             )
                         }
-                        vsmtp_common::mail_context::Body::Raw(raw) => raw.clone(),
-                        vsmtp_common::mail_context::Body::Parsed(parsed) => parsed.to_raw(),
+                        body => body.to_string(),
                     };
 
                     (

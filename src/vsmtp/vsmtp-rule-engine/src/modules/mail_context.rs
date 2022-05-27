@@ -187,17 +187,11 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "mail", return_raw, pure)]
     pub fn mail(this: &mut Context) -> EngineResult<String> {
-        Ok(
-            match &this
-                .read()
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-                .body
-            {
-                vsmtp_common::mail_context::Body::Empty => String::default(),
-                vsmtp_common::mail_context::Body::Raw(raw) => raw.clone(),
-                vsmtp_common::mail_context::Body::Parsed(parsed) => parsed.to_raw(),
-            },
-        )
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .body
+            .to_string())
     }
 
     #[rhai_fn(global, name = "to_string", pure)]

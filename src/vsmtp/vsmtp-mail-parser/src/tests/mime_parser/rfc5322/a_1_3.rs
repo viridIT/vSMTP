@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::MessageBody,
     MailParser,
 };
 
@@ -9,8 +10,10 @@ const MAIL: &str = include_str!("../../mail/rfc5322/A.1.3.eml");
 #[test]
 fn group_addresses() {
     assert_eq!(
-        MailMimeParser::default().parse(MAIL.as_bytes()).unwrap(),
-        Mail {
+        MailMimeParser::default()
+            .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+            .unwrap(),
+        MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "Pete <pete@silly.example>"),
                 (
@@ -30,6 +33,6 @@ fn group_addresses() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

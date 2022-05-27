@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::MessageBody,
     MailParser,
 };
 
@@ -8,9 +9,14 @@ use vsmtp_common::{
 fn tracing() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.4.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.4.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
-        Mail {
+        MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 (
                     "received",
@@ -42,6 +48,6 @@ fn tracing() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

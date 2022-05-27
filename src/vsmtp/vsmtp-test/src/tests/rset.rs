@@ -17,7 +17,7 @@
 use vsmtp_common::{
     addr,
     mail::{BodyType, Mail},
-    mail_context::{Body, MailContext},
+    mail_context::{MailContext, MessageBody},
     re::anyhow,
     CodeID,
 };
@@ -46,7 +46,7 @@ async fn reset_helo() {
             assert_eq!(mail.envelop.rcpt, vec![addr!("b@c").into()]);
             assert_eq!(
                 body,
-                Body::Parsed(Box::new(Mail {
+                MessageBody::Parsed(Box::new(Mail {
                     headers: [
                         ("from", "a b <a@b>"),
                         ("date", "tue, 30 nov 2021 20:54:27 +0100"),
@@ -155,7 +155,7 @@ async fn reset_rcpt_to_ok() {
             assert_eq!(mail.envelop.rcpt, vec![addr!("b@c").into()]);
             assert_eq!(
                 body,
-                Body::Parsed(Box::new(Mail {
+                MessageBody::Parsed(Box::new(Mail {
                     headers: vec![],
                     body: BodyType::Undefined
                 }))
@@ -238,7 +238,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
             );
             assert_eq!(
                 body,
-                Body::Parsed(Box::new(Mail {
+                MessageBody::Parsed(Box::new(Mail {
                     headers: [
                         ("from", "foo2 foo <foo2@foo>"),
                         ("date", "tue, 30 nov 2021 20:54:27 +0100"),
