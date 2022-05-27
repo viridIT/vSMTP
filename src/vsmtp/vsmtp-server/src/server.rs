@@ -292,7 +292,13 @@ impl Server {
 
         let begin = std::time::SystemTime::now();
         let connection_result = handle_connection(
-            &mut Connection::new(kind, client_addr, config.clone(), stream),
+            &mut Connection::new(
+                kind,
+                client_addr,
+                stream.local_addr()?,
+                config.clone(),
+                stream,
+            ),
             tls_config,
             rsasl,
             rule_engine,

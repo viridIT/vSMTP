@@ -51,6 +51,8 @@ where
     pub config: std::sync::Arc<Config>,
     /// peer socket address
     pub client_addr: std::net::SocketAddr,
+    /// address used for this connection
+    pub server_addr: std::net::SocketAddr,
     /// number of error the client made so far
     pub error_count: i64,
     /// is under tls (tunneled or opportunistic)
@@ -71,6 +73,7 @@ where
     pub fn new(
         kind: ConnectionKind,
         client_addr: std::net::SocketAddr,
+        server_addr: std::net::SocketAddr,
         config: std::sync::Arc<Config>,
         inner: S,
     ) -> Self {
@@ -81,6 +84,7 @@ where
             is_alive: true,
             config,
             client_addr,
+            server_addr,
             error_count: 0,
             is_secured: false,
             inner: AbstractIO::new(inner),
@@ -97,6 +101,7 @@ where
         timestamp: std::time::SystemTime,
         config: std::sync::Arc<Config>,
         client_addr: std::net::SocketAddr,
+        server_addr: std::net::SocketAddr,
         error_count: i64,
         is_secured: bool,
         is_authenticated: bool,
@@ -110,6 +115,7 @@ where
             is_alive: true,
             config,
             client_addr,
+            server_addr,
             error_count,
             is_secured,
             is_authenticated,

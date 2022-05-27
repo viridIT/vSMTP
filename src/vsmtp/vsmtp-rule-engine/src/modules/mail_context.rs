@@ -46,6 +46,27 @@ pub mod mail_context {
         ))
     }
 
+    #[rhai_fn(global, get = "server_ip", return_raw, pure)]
+    pub fn server_ip(this: &mut Context) -> EngineResult<std::net::IpAddr> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .connection
+            .server_address
+            .ip())
+    }
+
+    #[rhai_fn(global, get = "server_port", return_raw, pure)]
+    pub fn server_port(this: &mut Context) -> EngineResult<i64> {
+        Ok(i64::from(
+            this.read()
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+                .connection
+                .server_address
+                .port(),
+        ))
+    }
+
     #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
     pub fn connection_timestamp(this: &mut Context) -> EngineResult<std::time::SystemTime> {
         Ok(this

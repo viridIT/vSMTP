@@ -61,22 +61,21 @@ pub fn build_lettre(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::add
 
 #[cfg(test)]
 pub mod test {
+    #[allow(clippy::missing_panics_doc)]
     #[must_use]
     /// create an empty email context for testing purposes.
     pub fn get_default_context() -> crate::mail_context::MailContext {
         crate::mail_context::MailContext {
-            body: crate::mail_context::Body::Empty,
+            body: crate::mail_context::MessageBody::Empty,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
+                server_address: "0.0.0.0:25".parse().unwrap(),
             },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
+            client_addr: "0.0.0.0:0".parse().unwrap(),
             envelop: crate::envelop::Envelop::default(),
             metadata: Some(crate::mail_context::MessageMetadata {
                 timestamp: std::time::SystemTime::now(),

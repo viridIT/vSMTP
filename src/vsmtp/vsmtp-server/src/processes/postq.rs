@@ -217,6 +217,7 @@ mod tests {
                         is_authenticated: false,
                         is_secured: false,
                         server_name: "testserver.com".to_string(),
+                        server_address: "127.0.0.1:25".parse().unwrap(),
                     },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {
@@ -295,6 +296,7 @@ mod tests {
                         is_authenticated: false,
                         is_secured: false,
                         server_name: "testserver.com".to_string(),
+                        server_address: "127.0.0.1:25".parse().unwrap(),
                     },
                     client_addr: "127.0.0.1:80".parse().unwrap(),
                     envelop: Envelop {

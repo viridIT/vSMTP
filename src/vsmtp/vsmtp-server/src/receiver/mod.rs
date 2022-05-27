@@ -170,9 +170,10 @@ where
         connection: ConnectionContext {
             timestamp: std::time::SystemTime::now(),
             credentials: None,
+            server_name: conn.server_name.clone(),
+            server_address: conn.server_addr,
             is_authenticated: conn.is_authenticated,
             is_secured: conn.is_secured,
-            server_name: conn.server_name.clone(),
         },
         client_addr: std::net::SocketAddr::V4(std::net::SocketAddrV4::new(
             std::net::Ipv4Addr::LOCALHOST,
@@ -341,6 +342,7 @@ where
             conn.timestamp,
             conn.config.clone(),
             conn.client_addr,
+            conn.server_addr,
             conn.error_count,
             true,
             conn.is_authenticated,

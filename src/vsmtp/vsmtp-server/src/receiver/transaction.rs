@@ -370,9 +370,10 @@ impl Transaction {
             ConnectionContext {
                 timestamp: conn.timestamp,
                 credentials: None,
+                server_name: conn.server_name.clone(),
+                server_address: conn.server_addr,
                 is_authenticated: conn.is_authenticated,
                 is_secured: conn.is_secured,
-                server_name: conn.server_name.clone(),
             },
         );
 

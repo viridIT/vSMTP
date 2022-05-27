@@ -106,11 +106,9 @@ fn test_rule_state() {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
+                server_address: "127.0.0.1:25".parse().unwrap(),
             },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
-                25,
-            ),
+            client_addr: "127.0.0.1:26".parse().unwrap(),
             envelop: vsmtp_common::envelop::Envelop {
                 helo: "test".to_string(),
                 mail_from: vsmtp_common::addr!("a@a.a"),

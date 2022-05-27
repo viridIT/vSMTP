@@ -43,11 +43,21 @@ impl RuleState {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: config.server.domain.clone(),
+                server_address: config
+                    .server
+                    .interfaces
+                    .addr
+                    .get(0)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        "0.0.0.0:0"
+                            .parse()
+                            .expect("default server address should be parsable")
+                    }),
             },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
+            client_addr: "0.0.0.0:0"
+                .parse()
+                .expect("default client address should be parsable"),
             envelop: Envelop::default(),
             body: MessageBody::Empty,
             metadata: None,
