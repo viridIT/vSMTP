@@ -109,6 +109,7 @@ where
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut conn = Connection::new(
         ConnectionKind::Relay,
+        "127.0.0.1:53844".parse().unwrap(),
         address.parse().unwrap(),
         config.clone(),
         &mut mock,
