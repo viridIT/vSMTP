@@ -43,7 +43,7 @@ where
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(worker_thread_count)
         .enable_all()
-        .thread_name(&name)
+        .thread_name(format!("{name}-child"))
         .build()?;
 
     std::thread::Builder::new()
@@ -112,7 +112,7 @@ pub fn start_runtime(
 
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
-        "vsmtp-delivery",
+        "delivery",
         config_arc.server.system.thread_pool.delivery,
         delivery::start(
             config_arc.clone(),
@@ -125,7 +125,7 @@ pub fn start_runtime(
 
     let _tasks_processing = init_runtime(
         error_handler.0.clone(),
-        "vsmtp-processing",
+        "processing",
         config_arc.server.system.thread_pool.processing,
         postq::start(
             config_arc.clone(),
@@ -139,7 +139,7 @@ pub fn start_runtime(
 
     let _tasks_receiver = init_runtime(
         error_handler.0,
-        "vsmtp-receiver",
+        "receiver",
         config_arc.server.system.thread_pool.receiver,
         async move {
             Server::new(
