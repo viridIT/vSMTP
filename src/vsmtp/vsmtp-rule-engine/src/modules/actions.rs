@@ -31,7 +31,7 @@ mod test {
 
     pub fn get_default_context() -> MailContext {
         MailContext {
-            body: vsmtp_common::mail_context::Body::Empty,
+            body: vsmtp_common::mail_context::MessageBody::Empty,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,

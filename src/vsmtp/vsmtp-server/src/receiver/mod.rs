@@ -15,97 +15,28 @@
  *
 */
 use self::transaction::{Transaction, TransactionResult};
-use crate::{auth, receiver::auth_exchange::on_authentication, ProcessMessage};
+use crate::{auth, receiver::auth_exchange::on_authentication};
 use vsmtp_common::{
     auth::Mechanism,
-    mail_context::MailContext,
-    queue::Queue,
-    re::{anyhow, log},
+    envelop::Envelop,
+    mail_context::{ConnectionContext, MailContext, MessageBody},
+    re::anyhow,
+    state::StateSMTP,
     status::Status,
-    CodeID,
+    CodeID, MailParserOnFly,
 };
-use vsmtp_config::{create_app_folder, re::rustls, Resolvers};
+use vsmtp_config::{re::rustls, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod auth_exchange;
 mod connection;
 mod io;
+mod on_mail;
 pub mod transaction;
 
 pub use connection::{Connection, ConnectionKind};
 pub use io::AbstractIO;
-
-/// will be executed once the email is received.
-#[async_trait::async_trait]
-pub trait OnMail {
-    /// the server executes this function once the email as been received.
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
-        &mut self,
-        conn: &mut Connection<S>,
-        mail: Box<MailContext>,
-    ) -> anyhow::Result<CodeID>;
-}
-
-/// default mail handler for production.
-pub struct MailHandler {
-    /// message pipe to the working process.
-    pub working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-    /// message pipe to the delivery process.
-    pub delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-}
-
-#[async_trait::async_trait]
-impl OnMail for MailHandler {
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
-        &mut self,
-        conn: &mut Connection<S>,
-        mail: Box<MailContext>,
-    ) -> anyhow::Result<CodeID> {
-        let metadata = mail.metadata.as_ref().unwrap();
-
-        let next_queue = match &metadata.skipped {
-            Some(Status::Quarantine(path)) => {
-                let mut path = create_app_folder(&conn.config, Some(path))?;
-                path.push(format!("{}.json", metadata.message_id));
-
-                let mut file = std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)?;
-
-                std::io::Write::write_all(
-                    &mut file,
-                    vsmtp_common::re::serde_json::to_string_pretty(&*mail)?.as_bytes(),
-                )?;
-
-                log::warn!("postq & delivery skipped due to quarantine.");
-                return Ok(CodeID::Ok);
-            }
-            Some(reason) => {
-                log::warn!("postq skipped due to '{}'.", reason.as_ref());
-                Queue::Deliver
-            }
-            None => Queue::Working,
-        };
-
-        if let Err(error) = next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail) {
-            log::error!("couldn't write to '{}' queue: {}", next_queue, error);
-            Ok(CodeID::Denied)
-        } else {
-            match next_queue {
-                Queue::Working => &self.working_sender,
-                Queue::Deliver => &self.delivery_sender,
-                _ => unreachable!(),
-            }
-            .send(ProcessMessage {
-                message_id: metadata.message_id.clone(),
-            })
-            .await?;
-
-            Ok(CodeID::Ok)
-        }
-    }
-}
+pub use on_mail::{MailHandler, OnMail};
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_auth<S>(
@@ -173,6 +104,98 @@ where
     Ok(())
 }
 
+#[derive(Default)]
+struct NoParsing;
+
+#[async_trait::async_trait]
+impl MailParserOnFly for NoParsing {
+    async fn parse<'a>(
+        &'a mut self,
+        mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
+    ) -> anyhow::Result<MessageBody> {
+        let mut buffer = vec![];
+        while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
+            buffer.push(line);
+        }
+        Ok(MessageBody::Raw(buffer))
+    }
+}
+
+async fn handle_stream<S, M>(
+    conn: &mut Connection<S>,
+    mail_handler: &mut M,
+    transaction: &mut Transaction,
+    helo_domain: &mut Option<String>,
+) -> anyhow::Result<bool>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
+    M: OnMail + Send,
+{
+    let body = {
+        let stream = Transaction::stream(conn);
+        tokio::pin!(stream);
+        NoParsing::default().parse(stream).await?
+    };
+
+    let state = transaction.rule_state.context();
+    {
+        let mut state_writer = state.write().unwrap();
+        state_writer.body = body;
+    }
+
+    let status = transaction
+        .rule_engine
+        .read()
+        .unwrap()
+        .run_when(&mut transaction.rule_state, &StateSMTP::PreQ);
+    match status {
+        Status::Info(packet) => {
+            conn.send_reply_or_code(packet).await?;
+            return Ok(true);
+        }
+        Status::Deny(packet) => {
+            conn.send_reply_or_code(packet).await?;
+            return Ok(false);
+        }
+        _ => (),
+    }
+    {
+        let mut state_writer = state.write().unwrap();
+        if let Some(metadata) = &mut state_writer.metadata {
+            metadata.skipped = transaction.rule_state.skipped().cloned();
+        }
+    }
+
+    let mut output = MailContext {
+        connection: ConnectionContext {
+            timestamp: std::time::SystemTime::now(),
+            credentials: None,
+            is_authenticated: conn.is_authenticated,
+            is_secured: conn.is_secured,
+            server_name: conn.server_name.clone(),
+        },
+        client_addr: std::net::SocketAddr::V4(std::net::SocketAddrV4::new(
+            std::net::Ipv4Addr::LOCALHOST,
+            10000,
+        )),
+        envelop: Envelop::default(),
+        body: MessageBody::Empty,
+        metadata: None,
+    };
+
+    {
+        let mut ctx = state.write().unwrap();
+        std::mem::swap(&mut *ctx, &mut output);
+    }
+
+    let helo = output.envelop.helo.clone();
+    let code = mail_handler.on_mail(conn, Box::new(output)).await?;
+    *helo_domain = Some(helo);
+    conn.send_code(code).await?;
+
+    Ok(true)
+}
+
 // NOTE: handle_connection and handle_connection_secured do the same things..
 // but i struggle to unify these function because of recursive type
 // see `rustc --explain E0275`
@@ -187,6 +210,7 @@ where
 ///
 /// # Panics
 /// * the authentication is issued but gsasl was not found.
+#[allow(clippy::too_many_lines)]
 pub async fn handle_connection<S, M>(
     conn: &mut Connection<S>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
@@ -219,46 +243,49 @@ where
     conn.send_code(CodeID::Greetings).await?;
 
     while conn.is_alive {
-        match Transaction::receive(conn, &helo_domain, rule_engine.clone(), resolvers.clone())
-            .await?
-        {
-            TransactionResult::Nothing => {}
-            TransactionResult::Mail(mail) => {
-                let helo = mail.envelop.helo.clone();
-                let code = mail_handler.on_mail(conn, mail).await?;
-                helo_domain = Some(helo);
-                conn.send_code(code).await?;
-            }
-            TransactionResult::TlsUpgrade => {
-                if let Some(tls_config) = tls_config {
-                    return handle_connection_secured(
-                        conn,
-                        tls_config,
-                        rsasl,
-                        rule_engine,
-                        resolvers,
-                        mail_handler,
-                    )
-                    .await;
+        let mut transaction =
+            Transaction::new(conn, &helo_domain, rule_engine.clone(), resolvers.clone()).await?;
+
+        if let Some(outcome) = transaction.receive(conn, &helo_domain).await? {
+            match outcome {
+                TransactionResult::Data => {
+                    if !handle_stream(conn, mail_handler, &mut transaction, &mut helo_domain)
+                        .await?
+                    {
+                        return Ok(());
+                    }
                 }
-                conn.send_code(CodeID::TlsNotAvailable).await?;
-                anyhow::bail!("{:?}", CodeID::TlsNotAvailable)
-            }
-            TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
-                if let Some(rsasl) = &rsasl {
-                    handle_auth(
-                        conn,
-                        rsasl.clone(),
-                        rule_engine.clone(),
-                        resolvers.clone(),
-                        &mut helo_domain,
-                        mechanism,
-                        initial_response,
-                        helo_pre_auth,
-                    )
-                    .await?;
-                } else {
-                    conn.send_code(CodeID::Unimplemented).await?;
+                TransactionResult::TlsUpgrade => {
+                    if let Some(tls_config) = tls_config {
+                        return handle_connection_secured(
+                            conn,
+                            tls_config,
+                            rsasl,
+                            rule_engine,
+                            resolvers,
+                            mail_handler,
+                        )
+                        .await;
+                    }
+                    conn.send_code(CodeID::TlsNotAvailable).await?;
+                    anyhow::bail!("{:?}", CodeID::TlsNotAvailable)
+                }
+                TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
+                    if let Some(rsasl) = &rsasl {
+                        handle_auth(
+                            conn,
+                            rsasl.clone(),
+                            rule_engine.clone(),
+                            resolvers.clone(),
+                            &mut helo_domain,
+                            mechanism,
+                            initial_response,
+                            helo_pre_auth,
+                        )
+                        .await?;
+                    } else {
+                        conn.send_code(CodeID::Unimplemented).await?;
+                    }
                 }
             }
         }
@@ -279,34 +306,38 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
     M: OnMail + Send,
 {
-    let smtps_config = conn.config.server.tls.as_ref().ok_or_else(|| {
-        anyhow::anyhow!("server accepted tls encrypted transaction, but not tls config provided")
-    })?;
-    let acceptor = tokio_rustls::TlsAcceptor::from(tls_config);
+    let mut secured_conn = {
+        let smtps_config = conn.config.server.tls.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "server accepted tls encrypted transaction, but not tls config provided"
+            )
+        })?;
+        let acceptor = tokio_rustls::TlsAcceptor::from(tls_config);
 
-    let stream = tokio::time::timeout(
-        smtps_config.handshake_timeout,
-        acceptor.accept(&mut conn.inner.inner),
-    )
-    .await??;
+        let stream = tokio::time::timeout(
+            smtps_config.handshake_timeout,
+            acceptor.accept(&mut conn.inner.inner),
+        )
+        .await??;
 
-    let mut secured_conn = Connection::new_with(
-        conn.kind,
-        stream
-            .get_ref()
-            .1
-            .sni_hostname()
-            .unwrap_or(&conn.server_name)
-            .to_string(),
-        conn.timestamp,
-        conn.config.clone(),
-        conn.client_addr,
-        conn.error_count,
-        true,
-        conn.is_authenticated,
-        conn.authentication_attempt,
-        stream,
-    );
+        Connection::new_with(
+            conn.kind,
+            stream
+                .get_ref()
+                .1
+                .sni_hostname()
+                .unwrap_or(&conn.server_name)
+                .to_string(),
+            conn.timestamp,
+            conn.config.clone(),
+            conn.client_addr,
+            conn.error_count,
+            true,
+            conn.is_authenticated,
+            conn.authentication_attempt,
+            stream,
+        )
+    };
 
     if secured_conn.kind == ConnectionKind::Tunneled {
         secured_conn.send_code(CodeID::Greetings).await?;
@@ -315,42 +346,51 @@ where
     let mut helo_domain = None;
 
     while secured_conn.is_alive {
-        match Transaction::receive(
+        let mut transaction = Transaction::new(
             &mut secured_conn,
             &helo_domain,
             rule_engine.clone(),
             resolvers.clone(),
         )
-        .await?
-        {
-            TransactionResult::Nothing => {}
-            TransactionResult::Mail(mail) => {
-                let helo = mail.envelop.helo.clone();
-                let code = mail_handler.on_mail(&mut secured_conn, mail).await?;
-                helo_domain = Some(helo);
-                secured_conn.send_code(code).await?;
-            }
-            TransactionResult::TlsUpgrade => {
-                secured_conn.send_code(CodeID::AlreadyUnderTLS).await?;
-            }
-            TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
-                if let Some(rsasl) = &rsasl {
-                    handle_auth(
+        .await?;
+
+        if let Some(outcome) = transaction.receive(&mut secured_conn, &helo_domain).await? {
+            match outcome {
+                TransactionResult::Data => {
+                    if !handle_stream(
                         &mut secured_conn,
-                        rsasl.clone(),
-                        rule_engine.clone(),
-                        resolvers.clone(),
+                        mail_handler,
+                        &mut transaction,
                         &mut helo_domain,
-                        mechanism,
-                        initial_response,
-                        helo_pre_auth,
                     )
-                    .await?;
-                } else {
-                    secured_conn.send_code(CodeID::Unimplemented).await?;
+                    .await?
+                    {
+                        return Ok(());
+                    }
+                }
+                TransactionResult::TlsUpgrade => {
+                    secured_conn.send_code(CodeID::AlreadyUnderTLS).await?;
+                }
+                TransactionResult::Authentication(helo_pre_auth, mechanism, initial_response) => {
+                    if let Some(rsasl) = &rsasl {
+                        handle_auth(
+                            &mut secured_conn,
+                            rsasl.clone(),
+                            rule_engine.clone(),
+                            resolvers.clone(),
+                            &mut helo_domain,
+                            mechanism,
+                            initial_response,
+                            helo_pre_auth,
+                        )
+                        .await?;
+                    } else {
+                        secured_conn.send_code(CodeID::Unimplemented).await?;
+                    }
                 }
             }
         }
     }
+
     Ok(())
 }

@@ -14,11 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{mail_context::Body, MailParser};
+use vsmtp_common::{mail_context::MessageBody, MailParser};
 
 use crate::MailMimeParser;
 
-fn generate_test_bodies() -> (Body, Body, Body) {
+fn generate_test_bodies() -> (MessageBody, MessageBody, MessageBody) {
     let raw_email = r#"From: john <john@example.com>
 To: green@example.com
 Date: tue, 30 nov 2021 20:54:27 +0100
@@ -38,13 +38,11 @@ Content-Transfer-Encoding: 7bit
 "#;
 
     (
-        Body::Empty,
-        Body::Raw(raw_email.to_string()),
-        Body::Parsed(Box::new(
-            MailMimeParser::default()
-                .parse(raw_email.as_bytes())
-                .unwrap(),
-        )),
+        MessageBody::Empty,
+        MessageBody::Raw(raw_email.lines().map(str::to_string).collect::<Vec<_>>()),
+        MailMimeParser::default()
+            .parse(raw_email.lines().map(str::to_string).collect::<Vec<_>>())
+            .unwrap(),
     )
 }
 

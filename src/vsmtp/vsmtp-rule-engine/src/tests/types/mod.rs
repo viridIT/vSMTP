@@ -16,7 +16,7 @@
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{
-    addr, mail_context::Body, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
+    addr, mail_context::MessageBody, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
 };
 use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS};
 
@@ -122,7 +122,7 @@ fn test_services() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    state.context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = MessageBody::Raw(vec![]);
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
@@ -172,7 +172,7 @@ fn test_config_display() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    state.context().write().unwrap().body = Body::Raw(String::default());
+    state.context().write().unwrap().body = MessageBody::Raw(vec![]);
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Helo),

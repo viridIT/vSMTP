@@ -177,7 +177,7 @@ pub mod test {
     /// create an empty email context for testing purposes.
     pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
         vsmtp_common::mail_context::MailContext {
-            body: vsmtp_common::mail_context::Body::Empty,
+            body: vsmtp_common::mail_context::MessageBody::Empty,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,

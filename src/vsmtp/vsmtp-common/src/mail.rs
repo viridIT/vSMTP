@@ -73,10 +73,25 @@ impl Default for Mail {
     }
 }
 
+impl std::fmt::Display for Mail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let BodyType::Mime(_) = &self.body {
+            // in case of a mime type, mime headers are merged into the rfc822 mail header section.
+            f.write_fmt(format_args!("{}\n{}", self.raw_headers(), self.raw_body()))
+        } else {
+            f.write_fmt(format_args!(
+                "{}\n\n{}",
+                self.raw_headers(),
+                self.raw_body()
+            ))
+        }
+    }
+}
+
 impl Mail {
     /// get the original header section of the email.
     #[must_use]
-    pub fn raw_headers(&self) -> String {
+    fn raw_headers(&self) -> String {
         self.headers
             .iter()
             .map(|(header, value)| format!("{}: {}", header, value))
@@ -86,19 +101,8 @@ impl Mail {
 
     /// get the original body section of the email.
     #[must_use]
-    pub fn raw_body(&self) -> String {
+    fn raw_body(&self) -> String {
         self.body.to_string()
-    }
-
-    /// return the original text representation of the email.
-    #[must_use]
-    pub fn to_raw(&self) -> String {
-        if let BodyType::Mime(_) = &self.body {
-            // in case of a mime type, mime headers are merged into the rfc822 mail header section.
-            format!("{}\n{}", self.raw_headers(), self.raw_body())
-        } else {
-            format!("{}\n\n{}", self.raw_headers(), self.raw_body())
-        }
     }
 
     /// change the from field of the header
@@ -191,7 +195,7 @@ mod test {
         // on newline added to separate the body, one for the empty body.
         // anyway, this example should not happen in a real scenario.
         assert_eq!(
-            empty_mail.to_raw(),
+            format!("{empty_mail}"),
             r#"from: a@a
 
 "#
@@ -204,7 +208,7 @@ mod test {
         };
 
         assert_eq!(
-            regular_mail.to_raw(),
+            format!("{regular_mail}"),
             r#"from: a@a
 
 This is a regular body."#
@@ -228,7 +232,7 @@ This is a regular body."#
 
         // mime headers should be merged with the rfc822 message header section.
         assert_eq!(
-            mime_mail.to_raw(),
+            format!("{mime_mail}"),
             r#"from: a@a
 mime-version: 1.0
 content-type: text/plain
@@ -251,7 +255,7 @@ this is a regular mime body."#
         ]);
 
         assert_eq!(
-            mail.to_raw(),
+            format!("{mail}"),
             r#"subject: testing an email
 mime-version: 1.0
 
@@ -269,7 +273,7 @@ email content"#
         ]);
 
         assert_eq!(
-            mail.to_raw(),
+            format!("{mail}"),
             r#"from: b@b
 date: tue, 30 nov 2021 20:54:27 +0100
 to: john@doe.com, green@foo.bar

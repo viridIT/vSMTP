@@ -21,7 +21,7 @@ use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
     event::Event,
-    mail_context::{Body, ConnectionContext, MailContext, MessageMetadata, MAIL_CAPACITY},
+    mail_context::{ConnectionContext, MessageBody, MessageMetadata, MAIL_CAPACITY},
     rcpt::Rcpt,
     re::{anyhow, log},
     state::StateSMTP,
@@ -31,29 +31,23 @@ use vsmtp_common::{
 use vsmtp_config::{Config, Resolvers, TlsSecurityLevel};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
-const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
+enum ProcessedEvent {
+    Reply(ReplyOrCodeID),
+    ChangeState(StateSMTP),
+    ReplyChangeState(StateSMTP, ReplyOrCodeID),
+}
 
 pub struct Transaction {
     state: StateSMTP,
-    rule_state: RuleState,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    pub rule_state: RuleState,
+    pub rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 }
 
 #[allow(clippy::module_name_repetitions)]
 pub enum TransactionResult {
-    Nothing,
-    Mail(Box<MailContext>),
+    Data,
     TlsUpgrade,
     Authentication(String, Mechanism, Option<Vec<u8>>),
-}
-
-// Generated from a string received
-enum ProcessedEvent {
-    Nothing,
-    Reply(ReplyOrCodeID),
-    ChangeState(StateSMTP),
-    ReplyChangeState(StateSMTP, ReplyOrCodeID),
-    TransactionCompleted(Box<MailContext>),
 }
 
 impl Transaction {
@@ -61,8 +55,8 @@ impl Transaction {
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
     >(
         &mut self,
-        conn: &Connection<S>,
         client_message: &str,
+        connection: &Connection<S>,
     ) -> ProcessedEvent {
         log::trace!(
             target: log_channels::TRANSACTION,
@@ -70,11 +64,7 @@ impl Transaction {
             client_message
         );
 
-        let command_or_code = if self.state == StateSMTP::Data {
-            Event::parse_data
-        } else {
-            Event::parse_cmd
-        }(client_message);
+        let command_or_code = Event::parse_cmd(client_message);
 
         log::trace!(
             target: log_channels::TRANSACTION,
@@ -84,15 +74,15 @@ impl Transaction {
 
         command_or_code.map_or_else(
             |c| ProcessedEvent::Reply(ReplyOrCodeID::CodeID(c)),
-            |command| self.process_event(conn, command),
+            |command| self.process_event(command, connection),
         )
     }
 
     #[allow(clippy::too_many_lines)]
     fn process_event<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        conn: &Connection<S>,
         event: Event,
+        connection: &Connection<S>,
     ) -> ProcessedEvent {
         match (&self.state, event) {
             (_, Event::NoopCmd) => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -103,7 +93,7 @@ impl Transaction {
                 {
                     let state = self.rule_state.context();
                     let mut ctx = state.write().unwrap();
-                    ctx.body = Body::Empty;
+                    ctx.body = MessageBody::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = addr!("default@domain.com");
@@ -141,7 +131,7 @@ impl Transaction {
                 }
             }
 
-            (_, Event::EhloCmd(_)) if conn.config.server.smtp.disable_ehlo => {
+            (_, Event::EhloCmd(_)) if connection.config.server.smtp.disable_ehlo => {
                 ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Unimplemented))
             }
 
@@ -160,7 +150,7 @@ impl Transaction {
                     }
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
-                        ReplyOrCodeID::CodeID(if conn.is_secured {
+                        ReplyOrCodeID::CodeID(if connection.is_secured {
                             CodeID::EhloSecured
                         } else {
                             CodeID::EhloPain
@@ -170,13 +160,13 @@ impl Transaction {
             }
 
             (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
-                if conn.config.server.tls.is_none() =>
+                if connection.config.server.tls.is_none() =>
             {
                 ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::TlsNotAvailable))
             }
 
             (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
-                if conn.config.server.tls.is_some() =>
+                if connection.config.server.tls.is_some() =>
             {
                 ProcessedEvent::ReplyChangeState(
                     StateSMTP::NegotiationTLS,
@@ -185,14 +175,14 @@ impl Transaction {
             }
 
             (StateSMTP::Helo, Event::Auth(mechanism, initial_response))
-                if !conn.is_authenticated =>
+                if !connection.is_authenticated =>
             {
                 ProcessedEvent::ChangeState(StateSMTP::Authenticate(mechanism, initial_response))
             }
 
             (StateSMTP::Helo, Event::MailCmd(..))
-                if !conn.is_secured
-                    && conn
+                if !connection.is_secured
+                    && connection
                         .config
                         .server
                         .tls
@@ -204,8 +194,8 @@ impl Transaction {
             }
 
             (StateSMTP::Helo, Event::MailCmd(..))
-                if !conn.is_authenticated
-                    && conn
+                if !connection.is_authenticated
+                    && connection
                         .config
                         .server
                         .smtp
@@ -219,7 +209,7 @@ impl Transaction {
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
                 // TODO: store in envelop _body_bit_mime & _auth_mailbox
                 // TODO: handle : mail_from can be "<>""
-                self.set_mail_from(mail_from.unwrap(), conn);
+                self.set_mail_from(mail_from.unwrap(), connection);
 
                 match self
                     .rule_engine
@@ -257,7 +247,7 @@ impl Transaction {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
                     }
                     _ if self.rule_state.context().read().unwrap().envelop.rcpt.len()
-                        >= conn.config.server.smtp.rcpt_count_max =>
+                        >= connection.config.server.smtp.rcpt_count_max =>
                     {
                         ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::TooManyRecipients))
                     }
@@ -275,67 +265,12 @@ impl Transaction {
 
             (StateSMTP::RcptTo, Event::DataCmd) => {
                 self.rule_state.context().write().unwrap().body =
-                    Body::Raw(String::with_capacity(MAIL_CAPACITY));
+                    MessageBody::Raw(Vec::with_capacity(MAIL_CAPACITY / 1000));
 
                 ProcessedEvent::ReplyChangeState(
                     StateSMTP::Data,
                     ReplyOrCodeID::CodeID(CodeID::DataStart),
                 )
-            }
-
-            (StateSMTP::Data, Event::DataLine(line)) => {
-                let state = self.rule_state.context();
-                if let Body::Raw(body) = &mut state.write().unwrap().body {
-                    body.push_str(&line);
-                    body.push('\n');
-                }
-                ProcessedEvent::Nothing
-            }
-
-            (StateSMTP::Data, Event::DataEnd) => {
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, &StateSMTP::PreQ)
-                {
-                    Status::Info(packet) => return ProcessedEvent::Reply(packet),
-                    Status::Deny(packet) => {
-                        return ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
-                    }
-                    _ => {}
-                }
-
-                let state = self.rule_state.context();
-                let mut ctx = state.write().unwrap();
-
-                // NOTE: the "skipped" field is updated by the rule engine internal state,
-                //       which does result in hard to read code, but it was the fastest way
-                //       to propagate the force accept to the server.
-                //       Alternatives:
-                //        - return ProcessedEvent::CompletedMimeSkipped
-                //        - set body to Body::ParsingFailed or Body::ParsingSkipped.
-                if let Some(metadata) = &mut ctx.metadata {
-                    metadata.skipped = self.rule_state.skipped().cloned();
-                }
-
-                let mut output = MailContext {
-                    connection: ConnectionContext {
-                        timestamp: std::time::SystemTime::now(),
-                        credentials: None,
-                        is_authenticated: conn.is_authenticated,
-                        is_secured: conn.is_secured,
-                        server_name: conn.server_name.clone(),
-                    },
-                    client_addr: ctx.client_addr,
-                    envelop: Envelop::default(),
-                    body: Body::Empty,
-                    metadata: None,
-                };
-
-                std::mem::swap(&mut *ctx, &mut output);
-
-                ProcessedEvent::TransactionCompleted(Box::new(output))
             }
 
             _ => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::BadSequence)),
@@ -344,20 +279,20 @@ impl Transaction {
 
     fn set_connect<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
-        conn: &Connection<S>,
+        connection: &Connection<S>,
     ) {
         let state = self.rule_state.context();
         let ctx = &mut state.write().unwrap();
 
-        ctx.client_addr = conn.client_addr;
-        ctx.connection.timestamp = conn.timestamp;
+        ctx.client_addr = connection.client_addr;
+        ctx.connection.timestamp = connection.timestamp;
     }
 
     fn set_helo(&mut self, helo: String) {
         let state = self.rule_state.context();
         let mut ctx = state.write().unwrap();
 
-        ctx.body = Body::Empty;
+        ctx.body = MessageBody::Empty;
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
@@ -369,26 +304,26 @@ impl Transaction {
     fn set_mail_from<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &mut self,
         mail_from: Address,
-        conn: &Connection<S>,
+        connection: &Connection<S>,
     ) {
         let now = std::time::SystemTime::now();
 
         let state = self.rule_state.context();
         let mut ctx = state.write().unwrap();
-        ctx.body = Body::Empty;
+        ctx.body = MessageBody::Empty;
         ctx.envelop.rcpt.clear();
         ctx.envelop.mail_from = mail_from;
         ctx.metadata = Some(MessageMetadata {
             timestamp: now,
-            // TODO: find a way to handle SystemTime failure.
             message_id: format!(
                 "{}{}{}{}",
                 now.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .unwrap_or(std::time::Duration::ZERO)
+                    .expect("did went back in time")
                     .as_micros(),
-                conn.timestamp
+                connection
+                    .timestamp
                     .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .unwrap_or(std::time::Duration::ZERO)
+                    .expect("did went back in time")
                     .as_millis(),
                 std::iter::repeat_with(fastrand::alphanumeric)
                     .take(36)
@@ -414,22 +349,19 @@ impl Transaction {
             .rcpt
             .push(Rcpt::new(rcpt_to));
     }
-}
 
-impl Transaction {
-    #[allow(clippy::too_many_lines)]
-    pub async fn receive<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin>(
+    pub async fn new<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         resolvers: std::sync::Arc<Resolvers>,
-    ) -> anyhow::Result<TransactionResult> {
+    ) -> anyhow::Result<Transaction> {
         let rule_state = RuleState::with_connection(
             conn.config.as_ref(),
             resolvers,
             &*rule_engine
                 .read()
-                .map_err(|_| anyhow::anyhow!("failed to lock rule engine"))?,
+                .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?,
             ConnectionContext {
                 timestamp: conn.timestamp,
                 credentials: None,
@@ -438,8 +370,7 @@ impl Transaction {
                 server_name: conn.server_name.clone(),
             },
         );
-
-        let mut transaction = Self {
+        Ok(Self {
             state: if helo_domain.is_none() {
                 StateSMTP::Connect
             } else {
@@ -447,107 +378,140 @@ impl Transaction {
             },
             rule_state,
             rule_engine,
-        };
+        })
+    }
 
+    pub fn stream<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        connection: &mut Connection<S>,
+    ) -> impl tokio_stream::Stream<Item = String> + '_ {
+        let read_timeout = get_timeout_for_state(&connection.config, &StateSMTP::Data);
+        async_stream::stream! {
+            let mut has_data_end = false;
+            while !has_data_end {
+                match connection.read(read_timeout).await {
+                    Ok(Some(client_message)) => {
+                        log::trace!(
+                            target: log_channels::TRANSACTION,
+                            "buffer=\"{:?}\"",
+                            client_message
+                        );
+
+                        let command_or_code = Event::parse_data(&client_message);
+                        log::trace!(
+                            target: log_channels::TRANSACTION,
+                            "parsed=\"{:?}\"",
+                            command_or_code
+                        );
+
+                        match command_or_code {
+                            Ok(Some(line)) => yield line,
+                            Ok(None) => has_data_end = true,
+                            Err(code) => {
+                                connection.send_code(code).await.unwrap();
+                            },
+                        }
+                    }
+                    _ => todo!(),
+                }
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_lines)]
+    pub async fn receive<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin>(
+        &mut self,
+        connection: &mut Connection<S>,
+        helo_domain: &Option<String>,
+    ) -> anyhow::Result<Option<TransactionResult>> {
         if let Some(helo) = helo_domain.as_ref().cloned() {
-            transaction.set_helo(helo);
+            self.set_helo(helo);
         } else {
-            transaction.set_connect(conn);
+            self.set_connect(connection);
 
-            let status = transaction
+            let status = self
                 .rule_engine
                 .read()
                 .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
-                .run_when(&mut transaction.rule_state, &StateSMTP::Connect);
+                .run_when(&mut self.rule_state, &StateSMTP::Connect);
 
             match status {
-                Status::Info(packet) => match packet {
-                    ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
-                    ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
-                },
+                Status::Info(packet) => connection.send_reply_or_code(packet).await?,
                 Status::Deny(packet) => {
-                    match packet {
-                        ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
-                        ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
-                    }
+                    connection.send_reply_or_code(packet).await?;
 
                     anyhow::bail!(
                         "connection at '{}' has been denied when connecting.",
-                        conn.client_addr
+                        connection.client_addr
                     )
                 }
                 _ => {}
             }
         }
 
-        let mut read_timeout = get_timeout_for_state(&conn.config, &transaction.state);
+        let mut read_timeout = get_timeout_for_state(&connection.config, &self.state);
 
         loop {
-            match transaction.state {
-                StateSMTP::NegotiationTLS => return Ok(TransactionResult::TlsUpgrade),
+            match &self.state {
+                StateSMTP::NegotiationTLS => return Ok(Some(TransactionResult::TlsUpgrade)),
                 StateSMTP::Authenticate(mechanism, initial_response) => {
-                    return Ok(TransactionResult::Authentication(
-                        transaction
-                            .rule_state
-                            .context()
-                            .read()
-                            .unwrap()
-                            .envelop
-                            .helo
-                            .clone(),
-                        mechanism,
-                        initial_response,
-                    ));
+                    let helo_domain = self
+                        .rule_state
+                        .context()
+                        .read()
+                        .unwrap()
+                        .envelop
+                        .helo
+                        .clone();
+                    return Ok(Some(TransactionResult::Authentication(
+                        helo_domain,
+                        *mechanism,
+                        initial_response.clone(),
+                    )));
                 }
                 StateSMTP::Stop => {
-                    conn.is_alive = false;
-                    return Ok(TransactionResult::Nothing);
+                    connection.is_alive = false;
+                    return Ok(None);
                 }
-                _ => match conn.read(read_timeout).await {
+                StateSMTP::Data => {
+                    return Ok(Some(TransactionResult::Data));
+                }
+                _ => match connection.read(read_timeout).await {
                     Ok(Some(client_message)) => {
-                        match transaction.parse_and_apply_and_get_reply(conn, &client_message) {
-                            ProcessedEvent::Nothing => {}
-                            ProcessedEvent::Reply(reply_to_send) => match reply_to_send {
-                                ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
-                                ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
-                            },
+                        match self.parse_and_apply_and_get_reply(&client_message, connection) {
+                            ProcessedEvent::Reply(reply_to_send) => {
+                                connection.send_reply_or_code(reply_to_send).await?;
+                            }
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
                                     "================ STATE: /{:?}/ => /{:?}/",
-                                    transaction.state,
+                                    self.state,
                                     new_state
                                 );
-                                transaction.state = new_state;
+                                self.state = new_state;
                                 read_timeout =
-                                    get_timeout_for_state(&conn.config, &transaction.state);
+                                    get_timeout_for_state(&connection.config, &self.state);
                             }
                             ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
                                     "================ STATE: /{:?}/ => /{:?}/",
-                                    transaction.state,
+                                    self.state,
                                     new_state
                                 );
-                                transaction.state = new_state;
+                                self.state = new_state;
                                 read_timeout =
-                                    get_timeout_for_state(&conn.config, &transaction.state);
-                                match reply_to_send {
-                                    ReplyOrCodeID::CodeID(code) => conn.send_code(code).await?,
-                                    ReplyOrCodeID::Reply(reply) => conn.send_reply(reply).await?,
-                                }
-                            }
-                            ProcessedEvent::TransactionCompleted(mail) => {
-                                return Ok(TransactionResult::Mail(mail));
+                                    get_timeout_for_state(&connection.config, &self.state);
+                                connection.send_reply_or_code(reply_to_send).await?;
                             }
                         }
                     }
                     Ok(None) => {
                         log::info!(target: log_channels::TRANSACTION, "eof");
-                        transaction.state = StateSMTP::Stop;
+                        self.state = StateSMTP::Stop;
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                        conn.send_code(CodeID::Timeout).await?;
+                        connection.send_code(CodeID::Timeout).await?;
                         anyhow::bail!(e)
                     }
                     Err(e) => {
@@ -558,6 +522,8 @@ impl Transaction {
         }
     }
 }
+
+const TIMEOUT_DEFAULT: u64 = 5 * 60 * 1000; // 5min
 
 fn get_timeout_for_state(
     config: &std::sync::Arc<Config>,

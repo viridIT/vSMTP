@@ -14,11 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-// use super::io_service::{IoService, ReadError};
 use crate::{log_channels, AbstractIO};
 use vsmtp_common::{
     re::{anyhow, log},
-    CodeID, Reply,
+    CodeID, Reply, ReplyOrCodeID,
 };
 use vsmtp_config::Config;
 
@@ -124,6 +123,17 @@ impl<S> Connection<S>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
+    ///
+    /// # Errors
+    ///
+    /// * see [`Connection::send_code`] and [`Connection::send_reply`]
+    pub async fn send_reply_or_code(&mut self, reply_or_code: ReplyOrCodeID) -> anyhow::Result<()> {
+        match reply_or_code {
+            ReplyOrCodeID::CodeID(code) => self.send_code(code).await,
+            ReplyOrCodeID::Reply(reply) => self.send_reply(reply).await,
+        }
+    }
+
     ///
     /// # Errors
     pub async fn send_code(&mut self, code_id: CodeID) -> anyhow::Result<()> {

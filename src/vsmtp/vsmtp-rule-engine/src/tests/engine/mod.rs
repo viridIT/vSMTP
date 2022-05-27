@@ -116,7 +116,7 @@ fn test_rule_state() {
                 mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],
             },
-            body: vsmtp_common::mail_context::Body::Empty,
+            body: vsmtp_common::mail_context::MessageBody::Empty,
             metadata: None,
         },
     );

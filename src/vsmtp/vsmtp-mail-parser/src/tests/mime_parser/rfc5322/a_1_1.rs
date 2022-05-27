@@ -1,6 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
     mail::{BodyType, Mail},
+    mail_context::MessageBody,
     MailParser,
 };
 
@@ -8,9 +9,14 @@ use vsmtp_common::{
 fn simple() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.1.1.a.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.1.1.a.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
-        Mail {
+        MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "John Doe <jdoe@machine.example>"),
                 ("to", "Mary Smith <mary@example.net>"),
@@ -27,7 +33,7 @@ fn simple() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }
 
@@ -35,9 +41,14 @@ fn simple() {
 fn forward() {
     assert_eq!(
         MailMimeParser::default()
-            .parse(include_bytes!("../../mail/rfc5322/A.1.1.b.eml"))
+            .parse(
+                include_str!("../../mail/rfc5322/A.1.1.b.eml")
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
             .unwrap(),
-        Mail {
+        MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "John Doe <jdoe@machine.example>"),
                 ("sender", "Michael Jones <mjones@machine.example>"),
@@ -55,6 +66,6 @@ fn forward() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }
+        }))
     );
 }

@@ -65,7 +65,7 @@ mod tests {
         addr,
         envelop::Envelop,
         mail::{BodyType, Mail},
-        mail_context::{Body, ConnectionContext, MailContext, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         queue::Queue,
         queue_path,
         rcpt::Rcpt,
@@ -173,7 +173,7 @@ mod tests {
                     email_status: EmailTransferStatus::Waiting,
                 }],
             },
-            body: Body::Parsed(Box::new(Mail {
+            body: MessageBody::Parsed(Box::new(Mail {
                 headers: [
                     ("from", "foo2 foo <foo2@foo>"),
                     ("date", "tue, 30 nov 2021 20:54:27 +0100"),

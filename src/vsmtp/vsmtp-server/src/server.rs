@@ -421,10 +421,7 @@ mod tests {
             .port(10016)
             .build();
 
-            println!("sending");
-            let r = lettre::AsyncTransport::send(&sender, mail).await;
-            println!("sent");
-            r
+            lettre::AsyncTransport::send(&sender, mail).await
         });
 
         let (client, server) = tokio::join!(client, server);

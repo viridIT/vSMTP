@@ -15,9 +15,7 @@
  *
 */
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::{
-    addr, mail_context::Body, state::StateSMTP, status::Status, CodeID, MailParser, ReplyOrCodeID,
-};
+use vsmtp_common::{addr, state::StateSMTP, status::Status, CodeID, MailParser, ReplyOrCodeID};
 use vsmtp_mail_parser::MailMimeParser;
 
 #[test]
@@ -68,16 +66,17 @@ fn test_mail_from_rules() {
         let mut email = email.write().unwrap();
 
         email.envelop.mail_from = addr!("staff@example.com");
-        email.body = Body::Parsed(Box::new(
-            MailMimeParser::default()
-                .parse(
-                    br#"From: staff <staff@example.com>
+        email.body = MailMimeParser::default()
+            .parse(
+                r#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
-This is a reply to your hello."#,
-                )
-                .unwrap(),
-        ));
+This is a reply to your hello."#
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap();
     }
 
     assert_eq!(
@@ -113,16 +112,17 @@ fn test_rcpt_rules() {
             vsmtp_common::rcpt::Rcpt::new(addr!("customer@company.com")),
         ];
 
-        email.body = Body::Parsed(Box::new(
-            MailMimeParser::default()
-                .parse(
-                    br#"From: staff <staff@example.com>
+        email.body = MailMimeParser::default()
+            .parse(
+                r#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
-This is a reply to your hello."#,
-                )
-                .unwrap(),
-        ));
+This is a reply to your hello."#
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap();
     }
 
     assert_eq!(

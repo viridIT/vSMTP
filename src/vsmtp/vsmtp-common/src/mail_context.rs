@@ -21,7 +21,6 @@ use anyhow::Context;
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
 
 /// metadata
-/// TODO: remove retry & resolver fields.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct MessageMetadata {
     /// instant when the last "MAIL FROM" has been received.
@@ -45,34 +44,34 @@ impl Default for MessageMetadata {
 
 /// Message body issued by a SMTP transaction
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub enum Body {
+pub enum MessageBody {
     /// Nothing
     Empty,
     /// The raw representation of the message
-    Raw(String),
-    /// The message parsed using [MailMimeParser]
+    Raw(Vec<String>),
+    /// The message parsed using a [`MailParser`]
     Parsed(Box<Mail>),
 }
 
-impl std::fmt::Display for Body {
+impl std::fmt::Display for MessageBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&match self {
-            Self::Empty => "".to_string(),
-            Self::Raw(data) => data.clone(),
-            Self::Parsed(mail) => mail.to_raw(),
-        })
+        match self {
+            Self::Empty => f.write_str(""),
+            Self::Raw(data) => f.write_fmt(format_args!("{}\n", data.join("\n"))),
+            Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
+        }
     }
 }
 
-impl Body {
-    /// Convert a the instance into a [`Body::Parsed`] or [`Body::Empty`]
+impl MessageBody {
+    /// Convert a the instance into a [`MessageBody::Parsed`] or [`MessageBody::Empty`]
     ///
     /// # Errors
     ///
     /// * Fail to parse using the provided [`MailParser`]
     pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
         Ok(match self {
-            Self::Raw(raw) => Self::Parsed(Box::new(P::default().parse(raw.as_bytes())?)),
+            Self::Raw(raw) => P::default().parse(raw)?,
             otherwise => otherwise,
         })
     }
@@ -83,7 +82,7 @@ impl Body {
         match self {
             Self::Empty => None,
             Self::Raw(raw) => {
-                for line in raw.lines() {
+                for line in raw {
                     let mut split = line.splitn(2, ": ");
                     match (split.next(), split.next()) {
                         (Some(header), Some(value)) if header == name => {
@@ -105,30 +104,19 @@ impl Body {
         match self {
             Self::Empty => {}
             Self::Raw(raw) => {
-                let mut header_start = 0;
-                let mut header_end = None;
+                // TODO: handle folded header, but at this point the function should parse the mail...
 
-                for line in raw.lines() {
+                for line in raw {
                     let mut split = line.splitn(2, ": ");
                     match (split.next(), split.next()) {
-                        (Some(old_name), Some(_)) if old_name == name => {
-                            header_end = Some(line.len());
-                            break;
+                        (Some(key), Some(_)) if key == name => {
+                            *line = format!("{key}: {value}");
+                            return;
                         }
-                        (Some(_), Some(_)) => header_start += line.len() + 1,
-                        _ => break,
+                        _ => {}
                     }
                 }
-
-                #[allow(clippy::option_if_let_else)]
-                if let Some(header_end) = header_end {
-                    raw.replace_range(
-                        header_start..header_start + header_end,
-                        &format!("{name}: {value}"),
-                    );
-                } else {
-                    self.add_header(name, value);
-                }
+                self.add_header(name, value);
             }
             Self::Parsed(parsed) => parsed.set_header(name, value),
         }
@@ -138,7 +126,11 @@ impl Body {
     pub fn add_header(&mut self, name: &str, value: &str) {
         match self {
             Self::Empty => {}
-            Self::Raw(raw) => *raw = format!("{name}: {value}\n{raw}"),
+            Self::Raw(raw) => {
+                let mut new_raw = vec![format!("{name}: {value}")];
+                new_raw.extend_from_slice(raw);
+                *raw = new_raw;
+            }
             Self::Parsed(parsed) => {
                 parsed.prepend_headers(vec![(name.to_string(), value.to_string())]);
             }
@@ -188,7 +180,7 @@ pub struct MailContext {
     /// envelop of the message
     pub envelop: Envelop,
     /// content of the message
-    pub body: Body,
+    pub body: MessageBody,
     /// metadata
     pub metadata: Option<MessageMetadata>,
 }

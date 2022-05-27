@@ -19,7 +19,6 @@
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, PartialEq)]
 pub enum ParserError {
-    InvalidInput,
     InvalidMail(String),
     MandatoryHeadersNotFound(String),
     BoundaryNotFound(String),
@@ -33,9 +32,6 @@ pub type ParserResult<T> = Result<T, ParserError>;
 impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidInput => {
-                write!(f, "input is invalid")
-            }
             Self::InvalidMail(message) => {
                 write!(f, "parsing email failed: {}", message)
             }
