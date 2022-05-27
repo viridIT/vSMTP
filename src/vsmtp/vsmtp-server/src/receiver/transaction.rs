@@ -444,6 +444,8 @@ impl Transaction {
             },
         );
 
+        // Check if the incoming transaction is part of a
+        // delegation, skipping all rules until 'run_on'.
         if let Some(service) = smtp_receiver {
             if let Service::Smtp { run_on, .. } = &*service {
                 rule_state.skipping(Status::DelegationResult(run_on.clone()));
