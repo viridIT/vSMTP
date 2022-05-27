@@ -61,7 +61,7 @@ fn run_benchmark(body_size: u64, port: u16) {
                         .unwrap(),
                     vec![],
                     vec![],
-                ))
+                ), vec![])
                 .await
                 .unwrap();
             });
