@@ -386,8 +386,7 @@ impl Transaction {
     ) -> impl tokio_stream::Stream<Item = String> + '_ {
         let read_timeout = get_timeout_for_state(&connection.config, &StateSMTP::Data);
         async_stream::stream! {
-            let mut has_data_end = false;
-            while !has_data_end {
+            loop {
                 match connection.read(read_timeout).await {
                     Ok(Some(client_message)) => {
                         log::trace!(
@@ -396,7 +395,7 @@ impl Transaction {
                             client_message
                         );
 
-                        let command_or_code = Event::parse_data(&client_message);
+                        let command_or_code = Event::parse_data(client_message);
                         log::trace!(
                             target: log_channels::TRANSACTION,
                             "parsed=\"{:?}\"",
@@ -405,7 +404,7 @@ impl Transaction {
 
                         match command_or_code {
                             Ok(Some(line)) => yield line,
-                            Ok(None) => has_data_end = true,
+                            Ok(None) => break,
                             Err(code) => {
                                 connection.send_code(code).await.unwrap();
                             },
