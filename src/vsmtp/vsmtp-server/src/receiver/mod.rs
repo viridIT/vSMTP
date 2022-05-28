@@ -189,7 +189,7 @@ where
     }
 
     let helo = output.envelop.helo.clone();
-    let code = mail_handler.on_mail(conn, Box::new(output)).await?;
+    let code = mail_handler.on_mail(conn, Box::new(output)).await;
     *helo_domain = Some(helo);
     conn.send_code(code).await?;
 

@@ -17,7 +17,6 @@
 use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
-    re::anyhow,
     CodeID, {BodyType, Mail},
 };
 use vsmtp_mail_parser::MailMimeParser;
@@ -37,7 +36,7 @@ async fn reset_helo() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
@@ -57,7 +56,7 @@ async fn reset_helo() {
                 }))
             );
 
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -146,7 +145,7 @@ async fn reset_rcpt_to_ok() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo2");
@@ -159,7 +158,7 @@ async fn reset_rcpt_to_ok() {
                     body: BodyType::Undefined
                 }))
             );
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -226,7 +225,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
@@ -248,7 +247,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
                     body: BodyType::Undefined
                 }))
             );
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 

@@ -33,7 +33,7 @@ async fn test_quarantine() {
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
 
     assert!(test_receiver! {
-        on_mail => &mut vsmtp_server::MailHandler { working_sender, delivery_sender },
+        on_mail => &mut vsmtp_server::MailHandler::new(working_sender, delivery_sender),
         with_config => config,
         [
             "HELO foobar\r\n",

@@ -19,7 +19,7 @@ use crate::{
     channel_message::ProcessMessage,
     log_channels,
     receiver::{
-        handle_connection, {Connection, ConnectionKind},
+        handle_connection, MailHandler, {Connection, ConnectionKind},
     },
 };
 use vsmtp_common::{
@@ -281,7 +281,7 @@ impl Server {
             rsasl,
             rule_engine,
             resolvers,
-            &mut crate::receiver::MailHandler {
+            &mut MailHandler {
                 working_sender,
                 delivery_sender,
             },

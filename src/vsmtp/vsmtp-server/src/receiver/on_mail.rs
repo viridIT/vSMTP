@@ -2,7 +2,7 @@ use crate::{Connection, ProcessMessage};
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
-    re::{anyhow, log},
+    re::{log, serde_json},
     status::Status,
     CodeID,
 };
@@ -16,15 +16,27 @@ pub trait OnMail {
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
-    ) -> anyhow::Result<CodeID>;
+    ) -> CodeID;
 }
 
-/// default mail handler for production.
+/// Send the email to the queue.
 pub struct MailHandler {
-    /// message pipe to the working process.
-    pub working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-    /// message pipe to the delivery process.
-    pub delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    pub(crate) working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    pub(crate) delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+}
+
+impl MailHandler {
+    /// create a new mail handler
+    #[must_use]
+    pub const fn new(
+        working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+        delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+    ) -> Self {
+        Self {
+            working_sender,
+            delivery_sender,
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -33,26 +45,30 @@ impl OnMail for MailHandler {
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
-    ) -> anyhow::Result<CodeID> {
+    ) -> CodeID {
         let metadata = mail.metadata.as_ref().unwrap();
 
         let next_queue = match &metadata.skipped {
             Some(Status::Quarantine(path)) => {
-                let mut path = create_app_folder(&conn.config, Some(path))?;
+                let mut path = create_app_folder(&conn.config, Some(path)).unwrap();
                 path.push(format!("{}.json", metadata.message_id));
 
-                let mut file = std::fs::OpenOptions::new()
+                let mut file = tokio::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
-                    .open(path)?;
+                    .open(path)
+                    .await
+                    .unwrap();
 
-                std::io::Write::write_all(
+                tokio::io::AsyncWriteExt::write_all(
                     &mut file,
-                    vsmtp_common::re::serde_json::to_string_pretty(&*mail)?.as_bytes(),
-                )?;
+                    serde_json::to_string(mail.as_ref()).unwrap().as_bytes(),
+                )
+                .await
+                .unwrap();
 
                 log::warn!("postq & delivery skipped due to quarantine.");
-                return Ok(CodeID::Ok);
+                return CodeID::Ok;
             }
             Some(reason) => {
                 log::warn!("postq skipped due to '{}'.", reason.as_ref());
@@ -63,19 +79,20 @@ impl OnMail for MailHandler {
 
         if let Err(error) = next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail) {
             log::error!("couldn't write to '{}' queue: {}", next_queue, error);
-            Ok(CodeID::Denied)
-        } else {
-            match next_queue {
-                Queue::Working => &self.working_sender,
-                Queue::Deliver => &self.delivery_sender,
-                _ => unreachable!(),
-            }
-            .send(ProcessMessage {
-                message_id: metadata.message_id.clone(),
-            })
-            .await?;
-
-            Ok(CodeID::Ok)
+            return CodeID::Denied;
         }
+
+        match next_queue {
+            Queue::Working => &self.working_sender,
+            Queue::Deliver => &self.delivery_sender,
+            _ => unreachable!(),
+        }
+        .send(ProcessMessage {
+            message_id: metadata.message_id.clone(),
+        })
+        .await
+        .unwrap();
+
+        CodeID::Ok
     }
 }

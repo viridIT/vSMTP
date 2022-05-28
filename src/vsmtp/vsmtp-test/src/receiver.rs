@@ -80,8 +80,8 @@ impl OnMail for DefaultMailHandler {
         &mut self,
         _: &mut Connection<S>,
         _: Box<vsmtp_common::mail_context::MailContext>,
-    ) -> anyhow::Result<CodeID> {
-        Ok(CodeID::Ok)
+    ) -> CodeID {
+        CodeID::Ok
     }
 }
 

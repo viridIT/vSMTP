@@ -21,7 +21,7 @@ use crate::{
 use vsmtp_common::{
     addr,
     mail_context::MailContext,
-    re::{anyhow, base64, vsmtp_rsasl},
+    re::{base64, vsmtp_rsasl},
     CodeID,
 };
 use vsmtp_server::re::tokio;
@@ -65,11 +65,11 @@ async fn plain_in_clair_unsecured() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -120,11 +120,11 @@ async fn plain_in_clair_unsecured_utf8() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -282,11 +282,11 @@ async fn plain_in_clair_unsecured_without_initial_response() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             assert_eq!(mail.envelop.helo, "client.com");
             assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
             assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 

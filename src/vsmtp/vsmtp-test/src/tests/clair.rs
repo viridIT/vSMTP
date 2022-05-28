@@ -18,7 +18,6 @@ use crate::{config, test_receiver};
 use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
-    re::anyhow,
     CodeID, {BodyType, Mail},
 };
 use vsmtp_mail_parser::MailMimeParser;
@@ -38,12 +37,12 @@ async fn test_receiver_1() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(mail.envelop.mail_from.full(), "john@doe");
             assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
             assert!(mail.metadata.is_some());
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -273,7 +272,7 @@ async fn test_receiver_13() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foobar");
@@ -303,7 +302,7 @@ async fn test_receiver_13() {
             );
 
             self.count += 1;
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -361,7 +360,7 @@ async fn test_receiver_14() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
@@ -392,7 +391,7 @@ async fn test_receiver_14() {
 
             self.count += 1;
 
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 

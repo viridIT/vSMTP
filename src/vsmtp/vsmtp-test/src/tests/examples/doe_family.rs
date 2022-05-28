@@ -16,7 +16,6 @@
 */
 use crate::test_receiver;
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::re::anyhow;
 use vsmtp_common::CodeID;
 use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
@@ -33,14 +32,14 @@ async fn test_doe_family_setup() {
             &mut self,
             _: &mut Connection<S>,
             ctx: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+        ) -> CodeID {
             ctx.envelop
                 .rcpt
                 .iter()
                 .find(|rcpt| rcpt.address.full() == "jane.doe@doe-family.com")
                 .unwrap();
 
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
