@@ -45,8 +45,6 @@ impl Default for MessageMetadata {
 /// Message body issued by a SMTP transaction
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum MessageBody {
-    /// Nothing
-    Empty,
     /// The raw representation of the message
     Raw(Vec<String>),
     /// The message parsed using a [`MailParser`]
@@ -56,7 +54,6 @@ pub enum MessageBody {
 impl std::fmt::Display for MessageBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Empty => f.write_str(""),
             Self::Raw(data) => f.write_fmt(format_args!("{}\n", data.join("\n"))),
             Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
         }
@@ -72,7 +69,7 @@ impl MessageBody {
     pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
         Ok(match self {
             Self::Raw(raw) => P::default().parse(raw)?,
-            otherwise => otherwise,
+            otherwise @ Self::Parsed(_) => otherwise,
         })
     }
 
@@ -80,7 +77,6 @@ impl MessageBody {
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {
         match self {
-            Self::Empty => None,
             Self::Raw(raw) => {
                 for line in raw {
                     let mut split = line.splitn(2, ": ");
@@ -102,7 +98,6 @@ impl MessageBody {
     /// rewrite a header with a new value or add it to the header section.
     pub fn set_header(&mut self, name: &str, value: &str) {
         match self {
-            Self::Empty => {}
             Self::Raw(raw) => {
                 // TODO: handle folded header, but at this point the function should parse the mail...
 
@@ -125,7 +120,6 @@ impl MessageBody {
     /// prepend a header to the header section.
     pub fn add_header(&mut self, name: &str, value: &str) {
         match self {
-            Self::Empty => {}
             Self::Raw(raw) => {
                 let mut new_raw = vec![format!("{name}: {value}")];
                 new_raw.extend_from_slice(raw);
@@ -180,7 +174,7 @@ pub struct MailContext {
     /// envelop of the message
     pub envelop: Envelop,
     /// content of the message
-    pub body: MessageBody,
+    pub body: Option<MessageBody>,
     /// metadata
     pub metadata: Option<MessageMetadata>,
 }

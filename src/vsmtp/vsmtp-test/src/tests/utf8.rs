@@ -43,6 +43,7 @@ macro_rules! test_lang {
 
                 let body = mail
                     .body
+                    .unwrap()
                     .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
                     .unwrap();
 

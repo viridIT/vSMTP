@@ -78,13 +78,11 @@ pub async fn handle_one_in_delivery_queue(
 
     log::trace!(
         target: log_channels::DELIVERY,
-        "email received '{}'",
-        message_id
+        "email received '{message_id}'"
     );
 
     let ctx = MailContext::from_file(path).context(format!(
-        "failed to deserialize email in delivery queue '{}'",
-        &message_id
+        "failed to deserialize email in delivery queue '{message_id}'"
     ))?;
 
     let (state, result) = {
@@ -126,7 +124,7 @@ pub async fn handle_one_in_delivery_queue(
                 metadata,
                 &ctx.envelop.mail_from,
                 &ctx.envelop.rcpt,
-                &ctx.body,
+                ctx.body.as_ref().unwrap(),
             )
             .await
             .context(format!(
@@ -194,12 +192,12 @@ mod tests {
                             },
                         ],
                     },
-                    body: MessageBody::Raw(
+                    body: Some(MessageBody::Raw(
                         ["Date: bar", "From: foo", "Hello world"]
                             .into_iter()
                             .map(str::to_string)
                             .collect::<Vec<_>>(),
-                    ),
+                    )),
                     metadata: Some(MessageMetadata {
                         timestamp: now,
                         message_id: "message_from_deliver_to_deferred".to_string(),

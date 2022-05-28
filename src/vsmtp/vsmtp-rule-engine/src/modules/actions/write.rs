@@ -24,7 +24,7 @@ pub mod write {
 
     use crate::modules::types::types::{Context, Server};
     use crate::{modules::mail_context::mail_context::message_id, modules::EngineResult};
-    use vsmtp_common::mail_context::MessageBody;
+    use vsmtp_common::re::serde_json;
     use vsmtp_config::create_app_folder;
 
     /// write the current email to a specified folder.
@@ -53,12 +53,13 @@ pub mod write {
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body;
-        if MessageBody::Empty == *body {
-            return Err("failed to write email: the body has not been received yet.".into());
+        match body {
+            None => Err("failed to write email: the body has not been received yet.".into()),
+            Some(otherwise) => {
+                std::io::Write::write_all(&mut writer, otherwise.to_string().as_bytes())
+                    .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
+            }
         }
-
-        std::io::Write::write_all(&mut writer, body.to_string().as_bytes())
-            .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
     }
 
     /// write the content of the current email with it's metadata in a json file.
@@ -72,28 +73,28 @@ pub mod write {
                 )
                 .into()
             })?;
-
         dir.push(format!("{}.json", message_id(&mut ctx)?));
 
-        match std::fs::OpenOptions::new()
+        let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
             .open(&dir)
-        {
-            Ok(mut file) => std::io::Write::write_all(
-                &mut file,
-                vsmtp_common::re::serde_json::to_string_pretty(
-                    &*ctx
-                        .read()
-                        .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
-                )
-                .map_err::<Box<EvalAltResult>, _>(|err| {
-                    format!("failed to dump email at {dir:?}: {err}").into()
-                })?
-                .as_bytes(),
+            .map_err::<Box<EvalAltResult>, _>(|err| {
+                format!("failed to dump email at {dir:?}: {err}").into()
+            })?;
+
+        std::io::Write::write_all(
+            &mut file,
+            serde_json::to_string_pretty(
+                &*ctx
+                    .read()
+                    .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?,
             )
-            .map_err(|err| format!("failed to dump email at {dir:?}: {err}").into()),
-            Err(err) => Err(format!("failed to dump email at {dir:?}: {err}").into()),
-        }
+            .map_err::<Box<EvalAltResult>, _>(|err| {
+                format!("failed to dump email at {dir:?}: {err}").into()
+            })?
+            .as_bytes(),
+        )
+        .map_err(|err| format!("failed to dump email at {dir:?}: {err}").into())
     }
 }

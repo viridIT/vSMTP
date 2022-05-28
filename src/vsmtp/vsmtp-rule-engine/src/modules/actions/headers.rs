@@ -32,6 +32,8 @@ pub mod headers {
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| "'mail' has not been received yet".into())?
             .get_header(header)
             .is_some())
     }
@@ -43,6 +45,8 @@ pub mod headers {
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| "'mail' has not been received yet".into())?
             .get_header(header)
             .map(ToString::to_string)
             .unwrap_or_default())
@@ -54,8 +58,9 @@ pub mod headers {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
+            .as_mut()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| "'mail' has not been received yet".into())?
             .add_header(header, value);
-
         Ok(())
     }
 
@@ -65,6 +70,8 @@ pub mod headers {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
+            .as_mut()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| "'mail' has not been received yet".into())?
             .set_header(header, value);
         Ok(())
     }
@@ -75,8 +82,7 @@ pub mod headers {
         let new_addr =
             Address::try_from(new_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
                 format!(
-                    "could not rewrite mail_from with '{}' because it is not valid address",
-                    new_addr,
+                    "could not rewrite mail_from with '{new_addr}' because it is not valid address"
                 )
                 .into()
             })?;
@@ -88,13 +94,13 @@ pub mod headers {
         email.envelop.mail_from = new_addr.clone();
 
         match &mut email.body {
-                MessageBody::Empty => Err("failed to rewrite mail_from: the email has not been received yet. Use this method in postq or later.".into()),
-                MessageBody::Raw(_) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
-                MessageBody::Parsed(body) => {
-                    body.rewrite_mail_from(new_addr.full());
-                    Ok(())
-                },
-            }
+            None => Err("failed to rewrite mail_from: the email has not been received yet. Use this method in postq or later.".into()),
+            Some(MessageBody::Raw(_)) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
+            Some(MessageBody::Parsed(body)) => {
+                body.rewrite_mail_from(new_addr.full());
+                Ok(())
+            },
+        }
     }
 
     /// change a recipient of the 'To' header.
@@ -102,18 +108,14 @@ pub mod headers {
     pub fn rewrite_to(this: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
         let old_addr =
             Address::try_from(old_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
-                format!(
-                    "could not rewrite address '{}' because it is not valid address",
-                    old_addr,
-                )
-                .into()
+                format!("could not rewrite address '{old_addr}' because it is not valid address",)
+                    .into()
             })?;
 
         let new_addr =
             Address::try_from(new_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
                 format!(
-                    "could not rewrite address '{}' with '{}' because it is not valid address",
-                    old_addr, new_addr,
+                    "could not rewrite address '{old_addr}' with '{new_addr}' because it is not valid address"
                 )
                 .into()
             })?;
@@ -123,10 +125,10 @@ pub mod headers {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
         {
-            MessageBody::Empty | MessageBody::Raw(_) => {
+            None | Some(MessageBody::Raw(_)) => {
                 Err("failed to rewrite rcpt: the email has not been parsed yet.".into())
             }
-            MessageBody::Parsed(body) => {
+            Some(MessageBody::Parsed(body)) => {
                 body.rewrite_rcpt(old_addr.full(), new_addr.full());
                 Ok(())
             }
@@ -138,18 +140,14 @@ pub mod headers {
     pub fn rewrite_rcpt(this: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
         let old_addr =
             Address::try_from(old_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
-                format!(
-                    "could not rewrite address '{}' because it is not valid address",
-                    old_addr,
-                )
-                .into()
+                format!("could not rewrite address '{old_addr}' because it is not valid address")
+                    .into()
             })?;
 
         let new_addr =
             Address::try_from(new_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
                 format!(
-                    "could not rewrite address '{}' with '{}' because it is not valid address",
-                    old_addr, new_addr,
+                    "could not rewrite address '{old_addr}' with '{new_addr}' because it is not valid address"
                 )
                 .into()
             })?;
@@ -177,22 +175,18 @@ pub mod headers {
     /// add a recipient to the 'To' mail header.
     #[rhai_fn(global, return_raw, pure)]
     pub fn add_to(this: &mut Context, new_addr: &str) -> EngineResult<()> {
-        let new_addr = Address::try_from(new_addr.to_string()).map_err(|_| {
-            format!(
-                "'{}' could not be converted to a valid rcpt address",
-                new_addr
-            )
-        })?;
+        let new_addr = Address::try_from(new_addr.to_string())
+            .map_err(|_| format!("'{new_addr}' could not be converted to a valid rcpt address"))?;
 
         match &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
         {
-            MessageBody::Empty | MessageBody::Raw(_) => {
+            None | Some(MessageBody::Raw(_)) => {
                 Err("failed to add rcpt: the email has not been parsed yet.".into())
             }
-            MessageBody::Parsed(body) => {
+            Some(MessageBody::Parsed(body)) => {
                 body.add_rcpt(new_addr.full());
                 Ok(())
             }
@@ -202,12 +196,8 @@ pub mod headers {
     /// add a recipient to the envelop.
     #[rhai_fn(global, return_raw, pure)]
     pub fn add_rcpt(this: &mut Context, new_addr: &str) -> EngineResult<()> {
-        let new_addr = Address::try_from(new_addr.to_string()).map_err(|_| {
-            format!(
-                "'{}' could not be converted to a valid rcpt address",
-                new_addr
-            )
-        })?;
+        let new_addr = Address::try_from(new_addr.to_string())
+            .map_err(|_| format!("'{new_addr}' could not be converted to a valid rcpt address"))?;
 
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -222,18 +212,18 @@ pub mod headers {
     #[rhai_fn(global, return_raw, pure)]
     pub fn remove_to(this: &mut Context, addr: &str) -> EngineResult<()> {
         let addr = Address::try_from(addr.to_string())
-            .map_err(|_| format!("{} could not be converted to a valid rcpt address", addr))?;
+            .map_err(|_| format!("{addr} could not be converted to a valid rcpt address"))?;
 
         match &mut this
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
         {
-            MessageBody::Parsed(body) => {
+            Some(MessageBody::Parsed(body)) => {
                 body.remove_rcpt(addr.full());
                 Ok(())
             }
-            MessageBody::Empty | MessageBody::Raw(_) => {
+            None | Some(MessageBody::Raw(_)) => {
                 Err("failed to remove rcpt: the email has not been parsed yet.".into())
             }
         }
@@ -243,7 +233,7 @@ pub mod headers {
     #[rhai_fn(global, return_raw, pure)]
     pub fn remove_rcpt(this: &mut Context, addr: &str) -> EngineResult<()> {
         let addr = Address::try_from(addr.to_string())
-            .map_err(|_| format!("{} could not be converted to a valid rcpt address", addr))?;
+            .map_err(|_| format!("{addr} could not be converted to a valid rcpt address"))?;
 
         let email = &mut this
             .write()
@@ -259,8 +249,7 @@ pub mod headers {
             Ok(())
         } else {
             Err(format!(
-                "could not remove address '{}' because it does not resides in the envelop.",
-                addr
+                "could not remove address '{addr}' because it does not resides in the envelop."
             )
             .into())
         }

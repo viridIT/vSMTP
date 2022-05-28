@@ -212,12 +212,12 @@ fn add_trace_information(
         rule_engine_result,
     );
 
-    if ctx.body == MessageBody::Empty {
+    if let Some(body) = &mut ctx.body {
+        body.add_header("X-VSMTP", &vsmtp_status);
+        body.add_header("Received", &stamp);
+    } else {
         anyhow::bail!("could not add trace information to email header: body is empty");
     }
-
-    ctx.body.add_header("X-VSMTP", &vsmtp_status);
-    ctx.body.add_header("Received", &stamp);
 
     Ok(())
 }
@@ -287,7 +287,7 @@ mod test {
     #[test]
     fn test_add_trace_information() {
         let mut ctx = vsmtp_common::mail_context::MailContext {
-            body: vsmtp_common::mail_context::MessageBody::Empty,
+            body: None,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::UNIX_EPOCH,
                 credentials: None,
@@ -319,12 +319,12 @@ mod test {
             "could not add trace information to email header: body is empty"
         );
 
-        ctx.body = MessageBody::Raw(vec![]);
+        ctx.body = Some(MessageBody::Raw(vec![]));
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &mut ctx, &vsmtp_common::status::Status::Next).unwrap();
 
         assert_eq!(
-            ctx.body,
+            ctx.body.unwrap(),
             MessageBody::Raw(vec![
                 [
                     "Received: from localhost\n".to_string(),

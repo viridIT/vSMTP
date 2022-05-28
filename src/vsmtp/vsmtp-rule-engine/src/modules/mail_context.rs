@@ -191,6 +191,8 @@ pub mod mail_context {
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .body
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| "'mail' has not been received yet".into())?
             .to_string())
     }
 

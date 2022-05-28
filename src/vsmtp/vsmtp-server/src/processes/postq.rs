@@ -90,7 +90,7 @@ async fn handle_one_in_working_queue(
         file_to_process.display()
     ))?;
 
-    ctx.body = ctx.body.to_parsed::<MailMimeParser>()?;
+    ctx.body = Some(ctx.body.unwrap().to_parsed::<MailMimeParser>()?);
 
     // locking the engine and freeing the lock before any await.
     let (state, result) = {
@@ -235,12 +235,12 @@ mod tests {
                             },
                         ],
                     },
-                    body: MessageBody::Raw(
+                    body: Some(MessageBody::Raw(
                         ["Date: bar", "From: foo", "Hello world"]
                             .into_iter()
                             .map(str::to_string)
                             .collect::<Vec<_>>(),
-                    ),
+                    )),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test".to_string(),
@@ -313,12 +313,12 @@ mod tests {
                             },
                         ],
                     },
-                    body: MessageBody::Raw(
+                    body: Some(MessageBody::Raw(
                         ["Date: bar", "From: foo", "Hello world"]
                             .into_iter()
                             .map(str::to_string)
                             .collect::<Vec<_>>(),
-                    ),
+                    )),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test_denied".to_string(),

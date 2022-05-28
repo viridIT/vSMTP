@@ -56,15 +56,11 @@ async fn handle_one_in_deferred_queue(
 
     log::debug!(
         target: log_channels::DEFERRED,
-        "processing email '{}'",
-        message_id
+        "processing email '{message_id}'"
     );
 
     let mut ctx = MailContext::from_file(path).with_context(|| {
-        format!(
-            "failed to deserialize email in deferred queue '{}'",
-            &message_id
-        )
+        format!("failed to deserialize email in deferred queue '{message_id}'",)
     })?;
 
     let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
@@ -82,7 +78,7 @@ async fn handle_one_in_deferred_queue(
         metadata,
         &ctx.envelop.mail_from,
         &ctx.envelop.rcpt,
-        &ctx.body,
+        ctx.body.as_ref().unwrap(),
     )
     .await
     .context("failed to send emails from the deferred queue")?;
@@ -173,12 +169,12 @@ mod tests {
                             },
                         ],
                     },
-                    body: MessageBody::Raw(
+                    body: Some(MessageBody::Raw(
                         ["Date: bar", "From: foo", "Hello world"]
                             .into_iter()
                             .map(str::to_string)
                             .collect::<Vec<_>>(),
-                    ),
+                    )),
                     metadata: Some(MessageMetadata {
                         timestamp: now,
                         message_id: "test".to_string(),
@@ -225,12 +221,12 @@ mod tests {
                         },
                     ],
                 },
-                body: MessageBody::Raw(
+                body: Some(MessageBody::Raw(
                     ["Date: bar", "From: foo", "Hello world"]
                         .into_iter()
                         .map(str::to_string)
                         .collect::<Vec<_>>()
-                ),
+                )),
                 metadata: Some(MessageMetadata {
                     timestamp: now,
                     message_id: "test".to_string(),

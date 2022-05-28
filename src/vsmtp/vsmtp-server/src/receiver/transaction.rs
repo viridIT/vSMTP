@@ -21,7 +21,7 @@ use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
     event::Event,
-    mail_context::{ConnectionContext, MessageBody, MessageMetadata, MAIL_CAPACITY},
+    mail_context::{ConnectionContext, MessageMetadata},
     rcpt::Rcpt,
     re::{anyhow, log},
     state::StateSMTP,
@@ -93,7 +93,7 @@ impl Transaction {
                 {
                     let state = self.rule_state.context();
                     let mut ctx = state.write().unwrap();
-                    ctx.body = MessageBody::Empty;
+                    ctx.body = None;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = addr!("default@domain.com");
@@ -263,15 +263,10 @@ impl Transaction {
                 }
             }
 
-            (StateSMTP::RcptTo, Event::DataCmd) => {
-                self.rule_state.context().write().unwrap().body =
-                    MessageBody::Raw(Vec::with_capacity(MAIL_CAPACITY / 1000));
-
-                ProcessedEvent::ReplyChangeState(
-                    StateSMTP::Data,
-                    ReplyOrCodeID::CodeID(CodeID::DataStart),
-                )
-            }
+            (StateSMTP::RcptTo, Event::DataCmd) => ProcessedEvent::ReplyChangeState(
+                StateSMTP::Data,
+                ReplyOrCodeID::CodeID(CodeID::DataStart),
+            ),
 
             _ => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::BadSequence)),
         }
@@ -292,7 +287,7 @@ impl Transaction {
         let state = self.rule_state.context();
         let mut ctx = state.write().unwrap();
 
-        ctx.body = MessageBody::Empty;
+        ctx.body = None;
         ctx.metadata = None;
         ctx.envelop = Envelop {
             helo,
@@ -310,7 +305,7 @@ impl Transaction {
 
         let state = self.rule_state.context();
         let mut ctx = state.write().unwrap();
-        ctx.body = MessageBody::Empty;
+        ctx.body = None;
         ctx.envelop.rcpt.clear();
         ctx.envelop.mail_from = mail_from;
         ctx.metadata = Some(MessageMetadata {

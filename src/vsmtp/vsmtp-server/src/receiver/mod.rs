@@ -140,7 +140,7 @@ where
     let state = transaction.rule_state.context();
     {
         let mut state_writer = state.write().unwrap();
-        state_writer.body = body;
+        state_writer.body = Some(body);
     }
 
     let status = transaction
@@ -179,7 +179,7 @@ where
             10000,
         )),
         envelop: Envelop::default(),
-        body: MessageBody::Empty,
+        body: None,
         metadata: None,
     };
 

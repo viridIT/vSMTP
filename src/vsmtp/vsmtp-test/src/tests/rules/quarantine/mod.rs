@@ -67,7 +67,7 @@ async fn test_quarantine() {
         .path();
 
     assert_eq!(
-        MailContext::from_file(&message).unwrap().body,
+        MailContext::from_file(&message).unwrap().body.unwrap(),
         MessageBody::Raw(
             ["from: 'abc'", "to: 'def'"]
                 .into_iter()

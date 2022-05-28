@@ -38,18 +38,18 @@ fn test_email_context() {
         re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    state.context().write().unwrap().body = MessageBody::Raw(vec![]);
+    state.context().write().unwrap().body = Some(MessageBody::Raw(vec![]));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    state.context().write().unwrap().body = MessageBody::Parsed(Box::new(Mail {
+    state.context().write().unwrap().body = Some(MessageBody::Parsed(Box::new(Mail {
         headers: vec![(
             "to".to_string(),
             "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
         )],
         body: BodyType::Regular(vec![]),
-    }));
+    })));
     state.context().write().unwrap().envelop.rcpt = vec![
         addr!("rcpt@toremove.org").into(),
         addr!("rcpt@torewrite.net").into(),
@@ -61,7 +61,14 @@ fn test_email_context() {
     );
 
     assert_eq!(
-        state.context().read().unwrap().body.get_header("to"),
+        state
+            .context()
+            .read()
+            .unwrap()
+            .body
+            .as_ref()
+            .unwrap()
+            .get_header("to"),
         Some("other.new@rcpt.net, other.added@rcpt.com")
     );
 }
@@ -91,14 +98,17 @@ fn test_email_add_get_set_header() {
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
     let (mut state, _) = get_default_state("./tmp/app");
-    state.context().write().unwrap().body = MessageBody::Raw(vec![]);
+    state.context().write().unwrap().body = Some(MessageBody::Raw(vec![]));
     let status = re.run_when(&mut state, &StateSMTP::PreQ);
-    println!("{status:?} {}", state.context().read().unwrap().body);
+    println!(
+        "{status:?} {}",
+        state.context().read().unwrap().body.as_ref().unwrap()
+    );
     assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),);
-    state.context().write().unwrap().body = MessageBody::Parsed(Box::new(Mail {
+    state.context().write().unwrap().body = Some(MessageBody::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
-    }));
+    })));
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),

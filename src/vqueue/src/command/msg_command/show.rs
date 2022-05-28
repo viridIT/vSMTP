@@ -20,7 +20,12 @@ pub fn show<OUT: std::io::Write>(
     let message: MailContext = serde_json::from_str(&message)?;
 
     match format {
-        MessageShowFormat::Eml => output.write_fmt(format_args!("{}", message.body)),
+        MessageShowFormat::Eml => output.write_fmt(format_args!(
+            "{}",
+            message
+                .body
+                .ok_or_else(|| anyhow::anyhow!("No body found"))?
+        )),
         MessageShowFormat::Json => {
             output.write_fmt(format_args!("{}", serde_json::to_string_pretty(&message)?))
         }
@@ -61,7 +66,7 @@ mod tests {
                     email_status: EmailTransferStatus::Waiting,
                 }],
             },
-            body: MessageBody::Parsed(Box::new(Mail {
+            body: Some(MessageBody::Parsed(Box::new(Mail {
                 headers: [
                     ("from", "foo2 foo <foo2@foo>"),
                     ("date", "tue, 30 nov 2021 20:54:27 +0100"),
@@ -70,7 +75,7 @@ mod tests {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<Vec<_>>(),
                 body: BodyType::Regular(vec!["Hello World!!".to_string()]),
-            })),
+            }))),
             metadata: Some(MessageMetadata {
                 timestamp: std::time::SystemTime::now(),
                 message_id: msg_id.to_string(),

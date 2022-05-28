@@ -274,7 +274,7 @@ async fn test_receiver_13() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
         ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(
@@ -362,7 +362,7 @@ async fn test_receiver_14() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
         ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
             assert_eq!(

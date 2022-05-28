@@ -38,7 +38,7 @@ async fn reset_helo() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
         ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "a@b");
@@ -147,7 +147,7 @@ async fn reset_rcpt_to_ok() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
         ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo2");
             assert_eq!(mail.envelop.mail_from.full(), "d@e");
@@ -227,7 +227,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
             _: &mut Connection<S>,
             mail: Box<MailContext>,
         ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            let body = mail.body.unwrap().to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");

@@ -173,11 +173,11 @@ pub mod transport {
 
 #[cfg(test)]
 pub mod test {
-    #[must_use]
     /// create an empty email context for testing purposes.
+    #[must_use]
     pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
         vsmtp_common::mail_context::MailContext {
-            body: vsmtp_common::mail_context::MessageBody::Empty,
+            body: None,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
