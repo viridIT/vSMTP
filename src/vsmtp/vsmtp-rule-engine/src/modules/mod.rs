@@ -25,6 +25,7 @@ pub(crate) type EngineResult<T> = Result<T, Box<EvalAltResult>>;
 rhai::def_package! {
     /// vsl's standard api.
     pub StandardVSLPackage(module) {
+	// NOTE: the standard package might be duplicated.
         rhai::packages::StandardPackage::init(module);
 
         module.combine(exported_module!(super::modules::actions::bcc::bcc))

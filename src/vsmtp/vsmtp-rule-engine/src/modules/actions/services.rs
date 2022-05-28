@@ -154,7 +154,7 @@ pub mod services {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, return_raw, pure)]
+    #[rhai_fn(return_raw, pure)]
     pub fn delegate(service: &mut std::sync::Arc<Service>, ctx: Context) -> EngineResult<Status> {
         match &**service {
             Service::Smtp { delegator, .. } => {
@@ -198,6 +198,17 @@ pub mod services {
                 // ]))
             }
             _ => Err(format!("cannot delegate security with '{service}' service.").into()),
+        }
+    }
+
+    /// get the receiver address from a smtp service.
+    #[rhai_fn(global, get = "receiver_address", return_raw, pure)]
+    pub fn smtp_service_receiver_address(
+        service: &mut std::sync::Arc<Service>,
+    ) -> EngineResult<String> {
+        match &**service {
+            Service::Smtp { receiver, .. } => Ok(receiver.to_string()),
+            _ => Err("only a smtp service has a receiver address".into()),
         }
     }
 }

@@ -46,6 +46,16 @@ pub mod mail_context {
         ))
     }
 
+    #[rhai_fn(global, get = "server_address", return_raw, pure)]
+    pub fn server_address(this: &mut Context) -> EngineResult<String> {
+        Ok(this
+            .read()
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .connection
+            .server_address
+            .to_string())
+    }
+
     #[rhai_fn(global, get = "server_ip", return_raw, pure)]
     pub fn server_ip(this: &mut Context) -> EngineResult<std::net::IpAddr> {
         Ok(this

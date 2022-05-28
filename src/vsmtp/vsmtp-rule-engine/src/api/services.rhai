@@ -1,4 +1,3 @@
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -16,8 +15,13 @@
  *
 */
 
-pub mod action;
-pub mod directives;
-pub mod object;
-pub mod rule;
-pub mod service;
+/// delegate email validation to a service via smtp.
+/// when the results are received, the "then" function
+/// is called.
+fn delegate(then) {
+    if ctx().server_address == this.receiver_address {
+        then()
+    } else {
+        sys::delegate(this, ctx())
+    }
+}

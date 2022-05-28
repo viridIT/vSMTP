@@ -310,9 +310,10 @@ impl RuleEngine {
                     include_str!("api/codes.rhai"),
                     include_str!("api/networks.rhai"),
                     include_str!("api/auth.rhai"),
+                    include_str!("api/services.rhai"),
+                    include_str!("api/utils.rhai"),
                     include_str!("api/sys-api.rhai"),
                     include_str!("api/rhai-api.rhai"),
-                    include_str!("api/utils.rhai"),
                 ],
             )
             .context("failed to compile vsl's api")?;
@@ -355,7 +356,10 @@ impl RuleEngine {
                         .to_string();
                     let pointer = map
                         .get("evaluate")
-                        .ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} does not have an evaluation function", stage, name))?.clone().try_cast::<rhai::FnPtr>().ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} evaluation field must be a function pointer", stage, name))?;
+                        .ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} does not have an evaluation function", stage, name))?
+			.clone()
+			.try_cast::<rhai::FnPtr>()
+			.ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} evaluation field must be a function pointer", stage, name))?;
 
                     let directive: Box<dyn Directive + Send + Sync> =
                         match directive_type.as_str() {
