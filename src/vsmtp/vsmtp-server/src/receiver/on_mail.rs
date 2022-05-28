@@ -1,6 +1,6 @@
 use crate::{Connection, ProcessMessage};
 use vsmtp_common::{
-    mail_context::MailContext,
+    mail_context::{MailContext, MessageBody},
     queue::Queue,
     re::{log, serde_json},
     status::Status,
@@ -16,6 +16,7 @@ pub trait OnMail {
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
+        message: MessageBody,
     ) -> CodeID;
 }
 
@@ -45,6 +46,7 @@ impl OnMail for MailHandler {
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
+        _: MessageBody,
     ) -> CodeID {
         let metadata = mail.metadata.as_ref().unwrap();
 
@@ -77,9 +79,14 @@ impl OnMail for MailHandler {
             None => Queue::Working,
         };
 
-        if let Err(error) = next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail) {
-            log::error!("couldn't write to '{}' queue: {}", next_queue, error);
-            return CodeID::Denied;
+        match next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail) {
+            Ok(_) => {}
+            Err(error) => {
+                // TODO: handle io error properly
+
+                log::error!("couldn't write to '{next_queue}' queue: {error}");
+                return CodeID::Denied;
+            }
         }
 
         match next_queue {

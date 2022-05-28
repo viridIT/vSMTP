@@ -14,12 +14,13 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::types::types::{Context, Server};
+use crate::modules::types::types::{Context, Message, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
     RhaiResult, TypeId,
 };
+use vsmtp_common::mail_context::AuthCredentials;
 use vsmtp_common::Address;
 
 #[doc(hidden)]
@@ -84,7 +85,7 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "auth", return_raw, pure)]
-    pub fn auth(this: &mut Context) -> EngineResult<vsmtp_common::mail_context::AuthCredentials> {
+    pub fn auth(this: &mut Context) -> EngineResult<AuthCredentials> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
@@ -95,30 +96,27 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "type", pure)]
-    pub fn get_type(my_enum: &mut vsmtp_common::mail_context::AuthCredentials) -> String {
+    pub fn get_type(my_enum: &mut AuthCredentials) -> String {
         match my_enum {
-            vsmtp_common::mail_context::AuthCredentials::Verify { .. } => "Verify".to_string(),
-            vsmtp_common::mail_context::AuthCredentials::Query { .. } => "Query".to_string(),
+            AuthCredentials::Verify { .. } => "Verify".to_string(),
+            AuthCredentials::Query { .. } => "Query".to_string(),
         }
     }
 
     #[rhai_fn(global, get = "authid", pure)]
-    pub fn get_authid(my_enum: &mut vsmtp_common::mail_context::AuthCredentials) -> String {
+    pub fn get_authid(my_enum: &mut AuthCredentials) -> String {
         match my_enum {
-            vsmtp_common::mail_context::AuthCredentials::Query { authid }
-            | vsmtp_common::mail_context::AuthCredentials::Verify { authid, .. } => authid.clone(),
+            AuthCredentials::Query { authid } | AuthCredentials::Verify { authid, .. } => {
+                authid.clone()
+            }
         }
     }
 
     #[rhai_fn(global, get = "authpass", return_raw, pure)]
-    pub fn get_authpass(
-        my_enum: &mut vsmtp_common::mail_context::AuthCredentials,
-    ) -> EngineResult<String> {
+    pub fn get_authpass(my_enum: &mut AuthCredentials) -> EngineResult<String> {
         match my_enum {
-            vsmtp_common::mail_context::AuthCredentials::Verify { authpass, .. } => {
-                Ok(authpass.clone())
-            }
-            vsmtp_common::mail_context::AuthCredentials::Query { .. } => {
+            AuthCredentials::Verify { authpass, .. } => Ok(authpass.clone()),
+            AuthCredentials::Query { .. } => {
                 Err("no `authpass` available in credentials of type `Query`"
                     .to_string()
                     .into())
@@ -186,13 +184,10 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "mail", return_raw, pure)]
-    pub fn mail(this: &mut Context) -> EngineResult<String> {
+    pub fn mail(this: &mut Message) -> EngineResult<String> {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .body
-            .as_ref()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| "'mail' has not been received yet".into())?
             .to_string())
     }
 

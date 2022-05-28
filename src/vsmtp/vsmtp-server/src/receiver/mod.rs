@@ -137,11 +137,7 @@ where
         NoParsing::default().parse(stream).await?
     };
 
-    let state = transaction.rule_state.context();
-    {
-        let mut state_writer = state.write().unwrap();
-        state_writer.body = Some(body);
-    }
+    *transaction.rule_state.message().write().unwrap() = Some(body);
 
     let status = transaction
         .rule_engine
@@ -159,12 +155,17 @@ where
         }
         _ => (),
     }
+
+    let mail_context = transaction.rule_state.context();
+
     {
-        let mut state_writer = state.write().unwrap();
+        let mut state_writer = mail_context.write().unwrap();
         if let Some(metadata) = &mut state_writer.metadata {
             metadata.skipped = transaction.rule_state.skipped().cloned();
         }
     }
+
+    // TODO: use Arc::try_unwrap & RwLock::into_inner
 
     let mut output = MailContext {
         connection: ConnectionContext {
@@ -179,17 +180,24 @@ where
             10000,
         )),
         envelop: Envelop::default(),
-        body: None,
         metadata: None,
     };
 
     {
-        let mut ctx = state.write().unwrap();
-        std::mem::swap(&mut *ctx, &mut output);
+        let mut tmp = mail_context.write().unwrap();
+        std::mem::swap(&mut *tmp, &mut output);
+    }
+
+    let mut message = MessageBody::Raw(vec![]);
+    {
+        let handle = transaction.rule_state.message();
+        let mut tmp = handle.write().unwrap();
+        let tmp = tmp.as_mut().unwrap();
+        std::mem::swap(&mut *tmp, &mut message);
     }
 
     let helo = output.envelop.helo.clone();
-    let code = mail_handler.on_mail(conn, Box::new(output)).await;
+    let code = mail_handler.on_mail(conn, Box::new(output), message).await;
     *helo_domain = Some(helo);
     conn.send_code(code).await?;
 

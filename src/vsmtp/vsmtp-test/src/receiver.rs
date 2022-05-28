@@ -16,7 +16,7 @@
 */
 
 use anyhow::Context;
-use vsmtp_common::{re::anyhow, CodeID};
+use vsmtp_common::{mail_context::MessageBody, re::anyhow, CodeID};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{auth, handle_connection, re::tokio, Connection, ConnectionKind, OnMail};
@@ -80,6 +80,7 @@ impl OnMail for DefaultMailHandler {
         &mut self,
         _: &mut Connection<S>,
         _: Box<vsmtp_common::mail_context::MailContext>,
+        _: MessageBody,
     ) -> CodeID {
         CodeID::Ok
     }

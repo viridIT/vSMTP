@@ -64,13 +64,12 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         queue::Queue,
         queue_path,
         rcpt::Rcpt,
         re::strum,
         transfer::{EmailTransferStatus, Transfer},
-        {BodyType, Mail},
     };
 
     #[test]
@@ -171,6 +170,7 @@ mod tests {
                     email_status: EmailTransferStatus::Waiting,
                 }],
             },
+            /*
             body: Some(MessageBody::Parsed(Box::new(Mail {
                 headers: [
                     ("from", "foo2 foo <foo2@foo>"),
@@ -181,6 +181,7 @@ mod tests {
                 .collect::<Vec<_>>(),
                 body: BodyType::Regular(vec!["Hello World!!".to_string()]),
             }))),
+            */
             metadata: Some(MessageMetadata {
                 timestamp: std::time::SystemTime::now(),
                 message_id: msg_id.to_string(),

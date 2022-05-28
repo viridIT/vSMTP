@@ -15,7 +15,6 @@
  *
 */
 use crate::{envelop::Envelop, status::Status, Mail, MailParser};
-use anyhow::Context;
 
 /// average size of a mail
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
@@ -174,26 +173,7 @@ pub struct MailContext {
     /// envelop of the message
     pub envelop: Envelop,
     /// content of the message
-    pub body: Option<MessageBody>,
+    // pub body: Option<MessageBody>,
     /// metadata
     pub metadata: Option<MessageMetadata>,
-}
-
-impl MailContext {
-    /// serialize the mail context using serde.
-    ///
-    /// # Errors
-    /// * Failed to read the file
-    /// * Failed deserialize to the MailContext struct.
-    pub fn from_file<P>(file: P) -> anyhow::Result<Self>
-    where
-        P: AsRef<std::path::Path>,
-    {
-        std::fs::read_to_string(&file)
-            .context(format!("Cannot read file '{}'", file.as_ref().display()))
-            .map(|content| {
-                serde_json::from_str::<Self>(&content)
-                    .context(format!("Cannot deserialize: '{}'", content))
-            })?
-    }
 }

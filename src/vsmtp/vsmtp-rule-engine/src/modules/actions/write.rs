@@ -14,22 +14,27 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::modules::types::types::{Context, Message, Server};
+use crate::{modules::mail_context::mail_context::message_id, modules::EngineResult};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::re::serde_json;
+use vsmtp_config::create_app_folder;
 
 #[rhai::plugin::export_module]
 pub mod write {
 
-    use crate::modules::types::types::{Context, Server};
-    use crate::{modules::mail_context::mail_context::message_id, modules::EngineResult};
-    use vsmtp_common::re::serde_json;
-    use vsmtp_config::create_app_folder;
-
     /// write the current email to a specified folder.
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw, pure)]
-    pub fn write(srv: &mut Server, mut ctx: Context, dir: &str) -> EngineResult<()> {
+    pub fn write(
+        srv: &mut Server,
+        mut ctx: Context,
+        message: Message,
+        dir: &str,
+    ) -> EngineResult<()> {
         let mut dir =
             create_app_folder(&srv.config, Some(dir)).map_err::<Box<EvalAltResult>, _>(|err| {
                 format!(
@@ -49,17 +54,12 @@ pub mod write {
             })?;
         let mut writer = std::io::LineWriter::new(file);
 
-        let body = &ctx
+        let body = &message
             .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .body;
-        match body {
-            None => Err("failed to write email: the body has not been received yet.".into()),
-            Some(otherwise) => {
-                std::io::Write::write_all(&mut writer, otherwise.to_string().as_bytes())
-                    .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
-            }
-        }
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+        std::io::Write::write_all(&mut writer, body.to_string().as_bytes())
+            .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
     }
 
     /// write the content of the current email with it's metadata in a json file.

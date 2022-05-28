@@ -101,7 +101,7 @@ impl Queue {
     ) -> anyhow::Result<()> {
         let message_id = match ctx.metadata.as_ref() {
             Some(metadata) => &metadata.message_id,
-            None => anyhow::bail!("could not write to {} queue: mail metadata not found", self),
+            None => anyhow::bail!("could not write to {self} queue: mail metadata not found"),
         };
 
         let to_deliver = queue_path!(create_if_missing => queues_dirpath, self, message_id)?;
@@ -112,12 +112,15 @@ impl Queue {
             .truncate(true)
             .open(&to_deliver)
             .with_context(|| {
-                format!("failed to open file in {} queue at {:?}", self, to_deliver)
+                format!(
+                    "failed to open file in {self} queue at {}",
+                    to_deliver.display()
+                )
             })?;
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 
-        log::debug!("mail {} successfully written to {} queue", message_id, self);
+        log::debug!("mail {message_id} successfully written to {self} queue");
 
         Ok(())
     }

@@ -26,13 +26,10 @@ mod log_channels {
 }
 
 mod channel_message;
+mod processes;
 mod receiver;
 mod runtime;
 mod server;
-mod processes {
-    pub mod delivery;
-    pub mod postq;
-}
 
 pub use receiver::MailHandler;
 

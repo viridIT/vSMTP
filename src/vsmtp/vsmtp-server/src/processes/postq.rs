@@ -14,10 +14,13 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{log_channels, ProcessMessage};
+use crate::{
+    log_channels,
+    processes::{mail_from_file_path, message_from_file_path},
+    ProcessMessage,
+};
 use anyhow::Context;
 use vsmtp_common::{
-    mail_context::MailContext,
     queue::Queue,
     queue_path,
     re::{anyhow, log},
@@ -28,9 +31,6 @@ use vsmtp_config::{Config, Resolvers};
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
-/// process that treats incoming email offline with the postq stage.
-///
-/// # Errors
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -40,25 +40,17 @@ pub async fn start(
 ) -> anyhow::Result<()> {
     loop {
         if let Some(pm) = working_receiver.recv().await {
-            if let Err(err) = tokio::spawn(handle_one_in_working_queue(
+            tokio::spawn(handle_one_in_working_queue(
                 config.clone(),
                 rule_engine.clone(),
                 resolvers.clone(),
                 pm,
                 delivery_sender.clone(),
-            ))
-            .await
-            {
-                log::error!(target: log_channels::POSTQ, "{}", err);
-            }
+            ));
         }
     }
 }
 
-///
-/// # Errors
-///
-/// # Panics
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -82,15 +74,25 @@ async fn handle_one_in_working_queue(
         target: log_channels::POSTQ,
         "(msg={}) opening file: {:?}",
         process_message.message_id,
-        file_to_process
+        file_to_process.display()
     );
 
-    let mut ctx = MailContext::from_file(&file_to_process).context(format!(
-        "failed to deserialize email in working queue '{}'",
-        file_to_process.display()
-    ))?;
+    let ctx = mail_from_file_path(&file_to_process)
+        .await
+        .with_context(|| {
+            format!(
+                "failed to deserialize email in working queue '{}'",
+                file_to_process.display()
+            )
+        })?;
 
-    ctx.body = Some(ctx.body.unwrap().to_parsed::<MailMimeParser>()?);
+    let message_path = {
+        let mut message_path = config.server.queues.dirpath.clone();
+        message_path.push(format!("mails/{}", process_message.message_id));
+        message_path
+    };
+    let mut message = message_from_file_path(&message_path).await?;
+    message = message.to_parsed::<MailMimeParser>()?;
 
     // locking the engine and freeing the lock before any await.
     let (state, result) = {
@@ -98,7 +100,8 @@ async fn handle_one_in_working_queue(
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-        let mut state = RuleState::with_context(config.as_ref(), resolvers, &rule_engine, ctx);
+        let mut state =
+            RuleState::with_context(config.as_ref(), resolvers, &rule_engine, ctx, Some(message));
         let result = rule_engine.run_when(&mut state, &StateSMTP::PostQ);
 
         (state, result)
@@ -164,7 +167,7 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::anyhow::Context,
         transfer::{EmailTransferStatus, Transfer},
@@ -235,12 +238,12 @@ mod tests {
                             },
                         ],
                     },
-                    body: Some(MessageBody::Raw(
-                        ["Date: bar", "From: foo", "Hello world"]
-                            .into_iter()
-                            .map(str::to_string)
-                            .collect::<Vec<_>>(),
-                    )),
+                    // body: Some(MessageBody::Raw(
+                    //     ["Date: bar", "From: foo", "Hello world"]
+                    //         .into_iter()
+                    //         .map(str::to_string)
+                    //         .collect::<Vec<_>>(),
+                    // )),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test".to_string(),
@@ -313,12 +316,12 @@ mod tests {
                             },
                         ],
                     },
-                    body: Some(MessageBody::Raw(
-                        ["Date: bar", "From: foo", "Hello world"]
-                            .into_iter()
-                            .map(str::to_string)
-                            .collect::<Vec<_>>(),
-                    )),
+                    // body: Some(MessageBody::Raw(
+                    //     ["Date: bar", "From: foo", "Hello world"]
+                    //         .into_iter()
+                    //         .map(str::to_string)
+                    //         .collect::<Vec<_>>(),
+                    // )),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test_denied".to_string(),

@@ -64,9 +64,12 @@ fn test_mail_from_rules() {
     {
         let email = state.context();
         let mut email = email.write().unwrap();
-
         email.envelop.mail_from = addr!("staff@example.com");
-        email.body = Some(
+
+        let message = state.message();
+        let mut message = message.write().unwrap();
+
+        *message = Some(
             MailMimeParser::default()
                 .parse(
                     r#"From: staff <staff@example.com>
@@ -114,7 +117,10 @@ fn test_rcpt_rules() {
             vsmtp_common::rcpt::Rcpt::new(addr!("customer@company.com")),
         ];
 
-        email.body = Some(
+        let message = state.message();
+        let mut message = message.write().unwrap();
+
+        *message = Some(
             MailMimeParser::default()
                 .parse(
                     r#"From: staff <staff@example.com>

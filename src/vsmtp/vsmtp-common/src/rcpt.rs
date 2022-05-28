@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// representation of a recipient with it's delivery method.
-#[derive(Clone, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Rcpt {
     /// email address of the recipient.
     pub address: Address,
@@ -28,12 +28,6 @@ pub struct Rcpt {
     pub transfer_method: Transfer,
     /// delivery status of the email bound to this recipient.
     pub email_status: EmailTransferStatus,
-}
-
-impl std::fmt::Debug for Rcpt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.address.full())
-    }
 }
 
 impl Rcpt {

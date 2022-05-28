@@ -16,7 +16,8 @@
 */
 
 use crate::test_receiver;
-use vsmtp_common::mail_context::{MailContext, MessageBody};
+use vsmtp_common::mail_context::MessageBody;
+use vsmtp_common::re::serde_json;
 use vsmtp_server::re::tokio;
 use vsmtp_server::ProcessMessage;
 
@@ -67,7 +68,7 @@ async fn test_quarantine() {
         .path();
 
     assert_eq!(
-        MailContext::from_file(&message).unwrap().body.unwrap(),
+        serde_json::from_str::<MessageBody>(&std::fs::read_to_string(&message).unwrap()).unwrap(),
         MessageBody::Raw(
             ["from: 'abc'", "to: 'def'"]
                 .into_iter()

@@ -17,7 +17,11 @@
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, Bencher, BenchmarkId, Criterion,
 };
-use vsmtp_common::{addr, mail_context::MailContext, CodeID};
+use vsmtp_common::{
+    addr,
+    mail_context::{MailContext, MessageBody},
+    CodeID,
+};
 use vsmtp_config::Config;
 use vsmtp_server::{Connection, OnMail};
 
@@ -30,6 +34,7 @@ impl OnMail for DefaultMailHandler {
         &mut self,
         _: &mut Connection<S>,
         _: Box<MailContext>,
+        _: MessageBody,
     ) -> CodeID {
         CodeID::Ok
     }
@@ -90,14 +95,11 @@ fn criterion_benchmark(c: &mut Criterion) {
                 &mut self,
                 _: &mut Connection<S>,
                 mail: Box<MailContext>,
+                _: MessageBody,
             ) -> CodeID {
                 assert_eq!(mail.envelop.helo, "foobar");
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe");
                 assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
-
-                if mail.body.is_none() {
-                    panic!("the email is not empty");
-                }
 
                 CodeID::Ok
             }
