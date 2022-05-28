@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{envelop::Envelop, mail::Mail, status::Status, MailParser};
+use crate::{envelop::Envelop, status::Status, Mail, MailParser};
 use anyhow::Context;
 
 /// average size of a mail

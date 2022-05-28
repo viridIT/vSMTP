@@ -23,13 +23,13 @@ use vsmtp_common::auth::Mechanism;
 use vsmtp_common::re::serde_json;
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{
-    mail::Mail,
     mail_context::{MessageBody, MessageMetadata},
     state::StateSMTP,
     status::Status,
     transfer::Transfer,
+    Mail,
 };
-use vsmtp_common::{CodeID, ReplyOrCodeID};
+use vsmtp_common::{BodyType, CodeID, ReplyOrCodeID};
 use vsmtp_config::ConfigServerVirtual;
 
 #[test]
@@ -152,7 +152,7 @@ fn test_context_dump() {
             ("To".to_string(), "green@bar.net".to_string()),
             ("X-Custom-Header".to_string(), "my header".to_string()),
         ],
-        body: vsmtp_common::mail::BodyType::Regular(vec!["this is an empty body".to_string()]),
+        body: BodyType::Regular(vec!["this is an empty body".to_string()]),
     }));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
@@ -205,7 +205,7 @@ fn test_quarantine() {
             ("To".to_string(), "green@bar.net".to_string()),
             ("X-Custom-Header".to_string(), "my header".to_string()),
         ],
-        body: vsmtp_common::mail::BodyType::Regular(vec!["this is an empty body".to_string()]),
+        body: BodyType::Regular(vec!["this is an empty body".to_string()]),
     }));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),

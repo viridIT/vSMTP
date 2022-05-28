@@ -1,8 +1,7 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
-    mail::{BodyType, Mail},
     mail_context::MessageBody,
-    MailParser,
+    MailParser, {BodyType, Mail},
 };
 
 #[test]

@@ -1,6 +1,5 @@
-use vsmtp_common::{queue::Queue, re::anyhow};
-
 use crate::{QueueContent, QueueEntry};
+use vsmtp_common::{queue::Queue, re::anyhow};
 
 pub fn queue_show<OUT: std::io::Write>(
     queues: Vec<Queue>,
@@ -61,19 +60,18 @@ pub fn queue_show<OUT: std::io::Write>(
 
 #[cfg(test)]
 mod tests {
+    use super::queue_show;
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail::{BodyType, Mail},
         mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         queue::Queue,
         queue_path,
         rcpt::Rcpt,
         re::strum,
         transfer::{EmailTransferStatus, Transfer},
+        {BodyType, Mail},
     };
-
-    use super::queue_show;
 
     #[test]
     fn working_and_delivery_empty() {

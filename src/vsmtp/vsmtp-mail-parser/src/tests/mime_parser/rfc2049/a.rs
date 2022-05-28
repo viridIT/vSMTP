@@ -1,10 +1,8 @@
 use crate::MailMimeParser;
 use vsmtp_common::{
     collection,
-    mail::{BodyType, Mail},
     mail_context::MessageBody,
-    mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart},
-    MailParser,
+    MailParser, {BodyType, Mail}, {Mime, MimeBodyType, MimeHeader, MimeMultipart},
 };
 
 const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");

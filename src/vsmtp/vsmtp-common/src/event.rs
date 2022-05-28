@@ -69,12 +69,6 @@ pub enum Event {
     /// buffer.
     /// Syntax = `"DATA" CRLF`
     DataCmd,
-    /// Lines ended by CRLF sent between [Event::DataCmd] and [Event::DataEnd]
-    // DataLine(String),
-    /// The mail data are terminated by a line containing only a period. This
-    /// is the end of mail data indication.
-    /// Syntax = `"." CRLF`
-    // DataEnd,
     /// "RSET\r\n"
     /// This command specifies that the current mail transaction will be
     /// aborted. Any stored sender, recipients, and mail data MUST be

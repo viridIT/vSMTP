@@ -35,11 +35,11 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail::{BodyType, Mail},
         mail_context::{ConnectionContext, MessageBody, MessageMetadata},
         queue::Queue,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
+        {BodyType, Mail},
     };
 
     fn get_mail(msg_id: &str) -> MailContext {

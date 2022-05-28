@@ -179,11 +179,9 @@ impl Mail {
 #[cfg(test)]
 mod test {
 
-    use super::{BodyType, Mail};
-    use crate::{
-        mail,
-        mime_type::{Mime, MimeBodyType, MimeHeader},
-    };
+    use crate::{MimeBodyType, MimeHeader};
+
+    use super::*;
 
     #[test]
     fn test_construct_mail() {
@@ -246,7 +244,7 @@ this is a regular mime body."#
     fn test_add_headers() {
         let mut mail = Mail {
             body: BodyType::Regular(vec!["email content".to_string()]),
-            ..mail::Mail::default()
+            ..Mail::default()
         };
 
         mail.push_headers(vec![

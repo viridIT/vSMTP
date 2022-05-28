@@ -17,10 +17,9 @@
 use crate::test_receiver;
 use vsmtp_common::{
     addr,
-    mail::{BodyType, Mail},
     mail_context::{MailContext, MessageBody},
     re::anyhow,
-    CodeID,
+    CodeID, {BodyType, Mail},
 };
 use vsmtp_server::{re::tokio, Connection, OnMail};
 

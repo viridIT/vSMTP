@@ -32,8 +32,7 @@ impl Default for Envelop {
     fn default() -> Self {
         Self {
             helo: String::default(),
-            // FIXME:
-            mail_from: addr!("default@domain.com"),
+            mail_from: Address::new_unchecked("default@domain.com".to_string()),
             rcpt: vec![],
         }
     }

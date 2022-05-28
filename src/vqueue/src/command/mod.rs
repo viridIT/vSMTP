@@ -80,19 +80,17 @@ pub fn execute(command: Commands, config: &Config) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::MessageShowFormat;
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail::{BodyType, Mail},
         mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         queue_path,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
+        {BodyType, Mail},
     };
-
-    use crate::MessageShowFormat;
-
-    use super::*;
 
     #[test]
     fn find_one() {

@@ -14,9 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{mime_type::MimeHeader, re::anyhow};
-
 use crate::error::{ParserError, ParserResult};
+use vsmtp_common::{re::anyhow, MimeHeader};
 
 #[inline]
 pub(super) fn has_wsc(input: &str) -> bool {
