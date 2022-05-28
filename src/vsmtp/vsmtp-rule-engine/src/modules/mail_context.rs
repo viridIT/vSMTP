@@ -188,6 +188,12 @@ pub mod mail_context {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "failed: the email has not been received yet. Use this method in postq or later."
+                    .to_string()
+                    .into()
+            })?
             .to_string())
     }
 

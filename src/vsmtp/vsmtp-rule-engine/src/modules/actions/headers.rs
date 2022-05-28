@@ -31,6 +31,12 @@ pub mod headers {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "failed: the email has not been received yet. Use this method in postq or later."
+                    .to_string()
+                    .into()
+            })?
             .get_header(header)
             .is_some())
     }
@@ -41,6 +47,12 @@ pub mod headers {
         Ok(this
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .as_ref()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "failed: the email has not been received yet. Use this method in postq or later."
+                    .to_string()
+                    .into()
+            })?
             .get_header(header)
             .map(ToString::to_string)
             .unwrap_or_default())
@@ -51,6 +63,12 @@ pub mod headers {
     pub fn add_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .as_mut()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "failed: the email has not been received yet. Use this method in postq or later."
+                    .to_string()
+                    .into()
+            })?
             .add_header(header, value);
         Ok(())
     }
@@ -60,6 +78,12 @@ pub mod headers {
     pub fn set_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+            .as_mut()
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "failed: the email has not been received yet. Use this method in postq or later."
+                    .to_string()
+                    .into()
+            })?
             .set_header(header, value);
         Ok(())
     }
@@ -98,11 +122,11 @@ pub mod headers {
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
         match &mut *message {
-            MessageBody::Raw(_) => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
-            MessageBody::Parsed(body) => {
+            Some(MessageBody::Parsed(body)) => {
                 body.rewrite_mail_from(new_addr.full());
                 Ok(())
             },
+            _ => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
         }
     }
 
@@ -156,13 +180,11 @@ pub mod headers {
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
         {
-            MessageBody::Raw(_) => {
-                Err("failed to rewrite rcpt: the email has not been parsed yet.".into())
-            }
-            MessageBody::Parsed(body) => {
+            Some(MessageBody::Parsed(body)) => {
                 body.rewrite_rcpt(old_addr.full(), new_addr.full());
                 Ok(())
             }
+            _ => Err("failed to rewrite rcpt: the email has not been parsed yet.".into()),
         }
     }
 
@@ -213,13 +235,11 @@ pub mod headers {
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
         {
-            MessageBody::Raw(_) => {
-                Err("failed to add rcpt: the email has not been parsed yet.".into())
-            }
-            MessageBody::Parsed(body) => {
+            Some(MessageBody::Parsed(body)) => {
                 body.add_rcpt(new_addr.full());
                 Ok(())
             }
+            _ => Err("failed to add rcpt: the email has not been parsed yet.".into()),
         }
     }
 
@@ -248,13 +268,11 @@ pub mod headers {
             .write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
         {
-            MessageBody::Parsed(body) => {
+            Some(MessageBody::Parsed(body)) => {
                 body.remove_rcpt(addr.full());
                 Ok(())
             }
-            MessageBody::Raw(_) => {
-                Err("failed to remove rcpt: the email has not been parsed yet.".into())
-            }
+            _ => Err("failed to remove rcpt: the email has not been parsed yet.".into()),
         }
     }
 

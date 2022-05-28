@@ -90,24 +90,23 @@ fn test_email_add_get_set_header() {
     let config = get_default_config("./tmp/app");
     let re = RuleEngine::new(&config, &Some(rules_path!["mutate_header", "main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
-    let mut state = RuleState::new(&config, resolvers, &re);
 
+    let mut state = RuleState::new(&config, resolvers, &re);
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
+
     let (mut state, _) = get_default_state("./tmp/app");
     *state.message().write().unwrap() = Some(MessageBody::Raw(vec![]));
     let status = re.run_when(&mut state, &StateSMTP::PreQ);
-    println!(
-        "{status:?} {}",
-        state.message().read().unwrap().as_ref().unwrap()
-    );
-    assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),);
+    assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)));
+
     *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
     })));
+
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
