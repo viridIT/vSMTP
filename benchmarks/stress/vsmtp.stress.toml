@@ -10,9 +10,9 @@ addr_submission = ["127.0.0.1:10587"]
 addr_submissions = ["127.0.0.1:10465"]
 
 [server.system.thread_pool]
-receiver = 1
-processing = 1
-delivery = 1
+receiver = 12
+processing = 12
+delivery = 12
 
 [server.queues]
 dirpath = "./tmp/stress/spool"

@@ -138,7 +138,6 @@ mod tests {
         mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
-        BodyType, Mail,
     };
     use vsmtp_config::build_resolvers;
     use vsmtp_test::config;
@@ -182,7 +181,7 @@ mod tests {
                     },
                     metadata: Some(MessageMetadata {
                         timestamp: now,
-                        message_id: "test".to_string(),
+                        message_id: "test_deferred".to_string(),
                         skipped: None,
                     }),
                 },
@@ -191,7 +190,7 @@ mod tests {
 
         Queue::write_to_mails(
             &config.server.queues.dirpath,
-            "test",
+            "test_deferred",
             &MessageBody::Raw(
                 ["Date: bar", "From: foo", "", "Hello world"]
                     .into_iter()
@@ -206,13 +205,13 @@ mod tests {
         handle_one_in_deferred_queue(
             &config,
             &resolvers,
-            &config.server.queues.dirpath.join("deferred/test"),
+            &config.server.queues.dirpath.join("deferred/test_deferred"),
         )
         .await
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            context_from_file_path(&config.server.queues.dirpath.join("deferred/test"))
+            context_from_file_path(&config.server.queues.dirpath.join("deferred/test_deferred"))
                 .await
                 .unwrap(),
             MailContext {
@@ -242,22 +241,21 @@ mod tests {
                 },
                 metadata: Some(MessageMetadata {
                     timestamp: now,
-                    message_id: "test".to_string(),
+                    message_id: "test_deferred".to_string(),
                     skipped: None,
                 }),
             }
         );
         pretty_assertions::assert_eq!(
-            message_from_file_path(config.server.queues.dirpath.join("mails/test"))
+            message_from_file_path(config.server.queues.dirpath.join("mails/test_deferred"))
                 .await
                 .unwrap(),
-            MessageBody::Parsed(Box::new(Mail {
-                headers: [("date", "bar"), ("from", "foo"),]
-                    .into_iter()
-                    .map(|(k, v)| { (k.to_string(), v.to_string()) })
-                    .collect::<Vec<_>>(),
-                body: BodyType::Regular(vec![])
-            }))
+            MessageBody::Raw(vec![
+                "Date: bar".to_string(),
+                "From: foo".to_string(),
+                "".to_string(),
+                "Hello world".to_string(),
+            ])
         );
     }
 }
