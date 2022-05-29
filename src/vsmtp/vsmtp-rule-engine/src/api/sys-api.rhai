@@ -19,7 +19,6 @@ fn set_header(header, value) { sys::set_header(msg(), header, value) }
 fn add_to(addr) { sys::add_to(msg(), addr) }
 fn remove_to(addr) { sys::remove_to(msg(), addr) }
 fn rewrite_to(old_addr, new_addr) {
-    sys::rewrite_to_context(ctx(), old_addr, new_addr);
     sys::rewrite_to_message(msg(), old_addr, new_addr)
 }
 

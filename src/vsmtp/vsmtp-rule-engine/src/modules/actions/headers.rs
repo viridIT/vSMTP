@@ -130,32 +130,6 @@ pub mod headers {
         }
     }
 
-    /// change a recipient of the 'To' header.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn rewrite_to_context(
-        this: &mut Context,
-        old_addr: &str,
-        new_addr: &str,
-    ) -> EngineResult<()> {
-        let old_addr =
-            Address::try_from(old_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
-                format!("could not rewrite address '{old_addr}' because it is not valid address",)
-                    .into()
-            })?;
-
-        let new_addr =
-            Address::try_from(new_addr.to_string()).map_err::<Box<EvalAltResult>, _>(|_| {
-                format!(
-                    "could not rewrite address '{old_addr}' with '{new_addr}' because it is not valid address"
-                )
-                .into()
-            })?;
-
-        // TODO: update the envelop ??
-
-        Ok(())
-    }
-
     #[rhai_fn(global, return_raw, pure)]
     pub fn rewrite_to_message(
         this: &mut Message,
