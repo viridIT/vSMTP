@@ -299,10 +299,8 @@ impl Transaction {
             };
         }
         {
-            {
-                let state = self.rule_state.message();
-                *state.write().unwrap() = None;
-            }
+            let state = self.rule_state.message();
+            *state.write().unwrap() = None;
         }
     }
 

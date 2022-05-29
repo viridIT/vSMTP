@@ -172,8 +172,6 @@ pub struct MailContext {
     pub client_addr: std::net::SocketAddr,
     /// envelop of the message
     pub envelop: Envelop,
-    /// content of the message
-    // pub body: Option<MessageBody>,
     /// metadata
     pub metadata: Option<MessageMetadata>,
 }

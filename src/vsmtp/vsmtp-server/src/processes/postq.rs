@@ -238,12 +238,6 @@ mod tests {
                             },
                         ],
                     },
-                    // body: Some(MessageBody::Raw(
-                    //     ["Date: bar", "From: foo", "Hello world"]
-                    //         .into_iter()
-                    //         .map(str::to_string)
-                    //         .collect::<Vec<_>>(),
-                    // )),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test".to_string(),

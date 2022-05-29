@@ -208,7 +208,7 @@ fn add_trace_information(
     .context("failed to create Receive header timestamp")?;
 
     let vsmtp_status = create_vsmtp_status_stamp(
-        &ctx.metadata.as_ref().unwrap().message_id,
+        &metadata.message_id,
         env!("CARGO_PKG_VERSION"),
         rule_engine_result,
     );
@@ -310,13 +310,6 @@ mod test {
         };
 
         let config = vsmtp_config::Config::default();
-
-        // assert_eq!(
-        //     &add_trace_information(&config, &mut ctx, &vsmtp_common::status::Status::Next)
-        //         .unwrap_err()
-        //         .to_string(),
-        //     "could not add trace information to email header: body is empty"
-        // );
 
         let mut message = MessageBody::Raw(vec![]);
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();

@@ -40,6 +40,7 @@ impl MailHandler {
     }
 }
 
+// TODO: refactor using thiserror & handle io error properly
 #[async_trait::async_trait]
 impl OnMail for MailHandler {
     async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
@@ -50,31 +51,53 @@ impl OnMail for MailHandler {
     ) -> CodeID {
         let metadata = mail.metadata.as_ref().unwrap();
 
+        if let Err(error) = Queue::write_to_mails(
+            &conn.config.server.queues.dirpath,
+            &metadata.message_id,
+            &message,
+        ) {
+            log::error!("couldn't write to 'mails' queue: {error}");
+            return CodeID::Denied;
+        }
+
         let next_queue = match &metadata.skipped {
             Some(Status::Quarantine(path)) => {
-                let mut path = create_app_folder(&conn.config, Some(path)).unwrap();
+                let mut path = match create_app_folder(&conn.config, Some(path)) {
+                    Ok(path) => path,
+                    Err(error) => {
+                        log::error!("couldn't create app folder: {error}");
+                        return CodeID::Denied;
+                    }
+                };
                 path.push(format!("{}.json", metadata.message_id));
 
-                let mut file = tokio::fs::OpenOptions::new()
+                let mut file = match tokio::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
                     .open(path)
                     .await
-                    .unwrap();
+                {
+                    Ok(file) => file,
+                    Err(error) => {
+                        log::error!("couldn't open quarantine file: {error}");
+                        return CodeID::Denied;
+                    }
+                };
 
-                tokio::io::AsyncWriteExt::write_all(
-                    &mut file,
-                    serde_json::to_string(mail.as_ref()).unwrap().as_bytes(),
-                )
-                .await
-                .unwrap();
+                let serialized = match serde_json::to_string(mail.as_ref()) {
+                    Ok(serialized) => serialized,
+                    Err(error) => {
+                        log::error!("couldn't serialize mail: {error}");
+                        return CodeID::Denied;
+                    }
+                };
 
-                Queue::write_to_mails(
-                    &conn.config.server.queues.dirpath,
-                    &metadata.message_id,
-                    &message,
-                )
-                .unwrap();
+                if let Err(error) =
+                    tokio::io::AsyncWriteExt::write_all(&mut file, serialized.as_bytes()).await
+                {
+                    log::error!("couldn't write to quarantine file: {error}");
+                    return CodeID::Denied;
+                }
 
                 log::warn!("postq & delivery skipped due to quarantine.");
                 return CodeID::Ok;
@@ -86,17 +109,12 @@ impl OnMail for MailHandler {
             None => Queue::Working,
         };
 
-        match next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail) {
-            Ok(_) => {}
-            Err(error) => {
-                // TODO: handle io error properly
-
-                log::error!("couldn't write to '{next_queue}' queue: {error}");
-                return CodeID::Denied;
-            }
+        if let Err(error) = next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail) {
+            log::error!("couldn't write to '{next_queue}' queue: {error}");
+            return CodeID::Denied;
         }
 
-        match next_queue {
+        let sender_result = match next_queue {
             Queue::Working => &self.working_sender,
             Queue::Deliver => &self.delivery_sender,
             _ => unreachable!(),
@@ -104,8 +122,12 @@ impl OnMail for MailHandler {
         .send(ProcessMessage {
             message_id: metadata.message_id.clone(),
         })
-        .await
-        .unwrap();
+        .await;
+
+        if let Err(error) = sender_result {
+            log::error!("couldn't send message to next process '{next_queue}': {error}");
+            return CodeID::Denied;
+        }
 
         CodeID::Ok
     }
