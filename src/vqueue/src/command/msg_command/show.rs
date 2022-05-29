@@ -139,7 +139,7 @@ mod tests {
                 "from: foo2 foo <foo2@foo>\n",
                 "date: tue, 30 nov 2021 20:54:27 +0100\n",
                 "\n",
-                "Hello World!!",
+                "Hello World!!\n",
             ]
             .concat()
         );

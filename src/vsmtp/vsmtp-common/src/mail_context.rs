@@ -53,7 +53,12 @@ pub enum MessageBody {
 impl std::fmt::Display for MessageBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Raw(data) => f.write_fmt(format_args!("{}\n", data.join("\n"))),
+            Self::Raw(data) => {
+                for i in data {
+                    f.write_fmt(format_args!("{i}\n"))?;
+                }
+                Ok(())
+            }
             Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
         }
     }
@@ -120,12 +125,10 @@ impl MessageBody {
     pub fn add_header(&mut self, name: &str, value: &str) {
         match self {
             Self::Raw(raw) => {
-                let mut new_raw = vec![format!("{name}: {value}")];
-                new_raw.extend_from_slice(raw);
-                *raw = new_raw;
+                raw.splice(..0, [format!("{name}: {value}")]);
             }
             Self::Parsed(parsed) => {
-                parsed.prepend_headers(vec![(name.to_string(), value.to_string())]);
+                parsed.prepend_headers([(name.to_string(), value.to_string())]);
             }
         }
     }
