@@ -46,7 +46,7 @@ impl OnMail for MailHandler {
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
-        _: MessageBody,
+        message: MessageBody,
     ) -> CodeID {
         let metadata = mail.metadata.as_ref().unwrap();
 
@@ -67,6 +67,13 @@ impl OnMail for MailHandler {
                     serde_json::to_string(mail.as_ref()).unwrap().as_bytes(),
                 )
                 .await
+                .unwrap();
+
+                Queue::write_to_mails(
+                    &conn.config.server.queues.dirpath,
+                    &metadata.message_id,
+                    &message,
+                )
                 .unwrap();
 
                 log::warn!("postq & delivery skipped due to quarantine.");

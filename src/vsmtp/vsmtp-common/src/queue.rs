@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::mail_context::MailContext;
+use crate::mail_context::{MailContext, MessageBody};
 use anyhow::Context;
 
 /// identifiers for all mail queues.
@@ -121,6 +121,38 @@ impl Queue {
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 
         log::debug!("mail {message_id} successfully written to {self} queue");
+
+        Ok(())
+    }
+
+    ///
+    /// # Errors
+    ///
+    /// * failed to create the folder in `queues_dirpath`
+    pub fn write_to_mails(
+        queues_dirpath: &std::path::Path,
+        message_id: &str,
+        message: &MessageBody,
+    ) -> anyhow::Result<()> {
+        let buf = std::path::PathBuf::from(queues_dirpath).join("mails");
+        if !buf.exists() {
+            std::fs::DirBuilder::new().recursive(true).create(&buf)?;
+        }
+        let to_write = buf.join(message_id);
+
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&to_write)
+            .with_context(|| {
+                format!(
+                    "failed to open file in 'mails' folder at {}",
+                    to_write.display()
+                )
+            })?;
+
+        std::io::Write::write_all(&mut file, serde_json::to_string(message)?.as_bytes())?;
 
         Ok(())
     }

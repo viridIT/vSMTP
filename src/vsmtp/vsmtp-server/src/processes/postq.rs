@@ -16,7 +16,7 @@
 */
 use crate::{
     log_channels,
-    processes::{mail_from_file_path, message_from_file_path},
+    processes::{context_from_file_path, message_from_file_path},
     ProcessMessage,
 };
 use anyhow::Context;
@@ -77,7 +77,7 @@ async fn handle_one_in_working_queue(
         file_to_process.display()
     );
 
-    let ctx = mail_from_file_path(&file_to_process)
+    let ctx = context_from_file_path(&file_to_process)
         .await
         .with_context(|| {
             format!(
@@ -167,7 +167,7 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         rcpt::Rcpt,
         re::anyhow::Context,
         transfer::{EmailTransferStatus, Transfer},
@@ -316,12 +316,6 @@ mod tests {
                             },
                         ],
                     },
-                    // body: Some(MessageBody::Raw(
-                    //     ["Date: bar", "From: foo", "Hello world"]
-                    //         .into_iter()
-                    //         .map(str::to_string)
-                    //         .collect::<Vec<_>>(),
-                    // )),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test_denied".to_string(),
@@ -330,6 +324,18 @@ mod tests {
                 },
             )
             .unwrap();
+
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "test_denied",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
 
         let (delivery_sender, _delivery_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(10);

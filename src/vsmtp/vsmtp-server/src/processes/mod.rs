@@ -9,7 +9,7 @@ use vsmtp_common::{
 pub mod delivery;
 pub mod postq;
 
-pub async fn mail_from_file_path(file: &std::path::Path) -> anyhow::Result<MailContext> {
+pub async fn context_from_file_path(file: &std::path::Path) -> anyhow::Result<MailContext> {
     let content = tokio::fs::read_to_string(&file)
         .await
         .with_context(|| format!("Cannot read file '{}'", file.display()))?;

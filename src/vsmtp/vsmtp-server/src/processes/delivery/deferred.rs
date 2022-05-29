@@ -16,7 +16,7 @@
 */
 use crate::{
     log_channels,
-    processes::{delivery::send_email, mail_from_file_path, message_from_file_path},
+    processes::{context_from_file_path, delivery::send_email, message_from_file_path},
 };
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
@@ -61,7 +61,7 @@ async fn handle_one_in_deferred_queue(
         "processing email '{message_id}'"
     );
 
-    let mut ctx = mail_from_file_path(path).await.with_context(|| {
+    let mut ctx = context_from_file_path(path).await.with_context(|| {
         format!("failed to deserialize email in deferred queue '{message_id}'",)
     })?;
 
@@ -135,13 +135,14 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
     use vsmtp_config::build_resolvers;
     use vsmtp_test::config;
 
+    #[allow(clippy::too_many_lines)]
     #[tokio::test]
     async fn basic() {
         let mut config = config::local_test();
@@ -178,12 +179,6 @@ mod tests {
                             },
                         ],
                     },
-                    // body: Some(MessageBody::Raw(
-                    //     ["Date: bar", "From: foo", "Hello world"]
-                    //         .into_iter()
-                    //         .map(str::to_string)
-                    //         .collect::<Vec<_>>(),
-                    // )),
                     metadata: Some(MessageMetadata {
                         timestamp: now,
                         message_id: "test".to_string(),
@@ -192,6 +187,18 @@ mod tests {
                 },
             )
             .unwrap();
+
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "test",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
 
         let resolvers = build_resolvers(&config).unwrap();
 
@@ -204,7 +211,7 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            mail_from_file_path(&config.server.queues.dirpath.join("deferred/test"))
+            context_from_file_path(&config.server.queues.dirpath.join("deferred/test"))
                 .await
                 .unwrap(),
             MailContext {
@@ -232,18 +239,23 @@ mod tests {
                         },
                     ],
                 },
-                // body: Some(MessageBody::Raw(
-                //     ["Date: bar", "From: foo", "Hello world"]
-                //         .into_iter()
-                //         .map(str::to_string)
-                //         .collect::<Vec<_>>()
-                // )),
                 metadata: Some(MessageMetadata {
                     timestamp: now,
                     message_id: "test".to_string(),
                     skipped: None,
                 }),
             }
+        );
+        pretty_assertions::assert_eq!(
+            message_from_file_path(&config.server.queues.dirpath.join("mails/test"))
+                .await
+                .unwrap(),
+            MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            )
         );
     }
 }

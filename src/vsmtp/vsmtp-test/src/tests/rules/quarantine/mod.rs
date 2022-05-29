@@ -16,7 +16,7 @@
 */
 
 use crate::test_receiver;
-use vsmtp_common::mail_context::MessageBody;
+use vsmtp_common::mail_context::{MailContext, MessageBody};
 use vsmtp_common::re::serde_json;
 use vsmtp_server::re::tokio;
 use vsmtp_server::ProcessMessage;
@@ -35,7 +35,7 @@ async fn test_quarantine() {
 
     assert!(test_receiver! {
         on_mail => &mut vsmtp_server::MailHandler::new(working_sender, delivery_sender),
-        with_config => config,
+        with_config => config.clone(),
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john.doe@example.com>\r\n",
@@ -67,8 +67,14 @@ async fn test_quarantine() {
         .unwrap()
         .path();
 
+    let ctx =
+        serde_json::from_str::<MailContext>(&std::fs::read_to_string(&message).unwrap()).unwrap();
+
+    let mut path = config.server.queues.dirpath.clone();
+    path.push(format!("mails/{}", ctx.metadata.unwrap().message_id));
+
     assert_eq!(
-        serde_json::from_str::<MessageBody>(&std::fs::read_to_string(&message).unwrap()).unwrap(),
+        serde_json::from_str::<MessageBody>(&std::fs::read_to_string(path).unwrap()).unwrap(),
         MessageBody::Raw(
             ["from: 'abc'", "to: 'def'"]
                 .into_iter()

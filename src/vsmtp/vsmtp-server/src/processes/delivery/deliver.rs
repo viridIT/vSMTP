@@ -17,8 +17,9 @@
 use crate::{
     log_channels,
     processes::{
+        context_from_file_path,
         delivery::{add_trace_information, move_to_queue, send_email},
-        mail_from_file_path, message_from_file_path,
+        message_from_file_path,
     },
 };
 use vsmtp_common::{
@@ -83,7 +84,7 @@ pub async fn handle_one_in_delivery_queue(
         "email received '{message_id}'"
     );
 
-    let ctx = mail_from_file_path(path).await.with_context(|| {
+    let ctx = context_from_file_path(path).await.with_context(|| {
         format!("failed to deserialize email in delivery queue '{message_id}'",)
     })?;
 
@@ -160,7 +161,7 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
@@ -203,12 +204,6 @@ mod tests {
                             },
                         ],
                     },
-                    // body: Some(MessageBody::Raw(
-                    //     ["Date: bar", "From: foo", "Hello world"]
-                    //         .into_iter()
-                    //         .map(str::to_string)
-                    //         .collect::<Vec<_>>(),
-                    // )),
                     metadata: Some(MessageMetadata {
                         timestamp: now,
                         message_id: "message_from_deliver_to_deferred".to_string(),
@@ -217,6 +212,18 @@ mod tests {
                 },
             )
             .unwrap();
+
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "message_from_deliver_to_deferred",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
             RuleEngine::from_script(&config, "#{}").unwrap(),

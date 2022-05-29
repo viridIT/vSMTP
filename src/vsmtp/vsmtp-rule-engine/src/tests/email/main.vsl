@@ -21,7 +21,12 @@
                 rewrite_mail_from("impossible@torewrite.com");
                 return deny();
             } catch (err) {
-                if "the email has not been received yet" in err { return next(); } else { return deny(); }
+                if "failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later."
+                    in err {
+                    return next();
+                } else {
+                    return deny();
+                }
             }
         },
 
