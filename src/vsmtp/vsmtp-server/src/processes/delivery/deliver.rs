@@ -93,7 +93,7 @@ pub async fn handle_one_in_delivery_queue(
         message_path.push(format!("mails/{}", message_id));
         message_path
     };
-    let message = message_from_file_path(&message_path).await?;
+    let message = message_from_file_path(message_path).await?;
 
     let (state, result) = {
         let rule_engine = rule_engine

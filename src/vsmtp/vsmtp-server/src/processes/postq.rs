@@ -91,7 +91,7 @@ async fn handle_one_in_working_queue(
         message_path.push(format!("mails/{}", process_message.message_id));
         message_path
     };
-    let mut message = message_from_file_path(&message_path).await?;
+    let mut message = message_from_file_path(message_path).await?;
     let was_parsed = message.is_parsed();
     if !was_parsed {
         message = message.to_parsed::<MailMimeParser>()?;

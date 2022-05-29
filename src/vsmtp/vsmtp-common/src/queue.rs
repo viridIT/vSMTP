@@ -138,7 +138,11 @@ impl Queue {
         if !buf.exists() {
             std::fs::DirBuilder::new().recursive(true).create(&buf)?;
         }
-        let to_write = buf.join(message_id);
+        let mut to_write = buf.join(message_id);
+        to_write.set_extension(match &message {
+            MessageBody::Raw(_) => "eml",
+            MessageBody::Parsed(_) => "json",
+        });
 
         let mut file = std::fs::OpenOptions::new()
             .create(true)
@@ -152,7 +156,16 @@ impl Queue {
                 )
             })?;
 
-        std::io::Write::write_all(&mut file, serde_json::to_string(message)?.as_bytes())?;
+        std::io::Write::write_all(
+            &mut file,
+            match message {
+                MessageBody::Raw(_) => {
+                    format!("{message}")
+                }
+                MessageBody::Parsed(parsed) => serde_json::to_string(parsed)?,
+            }
+            .as_bytes(),
+        )?;
 
         Ok(())
     }

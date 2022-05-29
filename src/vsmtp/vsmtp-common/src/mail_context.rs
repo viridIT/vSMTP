@@ -43,6 +43,7 @@ impl Default for MessageMetadata {
 
 /// Message body issued by a SMTP transaction
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
 pub enum MessageBody {
     /// The raw representation of the message
     Raw(Vec<String>),

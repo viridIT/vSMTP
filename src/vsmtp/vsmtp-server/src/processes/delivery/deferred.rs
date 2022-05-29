@@ -77,7 +77,7 @@ async fn handle_one_in_deferred_queue(
         message_path.push(format!("mails/{}", message_id));
         message_path
     };
-    let message = message_from_file_path(&message_path).await?;
+    let message = message_from_file_path(message_path).await?;
 
     // TODO: at this point, only HeldBack recipients should be present in the queue.
     //       check if it is true or not.
@@ -138,6 +138,7 @@ mod tests {
         mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
+        BodyType, Mail,
     };
     use vsmtp_config::build_resolvers;
     use vsmtp_test::config;
@@ -192,7 +193,7 @@ mod tests {
             &config.server.queues.dirpath,
             "test",
             &MessageBody::Raw(
-                ["Date: bar", "From: foo", "Hello world"]
+                ["Date: bar", "From: foo", "", "Hello world"]
                     .into_iter()
                     .map(str::to_string)
                     .collect::<Vec<_>>(),
@@ -247,15 +248,16 @@ mod tests {
             }
         );
         pretty_assertions::assert_eq!(
-            message_from_file_path(&config.server.queues.dirpath.join("mails/test"))
+            message_from_file_path(config.server.queues.dirpath.join("mails/test"))
                 .await
                 .unwrap(),
-            MessageBody::Raw(
-                ["Date: bar", "From: foo", "Hello world"]
+            MessageBody::Parsed(Box::new(Mail {
+                headers: [("date", "bar"), ("from", "foo"),]
                     .into_iter()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>()
-            )
+                    .map(|(k, v)| { (k.to_string(), v.to_string()) })
+                    .collect::<Vec<_>>(),
+                body: BodyType::Regular(vec![])
+            }))
         );
     }
 }

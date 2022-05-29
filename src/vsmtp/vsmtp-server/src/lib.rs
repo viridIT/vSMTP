@@ -31,6 +31,7 @@ mod receiver;
 mod runtime;
 mod server;
 
+pub use processes::message_from_file_path;
 pub use receiver::MailHandler;
 
 /// SMTP auth extension implementation
