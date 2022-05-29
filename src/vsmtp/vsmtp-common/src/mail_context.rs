@@ -77,6 +77,15 @@ impl MessageBody {
         })
     }
 
+    /// Has the instance been parsed
+    #[must_use]
+    pub const fn is_parsed(&self) -> bool {
+        match self {
+            MessageBody::Raw(_) => false,
+            MessageBody::Parsed(_) => true,
+        }
+    }
+
     /// get the value of an header, return None if it does not exists or when the body is empty.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {

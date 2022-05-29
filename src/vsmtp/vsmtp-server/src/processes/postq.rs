@@ -92,7 +92,15 @@ async fn handle_one_in_working_queue(
         message_path
     };
     let mut message = message_from_file_path(&message_path).await?;
-    message = message.to_parsed::<MailMimeParser>()?;
+    let was_parsed = message.is_parsed();
+    if !was_parsed {
+        message = message.to_parsed::<MailMimeParser>()?;
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            &process_message.message_id,
+            &message,
+        )?;
+    }
 
     // locking the engine and freeing the lock before any await.
     let (state, result) = {
