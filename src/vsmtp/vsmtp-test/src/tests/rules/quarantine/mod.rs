@@ -74,7 +74,7 @@ async fn test_quarantine() {
     path.push(format!("mails/{}", ctx.metadata.unwrap().message_id));
 
     assert_eq!(
-        serde_json::from_str::<MessageBody>(&std::fs::read_to_string(path).unwrap()).unwrap(),
+        serde_json::from_str::<MessageBody>(&std::fs::read_to_string(&path).unwrap()).unwrap(),
         MessageBody::Raw(
             ["from: 'abc'", "to: 'def'"]
                 .into_iter()
@@ -83,5 +83,6 @@ async fn test_quarantine() {
         )
     );
 
-    std::fs::remove_file(message).unwrap();
+    std::fs::remove_dir_all("./tmp/tests/rules/quarantine/john/").unwrap();
+    std::fs::remove_file(path).unwrap();
 }
