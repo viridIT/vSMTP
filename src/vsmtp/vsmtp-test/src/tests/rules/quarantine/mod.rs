@@ -25,6 +25,7 @@ use vsmtp_server::ProcessMessage;
 #[tokio::test]
 async fn test_quarantine() {
     let mut config = crate::config::local_test();
+    config.server.queues.dirpath = "./tmp/tests/rules/quarantine/spool".into();
     config.app.dirpath = "./tmp/tests/rules/quarantine/".into();
     config.app.vsl.filepath = Some("./src/tests/rules/quarantine/main.vsl".into());
 
@@ -83,6 +84,4 @@ async fn test_quarantine() {
                 .collect::<Vec<_>>()
         )
     );
-
-    std::fs::remove_dir_all("./tmp/tests/rules/quarantine/john/").unwrap();
 }
