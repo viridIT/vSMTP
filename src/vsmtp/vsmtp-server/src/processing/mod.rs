@@ -14,11 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    log_channels,
-    processes::{context_from_file_path, message_from_file_path},
-    ProcessMessage,
-};
+use crate::{context_from_file_path, log_channels, message_from_file_path, ProcessMessage};
 use anyhow::Context;
 use vsmtp_common::{
     queue::Queue,

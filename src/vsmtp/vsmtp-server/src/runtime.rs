@@ -14,11 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    log_channels,
-    processes::{delivery, postq},
-    ProcessMessage, Server,
-};
+use crate::{delivery, log_channels, processing, ProcessMessage, Server};
 use vsmtp_common::{
     queue::Queue,
     re::{
@@ -127,7 +123,7 @@ pub fn start_runtime(
         error_handler.0.clone(),
         "processing",
         config_arc.server.system.thread_pool.processing,
-        postq::start(
+        processing::start(
             config_arc.clone(),
             rule_engine.clone(),
             resolvers.clone(),

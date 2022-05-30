@@ -15,12 +15,9 @@
  *
 */
 use crate::{
-    log_channels,
-    processes::{
-        context_from_file_path,
-        delivery::{add_trace_information, move_to_queue, send_email},
-        message_from_file_path,
-    },
+    context_from_file_path,
+    delivery::{add_trace_information, move_to_queue, send_email},
+    log_channels, message_from_file_path,
 };
 use vsmtp_common::{
     queue::Queue,

@@ -2,7 +2,7 @@ use crate::{Connection, ProcessMessage};
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
     queue::Queue,
-    re::{log, serde_json},
+    re::log,
     status::Status,
     CodeID,
 };
@@ -26,6 +26,20 @@ pub struct MailHandler {
     pub(crate) delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
 
+#[derive(Debug, thiserror::Error)]
+enum MailHandlerError {
+    #[error("couldn't write to `mails` folder: `{0}`")]
+    WriteMessageBody(std::io::Error),
+    #[error("couldn't create app folder: `{0}`")]
+    CreateAppFolder(std::io::Error),
+    #[error("couldn't write to quarantine file: `{0}`")]
+    WriteQuarantineFile(std::io::Error),
+    #[error("couldn't write to queue `{0}` got: `{1}`")]
+    WriteToQueue(Queue, std::io::Error),
+    #[error("couldn't send message to next process `{0}` got: `{1}`")]
+    SendToNextProcess(Queue, tokio::sync::mpsc::error::SendError<ProcessMessage>),
+}
+
 impl MailHandler {
     /// create a new mail handler
     #[must_use]
@@ -38,69 +52,35 @@ impl MailHandler {
             delivery_sender,
         }
     }
-}
 
-// TODO: refactor using thiserror & handle io error properly
-#[async_trait::async_trait]
-impl OnMail for MailHandler {
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
-        &mut self,
+    async fn on_mail_priv<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        &self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
         message: MessageBody,
-    ) -> CodeID {
+    ) -> Result<(), MailHandlerError> {
         let metadata = mail.metadata.as_ref().unwrap();
 
-        if let Err(error) = Queue::write_to_mails(
+        Queue::write_to_mails(
             &conn.config.server.queues.dirpath,
             &metadata.message_id,
             &message,
-        ) {
-            log::error!("couldn't write to 'mails' queue: {error}");
-            return CodeID::Denied;
-        }
+        )
+        .map_err(MailHandlerError::WriteMessageBody)?;
 
         let next_queue = match &metadata.skipped {
             Some(Status::Quarantine(path)) => {
-                let mut path = match create_app_folder(&conn.config, Some(path)) {
-                    Ok(path) => path,
-                    Err(error) => {
-                        log::error!("couldn't create app folder: {error}");
-                        return CodeID::Denied;
-                    }
-                };
+                let mut path = create_app_folder(&conn.config, Some(path))
+                    .map_err(MailHandlerError::CreateAppFolder)?;
+
                 path.push(format!("{}.json", metadata.message_id));
 
-                let mut file = match tokio::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)
+                Queue::write_to_quarantine(&path, &mail)
                     .await
-                {
-                    Ok(file) => file,
-                    Err(error) => {
-                        log::error!("couldn't open quarantine file: {error}");
-                        return CodeID::Denied;
-                    }
-                };
-
-                let serialized = match serde_json::to_string(mail.as_ref()) {
-                    Ok(serialized) => serialized,
-                    Err(error) => {
-                        log::error!("couldn't serialize mail: {error}");
-                        return CodeID::Denied;
-                    }
-                };
-
-                if let Err(error) =
-                    tokio::io::AsyncWriteExt::write_all(&mut file, serialized.as_bytes()).await
-                {
-                    log::error!("couldn't write to quarantine file: {error}");
-                    return CodeID::Denied;
-                }
+                    .map_err(MailHandlerError::WriteQuarantineFile)?;
 
                 log::warn!("postq & delivery skipped due to quarantine.");
-                return CodeID::Ok;
+                return Ok(());
             }
             Some(reason) => {
                 log::warn!("postq skipped due to '{}'.", reason.as_ref());
@@ -109,12 +89,11 @@ impl OnMail for MailHandler {
             None => Queue::Working,
         };
 
-        if let Err(error) = next_queue.write_to_queue(&conn.config.server.queues.dirpath, &mail) {
-            log::error!("couldn't write to '{next_queue}' queue: {error}");
-            return CodeID::Denied;
-        }
+        next_queue
+            .write_to_queue(&conn.config.server.queues.dirpath, &mail)
+            .map_err(|error| MailHandlerError::WriteToQueue(next_queue, error))?;
 
-        let sender_result = match next_queue {
+        match next_queue {
             Queue::Working => &self.working_sender,
             Queue::Deliver => &self.delivery_sender,
             _ => unreachable!(),
@@ -122,13 +101,27 @@ impl OnMail for MailHandler {
         .send(ProcessMessage {
             message_id: metadata.message_id.clone(),
         })
-        .await;
+        .await
+        .map_err(|error| MailHandlerError::SendToNextProcess(next_queue, error))?;
 
-        if let Err(error) = sender_result {
-            log::error!("couldn't send message to next process '{next_queue}': {error}");
-            return CodeID::Denied;
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl OnMail for MailHandler {
+    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        &mut self,
+        conn: &mut Connection<S>,
+        mail: Box<MailContext>,
+        message: MessageBody,
+    ) -> CodeID {
+        match self.on_mail_priv(conn, mail, message).await {
+            Ok(_) => CodeID::Ok,
+            Err(error) => {
+                log::warn!("failed to process mail: {error}");
+                CodeID::Denied
+            }
         }
-
-        CodeID::Ok
     }
 }

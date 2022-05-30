@@ -16,11 +16,11 @@
  */
 use crate::{
     channel_message::ProcessMessage,
-    log_channels,
-    processes::delivery::{
+    delivery::{
         deferred::flush_deferred_queue,
         deliver::{flush_deliver_queue, handle_one_in_delivery_queue},
     },
+    log_channels,
 };
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;

@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    log_channels,
-    processes::{context_from_file_path, delivery::send_email, message_from_file_path},
-};
+use crate::{context_from_file_path, delivery::send_email, log_channels, message_from_file_path};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     queue::Queue,

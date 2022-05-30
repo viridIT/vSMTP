@@ -98,11 +98,12 @@ impl Queue {
         &self,
         queues_dirpath: &std::path::Path,
         ctx: &MailContext,
-    ) -> anyhow::Result<()> {
-        let message_id = match ctx.metadata.as_ref() {
-            Some(metadata) => &metadata.message_id,
-            None => anyhow::bail!("could not write to {self} queue: mail metadata not found"),
-        };
+    ) -> std::io::Result<()> {
+        let message_id = &ctx
+            .metadata
+            .as_ref()
+            .expect("not ill-formed mail context")
+            .message_id;
 
         let to_deliver = queue_path!(create_if_missing => queues_dirpath, self, message_id)?;
 
@@ -110,19 +111,35 @@ impl Queue {
             .create(true)
             .write(true)
             .truncate(true)
-            .open(&to_deliver)
-            .with_context(|| {
-                format!(
-                    "failed to open file in {self} queue at {}",
-                    to_deliver.display()
-                )
-            })?;
+            .open(&to_deliver)?;
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 
         log::debug!("mail {message_id} successfully written to {self} queue");
 
         Ok(())
+    }
+
+    /// Write a [`MessageBody`] to path provided
+    ///
+    /// # Errors
+    ///
+    /// * failed to open file
+    /// * failed to serialize the `mail`
+    /// * failed to write the `mail` on `path`
+    pub async fn write_to_quarantine(
+        path: &std::path::Path,
+        mail: &MailContext,
+    ) -> std::io::Result<()> {
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .await?;
+
+        let serialized = serde_json::to_string(mail)?;
+
+        tokio::io::AsyncWriteExt::write_all(&mut file, serialized.as_bytes()).await
     }
 
     ///
@@ -133,7 +150,7 @@ impl Queue {
         queues_dirpath: &std::path::Path,
         message_id: &str,
         message: &MessageBody,
-    ) -> anyhow::Result<()> {
+    ) -> std::io::Result<()> {
         let buf = std::path::PathBuf::from(queues_dirpath).join("mails");
         if !buf.exists() {
             std::fs::DirBuilder::new().recursive(true).create(&buf)?;
@@ -148,13 +165,7 @@ impl Queue {
             .create(true)
             .write(true)
             .truncate(true)
-            .open(&to_write)
-            .with_context(|| {
-                format!(
-                    "failed to open file in 'mails' folder at {}",
-                    to_write.display()
-                )
-            })?;
+            .open(&to_write)?;
 
         std::io::Write::write_all(
             &mut file,
