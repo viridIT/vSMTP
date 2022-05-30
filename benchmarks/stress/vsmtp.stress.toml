@@ -10,12 +10,19 @@ addr_submission = ["127.0.0.1:10587"]
 addr_submissions = ["127.0.0.1:10465"]
 
 [server.system.thread_pool]
-receiver = 12
-processing = 12
-delivery = 12
+receiver = 1
+processing = 1
+delivery = 1
 
 [server.queues]
 dirpath = "./tmp/stress/spool"
+
+[server.queues.working]
+channel_size = 1
+
+[server.queues.delivery]
+channel_size = 1
+
 
 [server.logs]
 filepath = "./tmp/stress/vsmtp.log"

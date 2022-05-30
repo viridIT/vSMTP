@@ -16,14 +16,12 @@
 */
 #![allow(clippy::module_name_repetitions)]
 
-use crate::{
-    config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
-        ConfigServer, ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs,
-        ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPAuth, ConfigServerSMTPError,
-        ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
-    },
-    Config, ConfigServerTls, ConfigServerVirtualTls, ResolverOptsWrapper, TlsSecurityLevel,
+use crate::config::{
+    Config, ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
+    ConfigServer, ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
+    ConfigServerSMTP, ConfigServerSMTPAuth, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
+    ConfigServerSystem, ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerVirtualTls,
+    ResolverOptsWrapper, TlsSecurityLevel,
 };
 use vsmtp_common::{
     auth::Mechanism,
@@ -211,17 +209,39 @@ impl ConfigServerQueues {
 
 impl Default for ConfigQueueWorking {
     fn default() -> Self {
-        Self { channel_size: 32 }
+        Self {
+            channel_size: Self::default_channel_size(),
+        }
+    }
+}
+
+impl ConfigQueueWorking {
+    pub(crate) const fn default_channel_size() -> usize {
+        32
     }
 }
 
 impl Default for ConfigQueueDelivery {
     fn default() -> Self {
         Self {
-            channel_size: 32,
-            deferred_retry_max: 100,
-            deferred_retry_period: std::time::Duration::from_secs(300),
+            channel_size: Self::default_channel_size(),
+            deferred_retry_max: Self::default_deferred_retry_max(),
+            deferred_retry_period: Self::default_deferred_retry_period(),
         }
+    }
+}
+
+impl ConfigQueueDelivery {
+    pub(crate) const fn default_channel_size() -> usize {
+        32
+    }
+
+    pub(crate) const fn default_deferred_retry_max() -> usize {
+        100
+    }
+
+    pub(crate) const fn default_deferred_retry_period() -> std::time::Duration {
+        std::time::Duration::from_secs(300)
     }
 }
 
