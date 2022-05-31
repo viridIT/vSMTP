@@ -37,6 +37,7 @@
         "libc",
         "libmilter",
         "maildir",
+        "msrv",
         "nametoindex",
         "nonblocking",
         "ocsp",
