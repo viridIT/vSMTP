@@ -253,6 +253,18 @@ mod tests {
             )
             .unwrap();
 
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "test",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
+
         let (delivery_sender, mut delivery_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(10);
 
