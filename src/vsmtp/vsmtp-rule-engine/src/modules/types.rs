@@ -23,6 +23,8 @@ use rhai::plugin::{
     PluginFunction, Position, RhaiResult, TypeId,
 };
 use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::mail_context::MessageBody;
+use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::status::Status;
 use vsmtp_common::Address;
 
@@ -33,6 +35,7 @@ pub mod types {
 
     // type aliases for complex struct names
     pub type Context = std::sync::Arc<std::sync::RwLock<MailContext>>;
+    pub type Message = std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>;
     pub type Server = std::sync::Arc<ServerAPI>;
 
     // Status
@@ -308,12 +311,12 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "to_string", pure)]
-    pub fn rcpt_to_string(this: &mut Vec<vsmtp_common::rcpt::Rcpt>) -> String {
+    pub fn rcpt_to_string(this: &mut Vec<Rcpt>) -> String {
         format!("{this:?}")
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn rcpt_to_debug(this: &mut Vec<vsmtp_common::rcpt::Rcpt>) -> String {
+    pub fn rcpt_to_debug(this: &mut Vec<Rcpt>) -> String {
         format!("{this:#?}")
     }
 

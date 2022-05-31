@@ -17,12 +17,15 @@
 
 use crate::test_receiver;
 use vsmtp_common::mail_context::{MailContext, MessageBody};
+use vsmtp_common::re::serde_json;
+use vsmtp_server::message_from_file_path;
 use vsmtp_server::re::tokio;
 use vsmtp_server::ProcessMessage;
 
 #[tokio::test]
 async fn test_quarantine() {
     let mut config = crate::config::local_test();
+    config.server.queues.dirpath = "./tmp/tests/rules/quarantine/spool".into();
     config.app.dirpath = "./tmp/tests/rules/quarantine/".into();
     config.app.vsl.filepath = Some("./src/tests/rules/quarantine/main.vsl".into());
 
@@ -34,7 +37,7 @@ async fn test_quarantine() {
 
     assert!(test_receiver! {
         on_mail => &mut vsmtp_server::MailHandler::new(working_sender, delivery_sender),
-        with_config => config,
+        with_config => config.clone(),
         [
             "HELO foobar\r\n",
             "MAIL FROM:<john.doe@example.com>\r\n",
@@ -66,8 +69,14 @@ async fn test_quarantine() {
         .unwrap()
         .path();
 
+    let ctx =
+        serde_json::from_str::<MailContext>(&std::fs::read_to_string(&message).unwrap()).unwrap();
+
+    let mut path = config.server.queues.dirpath.clone();
+    path.push(format!("mails/{}.eml", ctx.metadata.unwrap().message_id));
+
     assert_eq!(
-        MailContext::from_file(&message).unwrap().body.unwrap(),
+        message_from_file_path(path).await.unwrap(),
         MessageBody::Raw(
             ["from: 'abc'", "to: 'def'"]
                 .into_iter()
@@ -75,6 +84,4 @@ async fn test_quarantine() {
                 .collect::<Vec<_>>()
         )
     );
-
-    std::fs::remove_file(message).unwrap();
 }

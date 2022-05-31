@@ -7,7 +7,7 @@ use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
 use vsmtp_common::envelop::Envelop;
-use vsmtp_common::mail_context::{ConnectionContext, MailContext};
+use vsmtp_common::mail_context::{ConnectionContext, MailContext, MessageBody};
 use vsmtp_common::status::Status;
 use vsmtp_config::{Config, Resolvers};
 
@@ -20,6 +20,7 @@ pub struct RuleState {
     server: std::sync::Arc<ServerAPI>,
     /// a pointer to the mail context for the current connection.
     mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
+    message: std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>,
     /// does the following rules needs to be skipped ?
     skip: Option<Status>,
 }
@@ -49,16 +50,23 @@ impl RuleState {
                 0,
             ),
             envelop: Envelop::default(),
-            body: None,
             metadata: None,
         }));
-        let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
+        let message = std::sync::Arc::new(std::sync::RwLock::new(None));
+
+        let engine = Self::build_rhai_engine(
+            mail_context.clone(),
+            message.clone(),
+            server.clone(),
+            rule_engine,
+        );
 
         Self {
             engine,
             server,
             mail_context,
             skip: None,
+            message,
         }
     }
 
@@ -83,34 +91,40 @@ impl RuleState {
         resolvers: std::sync::Arc<Resolvers>,
         rule_engine: &RuleEngine,
         mail_context: MailContext,
+        message: Option<MessageBody>,
     ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
             resolvers,
         });
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
-        let engine = Self::build_rhai_engine(&mail_context, &server, rule_engine);
+        let message = std::sync::Arc::new(std::sync::RwLock::new(message));
+        let engine = Self::build_rhai_engine(
+            mail_context.clone(),
+            message.clone(),
+            server.clone(),
+            rule_engine,
+        );
 
         Self {
             engine,
             server,
             mail_context,
             skip: None,
+            message,
         }
     }
 
     /// build a cheap rhai engine with vsl's api.
     fn build_rhai_engine(
-        mail_context: &std::sync::Arc<std::sync::RwLock<MailContext>>,
-        server: &std::sync::Arc<ServerAPI>,
+        mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
+        message: std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>,
+        server: std::sync::Arc<ServerAPI>,
         rule_engine: &RuleEngine,
     ) -> rhai::Engine {
         let mut engine = rhai::Engine::new_raw();
 
-        let mail_context = mail_context.clone();
-        let server = server.clone();
-
-        // NOTE: on_var is not deprecated, just subject to change in futur releases.
+        // NOTE: on_var is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
         engine
             // NOTE: why do we have to clone the arc twice instead of just moving it here ?
@@ -118,6 +132,7 @@ impl RuleState {
             .on_var(move |name, _, _| match name {
                 "CTX" => Ok(Some(rhai::Dynamic::from(mail_context.clone()))),
                 "SRV" => Ok(Some(rhai::Dynamic::from(server.clone()))),
+                "MSG" => Ok(Some(rhai::Dynamic::from(message.clone()))),
                 _ => Ok(None),
             })
             .on_print(|msg| println!("{msg}"))
@@ -141,6 +156,11 @@ impl RuleState {
     #[must_use]
     pub fn context(&self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
         self.mail_context.clone()
+    }
+
+    #[must_use]
+    pub fn message(&self) -> std::sync::Arc<std::sync::RwLock<Option<MessageBody>>> {
+        self.message.clone()
     }
 
     /// get the engine used to evaluate rules for this state.

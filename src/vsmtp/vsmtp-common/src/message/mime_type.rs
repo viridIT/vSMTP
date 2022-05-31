@@ -114,12 +114,17 @@ pub struct Mime {
 impl std::fmt::Display for Mime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for i in &self.headers {
-            f.write_fmt(format_args!("{i}\n"))?;
+            writeln!(f, "{i}")?;
         }
-        std::fmt::Write::write_char(f, '\n')?;
+        writeln!(f)?;
 
         match &self.content {
-            MimeBodyType::Regular(regular) => write!(f, "{}", regular.join("\n")),
+            MimeBodyType::Regular(regular) => {
+                for i in regular {
+                    writeln!(f, "{i}")?;
+                }
+                Ok(())
+            }
             MimeBodyType::Multipart(multipart) => {
                 let mime_with_boundary = self
                     .headers

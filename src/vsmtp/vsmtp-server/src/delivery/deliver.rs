@@ -15,24 +15,24 @@
  *
 */
 use crate::{
-    log_channels,
-    processes::delivery::{add_trace_information, move_to_queue, send_email},
+    context_from_file_path,
+    delivery::{add_trace_information, move_to_queue, send_email},
+    log_channels, message_from_file_path,
 };
 use vsmtp_common::{
-    mail_context::MailContext,
     queue::Queue,
     queue_path,
     re::{
         anyhow::{self, Context},
         log,
     },
+    state::StateSMTP,
     status::Status,
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
-/// read all entries from the deliver queue & tries to send them.
 pub async fn flush_deliver_queue(
     config: &Config,
     resolvers: &std::sync::Arc<Resolvers>,
@@ -81,17 +81,25 @@ pub async fn handle_one_in_delivery_queue(
         "email received '{message_id}'"
     );
 
-    let ctx = MailContext::from_file(path).context(format!(
-        "failed to deserialize email in delivery queue '{message_id}'"
-    ))?;
+    let ctx = context_from_file_path(path).await.with_context(|| {
+        format!("failed to deserialize email in delivery queue '{message_id}'",)
+    })?;
+
+    let message_path = {
+        let mut message_path = config.server.queues.dirpath.clone();
+        message_path.push(format!("mails/{}", message_id));
+        message_path
+    };
+    let message = message_from_file_path(message_path).await?;
 
     let (state, result) = {
         let rule_engine = rule_engine
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-        let mut state = RuleState::with_context(config, resolvers.clone(), &rule_engine, ctx);
-        let result = rule_engine.run_when(&mut state, &vsmtp_common::state::StateSMTP::Delivery);
+        let mut state =
+            RuleState::with_context(config, resolvers.clone(), &rule_engine, ctx, Some(message));
+        let result = rule_engine.run_when(&mut state, &StateSMTP::Delivery);
 
         (state, result)
     };
@@ -102,8 +110,9 @@ pub async fn handle_one_in_delivery_queue(
         //        find a way to mutate the context in the rule engine without
         //        using a RwLock.
         let mut ctx = state.context().read().unwrap().clone();
+        let mut message = state.message().read().unwrap().as_ref().unwrap().clone();
 
-        add_trace_information(config, &mut ctx, &result)?;
+        add_trace_information(config, &mut ctx, &mut message, &result)?;
 
         if let Status::Deny(_) = result {
             // we update rcpt email status and write to dead queue in case of a deny.
@@ -124,7 +133,7 @@ pub async fn handle_one_in_delivery_queue(
                 metadata,
                 &ctx.envelop.mail_from,
                 &ctx.envelop.rcpt,
-                ctx.body.as_ref().unwrap(),
+                &message,
             )
             .await
             .context(format!(
@@ -192,12 +201,6 @@ mod tests {
                             },
                         ],
                     },
-                    body: Some(MessageBody::Raw(
-                        ["Date: bar", "From: foo", "Hello world"]
-                            .into_iter()
-                            .map(str::to_string)
-                            .collect::<Vec<_>>(),
-                    )),
                     metadata: Some(MessageMetadata {
                         timestamp: now,
                         message_id: "message_from_deliver_to_deferred".to_string(),
@@ -206,6 +209,18 @@ mod tests {
                 },
             )
             .unwrap();
+
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "message_from_deliver_to_deferred",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
             RuleEngine::from_script(&config, "#{}").unwrap(),

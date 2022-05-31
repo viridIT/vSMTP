@@ -177,7 +177,6 @@ pub mod test {
     #[must_use]
     pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
         vsmtp_common::mail_context::MailContext {
-            body: None,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,

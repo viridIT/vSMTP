@@ -143,7 +143,7 @@ impl Config {
 pub fn create_app_folder(
     config: &Config,
     path: Option<&str>,
-) -> anyhow::Result<std::path::PathBuf> {
+) -> std::io::Result<std::path::PathBuf> {
     let path = path.map_or_else(
         || config.app.dirpath.clone(),
         |path| config.app.dirpath.join(path),

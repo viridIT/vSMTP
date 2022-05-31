@@ -16,6 +16,7 @@
 */
 use crate::test_receiver;
 use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::mail_context::MessageBody;
 use vsmtp_common::CodeID;
 use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
@@ -32,6 +33,7 @@ async fn test_doe_family_setup() {
             &mut self,
             _: &mut Connection<S>,
             ctx: Box<MailContext>,
+            _: MessageBody,
         ) -> CodeID {
             ctx.envelop
                 .rcpt

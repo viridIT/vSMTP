@@ -67,6 +67,7 @@
         "STARTTLS",
         "tabis",
         "testserver",
+        "thiserror",
         "tlsa",
         "tokio",
         "unencrypted",

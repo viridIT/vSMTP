@@ -14,10 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{log_channels, processes::delivery::send_email};
+use crate::{context_from_file_path, delivery::send_email, log_channels, message_from_file_path};
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::MailContext,
     queue::Queue,
     queue_path,
     rcpt::Rcpt,
@@ -59,7 +58,7 @@ async fn handle_one_in_deferred_queue(
         "processing email '{message_id}'"
     );
 
-    let mut ctx = MailContext::from_file(path).with_context(|| {
+    let mut ctx = context_from_file_path(path).await.with_context(|| {
         format!("failed to deserialize email in deferred queue '{message_id}'",)
     })?;
 
@@ -70,6 +69,13 @@ async fn handle_one_in_deferred_queue(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("email metadata not available in deferred email"))?;
 
+    let message_path = {
+        let mut message_path = config.server.queues.dirpath.clone();
+        message_path.push(format!("mails/{}", message_id));
+        message_path
+    };
+    let message = message_from_file_path(message_path).await?;
+
     // TODO: at this point, only HeldBack recipients should be present in the queue.
     //       check if it is true or not.
     ctx.envelop.rcpt = send_email(
@@ -78,7 +84,7 @@ async fn handle_one_in_deferred_queue(
         metadata,
         &ctx.envelop.mail_from,
         &ctx.envelop.rcpt,
-        ctx.body.as_ref().unwrap(),
+        &message,
     )
     .await
     .context("failed to send emails from the deferred queue")?;
@@ -133,6 +139,7 @@ mod tests {
     use vsmtp_config::build_resolvers;
     use vsmtp_test::config;
 
+    #[allow(clippy::too_many_lines)]
     #[tokio::test]
     async fn basic() {
         let mut config = config::local_test();
@@ -169,33 +176,41 @@ mod tests {
                             },
                         ],
                     },
-                    body: Some(MessageBody::Raw(
-                        ["Date: bar", "From: foo", "Hello world"]
-                            .into_iter()
-                            .map(str::to_string)
-                            .collect::<Vec<_>>(),
-                    )),
                     metadata: Some(MessageMetadata {
                         timestamp: now,
-                        message_id: "test".to_string(),
+                        message_id: "test_deferred".to_string(),
                         skipped: None,
                     }),
                 },
             )
             .unwrap();
 
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "test_deferred",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
+
         let resolvers = build_resolvers(&config).unwrap();
 
         handle_one_in_deferred_queue(
             &config,
             &resolvers,
-            &config.server.queues.dirpath.join("deferred/test"),
+            &config.server.queues.dirpath.join("deferred/test_deferred"),
         )
         .await
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            MailContext::from_file(&config.server.queues.dirpath.join("deferred/test")).unwrap(),
+            context_from_file_path(&config.server.queues.dirpath.join("deferred/test_deferred"))
+                .await
+                .unwrap(),
             MailContext {
                 connection: ConnectionContext {
                     timestamp: now,
@@ -221,18 +236,23 @@ mod tests {
                         },
                     ],
                 },
-                body: Some(MessageBody::Raw(
-                    ["Date: bar", "From: foo", "Hello world"]
-                        .into_iter()
-                        .map(str::to_string)
-                        .collect::<Vec<_>>()
-                )),
                 metadata: Some(MessageMetadata {
                     timestamp: now,
-                    message_id: "test".to_string(),
+                    message_id: "test_deferred".to_string(),
                     skipped: None,
                 }),
             }
+        );
+        pretty_assertions::assert_eq!(
+            message_from_file_path(config.server.queues.dirpath.join("mails/test_deferred"))
+                .await
+                .unwrap(),
+            MessageBody::Raw(vec![
+                "Date: bar".to_string(),
+                "From: foo".to_string(),
+                "".to_string(),
+                "Hello world".to_string(),
+            ])
         );
     }
 }

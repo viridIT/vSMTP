@@ -17,6 +17,13 @@ delivery = 1
 [server.queues]
 dirpath = "./tmp/stress/spool"
 
+[server.queues.working]
+channel_size = 1
+
+[server.queues.delivery]
+channel_size = 1
+
+
 [server.logs]
 filepath = "./tmp/stress/vsmtp.log"
 

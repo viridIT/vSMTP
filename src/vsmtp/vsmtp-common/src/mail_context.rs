@@ -15,7 +15,6 @@
  *
 */
 use crate::{envelop::Envelop, status::Status, Mail, MailParser};
-use anyhow::Context;
 
 /// average size of a mail
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
@@ -44,6 +43,7 @@ impl Default for MessageMetadata {
 
 /// Message body issued by a SMTP transaction
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
 pub enum MessageBody {
     /// The raw representation of the message
     Raw(Vec<String>),
@@ -54,7 +54,12 @@ pub enum MessageBody {
 impl std::fmt::Display for MessageBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Raw(data) => f.write_fmt(format_args!("{}\n", data.join("\n"))),
+            Self::Raw(data) => {
+                for i in data {
+                    f.write_fmt(format_args!("{i}\n"))?;
+                }
+                Ok(())
+            }
             Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
         }
     }
@@ -71,6 +76,15 @@ impl MessageBody {
             Self::Raw(raw) => P::default().parse(raw)?,
             otherwise @ Self::Parsed(_) => otherwise,
         })
+    }
+
+    /// Has the instance been parsed
+    #[must_use]
+    pub const fn is_parsed(&self) -> bool {
+        match self {
+            MessageBody::Raw(_) => false,
+            MessageBody::Parsed(_) => true,
+        }
     }
 
     /// get the value of an header, return None if it does not exists or when the body is empty.
@@ -121,12 +135,10 @@ impl MessageBody {
     pub fn add_header(&mut self, name: &str, value: &str) {
         match self {
             Self::Raw(raw) => {
-                let mut new_raw = vec![format!("{name}: {value}")];
-                new_raw.extend_from_slice(raw);
-                *raw = new_raw;
+                raw.splice(..0, [format!("{name}: {value}")]);
             }
             Self::Parsed(parsed) => {
-                parsed.prepend_headers(vec![(name.to_string(), value.to_string())]);
+                parsed.prepend_headers([(name.to_string(), value.to_string())]);
             }
         }
     }
@@ -173,27 +185,6 @@ pub struct MailContext {
     pub client_addr: std::net::SocketAddr,
     /// envelop of the message
     pub envelop: Envelop,
-    /// content of the message
-    pub body: Option<MessageBody>,
     /// metadata
     pub metadata: Option<MessageMetadata>,
-}
-
-impl MailContext {
-    /// serialize the mail context using serde.
-    ///
-    /// # Errors
-    /// * Failed to read the file
-    /// * Failed deserialize to the MailContext struct.
-    pub fn from_file<P>(file: P) -> anyhow::Result<Self>
-    where
-        P: AsRef<std::path::Path>,
-    {
-        std::fs::read_to_string(&file)
-            .context(format!("Cannot read file '{}'", file.as_ref().display()))
-            .map(|content| {
-                serde_json::from_str::<Self>(&content)
-                    .context(format!("Cannot deserialize: '{}'", content))
-            })?
-    }
 }

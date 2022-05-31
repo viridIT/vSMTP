@@ -17,7 +17,7 @@
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{
     envelop::Envelop,
-    mail_context::{ConnectionContext, MailContext},
+    mail_context::{ConnectionContext, MailContext, MessageBody},
     state::StateSMTP,
     status::Status,
     CodeID, ReplyOrCodeID,
@@ -120,9 +120,9 @@ fn test_rule_state() {
                 mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],
             },
-            body: None,
             metadata: None,
         },
+        Some(MessageBody::Raw(vec![])),
     );
 
     assert_eq!(

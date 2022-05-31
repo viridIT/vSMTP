@@ -93,10 +93,13 @@ impl Transaction {
                 {
                     let state = self.rule_state.context();
                     let mut ctx = state.write().unwrap();
-                    ctx.body = None;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = addr!("default@domain.com");
+                }
+                {
+                    let state = self.rule_state.message();
+                    *state.write().unwrap() = None;
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, ReplyOrCodeID::CodeID(CodeID::Ok))
@@ -284,16 +287,21 @@ impl Transaction {
     }
 
     fn set_helo(&mut self, helo: String) {
-        let state = self.rule_state.context();
-        let mut ctx = state.write().unwrap();
+        {
+            let state = self.rule_state.context();
+            let mut ctx = state.write().unwrap();
 
-        ctx.body = None;
-        ctx.metadata = None;
-        ctx.envelop = Envelop {
-            helo,
-            mail_from: addr!("no@address.net"),
-            rcpt: vec![],
-        };
+            ctx.metadata = None;
+            ctx.envelop = Envelop {
+                helo,
+                mail_from: addr!("no@address.net"),
+                rcpt: vec![],
+            };
+        }
+        {
+            let state = self.rule_state.message();
+            *state.write().unwrap() = None;
+        }
     }
 
     fn set_mail_from<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
@@ -303,36 +311,40 @@ impl Transaction {
     ) {
         let now = std::time::SystemTime::now();
 
-        let state = self.rule_state.context();
-        let mut ctx = state.write().unwrap();
-        ctx.body = None;
-        ctx.envelop.rcpt.clear();
-        ctx.envelop.mail_from = mail_from;
-        ctx.metadata = Some(MessageMetadata {
-            timestamp: now,
-            message_id: format!(
-                "{}{}{}{}",
-                now.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .expect("did went back in time")
-                    .as_micros(),
-                connection
-                    .timestamp
-                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .expect("did went back in time")
-                    .as_millis(),
-                std::iter::repeat_with(fastrand::alphanumeric)
-                    .take(36)
-                    .collect::<String>(),
-                std::process::id()
-            ),
-            skipped: self.rule_state.skipped().cloned(),
-        });
-
-        log::trace!(
-            target: log_channels::TRANSACTION,
-            "envelop=\"{:?}\"",
-            ctx.envelop,
-        );
+        {
+            let state = self.rule_state.context();
+            let mut ctx = state.write().unwrap();
+            ctx.envelop.rcpt.clear();
+            ctx.envelop.mail_from = mail_from;
+            ctx.metadata = Some(MessageMetadata {
+                timestamp: now,
+                message_id: format!(
+                    "{}{}{}{}",
+                    now.duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .expect("did went back in time")
+                        .as_micros(),
+                    connection
+                        .timestamp
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .expect("did went back in time")
+                        .as_millis(),
+                    std::iter::repeat_with(fastrand::alphanumeric)
+                        .take(36)
+                        .collect::<String>(),
+                    std::process::id()
+                ),
+                skipped: self.rule_state.skipped().cloned(),
+            });
+            log::trace!(
+                target: log_channels::TRANSACTION,
+                "envelop=\"{:?}\"",
+                ctx.envelop,
+            );
+        }
+        {
+            let state = self.rule_state.message();
+            *state.write().unwrap() = None;
+        }
     }
 
     fn set_rcpt_to(&mut self, rcpt_to: Address) {
