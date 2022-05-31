@@ -138,25 +138,6 @@ import "database" as db;
       }
     }
   ],
-
-  // hook on delivery, just before emails are sent to all recipients.
-  delivery: [
-    // you can setup delivery, log information, dump an email etc ... with an "action"
-    action "setup delivery" || {
-
-      log("info", `setting up delivery for ${ctx().client_ip}`);
-
-      // forward all recipients with the 'example.com' domain.
-      for rcpt in ctx().rcpt {
-        if rcpt.domain is "example.com" {
-          forward(rcpt, "mta.example.com");
-        } else {
-          deliver(rcpt);
-        }
-      }
-
-    }
-  ]
 }
 ```
 
