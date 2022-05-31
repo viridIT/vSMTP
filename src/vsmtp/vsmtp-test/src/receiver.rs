@@ -15,7 +15,6 @@
  *
 */
 
-use anyhow::Context;
 use vsmtp_common::{mail_context::MessageBody, re::anyhow, CodeID};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -96,7 +95,6 @@ impl OnMail for DefaultMailHandler {
 ///
 /// * argument provided are ill-formed
 pub async fn test_receiver_inner<M>(
-    address: &str,
     mail_handler: &mut M,
     smtp_input: &[u8],
     expected_output: &[u8],
@@ -110,15 +108,13 @@ where
     let mut mock = Mock::new(smtp_input.to_vec(), &mut written_data);
     let mut conn = Connection::new(
         ConnectionKind::Relay,
-        address.parse().unwrap(),
+        "127.0.0.1:0".parse().unwrap(),
         config.clone(),
         &mut mock,
     );
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&config, &config.app.vsl.filepath.clone())
-            .context("failed to initialize the engine")
-            .unwrap(),
+        RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
     ));
 
     let receivers = std::sync::Arc::new(std::collections::HashMap::new());
@@ -166,7 +162,6 @@ macro_rules! test_receiver {
     };
     (on_mail => $resolver:expr, with_config => $config:expr, $input:expr, $output:expr) => {
         $crate::receiver::test_receiver_inner(
-            "127.0.0.1:0",
             $resolver,
             $input.as_bytes(),
             $output.as_bytes(),
@@ -186,7 +181,6 @@ macro_rules! test_receiver {
     };
     (with_auth => $auth:expr, with_config => $config:expr, on_mail => $resolver:expr, $input:expr, $output:expr) => {
         $crate::receiver::test_receiver_inner(
-            "127.0.0.1:0",
             $resolver,
             $input.as_bytes(),
             $output.as_bytes(),

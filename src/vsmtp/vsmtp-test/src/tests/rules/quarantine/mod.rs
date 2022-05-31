@@ -69,6 +69,8 @@ async fn test_quarantine() {
         .unwrap()
         .path();
 
+    println!("{}", message.display());
+
     let ctx =
         serde_json::from_str::<MailContext>(&std::fs::read_to_string(&message).unwrap()).unwrap();
 
