@@ -38,10 +38,9 @@ impl std::fmt::Display for BodyType {
             Self::Regular(content) => {
                 for i in content {
                     if i.starts_with('.') {
-                        writeln!(f, ".{i}")?;
-                    } else {
-                        writeln!(f, "{i}")?;
+                        std::fmt::Write::write_char(f, '.')?;
                     }
+                    f.write_str(i)?;
                 }
                 Ok(())
             }

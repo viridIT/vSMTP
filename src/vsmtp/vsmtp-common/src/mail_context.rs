@@ -56,7 +56,8 @@ impl std::fmt::Display for MessageBody {
         match self {
             Self::Raw(data) => {
                 for i in data {
-                    f.write_fmt(format_args!("{i}\n"))?;
+                    f.write_str(i)?;
+                    std::fmt::Write::write_char(f, '\n')?;
                 }
                 Ok(())
             }
