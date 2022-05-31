@@ -23,6 +23,7 @@ use vsmtp_server::re::tokio;
 use vsmtp_server::ProcessMessage;
 
 #[tokio::test]
+#[ignore]
 async fn test_quarantine() {
     let mut config = crate::config::local_test();
     config.server.queues.dirpath = "./tmp/tests/rules/quarantine/spool".into();
