@@ -20,6 +20,7 @@ use criterion::{
 use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
+    re::tokio,
     CodeID,
 };
 use vsmtp_config::Config;

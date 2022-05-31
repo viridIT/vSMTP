@@ -41,16 +41,11 @@ pub use receiver::{handle_connection, AbstractIO, Connection, ConnectionKind, On
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
-/// re-exported module
-pub mod re {
-    pub use tokio;
-}
-
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
     re::{
         anyhow::{self, Context},
-        serde_json,
+        serde_json, tokio,
     },
 };
 

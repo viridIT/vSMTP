@@ -190,17 +190,13 @@ fn update_rcpt_failed(rcpt: &mut [&mut Rcpt], reason: &str) {
 #[cfg(test)]
 mod test {
 
-    use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::{addr, rcpt::Rcpt, transfer::EmailTransferStatus};
-    use vsmtp_config::{Config, ConfigServerDNS};
-
+    use super::update_rcpt_held_back;
     use crate::transport::deliver::{
         get_mx_records, send_email, update_rcpt_failed, update_rcpt_sent,
     };
-
-    use super::update_rcpt_held_back;
-
-    // use super::*;
+    use trust_dns_resolver::TokioAsyncResolver;
+    use vsmtp_common::{addr, rcpt::Rcpt, re::tokio, transfer::EmailTransferStatus};
+    use vsmtp_config::{Config, ConfigServerDNS};
 
     #[test]
     fn test_update_rcpt_held_back() {

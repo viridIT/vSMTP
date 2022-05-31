@@ -2,7 +2,7 @@ use crate::{Connection, ProcessMessage};
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
     queue::Queue,
-    re::log,
+    re::{log, tokio},
     status::Status,
     CodeID,
 };

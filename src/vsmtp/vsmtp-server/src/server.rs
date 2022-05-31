@@ -25,7 +25,7 @@ use crate::{
 use vsmtp_common::{
     re::{
         anyhow::{self, Context},
-        log, vsmtp_rsasl,
+        log, tokio, vsmtp_rsasl,
     },
     CodeID,
 };
@@ -34,9 +34,6 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// TCP/IP server
 pub struct Server {
-    // listener: tokio::net::TcpListener,
-    // listener_submission: tokio::net::TcpListener,
-    // listener_submissions: tokio::net::TcpListener,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     config: std::sync::Arc<Config>,

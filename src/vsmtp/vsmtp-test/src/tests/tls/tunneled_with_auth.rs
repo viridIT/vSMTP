@@ -16,9 +16,9 @@
 */
 use super::{TEST_SERVER_CERT, TEST_SERVER_KEY};
 use crate::tests::tls::test_tls_tunneled;
-use vsmtp_common::re::{base64, vsmtp_rsasl};
+use vsmtp_common::re::{base64, tokio, vsmtp_rsasl};
 use vsmtp_config::{get_rustls_config, Config};
-use vsmtp_server::{auth, re::tokio};
+use vsmtp_server::auth;
 
 fn get_tls_auth_config() -> Config {
     Config::builder()

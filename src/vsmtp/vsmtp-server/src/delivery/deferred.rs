@@ -134,6 +134,7 @@ mod tests {
         envelop::Envelop,
         mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         rcpt::Rcpt,
+        re::tokio,
         transfer::{EmailTransferStatus, Transfer},
     };
     use vsmtp_config::build_resolvers;

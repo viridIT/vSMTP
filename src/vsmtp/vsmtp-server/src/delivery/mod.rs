@@ -25,6 +25,7 @@ use crate::{
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
+use vsmtp_common::re::tokio;
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody, MessageMetadata},
     queue::Queue,

@@ -17,10 +17,10 @@
 use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
+    re::tokio,
     CodeID, {BodyType, Mail},
 };
 use vsmtp_mail_parser::MailMimeParser;
-use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 

@@ -41,6 +41,7 @@ impl std::fmt::Display for BodyType {
                         std::fmt::Write::write_char(f, '.')?;
                     }
                     f.write_str(i)?;
+                    f.write_str("\r\n")?;
                 }
                 Ok(())
             }
@@ -71,10 +72,11 @@ impl Default for Mail {
 impl std::fmt::Display for Mail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (key, value) in &self.headers {
-            writeln!(f, "{}: {}", key, value)?;
+            write!(f, "{}: {}", key, value)?;
+            f.write_str("\r\n")?;
         }
         if !matches!(self.body, BodyType::Mime(_)) {
-            writeln!(f)?;
+            f.write_str("\r\n")?;
         }
 
         write!(f, "{}", self.body)

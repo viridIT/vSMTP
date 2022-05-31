@@ -15,10 +15,14 @@
  *
 */
 
-use vsmtp_common::{mail_context::MessageBody, re::anyhow, CodeID};
+use vsmtp_common::{
+    mail_context::MessageBody,
+    re::{anyhow, tokio},
+    CodeID,
+};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{auth, handle_connection, re::tokio, Connection, ConnectionKind, OnMail};
+use vsmtp_server::{auth, handle_connection, Connection, ConnectionKind, OnMail};
 
 /// A type implementing Write+Read to emulate sockets
 pub struct Mock<'a, T: AsRef<[u8]> + Unpin> {
