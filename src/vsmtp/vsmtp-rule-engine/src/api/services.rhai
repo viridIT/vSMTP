@@ -20,8 +20,10 @@
 /// is called.
 fn delegate(then) {
     if ctx().server_address == this.receiver_address {
-        then()
+       print("executing then");
+        then.call()
     } else {
+           print("executing delegation ...");
         sys::delegate(this, ctx())
     }
 }

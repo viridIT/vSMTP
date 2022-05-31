@@ -117,6 +117,7 @@ pub mod re {
     pub use addr;
     pub use anyhow;
     pub use base64;
+    pub use lettre;
     pub use libc;
     pub use log;
     pub use serde_json;

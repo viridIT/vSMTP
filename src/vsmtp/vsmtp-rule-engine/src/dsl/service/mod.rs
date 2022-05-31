@@ -15,7 +15,7 @@
  *
 */
 
-use vsmtp_common::state::StateSMTP;
+use vsmtp_common::{re::lettre, state::StateSMTP};
 
 pub mod databases;
 pub mod parsing;
@@ -55,7 +55,7 @@ pub enum Service {
     /// A service that handles smtp transactions.
     Smtp {
         /// A transport to handle transactions to the delegate.
-        delegator: SmtpTransport,
+        delegator: std::sync::Arc<std::sync::Mutex<SmtpConnection>>,
         /// Delegation results address.
         receiver: std::net::SocketAddr,
         /// Where the email will be re-injected in the rule engine
@@ -80,9 +80,9 @@ impl std::fmt::Display for Service {
 
 /// a transport using the smtp protocol.
 /// (mostly a new type over lettre::SmtpTransport to implement debug)
-pub struct SmtpTransport(pub lettre::SmtpTransport);
+pub struct SmtpConnection(pub lettre::SmtpTransport);
 
-impl std::fmt::Debug for SmtpTransport {
+impl std::fmt::Debug for SmtpConnection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("SmtpTransport").finish()
     }

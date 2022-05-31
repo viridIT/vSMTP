@@ -18,11 +18,10 @@ use super::Transport;
 use crate::transport::log_channels;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
-// use anyhow::Context;
 use vsmtp_common::{
     mail_context::MessageMetadata,
     rcpt::Rcpt,
-    re::{anyhow, log},
+    re::{anyhow, lettre, log},
     transfer::{EmailTransferStatus, ForwardTarget},
 };
 use vsmtp_config::Config;

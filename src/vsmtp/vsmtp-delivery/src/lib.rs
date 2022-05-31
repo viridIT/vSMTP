@@ -29,9 +29,9 @@
 
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
-    use anyhow::Context;
-    use lettre::Tokio1Executor;
     use trust_dns_resolver::TokioAsyncResolver;
+    use vsmtp_common::re::anyhow::Context;
+    use vsmtp_common::re::lettre;
     use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow, Address};
     use vsmtp_config::Config;
 
@@ -90,7 +90,7 @@ pub mod transport {
         _: &TokioAsyncResolver,
         from: &vsmtp_common::Address,
         target: &str,
-    ) -> anyhow::Result<lettre::AsyncSmtpTransport<Tokio1Executor>> {
+    ) -> anyhow::Result<lettre::AsyncSmtpTransport<lettre::Tokio1Executor>> {
         let tls_builder =
             lettre::transport::smtp::client::TlsParameters::builder(target.to_string());
 
@@ -125,7 +125,7 @@ pub mod transport {
             .context("failed to build tls parameters")?;
 
         Ok(
-            lettre::AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target)
+            lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(target)
                 .hello_name(lettre::transport::smtp::extension::ClientId::Domain(
                     from.domain().to_string(),
                 ))

@@ -21,7 +21,7 @@ use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MessageMetadata,
     rcpt::{filter_by_domain_mut, Rcpt},
-    re::{anyhow, log},
+    re::{anyhow, lettre, log},
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::Config;

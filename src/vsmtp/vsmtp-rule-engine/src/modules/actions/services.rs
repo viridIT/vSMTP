@@ -21,7 +21,6 @@ use rhai::{
 
 #[rhai::plugin::export_module]
 pub mod services {
-
     use crate::dsl::service::shell::run;
     use crate::dsl::service::shell::ShellResult;
     use crate::dsl::service::Service;
@@ -179,8 +178,17 @@ pub mod services {
                     )
                 };
 
-                crate::dsl::service::smtp::delegate(&delegator.0, &from, &rcpt, body.as_bytes())
+                {
+                    let mut delegator = delegator.lock().unwrap();
+
+                    crate::dsl::service::smtp::delegate(
+                        &mut *delegator,
+                        &from,
+                        &rcpt,
+                        body.as_bytes(),
+                    )
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+                }
 
                 Ok(Status::Delegated)
 

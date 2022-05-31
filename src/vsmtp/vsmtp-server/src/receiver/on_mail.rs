@@ -54,6 +54,12 @@ impl OnMail for MailHandler {
                 log::warn!("postq & delivery skipped due to quarantine.");
                 return Ok(CodeID::Ok);
             }
+            Some(Status::Delegated) => {
+                log::warn!(
+                    "postq & delivery skipped, email has been delegated to another service."
+                );
+                return Ok(CodeID::Ok);
+            }
             Some(reason) => {
                 log::warn!("postq skipped due to '{}'.", reason.as_ref());
                 Queue::Deliver
