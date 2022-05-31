@@ -186,9 +186,8 @@ mod test {
             format!("{regular_mail}"),
             r#"from: a@a
 
-This is a regular body.
-"#
-            .to_string()
+This is a regular body."#
+                .to_string()
         );
 
         let mime_mail = Mail {
@@ -236,9 +235,8 @@ this is a regular mime body.
             r#"subject: testing an email
 mime-version: 1.0
 
-email content
-"#
-            .to_string()
+email content"#
+                .to_string()
         );
 
         mail.prepend_headers(vec![
@@ -258,9 +256,8 @@ to: john@doe.com, green@foo.bar
 subject: testing an email
 mime-version: 1.0
 
-email content
-"#
-            .to_string()
+email content"#
+                .to_string()
         );
     }
 
