@@ -29,7 +29,6 @@ use vsmtp_common::re::tokio;
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody, MessageMetadata},
     queue::Queue,
-    queue_path,
     rcpt::Rcpt,
     re::{anyhow, log},
     status::Status,
@@ -37,7 +36,7 @@ use vsmtp_common::{
     Address,
 };
 use vsmtp_config::{Config, Resolvers};
-use vsmtp_delivery::transport::{deliver as deliver2, forward, maildir, mbox, Transport};
+use vsmtp_delivery::transport::{deliver as smtp_deliver, forward, maildir, mbox, Transport};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod deferred;
@@ -50,9 +49,6 @@ mod deliver;
 ///
 /// *
 ///
-/// # Panics
-///
-/// * tokio::select!
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -73,15 +69,10 @@ pub async fn start(
                 let copy_rule_engine = rule_engine.clone();
                 let copy_resolvers = resolvers.clone();
                 tokio::spawn(async move {
-                    let path = queue_path!(&copy_config.server.queues.dirpath, Queue::Deliver);
-
                     if let Err(error) = handle_one_in_delivery_queue(
                         &copy_config,
                         &copy_resolvers,
-                        &std::path::PathBuf::from_iter([
-                            path,
-                            std::path::Path::new(&pm.message_id).to_path_buf(),
-                        ]),
+                        &pm,
                         &copy_rule_engine,
                     )
                     .await {
@@ -99,7 +90,8 @@ pub async fn start(
                     target: log_channels::DEFERRED,
                     "cronjob delay elapsed, flushing queue.",
                 );
-                flush_deferred_queue(&config, &resolvers).await?;
+                tokio::spawn(
+                flush_deferred_queue(config.clone(), resolvers.clone()));
             }
         };
     }
@@ -133,7 +125,7 @@ async fn send_email(
                     ForwardTarget::Ip(_) => resolvers.get(&config.server.domain).unwrap(),
                 },
             )),
-            Transfer::Deliver => Box::new(deliver2::Deliver::new({
+            Transfer::Deliver => Box::new(smtp_deliver::Deliver::new({
                 let domain = rcpt[0].address.domain();
                 resolvers
                     .get(domain)
@@ -177,7 +169,7 @@ fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
 
     if ctx.envelop.rcpt.iter().any(|rcpt| {
         matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
-            || matches!(rcpt.transfer_method, Transfer::None,)
+            || matches!(rcpt.transfer_method, Transfer::None)
     }) {
         Queue::Dead
             .write_to_queue(&config.server.queues.dirpath, ctx)
