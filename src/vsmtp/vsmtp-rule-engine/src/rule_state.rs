@@ -8,6 +8,7 @@ use crate::rule_engine::RuleEngine;
 use super::server_api::ServerAPI;
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{ConnectionContext, MailContext, MessageBody};
+use vsmtp_common::re::anyhow;
 use vsmtp_common::status::Status;
 use vsmtp_config::{Config, Resolvers};
 
@@ -161,6 +162,27 @@ impl RuleState {
     #[must_use]
     pub fn message(&self) -> std::sync::Arc<std::sync::RwLock<Option<MessageBody>>> {
         self.message.clone()
+    }
+
+    /// Consume [`self`] and return the inner [`MailContext`] and [`MessageBody`]
+    ///
+    /// # Errors
+    ///
+    /// * at least one strong reference of the [`std::sync::Arc`] is living
+    /// * the [`std::sync::RwLock`] is poisoned
+    pub fn take(self) -> anyhow::Result<(MailContext, Option<MessageBody>)> {
+        // early drop of engine because a strong reference is living inside
+        drop(self.engine);
+        Ok((
+            std::sync::Arc::try_unwrap(self.mail_context)
+                .map_err(|_| {
+                    anyhow::anyhow!("strong reference of the field `mail_context` exists")
+                })?
+                .into_inner()?,
+            std::sync::Arc::try_unwrap(self.message)
+                .map_err(|_| anyhow::anyhow!("strong reference of the field `message` exists"))?
+                .into_inner()?,
+        ))
     }
 
     /// get the engine used to evaluate rules for this state.

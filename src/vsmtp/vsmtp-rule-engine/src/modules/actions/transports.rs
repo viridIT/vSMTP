@@ -45,18 +45,22 @@ pub mod transports {
     /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, name = "forward", return_raw, pure)]
     pub fn forward_str(this: &mut Context, rcpt: &str, forward: &str) -> EngineResult<()> {
+        let forward = forward.parse::<std::net::SocketAddr>().map_or_else(
+            |_| {
+                forward.parse::<std::net::IpAddr>().map_or_else(
+                    |_| ForwardTarget::Domain(forward.to_string()),
+                    ForwardTarget::Ip,
+                )
+            },
+            ForwardTarget::Socket,
+        );
+
         set_transport_for(
             &mut *this
                 .write()
                 .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
             rcpt,
-            &vsmtp_common::transfer::Transfer::Forward({
-                forward
-                    .parse::<std::net::IpAddr>()
-                    .map_or(ForwardTarget::Domain(forward.to_string()), |ip| {
-                        ForwardTarget::Ip(ip)
-                    })
-            }),
+            &vsmtp_common::transfer::Transfer::Forward(forward),
         )
         .map_err(|err| err.to_string().into())
     }

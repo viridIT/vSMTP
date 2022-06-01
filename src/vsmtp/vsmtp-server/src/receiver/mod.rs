@@ -18,8 +18,8 @@ use self::transaction::{Transaction, TransactionResult};
 use crate::{auth, receiver::auth_exchange::on_authentication};
 use vsmtp_common::{
     auth::Mechanism,
-    envelop::Envelop,
-    mail_context::{ConnectionContext, MailContext, MessageBody, MAIL_CAPACITY},
+    mail_context::MessageBody,
+    mail_context::MAIL_CAPACITY,
     re::{anyhow, tokio},
     state::StateSMTP,
     status::Status,
@@ -124,7 +124,7 @@ impl MailParserOnFly for NoParsing {
 async fn handle_stream<S, M>(
     conn: &mut Connection<S>,
     mail_handler: &mut M,
-    transaction: &mut Transaction,
+    mut transaction: Transaction,
     helo_domain: &mut Option<String>,
 ) -> anyhow::Result<bool>
 where
@@ -156,48 +156,20 @@ where
         _ => (),
     }
 
-    let mail_context = transaction.rule_state.context();
-
     {
+        let mail_context = transaction.rule_state.context();
         let mut state_writer = mail_context.write().unwrap();
         if let Some(metadata) = &mut state_writer.metadata {
             metadata.skipped = transaction.rule_state.skipped().cloned();
         }
     }
 
-    // TODO: use Arc::try_unwrap & RwLock::into_inner
+    let (mail_context, message) = transaction.rule_state.take().unwrap();
 
-    let mut output = MailContext {
-        connection: ConnectionContext {
-            timestamp: std::time::SystemTime::now(),
-            credentials: None,
-            is_authenticated: conn.is_authenticated,
-            is_secured: conn.is_secured,
-            server_name: conn.server_name.clone(),
-        },
-        client_addr: std::net::SocketAddr::V4(std::net::SocketAddrV4::new(
-            std::net::Ipv4Addr::LOCALHOST,
-            10000,
-        )),
-        envelop: Envelop::default(),
-        metadata: None,
-    };
-
-    {
-        let mut tmp = mail_context.write().unwrap();
-        std::mem::swap(&mut *tmp, &mut output);
-    }
-
-    let mut message = MessageBody::Raw(vec![]);
-    {
-        let handle = transaction.rule_state.message();
-        let mut tmp = handle.write().unwrap();
-        let tmp = tmp.as_mut().unwrap();
-        std::mem::swap(&mut *tmp, &mut message);
-    }
-
-    let helo = output.envelop.helo.clone();
-    let code = mail_handler.on_mail(conn, Box::new(output), message).await;
+    let helo = mail_context.envelop.helo.clone();
+    let code = mail_handler
+        .on_mail(conn, Box::new(mail_context), message.unwrap())
+        .await;
     *helo_domain = Some(helo);
     conn.send_code(code).await?;
 
@@ -257,9 +229,7 @@ where
         if let Some(outcome) = transaction.receive(conn, &helo_domain).await? {
             match outcome {
                 TransactionResult::Data => {
-                    if !handle_stream(conn, mail_handler, &mut transaction, &mut helo_domain)
-                        .await?
-                    {
+                    if !handle_stream(conn, mail_handler, transaction, &mut helo_domain).await? {
                         return Ok(());
                     }
                 }
@@ -368,7 +338,7 @@ where
                     if !handle_stream(
                         &mut secured_conn,
                         mail_handler,
-                        &mut transaction,
+                        transaction,
                         &mut helo_domain,
                     )
                     .await?

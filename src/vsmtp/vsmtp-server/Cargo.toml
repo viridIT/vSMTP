@@ -19,7 +19,7 @@ categories = ["network-programming"]
 vsmtp-common = { path = "../vsmtp-common", version = "1.0.1" }
 vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.0.0-rc.1" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.0.0-rc.1" }
+# vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.0.0-rc.1" }
 vsmtp-delivery = { path = "../vsmtp-delivery", version = "1.0.0-rc.1" }
 
 async-trait = "0.1.53"

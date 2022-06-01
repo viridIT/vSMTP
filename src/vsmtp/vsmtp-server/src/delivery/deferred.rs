@@ -14,8 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{context_from_file_path, delivery::send_email, log_channels, message_from_file_path};
-use trust_dns_resolver::TokioAsyncResolver;
+use crate::{
+    context_from_file_path, delivery::send_email, log_channels, message_from_file_path,
+    ProcessMessage,
+};
 use vsmtp_common::{
     queue::Queue,
     queue_path,
@@ -26,16 +28,22 @@ use vsmtp_common::{
     },
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::Config;
+use vsmtp_config::{Config, Resolvers};
 
 pub async fn flush_deferred_queue(
-    config: &Config,
-    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
+    config: std::sync::Arc<Config>,
+    resolvers: std::sync::Arc<Resolvers>,
 ) -> anyhow::Result<()> {
     let dir_entries =
         std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deferred))?;
     for path in dir_entries {
-        if let Err(e) = handle_one_in_deferred_queue(config, resolvers, &path?.path()).await {
+        let process_message = ProcessMessage {
+            message_id: path?.path().file_name().unwrap().to_string_lossy().into(),
+        };
+
+        if let Err(e) =
+            handle_one_in_deferred_queue(config.clone(), resolvers.clone(), process_message).await
+        {
             log::warn!(target: log_channels::DEFERRED, "{}", e);
         }
     }
@@ -47,40 +55,51 @@ pub async fn flush_deferred_queue(
 //       the pickup process of this queue should be slower than pulling from the delivery queue.
 //       https://www.postfix.org/QSHAPE_README.html#queues
 async fn handle_one_in_deferred_queue(
-    config: &Config,
-    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
-    path: &std::path::Path,
+    config: std::sync::Arc<Config>,
+    resolvers: std::sync::Arc<Resolvers>,
+    process_message: ProcessMessage,
 ) -> anyhow::Result<()> {
-    let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
+    let (context_filepath, message_filepath) = (
+        queue_path!(
+            &config.server.queues.dirpath,
+            Queue::Deferred,
+            &process_message.message_id
+        ),
+        std::path::PathBuf::from_iter([
+            config.server.queues.dirpath.clone(),
+            "mails".into(),
+            process_message.message_id.clone().into(),
+        ]),
+    );
 
     log::debug!(
         target: log_channels::DEFERRED,
-        "processing email '{message_id}'"
+        "processing email '{}'",
+        process_message.message_id
     );
 
-    let mut ctx = context_from_file_path(path).await.with_context(|| {
-        format!("failed to deserialize email in deferred queue '{message_id}'",)
-    })?;
+    let mut ctx = context_from_file_path(&context_filepath)
+        .await
+        .with_context(|| {
+            format!(
+                "failed to deserialize email in deferred queue '{}'",
+                process_message.message_id
+            )
+        })?;
 
     let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
-
     let metadata = ctx
         .metadata
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("email metadata not available in deferred email"))?;
 
-    let message_path = {
-        let mut message_path = config.server.queues.dirpath.clone();
-        message_path.push(format!("mails/{}", message_id));
-        message_path
-    };
-    let message = message_from_file_path(message_path).await?;
+    let message = message_from_file_path(message_filepath).await?;
 
     // TODO: at this point, only HeldBack recipients should be present in the queue.
     //       check if it is true or not.
     ctx.envelop.rcpt = send_email(
-        config,
-        resolvers,
+        &config,
+        &resolvers,
         metadata,
         &ctx.envelop.mail_from,
         &ctx.envelop.rcpt,
@@ -120,7 +139,7 @@ async fn handle_one_in_deferred_queue(
         Queue::Deferred.write_to_queue(&config.server.queues.dirpath, &ctx)?;
     } else {
         // otherwise, we remove the file from the deferred queue.
-        std::fs::remove_file(&path)?;
+        std::fs::remove_file(&context_filepath)?;
     }
 
     Ok(())
@@ -199,19 +218,21 @@ mod tests {
         .unwrap();
 
         let resolvers = build_resolvers(&config).unwrap();
+        let path = config.server.queues.dirpath.join("deferred/test_deferred");
+        let msg = config.server.queues.dirpath.join("mails/test_deferred");
 
         handle_one_in_deferred_queue(
-            &config,
-            &resolvers,
-            &config.server.queues.dirpath.join("deferred/test_deferred"),
+            std::sync::Arc::new(config),
+            std::sync::Arc::new(resolvers),
+            ProcessMessage {
+                message_id: "test_deferred".to_string(),
+            },
         )
         .await
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            context_from_file_path(&config.server.queues.dirpath.join("deferred/test_deferred"))
-                .await
-                .unwrap(),
+            context_from_file_path(&path).await.unwrap(),
             MailContext {
                 connection: ConnectionContext {
                     timestamp: now,
@@ -245,9 +266,7 @@ mod tests {
             }
         );
         pretty_assertions::assert_eq!(
-            message_from_file_path(config.server.queues.dirpath.join("mails/test_deferred"))
-                .await
-                .unwrap(),
+            message_from_file_path(msg).await.unwrap(),
             MessageBody::Raw(vec![
                 "Date: bar".to_string(),
                 "From: foo".to_string(),

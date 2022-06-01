@@ -135,11 +135,6 @@ impl Server {
     /// # Errors
     ///
     /// * failed to initialize the [RuleEngine]
-    ///
-    /// # Panics
-    ///
-    /// * [tokio::spawn]
-    /// * [tokio::select]
     pub async fn listen_and_serve(
         self,
         sockets: (
@@ -185,7 +180,10 @@ impl Server {
                 let accept = listener_to_stream(i);
                 let transform = tokio_stream::StreamExt::map(accept, move |client| (kind, client));
 
-                map.insert(i.local_addr().unwrap(), Box::pin(transform));
+                map.insert(
+                    i.local_addr().expect("retrieve local address"),
+                    Box::pin(transform),
+                );
             }
         }
 
@@ -210,7 +208,7 @@ impl Server {
                         .smtp
                         .codes
                         .get(&CodeID::ConnectionMaxReached)
-                        .unwrap()
+                        .expect("ill-formed configuration")
                         .fold()
                         .as_bytes(),
                 )
