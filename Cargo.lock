@@ -2150,7 +2150,6 @@ dependencies = [
  "vsmtp-common",
  "vsmtp-config",
  "vsmtp-delivery",
- "vsmtp-mail-parser",
  "vsmtp-rule-engine",
  "vsmtp-test",
 ]
