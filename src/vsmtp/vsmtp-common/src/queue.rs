@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::mail_context::{MailContext, MessageBody};
+use crate::{
+    log_channels,
+    mail_context::{MailContext, MessageBody},
+};
 use anyhow::Context;
 
 /// identifiers for all mail queues.
@@ -115,7 +118,10 @@ impl Queue {
 
         std::io::Write::write_all(&mut file, serde_json::to_string(ctx)?.as_bytes())?;
 
-        log::debug!("mail {message_id} successfully written to {self} queue");
+        log::debug!(
+            target: log_channels::QUEUE,
+            "mail {message_id} successfully written to {self} queue"
+        );
 
         Ok(())
     }
