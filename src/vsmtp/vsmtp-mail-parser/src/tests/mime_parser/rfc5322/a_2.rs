@@ -6,15 +6,16 @@ use vsmtp_common::{
 
 #[test]
 fn simple() {
-    assert_eq!(
-        MailMimeParser::default()
-            .parse(
-                include_str!("../../mail/rfc5322/A.2.a.eml")
-                    .lines()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>()
-            )
-            .unwrap(),
+    let parsed = MailMimeParser::default()
+        .parse(
+            include_str!("../../mail/rfc5322/A.2.a.eml")
+                .lines()
+                .map(str::to_string)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+    pretty_assertions::assert_eq!(
+        parsed,
         MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "John Doe <jdoe@machine.example>"),
@@ -34,19 +35,34 @@ fn simple() {
             )
         }))
     );
+    pretty_assertions::assert_eq!(
+        parsed.to_string(),
+        [
+            "from: John Doe <jdoe@machine.example>\r\n".to_string(),
+            "to: Mary Smith <mary@example.net>\r\n".to_string(),
+            "subject: Saying Hello\r\n".to_string(),
+            "date: Fri, 21 Nov 1997 09:55:06 -0600\r\n".to_string(),
+            "message-id: <1234@local.machine.example>\r\n".to_string(),
+            "\r\n".to_string(),
+            "This is a message just to say hello.\r\n".to_string(),
+            "So, \"Hello\".\r\n".to_string(),
+        ]
+        .concat()
+    );
 }
 
 #[test]
 fn reply_simple() {
-    assert_eq!(
-        MailMimeParser::default()
-            .parse(
-                include_str!("../../mail/rfc5322/A.2.b.eml")
-                    .lines()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>()
-            )
-            .unwrap(),
+    let parsed = MailMimeParser::default()
+        .parse(
+            include_str!("../../mail/rfc5322/A.2.b.eml")
+                .lines()
+                .map(str::to_string)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+    pretty_assertions::assert_eq!(
+        parsed,
         MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("from", "Mary Smith <mary@example.net>"),
@@ -72,19 +88,36 @@ fn reply_simple() {
             )
         }))
     );
+    pretty_assertions::assert_eq!(
+        parsed.to_string(),
+        [
+            "from: Mary Smith <mary@example.net>\r\n".to_string(),
+            "to: John Doe <jdoe@machine.example>\r\n".to_string(),
+            "reply-to: \"Mary Smith: Personal Account\" <smith@home.example>\r\n".to_string(),
+            "subject: Re: Saying Hello\r\n".to_string(),
+            "date: Fri, 21 Nov 1997 10:01:10 -0600\r\n".to_string(),
+            "message-id: <3456@example.net>\r\n".to_string(),
+            "in-reply-to: <1234@local.machine.example>\r\n".to_string(),
+            "references: <1234@local.machine.example>\r\n".to_string(),
+            "\r\n".to_string(),
+            "This is a reply to your hello.\r\n".to_string(),
+        ]
+        .concat()
+    );
 }
 
 #[test]
 fn reply_reply() {
-    assert_eq!(
-        MailMimeParser::default()
-            .parse(
-                include_str!("../../mail/rfc5322/A.2.c.eml")
-                    .lines()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>()
-            )
-            .unwrap(),
+    let parsed = MailMimeParser::default()
+        .parse(
+            include_str!("../../mail/rfc5322/A.2.c.eml")
+                .lines()
+                .map(str::to_string)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+    pretty_assertions::assert_eq!(
+        parsed,
         MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 (
@@ -111,5 +144,20 @@ fn reply_reply() {
                     .collect::<_>()
             )
         }))
+    );
+    pretty_assertions::assert_eq!(
+        parsed.to_string(),
+        [
+            "to: \"Mary Smith: Personal Account\" <smith@home.example>\r\n".to_string(),
+            "from: John Doe <jdoe@machine.example>\r\n".to_string(),
+            "subject: Re: Saying Hello\r\n".to_string(),
+            "date: Fri, 21 Nov 1997 11:00:00 -0600\r\n".to_string(),
+            "message-id: <abcd.1234@local.machine.test>\r\n".to_string(),
+            "in-reply-to: <3456@example.net>\r\n".to_string(),
+            "references: <1234@local.machine.example> <3456@example.net>\r\n".to_string(),
+            "\r\n".to_string(),
+            "This is a reply to your reply.\r\n".to_string(),
+        ]
+        .concat()
     );
 }

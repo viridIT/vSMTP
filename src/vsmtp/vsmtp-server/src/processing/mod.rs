@@ -19,7 +19,7 @@ use anyhow::Context;
 use vsmtp_common::{
     queue::Queue,
     queue_path,
-    re::{anyhow, log},
+    re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
 };

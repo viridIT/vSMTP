@@ -16,9 +16,8 @@
 */
 use super::get_tls_config;
 use crate::{test_receiver, tests::tls::test_starttls};
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::{anyhow, tokio};
 use vsmtp_config::TlsSecurityLevel;
-use vsmtp_server::re::tokio;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn simple() {

@@ -23,7 +23,7 @@ use vsmtp_common::{
     event::Event,
     mail_context::{ConnectionContext, MessageMetadata},
     rcpt::Rcpt,
-    re::{anyhow, log},
+    re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
     Address, CodeID, ReplyOrCodeID,

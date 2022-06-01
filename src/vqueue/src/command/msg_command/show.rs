@@ -133,13 +133,13 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
+        pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             [
-                "from: foo2 foo <foo2@foo>\n",
-                "date: tue, 30 nov 2021 20:54:27 +0100\n",
-                "\n",
-                "Hello World!!",
+                "from: foo2 foo <foo2@foo>\r\n",
+                "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+                "\r\n",
+                "Hello World!!\r\n",
             ]
             .concat()
         );

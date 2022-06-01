@@ -17,11 +17,10 @@
 use super::unsafe_auth_config;
 use vsmtp_common::{
     auth::Mechanism,
-    re::{anyhow, base64, strum, vsmtp_rsasl},
+    re::{anyhow, base64, strum, tokio, vsmtp_rsasl},
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::re::tokio;
 use vsmtp_server::Server;
 use vsmtp_server::{auth, ConnectionKind, ProcessMessage};
 

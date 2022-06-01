@@ -115,12 +115,14 @@ This is a raw email.
     assert_eq!(
         std::fs::read_to_string("./tmp/app/tests/generated/test_message_id.eml")
             .expect("could not read 'test_message_id'"),
-        r#"From: john doe <john@doe.com>
-To: green@foo.net
-Subject: test email
-
-This is a raw email.
-"#
+        [
+            "From: john doe <john@doe.com>\r\n",
+            "To: green@foo.net\r\n",
+            "Subject: test email\r\n",
+            "\r\n",
+            "This is a raw email.\r\n"
+        ]
+        .concat()
     );
 
     std::fs::remove_file("./tmp/app/tests/generated/test_message_id.eml")

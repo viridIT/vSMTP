@@ -1,4 +1,4 @@
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::{anyhow, tokio};
 use vsmtp_config::build_resolvers;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{socket_bind_anyhow, ProcessMessage, Server};

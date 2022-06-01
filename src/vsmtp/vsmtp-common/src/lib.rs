@@ -121,6 +121,7 @@ pub mod re {
     pub use log;
     pub use serde_json;
     pub use strum;
+    pub use tokio;
     pub use vsmtp_rsasl;
 }
 

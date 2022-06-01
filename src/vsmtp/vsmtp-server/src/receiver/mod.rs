@@ -20,7 +20,7 @@ use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
     mail_context::{ConnectionContext, MailContext, MessageBody, MAIL_CAPACITY},
-    re::anyhow,
+    re::{anyhow, tokio},
     state::StateSMTP,
     status::Status,
     CodeID, MailParserOnFly,

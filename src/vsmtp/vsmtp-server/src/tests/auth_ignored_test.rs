@@ -14,6 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use vsmtp_common::re::tokio;
+
 #[tokio::test]
 #[ignore]
 async fn test() {

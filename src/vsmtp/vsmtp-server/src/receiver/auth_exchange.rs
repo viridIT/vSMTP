@@ -23,7 +23,7 @@ use super::Connection;
 use vsmtp_common::{
     auth::Mechanism,
     mail_context::ConnectionContext,
-    re::{anyhow, base64, log, vsmtp_rsasl},
+    re::{anyhow, base64, log, tokio, vsmtp_rsasl},
     CodeID,
 };
 use vsmtp_config::Resolvers;

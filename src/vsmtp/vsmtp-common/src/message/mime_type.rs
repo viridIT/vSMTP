@@ -49,56 +49,44 @@ pub struct MimeMultipart {
     pub epilogue: String,
 }
 
+// TODO: handle folding here
 impl std::fmt::Display for MimeHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let args = self
-            .args
-            .iter()
-            .map(|(name, value)| format!("{}=\"{}\"", name, value))
-            .collect::<Vec<_>>()
-            .join("; ");
-
-        if args.is_empty() {
-            f.write_fmt(format_args!("{}: {}", self.name, self.value))
-        } else {
-            f.write_fmt(format_args!("{}: {}; {}", self.name, self.value, args))
+        f.write_fmt(format_args!("{}: {}", self.name, self.value))?;
+        if !self.args.is_empty() {
+            for (key, value) in &self.args {
+                f.write_fmt(format_args!("; {key}=\"{value}\""))?;
+            }
         }
+        f.write_str("\r\n")?;
+        Ok(())
     }
 }
 
-impl MimeMultipart {
+struct MimeMultipartDisplayable<'a>(&'a MimeMultipart, &'a str);
+
+impl<'a> std::fmt::Display for MimeMultipartDisplayable<'a> {
     ///  preamble
     ///  --boundary
     ///  *{ headers \n body \n boundary}
     ///  epilogue || nothing
     ///  --end-boundary--
-    fn to_raw(&self, boundary: &str) -> String {
-        if self.epilogue.is_empty() {
-            format!(
-                "\n{}\n--{}\n{}\n--{}--\n",
-                self.preamble,
-                boundary,
-                self.parts
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(&format!("\n--{}\n", boundary)),
-                boundary,
-            )
-        } else {
-            format!(
-                "\n{}\n--{}\n{}\n{}\n--{}--\n",
-                self.preamble,
-                boundary,
-                self.parts
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(&format!("\n--{}\n", boundary)),
-                self.epilogue,
-                boundary,
-            )
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if !self.0.preamble.is_empty() {
+            f.write_fmt(format_args!("{}\r\n", self.0.preamble))?;
         }
+
+        for i in &self.0.parts {
+            f.write_fmt(format_args!("--{}\r\n", self.1))?;
+            f.write_fmt(format_args!("{i}"))?;
+        }
+
+        if !self.0.epilogue.is_empty() {
+            f.write_str(&self.0.epilogue)?;
+            f.write_str("\r\n")?;
+        }
+        f.write_fmt(format_args!("--{}--\r\n\r\n", self.1))?;
+        Ok(())
     }
 }
 
@@ -114,25 +102,26 @@ pub struct Mime {
 impl std::fmt::Display for Mime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for i in &self.headers {
-            writeln!(f, "{i}")?;
+            write!(f, "{i}")?;
         }
-        writeln!(f)?;
+        f.write_str("\r\n")?;
 
         match &self.content {
             MimeBodyType::Regular(regular) => {
                 for i in regular {
-                    writeln!(f, "{i}")?;
+                    write!(f, "{i}")?;
+                    f.write_str("\r\n")?;
                 }
                 Ok(())
             }
             MimeBodyType::Multipart(multipart) => {
-                let mime_with_boundary = self
+                let boundary = self
                     .headers
                     .iter()
-                    .find(|header| header.args.get("boundary").is_some());
-                let boundary = mime_with_boundary.unwrap().args.get("boundary").unwrap();
+                    .find_map(|header| header.args.get("boundary"))
+                    .unwrap();
 
-                write!(f, "{}", multipart.to_raw(boundary))
+                write!(f, "{}", MimeMultipartDisplayable(multipart, boundary))
             }
             MimeBodyType::Embedded(mail) => write!(f, "{mail}"),
         }
@@ -155,12 +144,12 @@ mod tests {
         };
 
         let order1 = input.to_string()
-            == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\"";
+            == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\"\r\n";
         let order2 = input.to_string()
-            == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\"";
+            == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\"\r\n";
 
         // arguments can be in any order.
-        assert!(order1 || order2);
+        assert!(order1 || order2, "{input}");
 
         let input = MimeHeader {
             name: "Content-Type".to_string(),
@@ -170,7 +159,7 @@ mod tests {
 
         assert_eq!(
             input.to_string(),
-            "Content-Type: application/foobar".to_string()
+            "Content-Type: application/foobar\r\n".to_string()
         );
     }
 }

@@ -10,10 +10,11 @@ const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");
 #[test]
 #[allow(clippy::too_many_lines)]
 fn simple() {
+    let parsed = MailMimeParser::default()
+        .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+        .unwrap();
     pretty_assertions::assert_eq!(
-        MailMimeParser::default()
-            .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
-            .unwrap(),
+        parsed,
         MessageBody::Parsed(Box::new(Mail {
             headers: vec![
                 ("mime-version", "1.0"),
@@ -179,7 +180,7 @@ fn simple() {
                                 .into_iter()
                                 .map(|(k, v)| (k.to_string(), v.to_string()))
                                 .collect::<Vec<_>>(),
-                                // FIXME: ligne 68 and 69 are skipped (from .eml)
+                                // FIXME: line 68 and 69 are skipped (from .eml)
                                 body: BodyType::Regular(
                                     ["  ... Additional text in ISO-8859-1 goes here ...", "",]
                                         .into_iter()
@@ -193,5 +194,87 @@ fn simple() {
                 })
             }))
         }))
+    );
+
+    pretty_assertions::assert_eq!(
+        parsed.to_string(),
+        [
+            "mime-version: 1.0\r\n".to_string(),
+            "from: Nathaniel Borenstein <nsb@nsb.fv.com>\r\n".to_string(),
+            "date: Fri, 07 Oct 1994 16:15:05 -0700 \r\n".to_string(),
+            "to: Ned Freed <ned@innosoft.com>\r\n".to_string(),
+            "subject: A multipart example\r\n".to_string(),
+            "content-type: multipart/mixed; boundary=\"unique-boundary-1\"\r\n".to_string(),
+            "\r\n".to_string(),
+            "This is the preamble area of a multipart message.\r\n".to_string(),
+            "Mail readers that understand multipart format\r\n".to_string(),
+            "should ignore this preamble.\r\n".to_string(),
+            "\r\n".to_string(),
+            "If you are reading this text, you might want to\r\n".to_string(),
+            "consider changing to a mail reader that understands\r\n".to_string(),
+            "how to properly display multipart messages.\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-1\r\n".to_string(),
+            "\r\n".to_string(),
+            "  ... Some text appears here ...\r\n".to_string(),
+            "\r\n".to_string(),
+            "[Note that the blank between the boundary and the start\r\n".to_string(),
+            " of the text in this part means no header fields were\r\n".to_string(),
+            " given and this is text in the US-ASCII character set.\r\n".to_string(),
+            " It could have been done with explicit typing as in the\r\n".to_string(),
+            " next part.]\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-1\r\n".to_string(),
+            "content-type: text/plain; charset=\"US-ASCII\"\r\n".to_string(),
+            "\r\n".to_string(),
+            "This could have been part of the previous part, but\r\n".to_string(),
+            "illustrates explicit versus implicit typing of body\r\n".to_string(),
+            "parts.\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-1\r\n".to_string(),
+            "content-type: multipart/parallel; boundary=\"unique-boundary-2\"\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-2\r\n".to_string(),
+            "content-type: audio/basic\r\n".to_string(),
+            "content-transfer-encoding: base64\r\n".to_string(),
+            "\r\n".to_string(),
+            "  ... base64-encoded 8000 Hz single-channel\r\n".to_string(),
+            "      mu-law-format audio data goes here ...\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-2\r\n".to_string(),
+            "content-type: image/jpeg\r\n".to_string(),
+            "content-transfer-encoding: base64\r\n".to_string(),
+            "\r\n".to_string(),
+            "  ... base64-encoded image data goes here ...\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-2--\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-1\r\n".to_string(),
+            "content-type: text/enriched\r\n".to_string(),
+            "\r\n".to_string(),
+            "This is <bold><italic>enriched.</italic></bold>\r\n".to_string(),
+            "<smaller>as defined in RFC 1896</smaller>\r\n".to_string(),
+            "\r\n".to_string(),
+            "Isn't it\r\n".to_string(),
+            "<bigger><bigger>cool?</bigger></bigger>\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-1\r\n".to_string(),
+            "content-type: message/rfc822\r\n".to_string(),
+            "\r\n".to_string(),
+            "date: \r\n".to_string(),
+            "from: \r\n".to_string(),
+            "to: \r\n".to_string(),
+            "subject: \r\n".to_string(),
+            // FIXME: line 68 and 69 are skipped (from .eml)
+            // "content-type: Text/plain; charset=ISO-8859-1\r\n".to_string(),
+            // "content-transfer-encoding: Quoted-printable\r\n".to_string(),
+            "\r\n".to_string(),
+            "  ... Additional text in ISO-8859-1 goes here ...\r\n".to_string(),
+            "\r\n".to_string(),
+            "--unique-boundary-1--\r\n".to_string(),
+            // FIXME: remove this last line
+            "\r\n".to_string()
+        ]
+        .concat()
     );
 }

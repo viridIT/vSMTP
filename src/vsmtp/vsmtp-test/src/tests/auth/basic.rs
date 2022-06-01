@@ -21,10 +21,9 @@ use crate::{
 use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
-    re::{base64, vsmtp_rsasl},
+    re::{base64, tokio, vsmtp_rsasl},
     CodeID,
 };
-use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
 use vsmtp_server::{auth, OnMail};
 

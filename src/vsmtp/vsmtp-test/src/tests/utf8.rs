@@ -18,9 +18,10 @@ use crate::test_receiver;
 use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
+    re::tokio,
     CodeID, {BodyType, Mail},
 };
-use vsmtp_server::{re::tokio, Connection, OnMail};
+use vsmtp_server::{Connection, OnMail};
 
 macro_rules! test_lang {
     ($lang_code:expr) => {{

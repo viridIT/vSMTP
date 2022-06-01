@@ -19,7 +19,7 @@ use vsmtp_common::{
     queue::Queue,
     re::{
         anyhow::{self, Context},
-        log, strum,
+        log, strum, tokio,
     },
 };
 use vsmtp_config::Config;

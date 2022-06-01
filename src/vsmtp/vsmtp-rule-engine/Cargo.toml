@@ -47,15 +47,6 @@ lettre = { version = "0.10.0-rc.6", default-features = false, features = [
     "tracing",
 ] }
 
-tokio = { version = "1.18.2", default-features = false, features = [
-    "macros",
-    "time",
-    "sync",
-    "net",
-    "io-util",
-    "rt-multi-thread",
-] }
-
 wait-timeout = "0.2.0"
 
 [dev-dependencies]
