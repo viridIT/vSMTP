@@ -129,7 +129,9 @@ async fn send_email(
                     ForwardTarget::Domain(domain) => resolvers
                         .get(domain)
                         .unwrap_or_else(|| resolvers.get(&config.server.domain).unwrap()),
-                    ForwardTarget::Ip(_) => resolvers.get(&config.server.domain).unwrap(),
+                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => {
+                        resolvers.get(&config.server.domain).unwrap()
+                    }
                 },
             )),
             Transfer::Deliver => Box::new(deliver2::Deliver::new({

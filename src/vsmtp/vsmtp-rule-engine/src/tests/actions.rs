@@ -271,6 +271,11 @@ fn test_forward() {
         rcpt[6].transfer_method,
         Transfer::Forward(ForwardTarget::Domain("test.eu".to_string()))
     );
+    assert_eq!(rcpt[7].address.full(), "socket@example.com");
+    assert_eq!(
+        rcpt[7].transfer_method,
+        Transfer::Forward(ForwardTarget::Socket("127.0.0.1:25".parse().unwrap()))
+    );
 }
 
 #[test]
