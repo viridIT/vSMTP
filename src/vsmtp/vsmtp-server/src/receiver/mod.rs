@@ -18,7 +18,8 @@ use self::transaction::{Transaction, TransactionResult};
 use crate::{auth, receiver::auth_exchange::on_authentication};
 use vsmtp_common::{
     auth::Mechanism,
-    mail_context::{MessageBody, MAIL_CAPACITY},
+    mail_context::MessageBody,
+    mail_context::MAIL_CAPACITY,
     re::{anyhow, tokio},
     state::StateSMTP,
     status::Status,
