@@ -60,16 +60,14 @@ impl Transaction {
     ) -> ProcessedEvent {
         log::trace!(
             target: log_channels::TRANSACTION,
-            "buffer=\"{}\"",
-            client_message
+            "buffer=\"{client_message:?}\"",
         );
 
         let command_or_code = Event::parse_cmd(client_message);
 
         log::trace!(
             target: log_channels::TRANSACTION,
-            "parsed=\"{:?}\"",
-            command_or_code
+            "parsed=\"{command_or_code:?}\"",
         );
 
         command_or_code.map_or_else(
@@ -490,9 +488,8 @@ impl Transaction {
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
-                                    "================ STATE: /{:?}/ => /{:?}/",
-                                    self.state,
-                                    new_state
+                                    "================ STATE: /{old_state:?}/ => /{new_state:?}/",
+                                    old_state = self.state,
                                 );
                                 self.state = new_state;
                                 read_timeout =
@@ -501,9 +498,8 @@ impl Transaction {
                             ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
-                                    "================ STATE: /{:?}/ => /{:?}/",
-                                    self.state,
-                                    new_state
+                                    "================ STATE: /{old_state:?}/ => /{new_state:?}/",
+                                    old_state = self.state,
                                 );
                                 self.state = new_state;
                                 read_timeout =

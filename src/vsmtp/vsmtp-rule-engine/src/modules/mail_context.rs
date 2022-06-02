@@ -14,6 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::error::RuntimeError;
 use crate::modules::types::types::{Context, Message, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
@@ -21,6 +22,7 @@ use rhai::plugin::{
     RhaiResult, TypeId,
 };
 use vsmtp_common::mail_context::AuthCredentials;
+use vsmtp_common::re::anyhow;
 use vsmtp_common::Address;
 
 #[doc(hidden)]
@@ -30,69 +32,37 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "client_ip", return_raw, pure)]
     pub fn client_ip(this: &mut Context) -> EngineResult<std::net::IpAddr> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .client_addr
-            .ip())
+        Ok(vsl_guard_ok!(this.read()).client_addr.ip())
     }
 
     #[rhai_fn(global, get = "client_port", return_raw, pure)]
     pub fn client_port(this: &mut Context) -> EngineResult<i64> {
-        Ok(i64::from(
-            this.read()
-                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-                .client_addr
-                .port(),
-        ))
+        Ok(i64::from(vsl_guard_ok!(this.read()).client_addr.port()))
     }
 
     #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
     pub fn connection_timestamp(this: &mut Context) -> EngineResult<std::time::SystemTime> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .connection
-            .timestamp)
+        Ok(vsl_guard_ok!(this.read()).connection.timestamp)
     }
 
     #[rhai_fn(global, get = "server_name", return_raw, pure)]
     pub fn server_name(this: &mut Context) -> EngineResult<String> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .connection
-            .server_name
-            .clone())
+        Ok(vsl_guard_ok!(this.read()).connection.server_name.clone())
     }
 
     #[rhai_fn(global, get = "is_secured", return_raw, pure)]
     pub fn is_secured(this: &mut Context) -> EngineResult<bool> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .connection
-            .is_secured)
+        Ok(vsl_guard_ok!(this.read()).connection.is_secured)
     }
 
     #[rhai_fn(global, get = "is_authenticated", return_raw, pure)]
     pub fn is_authenticated(this: &mut Context) -> EngineResult<bool> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .connection
-            .is_authenticated)
+        Ok(vsl_guard_ok!(this.read()).connection.is_authenticated)
     }
 
     #[rhai_fn(global, get = "auth", return_raw, pure)]
     pub fn auth(this: &mut Context) -> EngineResult<AuthCredentials> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .connection
-            .credentials
-            .clone()
-            .ok_or("is none")?)
+        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()).connection.credentials, "auth").clone())
     }
 
     #[rhai_fn(global, get = "type", pure)]
@@ -126,29 +96,17 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "helo", return_raw, pure)]
     pub fn helo(this: &mut Context) -> EngineResult<String> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .envelop
-            .helo
-            .clone())
+        Ok(vsl_guard_ok!(this.read()).envelop.helo.clone())
     }
 
     #[rhai_fn(global, get = "mail_from", return_raw, pure)]
     pub fn mail_from(this: &mut Context) -> EngineResult<Address> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .envelop
-            .mail_from
-            .clone())
+        Ok(vsl_guard_ok!(this.read()).envelop.mail_from.clone())
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw, pure)]
     pub fn rcpt(this: &mut Context) -> EngineResult<Vec<Address>> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+        Ok(vsl_guard_ok!(this.read())
             .envelop
             .rcpt
             .iter()
@@ -158,43 +116,21 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
     pub fn mail_timestamp(this: &mut Context) -> EngineResult<std::time::SystemTime> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .metadata
-            .as_ref()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "metadata are not available in this stage".into()
-            })?
-            .timestamp)
+        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()).metadata, "mail_timestamp").timestamp)
     }
 
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
     pub fn message_id(this: &mut Context) -> EngineResult<String> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .metadata
-            .as_ref()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "metadata are not available in this stage".into()
-            })?
-            .message_id
-            .clone())
+        Ok(
+            vsl_missing_ok!(vsl_guard_ok!(this.read()).metadata, "message_id")
+                .message_id
+                .clone(),
+        )
     }
 
     #[rhai_fn(global, get = "mail", return_raw, pure)]
     pub fn mail(this: &mut Message) -> EngineResult<String> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .as_ref()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "failed: the email has not been received yet. Use this method in postq or later."
-                    .to_string()
-                    .into()
-            })?
-            .to_string())
+        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "mail").to_string())
     }
 
     #[rhai_fn(global, name = "to_string", pure)]

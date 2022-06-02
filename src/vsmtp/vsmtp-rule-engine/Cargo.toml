@@ -19,6 +19,8 @@ categories = ["config"]
 vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
 vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
 
+thiserror = "1.0.31"
+
 # objects
 regex = "1.5.5"
 iprange = "0.6.7"

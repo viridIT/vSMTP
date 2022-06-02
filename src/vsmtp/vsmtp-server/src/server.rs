@@ -96,12 +96,6 @@ impl Server {
                 .create(&config.server.queues.dirpath)?;
         }
 
-        if config.server.tls.is_none() {
-            log::warn!(
-                "No TLS configuration provided, listening on submissions protocol (port 465) will cause issue"
-            );
-        }
-
         Ok(Self {
             tls_config: if let Some(smtps) = &config.server.tls {
                 Some(std::sync::Arc::new(get_rustls_config(
@@ -162,6 +156,13 @@ impl Server {
                 .map(tokio::net::TcpListener::from_std)
                 .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()?,
         );
+
+        if self.config.server.tls.is_none() && !listener_tunneled.is_empty() {
+            log::warn!(
+                target: log_channels::SERVER,
+                "No TLS configuration provided, listening on submissions protocol (port 465) will cause issue"
+            );
+        }
 
         let addr = [&listener, &listener_submission, &listener_tunneled]
             .iter()

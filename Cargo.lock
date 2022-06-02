@@ -2122,6 +2122,7 @@ dependencies = [
  "lettre",
  "regex",
  "rhai",
+ "thiserror",
  "time 0.3.9",
  "viaspf",
  "vsmtp-common",

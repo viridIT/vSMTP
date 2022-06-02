@@ -67,7 +67,7 @@ impl std::fmt::Display for MessageBody {
 }
 
 impl MessageBody {
-    /// Convert a the instance into a [`MessageBody::Parsed`] or [`MessageBody::Empty`]
+    /// Convert a the instance into a [`MessageBody::Parsed`]
     ///
     /// # Errors
     ///

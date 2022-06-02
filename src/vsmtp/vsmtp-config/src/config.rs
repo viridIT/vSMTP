@@ -112,10 +112,13 @@ pub struct ConfigServerSystemThreadPool {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerInterfaces {
+    #[serde(default)]
     #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr: Vec<std::net::SocketAddr>,
+    #[serde(default)]
     #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr_submission: Vec<std::net::SocketAddr>,
+    #[serde(default)]
     #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr_submissions: Vec<std::net::SocketAddr>,
 }

@@ -62,7 +62,7 @@
                 print(ctx().mail_timestamp);
                 return deny();
             } catch (err) {
-                if "metadata are not available in this stage" in err { return next(); } else { return deny(); }
+                if "the field: `mail_timestamp` is not defined" in err { return next(); } else { return deny(); }
             }
         },
 
@@ -71,7 +71,7 @@
                 print(ctx().message_id);
                 return deny();
             } catch (err) {
-                if "metadata are not available in this stage" in err { return next(); } else { return deny(); }
+                if "the field: `message_id` is not defined" in err { return next(); } else { return deny(); }
             }
         },
 
