@@ -2,7 +2,7 @@ use crate::{Connection, ProcessMessage};
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
     queue::Queue,
-    re::{log, tokio},
+    re::{anyhow, log, tokio},
     status::Status,
     CodeID,
 };
@@ -31,7 +31,7 @@ enum MailHandlerError {
     #[error("couldn't write to `mails` folder: `{0}`")]
     WriteMessageBody(std::io::Error),
     #[error("couldn't create app folder: `{0}`")]
-    CreateAppFolder(std::io::Error),
+    CreateAppFolder(anyhow::Error),
     #[error("couldn't write to quarantine file: `{0}`")]
     WriteQuarantineFile(std::io::Error),
     #[error("couldn't write to queue `{0}` got: `{1}`")]

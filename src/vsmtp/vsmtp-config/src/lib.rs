@@ -83,7 +83,7 @@ pub mod re {
 }
 
 use builder::{Builder, WantsVersion};
-use vsmtp_common::re::anyhow;
+use vsmtp_common::{libc_abstraction::chown, re::anyhow};
 
 impl Config {
     ///
@@ -140,10 +140,11 @@ impl Config {
 ///
 /// # Errors
 /// * failed to create the app directory.
+/// * failed to set proper rights to the app directory.
 pub fn create_app_folder(
     config: &Config,
     path: Option<&str>,
-) -> std::io::Result<std::path::PathBuf> {
+) -> anyhow::Result<std::path::PathBuf> {
     let path = path.map_or_else(
         || config.app.dirpath.clone(),
         |path| config.app.dirpath.join(path),
@@ -151,6 +152,11 @@ pub fn create_app_folder(
 
     if !path.exists() {
         std::fs::create_dir_all(&path)?;
+        chown(
+            &path,
+            Some(config.server.system.user.uid()),
+            Some(config.server.system.group.gid()),
+        )?;
     }
 
     Ok(path)
