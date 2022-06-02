@@ -14,29 +14,21 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::modules::types::types::{Context, Message};
+use crate::modules::EngineResult;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::{mail_context::MessageBody, Address};
 
 #[rhai::plugin::export_module]
 pub mod headers {
-    use crate::modules::types::types::{Context, Message};
-    use crate::modules::EngineResult;
-    use vsmtp_common::{mail_context::MessageBody, Address};
 
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, return_raw, pure)]
     pub fn has_header(this: &mut Message, header: &str) -> EngineResult<bool> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .as_ref()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "failed: the email has not been received yet. Use this method in postq or later."
-                    .to_string()
-                    .into()
-            })?
+        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "message")
             .get_header(header)
             .is_some())
     }
@@ -44,15 +36,7 @@ pub mod headers {
     /// return the value of a header if it exists. Otherwise, returns an empty string.
     #[rhai_fn(global, return_raw, pure)]
     pub fn get_header(this: &mut Message, header: &str) -> EngineResult<String> {
-        Ok(this
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .as_ref()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "failed: the email has not been received yet. Use this method in postq or later."
-                    .to_string()
-                    .into()
-            })?
+        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "message")
             .get_header(header)
             .map(ToString::to_string)
             .unwrap_or_default())
@@ -61,30 +45,14 @@ pub mod headers {
     /// add a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
     pub fn add_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .as_mut()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "failed: the email has not been received yet. Use this method in postq or later."
-                    .to_string()
-                    .into()
-            })?
-            .add_header(header, value);
+        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message").add_header(header, value);
         Ok(())
     }
 
     /// set a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
     pub fn set_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .as_mut()
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                "failed: the email has not been received yet. Use this method in postq or later."
-                    .to_string()
-                    .into()
-            })?
-            .set_header(header, value);
+        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message").set_header(header, value);
         Ok(())
     }
 
@@ -99,11 +67,7 @@ pub mod headers {
                 .into()
             })?;
 
-        let email = &mut this
-            .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
-
-        email.envelop.mail_from = new_addr;
+        vsl_guard_ok!(this.write()).envelop.mail_from = new_addr;
         Ok(())
     }
 
@@ -117,17 +81,12 @@ pub mod headers {
                 .into()
             })?;
 
-        let mut message = this
-            .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
-
-        match &mut *message {
-            Some(MessageBody::Parsed(body)) => {
-                body.rewrite_mail_from(new_addr.full());
-                Ok(())
-            },
-            _ => Err("failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later.".into()),
+        let mut writer = vsl_guard_ok!(this.write());
+        match vsl_parse_ok!(writer) {
+            MessageBody::Parsed(body) => body.rewrite_mail_from(new_addr.full()),
+            MessageBody::Raw(..) => unreachable!("the message has been parsed just above"),
         }
+        Ok(())
     }
 
     #[rhai_fn(global, return_raw, pure)]
@@ -150,16 +109,12 @@ pub mod headers {
                 .into()
             })?;
 
-        match &mut *this
-            .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-        {
-            Some(MessageBody::Parsed(body)) => {
-                body.rewrite_rcpt(old_addr.full(), new_addr.full());
-                Ok(())
-            }
-            _ => Err("failed to rewrite rcpt: the email has not been parsed yet.".into()),
+        let mut writer = vsl_guard_ok!(this.write());
+        match vsl_parse_ok!(writer) {
+            MessageBody::Parsed(body) => body.rewrite_rcpt(old_addr.full(), new_addr.full()),
+            MessageBody::Raw(..) => unreachable!("the message has been parsed just above"),
         }
+        Ok(())
     }
 
     /// change a recipient of the envelop.
@@ -205,16 +160,13 @@ pub mod headers {
         let new_addr = Address::try_from(new_addr.to_string())
             .map_err(|_| format!("'{new_addr}' could not be converted to a valid rcpt address"))?;
 
-        match &mut *this
-            .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-        {
-            Some(MessageBody::Parsed(body)) => {
-                body.add_rcpt(new_addr.full());
-                Ok(())
-            }
-            _ => Err("failed to add rcpt: the email has not been parsed yet.".into()),
+        println!("here");
+        let mut writer = vsl_guard_ok!(this.write());
+        match vsl_parse_ok!(writer) {
+            MessageBody::Parsed(body) => body.add_rcpt(new_addr.full()),
+            MessageBody::Raw(..) => unreachable!("the message has been parsed just above"),
         }
+        Ok(())
     }
 
     /// add a recipient to the envelop.
@@ -223,8 +175,7 @@ pub mod headers {
         let new_addr = Address::try_from(new_addr.to_string())
             .map_err(|_| format!("'{new_addr}' could not be converted to a valid rcpt address"))?;
 
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+        vsl_guard_ok!(this.write())
             .envelop
             .rcpt
             .push(vsmtp_common::rcpt::Rcpt::new(new_addr));
@@ -238,16 +189,12 @@ pub mod headers {
         let addr = Address::try_from(addr.to_string())
             .map_err(|_| format!("{addr} could not be converted to a valid rcpt address"))?;
 
-        match &mut *this
-            .write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-        {
-            Some(MessageBody::Parsed(body)) => {
-                body.remove_rcpt(addr.full());
-                Ok(())
-            }
-            _ => Err("failed to remove rcpt: the email has not been parsed yet.".into()),
+        let mut writer = vsl_guard_ok!(this.write());
+        match vsl_parse_ok!(writer) {
+            MessageBody::Parsed(body) => body.remove_rcpt(addr.full()),
+            MessageBody::Raw(..) => unreachable!("the message has been parsed just above"),
         }
+        Ok(())
     }
 
     /// remove a recipient from the envelop.

@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::error::RuntimeError;
 use crate::modules::types::types::{Context, Message, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
@@ -22,7 +21,6 @@ use rhai::plugin::{
     RhaiResult, TypeId,
 };
 use vsmtp_common::mail_context::AuthCredentials;
-use vsmtp_common::re::anyhow;
 use vsmtp_common::Address;
 
 #[doc(hidden)]

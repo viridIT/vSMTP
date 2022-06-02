@@ -18,6 +18,7 @@ categories = ["config"]
 [dependencies]
 vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
 vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.0.0-rc.1" }
 
 thiserror = "1.0.31"
 

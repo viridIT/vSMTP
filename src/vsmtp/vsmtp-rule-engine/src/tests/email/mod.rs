@@ -28,7 +28,7 @@ use vsmtp_common::{
 };
 
 #[test]
-fn test_email_context() {
+fn test_email_context_empty() {
     let config = get_default_config("./tmp/app");
     let re = RuleEngine::new(&config, &Some(rules_path!["main.vsl"])).unwrap();
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
@@ -38,11 +38,29 @@ fn test_email_context() {
         re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
+}
+
+#[test]
+fn test_email_context_raw() {
+    let config = get_default_config("./tmp/app");
+    let re = RuleEngine::new(&config, &Some(rules_path!["main.vsl"])).unwrap();
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers, &re);
+
     *state.message().write().unwrap() = Some(MessageBody::Raw(vec![]));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
+}
+
+#[test]
+fn test_email_context_mail() {
+    let config = get_default_config("./tmp/app");
+    let re = RuleEngine::new(&config, &Some(rules_path!["main.vsl"])).unwrap();
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers, &re);
+
     *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
         headers: vec![(
             "to".to_string(),

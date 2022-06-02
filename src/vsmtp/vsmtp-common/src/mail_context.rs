@@ -67,15 +67,15 @@ impl std::fmt::Display for MessageBody {
 }
 
 impl MessageBody {
-    /// Convert a the instance into a [`MessageBody::Parsed`]
+    /// Create a new instance of [`MessageBody::Parsed`], cloning if already parsed
     ///
     /// # Errors
     ///
     /// * Fail to parse using the provided [`MailParser`]
-    pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
+    pub fn to_parsed<P: MailParser>(&self) -> anyhow::Result<Self> {
         Ok(match self {
-            Self::Raw(raw) => P::default().parse(raw)?,
-            otherwise @ Self::Parsed(_) => otherwise,
+            Self::Raw(raw) => P::default().parse(raw.clone())?,
+            Self::Parsed(_) => self.clone(),
         })
     }
 

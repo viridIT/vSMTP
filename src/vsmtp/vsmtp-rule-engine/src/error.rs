@@ -108,13 +108,15 @@ pub enum RuntimeError {
     PoisonedGuard { source: anyhow::Error },
     #[error("the field: `{field}` is not defined yet")]
     MissingField { field: String },
+    #[error("failed to parse the message body, `{source}`")]
+    ParseMessageBody { source: anyhow::Error },
 }
 
 macro_rules! vsl_guard_ok {
     ($guard:expr) => {
         $guard.map_err::<Box<EvalAltResult>, _>(|e| {
-            RuntimeError::PoisonedGuard {
-                source: anyhow::anyhow!("{e}"),
+            $crate::error::RuntimeError::PoisonedGuard {
+                source: vsmtp_common::re::anyhow::anyhow!("{e}"),
             }
             .into()
         })?
@@ -123,10 +125,33 @@ macro_rules! vsl_guard_ok {
 
 macro_rules! vsl_missing_ok {
     ($option:expr, $field:expr) => {
-        $option.as_ref().ok_or_else(|| RuntimeError::MissingField {
-            field: $field.to_string(),
-        })?
+        $option
+            .as_ref()
+            .ok_or_else(|| $crate::error::RuntimeError::MissingField {
+                field: $field.to_string(),
+            })?
     };
+    (mut $option:expr, $field:expr) => {
+        $option
+            .as_mut()
+            .ok_or_else(|| $crate::error::RuntimeError::MissingField {
+                field: $field.to_string(),
+            })?
+    };
+}
+
+macro_rules! vsl_parse_ok {
+    ($writer:expr) => {{
+        let message = vsl_missing_ok!($writer, "message");
+        if !matches!(&message, MessageBody::Parsed(..)) {
+            *$writer = Some(
+                message
+                    .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
+                    .map_err(|source| $crate::error::RuntimeError::ParseMessageBody { source })?,
+            );
+        }
+        vsl_missing_ok!(mut $writer, "message")
+    }};
 }
 
 impl From<RuntimeError> for Box<rhai::EvalAltResult> {
