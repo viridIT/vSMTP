@@ -15,7 +15,7 @@
  *
 */
 use super::Object;
-use crate::error::RuleEngineError;
+use crate::error::CompilationError;
 use crate::modules::EngineResult;
 /// check of a "object" expression is valid.
 /// the syntax is:
@@ -126,7 +126,7 @@ fn create_file(
     let object = context.eval_expression_tree(&input[4])?;
 
     if object.is::<rhai::Map>() {
-        let mut object: rhai::Map = object.try_cast().ok_or(RuleEngineError::Object)?;
+        let mut object: rhai::Map = object.try_cast().ok_or(CompilationError::Object)?;
         object.insert("type".into(), rhai::Dynamic::from("file"));
         object.insert("name".into(), rhai::Dynamic::from(object_name.to_string()));
         object.insert(
@@ -169,7 +169,7 @@ fn create_code(
         map.insert("value".into(), object);
         Ok(map)
     } else if object.is::<rhai::Map>() {
-        let mut object: rhai::Map = object.try_cast().ok_or(RuleEngineError::Object)?;
+        let mut object: rhai::Map = object.try_cast().ok_or(CompilationError::Object)?;
 
         for key in ["code", "enhanced", "text"] {
             if !object.contains_key(key) {
@@ -202,7 +202,7 @@ fn create_other(
     let object = context.eval_expression_tree(&input[3])?;
 
     if object.is::<rhai::Map>() {
-        let mut object: rhai::Map = object.try_cast().ok_or(RuleEngineError::Object)?;
+        let mut object: rhai::Map = object.try_cast().ok_or(CompilationError::Object)?;
         object.insert("type".into(), rhai::Dynamic::from(object_type.to_string()));
         object.insert("name".into(), rhai::Dynamic::from(object_name.to_string()));
         Ok(object)

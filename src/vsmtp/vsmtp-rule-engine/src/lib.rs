@@ -16,11 +16,13 @@ mod log_channels {
 }
 
 mod dsl;
+#[macro_use]
 mod error;
+mod server_api;
+
 pub mod modules;
 pub mod rule_engine;
 pub mod rule_state;
-mod server_api;
 
 #[cfg(test)]
 mod tests;
