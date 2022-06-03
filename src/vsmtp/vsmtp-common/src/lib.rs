@@ -39,6 +39,10 @@ pub const SUBMISSION_PORT: u16 = 587;
 /// Defined in [RFC8314](https://tools.ietf.org/html/rfc8314)
 pub const SUBMISSIONS_PORT: u16 = 465;
 
+mod log_channels {
+    pub const QUEUE: &str = "server::queue";
+}
+
 #[macro_use]
 mod r#type {
     #[macro_use]
