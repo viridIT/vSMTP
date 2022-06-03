@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::types::types::{Context, Message, Server};
+use crate::modules::types::types::{Context, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
@@ -124,11 +124,6 @@ pub mod mail_context {
                 .message_id
                 .clone(),
         )
-    }
-
-    #[rhai_fn(global, get = "mail", return_raw, pure)]
-    pub fn mail(this: &mut Message) -> EngineResult<String> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "mail").to_string())
     }
 
     #[rhai_fn(global, name = "to_string", pure)]

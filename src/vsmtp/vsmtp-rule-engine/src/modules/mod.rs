@@ -14,10 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+#![allow(missing_docs)]
 use rhai::{exported_module, EvalAltResult};
 
 pub(crate) mod actions;
 pub(crate) mod mail_context;
+pub(crate) mod message;
 pub(crate) mod types;
 
 pub(crate) type EngineResult<T> = Result<T, Box<EvalAltResult>>;
@@ -28,7 +30,6 @@ rhai::def_package! {
         rhai::packages::StandardPackage::init(module);
 
         module.combine(exported_module!(super::modules::actions::bcc::bcc))
-            .combine(exported_module!(super::modules::actions::headers::headers))
             .combine(exported_module!(super::modules::actions::logging::logging))
             .combine(exported_module!(super::modules::actions::rule_state::rule_state))
             .combine(exported_module!(super::modules::actions::security::security))
@@ -37,6 +38,9 @@ rhai::def_package! {
             .combine(exported_module!(super::modules::actions::utils::utils))
             .combine(exported_module!(super::modules::actions::write::write))
             .combine(exported_module!(super::modules::types::types))
-            .combine(exported_module!(super::modules::mail_context::mail_context));
-    }
+            .combine(exported_module!(super::modules::mail_context::mail_context))
+            .combine(exported_module!(super::modules::message::message))
+            .combine(exported_module!(super::modules::message::message_calling_parse));
+
+        }
 }

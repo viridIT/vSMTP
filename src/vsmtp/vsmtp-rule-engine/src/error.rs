@@ -110,6 +110,11 @@ pub enum RuntimeError {
     MissingField { field: String },
     #[error("failed to parse the message body, `{source}`")]
     ParseMessageBody { source: anyhow::Error },
+    #[error("invalid type conversion expected: `{r#type}`, but got: `{source}`")]
+    TypeError {
+        r#type: &'static str,
+        source: anyhow::Error,
+    },
 }
 
 macro_rules! vsl_guard_ok {
@@ -152,6 +157,15 @@ macro_rules! vsl_parse_ok {
         }
         vsl_missing_ok!(mut $writer, "message")
     }};
+}
+
+macro_rules! vsl_conversion_ok {
+    ($type_:expr, $result:expr) => {
+        $result.map_err(|source| $crate::error::RuntimeError::TypeError {
+            r#type: $type_,
+            source,
+        })?
+    };
 }
 
 impl From<RuntimeError> for Box<rhai::EvalAltResult> {

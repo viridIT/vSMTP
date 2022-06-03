@@ -15,7 +15,6 @@
  *
 */
 pub mod bcc;
-pub mod headers;
 pub mod logging;
 pub mod rule_state;
 pub mod security;

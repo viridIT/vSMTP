@@ -34,7 +34,7 @@
                 rewrite_mail_from("invalid");
                 return deny();
             } catch (err) {
-                if "could not rewrite mail_from with 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
+                if "invalid type conversion" in err { return next(); } else { return deny(); }
             }
         },
 
@@ -43,7 +43,7 @@
                 rewrite_rcpt("invalid", "valid@email.com");
                 return deny();
             } catch (err) {
-                if "could not rewrite address 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
+                if "invalid type conversion" in err { return next(); } else { return deny(); }
             }
         },
 
@@ -52,7 +52,7 @@
                 rewrite_rcpt("valid@email.com", "invalid");
                 return deny();
             } catch (err) {
-                if "could not rewrite address 'valid@email.com' with 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
+                if "invalid type conversion" in err { return next(); } else { return deny(); }
             }
         },
 
