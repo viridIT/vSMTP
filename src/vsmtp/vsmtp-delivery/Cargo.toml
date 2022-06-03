@@ -19,7 +19,7 @@ categories = ["network-programming"]
 vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
 vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
 
-async-trait = "0.1.53"
+async-trait = "0.1.56"
 
 time = { version = "0.3.9", default-features = false, features = [
     "std",
