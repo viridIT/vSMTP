@@ -17,7 +17,7 @@
 use crate::{mechanism::Mechanism, Address, CodeID};
 
 /// See "SMTP Service Extension for 8-bit MIME Transport"
-/// https://datatracker.ietf.org/doc/html/rfc6152
+/// <https://datatracker.ietf.org/doc/html/rfc6152>
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MimeBodyType {
     ///
@@ -41,7 +41,7 @@ impl std::str::FromStr for MimeBodyType {
 
 /// Command SMTPs sent and received by servers and clients
 /// See "Simple Mail Transfer Protocol"
-/// https://datatracker.ietf.org/doc/html/rfc5321
+/// <https://datatracker.ietf.org/doc/html/rfc5321>
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Event {
     /// Used to identify the SMTP client to the SMTP server.
@@ -99,7 +99,7 @@ pub enum Event {
     QuitCmd,
 
     /// See "Transport Layer Security"
-    /// https://datatracker.ietf.org/doc/html/rfc3207
+    /// <https://datatracker.ietf.org/doc/html/rfc3207>
     /// Syntax = `"STARTTLS" CRLF`
     StartTls,
     //
@@ -107,7 +107,7 @@ pub enum Event {
     // PrivCmd,
     //
     /// Authentication with SASL protocol
-    /// https://datatracker.ietf.org/doc/html/rfc4954
+    /// <https://datatracker.ietf.org/doc/html/rfc4954>
     /// Syntax = `"AUTH" mechanism [initial-response] CRLF`
     Auth(Mechanism, Option<Vec<u8>>),
     //
@@ -123,7 +123,7 @@ pub enum Event {
 
 impl Event {
     /// Create a valid SMTP command (or event) from a string OR return a SMTP error code
-    /// See https://datatracker.ietf.org/doc/html/rfc5321#section-4.1
+    /// See <https://datatracker.ietf.org/doc/html/rfc5321#section-4.1>
     ///
     /// # Errors
     pub fn parse_cmd(input: &str) -> Result<Self, CodeID> {

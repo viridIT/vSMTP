@@ -14,17 +14,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::modules::types::types::Context;
+use crate::{dsl::object::Object, modules::EngineResult};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::Address;
 
+#[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod bcc {
-
-    use crate::modules::types::types::Context;
-    use crate::{dsl::object::Object, modules::EngineResult};
-    use vsmtp_common::Address;
 
     /// add a recipient to the list recipient using a raw string.
     #[rhai_fn(global, name = "bcc", return_raw, pure)]

@@ -18,7 +18,7 @@ use crate::mail_context::MessageBody;
 
 /// An abstract mail parser
 pub trait MailParser: Default {
-    /// Return a RFC valid [`Mail`] object from a buffer of strings
+    /// Return a RFC valid [`MessageBody`] object from a buffer of strings
     ///
     /// # Errors
     ///
@@ -30,7 +30,7 @@ pub trait MailParser: Default {
 #[allow(clippy::module_name_repetitions)]
 #[async_trait::async_trait]
 pub trait MailParserOnFly: Default {
-    /// Return a RFC valid [`Mail`] object from a stream of strings
+    /// Return a RFC valid [`MessageBody`] object from a stream of strings
     ///
     /// # Errors
     ///

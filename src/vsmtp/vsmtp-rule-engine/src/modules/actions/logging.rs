@@ -19,6 +19,7 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 
+#[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod logging {
     use vsmtp_common::re::log;

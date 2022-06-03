@@ -26,7 +26,7 @@ use vsmtp_common::{
 };
 use vsmtp_config::{re::users, Config};
 
-/// see https://en.wikipedia.org/wiki/Maildir
+/// see <https://en.wikipedia.org/wiki/Maildir>
 #[derive(Default)]
 pub struct Maildir;
 

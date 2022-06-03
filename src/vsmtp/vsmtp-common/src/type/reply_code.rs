@@ -21,14 +21,16 @@
 pub enum ReplyCode {
     /// simple Reply Code as defined in RFC5321
     Code {
-        /// https://datatracker.ietf.org/doc/html/rfc5321#section-4.2
+        // https://datatracker.ietf.org/doc/html/rfc5321#section-4.2
         // NOTE: could be a struct with 3 digits
+        /// code base
         code: u16,
     },
     /// enhanced codes
     Enhanced {
-        /// https://datatracker.ietf.org/doc/html/rfc5321#section-4.2
+        // https://datatracker.ietf.org/doc/html/rfc5321#section-4.2
         // NOTE: could be a struct with 3 digits
+        /// code base
         code: u16,
         ///
         // NOTE: could be a struct with 3 digits

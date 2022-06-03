@@ -15,7 +15,7 @@
  *
 */
 /// List of supported SASL Mechanism
-/// See https://www.iana.org/assignments/sasl-mechanisms/sasl-mechanisms.xhtml
+/// See <https://www.iana.org/assignments/sasl-mechanisms/sasl-mechanisms.xhtml>
 #[derive(
     Debug,
     PartialEq,

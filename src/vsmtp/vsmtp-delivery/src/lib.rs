@@ -42,10 +42,10 @@ pub mod transport {
         pub const MBOX: &str = "server::delivery::mbox";
     }
 
-    /// allowing the [ServerVSMTP] to deliver a mail.
+    ///
     #[async_trait::async_trait]
     pub trait Transport {
-        /// the deliver method of the [Resolver] trait
+        ///
         async fn deliver(
             &mut self,
             config: &Config,

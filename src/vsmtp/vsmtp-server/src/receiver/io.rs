@@ -72,7 +72,7 @@ where
     /// # Errors
     ///
     /// * timed-out
-    /// * [`self`] failed to read
+    /// * failed to read
     pub async fn next_line(
         &mut self,
         timeout: Option<std::time::Duration>,

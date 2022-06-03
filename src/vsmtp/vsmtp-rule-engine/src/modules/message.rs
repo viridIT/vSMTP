@@ -23,8 +23,6 @@ use rhai::plugin::{
 use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::Address;
 
-#[doc(hidden)]
-#[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod message {
     /// check if a given header exists in the top level headers.

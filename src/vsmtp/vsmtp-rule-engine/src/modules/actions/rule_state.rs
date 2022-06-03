@@ -39,83 +39,120 @@ fn reply_or_code_id_from_string(code: &str) -> EngineResult<ReplyOrCodeID> {
     )?))
 }
 
+#[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod rule_state {
 
-    /// the transaction is forced accepted, skipping all rules and going strait for delivery.
+    /// Return a [`Status::Faccept`] with the default code associated
     #[must_use]
     pub const fn faccept() -> Status {
         Status::Faccept(ReplyOrCodeID::CodeID(CodeID::Ok))
     }
 
+    /// Return a [`Status::Faccept`] with `code`
+    ///
+    /// # Errors
+    ///
+    /// * `code` is not a valid code
     #[rhai_fn(global, name = "faccept", return_raw)]
     pub fn faccept_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
         reply_or_code_id_from_object(code).map(Status::Faccept)
     }
 
-    /// the transaction is denied, reply error to clients. (includes a custom code)
+    /// Return a [`Status::Faccept`] with `code`
+    ///
+    /// # Errors
+    ///
+    /// * `code` is not a valid code
     #[rhai_fn(global, name = "faccept", return_raw)]
-    pub fn faccept_with_string(reply_to_parse: &str) -> EngineResult<Status> {
-        reply_or_code_id_from_string(reply_to_parse).map(Status::Faccept)
+    pub fn faccept_with_string(code: &str) -> EngineResult<Status> {
+        reply_or_code_id_from_string(code).map(Status::Faccept)
     }
 
-    /// the transaction is accepted. skipping rules to the next stage.
+    /// Return a [`Status::Accept`] with the default code associated
     #[must_use]
     pub const fn accept() -> Status {
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok))
     }
 
+    /// Return a [`Status::Accept`] with `code`
+    ///
+    /// # Errors
+    ///
+    /// * `code` is not a valid code
     #[rhai_fn(global, name = "accept", return_raw)]
     pub fn accept_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
         reply_or_code_id_from_object(code).map(Status::Accept)
     }
 
-    /// the transaction is denied, reply error to clients. (includes a custom code)
+    /// Return a [`Status::Accept`] with `code`
+    ///
+    /// # Errors
+    ///
+    /// * `code` is not a valid code
     #[rhai_fn(global, name = "accept", return_raw)]
-    pub fn accept_with_string(reply_to_parse: &str) -> EngineResult<Status> {
-        reply_or_code_id_from_string(reply_to_parse).map(Status::Accept)
+    pub fn accept_with_string(code: &str) -> EngineResult<Status> {
+        reply_or_code_id_from_string(code).map(Status::Accept)
     }
 
-    /// the transaction continue to execute rule for the current stage.
+    /// Return a [`Status::Next`]
     #[must_use]
     pub const fn next() -> Status {
         Status::Next
     }
 
-    /// the transaction is denied, reply error to clients.
+    /// Return a [`Status::Deny`] with the default code associated
     #[must_use]
     #[rhai_fn(global)]
     pub const fn deny() -> Status {
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     }
 
-    /// the transaction is denied, reply error to clients. (includes a custom code)
+    /// Return a [`Status::Deny`] with `code`
+    ///
+    /// # Errors
+    ///
+    /// * `code` is not a valid code
     #[rhai_fn(global, name = "deny", return_raw)]
     pub fn deny_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
         reply_or_code_id_from_object(code).map(Status::Deny)
     }
 
-    /// the transaction is denied, reply error to clients. (includes a custom code)
+    /// Return a [`Status::Deny`] with `code`
+    ///
+    /// # Errors
+    ///
+    /// * `code` is not a valid code
     #[rhai_fn(global, name = "deny", return_raw)]
-    pub fn deny_with_string(reply_to_parse: &str) -> EngineResult<Status> {
-        reply_or_code_id_from_string(reply_to_parse).map(Status::Deny)
+    pub fn deny_with_string(code: &str) -> EngineResult<Status> {
+        reply_or_code_id_from_string(code).map(Status::Deny)
     }
 
-    /// send a single informative code to the client. (using a code object)
+    /// Return a [`Status::Info`] with `code`
+    ///
+    /// # Errors
+    ///
+    /// * `code` is not a valid code
     #[rhai_fn(global, name = "info", return_raw)]
     pub fn info_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
         reply_or_code_id_from_object(code).map(Status::Info)
     }
 
-    /// send a single informative code to the client. (using a simple string)
+    /// Return a [`Status::Info`] with `code`
+    ///
+    /// # Errors
+    ///
+    /// * `code` is not a valid code
     #[rhai_fn(global, name = "info", return_raw)]
-    pub fn info_with_string(reply_to_parse: &str) -> EngineResult<Status> {
-        reply_or_code_id_from_string(reply_to_parse).map(Status::Info)
+    pub fn info_with_string(code: &str) -> EngineResult<Status> {
+        reply_or_code_id_from_string(code).map(Status::Info)
     }
 
-    /// tells the state machine to quarantine the email & skip delivery.
-    /// the email will be written in the specified app directory, in the "queue" folder.
-    #[allow(clippy::needless_pass_by_value)]
+    /// Return a [`Status::Quarantine`] with `queue`
+    ///
+    /// # Errors
+    ///
+    /// * a mutex is poisoned
     #[rhai_fn(global, return_raw, pure)]
     pub fn quarantine(ctx: &mut Context, queue: &str) -> EngineResult<Status> {
         disable_delivery_all(ctx)?;
@@ -123,7 +160,9 @@ pub mod rule_state {
         Ok(Status::Quarantine(queue.to_string()))
     }
 
+    /// Return a [`Status::Packet`] with `buffer`
     #[rhai_fn(global)]
+    #[must_use]
     pub const fn packet(buffer: String) -> Status {
         Status::Packet(buffer)
     }

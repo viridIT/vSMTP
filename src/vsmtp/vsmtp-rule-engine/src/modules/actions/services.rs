@@ -19,6 +19,7 @@ use rhai::{
     Dynamic, EvalAltResult, ImmutableString, NativeCallContext,
 };
 
+#[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod services {
 
