@@ -271,7 +271,7 @@ impl ConfigServerSMTPAuth {
     /// Return all the supported SASL mechanisms
     #[must_use]
     pub fn default_mechanisms() -> Vec<Mechanism> {
-        <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>()
+        vec![Mechanism::Plain, Mechanism::Login, Mechanism::CramMd5]
     }
 
     pub(crate) const fn default_attempt_count_max() -> i64 {

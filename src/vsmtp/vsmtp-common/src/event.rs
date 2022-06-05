@@ -322,8 +322,7 @@ impl Event {
 
     fn parse_arg_auth(mechanism: &str, initial_response: Option<&str>) -> Result<Self, CodeID> {
         Ok(Self::Auth(
-            <Mechanism as std::str::FromStr>::from_str(mechanism)
-                .map_err(|_| CodeID::AuthMechNotSupported)?,
+            Mechanism::try_from(mechanism).map_err(|_| CodeID::AuthMechNotSupported)?,
             initial_response.map(|s| s.as_bytes().to_vec()),
         ))
     }

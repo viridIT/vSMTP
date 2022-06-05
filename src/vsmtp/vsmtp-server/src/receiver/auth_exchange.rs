@@ -139,7 +139,7 @@ where
         )));
     }
     let mut guard = rsasl.lock().await;
-    let mut session = guard.server_start(&String::from(mechanism)).unwrap();
+    let mut session = guard.server_start(&format!("{mechanism}")).unwrap();
     session.store(Box::new((
         rule_engine,
         resolvers,
