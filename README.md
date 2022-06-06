@@ -147,11 +147,11 @@ Comparison between Postfix 3.6.4 & vSMTP 1.0.1 performances, performed on a Ubun
 
 <div align="center">
   <a href="https://www.viridit.com/#gh-light-mode-only">
-    <img src="https://github.com/viridIT/vSMTP/blob/feat/benchmarks/assets/tp-100k-black.png"
+    <img src="https://github.com/viridIT/vSMTP/blob/feat/benchmarks/assets/tp-100k-white.png"
       alt="100kb messages throughput example" />
   </a>
   <a href="https://www.viridit.com/#gh-dark-mode-only">
-    <img src="https://github.com/viridIT/vSMTP/blob/feat/benchmarks/assets/tp-100k-white.png"
+    <img src="https://github.com/viridIT/vSMTP/blob/feat/benchmarks/assets/tp-100k-black.png"
       alt="100kb messages throughput example" />
   </a>
 </div>

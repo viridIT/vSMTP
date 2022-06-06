@@ -115,7 +115,7 @@ mydestination = postfix.com
 mynetworks = 127.0.0.0/24
 ```
 
-In the readme benchmarks, we used
+In the readme benchmarks, we used `systemctl` to run postfix & vsmtp as services.
 ```sh
 # using systemctl
 
