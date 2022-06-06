@@ -69,7 +69,7 @@ async fn simple() {
         [
             "220 testserver.com Service ready",
             "250-testserver.com",
-            "250-AUTH PLAIN LOGIN CRAM-MD5",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 SCRAM-SHA-1",
             "250-8BITMIME",
             "250 SMTPUTF8",
             "334 ",

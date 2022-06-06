@@ -72,6 +72,7 @@ impl
             unsafe { sasl.retrieve() }.ok_or(vsmtp_rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
         sasl.store(config.clone());
 
+        println!("{:?}", prop);
         let credentials = match prop {
             vsmtp_rsasl::Property::GSASL_PASSWORD => AuthCredentials::Query {
                 authid: session

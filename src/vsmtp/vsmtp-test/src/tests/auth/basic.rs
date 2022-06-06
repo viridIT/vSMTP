@@ -95,7 +95,7 @@ async fn plain_in_clair_unsecured() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -153,7 +153,7 @@ async fn login_in_clair_unsecured() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -211,7 +211,7 @@ async fn anonymous_in_clair_unsecured() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -225,6 +225,8 @@ async fn anonymous_in_clair_unsecured() {
     }
     .is_ok());
 }
+
+// async fn scram_sha_1
 
 #[tokio::test]
 async fn plain_in_clair_unsecured_utf8() {
@@ -267,7 +269,7 @@ async fn plain_in_clair_unsecured_utf8() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -305,7 +307,7 @@ async fn plain_in_clair_invalid_credentials() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -342,7 +344,7 @@ async fn plain_in_clair_unsecured_cancel() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -378,7 +380,7 @@ async fn plain_in_clair_unsecured_bad_base64() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -431,7 +433,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -468,7 +470,7 @@ async fn no_auth_with_authenticated_policy() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -497,7 +499,7 @@ async fn client_must_not_start() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS SCRAM-SHA-1\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",

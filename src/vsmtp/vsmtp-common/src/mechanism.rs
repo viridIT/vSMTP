@@ -40,11 +40,13 @@ pub enum Mechanism {
     /// Common
     /// See <https://datatracker.ietf.org/doc/html/rfc4505>
     Anonymous,
+    /// Common
+    #[strum(serialize = "SCRAM-SHA-1")]
+    ScramSha1,
     /*
     - EXTERNAL
     - SECURID
     - DIGEST-MD5
-    - SCRAM-SHA-1
     - SCRAM-SHA-1-PLUS
     - SCRAM-SHA-256
     - SCRAM-SHA-256-PLUS
@@ -88,7 +90,7 @@ impl Mechanism {
     #[must_use]
     pub const fn client_first(self) -> bool {
         match self {
-            Self::Plain | Self::Anonymous => true,
+            Self::Plain | Self::Anonymous | Self::ScramSha1 => true,
             Self::Login | Self::CramMd5 => false,
         }
     }
@@ -97,7 +99,7 @@ impl Mechanism {
     #[must_use]
     pub const fn must_be_under_tls(self) -> bool {
         match self {
-            Self::Plain | Self::Login | Self::CramMd5 | Self::Anonymous => true,
+            Self::Plain | Self::Login | Self::CramMd5 | Self::Anonymous | Self::ScramSha1 => true,
         }
     }
 }
@@ -113,6 +115,7 @@ mod tests {
         assert_eq!(Mechanism::Login.to_string(), "LOGIN");
         assert_eq!(Mechanism::CramMd5.to_string(), "CRAM-MD5");
         assert_eq!(Mechanism::Anonymous.to_string(), "ANONYMOUS");
+        assert_eq!(Mechanism::ScramSha1.to_string(), "SCRAM-SHA-1");
     }
 
     #[test]
