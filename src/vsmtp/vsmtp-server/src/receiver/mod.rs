@@ -15,12 +15,15 @@
  *
 */
 use self::transaction::{Transaction, TransactionResult};
-use crate::{auth, receiver::auth_exchange::on_authentication};
+use crate::{
+    auth, log_channels,
+    receiver::auth_exchange::{on_authentication, AuthExchangeError},
+};
 use vsmtp_common::{
     auth::Mechanism,
     mail_context::MessageBody,
     mail_context::MAIL_CAPACITY,
-    re::{anyhow, tokio},
+    re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
     CodeID, MailParserOnFly,
@@ -52,7 +55,7 @@ async fn handle_auth<S>(
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
-    match on_authentication(
+    if let Err(e) = on_authentication(
         conn,
         rsasl,
         rule_engine,
@@ -62,46 +65,54 @@ where
     )
     .await
     {
-        Err(auth_exchange::AuthExchangeError::Failed) => {
-            conn.send_code(CodeID::AuthInvalidCredentials).await?;
-            anyhow::bail!("Auth: Credentials invalid, closing connection");
-        }
-        Err(auth_exchange::AuthExchangeError::Canceled) => {
-            conn.authentication_attempt += 1;
-            *helo_domain = Some(helo_pre_auth);
+        log::warn!(
+            target: log_channels::TRANSACTION,
+            "SASL exchange produced an error: {e}"
+        );
 
-            let retries_max = conn
-                .config
-                .server
-                .smtp
-                .auth
-                .as_ref()
-                .unwrap()
-                .attempt_count_max;
-            if retries_max != -1 && conn.authentication_attempt > retries_max {
-                conn.send_code(CodeID::AuthRequired).await?;
-                anyhow::bail!("Auth: Attempt max {} reached", retries_max);
+        match e {
+            AuthExchangeError::Failed => {
+                conn.send_code(CodeID::AuthInvalidCredentials).await?;
+                anyhow::bail!("{}", CodeID::AuthInvalidCredentials)
             }
-            conn.send_code(CodeID::AuthClientCanceled).await?;
-        }
-        Err(auth_exchange::AuthExchangeError::Timeout(e)) => {
-            conn.send_code(CodeID::Timeout).await?;
-            anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
-        }
-        Err(auth_exchange::AuthExchangeError::InvalidBase64) => {
-            conn.send_code(CodeID::AuthErrorDecode64).await?;
-        }
-        Err(auth_exchange::AuthExchangeError::Other(e)) => anyhow::bail!("{}", e),
-        Ok(_) => {
-            conn.is_authenticated = true;
+            AuthExchangeError::Canceled => {
+                conn.authentication_attempt += 1;
+                *helo_domain = Some(helo_pre_auth);
 
-            // TODO: When a security layer takes effect
-            // helo_domain = None;
-
-            *helo_domain = Some(helo_pre_auth);
+                let retries_max = conn
+                    .config
+                    .server
+                    .smtp
+                    .auth
+                    .as_ref()
+                    .unwrap()
+                    .attempt_count_max;
+                if retries_max != -1 && conn.authentication_attempt > retries_max {
+                    conn.send_code(CodeID::AuthRequired).await?;
+                    anyhow::bail!("Auth: Attempt max {retries_max} reached");
+                }
+                conn.send_code(CodeID::AuthClientCanceled).await?;
+                Ok(())
+            }
+            AuthExchangeError::Timeout(_) => {
+                conn.send_code(CodeID::Timeout).await?;
+                anyhow::bail!("{}", CodeID::Timeout)
+            }
+            AuthExchangeError::InvalidBase64 => {
+                conn.send_code(CodeID::AuthErrorDecode64).await?;
+                Ok(())
+            }
+            otherwise => anyhow::bail!("{otherwise}"),
         }
+    } else {
+        conn.is_authenticated = true;
+
+        // TODO: When a security layer takes effect
+        // helo_domain = None;
+
+        *helo_domain = Some(helo_pre_auth);
+        Ok(())
     }
-    Ok(())
 }
 
 #[derive(Default)]
