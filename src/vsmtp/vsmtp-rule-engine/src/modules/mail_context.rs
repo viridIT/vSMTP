@@ -14,19 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::error::RuntimeError;
-use crate::modules::types::types::{Context, Message, Server};
+use crate::modules::types::types::{Context, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
     RhaiResult, TypeId,
 };
 use vsmtp_common::mail_context::AuthCredentials;
-use vsmtp_common::re::anyhow;
 use vsmtp_common::Address;
 
-#[doc(hidden)]
-#[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod mail_context {
 
@@ -66,31 +62,40 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "type", pure)]
-    pub fn get_type(my_enum: &mut AuthCredentials) -> String {
-        match my_enum {
-            AuthCredentials::Verify { .. } => "Verify".to_string(),
-            AuthCredentials::Query { .. } => "Query".to_string(),
-        }
+    pub fn get_type(credentials: &mut AuthCredentials) -> String {
+        credentials.to_string()
     }
 
-    #[rhai_fn(global, get = "authid", pure)]
-    pub fn get_authid(my_enum: &mut AuthCredentials) -> String {
-        match my_enum {
+    #[rhai_fn(global, get = "authid", return_raw, pure)]
+    pub fn get_authid(credentials: &mut AuthCredentials) -> EngineResult<String> {
+        match credentials {
             AuthCredentials::Query { authid } | AuthCredentials::Verify { authid, .. } => {
-                authid.clone()
+                Ok(authid.clone())
+            }
+            AuthCredentials::AnonymousToken { .. } => {
+                Err(format!("no `authid` available in credentials of type `{credentials}`").into())
             }
         }
     }
 
     #[rhai_fn(global, get = "authpass", return_raw, pure)]
-    pub fn get_authpass(my_enum: &mut AuthCredentials) -> EngineResult<String> {
-        match my_enum {
+    pub fn get_authpass(credentials: &mut AuthCredentials) -> EngineResult<String> {
+        match credentials {
             AuthCredentials::Verify { authpass, .. } => Ok(authpass.clone()),
-            AuthCredentials::Query { .. } => {
-                Err("no `authpass` available in credentials of type `Query`"
-                    .to_string()
-                    .into())
-            }
+            _ => Err(
+                format!("no `authpass` available in credentials of type `{credentials}`").into(),
+            ),
+        }
+    }
+
+    #[rhai_fn(global, get = "anonymous_token", return_raw, pure)]
+    pub fn get_anonymous_token(credentials: &mut AuthCredentials) -> EngineResult<String> {
+        match credentials {
+            AuthCredentials::AnonymousToken { token } => Ok(token.clone()),
+            _ => Err(format!(
+                "no `anonymous_token` available in credentials of type `{credentials}`"
+            )
+            .into()),
         }
     }
 
@@ -126,11 +131,6 @@ pub mod mail_context {
                 .message_id
                 .clone(),
         )
-    }
-
-    #[rhai_fn(global, get = "mail", return_raw, pure)]
-    pub fn mail(this: &mut Message) -> EngineResult<String> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "mail").to_string())
     }
 
     #[rhai_fn(global, name = "to_string", pure)]

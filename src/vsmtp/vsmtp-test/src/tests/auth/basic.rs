@@ -95,7 +95,123 @@ async fn plain_in_clair_unsecured() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-STARTTLS\r\n",
+            "250-8BITMIME\r\n",
+            "250 SMTPUTF8\r\n",
+            "235 2.7.0 Authentication succeeded\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+            "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n"
+        ].concat()
+    }
+    .is_ok());
+}
+
+#[tokio::test]
+async fn login_in_clair_unsecured() {
+    struct T;
+
+    #[async_trait::async_trait]
+    impl OnMail for T {
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+            &mut self,
+            _: &mut Connection<S>,
+            mail: Box<MailContext>,
+            _: MessageBody,
+        ) -> CodeID {
+            assert_eq!(mail.envelop.helo, "client.com");
+            assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
+            assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
+            CodeID::Ok
+        }
+    }
+
+    let config = unsafe_auth_config();
+    assert!(test_receiver! {
+        with_auth => {
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
+            rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
+            rsasl
+        },
+        with_config => config.clone(),
+        on_mail => &mut T,
+        [
+            "EHLO client.com\r\n",
+            "AUTH LOGIN\r\n",
+            &format!("{}\r\n", base64::encode("hello")),
+            &format!("{}\r\n", base64::encode("world")),
+            "MAIL FROM:<foo@bar>\r\n",
+            "RCPT TO:<joe@doe>\r\n",
+            "DATA\r\n",
+            ".\r\n",
+            "QUIT\r\n"
+        ].concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
+            "250-STARTTLS\r\n",
+            "250-8BITMIME\r\n",
+            "250 SMTPUTF8\r\n",
+            &format!("334 {}\r\n", base64::encode("User Name")),
+            &format!("334 {}\r\n", base64::encode("Password")),
+            "235 2.7.0 Authentication succeeded\r\n",
+            "250 Ok\r\n",
+            "250 Ok\r\n",
+            "354 Start mail input; end with <CRLF>.<CRLF>\r\n",
+            "250 Ok\r\n",
+            "221 Service closing transmission channel\r\n"
+        ].concat()
+    }
+    .is_ok());
+}
+
+#[tokio::test]
+async fn anonymous_in_clair_unsecured() {
+    struct T;
+
+    #[async_trait::async_trait]
+    impl OnMail for T {
+        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+            &mut self,
+            _: &mut Connection<S>,
+            mail: Box<MailContext>,
+            _: MessageBody,
+        ) -> CodeID {
+            assert_eq!(mail.envelop.helo, "client.com");
+            assert_eq!(mail.envelop.mail_from.full(), "foo@bar");
+            assert_eq!(mail.envelop.rcpt, vec![addr!("joe@doe").into()]);
+            CodeID::Ok
+        }
+    }
+
+    let config = unsafe_auth_config();
+    assert!(test_receiver! {
+        with_auth => {
+            let mut rsasl = vsmtp_rsasl::SASL::new().unwrap();
+            rsasl.install_callback::<auth::Callback>();
+            rsasl.store(Box::new(std::sync::Arc::new(config.clone())));
+            rsasl
+        },
+        with_config => config.clone(),
+        on_mail => &mut T,
+        [
+            "EHLO client.com\r\n",
+            &format!("AUTH ANONYMOUS {}\r\n", base64::encode("my-anonymous-token")),
+            "MAIL FROM:<foo@bar>\r\n",
+            "RCPT TO:<joe@doe>\r\n",
+            "DATA\r\n",
+            ".\r\n",
+            "QUIT\r\n"
+        ].concat(),
+        [
+            "220 testserver.com Service ready\r\n",
+            "250-testserver.com\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -151,7 +267,7 @@ async fn plain_in_clair_unsecured_utf8() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -189,7 +305,7 @@ async fn plain_in_clair_invalid_credentials() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -226,7 +342,7 @@ async fn plain_in_clair_unsecured_cancel() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -262,7 +378,7 @@ async fn plain_in_clair_unsecured_bad_base64() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -315,7 +431,7 @@ async fn plain_in_clair_unsecured_without_initial_response() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -352,7 +468,7 @@ async fn no_auth_with_authenticated_policy() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",
@@ -381,7 +497,7 @@ async fn client_must_not_start() {
         [
             "220 testserver.com Service ready\r\n",
             "250-testserver.com\r\n",
-            "250-AUTH PLAIN LOGIN CRAM-MD5\r\n",
+            "250-AUTH PLAIN LOGIN CRAM-MD5 ANONYMOUS\r\n",
             "250-STARTTLS\r\n",
             "250-8BITMIME\r\n",
             "250 SMTPUTF8\r\n",

@@ -159,6 +159,7 @@ impl RuleState {
         self.mail_context.clone()
     }
 
+    /// fetch the message body (possibly) mutated by the user's rules.
     #[must_use]
     pub fn message(&self) -> std::sync::Arc<std::sync::RwLock<Option<MessageBody>>> {
         self.message.clone()

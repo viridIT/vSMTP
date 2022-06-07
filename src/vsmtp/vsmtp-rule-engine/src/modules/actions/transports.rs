@@ -21,6 +21,7 @@ use rhai::plugin::{
 use vsmtp_common::{mail_context::MailContext, re::anyhow};
 
 #[allow(clippy::needless_pass_by_value)]
+#[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod transports {
     use vsmtp_common::transfer::ForwardTarget;
@@ -28,6 +29,7 @@ pub mod transports {
     use crate::modules::types::types::Context;
     use crate::{dsl::object::Object, modules::EngineResult};
 
+    /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, name = "forward", return_raw, pure)]
     pub fn forward_obj(
         this: &mut Context,

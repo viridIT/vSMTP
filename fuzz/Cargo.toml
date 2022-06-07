@@ -10,8 +10,8 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4.3"
-async-trait = "0.1.53"
-tokio = { version = "1.18.1", features = ["full"] }
+async-trait = "0.1.56"
+tokio = { version = "1.19.2", features = ["full"] }
 
 vsmtp-common = { path = "../src/vsmtp/vsmtp-common" }
 vsmtp-config = { path = "../src/vsmtp/vsmtp-config" }

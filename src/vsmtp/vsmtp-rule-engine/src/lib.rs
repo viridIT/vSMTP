@@ -1,6 +1,7 @@
 //! vSMTP rule engine
 
 #![doc(html_no_source)]
+#![deny(missing_docs)]
 //
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
@@ -20,8 +21,11 @@ mod dsl;
 mod error;
 mod server_api;
 
+///
 pub mod modules;
+///
 pub mod rule_engine;
+///
 pub mod rule_state;
 
 #[cfg(test)]

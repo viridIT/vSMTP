@@ -38,7 +38,7 @@ pub enum Queue {
 ///
 /// # Errors
 ///
-/// * if [`create_if_missing`] is provided, will attempt to create the folder
+/// * if `create_if_missing` is provided, will attempt to create the folder
 #[macro_export]
 macro_rules! queue_path {
     ($queues_dirpath:expr, $queue:expr) => {
@@ -94,7 +94,6 @@ impl Queue {
     /// # Errors
     ///
     /// * the message's metadata is ill-formed
-    /// * errors from [`Self::to_path`]
     /// * failed to serialize the `@ctx`
     /// * failed to write on `@ctx` on `queues_dirpath/self/ctx.id`
     pub fn write_to_queue(

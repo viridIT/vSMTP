@@ -23,6 +23,7 @@ use rhai::{
 };
 use vsmtp_common::re::tokio;
 
+#[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod security {
     use crate::modules::{
@@ -108,6 +109,7 @@ pub mod security {
 }
 
 /// create a instance from viaspf query result struct.
+#[must_use]
 pub fn map_from_query_result(q_result: &viaspf::QueryResult) -> rhai::Map {
     rhai::Map::from_iter([
         (

@@ -15,9 +15,8 @@
  *
 */
 
-use std::str::FromStr;
-
 use anyhow::Context;
+use std::str::FromStr;
 
 // TODO: handle the case when the port is not specified.
 /// parse an ip6 string address containing a scope id.

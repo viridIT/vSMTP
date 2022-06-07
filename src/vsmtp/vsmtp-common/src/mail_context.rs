@@ -67,15 +67,15 @@ impl std::fmt::Display for MessageBody {
 }
 
 impl MessageBody {
-    /// Convert a the instance into a [`MessageBody::Parsed`]
+    /// Create a new instance of [`MessageBody::Parsed`], cloning if already parsed
     ///
     /// # Errors
     ///
     /// * Fail to parse using the provided [`MailParser`]
-    pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
+    pub fn to_parsed<P: MailParser>(&self) -> anyhow::Result<Self> {
         Ok(match self {
-            Self::Raw(raw) => P::default().parse(raw)?,
-            otherwise @ Self::Parsed(_) => otherwise,
+            Self::Raw(raw) => P::default().parse(raw.clone())?,
+            Self::Parsed(_) => self.clone(),
         })
     }
 
@@ -146,7 +146,8 @@ impl MessageBody {
 }
 
 /// The credentials send by the client, not necessarily the right one
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, strum::Display)]
+#[strum(serialize_all = "PascalCase")]
 pub enum AuthCredentials {
     /// the pair will be sent and verified by a third party
     Verify {
@@ -159,6 +160,11 @@ pub enum AuthCredentials {
     Query {
         ///
         authid: String,
+    },
+    /// verify the token send by anonymous mechanism
+    AnonymousToken {
+        /// [ email / 1*255TCHAR ]
+        token: String,
     },
 }
 

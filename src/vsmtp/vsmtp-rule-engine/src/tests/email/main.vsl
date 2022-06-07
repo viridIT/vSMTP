@@ -21,8 +21,7 @@
                 rewrite_mail_from("impossible@torewrite.com");
                 return deny();
             } catch (err) {
-                if "failed to rewrite mail_from: the email has not been parsed yet. Use this method in postq or later."
-                    in err {
+                if "the field: `message` is not defined" in err {
                     return next();
                 } else {
                     return deny();
@@ -35,7 +34,7 @@
                 rewrite_mail_from("invalid");
                 return deny();
             } catch (err) {
-                if "could not rewrite mail_from with 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
+                if "invalid type conversion" in err { return next(); } else { return deny(); }
             }
         },
 
@@ -44,7 +43,7 @@
                 rewrite_rcpt("invalid", "valid@email.com");
                 return deny();
             } catch (err) {
-                if "could not rewrite address 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
+                if "invalid type conversion" in err { return next(); } else { return deny(); }
             }
         },
 
@@ -53,7 +52,7 @@
                 rewrite_rcpt("valid@email.com", "invalid");
                 return deny();
             } catch (err) {
-                if "could not rewrite address 'valid@email.com' with 'invalid' because it is not valid address" in err { return next(); } else { return deny(); }
+                if "invalid type conversion" in err { return next(); } else { return deny(); }
             }
         },
 
@@ -79,39 +78,39 @@
     ],
 
     preq: [
-        rule "failed mail_from rewrite: email not parsed" || {
+        rule "raw=>parsed and mail_from raw" || {
             try {
                 rewrite_mail_from("impossible@torewrite.com");
-                return deny();
+                return next();
             } catch (err) {
-                if "the email has not been parsed yet" in err { return next(); } else { return deny() }
+                return deny();
             }
         },
 
-        rule "failed add rcpt: email not yet parsed" || {
+        rule "raw=>parsed and add rcpt" || {
             try {
                 add_to("impossible@toadd.com");
-                return deny();
+                return next();
             } catch (err) {
-                if "the email has not been parsed yet" in err { return next(); } else { return deny() }
+                return deny();
             }
         },
 
-        rule "failed remove rcpt: email not yet parsed" || {
+        rule "raw=>parsed and remove rcpt" || {
             try {
                 remove_to("impossible@toremove.com");
-                return deny();
+                return next();
             } catch (err) {
-                if "failed to remove rcpt: the email has not been parsed yet." in err { return next(); } else { return deny() }
+                return deny();
             }
         },
 
-        rule "failed rewrite rcpt: email not yet parsed" || {
+        rule "raw=>parsed and rewrite rcpt" || {
             try {
                 rewrite_to("impossible@torewrite.com", "impossible@torewrite.com");
-                return deny();
+                return next();
             } catch (err) {
-                if "failed to rewrite rcpt: the email has not been parsed yet." in err { return next(); } else { return deny() }
+                return deny();
             }
         },
 

@@ -14,29 +14,40 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use rhai::{exported_module, EvalAltResult};
 
 pub(crate) mod actions;
 pub(crate) mod mail_context;
+pub(crate) mod message;
 pub(crate) mod types;
 
-pub(crate) type EngineResult<T> = Result<T, Box<EvalAltResult>>;
+pub use actions::*;
 
-rhai::def_package! {
-    /// vsl's standard api.
-    pub StandardVSLPackage(module) {
-        rhai::packages::StandardPackage::init(module);
+pub(crate) type EngineResult<T> = Result<T, Box<rhai::EvalAltResult>>;
 
-        module.combine(exported_module!(super::modules::actions::bcc::bcc))
-            .combine(exported_module!(super::modules::actions::headers::headers))
-            .combine(exported_module!(super::modules::actions::logging::logging))
-            .combine(exported_module!(super::modules::actions::rule_state::rule_state))
-            .combine(exported_module!(super::modules::actions::security::security))
-            .combine(exported_module!(super::modules::actions::services::services))
-            .combine(exported_module!(super::modules::actions::transports::transports))
-            .combine(exported_module!(super::modules::actions::utils::utils))
-            .combine(exported_module!(super::modules::actions::write::write))
-            .combine(exported_module!(super::modules::types::types))
-            .combine(exported_module!(super::modules::mail_context::mail_context));
+#[doc(hidden)]
+mod inner {
+    use super::{actions, mail_context, message, types};
+
+    rhai::def_package! {
+        /// vsl's standard api.
+        pub StandardVSLPackage(module) {
+            rhai::packages::StandardPackage::init(module);
+
+            module.combine(rhai::exported_module!(actions::bcc::bcc))
+                .combine(rhai::exported_module!(actions::logging::logging))
+                .combine(rhai::exported_module!(actions::rule_state::rule_state))
+                .combine(rhai::exported_module!(actions::security::security))
+                .combine(rhai::exported_module!(actions::services::services))
+                .combine(rhai::exported_module!(actions::transports::transports))
+                .combine(rhai::exported_module!(actions::utils::utils))
+                .combine(rhai::exported_module!(actions::write::write))
+                .combine(rhai::exported_module!(types::types))
+                .combine(rhai::exported_module!(mail_context::mail_context))
+                .combine(rhai::exported_module!(message::message))
+                .combine(rhai::exported_module!(message::message_calling_parse));
+
+            }
     }
 }
+
+pub use inner::StandardVSLPackage;
