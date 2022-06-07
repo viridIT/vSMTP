@@ -43,6 +43,8 @@ pub enum ForwardTarget {
     Domain(String),
     /// the target is an ip address, a domaine resolution needs to be made.
     Ip(std::net::IpAddr),
+    /// the target is an ip address with an associated port.
+    Socket(std::net::SocketAddr),
 }
 
 /// the delivery method / protocol used for a specific recipient.

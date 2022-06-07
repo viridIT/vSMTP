@@ -112,10 +112,13 @@ pub struct ConfigServerSystemThreadPool {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigServerInterfaces {
+    #[serde(default)]
     #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr: Vec<std::net::SocketAddr>,
+    #[serde(default)]
     #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr_submission: Vec<std::net::SocketAddr>,
+    #[serde(default)]
     #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr_submissions: Vec<std::net::SocketAddr>,
 }
@@ -138,15 +141,19 @@ pub struct ConfigServerLogs {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigQueueWorking {
+    #[serde(default = "ConfigQueueWorking::default_channel_size")]
     pub channel_size: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigQueueDelivery {
+    #[serde(default = "ConfigQueueDelivery::default_channel_size")]
     pub channel_size: usize,
+    #[serde(default = "ConfigQueueDelivery::default_deferred_retry_max")]
     pub deferred_retry_max: usize,
     #[serde(with = "humantime_serde")]
+    #[serde(default = "ConfigQueueDelivery::default_deferred_retry_period")]
     pub deferred_retry_period: std::time::Duration,
 }
 

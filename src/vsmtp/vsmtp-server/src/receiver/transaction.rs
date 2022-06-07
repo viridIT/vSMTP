@@ -21,9 +21,9 @@ use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
     event::Event,
-    mail_context::{ConnectionContext, MessageBody, MessageMetadata, MAIL_CAPACITY},
+    mail_context::{ConnectionContext, MessageMetadata},
     rcpt::Rcpt,
-    re::{anyhow, log},
+    re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
     Address, CodeID, ReplyOrCodeID,
@@ -60,16 +60,14 @@ impl Transaction {
     ) -> ProcessedEvent {
         log::trace!(
             target: log_channels::TRANSACTION,
-            "buffer=\"{}\"",
-            client_message
+            "buffer=\"{client_message:?}\"",
         );
 
         let command_or_code = Event::parse_cmd(client_message);
 
         log::trace!(
             target: log_channels::TRANSACTION,
-            "parsed=\"{:?}\"",
-            command_or_code
+            "parsed=\"{command_or_code:?}\"",
         );
 
         command_or_code.map_or_else(
@@ -93,10 +91,13 @@ impl Transaction {
                 {
                     let state = self.rule_state.context();
                     let mut ctx = state.write().unwrap();
-                    ctx.body = MessageBody::Empty;
                     ctx.metadata = None;
                     ctx.envelop.rcpt.clear();
                     ctx.envelop.mail_from = addr!("default@domain.com");
+                }
+                {
+                    let state = self.rule_state.message();
+                    *state.write().unwrap() = None;
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, ReplyOrCodeID::CodeID(CodeID::Ok))
@@ -267,15 +268,10 @@ impl Transaction {
                 }
             }
 
-            (StateSMTP::RcptTo, Event::DataCmd) => {
-                self.rule_state.context().write().unwrap().body =
-                    MessageBody::Raw(Vec::with_capacity(MAIL_CAPACITY / 1000));
-
-                ProcessedEvent::ReplyChangeState(
-                    StateSMTP::Data,
-                    ReplyOrCodeID::CodeID(CodeID::DataStart),
-                )
-            }
+            (StateSMTP::RcptTo, Event::DataCmd) => ProcessedEvent::ReplyChangeState(
+                StateSMTP::Data,
+                ReplyOrCodeID::CodeID(CodeID::DataStart),
+            ),
 
             _ => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::BadSequence)),
         }
@@ -293,16 +289,21 @@ impl Transaction {
     }
 
     fn set_helo(&mut self, helo: String) {
-        let state = self.rule_state.context();
-        let mut ctx = state.write().unwrap();
+        {
+            let state = self.rule_state.context();
+            let mut ctx = state.write().unwrap();
 
-        ctx.body = MessageBody::Empty;
-        ctx.metadata = None;
-        ctx.envelop = Envelop {
-            helo,
-            mail_from: addr!("no@address.net"),
-            rcpt: vec![],
-        };
+            ctx.metadata = None;
+            ctx.envelop = Envelop {
+                helo,
+                mail_from: addr!("no@address.net"),
+                rcpt: vec![],
+            };
+        }
+        {
+            let state = self.rule_state.message();
+            *state.write().unwrap() = None;
+        }
     }
 
     fn set_mail_from<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
@@ -312,36 +313,40 @@ impl Transaction {
     ) {
         let now = std::time::SystemTime::now();
 
-        let state = self.rule_state.context();
-        let mut ctx = state.write().unwrap();
-        ctx.body = MessageBody::Empty;
-        ctx.envelop.rcpt.clear();
-        ctx.envelop.mail_from = mail_from;
-        ctx.metadata = Some(MessageMetadata {
-            timestamp: now,
-            message_id: format!(
-                "{}{}{}{}",
-                now.duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .expect("did went back in time")
-                    .as_micros(),
-                connection
-                    .timestamp
-                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                    .expect("did went back in time")
-                    .as_millis(),
-                std::iter::repeat_with(fastrand::alphanumeric)
-                    .take(36)
-                    .collect::<String>(),
-                std::process::id()
-            ),
-            skipped: self.rule_state.skipped().cloned(),
-        });
-
-        log::trace!(
-            target: log_channels::TRANSACTION,
-            "envelop=\"{:?}\"",
-            ctx.envelop,
-        );
+        {
+            let state = self.rule_state.context();
+            let mut ctx = state.write().unwrap();
+            ctx.envelop.rcpt.clear();
+            ctx.envelop.mail_from = mail_from;
+            ctx.metadata = Some(MessageMetadata {
+                timestamp: now,
+                message_id: format!(
+                    "{}{}{}{}",
+                    now.duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .expect("did went back in time")
+                        .as_micros(),
+                    connection
+                        .timestamp
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .expect("did went back in time")
+                        .as_millis(),
+                    std::iter::repeat_with(fastrand::alphanumeric)
+                        .take(36)
+                        .collect::<String>(),
+                    std::process::id()
+                ),
+                skipped: self.rule_state.skipped().cloned(),
+            });
+            log::trace!(
+                target: log_channels::TRANSACTION,
+                "envelop=\"{:?}\"",
+                ctx.envelop,
+            );
+        }
+        {
+            let state = self.rule_state.message();
+            *state.write().unwrap() = None;
+        }
     }
 
     fn set_rcpt_to(&mut self, rcpt_to: Address) {
@@ -401,8 +406,7 @@ impl Transaction {
     ) -> impl tokio_stream::Stream<Item = String> + '_ {
         let read_timeout = get_timeout_for_state(&connection.config, &StateSMTP::Data);
         async_stream::stream! {
-            let mut has_data_end = false;
-            while !has_data_end {
+            loop {
                 match connection.read(read_timeout).await {
                     Ok(Some(client_message)) => {
                         log::trace!(
@@ -411,7 +415,7 @@ impl Transaction {
                             client_message
                         );
 
-                        let command_or_code = Event::parse_data(&client_message);
+                        let command_or_code = Event::parse_data(client_message);
                         log::trace!(
                             target: log_channels::TRANSACTION,
                             "parsed=\"{:?}\"",
@@ -420,7 +424,7 @@ impl Transaction {
 
                         match command_or_code {
                             Ok(Some(line)) => yield line,
-                            Ok(None) => has_data_end = true,
+                            Ok(None) => break,
                             Err(code) => {
                                 connection.send_code(code).await.unwrap();
                             },
@@ -499,9 +503,8 @@ impl Transaction {
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
-                                    "================ STATE: /{:?}/ => /{:?}/",
-                                    self.state,
-                                    new_state
+                                    "================ STATE: /{old_state:?}/ => /{new_state:?}/",
+                                    old_state = self.state,
                                 );
                                 self.state = new_state;
                                 read_timeout =
@@ -510,9 +513,8 @@ impl Transaction {
                             ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
-                                    "================ STATE: /{:?}/ => /{:?}/",
-                                    self.state,
-                                    new_state
+                                    "================ STATE: /{old_state:?}/ => /{new_state:?}/",
+                                    old_state = self.state,
                                 );
                                 self.state = new_state;
                                 read_timeout =

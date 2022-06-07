@@ -64,19 +64,24 @@ fn test_mail_from_rules() {
     {
         let email = state.context();
         let mut email = email.write().unwrap();
-
         email.envelop.mail_from = addr!("staff@example.com");
-        email.body = MailMimeParser::default()
-            .parse(
-                r#"From: staff <staff@example.com>
+
+        let message = state.message();
+        let mut message = message.write().unwrap();
+
+        *message = Some(
+            MailMimeParser::default()
+                .parse(
+                    r#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
 This is a reply to your hello."#
-                    .lines()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>(),
-            )
-            .unwrap();
+                        .lines()
+                        .map(str::to_string)
+                        .collect::<Vec<_>>(),
+                )
+                .unwrap(),
+        );
     }
 
     assert_eq!(
@@ -112,17 +117,22 @@ fn test_rcpt_rules() {
             vsmtp_common::rcpt::Rcpt::new(addr!("customer@company.com")),
         ];
 
-        email.body = MailMimeParser::default()
-            .parse(
-                r#"From: staff <staff@example.com>
+        let message = state.message();
+        let mut message = message.write().unwrap();
+
+        *message = Some(
+            MailMimeParser::default()
+                .parse(
+                    r#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
 This is a reply to your hello."#
-                    .lines()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>(),
-            )
-            .unwrap();
+                        .lines()
+                        .map(str::to_string)
+                        .collect::<Vec<_>>(),
+                )
+                .unwrap(),
+        );
     }
 
     assert_eq!(

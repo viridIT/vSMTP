@@ -15,11 +15,14 @@
  *
 */
 
-use anyhow::Context;
-use vsmtp_common::{re::anyhow, CodeID};
+use vsmtp_common::{
+    mail_context::MessageBody,
+    re::{anyhow, tokio},
+    CodeID,
+};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{auth, handle_connection, re::tokio, Connection, ConnectionKind, OnMail};
+use vsmtp_server::{auth, handle_connection, Connection, ConnectionKind, OnMail};
 
 /// A type implementing Write+Read to emulate sockets
 pub struct Mock<'a, T: AsRef<[u8]> + Unpin> {
@@ -80,8 +83,9 @@ impl OnMail for DefaultMailHandler {
         &mut self,
         _: &mut Connection<S>,
         _: Box<vsmtp_common::mail_context::MailContext>,
-    ) -> anyhow::Result<CodeID> {
-        Ok(CodeID::Ok)
+        _: MessageBody,
+    ) -> CodeID {
+        CodeID::Ok
     }
 }
 
@@ -95,7 +99,6 @@ impl OnMail for DefaultMailHandler {
 ///
 /// * argument provided are ill-formed
 pub async fn test_receiver_inner<M>(
-    address: &str,
     mail_handler: &mut M,
     smtp_input: &[u8],
     expected_output: &[u8],
@@ -110,15 +113,13 @@ where
     let mut conn = Connection::new(
         ConnectionKind::Relay,
         "127.0.0.1:53844".parse().unwrap(),
-        address.parse().unwrap(),
+        "127.0.0.1:53845".parse().unwrap(),
         config.clone(),
         &mut mock,
     );
 
     let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&config, &config.app.vsl.filepath.clone())
-            .context("failed to initialize the engine")
-            .unwrap(),
+        RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
     ));
 
     let receivers = std::sync::Arc::new(std::collections::HashMap::new());
@@ -174,7 +175,6 @@ macro_rules! test_receiver {
     };
     (on_mail => $resolver:expr, with_config => $config:expr, $input:expr, $output:expr) => {
         $crate::receiver::test_receiver_inner(
-            "127.0.0.1:0",
             $resolver,
             $input.as_bytes(),
             $output.as_bytes(),
@@ -194,7 +194,6 @@ macro_rules! test_receiver {
     };
     (with_auth => $auth:expr, with_config => $config:expr, on_mail => $resolver:expr, $input:expr, $output:expr) => {
         $crate::receiver::test_receiver_inner(
-            "127.0.0.1:0",
             $resolver,
             $input.as_bytes(),
             $output.as_bytes(),

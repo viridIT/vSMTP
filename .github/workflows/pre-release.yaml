@@ -1,0 +1,64 @@
+name: Pre-Release
+on:
+  pull_request:
+    branches:
+      - "main"
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get bump method
+        id: get-bump-method
+        run: |
+          echo ${{ github.event.pull_request.labels.*.name }}
+          if ${{ contains(github.event.pull_request.labels.*.name, 'B-candidate') }}; then
+            echo '::set-output name=BUMP::rc'
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'B-patch') }}; then
+            echo '::set-output name=BUMP::patch'
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'B-minor') }}; then
+            echo '::set-output name=BUMP::minor'
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'B-major') }}; then
+            echo '::set-output name=BUMP::major'
+          else
+            exit 1
+          fi
+      - run: echo ${{ steps.get-bump-method.outputs.BUMP }}
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      - uses: actions/cache@v1
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+            ./target
+          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: cargo install cargo-release
+      - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} --workspace --allow-branch "HEAD"
+  check-deb-pkg:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev lintian
+      - uses: actions/cache@v1
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - run: cargo install cargo-deb
+      - run: cargo deb -p vsmtp -v
+      - run: lintian ./target/debian/*.deb

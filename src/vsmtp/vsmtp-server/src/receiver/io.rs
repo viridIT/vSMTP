@@ -14,6 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use vsmtp_common::re::tokio;
+
 ///
 #[derive(Debug)]
 pub struct AbstractIO<S>
@@ -57,16 +59,20 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
     ///
-    pub const fn new(stream: S) -> Self {
+    #[allow(clippy::missing_const_for_fn)] // unstable for msrv
+    pub fn new(stream: S) -> Self {
         Self {
             inner: stream,
             buf: Vec::new(),
         }
     }
 
+    /// Returns the next line from the inner stream. Or [`None`] if stream is closed.
     ///
     /// # Errors
     ///
+    /// * timed-out
+    /// * failed to read
     pub async fn next_line(
         &mut self,
         timeout: Option<std::time::Duration>,

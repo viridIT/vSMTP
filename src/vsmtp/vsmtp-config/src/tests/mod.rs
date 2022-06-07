@@ -26,6 +26,7 @@ mod root_example {
 mod validate;
 
 #[test]
+#[ignore]
 fn test_create_app_folder() {
     let mut config = crate::Config::default();
     config.app.dirpath = "./tests/generated".into();

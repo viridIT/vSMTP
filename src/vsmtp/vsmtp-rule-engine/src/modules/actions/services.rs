@@ -19,12 +19,14 @@ use rhai::{
     Dynamic, EvalAltResult, ImmutableString, NativeCallContext,
 };
 
+#[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod services {
     use crate::dsl::service::shell::run;
     use crate::dsl::service::shell::ShellResult;
     use crate::dsl::service::Service;
     use crate::modules::types::types::Context;
+    use crate::modules::types::types::Message;
     use crate::modules::EngineResult;
     use vsmtp_common::status::Status;
 
@@ -154,58 +156,54 @@ pub mod services {
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw, pure)]
-    pub fn delegate(service: &mut std::sync::Arc<Service>, ctx: Context) -> EngineResult<Status> {
-        match &**service {
-            Service::Smtp { delegator, .. } => {
-                let (from, rcpt, body) = {
-                    let ctx = ctx.read().map_err::<Box<EvalAltResult>, _>(|_| {
-                        "rule engine mutex poisoned".into()
+    pub fn delegate(
+        service: &mut std::sync::Arc<Service>,
+        ctx: Context,
+        msg: Message,
+    ) -> EngineResult<Status> {
+        if let Service::Smtp { delegator, .. } = &**service {
+            let (from, rcpt, body) = {
+                let ctx = ctx
+                    .read()
+                    .map_err::<Box<EvalAltResult>, _>(|_| "context mutex poisoned".into())?;
+
+                let body = vsl_guard_ok!(msg.read())
+                    .as_ref()
+                    .map(std::string::ToString::to_string)
+                    .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                        "tried to delegate email security but the body was empty".into()
                     })?;
 
-                    let body = match &ctx.body {
-                        vsmtp_common::mail_context::MessageBody::Empty => {
-                            return Err(
-                                "tried to delegate email security but the body was empty".into()
-                            )
-                        }
-                        body => body.to_string(),
-                    };
+                (
+                    ctx.envelop.mail_from.clone(),
+                    ctx.envelop.rcpt.clone(),
+                    body,
+                )
+            };
 
-                    (
-                        ctx.envelop.mail_from.clone(),
-                        ctx.envelop.rcpt.clone(),
-                        body,
-                    )
-                };
+            {
+                let mut delegator = delegator.lock().unwrap();
 
-                {
-                    let mut delegator = delegator.lock().unwrap();
-
-                    crate::dsl::service::smtp::delegate(
-                        &mut *delegator,
-                        &from,
-                        &rcpt,
-                        body.as_bytes(),
-                    )
+                crate::dsl::service::smtp::delegate(&mut *delegator, &from, &rcpt, body.as_bytes())
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                }
-
-                Ok(Status::Delegated)
-
-                // Ok(rhai::Map::from_iter([
-                //     ("code".into(), Dynamic::from(response.code().to_string())),
-                //     (
-                //         "message".into(),
-                //         Dynamic::from(
-                //             response
-                //                 .message()
-                //                 .map(|line| Dynamic::from(line.to_string()))
-                //                 .collect::<rhai::Array>(),
-                //         ),
-                //     ),
-                // ]))
             }
-            _ => Err(format!("cannot delegate security with '{service}' service.").into()),
+
+            Ok(Status::Delegated)
+
+            // Ok(rhai::Map::from_iter([
+            //     ("code".into(), Dynamic::from(response.code().to_string())),
+            //     (
+            //         "message".into(),
+            //         Dynamic::from(
+            //             response
+            //                 .message()
+            //                 .map(|line| Dynamic::from(line.to_string()))
+            //                 .collect::<rhai::Array>(),
+            //         ),
+            //     ),
+            // ]))
+        } else {
+            Err(format!("cannot delegate security with '{service}' service.").into())
         }
     }
 

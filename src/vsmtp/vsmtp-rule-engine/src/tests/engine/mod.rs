@@ -16,7 +16,10 @@
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{
-    mail_context::ConnectionContext, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
+    mail_context::{ConnectionContext, MailContext, MessageBody},
+    state::StateSMTP,
+    status::Status,
+    CodeID, ReplyOrCodeID,
 };
 
 #[test]
@@ -99,7 +102,7 @@ fn test_rule_state() {
         &config,
         resolvers,
         &rule_engine,
-        vsmtp_common::mail_context::MailContext {
+        MailContext {
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,
@@ -114,9 +117,9 @@ fn test_rule_state() {
                 mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],
             },
-            body: vsmtp_common::mail_context::MessageBody::Empty,
             metadata: None,
         },
+        Some(MessageBody::Raw(vec![])),
     );
 
     assert_eq!(

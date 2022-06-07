@@ -23,13 +23,13 @@ use vsmtp_common::auth::Mechanism;
 use vsmtp_common::re::serde_json;
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{
-    mail::Mail,
     mail_context::{MessageBody, MessageMetadata},
     state::StateSMTP,
     status::Status,
     transfer::Transfer,
+    Mail,
 };
-use vsmtp_common::{CodeID, ReplyOrCodeID};
+use vsmtp_common::{BodyType, CodeID, ReplyOrCodeID};
 use vsmtp_config::ConfigServerVirtual;
 
 #[test]
@@ -91,7 +91,7 @@ fn test_context_write() {
         re.run_when(&mut state, &StateSMTP::MailFrom),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    state.context().write().unwrap().body = MessageBody::Raw(
+    *state.message().write().unwrap() = Some(MessageBody::Raw(
         r#"From: john doe <john@doe.com>
 To: green@foo.net
 Subject: test email
@@ -101,7 +101,7 @@ This is a raw email.
         .lines()
         .map(str::to_string)
         .collect::<Vec<_>>(),
-    );
+    ));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -115,12 +115,14 @@ This is a raw email.
     assert_eq!(
         std::fs::read_to_string("./tmp/app/tests/generated/test_message_id.eml")
             .expect("could not read 'test_message_id'"),
-        r#"From: john doe <john@doe.com>
-To: green@foo.net
-Subject: test email
-
-This is a raw email.
-"#
+        [
+            "From: john doe <john@doe.com>\r\n",
+            "To: green@foo.net\r\n",
+            "Subject: test email\r\n",
+            "\r\n",
+            "This is a raw email.\r\n"
+        ]
+        .concat()
     );
 
     std::fs::remove_file("./tmp/app/tests/generated/test_message_id.eml")
@@ -141,19 +143,19 @@ fn test_context_dump() {
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    state.context().write().unwrap().body = MessageBody::Raw(vec![]);
+    *state.message().write().unwrap() = Some(MessageBody::Raw(vec![]));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    state.context().write().unwrap().body = MessageBody::Parsed(Box::new(Mail {
+    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),
             ("X-Custom-Header".to_string(), "my header".to_string()),
         ],
-        body: vsmtp_common::mail::BodyType::Regular(vec!["this is an empty body".to_string()]),
-    }));
+        body: BodyType::Regular(vec!["this is an empty body".to_string()]),
+    })));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -184,7 +186,7 @@ fn test_quarantine() {
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    state.context().write().unwrap().body = MessageBody::Raw(vec![]);
+    *state.message().write().unwrap() = Some(MessageBody::Raw(vec![]));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -199,14 +201,14 @@ fn test_quarantine() {
         .iter()
         .all(|rcpt| rcpt.transfer_method == Transfer::None));
 
-    state.context().write().unwrap().body = MessageBody::Parsed(Box::new(Mail {
+    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),
             ("X-Custom-Header".to_string(), "my header".to_string()),
         ],
-        body: vsmtp_common::mail::BodyType::Regular(vec!["this is an empty body".to_string()]),
-    }));
+        body: BodyType::Regular(vec!["this is an empty body".to_string()]),
+    })));
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Quarantine("tests/generated/quarantine2".to_string())
@@ -221,7 +223,7 @@ fn test_forward() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-    state.context().write().unwrap().body = MessageBody::Parsed(Box::new(Mail::default()));
+    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail::default())));
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Delivery), Status::Next);
@@ -271,6 +273,16 @@ fn test_forward() {
         rcpt[6].transfer_method,
         Transfer::Forward(ForwardTarget::Domain("test.eu".to_string()))
     );
+    assert_eq!(rcpt[7].address.full(), "socket4@example.com");
+    assert_eq!(
+        rcpt[7].transfer_method,
+        Transfer::Forward(ForwardTarget::Socket("127.0.0.1:25".parse().unwrap()))
+    );
+    assert_eq!(rcpt[8].address.full(), "socket6@example.com");
+    assert_eq!(
+        rcpt[8].transfer_method,
+        Transfer::Forward(ForwardTarget::Socket("[::1]:25".parse().unwrap()))
+    );
 }
 
 #[test]
@@ -282,7 +294,7 @@ fn test_forward_all() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-    state.context().write().unwrap().body = MessageBody::Parsed(Box::new(Mail::default()));
+    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail::default())));
 
     re.run_when(&mut state, &StateSMTP::Connect);
 

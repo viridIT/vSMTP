@@ -22,30 +22,42 @@ use crate::{
 
 #[test]
 fn data_end() {
-    assert_eq!(Event::parse_data("."), Ok(None));
+    assert_eq!(Event::parse_data(".".to_string()), Ok(None));
 }
 
 #[test]
 fn dot_stuffing() {
-    assert_eq!(Event::parse_data(".."), Ok(Some(".".to_string())));
     assert_eq!(
-        Event::parse_data(".How are you today?"),
+        Event::parse_data("..".to_string()),
+        Ok(Some(".".to_string()))
+    );
+    assert_eq!(
+        Event::parse_data(".How are you today?".to_string()),
         Ok(Some("How are you today?".to_string()))
     );
 }
 
 #[test]
 fn data_valid() {
-    assert_eq!(Event::parse_data(""), Ok(Some("".to_string())));
+    assert_eq!(Event::parse_data("".to_string()), Ok(Some("".to_string())));
     assert_eq!(
-        Event::parse_data("foobar helo"),
+        Event::parse_data("foobar helo".to_string()),
         Ok(Some("foobar helo".to_string()))
     );
-    assert_eq!(Event::parse_data("இந்தியா"), Ok(Some("இந்தியா".to_string())));
-    assert_eq!(Event::parse_data("网络"), Ok(Some("网络".to_string())));
-    assert_eq!(Event::parse_data("भारत"), Ok(Some("भारत".to_string())));
     assert_eq!(
-        Event::parse_data("가각간갈감갑갇강개객거건걸검겁겨게격견결겸겹경계"),
+        Event::parse_data("இந்தியா".to_string()),
+        Ok(Some("இந்தியா".to_string()))
+    );
+    assert_eq!(
+        Event::parse_data("网络".to_string()),
+        Ok(Some("网络".to_string()))
+    );
+    assert_eq!(
+        Event::parse_data("भारत".to_string()),
+        Ok(Some("भारत".to_string()))
+    );
+    assert_eq!(
+        Event::parse_data("가각간갈감갑갇강개객거건걸검겁겨게격견결겸겹경계".to_string()),
         Ok(Some(
             "가각간갈감갑갇강개객거건걸검겁겨게격견결겸겹경계".to_string()
         ))
@@ -55,7 +67,7 @@ fn data_valid() {
 #[test]
 fn data_invalid() {
     assert_eq!(
-        Event::parse_data(std::str::from_utf8(&vec![b'_'; 1000][..]).unwrap()),
+        Event::parse_data(String::from_utf8(vec![b'_'; 1000]).unwrap()),
         Err(CodeID::UnrecognizedCommand)
     );
 }

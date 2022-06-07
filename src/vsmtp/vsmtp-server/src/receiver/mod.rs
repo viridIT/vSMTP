@@ -15,12 +15,15 @@
  *
 */
 use self::transaction::{Transaction, TransactionResult};
-use crate::{auth, receiver::auth_exchange::on_authentication};
+use crate::{
+    auth, log_channels,
+    receiver::auth_exchange::{on_authentication, AuthExchangeError},
+};
 use vsmtp_common::{
     auth::Mechanism,
-    envelop::Envelop,
-    mail_context::{ConnectionContext, MailContext, MessageBody},
-    re::anyhow,
+    mail_context::MessageBody,
+    mail_context::MAIL_CAPACITY,
+    re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
     CodeID, MailParserOnFly,
@@ -52,7 +55,7 @@ async fn handle_auth<S>(
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
 {
-    match on_authentication(
+    if let Err(e) = on_authentication(
         conn,
         rsasl,
         rule_engine,
@@ -62,46 +65,54 @@ where
     )
     .await
     {
-        Err(auth_exchange::AuthExchangeError::Failed) => {
-            conn.send_code(CodeID::AuthInvalidCredentials).await?;
-            anyhow::bail!("Auth: Credentials invalid, closing connection");
-        }
-        Err(auth_exchange::AuthExchangeError::Canceled) => {
-            conn.authentication_attempt += 1;
-            *helo_domain = Some(helo_pre_auth);
+        log::warn!(
+            target: log_channels::TRANSACTION,
+            "SASL exchange produced an error: {e}"
+        );
 
-            let retries_max = conn
-                .config
-                .server
-                .smtp
-                .auth
-                .as_ref()
-                .unwrap()
-                .attempt_count_max;
-            if retries_max != -1 && conn.authentication_attempt > retries_max {
-                conn.send_code(CodeID::AuthRequired).await?;
-                anyhow::bail!("Auth: Attempt max {} reached", retries_max);
+        match e {
+            AuthExchangeError::Failed => {
+                conn.send_code(CodeID::AuthInvalidCredentials).await?;
+                anyhow::bail!("{}", CodeID::AuthInvalidCredentials)
             }
-            conn.send_code(CodeID::AuthClientCanceled).await?;
-        }
-        Err(auth_exchange::AuthExchangeError::Timeout(e)) => {
-            conn.send_code(CodeID::Timeout).await?;
-            anyhow::bail!(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
-        }
-        Err(auth_exchange::AuthExchangeError::InvalidBase64) => {
-            conn.send_code(CodeID::AuthErrorDecode64).await?;
-        }
-        Err(auth_exchange::AuthExchangeError::Other(e)) => anyhow::bail!("{}", e),
-        Ok(_) => {
-            conn.is_authenticated = true;
+            AuthExchangeError::Canceled => {
+                conn.authentication_attempt += 1;
+                *helo_domain = Some(helo_pre_auth);
 
-            // TODO: When a security layer takes effect
-            // helo_domain = None;
-
-            *helo_domain = Some(helo_pre_auth);
+                let retries_max = conn
+                    .config
+                    .server
+                    .smtp
+                    .auth
+                    .as_ref()
+                    .unwrap()
+                    .attempt_count_max;
+                if retries_max != -1 && conn.authentication_attempt > retries_max {
+                    conn.send_code(CodeID::AuthRequired).await?;
+                    anyhow::bail!("Auth: Attempt max {retries_max} reached");
+                }
+                conn.send_code(CodeID::AuthClientCanceled).await?;
+                Ok(())
+            }
+            AuthExchangeError::Timeout(_) => {
+                conn.send_code(CodeID::Timeout).await?;
+                anyhow::bail!("{}", CodeID::Timeout)
+            }
+            AuthExchangeError::InvalidBase64 => {
+                conn.send_code(CodeID::AuthErrorDecode64).await?;
+                Ok(())
+            }
+            otherwise => anyhow::bail!("{otherwise}"),
         }
+    } else {
+        conn.is_authenticated = true;
+
+        // TODO: When a security layer takes effect
+        // helo_domain = None;
+
+        *helo_domain = Some(helo_pre_auth);
+        Ok(())
     }
-    Ok(())
 }
 
 #[derive(Default)]
@@ -113,7 +124,7 @@ impl MailParserOnFly for NoParsing {
         &'a mut self,
         mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
     ) -> anyhow::Result<MessageBody> {
-        let mut buffer = vec![];
+        let mut buffer = Vec::with_capacity(MAIL_CAPACITY / 1000);
         while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
             buffer.push(line);
         }
@@ -124,7 +135,7 @@ impl MailParserOnFly for NoParsing {
 async fn handle_stream<S, M>(
     conn: &mut Connection<S>,
     mail_handler: &mut M,
-    transaction: &mut Transaction,
+    mut transaction: Transaction,
     helo_domain: &mut Option<String>,
 ) -> anyhow::Result<bool>
 where
@@ -137,11 +148,7 @@ where
         NoParsing::default().parse(stream).await?
     };
 
-    let state = transaction.rule_state.context();
-    {
-        let mut state_writer = state.write().unwrap();
-        state_writer.body = body;
-    }
+    *transaction.rule_state.message().write().unwrap() = Some(body);
 
     let status = transaction
         .rule_engine
@@ -159,38 +166,21 @@ where
         }
         _ => (),
     }
+
     {
-        let mut state_writer = state.write().unwrap();
+        let mail_context = transaction.rule_state.context();
+        let mut state_writer = mail_context.write().unwrap();
         if let Some(metadata) = &mut state_writer.metadata {
             metadata.skipped = transaction.rule_state.skipped().cloned();
         }
     }
 
-    let mut output = MailContext {
-        connection: ConnectionContext {
-            timestamp: std::time::SystemTime::now(),
-            credentials: None,
-            server_name: conn.server_name.clone(),
-            server_address: conn.server_addr,
-            is_authenticated: conn.is_authenticated,
-            is_secured: conn.is_secured,
-        },
-        client_addr: std::net::SocketAddr::V4(std::net::SocketAddrV4::new(
-            std::net::Ipv4Addr::LOCALHOST,
-            10000,
-        )),
-        envelop: Envelop::default(),
-        body: MessageBody::Empty,
-        metadata: None,
-    };
+    let (mail_context, message) = transaction.rule_state.take().unwrap();
 
-    {
-        let mut ctx = state.write().unwrap();
-        std::mem::swap(&mut *ctx, &mut output);
-    }
-
-    let helo = output.envelop.helo.clone();
-    let code = mail_handler.on_mail(conn, Box::new(output)).await?;
+    let helo = mail_context.envelop.helo.clone();
+    let code = mail_handler
+        .on_mail(conn, Box::new(mail_context), message.unwrap())
+        .await;
     *helo_domain = Some(helo);
     conn.send_code(code).await?;
 
@@ -258,9 +248,7 @@ where
         if let Some(outcome) = transaction.receive(conn, &helo_domain).await? {
             match outcome {
                 TransactionResult::Data => {
-                    if !handle_stream(conn, mail_handler, &mut transaction, &mut helo_domain)
-                        .await?
-                    {
+                    if !handle_stream(conn, mail_handler, transaction, &mut helo_domain).await? {
                         return Ok(());
                     }
                 }
@@ -373,7 +361,7 @@ where
                     if !handle_stream(
                         &mut secured_conn,
                         mail_handler,
-                        &mut transaction,
+                        transaction,
                         &mut helo_domain,
                     )
                     .await?

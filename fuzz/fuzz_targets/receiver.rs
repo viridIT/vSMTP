@@ -1,6 +1,9 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use vsmtp_common::{mail_context::MailContext, re::anyhow, CodeID};
+use vsmtp_common::{
+    mail_context::{MailContext, MessageBody},
+    CodeID,
+};
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::{handle_connection, Connection, ConnectionKind, OnMail};
@@ -14,8 +17,9 @@ impl OnMail for FuzzOnMail {
         &mut self,
         _: &mut Connection<S>,
         _: Box<MailContext>,
-    ) -> anyhow::Result<CodeID> {
-        Ok(CodeID::Ok)
+        _: MessageBody,
+    ) -> CodeID {
+        CodeID::Ok
     }
 }
 

@@ -1,6 +1,7 @@
 //! vSMTP rule engine
 
 #![doc(html_no_source)]
+#![deny(missing_docs)]
 //
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
@@ -16,11 +17,16 @@ mod log_channels {
 }
 
 mod dsl;
+#[macro_use]
 mod error;
-pub mod modules;
-pub mod rule_engine;
-pub mod rule_state;
 mod server_api;
+
+///
+pub mod modules;
+///
+pub mod rule_engine;
+///
+pub mod rule_state;
 
 pub use dsl::service::Service;
 

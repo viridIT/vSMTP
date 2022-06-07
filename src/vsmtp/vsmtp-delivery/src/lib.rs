@@ -42,10 +42,10 @@ pub mod transport {
         pub const MBOX: &str = "server::delivery::mbox";
     }
 
-    /// allowing the [ServerVSMTP] to deliver a mail.
+    ///
     #[async_trait::async_trait]
     pub trait Transport {
-        /// the deliver method of the [Resolver] trait
+        ///
         async fn deliver(
             &mut self,
             config: &Config,
@@ -150,5 +150,58 @@ pub mod transport {
         records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
 
         Ok(records_by_priority)
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    /// create an empty email context for testing purposes.
+    #[must_use]
+    pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
+        vsmtp_common::mail_context::MailContext {
+            connection: ConnectionContext {
+                timestamp: std::time::SystemTime::now(),
+                credentials: None,
+                is_authenticated: false,
+                is_secured: false,
+                server_name: "testserver.com".to_string(),
+                server_address: "127.0.0.1:25".parse().unwrap(),
+            },
+            client_addr: "127.0.0.1:26".parse().unwrap(),
+            envelop: vsmtp_common::envelop::Envelop::default(),
+            metadata: Some(vsmtp_common::mail_context::MessageMetadata {
+                timestamp: std::time::SystemTime::now(),
+                ..vsmtp_common::mail_context::MessageMetadata::default()
+            }),
+        }
+    }
+
+    use vsmtp_common::{
+        addr,
+        envelop::build_lettre,
+        mail_context::ConnectionContext,
+        rcpt::Rcpt,
+        re::lettre,
+        transfer::{EmailTransferStatus, Transfer},
+    };
+
+    #[test]
+    fn test_build_lettre_envelop() {
+        assert_eq!(
+            build_lettre(
+                &addr!("a@a.a"),
+                &[Rcpt {
+                    address: addr!("b@b.b"),
+                    transfer_method: Transfer::None,
+                    email_status: EmailTransferStatus::Sent
+                }]
+            )
+            .expect("failed to build lettre envelop"),
+            lettre::address::Envelope::new(
+                Some("a@a.a".parse().unwrap()),
+                vec!["b@b.b".parse().unwrap()]
+            )
+            .unwrap()
+        );
     }
 }

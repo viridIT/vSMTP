@@ -18,7 +18,7 @@ use vsmtp_common::{mail_context::MessageBody, MailParser};
 
 use crate::MailMimeParser;
 
-fn generate_test_bodies() -> (MessageBody, MessageBody, MessageBody) {
+fn generate_test_bodies() -> (MessageBody, MessageBody) {
     let raw_email = r#"From: john <john@example.com>
 To: green@example.com
 Date: tue, 30 nov 2021 20:54:27 +0100
@@ -38,7 +38,6 @@ Content-Transfer-Encoding: 7bit
 "#;
 
     (
-        MessageBody::Empty,
         MessageBody::Raw(raw_email.lines().map(str::to_string).collect::<Vec<_>>()),
         MailMimeParser::default()
             .parse(raw_email.lines().map(str::to_string).collect::<Vec<_>>())
@@ -50,9 +49,8 @@ Content-Transfer-Encoding: 7bit
 fn test_get_header() {
     use crate::tests::mime_parser::methods::generate_test_bodies;
 
-    let (empty, raw, parsed) = generate_test_bodies();
+    let (raw, parsed) = generate_test_bodies();
 
-    assert_eq!(empty.get_header("To"), None);
     assert_eq!(raw.get_header("To"), Some("green@example.com"));
     assert_eq!(parsed.get_header("to"), Some("green@example.com"));
 }
@@ -61,16 +59,11 @@ fn test_get_header() {
 fn test_set_and_add_header() {
     use crate::tests::mime_parser::methods::generate_test_bodies;
 
-    let (mut empty, mut raw, mut parsed) = generate_test_bodies();
+    let (mut raw, mut parsed) = generate_test_bodies();
 
     let new_header = "X-New-Header";
     let new_header_message = "this is a new header!";
     let subject_message = "this is a subject";
-
-    empty.set_header("To", "john@example.com");
-    empty.set_header(new_header, new_header_message);
-    assert_eq!(empty.get_header("To"), None);
-    assert_eq!(empty.get_header(new_header), None);
 
     raw.set_header("Subject", subject_message);
     raw.set_header(new_header, new_header_message);

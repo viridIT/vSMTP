@@ -16,13 +16,11 @@
 */
 use vsmtp_common::{
     addr,
-    mail::{BodyType, Mail},
     mail_context::{MailContext, MessageBody},
-    re::anyhow,
-    CodeID,
+    re::tokio,
+    CodeID, {BodyType, Mail},
 };
 use vsmtp_mail_parser::MailMimeParser;
-use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
@@ -38,8 +36,9 @@ async fn reset_helo() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            message: MessageBody,
+        ) -> CodeID {
+            let body = message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "a@b");
@@ -58,7 +57,7 @@ async fn reset_helo() {
                 }))
             );
 
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -147,8 +146,9 @@ async fn reset_rcpt_to_ok() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            message: MessageBody,
+        ) -> CodeID {
+            let body = message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo2");
             assert_eq!(mail.envelop.mail_from.full(), "d@e");
@@ -160,7 +160,7 @@ async fn reset_rcpt_to_ok() {
                     body: BodyType::Undefined
                 }))
             );
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -227,8 +227,9 @@ async fn reset_rcpt_to_multiple_rcpt() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            message: MessageBody,
+        ) -> CodeID {
+            let body = message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");
@@ -249,7 +250,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
                     body: BodyType::Undefined
                 }))
             );
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 

@@ -17,7 +17,7 @@
 use crate::{mechanism::Mechanism, Address, CodeID};
 
 /// See "SMTP Service Extension for 8-bit MIME Transport"
-/// https://datatracker.ietf.org/doc/html/rfc6152
+/// <https://datatracker.ietf.org/doc/html/rfc6152>
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MimeBodyType {
     ///
@@ -41,7 +41,7 @@ impl std::str::FromStr for MimeBodyType {
 
 /// Command SMTPs sent and received by servers and clients
 /// See "Simple Mail Transfer Protocol"
-/// https://datatracker.ietf.org/doc/html/rfc5321
+/// <https://datatracker.ietf.org/doc/html/rfc5321>
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Event {
     /// Used to identify the SMTP client to the SMTP server.
@@ -69,12 +69,6 @@ pub enum Event {
     /// buffer.
     /// Syntax = `"DATA" CRLF`
     DataCmd,
-    /// Lines ended by CRLF sent between [Event::DataCmd] and [Event::DataEnd]
-    // DataLine(String),
-    /// The mail data are terminated by a line containing only a period. This
-    /// is the end of mail data indication.
-    /// Syntax = `"." CRLF`
-    // DataEnd,
     /// "RSET\r\n"
     /// This command specifies that the current mail transaction will be
     /// aborted. Any stored sender, recipients, and mail data MUST be
@@ -105,7 +99,7 @@ pub enum Event {
     QuitCmd,
 
     /// See "Transport Layer Security"
-    /// https://datatracker.ietf.org/doc/html/rfc3207
+    /// <https://datatracker.ietf.org/doc/html/rfc3207>
     /// Syntax = `"STARTTLS" CRLF`
     StartTls,
     //
@@ -113,7 +107,7 @@ pub enum Event {
     // PrivCmd,
     //
     /// Authentication with SASL protocol
-    /// https://datatracker.ietf.org/doc/html/rfc4954
+    /// <https://datatracker.ietf.org/doc/html/rfc4954>
     /// Syntax = `"AUTH" mechanism [initial-response] CRLF`
     Auth(Mechanism, Option<Vec<u8>>),
     //
@@ -129,7 +123,7 @@ pub enum Event {
 
 impl Event {
     /// Create a valid SMTP command (or event) from a string OR return a SMTP error code
-    /// See https://datatracker.ietf.org/doc/html/rfc5321#section-4.1
+    /// See <https://datatracker.ietf.org/doc/html/rfc5321#section-4.1>
     ///
     /// # Errors
     pub fn parse_cmd(input: &str) -> Result<Self, CodeID> {
@@ -328,8 +322,7 @@ impl Event {
 
     fn parse_arg_auth(mechanism: &str, initial_response: Option<&str>) -> Result<Self, CodeID> {
         Ok(Self::Auth(
-            <Mechanism as std::str::FromStr>::from_str(mechanism)
-                .map_err(|_| CodeID::AuthMechNotSupported)?,
+            Mechanism::try_from(mechanism).map_err(|_| CodeID::AuthMechNotSupported)?,
             initial_response.map(|s| s.as_bytes().to_vec()),
         ))
     }
@@ -340,15 +333,15 @@ impl Event {
     /// # Errors
     ///
     /// * input length is too long (> 998)
-    pub fn parse_data(input: &str) -> Result<Option<String>, CodeID> {
-        match input {
+    pub fn parse_data(input: String) -> Result<Option<String>, CodeID> {
+        match input.as_str() {
             "." => Ok(None),
             too_long if too_long.len() > 998 => Err(CodeID::UnrecognizedCommand),
             dot_string if dot_string.starts_with('.') => {
                 // https://www.rfc-editor.org/rfc/rfc5321#section-4.5.2
                 Ok(Some(dot_string[1..].to_string()))
             }
-            _ => Ok(Some(input.to_string())),
+            _ => Ok(Some(input)),
         }
     }
 }

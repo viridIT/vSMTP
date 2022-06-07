@@ -12,16 +12,21 @@ fn info(code) { sys::info(code) }
 fn quarantine(queue) { sys::quarantine(ctx(), queue) }
 
 /// Header handling (headers.rs)
-fn has_header(header) { sys::has_header(ctx(), header) }
-fn get_header(header) { sys::get_header(ctx(), header) }
-fn add_header(header, value) { sys::add_header(ctx(), header, value) }
-fn set_header(header, value) { sys::set_header(ctx(), header, value) }
-fn add_to(addr) { sys::add_to(ctx(), addr) }
-fn remove_to(addr) { sys::remove_to(ctx(), addr) }
-fn rewrite_to(old_addr, new_addr) { sys::rewrite_to(ctx(), old_addr, new_addr) }
+fn has_header(header) { sys::has_header(msg(), header) }
+fn get_header(header) { sys::get_header(msg(), header) }
+fn add_header(header, value) { sys::add_header(msg(), header, value) }
+fn set_header(header, value) { sys::set_header(msg(), header, value) }
+fn add_to(addr) { sys::add_to(msg(), addr) }
+fn remove_to(addr) { sys::remove_to(msg(), addr) }
+fn rewrite_to(old_addr, new_addr) {
+    sys::rewrite_to_message(msg(), old_addr, new_addr)
+}
 
 // Envelop handling (envelop.rs)
-fn rewrite_mail_from(new_addr) { sys::rewrite_mail_from(ctx(), new_addr) }
+fn rewrite_mail_from(new_addr) {
+    sys::rewrite_mail_from_context(ctx(), new_addr);
+    sys::rewrite_mail_from_message(msg(), new_addr)
+}
 fn rewrite_rcpt(old_addr, new_addr) { sys::rewrite_rcpt(ctx(), old_addr, new_addr) }
 fn add_rcpt(addr) { sys::add_rcpt(ctx(), addr) }
 fn remove_rcpt(addr) { sys::remove_rcpt(ctx(), addr) }
@@ -31,7 +36,7 @@ fn bcc(bcc) { sys::bcc(ctx(), bcc) }
 fn log(level, message) { sys::log(level, message) }
 
 /// Export messages (exports.rs)
-fn write(dir) { sys::write(srv(), ctx(), dir) }
+fn write(dir) { sys::write(srv(), ctx(), msg(), dir) }
 fn dump(dir) { sys::dump(srv(), ctx(), dir) }
 
 /// Delivery methods (transports.rs)

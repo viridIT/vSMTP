@@ -14,8 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{envelop::Envelop, mail::Mail, status::Status, MailParser};
-use anyhow::Context;
+use crate::{envelop::Envelop, status::Status, Mail, MailParser};
 
 /// average size of a mail
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
@@ -44,9 +43,8 @@ impl Default for MessageMetadata {
 
 /// Message body issued by a SMTP transaction
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
 pub enum MessageBody {
-    /// Nothing
-    Empty,
     /// The raw representation of the message
     Raw(Vec<String>),
     /// The message parsed using a [`MailParser`]
@@ -56,31 +54,44 @@ pub enum MessageBody {
 impl std::fmt::Display for MessageBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Empty => f.write_str(""),
-            Self::Raw(data) => f.write_fmt(format_args!("{}\n", data.join("\n"))),
+            Self::Raw(data) => {
+                for i in data {
+                    f.write_str(i)?;
+                    f.write_str("\r\n")?;
+                }
+                Ok(())
+            }
             Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
         }
     }
 }
 
 impl MessageBody {
-    /// Convert a the instance into a [`MessageBody::Parsed`] or [`MessageBody::Empty`]
+    /// Create a new instance of [`MessageBody::Parsed`], cloning if already parsed
     ///
     /// # Errors
     ///
     /// * Fail to parse using the provided [`MailParser`]
-    pub fn to_parsed<P: MailParser>(self) -> anyhow::Result<Self> {
+    pub fn to_parsed<P: MailParser>(&self) -> anyhow::Result<Self> {
         Ok(match self {
-            Self::Raw(raw) => P::default().parse(raw)?,
-            otherwise => otherwise,
+            Self::Raw(raw) => P::default().parse(raw.clone())?,
+            Self::Parsed(_) => self.clone(),
         })
+    }
+
+    /// Has the instance been parsed
+    #[must_use]
+    pub const fn is_parsed(&self) -> bool {
+        match self {
+            MessageBody::Raw(_) => false,
+            MessageBody::Parsed(_) => true,
+        }
     }
 
     /// get the value of an header, return None if it does not exists or when the body is empty.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {
         match self {
-            Self::Empty => None,
             Self::Raw(raw) => {
                 for line in raw {
                     let mut split = line.splitn(2, ": ");
@@ -102,7 +113,6 @@ impl MessageBody {
     /// rewrite a header with a new value or add it to the header section.
     pub fn set_header(&mut self, name: &str, value: &str) {
         match self {
-            Self::Empty => {}
             Self::Raw(raw) => {
                 // TODO: handle folded header, but at this point the function should parse the mail...
 
@@ -125,21 +135,19 @@ impl MessageBody {
     /// prepend a header to the header section.
     pub fn add_header(&mut self, name: &str, value: &str) {
         match self {
-            Self::Empty => {}
             Self::Raw(raw) => {
-                let mut new_raw = vec![format!("{name}: {value}")];
-                new_raw.extend_from_slice(raw);
-                *raw = new_raw;
+                raw.splice(..0, [format!("{name}: {value}")]);
             }
             Self::Parsed(parsed) => {
-                parsed.prepend_headers(vec![(name.to_string(), value.to_string())]);
+                parsed.prepend_headers([(name.to_string(), value.to_string())]);
             }
         }
     }
 }
 
 /// The credentials send by the client, not necessarily the right one
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, strum::Display)]
+#[strum(serialize_all = "PascalCase")]
 pub enum AuthCredentials {
     /// the pair will be sent and verified by a third party
     Verify {
@@ -152,6 +160,11 @@ pub enum AuthCredentials {
     Query {
         ///
         authid: String,
+    },
+    /// verify the token send by anonymous mechanism
+    AnonymousToken {
+        /// [ email / 1*255TCHAR ]
+        token: String,
     },
 }
 
@@ -181,27 +194,6 @@ pub struct MailContext {
     pub client_addr: std::net::SocketAddr,
     /// envelop of the message
     pub envelop: Envelop,
-    /// content of the message
-    pub body: MessageBody,
     /// metadata
     pub metadata: Option<MessageMetadata>,
-}
-
-impl MailContext {
-    /// serialize the mail context using serde.
-    ///
-    /// # Errors
-    /// * Failed to read the file
-    /// * Failed deserialize to the MailContext struct.
-    pub fn from_file<P>(file: P) -> anyhow::Result<Self>
-    where
-        P: AsRef<std::path::Path>,
-    {
-        std::fs::read_to_string(&file)
-            .context(format!("Cannot read file '{}'", file.as_ref().display()))
-            .map(|content| {
-                serde_json::from_str::<Self>(&content)
-                    .context(format!("Cannot deserialize: '{}'", content))
-            })?
-    }
 }

@@ -80,19 +80,16 @@ pub fn execute(command: Commands, config: &Config) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::MessageShowFormat;
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail::{BodyType, Mail},
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         queue_path,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
     };
-
-    use crate::MessageShowFormat;
-
-    use super::*;
 
     #[test]
     fn find_one() {
@@ -140,7 +137,8 @@ mod tests {
                     email_status: EmailTransferStatus::Waiting,
                 }],
             },
-            body: MessageBody::Parsed(Box::new(Mail {
+            /*
+            body: Some(MessageBody::Parsed(Box::new(Mail {
                 headers: [
                     ("from", "foo2 foo <foo2@foo>"),
                     ("date", "tue, 30 nov 2021 20:54:27 +0100"),
@@ -149,7 +147,8 @@ mod tests {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<Vec<_>>(),
                 body: BodyType::Regular(vec!["Hello World!!".to_string()]),
-            })),
+            }))),
+            */
             metadata: Some(MessageMetadata {
                 timestamp: std::time::SystemTime::now(),
                 message_id: msg_id.to_string(),

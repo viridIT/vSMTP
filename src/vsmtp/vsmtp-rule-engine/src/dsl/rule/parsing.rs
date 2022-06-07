@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{error::RuleEngineError, modules::EngineResult};
+use crate::{error::CompilationError, modules::EngineResult};
 
 pub fn parse_rule(
     symbols: &[rhai::ImmutableString],
@@ -71,7 +71,7 @@ pub fn create_rule(
         } else {
             return Err(format!(
                 "a rule must be a rhai::Map (#{{}}) or an anonymous function (|| {{}})\n{}",
-                RuleEngineError::Rule.as_str()
+                CompilationError::Rule.as_str()
             )
             .into());
         })

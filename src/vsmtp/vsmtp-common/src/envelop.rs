@@ -34,8 +34,7 @@ impl Default for Envelop {
     fn default() -> Self {
         Self {
             helo: String::default(),
-            // FIXME:
-            mail_from: addr!("default@domain.com"),
+            mail_from: Address::new_unchecked("default@domain.com".to_string()),
             rcpt: vec![],
         }
     }
@@ -66,7 +65,6 @@ pub mod test {
     /// create an empty email context for testing purposes.
     pub fn get_default_context() -> crate::mail_context::MailContext {
         crate::mail_context::MailContext {
-            body: crate::mail_context::MessageBody::Empty,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::now(),
                 credentials: None,

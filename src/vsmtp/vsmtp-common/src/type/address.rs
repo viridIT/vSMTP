@@ -91,6 +91,19 @@ impl Address {
     pub fn domain(&self) -> &str {
         &self.full[self.at_sign + 1..]
     }
+
+    /// create a new address without verifying the syntax.
+    ///
+    /// # Panics
+    ///
+    /// * there is no '@' characters in the string
+    #[must_use]
+    pub fn new_unchecked(addr: String) -> Self {
+        Self {
+            at_sign: addr.find('@').unwrap(),
+            full: addr,
+        }
+    }
 }
 
 #[cfg(test)]

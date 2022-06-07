@@ -15,24 +15,24 @@
  *
 */
 use crate::{
-    log_channels,
-    processes::delivery::{add_trace_information, move_to_queue, send_email},
+    context_from_file_path,
+    delivery::{add_trace_information, move_to_queue, send_email},
+    log_channels, message_from_file_path, ProcessMessage,
 };
 use vsmtp_common::{
-    mail_context::MailContext,
     queue::Queue,
     queue_path,
     re::{
         anyhow::{self, Context},
         log,
     },
+    state::StateSMTP,
     status::Status,
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
-/// read all entries from the deliver queue & tries to send them.
 pub async fn flush_deliver_queue(
     config: &Config,
     resolvers: &std::sync::Arc<Resolvers>,
@@ -41,8 +41,11 @@ pub async fn flush_deliver_queue(
     let dir_entries =
         std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deliver))?;
     for path in dir_entries {
+        let process_message = ProcessMessage {
+            message_id: path?.path().file_name().unwrap().to_string_lossy().into(),
+        };
         if let Err(e) =
-            handle_one_in_delivery_queue(config, resolvers, &path?.path(), rule_engine).await
+            handle_one_in_delivery_queue(config, resolvers, &process_message, rule_engine).await
         {
             log::warn!(target: log_channels::DELIVERY, "{}", e);
         }
@@ -71,75 +74,88 @@ pub async fn flush_deliver_queue(
 pub async fn handle_one_in_delivery_queue(
     config: &Config,
     resolvers: &std::sync::Arc<Resolvers>,
-    path: &std::path::Path,
+    process_message: &ProcessMessage,
     rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
-    let message_id = path.file_name().and_then(std::ffi::OsStr::to_str).unwrap();
+    let (context_filepath, message_filepath) = (
+        queue_path!(
+            &config.server.queues.dirpath,
+            Queue::Deliver,
+            &process_message.message_id
+        ),
+        std::path::PathBuf::from_iter([
+            config.server.queues.dirpath.clone(),
+            "mails".into(),
+            process_message.message_id.clone().into(),
+        ]),
+    );
 
     log::trace!(
         target: log_channels::DELIVERY,
         "email received '{}'",
-        message_id
+        process_message.message_id
     );
 
-    let ctx = MailContext::from_file(path).context(format!(
-        "failed to deserialize email in delivery queue '{}'",
-        &message_id
-    ))?;
+    let ctx = context_from_file_path(&context_filepath)
+        .await
+        .with_context(|| {
+            format!(
+                "failed to deserialize email in delivery queue '{}'",
+                process_message.message_id
+            )
+        })?;
 
-    let (state, result) = {
+    let message = message_from_file_path(message_filepath).await?;
+
+    let ((mut ctx, message), result) = {
         let rule_engine = rule_engine
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-        let mut state = RuleState::with_context(config, resolvers.clone(), &rule_engine, ctx);
-        let result = rule_engine.run_when(&mut state, &vsmtp_common::state::StateSMTP::Delivery);
+        let mut state =
+            RuleState::with_context(config, resolvers.clone(), &rule_engine, ctx, Some(message));
+        let result = rule_engine.run_when(&mut state, &StateSMTP::Delivery);
 
-        (state, result)
+        (state.take()?, result)
     };
+    let mut message = message.ok_or_else(|| anyhow::anyhow!("message is empty"))?;
 
-    {
-        // FIXME: cloning here to prevent send_email async error with mutex guard.
-        //        the context is wrapped in an RwLock because of the receiver.
-        //        find a way to mutate the context in the rule engine without
-        //        using a RwLock.
-        let mut ctx = state.context().read().unwrap().clone();
+    add_trace_information(config, &mut ctx, &mut message, &result)?;
 
-        add_trace_information(config, &mut ctx, &result)?;
-
-        if let Status::Deny(_) = result {
-            // we update rcpt email status and write to dead queue in case of a deny.
-            for rcpt in &mut ctx.envelop.rcpt {
-                rcpt.email_status =
-                    EmailTransferStatus::Failed("rule engine denied the email.".to_string());
-            }
-            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
-        } else {
-            let metadata = ctx
-                .metadata
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("metadata not available on delivery"))?;
-
-            ctx.envelop.rcpt = send_email(
-                config,
-                resolvers,
-                metadata,
-                &ctx.envelop.mail_from,
-                &ctx.envelop.rcpt,
-                &ctx.body,
-            )
-            .await
-            .context(format!(
-                "failed to send '{message_id}' located in the delivery queue"
-            ))?;
-
-            move_to_queue(config, &ctx)?;
+    if let Status::Deny(_) = result {
+        // we update rcpt email status and write to dead queue in case of a deny.
+        for rcpt in &mut ctx.envelop.rcpt {
+            rcpt.email_status =
+                EmailTransferStatus::Failed("rule engine denied the email.".to_string());
         }
+        Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
+    } else {
+        let metadata = ctx
+            .metadata
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("metadata not available on delivery"))?;
+
+        ctx.envelop.rcpt = send_email(
+            config,
+            resolvers,
+            metadata,
+            &ctx.envelop.mail_from,
+            &ctx.envelop.rcpt,
+            &message,
+        )
+        .await
+        .context(format!(
+            "failed to send '{}' located in the delivery queue",
+            process_message.message_id
+        ))?;
+
+        move_to_queue(config, &ctx)?;
     }
 
     // after processing the email is removed from the delivery queue.
-    std::fs::remove_file(path).context(format!(
-        "failed to remove '{message_id}' from the delivery queue"
+    std::fs::remove_file(context_filepath).context(format!(
+        "failed to remove '{}' from the delivery queue",
+        process_message.message_id
     ))?;
 
     Ok(())
@@ -153,6 +169,7 @@ mod tests {
         envelop::Envelop,
         mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         rcpt::Rcpt,
+        re::tokio,
         transfer::{EmailTransferStatus, Transfer},
     };
     use vsmtp_config::build_resolvers;
@@ -195,12 +212,6 @@ mod tests {
                             },
                         ],
                     },
-                    body: MessageBody::Raw(
-                        ["Date: bar", "From: foo", "Hello world"]
-                            .into_iter()
-                            .map(str::to_string)
-                            .collect::<Vec<_>>(),
-                    ),
                     metadata: Some(MessageMetadata {
                         timestamp: now,
                         message_id: "message_from_deliver_to_deferred".to_string(),
@@ -209,6 +220,18 @@ mod tests {
                 },
             )
             .unwrap();
+
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "message_from_deliver_to_deferred",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
 
         let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
             RuleEngine::from_script(&config, "#{}").unwrap(),
@@ -219,11 +242,9 @@ mod tests {
         handle_one_in_delivery_queue(
             &config,
             &resolvers,
-            &queue_path!(
-                &config.server.queues.dirpath,
-                Queue::Deliver,
-                "message_from_deliver_to_deferred"
-            ),
+            &ProcessMessage {
+                message_id: "message_from_deliver_to_deferred".to_string(),
+            },
             &rule_engine,
         )
         .await

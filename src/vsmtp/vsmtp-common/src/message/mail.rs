@@ -35,22 +35,20 @@ pub enum BodyType {
 impl std::fmt::Display for BodyType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Regular(content) => f.write_fmt(format_args!(
-                "{}",
-                content
-                    .iter()
-                    .map(|l| {
-                        if l.starts_with('.') {
-                            ".".to_owned() + l
-                        } else {
-                            l.to_string()
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            )),
-            Self::Mime(content) => f.write_fmt(format_args!("{}", content)),
-            Self::Undefined => f.write_fmt(format_args!("")),
+            Self::Regular(content) => {
+                for i in content {
+                    if i.starts_with('.') {
+                        std::fmt::Write::write_char(f, '.')?;
+                    }
+                    f.write_str(i)?;
+                    f.write_str("\r\n")?;
+                }
+                Ok(())
+            }
+            Self::Mime(content) => {
+                write!(f, "{content}")
+            }
+            Self::Undefined => Ok(()),
         }
     }
 }
@@ -73,38 +71,57 @@ impl Default for Mail {
     }
 }
 
+struct HeaderFoldable<'a>(&'a str, &'a str);
+
+impl<'a> std::fmt::Display for HeaderFoldable<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let key = format!("{}: ", self.0);
+        f.write_str(&key)?;
+
+        let mut byte_writable = self.1;
+        let mut prev = key.len();
+
+        if byte_writable.is_empty() {
+            return f.write_str("\r\n");
+        }
+
+        while !byte_writable.is_empty() {
+            let (left, right) = if byte_writable.len() + prev > 78 {
+                byte_writable[..78 - prev]
+                    .rfind(' ')
+                    .map(|idx| (&byte_writable[..idx], &byte_writable[idx..]))
+            } else {
+                None
+            }
+            .unwrap_or((byte_writable, ""));
+
+            f.write_str(left)?;
+            f.write_str("\r\n")?;
+
+            byte_writable = right;
+            if !byte_writable.is_empty() {
+                std::fmt::Write::write_char(f, '\t')?;
+                prev = 1;
+            }
+        }
+        Ok(())
+    }
+}
+
 impl std::fmt::Display for Mail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let BodyType::Mime(_) = &self.body {
-            // in case of a mime type, mime headers are merged into the rfc822 mail header section.
-            f.write_fmt(format_args!("{}\n{}", self.raw_headers(), self.raw_body()))
-        } else {
-            f.write_fmt(format_args!(
-                "{}\n\n{}",
-                self.raw_headers(),
-                self.raw_body()
-            ))
+        for i in self.headers.iter().map(|(k, v)| HeaderFoldable(k, v)) {
+            write!(f, "{}", i)?;
         }
+        if !matches!(self.body, BodyType::Mime(_)) {
+            f.write_str("\r\n")?;
+        }
+
+        write!(f, "{}", self.body)
     }
 }
 
 impl Mail {
-    /// get the original header section of the email.
-    #[must_use]
-    fn raw_headers(&self) -> String {
-        self.headers
-            .iter()
-            .map(|(header, value)| format!("{}: {}", header, value))
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    /// get the original body section of the email.
-    #[must_use]
-    fn raw_body(&self) -> String {
-        self.body.to_string()
-    }
-
     /// change the from field of the header
     pub fn rewrite_mail_from(&mut self, value: &str) {
         if let Some((_, old)) = self.headers.iter_mut().find(|(header, _)| header == "from") {
@@ -166,12 +183,12 @@ impl Mail {
     }
 
     /// prepend new headers to the email, folding if necessary.
-    pub fn prepend_headers(&mut self, headers: Vec<(String, String)>) {
+    pub fn prepend_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {
         self.headers.splice(..0, headers);
     }
 
     /// push new headers to the email, folding if necessary.
-    pub fn push_headers(&mut self, headers: Vec<(String, String)>) {
+    pub fn push_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {
         self.headers.extend(headers);
     }
 }
@@ -179,11 +196,9 @@ impl Mail {
 #[cfg(test)]
 mod test {
 
-    use super::{BodyType, Mail};
-    use crate::{
-        mail,
-        mime_type::{Mime, MimeBodyType, MimeHeader},
-    };
+    use crate::{MimeBodyType, MimeHeader};
+
+    use super::*;
 
     #[test]
     fn test_construct_mail() {
@@ -194,13 +209,7 @@ mod test {
 
         // on newline added to separate the body, one for the empty body.
         // anyway, this example should not happen in a real scenario.
-        assert_eq!(
-            format!("{empty_mail}"),
-            r#"from: a@a
-
-"#
-            .to_string()
-        );
+        assert_eq!(format!("{empty_mail}"), "from: a@a\r\n\r\n".to_string());
 
         let regular_mail = Mail {
             headers: vec![("from".to_string(), "a@a".to_string())],
@@ -209,10 +218,7 @@ mod test {
 
         assert_eq!(
             format!("{regular_mail}"),
-            r#"from: a@a
-
-This is a regular body."#
-                .to_string()
+            "from: a@a\r\n\r\nThis is a regular body.\r\n".to_string()
         );
 
         let mime_mail = Mail {
@@ -233,12 +239,14 @@ This is a regular body."#
         // mime headers should be merged with the rfc822 message header section.
         assert_eq!(
             format!("{mime_mail}"),
-            r#"from: a@a
-mime-version: 1.0
-content-type: text/plain
-
-this is a regular mime body."#
-                .to_string()
+            [
+                "from: a@a\r\n",
+                "mime-version: 1.0\r\n",
+                "content-type: text/plain\r\n",
+                "\r\n",
+                "this is a regular mime body.\r\n",
+            ]
+            .concat()
         );
     }
 
@@ -246,7 +254,7 @@ this is a regular mime body."#
     fn test_add_headers() {
         let mut mail = Mail {
             body: BodyType::Regular(vec!["email content".to_string()]),
-            ..mail::Mail::default()
+            ..Mail::default()
         };
 
         mail.push_headers(vec![
@@ -256,11 +264,13 @@ this is a regular mime body."#
 
         assert_eq!(
             format!("{mail}"),
-            r#"subject: testing an email
-mime-version: 1.0
-
-email content"#
-                .to_string()
+            [
+                "subject: testing an email\r\n",
+                "mime-version: 1.0\r\n",
+                "\r\n",
+                "email content\r\n"
+            ]
+            .concat()
         );
 
         mail.prepend_headers(vec![
@@ -274,14 +284,16 @@ email content"#
 
         assert_eq!(
             format!("{mail}"),
-            r#"from: b@b
-date: tue, 30 nov 2021 20:54:27 +0100
-to: john@doe.com, green@foo.bar
-subject: testing an email
-mime-version: 1.0
-
-email content"#
-                .to_string()
+            [
+                "from: b@b\r\n",
+                "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+                "to: john@doe.com, green@foo.bar\r\n",
+                "subject: testing an email\r\n",
+                "mime-version: 1.0\r\n",
+                "\r\n",
+                "email content\r\n"
+            ]
+            .concat()
         );
     }
 

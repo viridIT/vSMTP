@@ -2,7 +2,7 @@ version_requirement = ">=1.0.0"
 
 [server]
 domain = "stressserver.com"
-client_count_max = 1
+client_count_max = -1
 
 [server.interfaces]
 addr = ["127.0.0.1:10025"]
@@ -17,19 +17,26 @@ delivery = 1
 [server.queues]
 dirpath = "./tmp/stress/spool"
 
+[server.queues.working]
+channel_size = 1
+
+[server.queues.delivery]
+channel_size = 1
+
+
 [server.logs]
 filepath = "./tmp/stress/vsmtp.log"
 
 [server.logs.level]
-default = "warn"
+default = "off"
 
-[server.tls]
-security_level = "May"
-preempt_cipherlist = false
-handshake_timeout = "200ms"
-protocol_version = "TLSv1.3"
-certificate = "./examples/config/tls/certificate.crt"
-private_key = "./examples/config/tls/private_key.key"
+# [server.tls]
+# security_level = "May"
+# preempt_cipherlist = false
+# handshake_timeout = "200ms"
+# protocol_version = "TLSv1.3"
+# certificate = "./examples/config/tls/certificate.crt"
+# private_key = "./examples/config/tls/private_key.key"
 
 
 [app]

@@ -15,9 +15,8 @@
  *
 */
 use crate::{config, test_receiver, tests::auth::unsafe_auth_config};
-use vsmtp_common::re::{base64, vsmtp_rsasl};
+use vsmtp_common::re::{base64, tokio, vsmtp_rsasl};
 use vsmtp_server::auth;
-use vsmtp_server::re::tokio;
 
 #[tokio::test]
 async fn info_message() {

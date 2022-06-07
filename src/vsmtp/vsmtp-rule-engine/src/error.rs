@@ -14,16 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use vsmtp_common::re::anyhow;
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
-pub enum RuleEngineError {
+pub enum CompilationError {
     Object,
     Rule,
     Action,
     Stage,
 }
 
-impl RuleEngineError {
+impl CompilationError {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Object => {
@@ -85,17 +87,90 @@ impl RuleEngineError {
     }
 }
 
-impl std::fmt::Display for RuleEngineError {
+impl std::fmt::Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
 
-impl std::error::Error for RuleEngineError {}
+impl std::error::Error for CompilationError {}
 
-impl From<RuleEngineError> for Box<rhai::EvalAltResult> {
-    fn from(err: RuleEngineError) -> Self {
+impl From<CompilationError> for Box<rhai::EvalAltResult> {
+    fn from(err: CompilationError) -> Self {
         err.as_str().into()
+    }
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, thiserror::Error)]
+pub enum RuntimeError {
+    #[error("a lock guard is poisoned: `{source}`")]
+    PoisonedGuard { source: anyhow::Error },
+    #[error("the field: `{field}` is not defined yet")]
+    MissingField { field: String },
+    #[error("failed to parse the message body, `{source}`")]
+    ParseMessageBody { source: anyhow::Error },
+    #[error("invalid type conversion expected: `{r#type}`, but got: `{source}`")]
+    TypeError {
+        r#type: &'static str,
+        source: anyhow::Error,
+    },
+}
+
+macro_rules! vsl_guard_ok {
+    ($guard:expr) => {
+        $guard.map_err::<Box<EvalAltResult>, _>(|e| {
+            $crate::error::RuntimeError::PoisonedGuard {
+                source: vsmtp_common::re::anyhow::anyhow!("{e}"),
+            }
+            .into()
+        })?
+    };
+}
+
+macro_rules! vsl_missing_ok {
+    ($option:expr, $field:expr) => {
+        $option
+            .as_ref()
+            .ok_or_else(|| $crate::error::RuntimeError::MissingField {
+                field: $field.to_string(),
+            })?
+    };
+    (mut $option:expr, $field:expr) => {
+        $option
+            .as_mut()
+            .ok_or_else(|| $crate::error::RuntimeError::MissingField {
+                field: $field.to_string(),
+            })?
+    };
+}
+
+macro_rules! vsl_parse_ok {
+    ($writer:expr) => {{
+        let message = vsl_missing_ok!($writer, "message");
+        if !matches!(&message, MessageBody::Parsed(..)) {
+            *$writer = Some(
+                message
+                    .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
+                    .map_err(|source| $crate::error::RuntimeError::ParseMessageBody { source })?,
+            );
+        }
+        vsl_missing_ok!(mut $writer, "message")
+    }};
+}
+
+macro_rules! vsl_conversion_ok {
+    ($type_:expr, $result:expr) => {
+        $result.map_err(|source| $crate::error::RuntimeError::TypeError {
+            r#type: $type_,
+            source,
+        })?
+    };
+}
+
+impl From<RuntimeError> for Box<rhai::EvalAltResult> {
+    fn from(err: RuntimeError) -> Self {
+        err.to_string().into()
     }
 }
 
@@ -105,15 +180,15 @@ mod test {
 
     #[test]
     fn test_error_formatting() {
-        println!("{}", RuleEngineError::Object);
-        println!("{}", RuleEngineError::Rule);
-        println!("{}", RuleEngineError::Action);
-        println!("{}", RuleEngineError::Stage);
+        println!("{}", CompilationError::Object);
+        println!("{}", CompilationError::Rule);
+        println!("{}", CompilationError::Action);
+        println!("{}", CompilationError::Stage);
     }
 
     #[test]
     fn test_error_from_rhai_error() {
-        let rhai_err: Box<rhai::EvalAltResult> = RuleEngineError::Rule.into();
+        let rhai_err: Box<rhai::EvalAltResult> = CompilationError::Rule.into();
         println!("{}", rhai_err);
     }
 }

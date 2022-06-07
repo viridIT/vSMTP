@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{error::RuleEngineError, modules::EngineResult};
+use crate::{error::CompilationError, modules::EngineResult};
 
 pub fn parse_action(
     symbols: &[rhai::ImmutableString],
@@ -73,7 +73,7 @@ pub fn create_action(
         } else {
             return Err(format!(
                 "an action must be a rhai::Map (#{{}}) or an anonymous function (|| {{}}){}",
-                RuleEngineError::Action.as_str()
+                CompilationError::Action.as_str()
             )
             .into());
         })

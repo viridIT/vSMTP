@@ -14,23 +14,19 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{log_channels, ProcessMessage};
+use crate::{context_from_file_path, log_channels, message_from_file_path, ProcessMessage};
 use anyhow::Context;
 use vsmtp_common::{
-    mail_context::MailContext,
     queue::Queue,
     queue_path,
-    re::{anyhow, log},
+    re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
+    transfer::Transfer,
 };
 use vsmtp_config::{Config, Resolvers};
-use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
-/// process that treats incoming email offline with the postq stage.
-///
-/// # Errors
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -40,25 +36,17 @@ pub async fn start(
 ) -> anyhow::Result<()> {
     loop {
         if let Some(pm) = working_receiver.recv().await {
-            if let Err(err) = tokio::spawn(handle_one_in_working_queue(
+            tokio::spawn(handle_one_in_working_queue(
                 config.clone(),
                 rule_engine.clone(),
                 resolvers.clone(),
                 pm,
                 delivery_sender.clone(),
-            ))
-            .await
-            {
-                log::error!(target: log_channels::POSTQ, "{}", err);
-            }
+            ));
         }
     }
 }
 
-///
-/// # Errors
-///
-/// # Panics
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -72,84 +60,94 @@ async fn handle_one_in_working_queue(
         process_message.message_id,
     );
 
-    let file_to_process = queue_path!(
-        &config.server.queues.dirpath,
-        Queue::Working,
-        &process_message.message_id
+    let (context_filepath, message_filepath) = (
+        queue_path!(
+            &config.server.queues.dirpath,
+            Queue::Working,
+            &process_message.message_id
+        ),
+        std::path::PathBuf::from_iter([
+            config.server.queues.dirpath.clone(),
+            "mails".into(),
+            process_message.message_id.clone().into(),
+        ]),
     );
 
     log::debug!(
         target: log_channels::POSTQ,
-        "(msg={}) opening file: {:?}",
+        "(msg={}) opening file: ctx=`{}` msg=`{}`",
         process_message.message_id,
-        file_to_process
+        context_filepath.display(),
+        message_filepath.display(),
     );
 
-    let mut ctx = MailContext::from_file(&file_to_process).context(format!(
-        "failed to deserialize email in working queue '{}'",
-        file_to_process.display()
-    ))?;
+    let (ctx, message) = tokio::join!(
+        context_from_file_path(&context_filepath),
+        message_from_file_path(message_filepath)
+    );
+    let (ctx, message) = (
+        ctx.with_context(|| {
+            format!(
+                "failed to deserialize email in working queue '{}'",
+                context_filepath.display()
+            )
+        })?,
+        message.context("error while reading message")?,
+    );
 
-    ctx.body = ctx.body.to_parsed::<MailMimeParser>()?;
-
-    // locking the engine and freeing the lock before any await.
-    let (state, result) = {
+    let ((ctx, message), result) = {
         let rule_engine = rule_engine
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-        let mut state = RuleState::with_context(config.as_ref(), resolvers, &rule_engine, ctx);
+        let mut state =
+            RuleState::with_context(config.as_ref(), resolvers, &rule_engine, ctx, Some(message));
         let result = rule_engine.run_when(&mut state, &StateSMTP::PostQ);
 
-        (state, result)
+        (state.take()?, result)
     };
 
-    if let Status::Deny(_) = result {
-        Queue::Dead.write_to_queue(
-            &config.server.queues.dirpath,
-            &state.context().read().unwrap(),
-        )?;
+    // writing the mails in any case because we don't know (yet) if it changed
+    Queue::write_to_mails(
+        &config.server.queues.dirpath,
+        &process_message.message_id,
+        &message.ok_or_else(|| anyhow::anyhow!("message is empty"))?,
+    )?;
+
+    let queue = if let Status::Deny(_) = result {
+        Queue::Dead
+    } else if ctx
+        .envelop
+        .rcpt
+        .iter()
+        .all(|rcpt| rcpt.transfer_method == Transfer::None)
+    {
+        log::warn!(
+            target: log_channels::POSTQ,
+            "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
+            process_message.message_id,
+        );
+        Queue::Dead
     } else {
-        // using a bool to prevent the lock guard to reach the await call below.
-        let delivered = {
-            let ctx = state.context();
-            let ctx = ctx.read().unwrap();
+        Queue::Deliver
+    };
 
-            if ctx
-                .envelop
-                .rcpt
-                .iter()
-                .all(|rcpt| rcpt.transfer_method == vsmtp_common::transfer::Transfer::None)
-            {
-                // skipping mime & delivery processes.
-                log::warn!(
-                target: log_channels::POSTQ,
-                "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
-                process_message.message_id,
-            );
-                Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
-                false
-            } else {
-                Queue::Deliver
-                    .write_to_queue(&config.server.queues.dirpath, &ctx)
-                    .context(format!(
-                        "failed to move '{}' from delivery queue to deferred queue",
-                        process_message.message_id
-                    ))?;
-                true
-            }
-        };
+    queue
+        .write_to_queue(&config.server.queues.dirpath, &ctx)
+        .context(format!(
+            "failed to move '{}' from delivery queue to deferred queue",
+            process_message.message_id
+        ))?;
 
-        if delivered {
-            delivery_sender
-                .send(ProcessMessage {
-                    message_id: process_message.message_id.to_string(),
-                })
-                .await?;
-        }
+    if queue != Queue::Dead {
+        delivery_sender
+            .send(ProcessMessage {
+                message_id: process_message.message_id.to_string(),
+            })
+            .await?;
     }
 
-    std::fs::remove_file(&file_to_process).context(format!(
+    std::fs::remove_file(&context_filepath).context(format!(
         "failed to remove '{}' from the working queue",
         process_message.message_id
     ))?;
@@ -236,12 +234,6 @@ mod tests {
                             },
                         ],
                     },
-                    body: MessageBody::Raw(
-                        ["Date: bar", "From: foo", "Hello world"]
-                            .into_iter()
-                            .map(str::to_string)
-                            .collect::<Vec<_>>(),
-                    ),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test".to_string(),
@@ -250,6 +242,18 @@ mod tests {
                 },
             )
             .unwrap();
+
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "test",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
 
         let (delivery_sender, mut delivery_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(10);
@@ -315,12 +319,6 @@ mod tests {
                             },
                         ],
                     },
-                    body: MessageBody::Raw(
-                        ["Date: bar", "From: foo", "Hello world"]
-                            .into_iter()
-                            .map(str::to_string)
-                            .collect::<Vec<_>>(),
-                    ),
                     metadata: Some(MessageMetadata {
                         timestamp: std::time::SystemTime::now(),
                         message_id: "test_denied".to_string(),
@@ -329,6 +327,18 @@ mod tests {
                 },
             )
             .unwrap();
+
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            "test_denied",
+            &MessageBody::Raw(
+                ["Date: bar", "From: foo", "Hello world"]
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .unwrap();
 
         let (delivery_sender, _delivery_receiver) =
             tokio::sync::mpsc::channel::<ProcessMessage>(10);

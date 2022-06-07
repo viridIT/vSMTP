@@ -1,7 +1,13 @@
 #{
     preq: [
         action "dump raw email to disk" || {
-            dump("tests/generated");
+            try {
+		dump("tests/generated");
+		next();
+            } catch (e) {
+		print(e);
+		deny();
+            }
         },
 
         rule "trailing" || accept(),
@@ -9,7 +15,13 @@
 
     postq: [
         action "dump parsed email to disk" || {
-            dump("tests/generated");
+            try {
+                dump("tests/generated");
+		next();
+            } catch (e) {
+		print(e);
+		deny();
+            }
         },
 
         rule "trailing" || accept(),

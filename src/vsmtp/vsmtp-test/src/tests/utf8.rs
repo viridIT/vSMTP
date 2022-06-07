@@ -17,12 +17,11 @@
 use crate::test_receiver;
 use vsmtp_common::{
     addr,
-    mail::{BodyType, Mail},
     mail_context::{MailContext, MessageBody},
-    re::anyhow,
-    CodeID,
+    re::tokio,
+    CodeID, {BodyType, Mail},
 };
-use vsmtp_server::{re::tokio, Connection, OnMail};
+use vsmtp_server::{Connection, OnMail};
 
 macro_rules! test_lang {
     ($lang_code:expr) => {{
@@ -34,7 +33,8 @@ macro_rules! test_lang {
                 &mut self,
                 _: &mut Connection<S>,
                 mail: Box<MailContext>,
-            ) -> anyhow::Result<CodeID> {
+                message: MessageBody
+            ) -> CodeID {
                 assert_eq!(mail.envelop.helo, "foobar".to_string());
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());
                 assert_eq!(
@@ -42,8 +42,7 @@ macro_rules! test_lang {
                     vec![addr!("aa@bb").into()]
                 );
 
-                let body = mail
-                    .body
+                let body = message
                     .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
                     .unwrap();
 
@@ -73,7 +72,7 @@ macro_rules! test_lang {
                         )
                     }))
                 );
-                Ok(CodeID::Ok)
+                CodeID::Ok
             }
         }
 

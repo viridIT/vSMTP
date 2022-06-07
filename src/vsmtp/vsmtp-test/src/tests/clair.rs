@@ -17,13 +17,11 @@
 use crate::{config, test_receiver};
 use vsmtp_common::{
     addr,
-    mail::{BodyType, Mail},
     mail_context::{MailContext, MessageBody},
-    re::anyhow,
-    CodeID,
+    re::tokio,
+    CodeID, {BodyType, Mail},
 };
 use vsmtp_mail_parser::MailMimeParser;
-use vsmtp_server::re::tokio;
 use vsmtp_server::Connection;
 use vsmtp_server::OnMail;
 
@@ -39,12 +37,13 @@ async fn test_receiver_1() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
+            _: MessageBody,
+        ) -> CodeID {
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(mail.envelop.mail_from.full(), "john@doe");
             assert_eq!(mail.envelop.rcpt, vec![addr!("aa@bb").into()]);
             assert!(mail.metadata.is_some());
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -274,8 +273,9 @@ async fn test_receiver_13() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            message: MessageBody,
+        ) -> CodeID {
+            let body = message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(
@@ -304,7 +304,7 @@ async fn test_receiver_13() {
             );
 
             self.count += 1;
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 
@@ -362,8 +362,9 @@ async fn test_receiver_14() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-        ) -> anyhow::Result<CodeID> {
-            let body = mail.body.to_parsed::<MailMimeParser>().unwrap();
+            message: MessageBody,
+        ) -> CodeID {
+            let body = message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
             assert_eq!(
@@ -393,7 +394,7 @@ async fn test_receiver_14() {
 
             self.count += 1;
 
-            Ok(CodeID::Ok)
+            CodeID::Ok
         }
     }
 

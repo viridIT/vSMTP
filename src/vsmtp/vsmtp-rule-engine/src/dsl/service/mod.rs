@@ -22,6 +22,8 @@ pub mod parsing;
 pub mod shell;
 pub mod smtp;
 
+/// service that enable the user to integrate third party software
+/// into his rules.
 #[derive(Debug)]
 pub enum Service {
     /// A service can be a program to run in a subprocess

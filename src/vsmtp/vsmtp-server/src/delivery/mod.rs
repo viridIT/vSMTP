@@ -16,25 +16,27 @@
  */
 use crate::{
     channel_message::ProcessMessage,
-    log_channels,
-    processes::delivery::{
+    delivery::{
         deferred::flush_deferred_queue,
         deliver::{flush_deliver_queue, handle_one_in_delivery_queue},
     },
+    log_channels,
 };
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
+use vsmtp_common::re::tokio;
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::{MailContext, MessageBody, MessageMetadata},
     queue::Queue,
-    queue_path,
+    rcpt::Rcpt,
     re::{anyhow, log},
     status::Status,
-    transfer::{EmailTransferStatus, Transfer},
+    transfer::{EmailTransferStatus, ForwardTarget, Transfer},
+    Address,
 };
 use vsmtp_config::{Config, Resolvers};
-use vsmtp_delivery::transport::{deliver as deliver2, forward, maildir, mbox, Transport};
+use vsmtp_delivery::transport::{deliver as smtp_deliver, forward, maildir, mbox, Transport};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod deferred;
@@ -47,9 +49,6 @@ mod deliver;
 ///
 /// *
 ///
-/// # Panics
-///
-/// * tokio::select!
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -70,15 +69,10 @@ pub async fn start(
                 let copy_rule_engine = rule_engine.clone();
                 let copy_resolvers = resolvers.clone();
                 tokio::spawn(async move {
-                    let path = queue_path!(&copy_config.server.queues.dirpath, Queue::Deliver);
-
                     if let Err(error) = handle_one_in_delivery_queue(
                         &copy_config,
                         &copy_resolvers,
-                        &std::path::PathBuf::from_iter([
-                            path,
-                            std::path::Path::new(&pm.message_id).to_path_buf(),
-                        ]),
+                        &pm,
                         &copy_rule_engine,
                     )
                     .await {
@@ -96,7 +90,8 @@ pub async fn start(
                     target: log_channels::DEFERRED,
                     "cronjob delay elapsed, flushing queue.",
                 );
-                flush_deferred_queue(&config, &resolvers).await?;
+                tokio::spawn(
+                flush_deferred_queue(config.clone(), resolvers.clone()));
             }
         };
     }
@@ -108,11 +103,11 @@ pub async fn start(
 async fn send_email(
     config: &Config,
     resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
-    metadata: &vsmtp_common::mail_context::MessageMetadata,
-    from: &vsmtp_common::Address,
-    to: &[vsmtp_common::rcpt::Rcpt],
+    metadata: &MessageMetadata,
+    from: &Address,
+    to: &[Rcpt],
     body: &MessageBody,
-) -> anyhow::Result<Vec<vsmtp_common::rcpt::Rcpt>> {
+) -> anyhow::Result<Vec<Rcpt>> {
     // filtering recipients by domains and delivery method.
     let mut triage = vsmtp_common::rcpt::filter_by_transfer_method(to);
 
@@ -124,15 +119,15 @@ async fn send_email(
                 to,
                 // if we are using an ip the default dns is used.
                 match to {
-                    vsmtp_common::transfer::ForwardTarget::Domain(domain) => resolvers
+                    ForwardTarget::Domain(domain) => resolvers
                         .get(domain)
                         .unwrap_or_else(|| resolvers.get(&config.server.domain).unwrap()),
-                    vsmtp_common::transfer::ForwardTarget::Ip(_) => {
+                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => {
                         resolvers.get(&config.server.domain).unwrap()
                     }
                 },
             )),
-            Transfer::Deliver => Box::new(deliver2::Deliver::new({
+            Transfer::Deliver => Box::new(smtp_deliver::Deliver::new({
                 let domain = rcpt[0].address.domain();
                 resolvers
                     .get(domain)
@@ -176,7 +171,7 @@ fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
 
     if ctx.envelop.rcpt.iter().any(|rcpt| {
         matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
-            || matches!(rcpt.transfer_method, Transfer::None,)
+            || matches!(rcpt.transfer_method, Transfer::None)
     }) {
         Queue::Dead
             .write_to_queue(&config.server.queues.dirpath, ctx)
@@ -191,6 +186,7 @@ fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
 fn add_trace_information(
     config: &Config,
     ctx: &mut MailContext,
+    message: &mut MessageBody,
     rule_engine_result: &Status,
 ) -> anyhow::Result<()> {
     let metadata = ctx
@@ -207,17 +203,13 @@ fn add_trace_information(
     .context("failed to create Receive header timestamp")?;
 
     let vsmtp_status = create_vsmtp_status_stamp(
-        &ctx.metadata.as_ref().unwrap().message_id,
+        &metadata.message_id,
         env!("CARGO_PKG_VERSION"),
         rule_engine_result,
     );
 
-    if ctx.body == MessageBody::Empty {
-        anyhow::bail!("could not add trace information to email header: body is empty");
-    }
-
-    ctx.body.add_header("X-VSMTP", &vsmtp_status);
-    ctx.body.add_header("Received", &stamp);
+    message.add_header("X-VSMTP", &vsmtp_status);
+    message.add_header("Received", &stamp);
 
     Ok(())
 }
@@ -252,7 +244,10 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::mail_context::{ConnectionContext, MessageBody};
+    use vsmtp_common::{
+        mail_context::{ConnectionContext, MessageBody},
+        status::Status,
+    };
 
     /*
     /// This test produce side-effect and may make other test fails
@@ -287,7 +282,6 @@ mod test {
     #[test]
     fn test_add_trace_information() {
         let mut ctx = vsmtp_common::mail_context::MailContext {
-            body: vsmtp_common::mail_context::MessageBody::Empty,
             connection: ConnectionContext {
                 timestamp: std::time::SystemTime::UNIX_EPOCH,
                 credentials: None,
@@ -313,19 +307,12 @@ mod test {
 
         let config = vsmtp_config::Config::default();
 
-        assert_eq!(
-            &add_trace_information(&config, &mut ctx, &vsmtp_common::status::Status::Next)
-                .unwrap_err()
-                .to_string(),
-            "could not add trace information to email header: body is empty"
-        );
-
-        ctx.body = MessageBody::Raw(vec![]);
+        let mut message = MessageBody::Raw(vec![]);
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
-        add_trace_information(&config, &mut ctx, &vsmtp_common::status::Status::Next).unwrap();
+        add_trace_information(&config, &mut ctx, &mut message, &Status::Next).unwrap();
 
         assert_eq!(
-            ctx.body,
+            message,
             MessageBody::Raw(vec![
                 [
                     "Received: from localhost\n".to_string(),

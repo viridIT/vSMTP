@@ -19,12 +19,12 @@ use crate::log_channels;
 use super::error::{ParserError, ParserResult};
 use super::helpers::get_mime_type;
 use super::helpers::read_header;
-use vsmtp_common::mail::{BodyType, Mail, MailHeaders};
 use vsmtp_common::mail_context::MessageBody;
-use vsmtp_common::mime_type::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
 use vsmtp_common::re::anyhow::Context;
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::MailParser;
+use vsmtp_common::{BodyType, Mail, MailHeaders};
+use vsmtp_common::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
 
 /// BoundaryType
 /// a boundary serves as a delimiter between mime parts in a multipart section.

@@ -40,6 +40,52 @@ jobs:
           tag_name: ${{ env.RELEASE_VERSION }}
           release_name: ${{ env.RELEASE_VERSION }}
           body_path: notes-${{ env.RELEASE_VERSION }}.md
+  build-deb-package:
+    name: build-deb-package
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Install gsasl
+        run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions/cache@v1
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db/
+          key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
+      - run: cargo install cargo-deb
+      - run: cargo deb
+      - name: Build archive
+        shell: bash
+        run: |
+          staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-amd64.deb"
+          mkdir -p "$staging"/{complete,doc}
+          cp {README.md,LICENSE*} "$staging/"
+          cp {CHANGELOG.md,docs/*} "$staging/doc/"
+          cp target/debian/* "$staging/"
+          tar czf "$staging.tar.gz" -C "$staging" .
+          echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+      - name: Upload release archive
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
   build-release:
     name: build-release
     needs: create-release

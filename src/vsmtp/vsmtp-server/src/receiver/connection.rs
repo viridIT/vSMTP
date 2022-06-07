@@ -16,7 +16,7 @@
 */
 use crate::{log_channels, AbstractIO};
 use vsmtp_common::{
-    re::{anyhow, log},
+    re::{anyhow, log, tokio},
     CodeID, Reply, ReplyOrCodeID,
 };
 use vsmtp_config::Config;

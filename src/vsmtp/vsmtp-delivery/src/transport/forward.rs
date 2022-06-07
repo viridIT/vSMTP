@@ -19,6 +19,7 @@ use crate::transport::log_channels;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
+    envelop::build_lettre,
     mail_context::MessageMetadata,
     rcpt::Rcpt,
     re::{anyhow, lettre, log},
@@ -53,21 +54,27 @@ impl<'r> Transport for Forward<'r> {
         to: &mut [Rcpt],
         content: &str,
     ) -> anyhow::Result<()> {
-        let envelop = vsmtp_common::envelop::build_lettre(from, to)
-            .context("failed to build envelop to forward email")?;
+        async fn reverse_lookup(
+            resolver: &TokioAsyncResolver,
+            query: &std::net::IpAddr,
+        ) -> anyhow::Result<String> {
+            Ok(resolver
+                .reverse_lookup(*query)
+                .await
+                .with_context(|| format!("failed to forward email to {query}"))?
+                .into_iter()
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("no domain found for {query}"))?
+                .to_string())
+        }
+
+        let envelop = build_lettre(from, to).context("failed to build envelop to forward email")?;
 
         // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
         let target = match &self.to {
             ForwardTarget::Domain(domain) => domain.clone(),
-            ForwardTarget::Ip(ip) => self
-                .resolver
-                .reverse_lookup(*ip)
-                .await
-                .context(format!("failed to forward email to {ip}"))?
-                .into_iter()
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("no domain found for {ip}"))?
-                .to_string(),
+            ForwardTarget::Ip(ip) => reverse_lookup(self.resolver, ip).await?,
+            ForwardTarget::Socket(socket) => reverse_lookup(self.resolver, &socket.ip()).await?,
         };
 
         match send_email(config, self.resolver, from, &target, &envelop, content).await {

@@ -1,6 +1,6 @@
 use crate::{command::get_message_path, MessageShowFormat};
 use vsmtp_common::{
-    mail_context::MailContext,
+    mail_context::{MailContext, MessageBody},
     re::{
         anyhow::{self, Context},
         serde_json,
@@ -13,17 +13,29 @@ pub fn show<OUT: std::io::Write>(
     queues_dirpath: &std::path::Path,
     output: &mut OUT,
 ) -> anyhow::Result<()> {
-    let message = get_message_path(msg_id, queues_dirpath).and_then(|path| {
-        std::fs::read_to_string(&path).context(format!("Failed to read file: '{}'", path.display()))
-    })?;
-
-    let message: MailContext = serde_json::from_str(&message)?;
+    let mail_context: MailContext =
+        serde_json::from_str(&get_message_path(msg_id, queues_dirpath).and_then(|path| {
+            std::fs::read_to_string(&path)
+                .context(format!("Failed to read file: '{}'", path.display()))
+        })?)?;
 
     match format {
-        MessageShowFormat::Eml => output.write_fmt(format_args!("{}", message.body)),
-        MessageShowFormat::Json => {
-            output.write_fmt(format_args!("{}", serde_json::to_string_pretty(&message)?))
+        MessageShowFormat::Eml => {
+            let mut copy = std::path::PathBuf::from(queues_dirpath);
+            copy.push(format!("mails/{msg_id}"));
+
+            match std::fs::read_to_string(copy).map(|s| serde_json::from_str::<MessageBody>(&s)) {
+                Ok(Ok(message)) => output.write_fmt(format_args!("{}", message)),
+                Ok(Err(error)) => {
+                    output.write_fmt(format_args!("Failed to deserialize message: '{error}'"))
+                }
+                Err(error) => output.write_fmt(format_args!("Failed to read message: '{error}'")),
+            }
         }
+        MessageShowFormat::Json => output.write_fmt(format_args!(
+            "{}",
+            serde_json::to_string_pretty(&mail_context)?
+        )),
     }?;
 
     Ok(())
@@ -35,34 +47,41 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail::{BodyType, Mail},
         mail_context::{ConnectionContext, MessageBody, MessageMetadata},
         queue::Queue,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
+        BodyType, Mail,
     };
 
-    fn get_mail(msg_id: &str) -> MailContext {
-        MailContext {
-            connection: ConnectionContext {
-                timestamp: std::time::SystemTime::now(),
-                credentials: None,
-                is_authenticated: false,
-                is_secured: false,
-                server_name: "testserver.com".to_string(),
-                server_address: "0.0.0.0:25".parse().unwrap(),
+    fn get_mail(msg_id: &str) -> (MailContext, MessageBody) {
+        (
+            MailContext {
+                connection: ConnectionContext {
+                    timestamp: std::time::SystemTime::now(),
+                    credentials: None,
+                    is_authenticated: false,
+                    is_secured: false,
+                    server_name: "testserver.com".to_string(),
+                    server_address: "0.0.0.0:25".parse().unwrap(),
+                },
+                client_addr: "0.0.0.0:26".parse().unwrap(),
+                envelop: Envelop {
+                    helo: "toto".to_string(),
+                    mail_from: addr!("foo@domain.com"),
+                    rcpt: vec![Rcpt {
+                        address: addr!("foo+1@domain.com"),
+                        transfer_method: Transfer::Mbox,
+                        email_status: EmailTransferStatus::Waiting,
+                    }],
+                },
+                metadata: Some(MessageMetadata {
+                    timestamp: std::time::SystemTime::now(),
+                    message_id: msg_id.to_string(),
+                    skipped: None,
+                }),
             },
-            client_addr: "0.0.0.0:26".parse().unwrap(),
-            envelop: Envelop {
-                helo: "toto".to_string(),
-                mail_from: addr!("foo@domain.com"),
-                rcpt: vec![Rcpt {
-                    address: addr!("foo+1@domain.com"),
-                    transfer_method: Transfer::Mbox,
-                    email_status: EmailTransferStatus::Waiting,
-                }],
-            },
-            body: MessageBody::Parsed(Box::new(Mail {
+            MessageBody::Parsed(Box::new(Mail {
                 headers: [
                     ("from", "foo2 foo <foo2@foo>"),
                     ("date", "tue, 30 nov 2021 20:54:27 +0100"),
@@ -72,12 +91,7 @@ mod tests {
                 .collect::<Vec<_>>(),
                 body: BodyType::Regular(vec!["Hello World!!".to_string()]),
             })),
-            metadata: Some(MessageMetadata {
-                timestamp: std::time::SystemTime::now(),
-                message_id: msg_id.to_string(),
-                skipped: None,
-            }),
-        }
+        )
     }
 
     #[test]
@@ -85,9 +99,30 @@ mod tests {
         let queues_dirpath = "./tmp/cmd_show";
         let msg_id = "titi";
 
+        let (ctx, message) = get_mail(msg_id);
+
         Queue::Working
-            .write_to_queue(&std::path::PathBuf::from(queues_dirpath), &get_mail(msg_id))
+            .write_to_queue(&std::path::PathBuf::from(queues_dirpath), &ctx)
             .unwrap();
+
+        let buf = std::path::PathBuf::from(queues_dirpath).join("mails");
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&buf)
+            .unwrap();
+
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&format!("{queues_dirpath}/mails/{msg_id}"))
+            .unwrap();
+
+        std::io::Write::write_all(
+            &mut file,
+            serde_json::to_string(&message).unwrap().as_bytes(),
+        )
+        .unwrap();
 
         let mut output = vec![];
 
@@ -99,13 +134,13 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
+        pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             [
-                "from: foo2 foo <foo2@foo>\n",
-                "date: tue, 30 nov 2021 20:54:27 +0100\n",
-                "\n",
-                "Hello World!!",
+                "from: foo2 foo <foo2@foo>\r\n",
+                "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+                "\r\n",
+                "Hello World!!\r\n",
             ]
             .concat()
         );
@@ -116,10 +151,10 @@ mod tests {
         let queues_dirpath = "./tmp/cmd_show";
         let msg_id = "tutu";
 
-        let mail = get_mail(msg_id);
+        let (ctx, _) = get_mail(msg_id);
 
         Queue::Working
-            .write_to_queue(&std::path::PathBuf::from(queues_dirpath), &mail)
+            .write_to_queue(&std::path::PathBuf::from(queues_dirpath), &ctx)
             .unwrap();
 
         let mut output = vec![];
@@ -134,7 +169,7 @@ mod tests {
 
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
-            serde_json::to_string_pretty(&mail).unwrap()
+            serde_json::to_string_pretty(&ctx).unwrap()
         );
     }
 }
