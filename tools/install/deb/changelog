@@ -1,3 +1,48 @@
+vmstp (1.0.2) UNRELEASED; urgency=low
+
+  [ Updated by ltabis ]
+  * Added
+    - doc
+      - a 'doe family' example to setup a basic
+        vSMTP config for personal purposes. (#320)
+    - vsl
+      - Sender Policy Framework (SPF) support via the
+        `check_spf(ctx, srv, identity)` vsl function. (#327)
+      - `accept` & `faccept` functions can now return custom codes. (#328)
+    - mail parsing
+      - headers pushed to the email are folded if necessary. (#342)
+    - sasl
+      - support for the anonymous sasl mechanism. (#350)
+      - the `get_anonymous_token` vsl function returns
+        the token received by the sasl exchange. (#350)
+  * Changed
+    - delivery
+      - AAAA records are used when receiving an empty list of MX records (#321)
+      - if a null MX record is received,
+        the email is moved to the dead queue (#323)
+      - message are separated from metadata / envelop (#335)
+    - vsl
+      - `base` field from custom codes has been changed to `code`. (#324)
+      - `forward` & `forward_all` can now use ip6 string parameters (#341)
+        with scope ids. (#356)
+    - config
+      - `interfaces` section in toml is optional. (#346)
+    - mail parsing
+      - email are parsed automatically when the email
+        is edited via the rule engine. (#347)
+  * Fixed
+    - logs
+      - scoped level now works properly,
+        `default` module has been changed to `server`. (#345)
+    - quarantine
+      - `quarantine(q_folder)` can now be called
+        in `postq` & `delivery` stages. (#357)
+      - quarantine folder are chowned properly
+        using `server.system.user` & `server.system.user`
+        config variables. (#344)
+
+ -- ltabis <l.tabis@viridit.com>  Tue, 07 Jun 2022 17:26:09 +0200
+
 vmstp (1.0.1) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
