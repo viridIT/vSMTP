@@ -26,7 +26,7 @@ async-trait = "0.1.56"
 fastrand = "1.7.0"
 thiserror = "1.0.31"
 
-tokio-stream = "0.1.8"
+tokio-stream = "0.1.9"
 async-stream = "0.3.3"
 
 trust-dns-resolver = "0.21.2"
