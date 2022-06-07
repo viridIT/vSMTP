@@ -15,7 +15,12 @@
  *
 */
 
-/// parse an ip6 string address containing an interface.
+/// Parse an ip6 string address containing an interface: `[fe80::f03c:91ff:fedf:75ee%eth0]:8080`
+/// see <https://github.com/rust-lang/rust/issues/65976>
+///
+/// # Errors
+///
+/// * if the address is not valid.
 pub fn ipv6_with_scope_id(input: &str) -> anyhow::Result<std::net::SocketAddr> {
     let (addr_ip_and_scope_name, colon_and_port) = input.split_at(
         input
