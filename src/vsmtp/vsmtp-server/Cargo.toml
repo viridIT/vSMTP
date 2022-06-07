@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-server"
-version = "1.0.1"
+version = "1.0.2"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
@@ -16,7 +16,7 @@ keywords = ["vsmtp"]
 categories = ["network-programming"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.1" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.0.2" }
 vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.0.0-rc.1" }
 # vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.0.0-rc.1" }

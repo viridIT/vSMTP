@@ -2037,7 +2037,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "clap 3.1.18",
  "diff",
@@ -2048,7 +2048,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "addr",
  "anyhow",
@@ -2141,7 +2141,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2165,7 +2165,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "async-trait",
  "lettre",
