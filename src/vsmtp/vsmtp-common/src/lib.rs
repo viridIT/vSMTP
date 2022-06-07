@@ -96,6 +96,9 @@ pub mod queue;
 /// transfer method for delivery / forwarding.
 pub mod transfer;
 
+/// parsing utils.
+pub mod utils;
+
 mod mechanism;
 
 /// Data related to ESMTP Authentication
