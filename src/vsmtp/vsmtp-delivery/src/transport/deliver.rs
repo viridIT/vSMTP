@@ -240,6 +240,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_delivery() {
         let config = Config::default();
         // NOTE: for this to return ok, we would need to setup a test server running locally.

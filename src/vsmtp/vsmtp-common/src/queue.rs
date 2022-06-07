@@ -24,13 +24,13 @@ use anyhow::Context;
 #[derive(Debug, PartialEq, Copy, Clone, strum::Display, strum::EnumString, strum::EnumIter)]
 #[strum(serialize_all = "lowercase")]
 pub enum Queue {
-    /// postq
+    /// Postq.
     Working,
-    /// 1st attempt to deliver
+    /// 1st attempt to deliver.
     Deliver,
-    /// delivery #1 failed, next attempts
+    /// 1st delivery attempt failed.
     Deferred,
-    /// too many attempts failed
+    /// Too many attempts failed.
     Dead,
 }
 

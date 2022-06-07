@@ -39,7 +39,7 @@ pub mod transaction;
 
 pub use connection::{Connection, ConnectionKind};
 pub use io::AbstractIO;
-pub use on_mail::{MailHandler, OnMail};
+pub use on_mail::{MailHandler, MailHandlerError, OnMail};
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_auth<S>(
