@@ -79,7 +79,7 @@ fn check_spf(identity, header) {
 /// # Example
 /// ```
 /// rcpt: [
-///     rule "check spf" || check_spf("soft", false, "spf")
+///     rule "check spf" || check_spf("both", "spf", "soft")
 /// ]
 /// ```
 fn check_spf(identity, header, policy) {
