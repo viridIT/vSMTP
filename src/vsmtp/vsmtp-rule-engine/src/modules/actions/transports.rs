@@ -45,15 +45,24 @@ pub mod transports {
     /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, name = "forward", return_raw, pure)]
     pub fn forward_str(this: &mut Context, rcpt: &str, forward: &str) -> EngineResult<()> {
-        let forward = forward.parse::<std::net::SocketAddr>().map_or_else(
-            |_| {
-                forward.parse::<std::net::IpAddr>().map_or_else(
-                    |_| ForwardTarget::Domain(forward.to_string()),
-                    ForwardTarget::Ip,
+        let forward = forward.find('%').map_or_else(
+            || {
+                forward.parse::<std::net::SocketAddr>().map_or_else(
+                    |_| {
+                        Ok(forward.parse::<std::net::IpAddr>().map_or_else(
+                            |_| ForwardTarget::Domain(forward.to_string()),
+                            ForwardTarget::Ip,
+                        ))
+                    },
+                    |socket| Ok(ForwardTarget::Socket(socket)),
                 )
             },
-            ForwardTarget::Socket,
-        );
+            |_| {
+                vsmtp_common::utils::ipv6_with_scope_id(forward)
+                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
+                    .map(ForwardTarget::Socket)
+            },
+        )?;
 
         set_transport_for(
             &mut *this
