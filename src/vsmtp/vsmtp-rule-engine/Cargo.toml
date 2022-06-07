@@ -42,7 +42,7 @@ rhai = { version = "1.7.0", git = "https://github.com/schungx/rhai", rev = "5435
     "no_closure",
 ] }
 
-lettre = { version = "0.10.0-rc.6", default-features = false, features = [
+lettre = { version = "0.10.0-rc.7", default-features = false, features = [
     "smtp-transport",
     "builder",
     "tokio1-rustls-tls",

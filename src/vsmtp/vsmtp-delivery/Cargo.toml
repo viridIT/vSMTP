@@ -32,7 +32,7 @@ trust-dns-resolver = { version = "0.21.2", features = [
     "dns-over-rustls",
     "dnssec-openssl",
 ] }
-lettre = { version = "0.10.0-rc.6", default-features = false, features = [
+lettre = { version = "0.10.0-rc.7", default-features = false, features = [
     "smtp-transport",
     "pool",
     "builder",
