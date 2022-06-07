@@ -27,7 +27,7 @@ pub struct MailHandler {
 }
 
 #[derive(Debug, thiserror::Error)]
-enum MailHandlerError {
+pub enum MailHandlerError {
     #[error("couldn't write to `mails` folder: `{0}`")]
     WriteMessageBody(std::io::Error),
     #[error("couldn't create app folder: `{0}`")]

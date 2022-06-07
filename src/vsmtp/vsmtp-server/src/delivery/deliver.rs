@@ -17,7 +17,9 @@
 use crate::{
     context_from_file_path,
     delivery::{add_trace_information, move_to_queue, send_email},
-    log_channels, message_from_file_path, ProcessMessage,
+    log_channels, message_from_file_path,
+    receiver::MailHandlerError,
+    ProcessMessage,
 };
 use vsmtp_common::{
     queue::Queue,
@@ -30,7 +32,7 @@ use vsmtp_common::{
     status::Status,
     transfer::EmailTransferStatus,
 };
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 pub async fn flush_deliver_queue(
@@ -122,35 +124,50 @@ pub async fn handle_one_in_delivery_queue(
 
     add_trace_information(config, &mut ctx, &mut message, &result)?;
 
-    if let Status::Deny(_) = result {
-        // we update rcpt email status and write to dead queue in case of a deny.
-        for rcpt in &mut ctx.envelop.rcpt {
-            rcpt.email_status =
-                EmailTransferStatus::Failed("rule engine denied the email.".to_string());
+    match result {
+        Status::Quarantine(path) => {
+            let mut path = create_app_folder(config, Some(&path))
+                .map_err(MailHandlerError::CreateAppFolder)?;
+
+            path.push(format!("{}.json", process_message.message_id));
+
+            Queue::write_to_quarantine(&path, &ctx)
+                .await
+                .map_err(MailHandlerError::WriteQuarantineFile)?;
+
+            log::warn!("delivery skipped due to quarantine.");
         }
-        Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
-    } else {
-        let metadata = ctx
-            .metadata
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("metadata not available on delivery"))?;
+        Status::Deny(_) => {
+            // we update rcpt email status and write to dead queue in case of a deny.
+            for rcpt in &mut ctx.envelop.rcpt {
+                rcpt.email_status =
+                    EmailTransferStatus::Failed("rule engine denied the email.".to_string());
+            }
+            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
+        }
+        _ => {
+            let metadata = ctx
+                .metadata
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("metadata not available in delivery"))?;
 
-        ctx.envelop.rcpt = send_email(
-            config,
-            resolvers,
-            metadata,
-            &ctx.envelop.mail_from,
-            &ctx.envelop.rcpt,
-            &message,
-        )
-        .await
-        .context(format!(
-            "failed to send '{}' located in the delivery queue",
-            process_message.message_id
-        ))?;
+            ctx.envelop.rcpt = send_email(
+                config,
+                resolvers,
+                metadata,
+                &ctx.envelop.mail_from,
+                &ctx.envelop.rcpt,
+                &message,
+            )
+            .await
+            .context(format!(
+                "failed to send '{}' located in the delivery queue",
+                process_message.message_id
+            ))?;
 
-        move_to_queue(config, &ctx)?;
-    }
+            move_to_queue(config, &ctx)?;
+        }
+    };
 
     // after processing the email is removed from the delivery queue.
     std::fs::remove_file(context_filepath).context(format!(

@@ -14,7 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{context_from_file_path, log_channels, message_from_file_path, ProcessMessage};
+use crate::{
+    context_from_file_path, log_channels, message_from_file_path, receiver::MailHandlerError,
+    ProcessMessage,
+};
 use anyhow::Context;
 use vsmtp_common::{
     queue::Queue,
@@ -24,7 +27,7 @@ use vsmtp_common::{
     status::Status,
     transfer::Transfer,
 };
-use vsmtp_config::{Config, Resolvers};
+use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 pub async fn start(
@@ -47,6 +50,7 @@ pub async fn start(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -114,22 +118,40 @@ async fn handle_one_in_working_queue(
         &message.ok_or_else(|| anyhow::anyhow!("message is empty"))?,
     )?;
 
-    let queue = if let Status::Deny(_) = result {
-        Queue::Dead
-    } else if ctx
-        .envelop
-        .rcpt
-        .iter()
-        .all(|rcpt| rcpt.transfer_method == Transfer::None)
-    {
-        log::warn!(
-            target: log_channels::POSTQ,
-            "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
-            process_message.message_id,
-        );
-        Queue::Dead
-    } else {
-        Queue::Deliver
+    let queue = match result {
+        Status::Quarantine(path) => {
+            let mut path = create_app_folder(&config, Some(&path))
+                .map_err(MailHandlerError::CreateAppFolder)?;
+
+            path.push(format!("{}.json", process_message.message_id));
+
+            Queue::write_to_quarantine(&path, &ctx)
+                .await
+                .map_err(MailHandlerError::WriteQuarantineFile)?;
+
+            std::fs::remove_file(&context_filepath).context(format!(
+                "failed to remove '{}' from the working queue",
+                process_message.message_id
+            ))?;
+
+            log::warn!("delivery skipped due to quarantine.");
+            return Ok(());
+        }
+        Status::Deny(_) => Queue::Dead,
+        _ if ctx
+            .envelop
+            .rcpt
+            .iter()
+            .all(|rcpt| rcpt.transfer_method == Transfer::None) =>
+        {
+            log::warn!(
+                target: log_channels::POSTQ,
+                "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
+                process_message.message_id,
+            );
+            Queue::Dead
+        }
+        _ => Queue::Deliver,
     };
 
     queue
