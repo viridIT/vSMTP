@@ -15,30 +15,70 @@
  *
 */
 
-/// Parse an ip6 string address containing an interface: `[fe80::f03c:91ff:fedf:75ee%eth0]:8080`
-/// see <https://github.com/rust-lang/rust/issues/65976>
+use anyhow::Context;
+use std::str::FromStr;
+
+// TODO: handle the case when the port is not specified.
+/// parse an ip6 string address containing a scope id.
+/// NOTE: specifiyng a port is mendatory for this implementation,
+///       since it is only used for toml interface config & forwarding.
 ///
 /// # Errors
-///
-/// * if the address is not valid.
+/// * port was not found.
+/// * failed to parse the port.
+/// * failed to parse the scope id.
 pub fn ipv6_with_scope_id(input: &str) -> anyhow::Result<std::net::SocketAddr> {
-    let (addr_ip_and_scope_name, colon_and_port) = input.split_at(
-        input
-            .rfind(':')
-            .ok_or_else(|| anyhow::anyhow!("ipv6 port not provided"))?,
-    );
+    if ip6_has_scope_id(input) {
+        let (addr, port) = parse_ip6_port(input)?;
+        let (addr, scope_id) = parse_ip6_scope_id(addr)?;
+        let mut socket = std::net::SocketAddrV6::from_str(&format!("[{addr}]:{port}"))?;
 
-    let (addr_ip, scope_name) = addr_ip_and_scope_name
-        .strip_prefix('[')
-        .and_then(|s| s.strip_suffix(']'))
-        .ok_or_else(|| anyhow::anyhow!("ipv6 not valid format"))?
-        .split_once('%')
-        .ok_or_else(|| anyhow::anyhow!("ipv6 no scope_id"))?;
+        socket.set_scope_id(crate::libc_abstraction::if_nametoindex(scope_id)?);
 
-    let mut socket_addr = format!("[{addr_ip}]{colon_and_port}")
-        .parse::<std::net::SocketAddrV6>()
-        .map_err(|e| anyhow::anyhow!("ipv6 parser produce error: '{e}'"))?;
+        Ok(std::net::SocketAddr::V6(socket))
+    } else {
+        Ok(std::net::SocketAddr::from_str(input)?)
+    }
+}
 
-    socket_addr.set_scope_id(crate::libc_abstraction::if_nametoindex(scope_name)?);
-    Ok(std::net::SocketAddr::V6(socket_addr))
+fn parse_ip6_port(input: &str) -> anyhow::Result<(&str, u16)> {
+    let (addr, port) = input
+        .rsplit_once(':')
+        .context("could not parse ip6 address")?;
+
+    Ok((
+        addr.strip_prefix('[')
+            .and_then(|s| s.strip_suffix(']'))
+            .ok_or_else(|| anyhow::anyhow!("ipv6 invalid format"))?,
+        port.parse::<u16>().context("could not parse port of ip6")?,
+    ))
+}
+
+fn parse_ip6_scope_id(input: &str) -> anyhow::Result<(&str, &str)> {
+    input
+        .rsplit_once('%')
+        .context("could not parse ip6 address scope id")
+}
+
+fn ip6_has_scope_id(input: &str) -> bool {
+    input.rfind('%').is_some()
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[test]
+    fn test_ip6_with_scope_id() {
+        // the function does not handle parsing without a port.
+        assert!(ipv6_with_scope_id("::1").is_err(),);
+        assert!(ipv6_with_scope_id("::1%eth0").is_err(),);
+
+        assert_eq!(
+            ipv6_with_scope_id("[::1]:25").unwrap(),
+            std::net::SocketAddr::new(std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST), 25)
+        );
+        // NOTE: I did not add an scope id test here because it changes between machines.
+    }
 }

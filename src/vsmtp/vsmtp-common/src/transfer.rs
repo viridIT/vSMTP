@@ -14,8 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-/// the delivery status of the email of the current rcpt.
+
+use crate::utils::ipv6_with_scope_id;
+
 // TODO: add timestamp for Sent / HeldBack / Failed.
+/// the delivery status of the email of the current rcpt.
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Serialize, serde::Deserialize)]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -63,4 +66,27 @@ pub enum Transfer {
     Maildir,
     /// the delivery will be skipped.
     None,
+}
+
+impl std::str::FromStr for ForwardTarget {
+    type Err = anyhow::Error;
+
+    /// create a forward target from a string and cast
+    /// it to the corect type.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.find('%').map_or_else(
+            || {
+                s.parse::<std::net::SocketAddr>().map_or_else(
+                    |_| {
+                        Ok(s.parse::<std::net::IpAddr>().map_or_else(
+                            |_| ForwardTarget::Domain(s.to_string()),
+                            ForwardTarget::Ip,
+                        ))
+                    },
+                    |socket| Ok(ForwardTarget::Socket(socket)),
+                )
+            },
+            |_| -> Result<ForwardTarget, _> { ipv6_with_scope_id(s).map(ForwardTarget::Socket) },
+        )
+    }
 }
