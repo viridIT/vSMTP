@@ -141,6 +141,23 @@ import "database" as db;
 }
 ```
 
+## Benchmarks
+
+Comparison between Postfix 3.6.4 & vSMTP 1.0.1 performances, performed on a Ubuntu 22.04 LTS running with an AMD Ryzen 5 5600X 6-Core Processor.
+
+<div align="center">
+  <a href="https://www.viridit.com/#gh-light-mode-only">
+    <img src="https://github.com/viridIT/vSMTP/blob/develop/assets/tp-100k-white.png"
+      alt="100kb messages throughput example" />
+  </a>
+  <a href="https://www.viridit.com/#gh-dark-mode-only">
+    <img src="https://github.com/viridIT/vSMTP/blob/develop/assets/tp-100k-black.png"
+      alt="100kb messages throughput example" />
+  </a>
+</div>
+
+Check out the [benchmarks readme](./benchmarks/README.md#benchmarks) to get reproducible examples.
+
 ## Documentation
 
 For documentation please consult the [vBook](https://vsmtp.rs), the online reference and user guide for vSMTP.

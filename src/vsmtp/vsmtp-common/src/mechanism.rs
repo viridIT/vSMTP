@@ -26,11 +26,10 @@
     PartialOrd,
     Ord,
     strum::EnumIter,
-    serde::Serialize,
-    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
 )]
-#[serde(try_from = "String")]
-#[serde(into = "String")]
+#[strum(serialize_all = "SCREAMING-KEBAB-CASE")]
 pub enum Mechanism {
     /// Common, but for interoperability
     Plain,
@@ -38,8 +37,10 @@ pub enum Mechanism {
     Login,
     /// Limited
     CramMd5,
+    /// Common
+    /// See <https://datatracker.ietf.org/doc/html/rfc4505>
+    Anonymous,
     /*
-      ANONYMOUS
     - EXTERNAL
     - SECURID
     - DIGEST-MD5
@@ -55,6 +56,26 @@ pub enum Mechanism {
     */
 }
 
+impl serde::Serialize for Mechanism {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&format!("{self}"))
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Mechanism {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        String::deserialize(deserializer)?
+            .parse()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
 impl Default for Mechanism {
     fn default() -> Self {
         // TODO: should it be ?
@@ -67,7 +88,7 @@ impl Mechanism {
     #[must_use]
     pub const fn client_first(self) -> bool {
         match self {
-            Self::Plain => true,
+            Self::Plain | Self::Anonymous => true,
             Self::Login | Self::CramMd5 => false,
         }
     }
@@ -76,45 +97,8 @@ impl Mechanism {
     #[must_use]
     pub const fn must_be_under_tls(self) -> bool {
         match self {
-            Self::Plain | Self::Login | Self::CramMd5 => true,
+            Self::Plain | Self::Login | Self::CramMd5 | Self::Anonymous => true,
         }
-    }
-}
-
-impl std::fmt::Display for Mechanism {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Plain => "PLAIN",
-            Self::Login => "LOGIN",
-            Self::CramMd5 => "CRAM-MD5",
-        })
-    }
-}
-
-impl From<Mechanism> for String {
-    fn from(this: Mechanism) -> Self {
-        format!("{}", this)
-    }
-}
-
-impl std::str::FromStr for Mechanism {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "PLAIN" => Ok(Self::Plain),
-            "LOGIN" => Ok(Self::Login),
-            "CRAM-MD5" => Ok(Self::CramMd5),
-            _ => anyhow::bail!("not a valid AUTH Mechanism: '{}'", s),
-        }
-    }
-}
-
-impl TryFrom<String> for Mechanism {
-    type Error = anyhow::Error;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        <Self as std::str::FromStr>::from_str(&s)
     }
 }
 
@@ -122,7 +106,29 @@ impl TryFrom<String> for Mechanism {
 mod tests {
 
     use super::*;
-    use std::str::FromStr;
+
+    #[test]
+    fn to_str() {
+        assert_eq!(Mechanism::Plain.to_string(), "PLAIN");
+        assert_eq!(Mechanism::Login.to_string(), "LOGIN");
+        assert_eq!(Mechanism::CramMd5.to_string(), "CRAM-MD5");
+        assert_eq!(Mechanism::Anonymous.to_string(), "ANONYMOUS");
+    }
+
+    #[test]
+    fn serialize() {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct S {
+            v: Mechanism,
+        }
+
+        for i in <Mechanism as strum::IntoEnumIterator>::iter() {
+            let s = serde_json::to_string(&S { v: i }).unwrap();
+            println!("{s}");
+            let s = serde_json::from_str::<S>(&s).unwrap();
+            assert_eq!(s.v, i);
+        }
+    }
 
     #[test]
     fn supported() {
@@ -139,7 +145,9 @@ mod tests {
 
         for i in <Mechanism as strum::IntoEnumIterator>::iter() {
             assert!(
-                supported_by_backend.get(&String::from(i)).unwrap_or(&false),
+                supported_by_backend
+                    .get(&format!("{}", i))
+                    .unwrap_or(&false),
                 "{:?} is declared but not supported",
                 i
             );
@@ -148,20 +156,6 @@ mod tests {
 
     #[test]
     fn error() {
-        assert_eq!(
-            format!("{}", Mechanism::from_str("foobar").unwrap_err()),
-            "not a valid AUTH Mechanism: 'foobar'"
-        );
-    }
-
-    #[test]
-    fn same() {
-        for s in <Mechanism as strum::IntoEnumIterator>::iter() {
-            println!("{:?}", s);
-            assert_eq!(Mechanism::from_str(&format!("{}", s)).unwrap(), s);
-            assert_eq!(String::try_from(s).unwrap(), format!("{}", s));
-            let str: String = s.into();
-            assert_eq!(str, format!("{}", s));
-        }
+        assert!(<Mechanism as std::str::FromStr>::from_str("foobar").is_err());
     }
 }

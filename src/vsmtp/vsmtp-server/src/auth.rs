@@ -95,6 +95,14 @@ impl
                     .unwrap()
                     .to_string(),
             },
+            vsmtp_rsasl::Property::GSASL_VALIDATE_ANONYMOUS => AuthCredentials::AnonymousToken {
+                token: session
+                    .get_property(vsmtp_rsasl::Property::GSASL_ANONYMOUS_TOKEN)
+                    .ok_or(vsmtp_rsasl::ReturnCode::GSASL_NO_ANONYMOUS_TOKEN)?
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            },
             _ => return Err(vsmtp_rsasl::ReturnCode::GSASL_NO_CALLBACK),
         };
 
@@ -120,6 +128,7 @@ impl
 
         match prop {
             vsmtp_rsasl::Property::GSASL_VALIDATE_SIMPLE
+            | vsmtp_rsasl::Property::GSASL_VALIDATE_ANONYMOUS
                 if matches!(result, Status::Accept(..)) =>
             {
                 Ok(())

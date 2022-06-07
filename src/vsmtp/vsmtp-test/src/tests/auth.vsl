@@ -32,6 +32,10 @@
                 },
                 "Query" => {
                     packet(db[ctx().auth.authid])
+                },
+                "AnonymousToken" => {
+                    print(ctx().auth.anonymous_token);
+                    accept()
                 }
             }
         }

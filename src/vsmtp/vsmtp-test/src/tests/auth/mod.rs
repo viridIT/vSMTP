@@ -14,7 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_config::{Config, ConfigServerSMTPAuth};
+use vsmtp_common::{auth::Mechanism, re::strum};
+use vsmtp_config::Config;
 
 pub fn safe_auth_config() -> Config {
     Config::builder()
@@ -54,7 +55,12 @@ pub fn unsafe_auth_config() -> Config {
         .with_default_smtp_options()
         .with_default_smtp_error_handler()
         .with_default_smtp_codes()
-        .with_auth(false, true, ConfigServerSMTPAuth::default_mechanisms(), -1)
+        .with_auth(
+            false,
+            true,
+            <Mechanism as strum::IntoEnumIterator>::iter().collect::<Vec<_>>(),
+            -1,
+        )
         .with_default_app()
         .with_vsl("./src/tests/auth.vsl")
         .with_default_app_logs()
@@ -64,5 +70,4 @@ pub fn unsafe_auth_config() -> Config {
         .unwrap()
 }
 
-mod all_mechanism;
 mod basic;

@@ -29,20 +29,28 @@ use vsmtp_common::{
 use vsmtp_config::Resolvers;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-/// Result of the AUTH command
 #[allow(clippy::module_name_repetitions)]
 #[must_use]
+#[derive(thiserror::Error, Debug)]
 pub enum AuthExchangeError {
-    /// authentication invalid
+    #[error("authentication invalid")]
     Failed,
-    /// the client stopped the exchange
+    #[error("authentication cancelled")]
     Canceled,
-    /// timeout of the server
+    #[error("authentication timeout")]
     Timeout(std::io::Error),
-    ///
+    #[error("base64 decoding error")]
     InvalidBase64,
-    ///
-    Other(anyhow::Error),
+    #[error("error while sending a response: `{0}`")]
+    SendingResponse(anyhow::Error),
+    #[error("error while reading message: `{0}`")]
+    ReadingMessage(std::io::Error),
+    #[error("internal error while processing the SASL exchange: `{0}`")]
+    StepError(vsmtp_rsasl::SaslError),
+    #[error("mechanism `{0}` must be used in encrypted connection")]
+    AuthMechanismMustBeEncrypted(Mechanism),
+    #[error("client started the authentication but server did not send any challenge: `{0}`")]
+    AuthClientMustNotStart(Mechanism),
 }
 
 async fn auth_step<S>(
@@ -62,8 +70,7 @@ where
     match session.step(&bytes64decoded) {
         Ok(vsmtp_rsasl::Step::Done(buffer)) => {
             if !buffer.is_empty() {
-                // TODO: send buffer ?
-                println!(
+                todo!(
                     "Authentication successful, bytes to return to client: {:?}",
                     std::str::from_utf8(&*buffer)
                 );
@@ -71,7 +78,7 @@ where
 
             conn.send_code(CodeID::AuthSucceeded)
                 .await
-                .map_err(AuthExchangeError::Other)?;
+                .map_err(AuthExchangeError::SendingResponse)?;
             Ok(true)
         }
         Ok(vsmtp_rsasl::Step::NeedsMore(buffer)) => {
@@ -80,15 +87,19 @@ where
                 base64::encode(std::str::from_utf8(&*buffer).unwrap())
             );
 
-            conn.send(&reply).await.map_err(AuthExchangeError::Other)?;
+            conn.send(&reply)
+                .await
+                .map_err(AuthExchangeError::SendingResponse)?;
             Ok(false)
         }
         Err(e) if e.matches(vsmtp_rsasl::ReturnCode::GSASL_AUTHENTICATION_ERROR) => {
             Err(AuthExchangeError::Failed)
         }
-        Err(e) => Err(AuthExchangeError::Other(anyhow::anyhow!("{}", e))),
+        Err(e) => Err(AuthExchangeError::StepError(e)),
     }
 }
+
+const READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 pub async fn on_authentication<S>(
     conn: &mut Connection<S>,
@@ -119,27 +130,22 @@ where
         } else {
             conn.send_code(CodeID::AuthMechanismMustBeEncrypted)
                 .await
-                .map_err(AuthExchangeError::Other)?;
+                .map_err(AuthExchangeError::SendingResponse)?;
 
-            return Err(AuthExchangeError::Other(anyhow::anyhow!(
-                "{:?}",
-                CodeID::AuthMechanismMustBeEncrypted
-            )));
+            return Err(AuthExchangeError::AuthMechanismMustBeEncrypted(mechanism));
         }
     }
 
     if !mechanism.client_first() && initial_response.is_some() {
         conn.send_code(CodeID::AuthClientMustNotStart)
             .await
-            .map_err(AuthExchangeError::Other)?;
+            .map_err(AuthExchangeError::SendingResponse)?;
 
-        return Err(AuthExchangeError::Other(anyhow::anyhow!(
-            "{:?}",
-            CodeID::AuthClientMustNotStart
-        )));
+        return Err(AuthExchangeError::AuthClientMustNotStart(mechanism));
     }
+
     let mut guard = rsasl.lock().await;
-    let mut session = guard.server_start(&String::from(mechanism)).unwrap();
+    let mut session = guard.server_start(&format!("{mechanism}")).unwrap();
     session.store(Box::new((
         rule_engine,
         resolvers,
@@ -156,16 +162,19 @@ where
         auth_step(conn, &mut session, &initial_response.unwrap_or_default()).await?;
 
     while !succeeded {
-        succeeded = match conn.read(std::time::Duration::from_secs(1)).await {
+        succeeded = match conn.read(READ_TIMEOUT).await {
             Ok(Some(buffer)) => {
                 log::trace!(target: log_channels::AUTH, "{buffer}");
                 auth_step(conn, &mut session, buffer.as_bytes()).await
             }
-            Ok(None) => Err(AuthExchangeError::Other(anyhow::anyhow!("eof"))),
+            Ok(None) => Err(AuthExchangeError::ReadingMessage(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "unexpected EOF during SASL exchange",
+            ))),
             Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                 Err(AuthExchangeError::Timeout(e))
             }
-            Err(e) => Err(AuthExchangeError::Other(anyhow::anyhow!("{:?}", e))),
+            Err(e) => Err(AuthExchangeError::ReadingMessage(e)),
         }?;
     }
 

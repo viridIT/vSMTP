@@ -82,9 +82,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.53"
+version = "0.1.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed6aa3524a2dfcf9fe180c51eae2b58738348d819517ceadf95789c51fff7600"
+checksum = "96cf8829f67d2eab0b2dfa42c5d0ef737e0724e4a82b01b3e292456202b19716"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -478,12 +478,19 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "email-encoding"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6690291166824e467790ac08ba42f241791567e8337bbf00c5a6e87889629f98"
+checksum = "75b91dddc343e7eaa27f9764e5bffe57370d957017fdd75244f5045e829a8441"
 dependencies = [
  "base64",
+ "memchr",
 ]
+
+[[package]]
+name = "email_address"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8684b7c9cb4857dfa1e5b9629ef584ba618c9b93bae60f58cb23f4f271d0468e"
 
 [[package]]
 name = "enum-as-inner"
@@ -646,7 +653,7 @@ checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 [[package]]
 name = "gsasl-sys"
 version = "0.2.4"
-source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#bb88e88896f1e804f446d074b102ae1075480775"
+source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#fbeccd47235ce8b9d0791bf62295acf1c1c12e94"
 dependencies = [
  "bindgen",
 ]
@@ -833,13 +840,14 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "lettre"
-version = "0.10.0-rc.6"
+version = "0.10.0-rc.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f6c70001f7ee6c93b6687a06607c7a38f9a7ae460139a496c23da21e95bc289"
+checksum = "0f7e87d9d44162eea7abd87b1a7540fcb10d5e58e8bb4f173178f3dc6e453944"
 dependencies = [
  "async-trait",
  "base64",
  "email-encoding",
+ "email_address",
  "fastrand",
  "futures-io",
  "futures-util",
@@ -849,9 +857,9 @@ dependencies = [
  "nom 7.1.1",
  "once_cell",
  "quoted_printable",
- "regex",
  "rustls",
  "rustls-pemfile 1.0.0",
+ "socket2",
  "tokio",
  "tokio-rustls",
  "tracing",
@@ -1670,9 +1678,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.95"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbaf6116ab8924f39d52792136fb74fd60a80194cf1b1c6ffa6453eef1c3f942"
+checksum = "0748dd251e24453cb8717f0354206b91557e4ec8703673a4b30208f2abaf1ebf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1789,9 +1797,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.18.2"
+version = "1.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4903bf0427cf68dddd5aa6a93220756f8be0c34fcfa9f5e6191e103e15a31395"
+checksum = "95eec79ea28c00a365f539f1961e9278fbcaf81c0ff6aaf0e93c181352446948"
 dependencies = [
  "bytes",
  "libc",
@@ -1830,9 +1838,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-stream"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50145484efff8818b5ccd256697f36863f587da82cf8b409c53adf1e840798e3"
+checksum = "df54d54117d6fdc4e4fea40fe1e4e566b3505700e148a6827e59b34b0d2600d9"
 dependencies = [
  "futures-core",
  "pin-project-lite",
@@ -2103,8 +2111,8 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rsasl"
-version = "1.5.0"
-source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#bb88e88896f1e804f446d074b102ae1075480775"
+version = "1.5.1-rc1"
+source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#fbeccd47235ce8b9d0791bf62295acf1c1c12e94"
 dependencies = [
  "discard",
  "gsasl-sys",
