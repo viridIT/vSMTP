@@ -50,6 +50,7 @@ pub async fn start(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
