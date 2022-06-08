@@ -68,6 +68,7 @@ impl
         session: &mut Session,
         prop: vsmtp_rsasl::Property,
     ) -> Result<(), vsmtp_rsasl::ReturnCode> {
+        #[allow(unsafe_code)]
         let config =
             unsafe { sasl.retrieve() }.ok_or(vsmtp_rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
         sasl.store(config.clone());

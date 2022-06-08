@@ -17,7 +17,7 @@ publish = false
 [dependencies]
 rand = "0.8.5"
 
-tokio = { version = "1.18.1", default-features = false, features = [
+tokio = { version = "1.19.2", default-features = false, features = [
     "macros",
     "time",
     "sync",
@@ -25,7 +25,7 @@ tokio = { version = "1.18.1", default-features = false, features = [
     "io-util",
     "rt-multi-thread",
 ] }
-lettre = { version = "0.10.0-rc.6", default-features = false, features = [
+lettre = { version = "0.10.0-rc.7", default-features = false, features = [
     "smtp-transport",
     "builder",
     "tokio1-rustls-tls",

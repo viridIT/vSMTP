@@ -41,6 +41,7 @@ pub enum ForkResult {
 /// * System call was interrupted by a signal and will be restarted (only during a trace)
 #[inline]
 pub fn fork() -> anyhow::Result<ForkResult> {
+    #[allow(unsafe_code)]
     match unsafe { libc::fork() } {
         // [coverage] hard to test (other than bomb fork)
         -1 => Err(anyhow::anyhow!(
@@ -69,6 +70,7 @@ pub fn fork() -> anyhow::Result<ForkResult> {
 // }
 
 pub fn daemon(nochdir: bool, noclose: bool) -> anyhow::Result<()> {
+    #[allow(unsafe_code)]
     match unsafe { libc::daemon(i32::from(nochdir), i32::from(noclose)) } {
         0 => Ok(()),
         _ => Err(anyhow::anyhow!(
@@ -87,6 +89,7 @@ pub fn daemon(nochdir: bool, noclose: bool) -> anyhow::Result<()> {
 /// EPERM: The process group ID of any process equals the PID of the calling process.
 /// Thus, in particular, setsid() fails if the calling process is already a process group leader.
 pub fn setsid() -> anyhow::Result<libc::pid_t> {
+    #[allow(unsafe_code)]
     match unsafe { libc::setsid() } {
         -1 => Err(anyhow::anyhow!(
             "setsid: '{}'",
@@ -103,6 +106,7 @@ pub fn setsid() -> anyhow::Result<libc::pid_t> {
 /// see setuid(2) ERRORS
 #[inline]
 pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
+    #[allow(unsafe_code)]
     match unsafe { libc::setuid(uid) } {
         -1 => Err(anyhow::anyhow!(
             "setuid: '{}'",
@@ -119,6 +123,7 @@ pub fn setuid(uid: libc::uid_t) -> anyhow::Result<i32> {
 /// see setgid(2) ERRORS
 #[inline]
 pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
+    #[allow(unsafe_code)]
     match unsafe { libc::setgid(gid) } {
         -1 => Err(anyhow::anyhow!(
             "setgid: '{}'",
@@ -134,7 +139,9 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
 ///
 /// see initgroups(2) ERRORS
 pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
-    match unsafe { libc::initgroups(std::ffi::CString::new(user)?.as_ptr(), gid) } {
+    let user = std::ffi::CString::new(user)?;
+    #[allow(unsafe_code)]
+    match unsafe { libc::initgroups(user.as_ptr(), gid) } {
         0 => Ok(()),
         _ => Err(anyhow::anyhow!(
             "initgroups: '{}'",
@@ -150,9 +157,11 @@ pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
 /// * `@path` cannot be convert to CString
 /// * see chown(2) ERRORS
 pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> anyhow::Result<()> {
+    let path = std::ffi::CString::new(path.to_string_lossy().as_bytes())?;
+    #[allow(unsafe_code)]
     match unsafe {
         libc::chown(
-            std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr(),
+            path.as_ptr(),
             user.unwrap_or(u32::MAX),
             group.unwrap_or(u32::MAX),
         )
@@ -175,7 +184,9 @@ pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> a
 /// see if_nametoindex(2) ERRORS
 /// * ENXIO: No index found for the @name
 pub fn if_nametoindex(name: &str) -> anyhow::Result<u32> {
-    match unsafe { libc::if_nametoindex(std::ffi::CString::new(name)?.as_ptr()) } {
+    let ifname = std::ffi::CString::new(name)?;
+    #[allow(unsafe_code)]
+    match unsafe { libc::if_nametoindex(ifname.as_ptr()) } {
         0 => Err(anyhow::anyhow!(
             "if_nametoindex: '{}'",
             std::io::Error::last_os_error()
@@ -193,6 +204,7 @@ pub fn if_nametoindex(name: &str) -> anyhow::Result<u32> {
 pub fn if_indextoname(index: u32) -> anyhow::Result<String> {
     let mut buf = [0; libc::IF_NAMESIZE];
 
+    #[allow(unsafe_code)]
     match unsafe { libc::if_indextoname(index, buf.as_mut_ptr()) } {
         null if null.is_null() => Err(anyhow::anyhow!(
             "if_indextoname: '{}'",
@@ -216,10 +228,13 @@ pub fn if_indextoname(index: u32) -> anyhow::Result<String> {
 /// * see getpwuid(2) ERRORS
 /// * the filepath does not contain valid utf8 data
 pub fn getpwuid(uid: libc::uid_t) -> anyhow::Result<std::path::PathBuf> {
+    #[allow(unsafe_code)]
     let passwd = unsafe { libc::getpwuid(uid) };
+    #[allow(unsafe_code)]
     if passwd.is_null() || unsafe { *passwd }.pw_dir.is_null() {
         anyhow::bail!("getpwuid: '{}'", std::io::Error::last_os_error());
     }
+    #[allow(unsafe_code)]
     Ok(unsafe { std::ffi::CStr::from_ptr((*passwd).pw_dir) }
         .to_str()?
         .into())
