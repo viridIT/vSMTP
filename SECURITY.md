@@ -6,7 +6,7 @@ attention to security issues.
 ## Report a security issue
 
 Please report a security issue by email to
-[security@viridit.com](mailto:security@tokio.rs) and include the word "SECURITY"
+[security@viridit.com](mailto:security@viridit.com) and include the word "SECURITY"
 in the subject line. Security issues should not be reported via the public
 Github Issue tracker or via the vSMTP community forum.
 
