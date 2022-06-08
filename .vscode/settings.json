@@ -12,6 +12,7 @@
         "cipherlist",
         "ciphersuite",
         "clamav",
+        "consts",
         "cpus",
         "dirpath",
         "dnssec",
