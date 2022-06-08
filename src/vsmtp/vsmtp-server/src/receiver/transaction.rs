@@ -60,14 +60,16 @@ impl Transaction {
     ) -> ProcessedEvent {
         log::trace!(
             target: log_channels::TRANSACTION,
-            "buffer=\"{client_message:?}\"",
+            "[{}] buffer=\"{client_message:?}\"",
+            connection.server_addr
         );
 
         let command_or_code = Event::parse_cmd(client_message);
 
         log::trace!(
             target: log_channels::TRANSACTION,
-            "parsed=\"{command_or_code:?}\"",
+            "[{}] parsed=\"{command_or_code:?}\"",
+            connection.server_addr
         );
 
         command_or_code.map_or_else(
@@ -407,18 +409,22 @@ impl Transaction {
         let read_timeout = get_timeout_for_state(&connection.config, &StateSMTP::Data);
         async_stream::stream! {
             loop {
+                        log::trace!(
+                            target: log_channels::TRANSACTION,
+                            "[{}] blocking ...", connection.server_addr,
+                        );
                 match connection.read(read_timeout).await {
                     Ok(Some(client_message)) => {
                         log::trace!(
                             target: log_channels::TRANSACTION,
-                            "buffer=\"{:?}\"",
+                            "[{}] buffer=\"{:?}\"", connection.server_addr,
                             client_message
                         );
 
                         let command_or_code = Event::parse_data(client_message);
                         log::trace!(
                             target: log_channels::TRANSACTION,
-                            "parsed=\"{:?}\"",
+                            "[{}] parsed=\"{:?}\"", connection.server_addr,
                             command_or_code
                         );
 
@@ -503,7 +509,8 @@ impl Transaction {
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
-                                    "================ STATE: /{old_state:?}/ => /{new_state:?}/",
+                                    "[{}] STATE: {old_state:?} => {new_state:?}",
+                                    connection.server_addr,
                                     old_state = self.state,
                                 );
                                 self.state = new_state;
@@ -513,7 +520,8 @@ impl Transaction {
                             ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
                                 log::info!(
                                     target: log_channels::TRANSACTION,
-                                    "================ STATE: /{old_state:?}/ => /{new_state:?}/",
+                                    "[{}] STATE: {old_state:?} => {new_state:?}",
+                                    connection.server_addr,
                                     old_state = self.state,
                                 );
                                 self.state = new_state;

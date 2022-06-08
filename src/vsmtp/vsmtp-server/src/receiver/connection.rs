@@ -161,7 +161,8 @@ where
     pub async fn send_reply(&mut self, reply: Reply) -> anyhow::Result<()> {
         log::info!(
             target: log_channels::CONNECTION,
-            "sending reply=\"{reply:?}\"",
+            "[{}] sending reply=\"{reply:?}\"",
+            self.server_addr
         );
 
         if !reply.code().is_error() {
@@ -207,7 +208,12 @@ where
     ///
     /// * internal connection writer error
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
-        log::info!(target: log_channels::CONNECTION, "send=\"{:?}\"", reply);
+        log::info!(
+            target: log_channels::CONNECTION,
+            "[{}] send=\"{:?}\"",
+            self.server_addr,
+            reply
+        );
         tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes()).await?;
         Ok(())
     }

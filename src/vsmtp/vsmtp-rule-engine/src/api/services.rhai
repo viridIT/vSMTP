@@ -24,6 +24,6 @@ fn delegate(then) {
         then.call()
     } else {
            print("executing delegation ...");
-        sys::delegate(this, ctx())
+        sys::delegate(this, ctx(), msg())
     }
 }
