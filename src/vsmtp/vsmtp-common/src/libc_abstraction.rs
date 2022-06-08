@@ -139,8 +139,9 @@ pub fn setgid(gid: libc::gid_t) -> anyhow::Result<i32> {
 ///
 /// see initgroups(2) ERRORS
 pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
+    let user = std::ffi::CString::new(user)?;
     #[allow(unsafe_code)]
-    match unsafe { libc::initgroups(std::ffi::CString::new(user)?.as_ptr(), gid) } {
+    match unsafe { libc::initgroups(user.as_ptr(), gid) } {
         0 => Ok(()),
         _ => Err(anyhow::anyhow!(
             "initgroups: '{}'",
@@ -156,9 +157,15 @@ pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
 /// * `@path` cannot be convert to CString
 /// * see chown(2) ERRORS
 pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> anyhow::Result<()> {
-    let path = std::ffi::CString::new(path.to_string_lossy().as_bytes())?.as_ptr();
+    let path = std::ffi::CString::new(path.to_string_lossy().as_bytes())?;
     #[allow(unsafe_code)]
-    match unsafe { libc::chown(path, user.unwrap_or(u32::MAX), group.unwrap_or(u32::MAX)) } {
+    match unsafe {
+        libc::chown(
+            path.as_ptr(),
+            user.unwrap_or(u32::MAX),
+            group.unwrap_or(u32::MAX),
+        )
+    } {
         0 => Ok(()),
         otherwise => Err(anyhow::anyhow!(
             "failed to change file owner: ({}) '{}'",
@@ -177,8 +184,9 @@ pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> a
 /// see if_nametoindex(2) ERRORS
 /// * ENXIO: No index found for the @name
 pub fn if_nametoindex(name: &str) -> anyhow::Result<u32> {
+    let ifname = std::ffi::CString::new(name)?;
     #[allow(unsafe_code)]
-    match unsafe { libc::if_nametoindex(std::ffi::CString::new(name)?.as_ptr()) } {
+    match unsafe { libc::if_nametoindex(ifname.as_ptr()) } {
         0 => Err(anyhow::anyhow!(
             "if_nametoindex: '{}'",
             std::io::Error::last_os_error()
