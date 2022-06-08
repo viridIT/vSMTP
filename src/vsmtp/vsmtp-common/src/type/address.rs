@@ -43,7 +43,7 @@ impl TryFrom<String> for Address {
             anyhow::bail!("'{}' is not a valid address: {}", value, error)
         }
         Ok(Self {
-            at_sign: unsafe { value.find('@').unwrap_unchecked() },
+            at_sign: value.find('@').expect("no '@' in address"),
             full: value,
         })
     }
