@@ -134,7 +134,7 @@ pub fn start_runtime(
     )?;
 
     let _tasks_receiver = init_runtime(
-        error_handler.0,
+        error_handler.0.clone(),
         "receiver",
         config_arc.server.system.thread_pool.receiver,
         async move {
@@ -150,6 +150,23 @@ pub fn start_runtime(
         },
         timeout,
     );
+
+    let error_handler_sig = error_handler.0.clone();
+    let mut signals = signal_hook::iterator::Signals::new(&[
+        // Send by `systemctl stop` (and send sending `SIGKILL`)
+        signal_hook::consts::SIGTERM,
+        // Ctrl+C on a terminal
+        signal_hook::consts::SIGINT,
+    ])?;
+    let _signal_handler = std::thread::spawn(move || {
+        for sig in signals.forever() {
+            log::info!(target: log_channels::RUNTIME, "Received signal '{}'", sig);
+            log::warn!(target: log_channels::RUNTIME, "Stopping vSMTP server");
+            error_handler_sig
+                .blocking_send(Ok(()))
+                .expect("failed to send terminating instruction");
+        }
+    });
 
     error_handler
         .1

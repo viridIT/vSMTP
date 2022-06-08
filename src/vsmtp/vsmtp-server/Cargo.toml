@@ -29,6 +29,8 @@ thiserror = "1.0.31"
 tokio-stream = "0.1.9"
 async-stream = "0.3.3"
 
+signal-hook = "0.3.14"
+
 trust-dns-resolver = "0.21.2"
 time = { version = "0.3.9", default-features = false, features = [
     "std",
