@@ -15,14 +15,14 @@
  *
 */
 
+pub mod cmd;
 pub mod databases;
 pub mod parsing;
-pub mod shell;
 
 #[derive(Debug)]
 pub enum Service {
     /// A service can be a program to run in a subprocess
-    UnixShell {
+    Cmd {
         /// a duration after which the subprocess will be forced-kill
         timeout: std::time::Duration,
         /// optional: a user to run the subprocess under
@@ -56,7 +56,7 @@ impl std::fmt::Display for Service {
             f,
             "{}",
             match self {
-                Service::UnixShell { .. } => "shell",
+                Service::Cmd { .. } => "cmd",
                 Service::CSVDatabase { .. } => "csv-database",
             }
         )
