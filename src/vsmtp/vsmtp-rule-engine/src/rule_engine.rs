@@ -312,7 +312,6 @@ impl RuleEngine {
                     include_str!("api/codes.rhai"),
                     include_str!("api/networks.rhai"),
                     include_str!("api/auth.rhai"),
-                    include_str!("api/services.rhai"),
                     include_str!("api/utils.rhai"),
                     include_str!("api/sys-api.rhai"),
                     include_str!("api/rhai-api.rhai"),

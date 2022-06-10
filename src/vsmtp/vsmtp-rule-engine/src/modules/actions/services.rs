@@ -25,10 +25,7 @@ pub mod services {
     use crate::dsl::service::shell::run;
     use crate::dsl::service::shell::ShellResult;
     use crate::dsl::service::Service;
-    use crate::modules::types::types::Context;
-    use crate::modules::types::types::Message;
     use crate::modules::EngineResult;
-    use vsmtp_common::status::Status;
 
     #[rhai_fn(global, pure)]
     pub fn to_string(service: &mut std::sync::Arc<Service>) -> String {

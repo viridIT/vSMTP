@@ -1,8 +1,4 @@
-use crate::{
-    modules::{self, EngineResult},
-    rule_state::RuleState,
-    Service,
-};
+use crate::{modules::EngineResult, rule_state::RuleState, Service};
 use vsmtp_common::status::Status;
 
 /// a set of directives, filtered by smtp stage.
