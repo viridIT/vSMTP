@@ -1,4 +1,3 @@
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -17,6 +16,7 @@
 */
 
 pub mod action;
+pub mod delegation;
 pub mod directives;
 pub mod object;
 pub mod rule;

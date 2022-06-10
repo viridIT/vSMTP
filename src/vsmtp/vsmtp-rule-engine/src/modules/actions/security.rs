@@ -1,4 +1,3 @@
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS

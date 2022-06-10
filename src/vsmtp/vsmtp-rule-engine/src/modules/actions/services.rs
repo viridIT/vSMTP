@@ -154,59 +154,6 @@ pub mod services {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(return_raw, pure)]
-    pub fn delegate(
-        service: &mut std::sync::Arc<Service>,
-        ctx: Context,
-        msg: Message,
-    ) -> EngineResult<Status> {
-        if let Service::Smtp { delegator, .. } = &**service {
-            let (from, rcpt, body) = {
-                let ctx = ctx
-                    .read()
-                    .map_err::<Box<EvalAltResult>, _>(|_| "context mutex poisoned".into())?;
-
-                let body = vsl_guard_ok!(msg.read())
-                    .as_ref()
-                    .map(std::string::ToString::to_string)
-                    .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                        "tried to delegate email security but the body was empty".into()
-                    })?;
-
-                (
-                    ctx.envelop.mail_from.clone(),
-                    ctx.envelop.rcpt.clone(),
-                    body,
-                )
-            };
-
-            {
-                let mut delegator = delegator.lock().unwrap();
-
-                crate::dsl::service::smtp::delegate(&mut *delegator, &from, &rcpt, body.as_bytes())
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-            }
-
-            Ok(Status::Delegated)
-
-            // Ok(rhai::Map::from_iter([
-            //     ("code".into(), Dynamic::from(response.code().to_string())),
-            //     (
-            //         "message".into(),
-            //         Dynamic::from(
-            //             response
-            //                 .message()
-            //                 .map(|line| Dynamic::from(line.to_string()))
-            //                 .collect::<rhai::Array>(),
-            //         ),
-            //     ),
-            // ]))
-        } else {
-            Err(format!("cannot delegate security with '{service}' service.").into())
-        }
-    }
-
     /// get the receiver address from a smtp service.
     #[rhai_fn(global, get = "receiver_address", return_raw, pure)]
     pub fn smtp_service_receiver_address(

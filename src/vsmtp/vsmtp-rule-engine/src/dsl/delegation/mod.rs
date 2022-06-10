@@ -15,15 +15,4 @@
  *
 */
 
-/// delegate email validation to a service via smtp.
-/// when the results are received, the "then" function
-/// is called.
-fn delegate(then) {
-    if ctx().server_address == this.receiver_address {
-       print("executing then");
-        then.call()
-    } else {
-           print("executing delegation ...");
-        sys::delegate(this, ctx(), msg())
-    }
-}
+pub mod parsing;

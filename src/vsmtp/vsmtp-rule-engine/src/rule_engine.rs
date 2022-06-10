@@ -24,7 +24,8 @@ use vsmtp_common::status::Status;
 use vsmtp_config::Config;
 
 use crate::dsl::action::parsing::{create_action, parse_action};
-use crate::dsl::directives::{Action, Directive, Directives, Rule};
+use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
+use crate::dsl::directives::{Action, Delegation, Directive, Directives, Rule};
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
@@ -180,7 +181,7 @@ impl RuleEngine {
         }
 
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
-            match self.execute_directives(rule_state.engine(), &directive_set[..], smtp_state) {
+            match self.execute_directives(rule_state, &directive_set[..], smtp_state) {
                 Ok(status) => {
                     if status.stop() {
                         log::debug!(
@@ -213,14 +214,14 @@ impl RuleEngine {
 
     fn execute_directives(
         &self,
-        engine: &rhai::Engine,
+        state: &mut RuleState,
         directives: &[Box<dyn Directive + Send + Sync>],
         smtp_state: &StateSMTP,
     ) -> EngineResult<Status> {
         let mut status = Status::Next;
 
         for directive in directives {
-            status = directive.execute(engine, &self.ast)?;
+            status = directive.execute(state, &self.ast)?;
 
             log::debug!(
                 target: log_channels::RE,
@@ -294,6 +295,7 @@ impl RuleEngine {
             })
             .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
             .register_custom_syntax_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
             .register_custom_syntax_raw("service", parse_service, true, create_service)
             .register_iterator::<Vec<vsmtp_common::Address>>()
@@ -364,7 +366,16 @@ impl RuleEngine {
                     let directive: Box<dyn Directive + Send + Sync> =
                         match directive_type.as_str() {
                             "rule" => Box::new(Rule { name, pointer }),
-                            "action" => Box::new(Action { name, pointer}),
+                            "action" => Box::new(Action { name, pointer }),
+			     "delegate" => {
+				let service = map
+				    .get("service")
+				    .ok_or_else(|| anyhow::anyhow!("the delegation {} in stage {} does not have a service to delegate processing to", name, stage))?
+				    .clone()
+				    .try_cast::<std::sync::Arc<Service>>()
+				    .ok_or_else(|| anyhow::anyhow!("the field after the delegate keyword in delegation {} in stage {} must be a service", name, stage))?;
+				Box::new(Delegation { name, pointer, service})
+			    },
                             unknown => anyhow::bail!("unknown directive '{}'", unknown),
                         };
 
