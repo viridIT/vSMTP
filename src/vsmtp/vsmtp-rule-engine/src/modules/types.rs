@@ -15,7 +15,7 @@
  *
 */
 use crate::dsl::object::Object;
-use crate::dsl::service::shell::ShellResult;
+use crate::dsl::service::cmd::CmdResult;
 use crate::modules::EngineResult;
 use crate::server_api::ServerAPI;
 use rhai::plugin::{
@@ -62,22 +62,22 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "to_debug")]
-    pub fn shell_result_to_debug(this: &mut ShellResult) -> String {
+    pub fn cmd_result_to_debug(this: &mut CmdResult) -> String {
         format!("{:?}", this)
     }
 
     #[rhai_fn(global, name = "to_string")]
-    pub fn shell_result_to_string(this: &mut ShellResult) -> String {
+    pub fn cmd_result_to_string(this: &mut CmdResult) -> String {
         format!("{}", this)
     }
 
     #[rhai_fn(global, get = "has_code")]
-    pub fn shell_result_has_code(this: &mut ShellResult) -> bool {
+    pub fn cmd_result_has_code(this: &mut CmdResult) -> bool {
         this.has_code()
     }
 
     #[rhai_fn(global, get = "code", return_raw)]
-    pub fn shell_result_get_code(this: &mut ShellResult) -> EngineResult<i64> {
+    pub fn cmd_result_get_code(this: &mut CmdResult) -> EngineResult<i64> {
         this.get_code().ok_or_else(|| {
             "service result has been terminated by a signal"
                 .to_string()
@@ -86,12 +86,12 @@ pub mod types {
     }
 
     #[rhai_fn(global, get = "has_signal")]
-    pub fn shell_result_has_signal(this: &mut ShellResult) -> bool {
+    pub fn cmd_result_has_signal(this: &mut CmdResult) -> bool {
         this.has_signal()
     }
 
     #[rhai_fn(global, get = "signal", return_raw)]
-    pub fn shell_result_get_signal(this: &mut ShellResult) -> EngineResult<i64> {
+    pub fn cmd_result_get_signal(this: &mut CmdResult) -> EngineResult<i64> {
         this.get_signal()
             .ok_or_else(|| "service result has status code".to_string().into())
     }

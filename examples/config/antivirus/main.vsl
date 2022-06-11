@@ -2,7 +2,7 @@ import "service" as service;
 
 fn has_virus() {
     // runnnig the service with the email's content as an argument.
-    let result = service::antivirus.shell_run([`${ctx().mail}`]);
+    let result = service::antivirus.cmd_run([`${ctx().mail}`]);
     debug(`${result}`);
 
     if result.has_signal {
