@@ -391,6 +391,45 @@ impl RuleEngine {
             directives.insert(stage.to_string(), directive_set);
         }
 
+        let names = directives
+            .iter()
+            .flat_map(|(_, d)| d)
+            .map(crate::dsl::directives::Directive::name)
+            .collect::<Vec<_>>();
+
+        // TODO: refactor l.418 with templated function 'find_duplicate'.
+        for (idx, name) in names.iter().enumerate() {
+            for other in &names[idx + 1..] {
+                if other == name {
+                    anyhow::bail!(
+                        "found duplicate rule '{}': a rule must have a unique name",
+                        name
+                    );
+                }
+            }
+        }
+
+        // check for delegation directive with smtp services with the same receiver port.
+        let sockets = directives
+            .iter()
+            .flat_map(|(_, d)| d)
+            .filter_map(|d| match d {
+                Directive::Delegation { service, .. } => match &**service {
+                    Service::Smtp { receiver, .. } => Some(receiver),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        for (idx, socket) in sockets.iter().enumerate() {
+            for other in &sockets[idx + 1..] {
+                if other == socket {
+                    anyhow::bail!("found duplicate smtp service receiver port {}: you must only use one port per smtp service receiver", socket);
+                }
+            }
+        }
+
         Ok(directives)
     }
 
