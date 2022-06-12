@@ -39,7 +39,7 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
         .ok_or_else(|| anyhow::anyhow!("private key path is valid but empty: '{}'", path.display()))
 }
 
-/// TODO: should be used only for debug build
+// TODO: should be used only for debug build
 /*
 pub fn deserialize<'de, D>(deserializer: D) -> Result<rustls::PrivateKey, D::Error>
 where

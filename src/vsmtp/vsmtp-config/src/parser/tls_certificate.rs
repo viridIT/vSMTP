@@ -34,7 +34,7 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
         .ok_or_else(|| anyhow::anyhow!("certificate path is valid but empty: '{}'", path.display()))
 }
 
-/// TODO: should be used only for debug build
+// TODO: should be used only for debug build
 /*
 pub fn deserialize<'de, D>(deserializer: D) -> Result<rustls::Certificate, D::Error>
 where

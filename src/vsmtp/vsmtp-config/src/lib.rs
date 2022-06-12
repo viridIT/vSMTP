@@ -63,10 +63,10 @@ pub mod builder {
 
 mod config;
 mod default;
-mod r#impl;
 mod log4rs_helper;
 mod rustls_helper;
 mod trust_dns_helper;
+mod virtual_tls;
 
 pub use config::*;
 pub use log4rs_helper::get_log4rs_config;
