@@ -82,7 +82,6 @@ async fn test_starttls(
             client_stream,
             client_addr,
             ConnectionKind::Relay,
-            None,
             server_config.clone(),
             if with_valid_config {
                 Some(std::sync::Arc::new(
@@ -228,7 +227,6 @@ async fn test_tls_tunneled(
             client_stream,
             client_addr,
             ConnectionKind::Tunneled,
-            None,
             server_config.clone(),
             get_tls_config(&server_config),
             get_auth_config(&server_config),

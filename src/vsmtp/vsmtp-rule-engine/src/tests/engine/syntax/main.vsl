@@ -35,7 +35,7 @@ import "../error_handling/errors" as err;
             color: "#ffffff",
         },
 
-        rule "trailing" || accept(),
+        rule "trailing connect" || accept(),
     ],
 
     helo: [
@@ -44,7 +44,7 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing" || deny(),
+        rule "trailing helo" || deny(),
     ],
 
     mail: [
@@ -53,14 +53,14 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing" || deny(),
+        rule "trailing mail" || deny(),
     ],
 
     rcpt: [
         rule "invalid action" || import "bad_action",
 
         // should not be reached.
-        rule "trailing" || deny(),
+        rule "trailing rcpt" || deny(),
     ],
 
     preq: [
@@ -69,7 +69,7 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing" || deny(),
+        rule "trailing preq" || deny(),
     ],
 
     postq: [
@@ -78,6 +78,6 @@ import "../error_handling/errors" as err;
         },
 
         // should not be reached.
-        rule "trailing" || deny(),
+        rule "trailing postq" || deny(),
     ],
 }

@@ -43,10 +43,6 @@ fn test_engine_errors() {
         re.run_when(&mut state, &StateSMTP::MailFrom),
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::RcptTo),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
-    );
 }
 
 #[test]

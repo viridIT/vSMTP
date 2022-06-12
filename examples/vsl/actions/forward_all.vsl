@@ -20,7 +20,7 @@
     ],
 
     rcpt: [
-        action "forward all (ip4 string)" || forward_all("::1"),
+        action "forward all (ip6 string)" || forward_all("::1"),
     ],
 
     data: [

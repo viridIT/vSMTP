@@ -55,16 +55,16 @@ fn mutate_headers() {
 #{
     connect: [
         rule "adding headers when body is empty" || mutate_headers(),
-        rule "trailing" || accept(),
+        rule "trailing connect" || accept(),
     ],
 
     preq: [
         rule "adding headers to raw email" || mutate_headers(),
-        rule "trailing" || accept(),
+        rule "trailing preq" || accept(),
     ],
 
     postq: [
         rule "adding headers to parsed email" || mutate_headers(),
-        rule "trailing" || accept(),
+        rule "trailing postq" || accept(),
     ],
 }

@@ -22,14 +22,14 @@ import "errors" as err;
         rule "error parsing" || err::generic_error(),
 
         // previous rule should short circuit and return `next`.
-        rule "trailing" || next(),
+        rule "trailing connect" || next(),
     ],
 
     helo: [
         rule "user defined throw" || err::throw_error(),
 
         // previous rule should short circuit and return `next`.
-        rule "trailing" || next(),
+        rule "trailing helo" || next(),
     ],
 
     mail: [

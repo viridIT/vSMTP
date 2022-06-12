@@ -10,7 +10,7 @@
             }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing preq" || accept(),
     ],
 
     postq: [
@@ -24,6 +24,6 @@
             }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing postq" || accept(),
     ]
 }

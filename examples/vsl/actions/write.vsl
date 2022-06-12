@@ -11,7 +11,7 @@
             }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing mail" || accept(),
     ],
 
     preq: [
@@ -19,7 +19,7 @@
             write("tests/generated");
         },
 
-        rule "trailing" || accept(),
+        rule "trailing preq" || accept(),
     ],
 
     postq: [
@@ -28,6 +28,6 @@
             write("tests/generated");
         },
 
-        rule "trailing" || accept(),
+        rule "trailing postq" || accept(),
     ]
 }
