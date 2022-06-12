@@ -118,7 +118,15 @@ pub mod transport {
             if config.server.domain == from.domain() && config.server.tls.is_some() {
                 tls_builder.add_root_certificate(
                     lettre::transport::smtp::client::Certificate::from_der(
-                        config.server.tls.as_ref().unwrap().certificate.0.clone(),
+                        config
+                            .server
+                            .tls
+                            .as_ref()
+                            .unwrap()
+                            .certificate
+                            .inner
+                            .0
+                            .clone(),
                     )
                     .context("failed to parse certificate as der")?,
                 )
@@ -132,7 +140,7 @@ pub mod transport {
             {
                 tls_builder.add_root_certificate(
                     lettre::transport::smtp::client::Certificate::from_der(
-                        tls_config.certificate.0.clone(),
+                        tls_config.certificate.inner.0.clone(),
                     )
                     .context("failed to parse certificate as der")?,
                 )
