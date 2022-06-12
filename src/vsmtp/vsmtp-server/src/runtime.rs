@@ -23,7 +23,7 @@ use vsmtp_common::{
     },
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::{rule_engine::RuleEngine, Service};
+use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 fn init_runtime<F: 'static>(
     sender: tokio::sync::mpsc::Sender<anyhow::Result<()>>,
@@ -97,21 +97,6 @@ pub fn start_runtime(
 
     let rule_engine = RuleEngine::new(&config, &config.app.vsl.filepath.clone())?;
 
-    let smtp_services = rule_engine
-        .extract_services()
-        .into_iter()
-        .filter(|service| matches!(**service, Service::Smtp { .. }))
-        .map(|service| match &*service {
-            Service::Smtp { receiver, .. } => {
-                if !config.server.interfaces.addr.contains(receiver) {
-                    anyhow::bail!("a smtp service tried to receive delegation on '{receiver}', but that address was not found in the toml configuration. Add '{receiver}' to your list of listeners in the 'addr' array.");
-                }
-                Ok(service)
-            }
-            _ => unreachable!("filtered service are all smtp services"),
-        })
-        .collect::<anyhow::Result<Vec<_>>>()?;
-
     let resolvers = std::sync::Arc::new(
         vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
     );
@@ -158,7 +143,7 @@ pub fn start_runtime(
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),
             )?
-            .listen_and_serve(sockets, smtp_services)
+            .listen_and_serve(sockets)
             .await
         },
         timeout,

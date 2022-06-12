@@ -15,16 +15,13 @@
  *
 */
 
-use std::str::FromStr;
-
 use crate::dsl::service::SmtpConnection;
 use crate::{dsl::service::Service, modules::EngineResult};
 use rhai::EvalAltResult;
 use vsmtp_common::envelop::build_lettre;
 use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::re::anyhow;
+use vsmtp_common::re::anyhow::{self, Context};
 use vsmtp_common::re::lettre::{self, Transport};
-use vsmtp_common::state::StateSMTP;
 use vsmtp_common::Address;
 
 pub fn parse_smtp_service(
@@ -71,8 +68,6 @@ pub fn parse_smtp_service(
             "smtp service options must be a map".into()
         })?;
 
-    let run_on: String = get_or_default(service_name, &options, "run_on", None)?;
-
     let receiver_addr = get_or_default::<String>(service_name, &options, "receiver", None)?
         .parse::<std::net::SocketAddr>()
         .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
@@ -99,8 +94,6 @@ pub fn parse_smtp_service(
             )))
         },
         receiver: receiver_addr,
-        run_on: StateSMTP::from_str(&run_on)
-            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?,
     })
 }
 
@@ -110,61 +103,10 @@ pub fn delegate(
     from: &Address,
     to: &[Rcpt],
     email: &[u8],
-) -> anyhow::Result<()> {
-    // fn read_buf(transport: &mut SmtpConnection) -> String {
-    //     // reading code 354.
-    //     let buf: &mut [u8] = &mut [0; 100];
-    //     transport.0.read(buf).unwrap();
-
-    //     std::str::from_utf8_mut(buf).unwrap().to_string()
-    // }
-
-    // dbg!("delegate");
-
-    // dbg!(read_buf(transport));
-    // transport.0.write_all(b"helo example.com\r\n");
-
-    // transport
-    //     .0
-    //     .write_all(format!("MAIL FROM: <{}>\r\n", from.full()).as_bytes())
-    //     .unwrap();
-    // // dbg!(read_buf(transport));
-
-    // for rcpt in to {
-    //     transport
-    //         .0
-    //         .write_all(format!("RCPT TO: <{}>\r\n", rcpt.address.full()).as_bytes())
-    //         .unwrap();
-    //     // dbg!(read_buf(transport));
-    // }
-    // transport.0.write_all(b"DATA\r\n").unwrap();
-    // // NOTE: could be useless because of the following read.
-    // transport.0.flush().unwrap();
-    // dbg!(read_buf(transport));
-
-    // // FIXME: use a &str as parameter to prevent convertion to String here.
-    // for line in email.lines() {
-    //     let line = line.unwrap();
-    //     dbg!(&line);
-    //     transport
-    //         .0
-    //         .write_all(format!("{line}\r\n").as_bytes())
-    //         .unwrap();
-    // }
-    // transport.0.write_all(b"\r\n.\r\n").unwrap();
-    // transport.0.flush().unwrap();
-    // dbg!(read_buf(transport));
-    // dbg!("delegate sent!");
-    // Ok(())
-
+) -> anyhow::Result<lettre::transport::smtp::response::Response> {
     let envelope = build_lettre(from, to)?;
-
-    dbg!("send raw ...");
-    dbg!(&transport);
-    dbg!(transport.0.test_connection().unwrap());
-    transport.0.send_raw(&envelope, email).unwrap();
-    // .context("failed to delegate email security")?;
-    dbg!("done");
-
-    Ok(())
+    transport
+        .0
+        .send_raw(&envelope, email)
+        .with_context(|| format!("failed to send email from '{from}' to '{to:?}'"))
 }

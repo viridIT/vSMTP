@@ -25,7 +25,7 @@ use vsmtp_config::Config;
 
 use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
-use crate::dsl::directives::{Action, Delegation, Directive, Directives, Rule};
+use crate::dsl::directives::{Directive, Directives};
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
@@ -43,7 +43,7 @@ pub struct RuleEngine {
     /// ast built from the user's .vsl files.
     pub(super) ast: AST,
     /// rules & actions registered by the user.
-    directives: Directives,
+    pub(super) directives: Directives,
     /// vsl's standard rust api.
     pub(super) vsl_native_module: rhai::Shared<rhai::Module>,
     /// vsl's standard rhai api.
@@ -154,7 +154,6 @@ impl RuleEngine {
         compiler.register_global_module(vsl_rhai_module.clone());
 
         let ast = compiler.compile_into_self_contained(&rhai::Scope::new(), script)?;
-
         let directives = Self::extract_directives(&compiler, &ast)?;
 
         Ok(Self {
@@ -167,21 +166,28 @@ impl RuleEngine {
         })
     }
 
-    /// runs all rules from a stage using the current transaction state.$
+    /// runs all rules from a stage using the current transaction state.
     /// # Panics
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
-        match rule_state.skipped() {
-            Some(Status::DelegationResult(state)) => {
-                if state == smtp_state {
-                    rule_state.resume();
-                }
-            }
-            Some(status) => return (*status).clone(),
-            None => {}
-        }
-
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
-            match self.execute_directives(rule_state, &directive_set[..], smtp_state) {
+            // check if we need to skip directive execution or resume because of a delegation.
+            let directive_set = match rule_state.skipped() {
+                Some(status @ Status::DelegationResult(resume_here)) => {
+                    if let Some(d) = directive_set
+                        .iter()
+                        .position(|directive| directive.name() == resume_here)
+                    {
+                        rule_state.resume();
+                        &directive_set[d..]
+                    } else {
+                        return (*status).clone();
+                    }
+                }
+                Some(status) => return (*status).clone(),
+                None => &directive_set[..],
+            };
+
+            match self.execute_directives(rule_state, directive_set, smtp_state) {
                 Ok(status) => {
                     if status.stop() {
                         log::debug!(
@@ -215,7 +221,7 @@ impl RuleEngine {
     fn execute_directives(
         &self,
         state: &mut RuleState,
-        directives: &[Box<dyn Directive + Send + Sync>],
+        directives: &[Directive],
         smtp_state: &StateSMTP,
     ) -> EngineResult<Status> {
         let mut status = Status::Next;
@@ -362,10 +368,10 @@ impl RuleEngine {
 			.try_cast::<rhai::FnPtr>()
 			.ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} evaluation field must be a function pointer", stage, name))?;
 
-                    let directive: Box<dyn Directive + Send + Sync> =
+                    let directive =
                         match directive_type.as_str() {
-                            "rule" => Box::new(Rule { name, pointer }),
-                            "action" => Box::new(Action { name, pointer }),
+                            "rule" => Directive::Rule { name, pointer },
+                            "action" => Directive::Action { name, pointer },
 			     "delegate" => {
 				let service = map
 				    .get("service")
@@ -373,37 +379,19 @@ impl RuleEngine {
 				    .clone()
 				    .try_cast::<std::sync::Arc<Service>>()
 				    .ok_or_else(|| anyhow::anyhow!("the field after the delegate keyword in delegation {} in stage {} must be a service", name, stage))?;
-				Box::new(Delegation { name, pointer, service})
+				Directive::Delegation { name, pointer, service}
 			    },
                             unknown => anyhow::bail!("unknown directive '{}'", unknown),
                         };
 
                     Ok(directive)
                 })
-                .collect::<anyhow::Result<Vec<Box<_>>>>()?;
+                .collect::<anyhow::Result<Vec<_>>>()?;
 
             directives.insert(stage.to_string(), directive_set);
         }
 
         Ok(directives)
-    }
-
-    /// extract service data from the user's script.
-    pub fn extract_services(&self) -> Vec<std::sync::Arc<Service>> {
-        self.ast.resolver().map_or_else(Vec::default, |resolver| {
-            resolver
-                .iter()
-                .flat_map(|(_, module)| {
-                    module.iter_var().filter_map(|(_, var)| {
-                        if var.is::<std::sync::Arc<Service>>() {
-                            Some(var.clone_cast())
-                        } else {
-                            None
-                        }
-                    })
-                })
-                .collect::<Vec<std::sync::Arc<Service>>>()
-        })
     }
 
     fn build_toml_module(config: &Config, engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {

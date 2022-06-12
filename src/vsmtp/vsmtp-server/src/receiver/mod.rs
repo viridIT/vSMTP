@@ -29,7 +29,7 @@ use vsmtp_common::{
     CodeID, MailParserOnFly,
 };
 use vsmtp_config::{re::rustls, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, Service};
+use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 mod auth_exchange;
 mod connection;
@@ -209,7 +209,6 @@ pub async fn handle_connection<S, M>(
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: std::sync::Arc<Resolvers>,
     mail_handler: &mut M,
-    smtp_service: Option<std::sync::Arc<Service>>,
 ) -> anyhow::Result<()>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
@@ -224,7 +223,6 @@ where
                 rule_engine,
                 resolvers,
                 mail_handler,
-                smtp_service,
             )
             .await;
         }
@@ -236,14 +234,8 @@ where
     conn.send_code(CodeID::Greetings).await?;
 
     while conn.is_alive {
-        let mut transaction = Transaction::new(
-            conn,
-            &helo_domain,
-            rule_engine.clone(),
-            resolvers.clone(),
-            smtp_service.clone(),
-        )
-        .await?;
+        let mut transaction =
+            Transaction::new(conn, &helo_domain, rule_engine.clone(), resolvers.clone()).await?;
 
         if let Some(outcome) = transaction.receive(conn, &helo_domain).await? {
             match outcome {
@@ -261,7 +253,6 @@ where
                             rule_engine,
                             resolvers,
                             mail_handler,
-                            smtp_service,
                         )
                         .await;
                     }
@@ -299,7 +290,6 @@ async fn handle_connection_secured<S, M>(
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: std::sync::Arc<Resolvers>,
     mail_handler: &mut M,
-    smtp_service: Option<std::sync::Arc<Service>>,
 ) -> anyhow::Result<()>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
@@ -351,7 +341,6 @@ where
             &helo_domain,
             rule_engine.clone(),
             resolvers.clone(),
-            smtp_service.clone(),
         )
         .await?;
 

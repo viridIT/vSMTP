@@ -29,7 +29,7 @@ use vsmtp_common::{
     Address, CodeID, ReplyOrCodeID,
 };
 use vsmtp_config::{Config, Resolvers, TlsSecurityLevel};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState, Service};
+use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 enum ProcessedEvent {
     Reply(ReplyOrCodeID),
@@ -366,9 +366,8 @@ impl Transaction {
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
         resolvers: std::sync::Arc<Resolvers>,
-        smtp_receiver: Option<std::sync::Arc<Service>>,
     ) -> anyhow::Result<Transaction> {
-        let mut rule_state = RuleState::with_connection(
+        let rule_state = RuleState::with_connection(
             conn.config.as_ref(),
             resolvers,
             &*rule_engine
@@ -383,14 +382,6 @@ impl Transaction {
                 is_secured: conn.is_secured,
             },
         );
-
-        // Check if the incoming transaction is part of a
-        // delegation, skipping all rules until 'run_on'.
-        if let Some(service) = smtp_receiver {
-            if let Service::Smtp { run_on, .. } = &*service {
-                rule_state.skipping(Status::DelegationResult(run_on.clone()));
-            }
-        }
 
         Ok(Self {
             state: if helo_domain.is_none() {

@@ -15,7 +15,7 @@
  *
 */
 
-use vsmtp_common::{re::lettre, state::StateSMTP};
+use vsmtp_common::re::lettre;
 
 pub mod databases;
 pub mod parsing;
@@ -60,9 +60,6 @@ pub enum Service {
         delegator: std::sync::Arc<std::sync::Mutex<SmtpConnection>>,
         /// Delegation results address.
         receiver: std::net::SocketAddr,
-        /// Where the email will be re-injected in the rule engine
-        /// on delegation results.
-        run_on: StateSMTP,
     },
 }
 

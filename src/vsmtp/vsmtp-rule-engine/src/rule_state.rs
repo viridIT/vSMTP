@@ -1,5 +1,6 @@
 use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
+use crate::dsl::directives::Directive;
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
@@ -91,8 +92,28 @@ impl RuleState {
         rule_engine: &RuleEngine,
         conn: ConnectionContext,
     ) -> Self {
-        let state = Self::new(config, resolvers, rule_engine);
+        let mut state = Self::new(config, resolvers, rule_engine);
+
+        // all rule are skiped until the designated rule
+        // in case of a delegation result.
+        if let Some(directive) =
+            rule_engine
+                .directives
+                .iter()
+                .flat_map(|(_, d)| d)
+                .find(|d| match d {
+                    Directive::Delegation { service, .. } => match &**service {
+                        crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
+                        _ => false,
+                    },
+                    _ => false,
+                })
+        {
+            state.skip = Some(Status::DelegationResult(directive.name().to_string()));
+        }
+
         state.mail_context.write().unwrap().connection = conn;
+
         state
     }
 

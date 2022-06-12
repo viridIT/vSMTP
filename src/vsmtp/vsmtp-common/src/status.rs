@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{state::StateSMTP, ReplyOrCodeID};
+use crate::ReplyOrCodeID;
 
 /// Status of the mail context treated by the rule engine
 #[derive(Debug, Clone, PartialEq, Eq, strum::AsRefStr, serde::Deserialize, serde::Serialize)]
@@ -49,9 +49,9 @@ pub enum Status {
     Delegated,
 
     /// the rule engine must skip all rules until the given
-    /// smtp state because the message received is a delegation
+    /// rule because the message received is a delegation
     /// result, it would be worthless to re-execute all rules.
-    DelegationResult(StateSMTP),
+    DelegationResult(String),
 }
 
 impl Status {

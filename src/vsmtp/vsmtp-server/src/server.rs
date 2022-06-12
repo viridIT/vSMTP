@@ -30,7 +30,7 @@ use vsmtp_common::{
     CodeID,
 };
 use vsmtp_config::{get_rustls_config, re::rustls, Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, Service};
+use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// TCP/IP server
 pub struct Server {
@@ -137,9 +137,7 @@ impl Server {
             Vec<std::net::TcpListener>,
             Vec<std::net::TcpListener>,
         ),
-        smtp_services: Vec<std::sync::Arc<Service>>,
     ) -> anyhow::Result<()> {
-        let smtp_services = std::sync::Arc::new(smtp_services);
         let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
         let (listener, listener_submission, listener_tunneled) = (
@@ -236,13 +234,6 @@ impl Server {
                 stream,
                 client_addr,
                 kind,
-                smtp_services
-                    .iter()
-                    .find(|service| match &***service {
-                        Service::Smtp { receiver, .. } => *receiver == server_addr,
-                        _ => unreachable!(),
-                    })
-                    .cloned(),
                 self.config.clone(),
                 self.tls_config.clone(),
                 self.rsasl.clone(),
@@ -270,7 +261,6 @@ impl Server {
         stream: tokio::net::TcpStream,
         client_addr: std::net::SocketAddr,
         kind: ConnectionKind,
-        smtp_service: Option<std::sync::Arc<Service>>,
         config: std::sync::Arc<Config>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
@@ -301,7 +291,6 @@ impl Server {
                 working_sender,
                 delivery_sender,
             },
-            smtp_service,
         )
         .await;
         let elapsed = begin.elapsed().expect("do not go back to the future");
@@ -364,38 +353,35 @@ mod tests {
 
             tokio::time::timeout(
                 std::time::Duration::from_millis($timeout),
-                s.listen_and_serve(
-                    (
-                        config
-                            .server
-                            .interfaces
-                            .addr
-                            .iter()
-                            .cloned()
-                            .map(socket_bind_anyhow)
-                            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
-                            .unwrap(),
-                        config
-                            .server
-                            .interfaces
-                            .addr_submission
-                            .iter()
-                            .cloned()
-                            .map(socket_bind_anyhow)
-                            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
-                            .unwrap(),
-                        config
-                            .server
-                            .interfaces
-                            .addr_submissions
-                            .iter()
-                            .cloned()
-                            .map(socket_bind_anyhow)
-                            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
-                            .unwrap(),
-                    ),
-                    vec![],
-                ),
+                s.listen_and_serve((
+                    config
+                        .server
+                        .interfaces
+                        .addr
+                        .iter()
+                        .cloned()
+                        .map(socket_bind_anyhow)
+                        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
+                        .unwrap(),
+                    config
+                        .server
+                        .interfaces
+                        .addr_submission
+                        .iter()
+                        .cloned()
+                        .map(socket_bind_anyhow)
+                        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
+                        .unwrap(),
+                    config
+                        .server
+                        .interfaces
+                        .addr_submissions
+                        .iter()
+                        .cloned()
+                        .map(socket_bind_anyhow)
+                        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
+                        .unwrap(),
+                )),
             )
             .await
             .unwrap_err();
