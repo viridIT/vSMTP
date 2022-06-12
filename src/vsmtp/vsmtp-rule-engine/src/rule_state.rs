@@ -130,6 +130,28 @@ impl RuleState {
             config: config.clone(),
             resolvers,
         });
+
+        // all rule are skiped until the designated rule
+        // in case of a delegation result.
+        let skip = if let Some(directive) =
+            rule_engine
+                .directives
+                .iter()
+                .flat_map(|(_, d)| d)
+                .find(|d| match d {
+                    Directive::Delegation { service, .. } => match &**service {
+                        crate::Service::Smtp { receiver, .. } => {
+                            *receiver == mail_context.connection.server_address
+                        }
+                        _ => false,
+                    },
+                    _ => false,
+                }) {
+            Some(Status::DelegationResult(directive.name().to_string()))
+        } else {
+            None
+        };
+
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let message = std::sync::Arc::new(std::sync::RwLock::new(message));
         let engine = Self::build_rhai_engine(
@@ -143,7 +165,7 @@ impl RuleState {
             engine,
             server,
             mail_context,
-            skip: None,
+            skip,
             message,
         }
     }
