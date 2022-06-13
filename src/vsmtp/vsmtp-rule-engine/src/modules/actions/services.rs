@@ -22,8 +22,8 @@ use rhai::{
 #[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod services {
-    use crate::dsl::service::shell::run;
-    use crate::dsl::service::shell::ShellResult;
+    use crate::dsl::service::cmd::run;
+    use crate::dsl::service::cmd::CmdResult;
     use crate::dsl::service::Service;
     use crate::modules::EngineResult;
 
@@ -37,10 +37,10 @@ pub mod services {
         format!("{service:#?}")
     }
 
-    /// execute the given shell service.
-    #[rhai_fn(global, name = "shell_run", return_raw, pure)]
-    pub fn shell_run(service: &mut std::sync::Arc<Service>) -> EngineResult<ShellResult> {
-        if let Service::UnixShell {
+    /// execute the given cmd service.
+    #[rhai_fn(global, name = "cmd_run", return_raw, pure)]
+    pub fn cmd_run(service: &mut std::sync::Arc<Service>) -> EngineResult<CmdResult> {
+        if let Service::Cmd {
             timeout,
             user,
             group,
@@ -51,17 +51,17 @@ pub mod services {
             run(timeout, command, user, group, args)
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
         } else {
-            Err("{service} cannot be run as a shell script.".into())
+            Err("{service} cannot be run as a cmd script.".into())
         }
     }
 
-    /// execute the given shell service with dynamic arguments.
-    #[rhai_fn(global, name = "shell_run", return_raw, pure)]
-    pub fn shell_run_with_args(
+    /// execute the given cmd service with dynamic arguments.
+    #[rhai_fn(global, name = "cmd_run", return_raw, pure)]
+    pub fn run_cmd_with_args(
         service: &mut std::sync::Arc<Service>,
         args: rhai::Array,
-    ) -> EngineResult<ShellResult> {
-        if let Service::UnixShell {
+    ) -> EngineResult<CmdResult> {
+        if let Service::Cmd {
             timeout,
             user,
             group,
@@ -74,12 +74,12 @@ pub mod services {
                 .map(rhai::Dynamic::try_cast)
                 .collect::<Option<Vec<String>>>()
                 .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                    "all shell arguments must be strings".into()
+                    "all cmd arguments must be strings".into()
                 })?;
             run(timeout, command, user, group, &Some(args))
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())
         } else {
-            Err(format!("{service} cannot be run as a shell script.").into())
+            Err(format!("{service} cannot be run as a cmd script.").into())
         }
     }
 
@@ -107,7 +107,7 @@ pub mod services {
                 crate::dsl::service::databases::csv::add_record(path, *delimiter, fd, &record[..])
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
             }
-            _ => Err(format!("cannot use 'db_add' method on a {service} service.").into()),
+            _ => Err("'db_add' can only be used on a database service.".into()),
         }
     }
 
@@ -119,7 +119,7 @@ pub mod services {
                 crate::dsl::service::databases::csv::remove_record(path, key)
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
             }
-            _ => Err(format!("cannot use 'db_add' method on a {service} service.").into()),
+            _ => Err("'db_add' can only be used on a database service.".into()),
         }
     }
 
@@ -147,7 +147,7 @@ pub mod services {
                             .collect())
                     },
                 ),
-            _ => Err(format!("{service} cannot be run as a shell script.").into()),
+            _ => Err(format!("{service} cannot be run as a cmd script.").into()),
         }
     }
 

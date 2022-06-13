@@ -14,9 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use super::{cmd::parse_cmd_service, smtp::parse_smtp_service, Service};
 use crate::modules::EngineResult;
-
-use super::{shell::parse_shell_service, smtp::parse_smtp_service, Service};
 
 /// parse a service using rhai's parser.
 pub fn parse_service(
@@ -29,7 +28,7 @@ pub fn parse_service(
         // type of the service.
         3 => match symbols[2].as_str() {
             // for a regular service, next is the '=' token or ':' token in case of the db type.
-            "shell" | "smtp" | "db" => Ok(Some("$symbol$".into())),
+            "cmd" | "smtp" | "db" => Ok(Some("$symbol$".into())),
             entry => Err(rhai::ParseError(
                 Box::new(rhai::ParseErrorType::BadInput(
                     rhai::LexError::ImproperSymbol(
@@ -90,9 +89,9 @@ pub fn create_service(
 
     let service = match service_type.as_str() {
         "db" => open_database(context, input, &service_name),
-        "shell" => parse_shell_service(context, input, &service_name),
+        "cmd" => parse_cmd_service(context, input, &service_name),
         "smtp" => parse_smtp_service(context, input, &service_name),
-        _ => todo!(),
+        unknown => Err(format!("{unknown} serice does not exist").into()),
     }?;
 
     let ptr = std::sync::Arc::new(service);

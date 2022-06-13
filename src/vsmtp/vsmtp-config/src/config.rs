@@ -18,7 +18,6 @@
 #![allow(missing_docs)]
 #![allow(clippy::use_self)]
 
-use crate::parser::{tls_certificate, tls_private_key};
 use serde_with::serde_as;
 use vsmtp_common::{
     auth::Mechanism,
@@ -236,37 +235,10 @@ pub struct ConfigServerVirtualTls {
         deserialize_with = "crate::parser::tls_protocol_version::deserialize"
     )]
     pub protocol_version: Vec<rustls::ProtocolVersion>,
-    #[serde(
-        // serialize_with = "crate::parser::tls_certificate::serialize",
-        deserialize_with = "crate::parser::tls_certificate::deserialize"
-    )]
-    #[serde(skip_serializing)]
-    pub certificate: rustls::Certificate,
-    #[serde(
-        // serialize_with = "crate::parser::tls_private_key::serialize",
-        deserialize_with = "crate::parser::tls_private_key::deserialize"
-    )]
-    #[serde(skip_serializing)]
-    pub private_key: rustls::PrivateKey,
+    pub certificate: TlsFile<rustls::Certificate>,
+    pub private_key: TlsFile<rustls::PrivateKey>,
     #[serde(default = "ConfigServerVirtualTls::default_sender_security_level")]
     pub sender_security_level: TlsSecurityLevel,
-}
-
-impl ConfigServerVirtualTls {
-    /// create a virtual tls configuration from the certificate & private key paths.
-    ///
-    /// # Errors
-    ///
-    /// * certificate file not found.
-    /// * private key file not found.
-    pub fn from_path(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
-        Ok(Self {
-            protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
-            certificate: tls_certificate::from_string(certificate)?,
-            private_key: tls_private_key::from_string(private_key)?,
-            sender_security_level: ConfigServerVirtualTls::default_sender_security_level(),
-        })
-    }
 }
 
 /// If a TLS configuration is provided, configure how the connection should be treated
@@ -280,6 +252,14 @@ pub enum TlsSecurityLevel {
     Encrypt,
     /// DANE protocol using TLSA dns records to establish a secure connection with a distant server.
     Dane { port: u16 },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(transparent)]
+pub struct TlsFile<T> {
+    #[serde(skip_serializing)]
+    pub inner: T,
+    pub path: std::path::PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -300,18 +280,8 @@ pub struct ConfigServerTls {
         default = "ConfigServerTls::default_cipher_suite"
     )]
     pub cipher_suite: Vec<rustls::CipherSuite>,
-    #[serde(
-        // serialize_with = "crate::parser::tls_certificate::serialize",
-        deserialize_with = "crate::parser::tls_certificate::deserialize"
-    )]
-    #[serde(skip_serializing)]
-    pub certificate: rustls::Certificate,
-    #[serde(
-        // serialize_with = "crate::parser::tls_private_key::serialize",
-        deserialize_with = "crate::parser::tls_private_key::deserialize"
-    )]
-    #[serde(skip_serializing)]
-    pub private_key: rustls::PrivateKey,
+    pub certificate: TlsFile<rustls::Certificate>,
+    pub private_key: TlsFile<rustls::PrivateKey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

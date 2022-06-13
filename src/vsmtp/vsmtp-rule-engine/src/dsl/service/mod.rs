@@ -17,9 +17,9 @@
 
 use vsmtp_common::re::lettre;
 
+pub mod cmd;
 pub mod databases;
 pub mod parsing;
-pub mod shell;
 pub mod smtp;
 
 /// service that enable the user to integrate third party software
@@ -27,7 +27,7 @@ pub mod smtp;
 #[derive(Debug)]
 pub enum Service {
     /// A service can be a program to run in a subprocess
-    UnixShell {
+    Cmd {
         /// A duration after which the subprocess will be forced-kill
         timeout: std::time::Duration,
         /// Optional: a user to run the subprocess under
@@ -69,7 +69,7 @@ impl std::fmt::Display for Service {
             f,
             "{}",
             match self {
-                Self::UnixShell { .. } => "shell",
+                Service::Cmd { .. } => "cmd",
                 Self::CSVDatabase { .. } => "csv-database",
                 Self::Smtp { .. } => "smtp",
             }

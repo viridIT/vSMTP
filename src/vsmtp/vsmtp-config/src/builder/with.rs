@@ -34,7 +34,7 @@ use crate::{
         ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerVirtual, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
-    ConfigServerSMTPAuth, ResolverOptsWrapper,
+    ConfigServerSMTPAuth, ResolverOptsWrapper, TlsFile,
 };
 use vsmtp_common::{
     auth::Mechanism,
@@ -356,8 +356,14 @@ impl Builder<WantsServerTLSConfig> {
                     preempt_cipherlist: false,
                     handshake_timeout: std::time::Duration::from_millis(200),
                     protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
-                    certificate: tls_certificate::from_string(certificate)?,
-                    private_key: tls_private_key::from_string(private_key)?,
+                    certificate: TlsFile::<rustls::Certificate> {
+                        inner: tls_certificate::from_string(certificate)?,
+                        path: certificate.into(),
+                    },
+                    private_key: TlsFile::<rustls::PrivateKey> {
+                        inner: tls_private_key::from_string(private_key)?,
+                        path: private_key.into(),
+                    },
                     cipher_suite: ConfigServerTls::default_cipher_suite(),
                 }),
             },

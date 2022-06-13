@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::re::{anyhow, base64};
+use vsmtp_common::re::anyhow;
 
 pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
     let path = std::path::Path::new(input);
@@ -39,6 +39,8 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::PrivateKey> {
         .ok_or_else(|| anyhow::anyhow!("private key path is valid but empty: '{}'", path.display()))
 }
 
+// TODO: should be used only for debug build
+/*
 pub fn deserialize<'de, D>(deserializer: D) -> Result<rustls::PrivateKey, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -63,10 +65,9 @@ where
     deserializer.deserialize_any(PrivateKeyVisitor)
 }
 
-#[allow(dead_code)]
 pub fn serialize<S>(this: &rustls::PrivateKey, serializer: S) -> Result<S::Ok, S::Error>
 where
-    S: serde::Serializer,
+S: serde::Serializer,
 {
     let key = base64::encode(&this.0)
         .chars()
@@ -75,12 +76,13 @@ where
         .map(|c| c.iter().collect::<String>())
         .collect::<Vec<_>>();
 
-    let mut seq = serializer.serialize_seq(Some(key.len()))?;
+        let mut seq = serializer.serialize_seq(Some(key.len()))?;
     for i in key {
         serde::ser::SerializeSeq::serialize_element(&mut seq, &i)?;
     }
     serde::ser::SerializeSeq::end(seq)
 }
+*/
 
 #[cfg(test)]
 mod tests {
@@ -89,13 +91,11 @@ mod tests {
     use vsmtp_common::re::serde_json;
     use vsmtp_test::get_tls_file;
 
+    use crate::TlsFile;
+
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
     struct S {
-        #[serde(
-            serialize_with = "crate::parser::tls_private_key::serialize",
-            deserialize_with = "crate::parser::tls_private_key::deserialize"
-        )]
-        v: rustls::PrivateKey,
+        v: TlsFile<rustls::PrivateKey>,
     }
 
     #[test]

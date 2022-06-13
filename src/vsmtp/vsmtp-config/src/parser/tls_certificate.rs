@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::re::{anyhow, base64};
+use vsmtp_common::re::anyhow;
 
 pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
     let path = std::path::Path::new(&input);
@@ -34,6 +34,8 @@ pub fn from_string(input: &str) -> anyhow::Result<rustls::Certificate> {
         .ok_or_else(|| anyhow::anyhow!("certificate path is valid but empty: '{}'", path.display()))
 }
 
+// TODO: should be used only for debug build
+/*
 pub fn deserialize<'de, D>(deserializer: D) -> Result<rustls::Certificate, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -76,6 +78,7 @@ where
     }
     serde::ser::SerializeSeq::end(seq)
 }
+*/
 
 #[cfg(test)]
 mod tests {
@@ -84,13 +87,11 @@ mod tests {
     use vsmtp_common::re::serde_json;
     use vsmtp_test::get_tls_file;
 
+    use crate::TlsFile;
+
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
     struct S {
-        #[serde(
-            serialize_with = "crate::parser::tls_certificate::serialize",
-            deserialize_with = "crate::parser::tls_certificate::deserialize"
-        )]
-        v: rustls::Certificate,
+        v: TlsFile<rustls::Certificate>,
     }
 
     #[test]

@@ -96,8 +96,8 @@ pub fn get_rustls_config(
                     // the virtual domain.
                     let (certificate, private_key) = {
                         entry.tls.as_ref().map_or_else(
-                            || (config.certificate.clone(), &config.private_key),
-                            |tls| (tls.certificate.clone(), &tls.private_key),
+                            || (&config.certificate.inner, &config.private_key.inner),
+                            |tls| (&tls.certificate.inner, &tls.private_key.inner),
                         )
                     };
 
@@ -105,7 +105,7 @@ pub fn get_rustls_config(
                         .add(
                             domain,
                             rustls::sign::CertifiedKey {
-                                cert: vec![certificate],
+                                cert: vec![certificate.clone()],
                                 key: rustls::sign::any_supported_type(private_key)?,
                                 ocsp: None,
                                 sct_list: None,
@@ -117,8 +117,8 @@ pub fn get_rustls_config(
                 },
             )?,
             cert: Some(std::sync::Arc::new(rustls::sign::CertifiedKey {
-                cert: vec![config.certificate.clone()],
-                key: rustls::sign::any_supported_type(&config.private_key)?,
+                cert: vec![config.certificate.inner.clone()],
+                key: rustls::sign::any_supported_type(&config.private_key.inner)?,
                 ocsp: None,
                 sct_list: None,
             })),

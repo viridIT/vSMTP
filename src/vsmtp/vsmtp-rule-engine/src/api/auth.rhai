@@ -44,12 +44,12 @@ fn check_relay(allowed_hosts) {
 
     let srv_domain = get_domain();
 
-    if !(ctx().is_auth || (ctx().client_ip in allowed_hosts))
-        && (ctx().rcpt.domain != srv_domain) {
-            sys::delete_rcpt(ctx().rcpt);
-            sys::send(code554_7_1);
-    } else {};
-    sys::next();
+    if !(ctx().is_auth || (ctx().client_ip in allowed_hosts)) && (ctx().rcpt.domain != srv_domain) {
+	delete_rcpt(ctx().rcpt);
+        deny(code554_7_1)
+    } else {
+	next()
+    }
 }
 
 /// check spf record.
