@@ -22,7 +22,7 @@ log = { version = "0.4.17", features = ["serde"] }
 serde_json = "1.0.81"
 addr = { version = "0.15.3" }
 vsmtp-rsasl = { git = "https://github.com/viridIT/rsasl.git", branch = "fix/async", version = "1.5.1-rc1" }
-strum = { version = "0.24.0", features = ["derive"] }
+strum = { version = "0.24.1", features = ["derive"] }
 libc = "0.2.126"
 lettre = { version = "0.10.0-rc.7", default-features = false, features = [
     "smtp-transport",
