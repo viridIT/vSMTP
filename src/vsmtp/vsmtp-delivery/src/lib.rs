@@ -165,6 +165,7 @@ pub mod transport {
 #[cfg(test)]
 pub mod test {
     /// create an empty email context for testing purposes.
+    /// # Panics
     #[must_use]
     pub fn get_default_context() -> vsmtp_common::mail_context::MailContext {
         vsmtp_common::mail_context::MailContext {

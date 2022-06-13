@@ -10,11 +10,7 @@ fn get_mail(body_size: u64) -> lettre::Message {
         .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
         .to("Hei <hei@domain.tld>".parse().unwrap())
         .subject("Happy new year")
-        .body(
-            (0..body_size)
-                .map(|_| rand::random::<char>())
-                .collect::<String>(),
-        )
+        .body((0..body_size).map(|_| 'x').collect::<String>())
         .unwrap()
 }
 
@@ -60,7 +56,7 @@ fn run_benchmark(body_size: u64, port: u16) {
                         .unwrap(),
                     vec![],
                     vec![],
-                ), vec![])
+                ))
                 .await
                 .unwrap();
             });
