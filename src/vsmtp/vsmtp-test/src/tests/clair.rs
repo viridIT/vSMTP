@@ -273,9 +273,9 @@ async fn test_receiver_13() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-            message: MessageBody,
+            mut message: MessageBody,
         ) -> CodeID {
-            let body = message.to_parsed::<MailMimeParser>().unwrap();
+            message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(
@@ -287,7 +287,7 @@ async fn test_receiver_13() {
                 vec![addr!(format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
-                body,
+                message,
                 MessageBody::Parsed(Box::new(Mail {
                     headers: [
                         (
@@ -362,9 +362,9 @@ async fn test_receiver_14() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-            message: MessageBody,
+            mut message: MessageBody,
         ) -> CodeID {
-            let body = message.to_parsed::<MailMimeParser>().unwrap();
+            message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
             assert_eq!(
@@ -376,7 +376,7 @@ async fn test_receiver_14() {
                 vec![addr!(format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
-                body,
+                message,
                 MessageBody::Parsed(Box::new(Mail {
                     headers: [
                         (

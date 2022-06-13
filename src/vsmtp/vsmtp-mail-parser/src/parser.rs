@@ -42,7 +42,7 @@ pub struct MailMimeParser {
 }
 
 impl MailParser for MailMimeParser {
-    fn parse(&mut self, data: Vec<String>) -> anyhow::Result<MessageBody> {
+    fn parse_lines(&mut self, data: Vec<String>) -> anyhow::Result<MessageBody> {
         let data = data.iter().map(String::as_str).collect::<Vec<_>>();
         Ok(MessageBody::Parsed(Box::new(
             self.parse_inner(&mut &data[..]).context("parsing failed")?,
@@ -80,6 +80,13 @@ impl MailMimeParser {
                 None => {
                     // there is an empty lines after headers
                     *content = &content[1..];
+
+                    if content.is_empty() {
+                        return Ok(Mail {
+                            headers,
+                            body: BodyType::Undefined,
+                        });
+                    }
 
                     log::debug!(
                         target: log_channels::PARSER,

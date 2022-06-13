@@ -122,7 +122,10 @@ fn test_rule_state() {
             },
             metadata: None,
         },
-        Some(MessageBody::Raw(vec![])),
+        Some(MessageBody::Raw {
+            headers: vec![],
+            body: "".to_string(),
+        }),
     );
 
     assert_eq!(

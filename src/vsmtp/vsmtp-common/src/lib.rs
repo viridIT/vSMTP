@@ -100,11 +100,13 @@ pub mod transfer;
 /// parsing utils.
 pub mod utils;
 
-mod mechanism;
-
 /// Data related to ESMTP Authentication
 pub mod auth {
-    pub use crate::mechanism::Mechanism;
+    mod credentials;
+    mod mechanism;
+
+    pub use credentials::Credentials;
+    pub use mechanism::Mechanism;
 }
 
 mod r#trait {

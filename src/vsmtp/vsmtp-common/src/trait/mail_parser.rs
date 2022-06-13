@@ -23,7 +23,20 @@ pub trait MailParser: Default {
     /// # Errors
     ///
     /// * the input is not compliant
-    fn parse(&mut self, raw: Vec<String>) -> anyhow::Result<MessageBody>;
+    fn parse_lines(&mut self, raw: Vec<String>) -> anyhow::Result<MessageBody>;
+
+    /// # Errors
+    ///
+    /// * the input is not compliant
+    fn parse_raw(&mut self, headers: Vec<String>, body: String) -> anyhow::Result<MessageBody> {
+        self.parse_lines(
+            headers
+                .into_iter()
+                .chain(std::iter::once("\r\n".to_string()))
+                .chain(body.lines().map(str::to_string))
+                .collect::<Vec<_>>(),
+        )
+    }
 }
 
 /// An abstract async mail parser
@@ -41,19 +54,19 @@ pub trait MailParserOnFly: Default {
     ) -> anyhow::Result<MessageBody>;
 }
 
-#[async_trait::async_trait]
-impl<T> MailParserOnFly for T
-where
-    T: MailParser + Send + Sync,
-{
-    async fn parse<'a>(
-        &'a mut self,
-        mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> anyhow::Result<MessageBody> {
-        let mut buffer = vec![];
-        while let Some(i) = tokio_stream::StreamExt::next(&mut stream).await {
-            buffer.push(i);
-        }
-        self.parse(buffer)
-    }
-}
+// #[async_trait::async_trait]
+// impl<T> MailParserOnFly for T
+// where
+//     T: MailParser + Send + Sync,
+// {
+//     async fn parse<'a>(
+//         &'a mut self,
+//         mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
+//     ) -> anyhow::Result<MessageBody> {
+//         let mut buffer = vec![];
+//         while let Some(i) = tokio_stream::StreamExt::next(&mut stream).await {
+//             buffer.push(i);
+//         }
+//         self.parse(buffer)
+//     }
+// }

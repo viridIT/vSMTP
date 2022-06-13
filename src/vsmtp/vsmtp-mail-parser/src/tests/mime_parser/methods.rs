@@ -14,20 +14,25 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{mail_context::MessageBody, MailParser};
+use vsmtp_common::mail_context::MessageBody;
 
 use crate::MailMimeParser;
 
 fn generate_test_bodies() -> (MessageBody, MessageBody) {
-    let raw_email = r#"From: john <john@example.com>
-To: green@example.com
-Date: tue, 30 nov 2021 20:54:27 +0100
-Content-Language: en-US
-Subject: test message
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+    let headers = [
+        "From: john <john@example.com>",
+        "To: green@example.com",
+        "Date: tue, 30 nov 2021 20:54:27 +0100",
+        "Content-Language: en-US",
+        "Subject: test message",
+        "Content-Type: text/html; charset=UTF-8",
+        "Content-Transfer-Encoding: 7bit",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect::<Vec<_>>();
 
-<html>
+    let body = r#"<html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
   </head>
@@ -35,14 +40,14 @@ Content-Transfer-Encoding: 7bit
     only plain text here<br>
   </body>
 </html>
-"#;
+"#
+    .to_string();
 
-    (
-        MessageBody::Raw(raw_email.lines().map(str::to_string).collect::<Vec<_>>()),
-        MailMimeParser::default()
-            .parse(raw_email.lines().map(str::to_string).collect::<Vec<_>>())
-            .unwrap(),
-    )
+    let raw = MessageBody::Raw { headers, body };
+    let mut parsed = raw.clone();
+    parsed.to_parsed::<MailMimeParser>().unwrap();
+
+    (raw, parsed)
 }
 
 #[test]

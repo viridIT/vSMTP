@@ -9,7 +9,7 @@ const MAIL: &str = include_str!("../../mail/rfc5322/A.1.2.eml");
 #[test]
 fn types_mailboxes() {
     let parsed = MailMimeParser::default()
-        .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+        .parse_lines(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
         .unwrap();
     pretty_assertions::assert_eq!(
         parsed,

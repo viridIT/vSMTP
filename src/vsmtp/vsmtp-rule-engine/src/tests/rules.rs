@@ -71,7 +71,7 @@ fn test_mail_from_rules() {
 
         *message = Some(
             MailMimeParser::default()
-                .parse(
+                .parse_lines(
                     r#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
@@ -122,7 +122,7 @@ fn test_rcpt_rules() {
 
         *message = Some(
             MailMimeParser::default()
-                .parse(
+                .parse_lines(
                     r#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 

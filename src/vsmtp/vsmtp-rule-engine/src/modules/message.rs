@@ -144,7 +144,7 @@ pub mod message_calling_parse {
         let mut writer = vsl_guard_ok!(this.write());
         match vsl_parse_ok!(writer) {
             MessageBody::Parsed(body) => body.rewrite_mail_from(new_addr.full()),
-            MessageBody::Raw(..) => unreachable!("the message has been parsed just above"),
+            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }
         Ok(())
     }
@@ -161,7 +161,7 @@ pub mod message_calling_parse {
         let mut writer = vsl_guard_ok!(this.write());
         match vsl_parse_ok!(writer) {
             MessageBody::Parsed(body) => body.rewrite_rcpt(old_addr.full(), new_addr.full()),
-            MessageBody::Raw(..) => unreachable!("the message has been parsed just above"),
+            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }
         Ok(())
     }
@@ -174,7 +174,7 @@ pub mod message_calling_parse {
         let mut writer = vsl_guard_ok!(this.write());
         match vsl_parse_ok!(writer) {
             MessageBody::Parsed(body) => body.add_rcpt(new_addr.full()),
-            MessageBody::Raw(..) => unreachable!("the message has been parsed just above"),
+            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }
         Ok(())
     }
@@ -187,7 +187,7 @@ pub mod message_calling_parse {
         let mut writer = vsl_guard_ok!(this.write());
         match vsl_parse_ok!(writer) {
             MessageBody::Parsed(body) => body.remove_rcpt(addr.full()),
-            MessageBody::Raw(..) => unreachable!("the message has been parsed just above"),
+            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }
         Ok(())
     }

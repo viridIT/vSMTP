@@ -15,11 +15,8 @@
  *
 */
 use vsmtp_common::{
-    auth::Mechanism,
-    mail_context::{AuthCredentials, ConnectionContext},
-    re::vsmtp_rsasl,
-    state::StateSMTP,
-    status::Status,
+    auth::Credentials, auth::Mechanism, mail_context::ConnectionContext, re::vsmtp_rsasl,
+    state::StateSMTP, status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -74,7 +71,7 @@ impl
         sasl.store(config.clone());
 
         let credentials = match prop {
-            vsmtp_rsasl::Property::GSASL_PASSWORD => AuthCredentials::Query {
+            vsmtp_rsasl::Property::GSASL_PASSWORD => Credentials::Query {
                 authid: session
                     .get_property(vsmtp_rsasl::Property::GSASL_AUTHID)
                     .ok_or(vsmtp_rsasl::ReturnCode::GSASL_NO_AUTHID)?
@@ -82,7 +79,7 @@ impl
                     .unwrap()
                     .to_string(),
             },
-            vsmtp_rsasl::Property::GSASL_VALIDATE_SIMPLE => AuthCredentials::Verify {
+            vsmtp_rsasl::Property::GSASL_VALIDATE_SIMPLE => Credentials::Verify {
                 authid: session
                     .get_property(vsmtp_rsasl::Property::GSASL_AUTHID)
                     .ok_or(vsmtp_rsasl::ReturnCode::GSASL_NO_AUTHID)?
@@ -96,7 +93,7 @@ impl
                     .unwrap()
                     .to_string(),
             },
-            vsmtp_rsasl::Property::GSASL_VALIDATE_ANONYMOUS => AuthCredentials::AnonymousToken {
+            vsmtp_rsasl::Property::GSASL_VALIDATE_ANONYMOUS => Credentials::AnonymousToken {
                 token: session
                     .get_property(vsmtp_rsasl::Property::GSASL_ANONYMOUS_TOKEN)
                     .ok_or(vsmtp_rsasl::ReturnCode::GSASL_NO_ANONYMOUS_TOKEN)?
