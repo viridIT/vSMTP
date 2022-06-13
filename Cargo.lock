@@ -651,7 +651,7 @@ checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 [[package]]
 name = "gsasl-sys"
 version = "0.2.4"
-source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#fbeccd47235ce8b9d0791bf62295acf1c1c12e94"
+source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#d7badd3cd383c8f75028153353a472379b180714"
 dependencies = [
  "bindgen",
 ]
@@ -2119,8 +2119,8 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rsasl"
-version = "1.5.1-rc1"
-source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#fbeccd47235ce8b9d0791bf62295acf1c1c12e94"
+version = "1.5.1-rc2"
+source = "git+https://github.com/viridIT/rsasl.git?branch=fix/async#d7badd3cd383c8f75028153353a472379b180714"
 dependencies = [
  "discard",
  "gsasl-sys",
