@@ -54,6 +54,7 @@ fuzz_target!(|data: &[u8]| {
     let mut conn = Connection::new(
         ConnectionKind::Relay,
         "0.0.0.0:0".parse().unwrap(),
+        "0.0.0.0:0".parse().unwrap(),
         config.clone(),
         &mut mock,
     );
