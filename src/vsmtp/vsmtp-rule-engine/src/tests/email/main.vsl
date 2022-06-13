@@ -74,7 +74,7 @@
             }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing connect" || accept(),
     ],
 
     preq: [
@@ -118,7 +118,7 @@
             }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing preq" || accept(),
     ],
 
     postq: [
@@ -162,6 +162,6 @@
             }
         },
 
-        rule "trailing" || accept(),
+        rule "trailing postq" || accept(),
     ]
 }

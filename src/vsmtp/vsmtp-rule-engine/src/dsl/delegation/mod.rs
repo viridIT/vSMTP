@@ -15,9 +15,4 @@
  *
 */
 
-pub mod action;
-pub mod delegation;
-pub mod directives;
-pub mod object;
-pub mod rule;
-pub mod service;
+pub mod parsing;

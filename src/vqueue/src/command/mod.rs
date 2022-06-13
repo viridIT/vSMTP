@@ -125,8 +125,9 @@ mod tests {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
+                server_address: "0.0.0.0:25".parse().unwrap(),
             },
-            client_addr: "0.0.0.0:25".parse().unwrap(),
+            client_addr: "0.0.0.0:26".parse().unwrap(),
             envelop: Envelop {
                 helo: "toto".to_string(),
                 mail_from: addr!("foo@domain.com"),

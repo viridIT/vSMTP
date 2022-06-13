@@ -2062,6 +2062,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64",
+ "lettre",
  "libc",
  "log",
  "pretty_assertions",
@@ -2101,7 +2102,6 @@ name = "vsmtp-delivery"
 version = "1.0.0"
 dependencies = [
  "async-trait",
- "lettre",
  "time 0.3.9",
  "trust-dns-resolver",
  "users",
@@ -2135,7 +2135,6 @@ dependencies = [
  "hostname",
  "ipnet",
  "iprange",
- "lettre",
  "regex",
  "rhai",
  "thiserror",

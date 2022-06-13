@@ -23,7 +23,7 @@ use vsmtp_config::Config;
 
 /// how the server would react to tls interaction for this connection
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, vsmtp_common::re::strum::Display)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, vsmtp_common::re::strum::Display)]
 pub enum ConnectionKind {
     /// Connection coming for relay (MTA on port 25)
     Relay,
@@ -51,6 +51,8 @@ where
     pub config: std::sync::Arc<Config>,
     /// peer socket address
     pub client_addr: std::net::SocketAddr,
+    /// address used for this connection
+    pub server_addr: std::net::SocketAddr,
     /// number of error the client made so far
     pub error_count: i64,
     /// is under tls (tunneled or opportunistic)
@@ -71,6 +73,7 @@ where
     pub fn new(
         kind: ConnectionKind,
         client_addr: std::net::SocketAddr,
+        server_addr: std::net::SocketAddr,
         config: std::sync::Arc<Config>,
         inner: S,
     ) -> Self {
@@ -81,6 +84,7 @@ where
             is_alive: true,
             config,
             client_addr,
+            server_addr,
             error_count: 0,
             is_secured: false,
             inner: AbstractIO::new(inner),
@@ -97,6 +101,7 @@ where
         timestamp: std::time::SystemTime,
         config: std::sync::Arc<Config>,
         client_addr: std::net::SocketAddr,
+        server_addr: std::net::SocketAddr,
         error_count: i64,
         is_secured: bool,
         is_authenticated: bool,
@@ -110,6 +115,7 @@ where
             is_alive: true,
             config,
             client_addr,
+            server_addr,
             error_count,
             is_secured,
             is_authenticated,
@@ -155,7 +161,8 @@ where
     pub async fn send_reply(&mut self, reply: Reply) -> anyhow::Result<()> {
         log::info!(
             target: log_channels::CONNECTION,
-            "sending reply=\"{reply:?}\"",
+            "[{}] sending reply=\"{reply:?}\"",
+            self.server_addr
         );
 
         if !reply.code().is_error() {
@@ -201,7 +208,12 @@ where
     ///
     /// * internal connection writer error
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
-        log::info!(target: log_channels::CONNECTION, "send=\"{:?}\"", reply);
+        log::info!(
+            target: log_channels::CONNECTION,
+            "[{}] send=\"{:?}\"",
+            self.server_addr,
+            reply
+        );
         tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes()).await?;
         Ok(())
     }

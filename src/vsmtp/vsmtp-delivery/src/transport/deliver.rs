@@ -21,7 +21,7 @@ use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MessageMetadata,
     rcpt::{filter_by_domain_mut, Rcpt},
-    re::{anyhow, log},
+    re::{anyhow, lettre, log},
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::Config;
@@ -50,7 +50,7 @@ impl<'r> Transport for Deliver<'r> {
         content: &str,
     ) -> anyhow::Result<()> {
         for (query, rcpt) in &mut filter_by_domain_mut(to) {
-            let envelop = super::build_lettre_envelop(
+            let envelop = vsmtp_common::envelop::build_lettre(
                 from,
                 // TODO: 'to' parameter should be immutable, and the deliver
                 //       implementor should return a new set of recipients.
@@ -195,7 +195,12 @@ mod test {
         get_mx_records, send_email, update_rcpt_failed, update_rcpt_sent,
     };
     use trust_dns_resolver::TokioAsyncResolver;
-    use vsmtp_common::{addr, rcpt::Rcpt, re::tokio, transfer::EmailTransferStatus};
+    use vsmtp_common::{
+        addr,
+        rcpt::Rcpt,
+        re::{lettre, tokio},
+        transfer::EmailTransferStatus,
+    };
     use vsmtp_config::{Config, ConfigServerDNS};
 
     #[test]

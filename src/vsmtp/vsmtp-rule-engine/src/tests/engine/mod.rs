@@ -16,7 +16,6 @@
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{
-    envelop::Envelop,
     mail_context::{ConnectionContext, MailContext, MessageBody},
     state::StateSMTP,
     status::Status,
@@ -42,10 +41,6 @@ fn test_engine_errors() {
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
-    );
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::RcptTo),
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
 }
@@ -110,12 +105,10 @@ fn test_rule_state() {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
+                server_address: "127.0.0.1:25".parse().unwrap(),
             },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
-                25,
-            ),
-            envelop: Envelop {
+            client_addr: "127.0.0.1:26".parse().unwrap(),
+            envelop: vsmtp_common::envelop::Envelop {
                 helo: "test".to_string(),
                 mail_from: vsmtp_common::addr!("a@a.a"),
                 rcpt: vec![],

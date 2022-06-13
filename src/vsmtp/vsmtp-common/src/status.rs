@@ -43,4 +43,27 @@ pub enum Status {
 
     /// used to send data from .vsl to vsmtp's server
     Packet(String),
+
+    // TODO: add rule / action name,
+    /// the email as been delegated to another service.
+    Delegated,
+
+    /// the rule engine must skip all rules until the given
+    /// rule because the message received is a delegation
+    /// result, it would be worthless to re-execute all rules.
+    DelegationResult(String),
+}
+
+impl Status {
+    /// Checks if current status stops evaluation of
+    /// the next rules.
+    #[must_use]
+    pub const fn stop(&self) -> bool {
+        match self {
+            Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated => {
+                true
+            }
+            _ => false,
+        }
+    }
 }

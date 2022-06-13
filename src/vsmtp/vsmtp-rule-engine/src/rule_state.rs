@@ -1,4 +1,6 @@
 use crate::dsl::action::parsing::{create_action, parse_action};
+use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
+use crate::dsl::directives::Directive;
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
@@ -45,11 +47,21 @@ impl RuleState {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: config.server.domain.clone(),
+                server_address: config
+                    .server
+                    .interfaces
+                    .addr
+                    .get(0)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        "0.0.0.0:0"
+                            .parse()
+                            .expect("default server address should be parsable")
+                    }),
             },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
+            client_addr: "0.0.0.0:0"
+                .parse()
+                .expect("default client address should be parsable"),
             envelop: Envelop::default(),
             metadata: None,
         }));
@@ -80,8 +92,28 @@ impl RuleState {
         rule_engine: &RuleEngine,
         conn: ConnectionContext,
     ) -> Self {
-        let state = Self::new(config, resolvers, rule_engine);
+        let mut state = Self::new(config, resolvers, rule_engine);
+
+        // all rule are skiped until the designated rule
+        // in case of a delegation result.
+        if let Some(directive) =
+            rule_engine
+                .directives
+                .iter()
+                .flat_map(|(_, d)| d)
+                .find(|d| match d {
+                    Directive::Delegation { service, .. } => match &**service {
+                        crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
+                        _ => false,
+                    },
+                    _ => false,
+                })
+        {
+            state.skip = Some(Status::DelegationResult(directive.name().to_string()));
+        }
+
         state.mail_context.write().unwrap().connection = conn;
+
         state
     }
 
@@ -98,6 +130,24 @@ impl RuleState {
             config: config.clone(),
             resolvers,
         });
+
+        // all rule are skiped until the designated rule
+        // in case of a delegation result.
+        let skip = rule_engine
+            .directives
+            .iter()
+            .flat_map(|(_, d)| d)
+            .find(|d| match d {
+                Directive::Delegation { service, .. } => match &**service {
+                    crate::Service::Smtp { receiver, .. } => {
+                        *receiver == mail_context.connection.server_address
+                    }
+                    _ => false,
+                },
+                _ => false,
+            })
+            .map(|directive| Status::DelegationResult(directive.name().to_string()));
+
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let message = std::sync::Arc::new(std::sync::RwLock::new(message));
         let engine = Self::build_rhai_engine(
@@ -111,8 +161,8 @@ impl RuleState {
             engine,
             server,
             mail_context,
-            skip: None,
             message,
+            skip,
         }
     }
 
@@ -128,7 +178,7 @@ impl RuleState {
         // NOTE: on_var is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
         engine
-            // NOTE: why do we have to clone the arc twice instead of just moving it here ?
+            // NOTE: why do we have to clone the arc instead of just moving it here ?
             // injecting the state if the current connection into the engine.
             .on_var(move |name, _, _| match name {
                 "CTX" => Ok(Some(rhai::Dynamic::from(mail_context.clone()))),
@@ -145,6 +195,7 @@ impl RuleState {
             //        need to check out how to construct directives as a module.
             .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
             .register_custom_syntax_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
             .register_custom_syntax_raw("service", parse_service, true, create_service)
             .register_iterator::<Vec<vsmtp_common::Address>>()
@@ -201,5 +252,10 @@ impl RuleState {
     /// future rule execution need to be skipped for this state.
     pub fn skipping(&mut self, status: Status) {
         self.skip = Some(status);
+    }
+
+    /// future rules can be resumed.
+    pub fn resume(&mut self) {
+        self.skip = None;
     }
 }

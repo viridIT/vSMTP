@@ -18,11 +18,11 @@ use super::Transport;
 use crate::transport::log_channels;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
-// use anyhow::Context;
 use vsmtp_common::{
+    envelop::build_lettre,
     mail_context::MessageMetadata,
     rcpt::Rcpt,
-    re::{anyhow, log},
+    re::{anyhow, lettre, log},
     transfer::{EmailTransferStatus, ForwardTarget},
 };
 use vsmtp_config::Config;
@@ -68,8 +68,7 @@ impl<'r> Transport for Forward<'r> {
                 .to_string())
         }
 
-        let envelop = super::build_lettre_envelop(from, to)
-            .context("failed to build envelop to forward email")?;
+        let envelop = build_lettre(from, to).context("failed to build envelop to forward email")?;
 
         // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
         let target = match &self.to {

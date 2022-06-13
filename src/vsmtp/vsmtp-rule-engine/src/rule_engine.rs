@@ -24,11 +24,13 @@ use vsmtp_common::status::Status;
 use vsmtp_config::Config;
 
 use crate::dsl::action::parsing::{create_action, parse_action};
-use crate::dsl::directives::{Action, Directive, Directives, Rule};
+use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
+use crate::dsl::directives::{Directive, Directives};
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
+use crate::dsl::service::Service;
 use crate::modules::actions::rule_state::rule_state::deny;
 use crate::modules::EngineResult;
 use crate::rule_state::RuleState;
@@ -41,7 +43,7 @@ pub struct RuleEngine {
     /// ast built from the user's .vsl files.
     pub(super) ast: AST,
     /// rules & actions registered by the user.
-    directives: Directives,
+    pub(super) directives: Directives,
     /// vsl's standard rust api.
     pub(super) vsl_native_module: rhai::Shared<rhai::Module>,
     /// vsl's standard rhai api.
@@ -152,7 +154,6 @@ impl RuleEngine {
         compiler.register_global_module(vsl_rhai_module.clone());
 
         let ast = compiler.compile_into_self_contained(&rhai::Scope::new(), script)?;
-
         let directives = Self::extract_directives(&compiler, &ast)?;
 
         Ok(Self {
@@ -165,17 +166,30 @@ impl RuleEngine {
         })
     }
 
-    /// runs all rules from a stage using the current transaction state.$
+    /// runs all rules from a stage using the current transaction state.
     /// # Panics
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
-        if let Some(status) = rule_state.skipped() {
-            return (*status).clone();
-        }
-
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
-            match self.execute_directives(rule_state.engine(), &directive_set[..], smtp_state) {
+            // check if we need to skip directive execution or resume because of a delegation.
+            let directive_set = match rule_state.skipped() {
+                Some(status @ Status::DelegationResult(resume_here)) => {
+                    if let Some(d) = directive_set
+                        .iter()
+                        .position(|directive| directive.name() == resume_here)
+                    {
+                        rule_state.resume();
+                        &directive_set[d..]
+                    } else {
+                        return (*status).clone();
+                    }
+                }
+                Some(status) => return (*status).clone(),
+                None => &directive_set[..],
+            };
+
+            match self.execute_directives(rule_state, directive_set, smtp_state) {
                 Ok(status) => {
-                    if let Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) = status {
+                    if status.stop() {
                         log::debug!(
                             target: log_channels::RE,
                             "[{}] the rule engine will skip all rules because of the previous result.",
@@ -206,14 +220,14 @@ impl RuleEngine {
 
     fn execute_directives(
         &self,
-        engine: &rhai::Engine,
-        directives: &[Box<dyn Directive + Send + Sync>],
+        state: &mut RuleState,
+        directives: &[Directive],
         smtp_state: &StateSMTP,
     ) -> EngineResult<Status> {
         let mut status = Status::Next;
 
         for directive in directives {
-            status = directive.execute(engine, &self.ast)?;
+            status = directive.execute(state, &self.ast)?;
 
             log::debug!(
                 target: log_channels::RE,
@@ -287,6 +301,7 @@ impl RuleEngine {
             })
             .register_custom_syntax_raw("rule", parse_rule, true, create_rule)
             .register_custom_syntax_raw("action", parse_action, true, create_action)
+            .register_custom_syntax_raw("delegate", parse_delegation, true, create_delegation)
             .register_custom_syntax_raw("object", parse_object, true, create_object)
             .register_custom_syntax_raw("service", parse_service, true, create_service)
             .register_iterator::<Vec<vsmtp_common::Address>>()
@@ -303,9 +318,9 @@ impl RuleEngine {
                     include_str!("api/codes.rhai"),
                     include_str!("api/networks.rhai"),
                     include_str!("api/auth.rhai"),
+                    include_str!("api/utils.rhai"),
                     include_str!("api/sys-api.rhai"),
                     include_str!("api/rhai-api.rhai"),
-                    include_str!("api/utils.rhai"),
                 ],
             )
             .context("failed to compile vsl's api")?;
@@ -348,20 +363,71 @@ impl RuleEngine {
                         .to_string();
                     let pointer = map
                         .get("evaluate")
-                        .ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} does not have an evaluation function", stage, name))?.clone().try_cast::<rhai::FnPtr>().ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} evaluation field must be a function pointer", stage, name))?;
+                        .ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} does not have an evaluation function", stage, name))?
+			.clone()
+			.try_cast::<rhai::FnPtr>()
+			.ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} evaluation field must be a function pointer", stage, name))?;
 
-                    let directive: Box<dyn Directive + Send + Sync> =
+                    let directive =
                         match directive_type.as_str() {
-                            "rule" => Box::new(Rule { name, pointer }),
-                            "action" => Box::new(Action { name, pointer}),
+                            "rule" => Directive::Rule { name, pointer },
+                            "action" => Directive::Action { name, pointer },
+			     "delegate" => {
+				let service = map
+				    .get("service")
+				    .ok_or_else(|| anyhow::anyhow!("the delegation {} in stage {} does not have a service to delegate processing to", name, stage))?
+				    .clone()
+				    .try_cast::<std::sync::Arc<Service>>()
+				    .ok_or_else(|| anyhow::anyhow!("the field after the delegate keyword in delegation {} in stage {} must be a service", name, stage))?;
+				Directive::Delegation { name, pointer, service}
+			    },
                             unknown => anyhow::bail!("unknown directive '{}'", unknown),
                         };
 
                     Ok(directive)
                 })
-                .collect::<anyhow::Result<Vec<Box<_>>>>()?;
+                .collect::<anyhow::Result<Vec<_>>>()?;
 
             directives.insert(stage.to_string(), directive_set);
+        }
+
+        let names = directives
+            .iter()
+            .flat_map(|(_, d)| d)
+            .map(crate::dsl::directives::Directive::name)
+            .collect::<Vec<_>>();
+
+        // TODO: refactor l.418 with templated function 'find_duplicate'.
+        for (idx, name) in names.iter().enumerate() {
+            for other in &names[idx + 1..] {
+                if other == name {
+                    anyhow::bail!(
+                        "found duplicate rule '{}': a rule must have a unique name",
+                        name
+                    );
+                }
+            }
+        }
+
+        // check for delegation directive with smtp services with the same receiver port.
+        let sockets = directives
+            .iter()
+            .flat_map(|(_, d)| d)
+            .filter_map(|d| match d {
+                Directive::Delegation { service, .. } => match &**service {
+                    Service::Smtp { receiver, .. } => Some(receiver),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        for (idx, socket) in sockets.iter().enumerate() {
+            for other in &sockets[idx + 1..] {
+                if other == socket {
+                    anyhow::bail!("found duplicate smtp service receiver port {}: you must only use one port per smtp service receiver", socket);
+                }
+            }
         }
 
         Ok(directives)

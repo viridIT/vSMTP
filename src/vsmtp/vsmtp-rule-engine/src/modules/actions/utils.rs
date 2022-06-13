@@ -29,6 +29,7 @@ const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
 pub mod utils {
 
     use crate::modules::EngineResult;
+    use vsmtp_common::re::lettre;
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.

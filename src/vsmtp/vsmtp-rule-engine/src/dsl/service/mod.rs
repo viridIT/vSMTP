@@ -15,38 +15,51 @@
  *
 */
 
+use vsmtp_common::re::lettre;
+
 pub mod cmd;
 pub mod databases;
 pub mod parsing;
+pub mod smtp;
 
+/// service that enable the user to integrate third party software
+/// into his rules.
 #[derive(Debug)]
 pub enum Service {
     /// A service can be a program to run in a subprocess
     Cmd {
-        /// a duration after which the subprocess will be forced-kill
+        /// A duration after which the subprocess will be forced-kill
         timeout: std::time::Duration,
-        /// optional: a user to run the subprocess under
+        /// Optional: a user to run the subprocess under
         user: Option<String>,
-        /// optional: a group to run the subprocess under
+        /// Optional: a group to run the subprocess under
         group: Option<String>,
-        /// the command to execute in the subprocess
+        /// The command to execute in the subprocess
         command: String,
-        /// optional: parameters directly given to the executed program (argc, argv)
+        /// Optional: parameters directly given to the executed program (argc, argv)
         args: Option<Vec<String>>,
     },
 
-    /// a database connector based on the csv file format.
+    /// A database connector based on the csv file format.
     CSVDatabase {
-        /// a path to the file to open.
+        /// A path to the file to open.
         path: std::path::PathBuf,
-        /// access mode to the database.
+        /// Access mode to the database.
         access: databases::AccessMode,
-        /// delimiter character to separate fields in records.
+        /// Delimiter character to separate fields in records.
         delimiter: u8,
-        /// database refresh mode.
+        /// Database refresh mode.
         refresh: databases::Refresh,
-        /// raw content of the database.
+        /// Raw content of the database.
         fd: std::fs::File,
+    },
+
+    /// A service that handles smtp transactions.
+    Smtp {
+        /// A transport to handle transactions to the delegate.
+        delegator: std::sync::Arc<std::sync::Mutex<SmtpConnection>>,
+        /// Delegation results address.
+        receiver: std::net::SocketAddr,
     },
 }
 
@@ -57,8 +70,20 @@ impl std::fmt::Display for Service {
             "{}",
             match self {
                 Service::Cmd { .. } => "cmd",
-                Service::CSVDatabase { .. } => "csv-database",
+                Self::CSVDatabase { .. } => "csv-database",
+                Self::Smtp { .. } => "smtp",
             }
         )
+    }
+}
+
+/// a transport using the smtp protocol.
+/// (mostly a new type over lettre::SmtpTransport to implement debug
+/// and make switching transport easy if needed)
+pub struct SmtpConnection(pub lettre::SmtpTransport);
+
+impl std::fmt::Debug for SmtpConnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SmtpTransport").finish()
     }
 }

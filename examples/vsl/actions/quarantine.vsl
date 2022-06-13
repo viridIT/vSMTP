@@ -7,7 +7,7 @@
             ()
         },
 
-        rule "trailing" || accept(),
+        rule "trailing preq" || accept(),
     ],
 
     postq: [
@@ -15,6 +15,6 @@
             quarantine("tests/generated/quarantine2")
         },
 
-        rule "trailing" || accept(),
+        rule "trailing postq" || accept(),
     ]
 }

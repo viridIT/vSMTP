@@ -29,5 +29,7 @@ pub mod rule_engine;
 ///
 pub mod rule_state;
 
+pub use dsl::service::Service;
+
 #[cfg(test)]
 mod tests;

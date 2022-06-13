@@ -44,11 +44,9 @@ mod test {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
+                server_address: "127.0.0.1:25".parse().unwrap(),
             },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
+            client_addr: "0.0.0.0:0".parse().unwrap(),
             envelop: vsmtp_common::envelop::Envelop::default(),
             metadata: Some(vsmtp_common::mail_context::MessageMetadata {
                 timestamp: std::time::SystemTime::now(),

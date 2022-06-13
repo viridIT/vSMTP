@@ -22,7 +22,6 @@ use rhai::{
 #[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod services {
-
     use crate::dsl::service::cmd::run;
     use crate::dsl::service::cmd::CmdResult;
     use crate::dsl::service::Service;
@@ -108,9 +107,7 @@ pub mod services {
                 crate::dsl::service::databases::csv::add_record(path, *delimiter, fd, &record[..])
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
             }
-            Service::Cmd { .. } => {
-                Err(format!("cannot use 'db_add' method on a {service} service.").into())
-            }
+            _ => Err("'db_add' can only be used on a database service.".into()),
         }
     }
 
@@ -122,9 +119,7 @@ pub mod services {
                 crate::dsl::service::databases::csv::remove_record(path, key)
                     .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
             }
-            Service::Cmd { .. } => {
-                Err(format!("cannot use 'db_add' method on a {service} service.").into())
-            }
+            _ => Err("'db_add' can only be used on a database service.".into()),
         }
     }
 
@@ -134,15 +129,14 @@ pub mod services {
         service: &mut std::sync::Arc<Service>,
         key: &str,
     ) -> EngineResult<rhai::Array> {
-        if let Service::CSVDatabase {
-            path,
-            delimiter,
-            refresh,
-            fd,
-            ..
-        } = &**service
-        {
-            crate::dsl::service::databases::csv::query_key(path, *delimiter, refresh, fd, key)
+        match &**service {
+            Service::CSVDatabase {
+                path,
+                delimiter,
+                refresh,
+                fd,
+                ..
+            } => crate::dsl::service::databases::csv::query_key(path, *delimiter, refresh, fd, key)
                 .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?
                 .map_or_else(
                     || Ok(rhai::Array::default()),
@@ -152,9 +146,19 @@ pub mod services {
                             .map(|field| rhai::Dynamic::from(field.to_string()))
                             .collect())
                     },
-                )
-        } else {
-            Err(format!("{service} cannot be run as a cmd script.").into())
+                ),
+            _ => Err(format!("{service} cannot be run as a cmd script.").into()),
+        }
+    }
+
+    /// get the receiver address from a smtp service.
+    #[rhai_fn(global, get = "receiver_address", return_raw, pure)]
+    pub fn smtp_service_receiver_address(
+        service: &mut std::sync::Arc<Service>,
+    ) -> EngineResult<String> {
+        match &**service {
+            Service::Smtp { receiver, .. } => Ok(receiver.to_string()),
+            _ => Err("only a smtp service has a receiver address".into()),
         }
     }
 }

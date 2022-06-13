@@ -30,9 +30,9 @@
 
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {
-    use anyhow::Context;
-    use lettre::Tokio1Executor;
     use trust_dns_resolver::TokioAsyncResolver;
+    use vsmtp_common::re::anyhow::Context;
+    use vsmtp_common::re::lettre;
     use vsmtp_common::{mail_context::MessageMetadata, rcpt::Rcpt, re::anyhow, Address};
     use vsmtp_config::Config;
 
@@ -83,24 +83,6 @@ pub mod transport {
         }
     }
 
-    /// build a [lettre] envelop using from address & recipients.
-    pub(super) fn build_lettre_envelop(
-        from: &vsmtp_common::Address,
-        rcpt: &[Rcpt],
-    ) -> anyhow::Result<lettre::address::Envelope> {
-        Ok(lettre::address::Envelope::new(
-            Some(
-                from.full()
-                    .parse()
-                    .context("failed to parse from address")?,
-            ),
-            rcpt.iter()
-                // NOTE: address that couldn't be converted will be silently dropped.
-                .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
-                .collect(),
-        )?)
-    }
-
     /// build a transport using opportunistic tls and toml specified certificates.
     /// TODO: resulting transport should be cached.
     fn build_transport(
@@ -109,7 +91,7 @@ pub mod transport {
         _: &TokioAsyncResolver,
         from: &vsmtp_common::Address,
         target: &str,
-    ) -> anyhow::Result<lettre::AsyncSmtpTransport<Tokio1Executor>> {
+    ) -> anyhow::Result<lettre::AsyncSmtpTransport<lettre::Tokio1Executor>> {
         let tls_builder =
             lettre::transport::smtp::client::TlsParameters::builder(target.to_string());
 
@@ -152,7 +134,7 @@ pub mod transport {
             .context("failed to build tls parameters")?;
 
         Ok(
-            lettre::AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target)
+            lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(target)
                 .hello_name(lettre::transport::smtp::extension::ClientId::Domain(
                     from.domain().to_string(),
                 ))
@@ -192,11 +174,9 @@ pub mod test {
                 is_authenticated: false,
                 is_secured: false,
                 server_name: "testserver.com".to_string(),
+                server_address: "127.0.0.1:25".parse().unwrap(),
             },
-            client_addr: std::net::SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-                0,
-            ),
+            client_addr: "127.0.0.1:26".parse().unwrap(),
             envelop: vsmtp_common::envelop::Envelop::default(),
             metadata: Some(vsmtp_common::mail_context::MessageMetadata {
                 timestamp: std::time::SystemTime::now(),
@@ -205,18 +185,19 @@ pub mod test {
         }
     }
 
-    use super::transport::build_lettre_envelop;
     use vsmtp_common::{
         addr,
+        envelop::build_lettre,
         mail_context::ConnectionContext,
         rcpt::Rcpt,
+        re::lettre,
         transfer::{EmailTransferStatus, Transfer},
     };
 
     #[test]
     fn test_build_lettre_envelop() {
         assert_eq!(
-            build_lettre_envelop(
+            build_lettre(
                 &addr!("a@a.a"),
                 &[Rcpt {
                     address: addr!("b@b.b"),

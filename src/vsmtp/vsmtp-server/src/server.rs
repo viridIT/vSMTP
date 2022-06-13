@@ -124,6 +124,7 @@ impl Server {
         })
     }
 
+    #[allow(clippy::too_many_lines)]
     /// Main loop of vSMTP's server
     ///
     /// # Errors
@@ -169,7 +170,10 @@ impl Server {
             .flat_map(|array| array.iter().map(tokio::net::TcpListener::local_addr))
             .collect::<Vec<_>>();
 
-        log::info!(target: log_channels::SERVER, "Listening on: {addr:?}",);
+        log::info!(
+            target: log_channels::SERVER,
+            "Listening for clients on: {addr:?}",
+        );
 
         let mut map = tokio_stream::StreamMap::new();
         for (kind, sockets) in [
@@ -177,12 +181,12 @@ impl Server {
             (ConnectionKind::Submission, &listener_submission),
             (ConnectionKind::Tunneled, &listener_tunneled),
         ] {
-            for i in sockets {
-                let accept = listener_to_stream(i);
+            for listener in sockets {
+                let accept = listener_to_stream(listener);
                 let transform = tokio_stream::StreamExt::map(accept, move |client| (kind, client));
 
                 map.insert(
-                    i.local_addr().expect("retrieve local address"),
+                    listener.local_addr().expect("retrieve local address"),
                     Box::pin(transform),
                 );
             }
@@ -272,7 +276,13 @@ impl Server {
 
         let begin = std::time::SystemTime::now();
         let connection_result = handle_connection(
-            &mut Connection::new(kind, client_addr, config.clone(), stream),
+            &mut Connection::new(
+                kind,
+                client_addr,
+                stream.local_addr()?,
+                config.clone(),
+                stream,
+            ),
             tls_config,
             rsasl,
             rule_engine,

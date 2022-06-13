@@ -95,16 +95,14 @@ pub fn start_runtime(
     let working_channel =
         tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(RuleEngine::new(
-        &config,
-        &config.app.vsl.filepath.clone(),
-    )?));
+    let rule_engine = RuleEngine::new(&config, &config.app.vsl.filepath.clone())?;
 
     let resolvers = std::sync::Arc::new(
         vsmtp_config::build_resolvers(&config).context("could not initialize dns")?,
     );
 
     let config_arc = std::sync::Arc::new(config);
+    let rule_engine_arc = std::sync::Arc::new(std::sync::RwLock::new(rule_engine));
 
     let _tasks_delivery = init_runtime(
         error_handler.0.clone(),
@@ -112,7 +110,7 @@ pub fn start_runtime(
         config_arc.server.system.thread_pool.delivery,
         delivery::start(
             config_arc.clone(),
-            rule_engine.clone(),
+            rule_engine_arc.clone(),
             resolvers.clone(),
             delivery_channel.1,
         ),
@@ -125,7 +123,7 @@ pub fn start_runtime(
         config_arc.server.system.thread_pool.processing,
         processing::start(
             config_arc.clone(),
-            rule_engine.clone(),
+            rule_engine_arc.clone(),
             resolvers.clone(),
             working_channel.1,
             delivery_channel.0.clone(),
@@ -140,7 +138,7 @@ pub fn start_runtime(
         async move {
             Server::new(
                 config_arc.clone(),
-                rule_engine.clone(),
+                rule_engine_arc.clone(),
                 resolvers.clone(),
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),

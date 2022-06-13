@@ -1,4 +1,4 @@
-use crate::{Connection, ProcessMessage};
+use crate::{log_channels, Connection, ProcessMessage};
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
     queue::Queue,
@@ -79,14 +79,31 @@ impl MailHandler {
                     .await
                     .map_err(MailHandlerError::WriteQuarantineFile)?;
 
-                log::warn!("postq & delivery skipped due to quarantine.");
+                log::warn!(
+                    target: log_channels::TRANSACTION,
+                    "[{}] postq & delivery skipped due to quarantine.",
+                    conn.server_addr
+                );
                 return Ok(());
             }
+            Some(Status::Delegated) => {
+                log::warn!(
+                    target: log_channels::TRANSACTION,
+                    "[{}] postq & delivery skipped, email has been delegated to another service.",
+                    conn.server_addr
+                );
+                return Ok(());
+            }
+            Some(Status::DelegationResult(_)) | None => Queue::Working,
             Some(reason) => {
-                log::warn!("postq skipped due to '{}'.", reason.as_ref());
+                log::warn!(
+                    target: log_channels::TRANSACTION,
+                    "[{}] postq skipped due to '{}'.",
+                    conn.server_addr,
+                    reason.as_ref()
+                );
                 Queue::Deliver
             }
-            None => Queue::Working,
         };
 
         next_queue
@@ -119,7 +136,11 @@ impl OnMail for MailHandler {
         match self.on_mail_priv(conn, mail, message).await {
             Ok(_) => CodeID::Ok,
             Err(error) => {
-                log::warn!("failed to process mail: {error}");
+                log::warn!(
+                    target: log_channels::TRANSACTION,
+                    "[{}] failed to process mail: {error}",
+                    conn.server_addr
+                );
                 CodeID::Denied
             }
         }
