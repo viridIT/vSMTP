@@ -20,7 +20,10 @@
 //       to locate vsl's example scripts.
 
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_config};
-use vsmtp_common::{state::StateSMTP, status::Status, CodeID, ReplyOrCodeID};
+use vsmtp_common::ReplyCode::Enhanced;
+use vsmtp_common::{
+    addr, rcpt::Rcpt, state::StateSMTP, status::Status, CodeID, Reply, ReplyOrCodeID,
+};
 
 #[test]
 fn test_greylist() {
@@ -45,4 +48,44 @@ fn test_greylist() {
     );
 
     std::fs::remove_file(root_example!["greylist/greylist.csv"]).unwrap();
+}
+
+// TODO: add more test cases for this example.
+#[test]
+fn test_check_relay() {
+    let config = get_default_config("./tmp/app");
+    let re = RuleEngine::new(&config, &Some(root_example!["anti_relaying/main.vsl"])).unwrap();
+    let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers.clone(), &re);
+
+    state
+        .context()
+        .write()
+        .unwrap()
+        .envelop
+        .rcpt
+        .push(Rcpt::new(addr!("satan@example.com")));
+
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::RcptTo),
+        Status::Deny(ReplyOrCodeID::Reply(Reply::new(
+            Enhanced {
+                code: 554,
+                enhanced: "5.7.1".to_string()
+            },
+            "Relay access denied"
+        )))
+    );
+
+    let mut state = RuleState::new(&config, resolvers, &re);
+
+    state
+        .context()
+        .write()
+        .unwrap()
+        .envelop
+        .rcpt
+        .push(Rcpt::new(addr!("john.doe@testserver.com")));
+
+    assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Next);
 }

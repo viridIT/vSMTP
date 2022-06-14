@@ -139,6 +139,30 @@ pub mod types {
         this.to_string() != ip
     }
 
+    #[rhai_fn(global, name = "==", pure, return_raw)]
+    pub fn ip_is_object(
+        this: &mut std::net::IpAddr,
+        other: std::sync::Arc<Object>,
+    ) -> EngineResult<bool> {
+        internal_ip_is_object(this, &other)
+    }
+
+    #[rhai_fn(global, name = "!=", pure, return_raw)]
+    pub fn ip_not_object(
+        this: &mut std::net::IpAddr,
+        other: std::sync::Arc<Object>,
+    ) -> EngineResult<bool> {
+        internal_ip_is_object(this, &other).map(|r| !r)
+    }
+
+    #[rhai_fn(global, name = "contains", pure, return_raw)]
+    pub fn ip_in_object(
+        object: &mut std::sync::Arc<Object>,
+        ip: std::net::IpAddr,
+    ) -> EngineResult<bool> {
+        internal_ip_in_object(&ip, object)
+    }
+
     // rules::address::Address
 
     #[rhai_fn(global, return_raw)]
@@ -346,6 +370,8 @@ pub mod types {
 
 // the following methods are used to compare recursively deep objects
 // using refs instead of shared rhai objects.
+// FIXME: using generics here should be a good idea.
+// TODO:  all comparison function should return an error in case of mismatching types.
 
 pub fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<bool> {
     match other {
@@ -370,6 +396,43 @@ pub fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<boo
             .into())
         }
     }
+}
+
+pub fn internal_ip_is_object(this: &std::net::IpAddr, other: &Object) -> EngineResult<bool> {
+    match other {
+        Object::Ip4(ip4) => Ok(if let std::net::IpAddr::V4(ip) = this {
+            ip == ip4
+        } else {
+            false
+        }),
+        Object::Ip6(ip6) => Ok(if let std::net::IpAddr::V6(ip) = this {
+            ip == ip6
+        } else {
+            false
+        }),
+        Object::Str(string) => Ok(this.to_string() == *string),
+        _ => Err(format!(
+            "cannot compare ip address {} with the object {}",
+            this, other
+        )
+        .into()),
+    }
+}
+
+pub fn internal_ip_in_object(this: &std::net::IpAddr, other: &Object) -> EngineResult<bool> {
+    match other {
+	    Object::Rg4(rg4) => Ok(if let std::net::IpAddr::V4(ip) = this { rg4.contains(ip) } else { false }),
+	    Object::Rg6(rg6) => Ok(if let std::net::IpAddr::V6(ip) = this { rg6.contains(ip) } else { false }),
+	    Object::File(file) => Ok(file.iter().any(|obj| internal_ip_is_object(this, obj).unwrap_or(false))),
+        Object::Group(group) => Ok(group.iter().any(|obj| internal_ip_is_object(this, obj).unwrap_or(false))),
+        _ => Err(format!(
+                    "the 'in' operator can only be used with 'group', 'file', 'rg4' & 'rg6' object types, you used the ip address {} with the object {}",
+                    this,
+                    other
+                )
+                .into())
+
+        }
 }
 
 pub fn internal_address_is_object(this: &Address, other: &Object) -> EngineResult<bool> {

@@ -19,37 +19,35 @@
 // standard library for authentication
 //
 
+/// Block relaying. Inspect all recipients domains & check if those are registered in the
+/// root domain or virtual ones.
 ///
-/// Block relaying.
+/// The check is skipped if the client is authenticated or if it's api is present in the
+/// `allowed_host` parameter.
 ///
-/// From outside : if the recipient is in the current domain or if the sender is authenticated.
+/// NOTE: you can use this function starting from the `rcpt` stage.
 ///
-/// From inside : if the client is in the allowed_hosts.
-///
-/// - args: the allowed hosts
-/// - return:
-///   - next()
-///   - if an unauthorized relaying is detected : send a SMTP code and skip the recipient.
-///
-/// ### Required stage: mail+
+/// # Returns
+///   * `next` if all recipients are valid.
+///   * `deny(554)` if any recipient tries to use the server as a relay.
 ///
 /// ### Example
 /// ```
 /// rcpt: [
-///     rule "check spf" || vsl::check_spf!()
+///     rule "check relay" || vsl::check_relay(net_192)
 /// ]
 /// ```
 ///
 fn check_relay(allowed_hosts) {
-
-    let srv_domain = get_domain();
-
-    if !(ctx().is_auth || (ctx().client_ip in allowed_hosts)) && (ctx().rcpt.domain != srv_domain) {
-	delete_rcpt(ctx().rcpt);
-        deny(code554_7_1)
-    } else {
-	next()
+    for rcpt in ctx().rcpt {
+        if !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts))
+            && !in_domain(rcpt) {
+                remove_rcpt(rcpt.to_string());
+                return deny(code554_7_1);
+        }
     }
+
+    next()
 }
 
 /// check spf record.

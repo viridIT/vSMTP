@@ -1,0 +1,11 @@
+import "net" as net;
+
+#{
+    rcpt: [
+        // checking if all recipients domains can be found
+        // in our configuration.
+        // in case of a relaying tentative, `check_relay`
+        // will send a 554 error code to the client.
+	    rule "check relay" || check_relay(net::custom_authorized),
+    ],
+}
