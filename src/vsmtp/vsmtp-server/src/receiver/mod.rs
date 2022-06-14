@@ -127,19 +127,16 @@ impl MailParserOnFly for NoParsing {
         let mut headers = Vec::with_capacity(20);
         let mut body = String::with_capacity(MAIL_CAPACITY);
 
-        let mut still_in_headers = true;
+        while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
+            if line.is_empty() {
+                break;
+            }
+            headers.push(line);
+        }
 
         while let Some(line) = tokio_stream::StreamExt::next(&mut stream).await {
-            if still_in_headers {
-                if line.is_empty() {
-                    still_in_headers = false;
-                } else {
-                    headers.push(line);
-                }
-            } else {
-                body.push_str(&line);
-                body.push_str("\r\n");
-            }
+            body.push_str(&line);
+            body.push_str("\r\n");
         }
 
         Ok(MessageBody::Raw { headers, body })
