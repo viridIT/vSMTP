@@ -19,7 +19,7 @@ use vsmtp_common::re::anyhow;
 use vsmtp_config::re::humantime;
 
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Timeout(pub std::time::Duration);
 
 impl std::str::FromStr for Timeout {
@@ -37,7 +37,7 @@ impl std::str::FromStr for Timeout {
 #[clap(about, version, author)]
 pub struct Args {
     /// Path of the vSMTP configuration file (toml format)
-    #[clap(short, long)]
+    #[clap(short, long, action)]
     pub config: Option<String>,
 
     /// Commands
@@ -45,11 +45,11 @@ pub struct Args {
     pub command: Option<Commands>,
 
     /// Do not run the program as a daemon
-    #[clap(short, long)]
+    #[clap(short, long, action)]
     pub no_daemon: bool,
 
     /// Make the server stop after a delay (human readable format)
-    #[clap(short, long)]
+    #[clap(short, long, action)]
     pub timeout: Option<Timeout>,
 }
 

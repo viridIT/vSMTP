@@ -6,7 +6,7 @@ use vsmtp_common::queue::Queue;
 #[clap(about, version, author)]
 pub struct Args {
     /// Path of the vSMTP configuration file (toml format)
-    #[clap(short, long)]
+    #[clap(short, long, action)]
     pub config: Option<String>,
 
     ///
@@ -21,14 +21,16 @@ pub enum Commands {
     /// Show the content of the given queue(s)
     Show {
         /// List of queues to print
+        #[clap(value_parser)]
         queues: Vec<Queue>,
         /// Character to print if the field is empty
-        #[clap(short, long, default_value = "0")]
+        #[clap(short, long, action, default_value = "0")]
         empty_token: char,
     },
     /// Operate action to a given message
     Msg {
         /// ID of the concerned message
+        #[clap(value_parser)]
         msg: String,
         ///
         #[clap(subcommand)]
@@ -43,18 +45,19 @@ pub enum MessageCommand {
     /// Print the content of the message
     Show {
         /// Format of the output
-        #[clap(arg_enum, default_value = "json")]
+        #[clap(arg_enum, value_parser, default_value = "json")]
         format: MessageShowFormat,
     },
     /// Move the message to the given queue
     Move {
         ///
+        #[clap(value_parser)]
         queue: Queue,
     },
     /// Remove the message from the filesystem
     Remove {
         /// If true, do not ask to confirm the deletion
-        #[clap(short, long)]
+        #[clap(short, long, value_parser)]
         yes: bool,
     },
     /// Re-introduce the message in the delivery system
