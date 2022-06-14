@@ -47,7 +47,13 @@ fn test_email_context_raw() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = Some(MessageBody::Raw(vec![]));
+    *state.message().write().unwrap() = Some(MessageBody::Raw {
+        headers: vec![
+            "from: <foo@bar>".to_string(),
+            "date: Tue, 30 Nov 2021 20:54:27 +0100".to_string(),
+        ],
+        body: "".to_string(),
+    });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -116,7 +122,10 @@ fn test_email_add_get_set_header() {
     );
 
     let (mut state, _) = get_default_state("./tmp/app");
-    *state.message().write().unwrap() = Some(MessageBody::Raw(vec![]));
+    *state.message().write().unwrap() = Some(MessageBody::Raw {
+        headers: vec![],
+        body: "".to_string(),
+    });
     let status = re.run_when(&mut state, &StateSMTP::PreQ);
     assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)));
 

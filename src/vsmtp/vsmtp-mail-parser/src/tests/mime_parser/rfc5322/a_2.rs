@@ -7,7 +7,7 @@ use vsmtp_common::{
 #[test]
 fn simple() {
     let parsed = MailMimeParser::default()
-        .parse(
+        .parse_lines(
             include_str!("../../mail/rfc5322/A.2.a.eml")
                 .lines()
                 .map(str::to_string)
@@ -54,7 +54,7 @@ fn simple() {
 #[test]
 fn reply_simple() {
     let parsed = MailMimeParser::default()
-        .parse(
+        .parse_lines(
             include_str!("../../mail/rfc5322/A.2.b.eml")
                 .lines()
                 .map(str::to_string)
@@ -109,7 +109,7 @@ fn reply_simple() {
 #[test]
 fn reply_reply() {
     let parsed = MailMimeParser::default()
-        .parse(
+        .parse_lines(
             include_str!("../../mail/rfc5322/A.2.c.eml")
                 .lines()
                 .map(str::to_string)

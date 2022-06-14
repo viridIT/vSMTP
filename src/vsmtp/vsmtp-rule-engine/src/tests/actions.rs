@@ -91,17 +91,14 @@ fn test_context_write() {
         re.run_when(&mut state, &StateSMTP::MailFrom),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    *state.message().write().unwrap() = Some(MessageBody::Raw(
-        r#"From: john doe <john@doe.com>
-To: green@foo.net
-Subject: test email
-
-This is a raw email.
-"#
-        .lines()
-        .map(str::to_string)
-        .collect::<Vec<_>>(),
-    ));
+    *state.message().write().unwrap() = Some(MessageBody::Raw {
+        headers: vec![
+            "From: john doe <john@doe.com>".to_string(),
+            "To: green@foo.net".to_string(),
+            "Subject: test email".to_string(),
+        ],
+        body: "This is a raw email.".to_string(),
+    });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -120,7 +117,7 @@ This is a raw email.
             "To: green@foo.net\r\n",
             "Subject: test email\r\n",
             "\r\n",
-            "This is a raw email.\r\n"
+            "This is a raw email."
         ]
         .concat()
     );
@@ -143,7 +140,10 @@ fn test_context_dump() {
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    *state.message().write().unwrap() = Some(MessageBody::Raw(vec![]));
+    *state.message().write().unwrap() = Some(MessageBody::Raw {
+        headers: vec![],
+        body: "".to_string(),
+    });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -186,7 +186,10 @@ fn test_quarantine() {
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    *state.message().write().unwrap() = Some(MessageBody::Raw(vec![]));
+    *state.message().write().unwrap() = Some(MessageBody::Raw {
+        headers: vec![],
+        body: "".to_string(),
+    });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),

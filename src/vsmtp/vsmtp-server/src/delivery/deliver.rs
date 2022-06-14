@@ -241,12 +241,10 @@ mod tests {
         Queue::write_to_mails(
             &config.server.queues.dirpath,
             "message_from_deliver_to_deferred",
-            &MessageBody::Raw(
-                ["Date: bar", "From: foo", "Hello world"]
-                    .into_iter()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>(),
-            ),
+            &MessageBody::Raw {
+                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
+                body: "Hello world".to_string(),
+            },
         )
         .unwrap();
 

@@ -33,7 +33,7 @@ macro_rules! test_lang {
                 &mut self,
                 _: &mut Connection<S>,
                 mail: Box<MailContext>,
-                message: MessageBody
+                mut message: MessageBody
             ) -> CodeID {
                 assert_eq!(mail.envelop.helo, "foobar".to_string());
                 assert_eq!(mail.envelop.mail_from.full(), "john@doe".to_string());
@@ -42,12 +42,12 @@ macro_rules! test_lang {
                     vec![addr!("aa@bb").into()]
                 );
 
-                let body = message
+                message
                     .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
                     .unwrap();
 
                 pretty_assertions::assert_eq!(
-                    body,
+                    message,
                     MessageBody::Parsed(Box::new(Mail {
                         headers: [
                             ("from", "john doe <john@doe>"),

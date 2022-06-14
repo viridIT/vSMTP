@@ -11,7 +11,7 @@ const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");
 #[allow(clippy::too_many_lines)]
 fn simple() {
     let parsed = MailMimeParser::default()
-        .parse(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
+        .parse_lines(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
         .unwrap();
     pretty_assertions::assert_eq!(
         parsed,

@@ -7,7 +7,7 @@ use vsmtp_common::{
 #[test]
 fn tracing() {
     let parsed = MailMimeParser::default()
-        .parse(
+        .parse_lines(
             include_str!("../../mail/rfc5322/A.4.eml")
                 .lines()
                 .map(str::to_string)

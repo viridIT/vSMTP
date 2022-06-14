@@ -15,8 +15,8 @@
  *
 */
 use crate::{
+    auth::Mechanism,
     event::{Event, MimeBodyType},
-    mechanism::Mechanism,
     CodeID,
 };
 

@@ -307,42 +307,48 @@ mod test {
 
         let config = vsmtp_config::Config::default();
 
-        let mut message = MessageBody::Raw(vec![]);
+        let mut message = MessageBody::Raw {
+            headers: vec![],
+            body: "".to_string(),
+        };
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &mut ctx, &mut message, &Status::Next).unwrap();
 
-        assert_eq!(
+        pretty_assertions::assert_eq!(
             message,
-            MessageBody::Raw(vec![
-                [
-                    "Received: from localhost\n".to_string(),
-                    format!("\tby {domain}\n", domain = config.server.domain),
-                    "\twith SMTP\n".to_string(),
-                    format!(
-                        "\tid {id};\n",
-                        id = ctx.metadata.as_ref().unwrap().message_id
-                    ),
-                    format!(
-                        "\t{odt}",
-                        odt = {
-                            let odt: time::OffsetDateTime =
-                                ctx.metadata.as_ref().unwrap().timestamp.into();
-                            odt.format(&time::format_description::well_known::Rfc2822)
-                                .unwrap()
-                        }
-                    ),
-                ]
-                .concat(),
-                [
-                    format!(
-                        "X-VSMTP: id='{id}'\n",
-                        id = ctx.metadata.as_ref().unwrap().message_id
-                    ),
-                    format!("\tversion='{}'\n", env!("CARGO_PKG_VERSION")),
-                    "\tstatus='next'".to_string()
-                ]
-                .concat()
-            ])
+            MessageBody::Raw {
+                headers: vec![
+                    [
+                        format!(
+                            "X-VSMTP: id='{id}'\n",
+                            id = ctx.metadata.as_ref().unwrap().message_id
+                        ),
+                        format!("\tversion='{}'\n", env!("CARGO_PKG_VERSION")),
+                        "\tstatus='next'".to_string()
+                    ]
+                    .concat(),
+                    [
+                        "Received: from localhost\n".to_string(),
+                        format!("\tby {domain}\n", domain = config.server.domain),
+                        "\twith SMTP\n".to_string(),
+                        format!(
+                            "\tid {id};\n",
+                            id = ctx.metadata.as_ref().unwrap().message_id
+                        ),
+                        format!(
+                            "\t{odt}",
+                            odt = {
+                                let odt: time::OffsetDateTime =
+                                    ctx.metadata.as_ref().unwrap().timestamp.into();
+                                odt.format(&time::format_description::well_known::Rfc2822)
+                                    .unwrap()
+                            }
+                        ),
+                    ]
+                    .concat(),
+                ],
+                body: "".to_string(),
+            }
         );
     }
 }

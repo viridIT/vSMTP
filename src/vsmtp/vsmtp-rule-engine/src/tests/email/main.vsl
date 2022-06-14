@@ -83,6 +83,7 @@
                 rewrite_mail_from("impossible@torewrite.com");
                 return next();
             } catch (err) {
+                print(err);
                 return deny();
             }
         },
@@ -92,6 +93,7 @@
                 add_to("impossible@toadd.com");
                 return next();
             } catch (err) {
+                print(err);
                 return deny();
             }
         },
@@ -101,6 +103,7 @@
                 remove_to("impossible@toremove.com");
                 return next();
             } catch (err) {
+                print(err);
                 return deny();
             }
         },
@@ -110,6 +113,7 @@
                 rewrite_to("impossible@torewrite.com", "impossible@torewrite.com");
                 return next();
             } catch (err) {
+                print(err);
                 return deny();
             }
         },

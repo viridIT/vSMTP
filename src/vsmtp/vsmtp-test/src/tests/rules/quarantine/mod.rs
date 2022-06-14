@@ -79,11 +79,9 @@ async fn test_quarantine() {
 
     assert_eq!(
         message_from_file_path(path).await.unwrap(),
-        MessageBody::Raw(
-            ["from: 'abc'", "to: 'def'"]
-                .into_iter()
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        )
+        MessageBody::Raw {
+            headers: vec!["from: 'abc'".to_string(), "to: 'def'".to_string()],
+            body: "".to_string()
+        }
     );
 }

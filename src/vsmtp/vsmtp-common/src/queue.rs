@@ -162,7 +162,7 @@ impl Queue {
         }
         let mut to_write = buf.join(message_id);
         to_write.set_extension(match &message {
-            MessageBody::Raw(_) => "eml",
+            MessageBody::Raw { .. } => "eml",
             MessageBody::Parsed(_) => "json",
         });
 
@@ -175,9 +175,7 @@ impl Queue {
         std::io::Write::write_all(
             &mut file,
             match message {
-                MessageBody::Raw(_) => {
-                    format!("{message}")
-                }
+                MessageBody::Raw { .. } => message.to_string(),
                 MessageBody::Parsed(parsed) => serde_json::to_string(parsed)?,
             }
             .as_bytes(),

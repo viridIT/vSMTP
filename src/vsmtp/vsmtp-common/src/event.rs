@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{mechanism::Mechanism, Address, CodeID};
+use crate::{auth::Mechanism, Address, CodeID};
 
 /// See "SMTP Service Extension for 8-bit MIME Transport"
 /// <https://datatracker.ietf.org/doc/html/rfc6152>

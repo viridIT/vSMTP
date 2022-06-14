@@ -16,11 +16,10 @@
 */
 
 use anyhow::Context;
-use std::str::FromStr;
 
 // TODO: handle the case when the port is not specified.
 /// parse an ip6 string address containing a scope id.
-/// NOTE: specifiyng a port is mendatory for this implementation,
+/// NOTE: specifying a port is mandatory for this implementation,
 ///       since it is only used for toml interface config & forwarding.
 ///
 /// # Errors
@@ -31,13 +30,16 @@ pub fn ipv6_with_scope_id(input: &str) -> anyhow::Result<std::net::SocketAddr> {
     if ip6_has_scope_id(input) {
         let (addr, port) = parse_ip6_port(input)?;
         let (addr, scope_id) = parse_ip6_scope_id(addr)?;
-        let mut socket = std::net::SocketAddrV6::from_str(&format!("[{addr}]:{port}"))?;
+        let mut socket =
+            <std::net::SocketAddrV6 as std::str::FromStr>::from_str(&format!("[{addr}]:{port}"))?;
 
         socket.set_scope_id(crate::libc_abstraction::if_nametoindex(scope_id)?);
 
         Ok(std::net::SocketAddr::V6(socket))
     } else {
-        Ok(std::net::SocketAddr::from_str(input)?)
+        Ok(<std::net::SocketAddr as std::str::FromStr>::from_str(
+            input,
+        )?)
     }
 }
 

@@ -36,15 +36,15 @@ async fn reset_helo() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-            message: MessageBody,
+            mut message: MessageBody,
         ) -> CodeID {
-            let body = message.to_parsed::<MailMimeParser>().unwrap();
+            message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "a@b");
             assert_eq!(mail.envelop.rcpt, vec![addr!("b@c").into()]);
             assert_eq!(
-                body,
+                message,
                 MessageBody::Parsed(Box::new(Mail {
                     headers: [
                         ("from", "a b <a@b>"),
@@ -146,15 +146,15 @@ async fn reset_rcpt_to_ok() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-            message: MessageBody,
+            mut message: MessageBody,
         ) -> CodeID {
-            let body = message.to_parsed::<MailMimeParser>().unwrap();
+            message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo2");
             assert_eq!(mail.envelop.mail_from.full(), "d@e");
             assert_eq!(mail.envelop.rcpt, vec![addr!("b@c").into()]);
             assert_eq!(
-                body,
+                message,
                 MessageBody::Parsed(Box::new(Mail {
                     headers: vec![],
                     body: BodyType::Undefined
@@ -227,9 +227,9 @@ async fn reset_rcpt_to_multiple_rcpt() {
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
-            message: MessageBody,
+            mut message: MessageBody,
         ) -> CodeID {
-            let body = message.to_parsed::<MailMimeParser>().unwrap();
+            message.to_parsed::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");
@@ -237,8 +237,8 @@ async fn reset_rcpt_to_multiple_rcpt() {
                 mail.envelop.rcpt,
                 vec![addr!("toto2@bar").into(), addr!("toto3@bar").into()]
             );
-            assert_eq!(
-                body,
+            pretty_assertions::assert_eq!(
+                message,
                 MessageBody::Parsed(Box::new(Mail {
                     headers: [
                         ("from", "foo2 foo <foo2@foo>"),

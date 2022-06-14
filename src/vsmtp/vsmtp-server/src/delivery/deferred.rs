@@ -209,12 +209,10 @@ mod tests {
         Queue::write_to_mails(
             &config.server.queues.dirpath,
             "test_deferred",
-            &MessageBody::Raw(
-                ["Date: bar", "From: foo", "", "Hello world"]
-                    .into_iter()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>(),
-            ),
+            &MessageBody::Raw {
+                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
+                body: "Hello world".to_string(),
+            },
         )
         .unwrap();
 
@@ -269,12 +267,10 @@ mod tests {
         );
         pretty_assertions::assert_eq!(
             message_from_file_path(msg).await.unwrap(),
-            MessageBody::Raw(vec![
-                "Date: bar".to_string(),
-                "From: foo".to_string(),
-                "".to_string(),
-                "Hello world".to_string(),
-            ])
+            MessageBody::Raw {
+                headers: vec!["Date: bar".to_string(), "From: foo".to_string(),],
+                body: "Hello world".to_string(),
+            }
         );
     }
 }

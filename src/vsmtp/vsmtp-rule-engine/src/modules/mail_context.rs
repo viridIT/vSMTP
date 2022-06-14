@@ -20,7 +20,7 @@ use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
     RhaiResult, TypeId,
 };
-use vsmtp_common::mail_context::AuthCredentials;
+use vsmtp_common::auth::Credentials;
 use vsmtp_common::Address;
 
 #[rhai::plugin::export_module]
@@ -88,31 +88,31 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "auth", return_raw, pure)]
-    pub fn auth(this: &mut Context) -> EngineResult<AuthCredentials> {
+    pub fn auth(this: &mut Context) -> EngineResult<Credentials> {
         Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()).connection.credentials, "auth").clone())
     }
 
     #[rhai_fn(global, get = "type", pure)]
-    pub fn get_type(credentials: &mut AuthCredentials) -> String {
+    pub fn get_type(credentials: &mut Credentials) -> String {
         credentials.to_string()
     }
 
     #[rhai_fn(global, get = "authid", return_raw, pure)]
-    pub fn get_authid(credentials: &mut AuthCredentials) -> EngineResult<String> {
+    pub fn get_authid(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
-            AuthCredentials::Query { authid } | AuthCredentials::Verify { authid, .. } => {
+            Credentials::Query { authid } | Credentials::Verify { authid, .. } => {
                 Ok(authid.clone())
             }
-            AuthCredentials::AnonymousToken { .. } => {
+            Credentials::AnonymousToken { .. } => {
                 Err(format!("no `authid` available in credentials of type `{credentials}`").into())
             }
         }
     }
 
     #[rhai_fn(global, get = "authpass", return_raw, pure)]
-    pub fn get_authpass(credentials: &mut AuthCredentials) -> EngineResult<String> {
+    pub fn get_authpass(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
-            AuthCredentials::Verify { authpass, .. } => Ok(authpass.clone()),
+            Credentials::Verify { authpass, .. } => Ok(authpass.clone()),
             _ => Err(
                 format!("no `authpass` available in credentials of type `{credentials}`").into(),
             ),
@@ -120,9 +120,9 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "anonymous_token", return_raw, pure)]
-    pub fn get_anonymous_token(credentials: &mut AuthCredentials) -> EngineResult<String> {
+    pub fn get_anonymous_token(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
-            AuthCredentials::AnonymousToken { token } => Ok(token.clone()),
+            Credentials::AnonymousToken { token } => Ok(token.clone()),
             _ => Err(format!(
                 "no `anonymous_token` available in credentials of type `{credentials}`"
             )

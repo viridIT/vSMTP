@@ -147,13 +147,11 @@ macro_rules! vsl_missing_ok {
 
 macro_rules! vsl_parse_ok {
     ($writer:expr) => {{
-        let message = vsl_missing_ok!($writer, "message");
+        let message = vsl_missing_ok!(mut $writer, "message");
         if !matches!(&message, MessageBody::Parsed(..)) {
-            *$writer = Some(
-                message
-                    .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
-                    .map_err(|source| $crate::error::RuntimeError::ParseMessageBody { source })?,
-            );
+            message
+                .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
+                .map_err(|source| $crate::error::RuntimeError::ParseMessageBody { source })?;
         }
         vsl_missing_ok!(mut $writer, "message")
     }};

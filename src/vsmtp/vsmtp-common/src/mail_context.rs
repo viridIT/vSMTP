@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{envelop::Envelop, status::Status, Mail, MailParser};
+use crate::{auth::Credentials, envelop::Envelop, status::Status, Mail, MailParser};
 
 /// average size of a mail
 pub const MAIL_CAPACITY: usize = 10_000_000; // 10MB
@@ -46,7 +46,12 @@ impl Default for MessageMetadata {
 #[serde(untagged)]
 pub enum MessageBody {
     /// The raw representation of the message
-    Raw(Vec<String>),
+    Raw {
+        /// The headers of the top level message
+        headers: Vec<String>,
+        /// Complete body of the message
+        body: String,
+    },
     /// The message parsed using a [`MailParser`]
     Parsed(Box<Mail>),
 }
@@ -54,12 +59,13 @@ pub enum MessageBody {
 impl std::fmt::Display for MessageBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Raw(data) => {
-                for i in data {
+            Self::Raw { headers, body } => {
+                for i in headers {
                     f.write_str(i)?;
                     f.write_str("\r\n")?;
                 }
-                Ok(())
+                f.write_str("\r\n")?;
+                f.write_str(body)
             }
             Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
         }
@@ -72,29 +78,29 @@ impl MessageBody {
     /// # Errors
     ///
     /// * Fail to parse using the provided [`MailParser`]
-    pub fn to_parsed<P: MailParser>(&self) -> anyhow::Result<Self> {
-        Ok(match self {
-            Self::Raw(raw) => P::default().parse(raw.clone())?,
-            Self::Parsed(_) => self.clone(),
-        })
+    pub fn to_parsed<P: MailParser>(&mut self) -> anyhow::Result<()> {
+        if let Self::Raw { headers, body } = self {
+            *self = P::default().parse_raw(std::mem::take(headers), std::mem::take(body))?;
+        }
+        Ok(())
     }
 
-    /// Has the instance been parsed
-    #[must_use]
-    pub const fn is_parsed(&self) -> bool {
-        match self {
-            MessageBody::Raw(_) => false,
-            MessageBody::Parsed(_) => true,
-        }
-    }
+    // /// Has the instance been parsed
+    // #[must_use]
+    // pub const fn is_parsed(&self) -> bool {
+    //     match self {
+    //         MessageBody::Raw => false,
+    //         MessageBody::Parsed(_) => true,
+    //     }
+    // }
 
     /// get the value of an header, return None if it does not exists or when the body is empty.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {
         match self {
-            Self::Raw(raw) => {
-                for line in raw {
-                    let mut split = line.splitn(2, ": ");
+            Self::Raw { headers, .. } => {
+                for header in headers {
+                    let mut split = header.splitn(2, ": ");
                     match (split.next(), split.next()) {
                         (Some(header), Some(value)) if header == name => {
                             return Some(value);
@@ -113,14 +119,13 @@ impl MessageBody {
     /// rewrite a header with a new value or add it to the header section.
     pub fn set_header(&mut self, name: &str, value: &str) {
         match self {
-            Self::Raw(raw) => {
-                // TODO: handle folded header, but at this point the function should parse the mail...
-
-                for line in raw {
-                    let mut split = line.splitn(2, ": ");
+            Self::Raw { headers, .. } => {
+                for header in headers {
+                    let mut split = header.splitn(2, ": ");
                     match (split.next(), split.next()) {
                         (Some(key), Some(_)) if key == name => {
-                            *line = format!("{key}: {value}");
+                            // TODO: handle folding ?
+                            *header = format!("{key}: {value}");
                             return;
                         }
                         _ => {}
@@ -135,8 +140,9 @@ impl MessageBody {
     /// prepend a header to the header section.
     pub fn add_header(&mut self, name: &str, value: &str) {
         match self {
-            Self::Raw(raw) => {
-                raw.splice(..0, [format!("{name}: {value}")]);
+            Self::Raw { headers, .. } => {
+                // TODO: handle folding ?
+                headers.push(format!("{name}: {value}"));
             }
             Self::Parsed(parsed) => {
                 parsed.prepend_headers([(name.to_string(), value.to_string())]);
@@ -145,36 +151,13 @@ impl MessageBody {
     }
 }
 
-/// The credentials send by the client, not necessarily the right one
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, strum::Display)]
-#[strum(serialize_all = "PascalCase")]
-pub enum AuthCredentials {
-    /// the pair will be sent and verified by a third party
-    Verify {
-        ///
-        authid: String,
-        ///
-        authpass: String,
-    },
-    /// the server will query a third party and make internal verification
-    Query {
-        ///
-        authid: String,
-    },
-    /// verify the token send by anonymous mechanism
-    AnonymousToken {
-        /// [ email / 1*255TCHAR ]
-        token: String,
-    },
-}
-
 /// Representation of one connection
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct ConnectionContext {
     /// time of connection by the client.
     pub timestamp: std::time::SystemTime,
     /// credentials of the client.
-    pub credentials: Option<AuthCredentials>,
+    pub credentials: Option<Credentials>,
     /// server's domain of the connection. (from config.server.domain or sni)
     pub server_name: String,
     /// server socket used for this connexion.
