@@ -19,7 +19,7 @@ categories = ["command-line-utilities"]
 vsmtp-common = { path = "../vsmtp/vsmtp-common", version = "1.0.0-rc.1" }
 vsmtp-config = { path = "../vsmtp/vsmtp-config", version = "1.0.0-rc.1" }
 
-clap = { version = "3.2.1", features = ["derive"] }
+clap = { version = "3.2.4", features = ["derive"] }
 itertools = "0.10.3"
 
 [dev-dependencies]
