@@ -140,14 +140,24 @@ pub mod mail_context {
         Ok(vsl_guard_ok!(this.read()).envelop.mail_from.clone())
     }
 
-    #[rhai_fn(global, get = "rcpt", return_raw, pure)]
-    pub fn rcpt(this: &mut Context) -> EngineResult<Vec<Address>> {
+    #[rhai_fn(global, get = "rcpt_list", return_raw, pure)]
+    pub fn rcpt_list(this: &mut Context) -> EngineResult<Vec<Address>> {
         Ok(vsl_guard_ok!(this.read())
             .envelop
             .rcpt
             .iter()
             .map(|rcpt| rcpt.address.clone())
             .collect())
+    }
+
+    #[rhai_fn(global, get = "rcpt", return_raw, pure)]
+    pub fn rcpt(this: &mut Context) -> EngineResult<Address> {
+        vsl_guard_ok!(this.read())
+            .envelop
+            .rcpt
+            .last()
+            .map(|rcpt| rcpt.address.clone())
+            .ok_or_else(|| "not recipients received yet".into())
     }
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
