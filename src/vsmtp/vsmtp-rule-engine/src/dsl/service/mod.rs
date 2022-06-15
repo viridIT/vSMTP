@@ -78,7 +78,7 @@ impl std::fmt::Display for Service {
 }
 
 /// a transport using the smtp protocol.
-/// (mostly a new type over lettre::SmtpTransport to implement debug
+/// (mostly a new type over `lettre::SmtpTransport` to implement debug
 /// and make switching transport easy if needed)
 pub struct SmtpConnection(pub lettre::SmtpTransport);
 

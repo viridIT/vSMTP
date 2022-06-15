@@ -17,7 +17,7 @@
 use rustls::ALL_CIPHER_SUITES;
 use vsmtp_common::re::{anyhow, log};
 
-use crate::{config::ConfigServerTls, ConfigServerVirtual};
+use crate::field::{FieldServerTls, FieldServerVirtual};
 
 struct TlsLogger;
 impl rustls::KeyLog for TlsLogger {
@@ -61,8 +61,8 @@ fn to_supported_cipher_suite(
 
 #[doc(hidden)]
 pub fn get_rustls_config(
-    config: &ConfigServerTls,
-    virtual_entries: &std::collections::BTreeMap<String, ConfigServerVirtual>,
+    config: &FieldServerTls,
+    virtual_entries: &std::collections::BTreeMap<String, FieldServerVirtual>,
 ) -> anyhow::Result<rustls::ServerConfig> {
     let protocol_version = match (
         config

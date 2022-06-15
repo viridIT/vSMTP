@@ -1,4 +1,20 @@
 //! vSMTP configuration
+//!
+//! This module contains the configuration for the vSMTP server.
+//!
+//! # Configuration
+//!
+//! The type [`Config`] expose two methods :
+//! * [`Config::builder`] to create a new configuration builder.
+//! * [`Config::from_toml`] to read a configuration from a TOML file.
+//!
+//! # Example
+//!
+//! You can find examples of TOML file at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
+//!
+//! # Fields
+//!
+//! TODO!
 
 #![doc(html_no_source)]
 #![deny(missing_docs)]
@@ -8,8 +24,6 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
-//
-#![allow(clippy::doc_markdown)]
 
 /*
  * vSMTP mail transfer agent
@@ -55,20 +69,21 @@ pub mod builder {
     mod wants;
     mod with;
 
-    #[doc(hidden)]
-    pub mod validate;
+    pub(crate) mod validate;
     pub use wants::*;
     pub use with::*;
 }
 
 mod config;
 mod default;
+mod ensure;
 mod log4rs_helper;
 mod rustls_helper;
 mod trust_dns_helper;
 mod virtual_tls;
 
-pub use config::*;
+pub use config::{field, Config};
+
 pub use log4rs_helper::get_log4rs_config;
 pub use rustls_helper::get_rustls_config;
 pub use trust_dns_helper::{build_resolvers, Resolvers};
@@ -87,7 +102,7 @@ use builder::{Builder, WantsVersion};
 use vsmtp_common::{libc_abstraction::chown, re::anyhow};
 
 impl Config {
-    ///
+    /// Create an instance of [`Builder`].
     #[must_use]
     pub const fn builder() -> Builder<WantsVersion> {
         Builder {
@@ -137,11 +152,7 @@ impl Config {
     }
 }
 
-/// create a folder at `[app.dirpath]` if needed, or just create the app folder.
-///
-/// # Errors
-/// * failed to create the app directory.
-/// * failed to set proper rights to the app directory.
+#[doc(hidden)]
 pub fn create_app_folder(
     config: &Config,
     path: Option<&str>,

@@ -14,7 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{builder::VirtualEntry, Config, ConfigServerDNS, ResolverOptsWrapper};
+use crate::{
+    builder::VirtualEntry,
+    field::{FieldServerDNS, ResolverOptsWrapper},
+    Config,
+};
 
 #[test]
 fn parse() {
@@ -52,7 +56,7 @@ fn parse() {
                 VirtualEntry {
                     domain: "testserver2.com".to_string(),
                     tls: None,
-                    dns: Some(ConfigServerDNS::System),
+                    dns: Some(FieldServerDNS::System),
                 },
                 VirtualEntry {
                     domain: "testserver3.com".to_string(),
@@ -68,7 +72,7 @@ fn parse() {
                         "../../../examples/config/tls/certificate.crt".to_string(),
                         "../../../examples/config/tls/private_key.key".to_string()
                     )),
-                    dns: Some(ConfigServerDNS::Google {
+                    dns: Some(FieldServerDNS::Google {
                         options: ResolverOptsWrapper::default()
                     }),
                 },

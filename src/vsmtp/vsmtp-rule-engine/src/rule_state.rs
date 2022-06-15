@@ -117,7 +117,7 @@ impl RuleState {
         state
     }
 
-    /// create a RuleState from an existing mail context (f.e. when deserializing a context)
+    /// create a `RuleState` from an existing mail context (f.e. when deserializing a context)
     #[must_use]
     pub fn with_context(
         config: &Config,

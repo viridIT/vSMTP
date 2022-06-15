@@ -18,7 +18,7 @@ use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_
 use vsmtp_common::{
     addr, mail_context::MessageBody, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
 };
-use vsmtp_config::{builder::VirtualEntry, Config, ConfigServerDNS};
+use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
 
 #[test]
 fn test_status() {
@@ -165,7 +165,7 @@ fn test_config_display() {
                     .unwrap()
                     .to_string(),
             )),
-            dns: Some(ConfigServerDNS::System),
+            dns: Some(FieldServerDNS::System),
         }])
         .unwrap()
         .validate()

@@ -26,8 +26,7 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 //
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::use_self)]
+#![allow(clippy::use_self)] // false positive with enums
 
 /// Default smtp port
 pub const SMTP_PORT: u16 = 25;
@@ -39,6 +38,20 @@ pub const SUBMISSION_PORT: u16 = 587;
 ///
 /// Defined in [RFC8314](https://tools.ietf.org/html/rfc8314)
 pub const SUBMISSIONS_PORT: u16 = 465;
+
+/// Type of SMTP connection.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, strum::Display)]
+pub enum ConnectionKind {
+    /// Connection coming for relay (MTA on port 25)
+    /// see <https://datatracker.ietf.org/doc/html/rfc5321>
+    Relay,
+    /// Connection coming for submission (MSA on port 587)
+    /// see <https://datatracker.ietf.org/doc/html/rfc6409>
+    Submission,
+    /// Connection coming for submissionS (MSA on port 465)
+    /// see <https://datatracker.ietf.org/doc/html/rfc8314>
+    Tunneled,
+}
 
 mod log_channels {
     pub const QUEUE: &str = "server::queue";

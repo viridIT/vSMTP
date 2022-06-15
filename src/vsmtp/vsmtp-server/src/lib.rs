@@ -9,7 +9,6 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 //
-#![allow(clippy::doc_markdown)]
 #![allow(clippy::use_self)]
 
 #[cfg(test)]
@@ -38,7 +37,7 @@ pub use receiver::MailHandler;
 /// SMTP auth extension implementation
 pub mod auth;
 pub use channel_message::ProcessMessage;
-pub use receiver::{handle_connection, AbstractIO, Connection, ConnectionKind, OnMail};
+pub use receiver::{handle_connection, AbstractIO, Connection, OnMail};
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 

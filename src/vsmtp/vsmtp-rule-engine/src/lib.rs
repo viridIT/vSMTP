@@ -8,8 +8,6 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
-//
-#![allow(clippy::doc_markdown)]
 
 mod log_channels {
     /// server's rule

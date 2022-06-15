@@ -26,7 +26,6 @@ use vsmtp_common::MailParser;
 use vsmtp_common::{BodyType, Mail, MailHeaders};
 use vsmtp_common::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
 
-/// BoundaryType
 /// a boundary serves as a delimiter between mime parts in a multipart section.
 enum BoundaryType {
     Delimiter,
@@ -464,17 +463,12 @@ fn check_mandatory_headers(headers: &[(String, String)]) -> ParserResult<()> {
 }
 
 /// take the name and value of a header and parses those to create
-/// a MimeHeader struct.
+/// a `MimeHeader` struct.
 ///
 /// # Arguments
 ///
 /// * `name` - the name of the header.
 /// * `value` - the value of the header (with all params, folded included if any).
-///
-/// # Return
-///
-/// * `Result<MimeHeader>` - a MimeHeader or a ParserError.
-///
 fn get_mime_header(name: &str, value: &str) -> MimeHeader {
     // cut the current line using the ";" separator into a vector of "arg=value" strings.
     let args = value.split(';').collect::<Vec<&str>>();

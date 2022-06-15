@@ -201,7 +201,7 @@ mod test {
         re::{lettre, tokio},
         transfer::EmailTransferStatus,
     };
-    use vsmtp_config::{Config, ConfigServerDNS};
+    use vsmtp_config::{field::FieldServerDNS, Config};
 
     #[test]
     fn test_update_rcpt_held_back() {
@@ -233,7 +233,7 @@ mod test {
     async fn test_get_mx_records() {
         // FIXME: find a way to guarantee that the mx records exists.
         let mut config = Config::default();
-        config.server.dns = ConfigServerDNS::System;
+        config.server.dns = FieldServerDNS::System;
         let resolvers = vsmtp_config::build_resolvers(&config).unwrap();
         let dns = resolvers.get(&config.server.domain).unwrap();
 

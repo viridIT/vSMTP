@@ -16,18 +16,14 @@
 */
 use super::{wants::WantsValidate, with::Builder};
 use crate::{
-    config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigServer, ConfigServerInterfaces,
-        ConfigServerLogs, ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError,
-        ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
+    config::field::{
+        FieldApp, FieldAppLogs, FieldAppVSL, FieldServer, FieldServerInterfaces, FieldServerLogs,
+        FieldServerQueues, FieldServerSMTP, FieldServerSMTPError, FieldServerSMTPTimeoutClient,
+        FieldServerSystem, FieldServerSystemThreadPool,
     },
     Config,
 };
-use vsmtp_common::{
-    auth::Mechanism,
-    re::{anyhow, strum},
-    CodeID, Reply, ReplyCode,
-};
+use vsmtp_common::re::anyhow;
 
 impl Builder<WantsValidate> {
     ///
@@ -55,47 +51,47 @@ impl Builder<WantsValidate> {
 
         Config::ensure(Config {
             version_requirement: version.version_requirement,
-            server: ConfigServer {
+            server: FieldServer {
                 domain: srv.domain,
                 client_count_max: srv.client_count_max,
-                system: ConfigServerSystem {
+                system: FieldServerSystem {
                     user: srv_syst.user,
                     group: srv_syst.group,
                     group_local: srv_syst.group_local,
-                    thread_pool: ConfigServerSystemThreadPool {
+                    thread_pool: FieldServerSystemThreadPool {
                         receiver: srv_syst.thread_pool_receiver,
                         processing: srv_syst.thread_pool_processing,
                         delivery: srv_syst.thread_pool_delivery,
                     },
                 },
-                interfaces: ConfigServerInterfaces {
+                interfaces: FieldServerInterfaces {
                     addr: srv_inet.addr,
                     addr_submission: srv_inet.addr_submission,
                     addr_submissions: srv_inet.addr_submissions,
                 },
-                logs: ConfigServerLogs {
+                logs: FieldServerLogs {
                     filepath: srv_logs.filepath,
                     format: srv_logs.format,
                     level: srv_logs.level,
                     size_limit: srv_logs.size_limit,
                     archive_count: srv_logs.archive_count,
                 },
-                queues: ConfigServerQueues {
+                queues: FieldServerQueues {
                     dirpath: srv_delivery.dirpath,
                     working: srv_delivery.working,
                     delivery: srv_delivery.delivery,
                 },
                 tls: srv_tls.tls,
-                smtp: ConfigServerSMTP {
+                smtp: FieldServerSMTP {
                     rcpt_count_max: smtp_opt.rcpt_count_max,
                     disable_ehlo: smtp_opt.disable_ehlo,
                     required_extension: smtp_opt.required_extension,
-                    error: ConfigServerSMTPError {
+                    error: FieldServerSMTPError {
                         soft_count: smtp_error.error.soft_count,
                         hard_count: smtp_error.error.hard_count,
                         delay: smtp_error.error.delay,
                     },
-                    timeout_client: ConfigServerSMTPTimeoutClient {
+                    timeout_client: FieldServerSMTPTimeoutClient {
                         connect: smtp_error.timeout_client.connect,
                         helo: smtp_error.timeout_client.helo,
                         mail_from: smtp_error.timeout_client.mail_from,
@@ -108,12 +104,12 @@ impl Builder<WantsValidate> {
                 dns: dns.config,
                 r#virtual: virtual_entries.r#virtual,
             },
-            app: ConfigApp {
+            app: FieldApp {
                 dirpath: app.dirpath,
-                vsl: ConfigAppVSL {
+                vsl: FieldAppVSL {
                     filepath: app_vsl.filepath,
                 },
-                logs: ConfigAppLogs {
+                logs: FieldAppLogs {
                     filepath: app_logs.filepath,
                     level: app_logs.level,
                     format: app_logs.format,
@@ -122,106 +118,6 @@ impl Builder<WantsValidate> {
                 },
             },
         })
-    }
-}
-
-fn mech_list_to_code(list: &[Mechanism]) -> String {
-    format!(
-        "AUTH {}\r\n",
-        list.iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(" ")
-    )
-}
-
-impl Config {
-    pub(crate) fn ensure(mut config: Self) -> anyhow::Result<Self> {
-        anyhow::ensure!(
-            config.app.logs.filepath != config.server.logs.filepath,
-            "System and Application logs cannot both be written in '{}' !",
-            config.app.logs.filepath.display()
-        );
-
-        anyhow::ensure!(
-            config.server.system.thread_pool.processing != 0
-                && config.server.system.thread_pool.receiver != 0
-                && config.server.system.thread_pool.delivery != 0,
-            "Worker threads cannot be set to 0"
-        );
-
-        {
-            let auth_mechanism_list: Option<(Vec<Mechanism>, Vec<Mechanism>)> = config
-                .server
-                .smtp
-                .auth
-                .as_ref()
-                .map(|auth| auth.mechanisms.iter().partition(|m| m.must_be_under_tls()));
-
-            config.server.smtp.codes.insert(
-                CodeID::EhloPain,
-                Reply::new(
-                    ReplyCode::Code { code: 250 },
-                    [
-                        &config.server.domain,
-                        "\r\n",
-                        &auth_mechanism_list
-                            .as_ref()
-                            .map(|(plain, secured)| {
-                                if config
-                                    .server
-                                    .smtp
-                                    .auth
-                                    .as_ref()
-                                    .map_or(false, |auth| auth.enable_dangerous_mechanism_in_clair)
-                                {
-                                    mech_list_to_code(&[secured.clone(), plain.clone()].concat())
-                                } else {
-                                    mech_list_to_code(secured)
-                                }
-                            })
-                            .unwrap_or_default(),
-                        "STARTTLS\r\n",
-                        "8BITMIME\r\n",
-                        "SMTPUTF8\r\n",
-                    ]
-                    .concat(),
-                ),
-            );
-
-            config.server.smtp.codes.insert(
-                CodeID::EhloSecured,
-                Reply::new(
-                    ReplyCode::Code { code: 250 },
-                    [
-                        &config.server.domain,
-                        "\r\n",
-                        &auth_mechanism_list
-                            .as_ref()
-                            .map(|(must_be_secured, _)| mech_list_to_code(must_be_secured))
-                            .unwrap_or_default(),
-                        "8BITMIME\r\n",
-                        "SMTPUTF8\r\n",
-                    ]
-                    .concat(),
-                ),
-            );
-        }
-
-        let default_values = ConfigServerSMTP::default_smtp_codes();
-        let reply_codes = &mut config.server.smtp.codes;
-
-        for key in <CodeID as strum::IntoEnumIterator>::iter() {
-            reply_codes
-                .entry(key)
-                .or_insert_with_key(|key| default_values.get(key).unwrap().clone());
-
-            reply_codes.entry(key).and_modify(|reply| {
-                reply.set(reply.text().replace("{domain}", &config.server.domain));
-            });
-        }
-
-        Ok(config)
     }
 }
 

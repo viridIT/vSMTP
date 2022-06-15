@@ -14,18 +14,16 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{Config, ConfigServerDNS, ResolverOptsWrapper};
+use crate::{
+    field::{FieldServerDNS, ResolverOptsWrapper},
+    Config,
+};
 use trust_dns_resolver::{config::ResolverConfig, error::ResolveError, TokioAsyncResolver};
 
-/// dns resolvers filtered by domain. (root & sni)
+#[doc(hidden)]
 pub type Resolvers = std::collections::HashMap<String, TokioAsyncResolver>;
 
-/// construct a [trust-dns] `ResolverOpts` struct from our wrapper.
-///
-/// # Notes
-/// * cannot use the From trait here because `ResolverOpts` is from an external library.
-/// * cannot use struct {} declaration because `ResolverOpts` is non-exhaustive.
-pub fn resolver_opts_from_config(
+fn resolver_opts_from_config(
     config: &ResolverOptsWrapper,
 ) -> trust_dns_resolver::config::ResolverOpts {
     let mut opts = trust_dns_resolver::config::ResolverOpts::default();
@@ -42,10 +40,7 @@ pub fn resolver_opts_from_config(
     opts
 }
 
-/// build the default resolver from the dns config, and one resolver
-/// for each virtual domains.
-///
-/// # Errors
+#[doc(hidden)]
 pub fn build_resolvers(config: &Config) -> Result<Resolvers, ResolveError> {
     let mut resolvers = std::collections::HashMap::<String, TokioAsyncResolver>::with_capacity(
         config.server.r#virtual.len() + 1,
@@ -72,23 +67,17 @@ pub fn build_resolvers(config: &Config) -> Result<Resolvers, ResolveError> {
     Ok(resolvers)
 }
 
-/// build an async dns using tokio & trust_dns from configuration.
-///
-/// # Errors
-///
-/// * Failed to create the resolver.
-fn build_dns_from_config(config: &ConfigServerDNS) -> Result<TokioAsyncResolver, ResolveError> {
+fn build_dns_from_config(config: &FieldServerDNS) -> Result<TokioAsyncResolver, ResolveError> {
     match &config {
-        crate::config::ConfigServerDNS::System => TokioAsyncResolver::tokio_from_system_conf(),
-        crate::config::ConfigServerDNS::Google { options } => {
+        FieldServerDNS::System => TokioAsyncResolver::tokio_from_system_conf(),
+        FieldServerDNS::Google { options } => {
             TokioAsyncResolver::tokio(ResolverConfig::google(), resolver_opts_from_config(options))
         }
-
-        crate::config::ConfigServerDNS::CloudFlare { options } => TokioAsyncResolver::tokio(
+        FieldServerDNS::CloudFlare { options } => TokioAsyncResolver::tokio(
             ResolverConfig::cloudflare(),
             resolver_opts_from_config(options),
         ),
-        crate::config::ConfigServerDNS::Custom { config, options } => {
+        FieldServerDNS::Custom { config, options } => {
             TokioAsyncResolver::tokio(config.clone(), resolver_opts_from_config(options))
         }
     }

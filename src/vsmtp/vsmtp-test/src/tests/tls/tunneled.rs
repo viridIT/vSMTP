@@ -17,7 +17,10 @@
 use super::get_tls_config;
 use crate::tests::tls::test_tls_tunneled;
 use vsmtp_common::re::tokio;
-use vsmtp_config::{get_rustls_config, ConfigServerVirtual, TlsSecurityLevel};
+use vsmtp_config::{
+    field::{FieldServerVirtual, TlsSecurityLevel},
+    get_rustls_config,
+};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn simple() {
@@ -143,7 +146,7 @@ async fn sni() {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
     config.server.r#virtual.insert(
         "second.testserver.com".to_string(),
-        ConfigServerVirtual::with_tls(
+        FieldServerVirtual::with_tls(
             "src/template/certs/sni/second.certificate.crt",
             "src/template/certs/sni/second.private_key.rsa.key",
         )

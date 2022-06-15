@@ -7,8 +7,6 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
-//
-#![allow(clippy::doc_markdown)]
 
 /// Config shortcut
 pub mod config;

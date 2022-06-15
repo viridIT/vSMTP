@@ -14,12 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::re::anyhow;
-
 use crate::{
+    field::{FieldServerDNS, FieldServerVirtual, FieldServerVirtualTls, TlsFile},
     parser::{tls_certificate, tls_private_key},
-    ConfigServerVirtualTls, TlsFile,
 };
+use vsmtp_common::re::anyhow;
 
 impl<'de> serde::Deserialize<'de> for TlsFile<rustls::PrivateKey> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -47,7 +46,7 @@ impl<'de> serde::Deserialize<'de> for TlsFile<rustls::Certificate> {
     }
 }
 
-impl ConfigServerVirtualTls {
+impl FieldServerVirtualTls {
     /// create a virtual tls configuration from the certificate & private key paths.
     ///
     /// # Errors
@@ -66,6 +65,60 @@ impl ConfigServerVirtualTls {
                 path: private_key.into(),
             },
             sender_security_level: Self::default_sender_security_level(),
+        })
+    }
+}
+
+impl FieldServerVirtual {
+    /// create a new virtual domain using the root domain parameters.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            tls: None,
+            dns: None,
+        }
+    }
+
+    /// create a new virtual domain with tls parameters.
+    ///
+    /// # Errors
+    ///
+    /// * certificate is not valid
+    /// * private key is not valid
+    pub fn with_tls(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
+        Ok(Self {
+            tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
+            dns: None,
+        })
+    }
+
+    /// create a new virtual domain with a dns config.
+    ///
+    /// # Errors
+    ///
+    /// * certificate is not valid
+    /// * private key is not valid
+    pub const fn with_dns(dns_config: FieldServerDNS) -> anyhow::Result<Self> {
+        Ok(Self {
+            tls: None,
+            dns: Some(dns_config),
+        })
+    }
+
+    /// create a new virtual domain with a dns & tls parameters.
+    ///
+    /// # Errors
+    ///
+    /// * certificate is not valid
+    /// * private key is not valid
+    pub fn with_tls_and_dns(
+        certificate: &str,
+        private_key: &str,
+        dns_config: FieldServerDNS,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
+            dns: Some(dns_config),
         })
     }
 }

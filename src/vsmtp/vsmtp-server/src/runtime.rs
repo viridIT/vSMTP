@@ -69,7 +69,7 @@ where
         .map_err(anyhow::Error::new)
 }
 
-/// Start the vSMTP server's runtime
+/// Start the `vSMTP` server's runtime
 ///
 /// # Errors
 ///

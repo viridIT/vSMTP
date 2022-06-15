@@ -18,11 +18,11 @@
 use vsmtp_common::{
     mail_context::MessageBody,
     re::{anyhow, tokio},
-    CodeID,
+    CodeID, ConnectionKind,
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{auth, handle_connection, Connection, ConnectionKind, OnMail};
+use vsmtp_server::{auth, handle_connection, Connection, OnMail};
 
 /// A type implementing Write+Read to emulate sockets
 pub struct Mock<'a, T: AsRef<[u8]> + Unpin> {
@@ -89,7 +89,7 @@ impl OnMail for DefaultMailHandler {
     }
 }
 
-/// run a connection and assert output produced by vSMTP and @expected_output
+/// run a connection and assert output produced by `vSMTP` and `expected_output`
 ///
 /// # Errors
 ///
@@ -138,7 +138,7 @@ where
     result
 }
 
-/// Call test_receiver_inner
+/// Call `test_receiver_inner`
 #[macro_export]
 macro_rules! test_receiver {
     ($input:expr, $output:expr) => {

@@ -28,7 +28,7 @@ use vsmtp_common::{
     status::Status,
     Address, CodeID, ReplyOrCodeID,
 };
-use vsmtp_config::{Config, Resolvers, TlsSecurityLevel};
+use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 enum ProcessedEvent {

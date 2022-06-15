@@ -14,13 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-#![allow(clippy::module_name_repetitions)]
 
-use crate::config::{
-    Config, ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigQueueDelivery, ConfigQueueWorking,
-    ConfigServer, ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
-    ConfigServerSMTP, ConfigServerSMTPAuth, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient,
-    ConfigServerSystem, ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerVirtualTls,
+use crate::config::field::{
+    Config, FieldApp, FieldAppLogs, FieldAppVSL, FieldQueueDelivery, FieldQueueWorking,
+    FieldServer, FieldServerDNS, FieldServerInterfaces, FieldServerLogs, FieldServerQueues,
+    FieldServerSMTP, FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient,
+    FieldServerSystem, FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls,
     ResolverOptsWrapper, TlsSecurityLevel,
 };
 use vsmtp_common::{
@@ -34,31 +33,31 @@ impl Default for Config {
     fn default() -> Self {
         Self::ensure(Self {
             version_requirement: semver::VersionReq::parse(">=1.0.0").unwrap(),
-            server: ConfigServer::default(),
-            app: ConfigApp::default(),
+            server: FieldServer::default(),
+            app: FieldApp::default(),
         })
         .unwrap()
     }
 }
 
-impl Default for ConfigServer {
+impl Default for FieldServer {
     fn default() -> Self {
         Self {
             domain: Self::hostname(),
             client_count_max: Self::default_client_count_max(),
-            system: ConfigServerSystem::default(),
-            interfaces: ConfigServerInterfaces::default(),
-            logs: ConfigServerLogs::default(),
-            queues: ConfigServerQueues::default(),
+            system: FieldServerSystem::default(),
+            interfaces: FieldServerInterfaces::default(),
+            logs: FieldServerLogs::default(),
+            queues: FieldServerQueues::default(),
             tls: None,
-            smtp: ConfigServerSMTP::default(),
-            dns: ConfigServerDNS::default(),
+            smtp: FieldServerSMTP::default(),
+            dns: FieldServerDNS::default(),
             r#virtual: std::collections::BTreeMap::default(),
         }
     }
 }
 
-impl ConfigServer {
+impl FieldServer {
     pub(crate) fn hostname() -> String {
         hostname::get().unwrap().to_str().unwrap().to_string()
     }
@@ -68,18 +67,18 @@ impl ConfigServer {
     }
 }
 
-impl Default for ConfigServerSystem {
+impl Default for FieldServerSystem {
     fn default() -> Self {
         Self {
             user: Self::default_user(),
             group: Self::default_group(),
             group_local: None,
-            thread_pool: ConfigServerSystemThreadPool::default(),
+            thread_pool: FieldServerSystemThreadPool::default(),
         }
     }
 }
 
-impl ConfigServerSystem {
+impl FieldServerSystem {
     pub(crate) fn default_user() -> users::User {
         users::get_user_by_name(match option_env!("CI") {
             Some(_) => "root",
@@ -97,7 +96,7 @@ impl ConfigServerSystem {
     }
 }
 
-impl Default for ConfigServerSystemThreadPool {
+impl Default for FieldServerSystemThreadPool {
     fn default() -> Self {
         Self {
             receiver: Self::default_receiver(),
@@ -107,7 +106,7 @@ impl Default for ConfigServerSystemThreadPool {
     }
 }
 
-impl ConfigServerSystemThreadPool {
+impl FieldServerSystemThreadPool {
     pub(crate) const fn default_receiver() -> usize {
         6
     }
@@ -121,13 +120,13 @@ impl ConfigServerSystemThreadPool {
     }
 }
 
-impl Default for ConfigServerInterfaces {
+impl Default for FieldServerInterfaces {
     fn default() -> Self {
         Self::ipv4_localhost()
     }
 }
 
-impl ConfigServerInterfaces {
+impl FieldServerInterfaces {
     pub(crate) fn ipv4_localhost() -> Self {
         Self {
             addr: vec!["127.0.0.1:25".parse().expect("valid")],
@@ -137,7 +136,7 @@ impl ConfigServerInterfaces {
     }
 }
 
-impl Default for ConfigServerLogs {
+impl Default for FieldServerLogs {
     fn default() -> Self {
         Self {
             filepath: Self::default_filepath(),
@@ -149,7 +148,7 @@ impl Default for ConfigServerLogs {
     }
 }
 
-impl ConfigServerLogs {
+impl FieldServerLogs {
     pub(crate) fn default_filepath() -> std::path::PathBuf {
         "/var/log/vsmtp/vsmtp.log".into()
     }
@@ -173,7 +172,7 @@ impl ConfigServerLogs {
     }
 }
 
-impl ConfigServerTls {
+impl FieldServerTls {
     pub(crate) fn default_cipher_suite() -> Vec<rustls::CipherSuite> {
         vec![
             // TLS1.3 suites
@@ -191,23 +190,23 @@ impl ConfigServerTls {
     }
 }
 
-impl Default for ConfigServerQueues {
+impl Default for FieldServerQueues {
     fn default() -> Self {
         Self {
             dirpath: Self::default_dirpath(),
-            working: ConfigQueueWorking::default(),
-            delivery: ConfigQueueDelivery::default(),
+            working: FieldQueueWorking::default(),
+            delivery: FieldQueueDelivery::default(),
         }
     }
 }
 
-impl ConfigServerQueues {
+impl FieldServerQueues {
     pub(crate) fn default_dirpath() -> std::path::PathBuf {
         "/var/spool/vsmtp".into()
     }
 }
 
-impl Default for ConfigQueueWorking {
+impl Default for FieldQueueWorking {
     fn default() -> Self {
         Self {
             channel_size: Self::default_channel_size(),
@@ -215,13 +214,13 @@ impl Default for ConfigQueueWorking {
     }
 }
 
-impl ConfigQueueWorking {
+impl FieldQueueWorking {
     pub(crate) const fn default_channel_size() -> usize {
         32
     }
 }
 
-impl Default for ConfigQueueDelivery {
+impl Default for FieldQueueDelivery {
     fn default() -> Self {
         Self {
             channel_size: Self::default_channel_size(),
@@ -231,7 +230,7 @@ impl Default for ConfigQueueDelivery {
     }
 }
 
-impl ConfigQueueDelivery {
+impl FieldQueueDelivery {
     pub(crate) const fn default_channel_size() -> usize {
         32
     }
@@ -245,13 +244,13 @@ impl ConfigQueueDelivery {
     }
 }
 
-impl ConfigServerVirtualTls {
+impl FieldServerVirtualTls {
     pub(crate) const fn default_sender_security_level() -> TlsSecurityLevel {
         TlsSecurityLevel::Encrypt
     }
 }
 
-impl Default for ConfigServerSMTPAuth {
+impl Default for FieldServerSMTPAuth {
     fn default() -> Self {
         Self {
             enable_dangerous_mechanism_in_clair: Self::default_enable_dangerous_mechanism_in_clair(
@@ -263,7 +262,7 @@ impl Default for ConfigServerSMTPAuth {
     }
 }
 
-impl ConfigServerSMTPAuth {
+impl FieldServerSMTPAuth {
     pub(crate) const fn default_enable_dangerous_mechanism_in_clair() -> bool {
         false
     }
@@ -283,21 +282,21 @@ impl ConfigServerSMTPAuth {
     }
 }
 
-impl Default for ConfigServerSMTP {
+impl Default for FieldServerSMTP {
     fn default() -> Self {
         Self {
             rcpt_count_max: Self::default_rcpt_count_max(),
             disable_ehlo: Self::default_disable_ehlo(),
             required_extension: Self::default_required_extension(),
-            error: ConfigServerSMTPError::default(),
-            timeout_client: ConfigServerSMTPTimeoutClient::default(),
+            error: FieldServerSMTPError::default(),
+            timeout_client: FieldServerSMTPTimeoutClient::default(),
             codes: Self::default_smtp_codes(),
             auth: None,
         }
     }
 }
 
-impl ConfigServerSMTP {
+impl FieldServerSMTP {
     pub(crate) const fn default_rcpt_count_max() -> usize {
         1000
     }
@@ -313,6 +312,7 @@ impl ConfigServerSMTP {
             .collect()
     }
 
+    // TODO: should be const and compile time checked
     pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<CodeID, Reply> {
         let codes: std::collections::BTreeMap<CodeID, Reply> = collection! {
             CodeID::Greetings => Reply::new(
@@ -420,7 +420,7 @@ impl ConfigServerSMTP {
     }
 }
 
-impl Default for ConfigServerDNS {
+impl Default for FieldServerDNS {
     fn default() -> Self {
         Self::System
     }
@@ -474,7 +474,7 @@ impl ResolverOptsWrapper {
     }
 }
 
-impl Default for ConfigServerSMTPError {
+impl Default for FieldServerSMTPError {
     fn default() -> Self {
         Self {
             soft_count: 10,
@@ -484,7 +484,7 @@ impl Default for ConfigServerSMTPError {
     }
 }
 
-impl Default for ConfigServerSMTPTimeoutClient {
+impl Default for FieldServerSMTPTimeoutClient {
     fn default() -> Self {
         Self {
             connect: std::time::Duration::from_secs(5 * 60),
@@ -496,23 +496,23 @@ impl Default for ConfigServerSMTPTimeoutClient {
     }
 }
 
-impl Default for ConfigApp {
+impl Default for FieldApp {
     fn default() -> Self {
         Self {
             dirpath: Self::default_dirpath(),
-            vsl: ConfigAppVSL::default(),
-            logs: ConfigAppLogs::default(),
+            vsl: FieldAppVSL::default(),
+            logs: FieldAppLogs::default(),
         }
     }
 }
 
-impl ConfigApp {
+impl FieldApp {
     pub(crate) fn default_dirpath() -> std::path::PathBuf {
         "/var/spool/vsmtp/app".into()
     }
 }
 
-impl Default for ConfigAppLogs {
+impl Default for FieldAppLogs {
     fn default() -> Self {
         Self {
             filepath: Self::default_filepath(),
@@ -524,7 +524,7 @@ impl Default for ConfigAppLogs {
     }
 }
 
-impl ConfigAppLogs {
+impl FieldAppLogs {
     pub(crate) fn default_filepath() -> std::path::PathBuf {
         "/var/log/vsmtp/app.log".into()
     }

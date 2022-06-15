@@ -14,27 +14,21 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-// this produce just too much false positive in this file
-#![allow(clippy::missing_const_for_fn)]
-
-use super::{
-    wants::{
-        WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
-        WantsServerLogs, WantsServerQueues, WantsServerSMTPConfig1, WantsServerSMTPConfig2,
-        WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig, WantsValidate,
-        WantsVersion,
-    },
-    WantsServerSMTPAuth, WantsServerVirtual,
+use super::wants::{
+    WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
+    WantsServerLogs, WantsServerQueues, WantsServerSMTPAuth, WantsServerSMTPConfig1,
+    WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
+    WantsServerVirtual, WantsValidate, WantsVersion,
 };
 use crate::{
-    config::{
-        ConfigApp, ConfigAppLogs, ConfigQueueDelivery, ConfigQueueWorking, ConfigServer,
-        ConfigServerDNS, ConfigServerInterfaces, ConfigServerLogs, ConfigServerQueues,
-        ConfigServerSMTP, ConfigServerSMTPError, ConfigServerSMTPTimeoutClient, ConfigServerSystem,
-        ConfigServerSystemThreadPool, ConfigServerTls, ConfigServerVirtual, TlsSecurityLevel,
+    field::{
+        FieldApp, FieldAppLogs, FieldQueueDelivery, FieldQueueWorking, FieldServer, FieldServerDNS,
+        FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
+        FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
+        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, ResolverOptsWrapper,
+        TlsFile, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
-    ConfigServerSMTPAuth, ResolverOptsWrapper, TlsFile,
 };
 use vsmtp_common::{
     auth::Mechanism,
@@ -54,7 +48,7 @@ pub struct Builder<State> {
 impl Builder<WantsVersion> {
     /// # Panics
     ///
-    /// * CARGO_PKG_VERSION is not valid
+    /// * `CARGO_PKG_VERSION` is not valid
     #[must_use]
     pub fn with_current_version(self) -> Builder<WantsServer> {
         self.with_version_str(env!("CARGO_PKG_VERSION")).unwrap()
@@ -62,7 +56,7 @@ impl Builder<WantsVersion> {
 
     /// # Errors
     ///
-    /// * version_requirement is not valid format
+    /// * `version_requirement` is not valid format
     pub fn with_version_str(
         self,
         version_requirement: &str,
@@ -88,7 +82,7 @@ impl Builder<WantsServer> {
     ///
     #[must_use]
     pub fn with_hostname(self) -> Builder<WantsServerSystem> {
-        self.with_hostname_and_client_count_max(ConfigServer::default_client_count_max())
+        self.with_hostname_and_client_count_max(FieldServer::default_client_count_max())
     }
 
     ///
@@ -97,13 +91,13 @@ impl Builder<WantsServer> {
         self,
         client_count_max: i64,
     ) -> Builder<WantsServerSystem> {
-        self.with_server_name_and_client_count(&ConfigServer::hostname(), client_count_max)
+        self.with_server_name_and_client_count(&FieldServer::hostname(), client_count_max)
     }
 
     ///
     #[must_use]
     pub fn with_server_name(self, domain: &str) -> Builder<WantsServerSystem> {
-        self.with_server_name_and_client_count(domain, ConfigServer::default_client_count_max())
+        self.with_server_name_and_client_count(domain, FieldServer::default_client_count_max())
     }
 
     ///
@@ -128,12 +122,12 @@ impl Builder<WantsServerSystem> {
     #[must_use]
     pub fn with_default_system(self) -> Builder<WantsServerInterfaces> {
         self.with_system(
-            ConfigServerSystem::default_user(),
-            ConfigServerSystem::default_group(),
+            FieldServerSystem::default_user(),
+            FieldServerSystem::default_group(),
             None,
-            ConfigServerSystemThreadPool::default_receiver(),
-            ConfigServerSystemThreadPool::default_processing(),
-            ConfigServerSystemThreadPool::default_delivery(),
+            FieldServerSystemThreadPool::default_receiver(),
+            FieldServerSystemThreadPool::default_processing(),
+            FieldServerSystemThreadPool::default_delivery(),
         )
     }
 
@@ -146,8 +140,8 @@ impl Builder<WantsServerSystem> {
         thread_pool_delivery: usize,
     ) -> Builder<WantsServerInterfaces> {
         self.with_system(
-            ConfigServerSystem::default_user(),
-            ConfigServerSystem::default_group(),
+            FieldServerSystem::default_user(),
+            FieldServerSystem::default_group(),
             None,
             thread_pool_receiver,
             thread_pool_processing,
@@ -168,13 +162,14 @@ impl Builder<WantsServerSystem> {
             user,
             group,
             None,
-            ConfigServerSystemThreadPool::default_receiver(),
-            ConfigServerSystemThreadPool::default_processing(),
-            ConfigServerSystemThreadPool::default_delivery(),
+            FieldServerSystemThreadPool::default_receiver(),
+            FieldServerSystemThreadPool::default_processing(),
+            FieldServerSystemThreadPool::default_delivery(),
         )
     }
 
     ///
+    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_system(
         self,
@@ -238,7 +233,7 @@ impl Builder<WantsServerInterfaces> {
     ///
     #[must_use]
     pub fn with_ipv4_localhost(self) -> Builder<WantsServerLogs> {
-        let ipv4_localhost = ConfigServerInterfaces::ipv4_localhost();
+        let ipv4_localhost = FieldServerInterfaces::ipv4_localhost();
         self.with_interfaces(
             &ipv4_localhost.addr,
             &ipv4_localhost.addr_submission,
@@ -270,9 +265,9 @@ impl Builder<WantsServerLogs> {
     #[must_use]
     pub fn with_default_logs_settings(self) -> Builder<WantsServerQueues> {
         self.with_logs_settings(
-            ConfigServerLogs::default_filepath(),
-            ConfigServerLogs::default_format(),
-            ConfigServerLogs::default_level(),
+            FieldServerLogs::default_filepath(),
+            FieldServerLogs::default_format(),
+            FieldServerLogs::default_level(),
         )
     }
 
@@ -290,8 +285,8 @@ impl Builder<WantsServerLogs> {
                 filepath: filepath.into(),
                 format: format.into(),
                 level,
-                size_limit: ConfigServerLogs::default_size_limit(),
-                archive_count: ConfigServerLogs::default_archive_count(),
+                size_limit: FieldServerLogs::default_size_limit(),
+                archive_count: FieldServerLogs::default_archive_count(),
             },
         }
     }
@@ -301,7 +296,7 @@ impl Builder<WantsServerQueues> {
     ///
     #[must_use]
     pub fn with_default_delivery(self) -> Builder<WantsServerTLSConfig> {
-        self.with_spool_dir_and_default_queues(ConfigServerQueues::default_dirpath())
+        self.with_spool_dir_and_default_queues(FieldServerQueues::default_dirpath())
     }
 
     ///
@@ -312,8 +307,8 @@ impl Builder<WantsServerQueues> {
     ) -> Builder<WantsServerTLSConfig> {
         self.with_spool_dir_and_queues(
             spool_dir,
-            ConfigQueueWorking::default(),
-            ConfigQueueDelivery::default(),
+            FieldQueueWorking::default(),
+            FieldQueueDelivery::default(),
         )
     }
 
@@ -322,8 +317,8 @@ impl Builder<WantsServerQueues> {
     pub fn with_spool_dir_and_queues(
         self,
         spool_dir: impl Into<std::path::PathBuf>,
-        working: ConfigQueueWorking,
-        delivery: ConfigQueueDelivery,
+        working: FieldQueueWorking,
+        delivery: FieldQueueDelivery,
     ) -> Builder<WantsServerTLSConfig> {
         Builder::<WantsServerTLSConfig> {
             state: WantsServerTLSConfig {
@@ -341,8 +336,8 @@ impl Builder<WantsServerTLSConfig> {
     ///
     /// # Errors
     ///
-    /// * certificate is not valid
-    /// * private_key is not valid
+    /// * `certificate` is not valid
+    /// * `private_key` is not valid
     pub fn with_safe_tls_config(
         self,
         certificate: &str,
@@ -351,7 +346,7 @@ impl Builder<WantsServerTLSConfig> {
         Ok(Builder::<WantsServerSMTPConfig1> {
             state: WantsServerSMTPConfig1 {
                 parent: self.state,
-                tls: Some(ConfigServerTls {
+                tls: Some(FieldServerTls {
                     security_level: TlsSecurityLevel::May,
                     preempt_cipherlist: false,
                     handshake_timeout: std::time::Duration::from_millis(200),
@@ -364,13 +359,14 @@ impl Builder<WantsServerTLSConfig> {
                         inner: tls_private_key::from_string(private_key)?,
                         path: private_key.into(),
                     },
-                    cipher_suite: ConfigServerTls::default_cipher_suite(),
+                    cipher_suite: FieldServerTls::default_cipher_suite(),
                 }),
             },
         })
     }
 
     ///
+    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn without_tls_support(self) -> Builder<WantsServerSMTPConfig1> {
         Builder::<WantsServerSMTPConfig1> {
@@ -386,7 +382,7 @@ impl Builder<WantsServerSMTPConfig1> {
     ///
     #[must_use]
     pub fn with_default_smtp_options(self) -> Builder<WantsServerSMTPConfig2> {
-        self.with_rcpt_count_and_default(ConfigServerSMTP::default_rcpt_count_max())
+        self.with_rcpt_count_and_default(FieldServerSMTP::default_rcpt_count_max())
     }
 
     ///
@@ -399,8 +395,8 @@ impl Builder<WantsServerSMTPConfig1> {
             state: WantsServerSMTPConfig2 {
                 parent: self.state,
                 rcpt_count_max,
-                disable_ehlo: ConfigServerSMTP::default_disable_ehlo(),
-                required_extension: ConfigServerSMTP::default_required_extension(),
+                disable_ehlo: FieldServerSMTP::default_disable_ehlo(),
+                required_extension: FieldServerSMTP::default_required_extension(),
             },
         }
     }
@@ -413,8 +409,8 @@ impl Builder<WantsServerSMTPConfig2> {
         Builder::<WantsServerSMTPConfig3> {
             state: WantsServerSMTPConfig3 {
                 parent: self.state,
-                error: ConfigServerSMTPError::default(),
-                timeout_client: ConfigServerSMTPTimeoutClient::default(),
+                error: FieldServerSMTPError::default(),
+                timeout_client: FieldServerSMTPTimeoutClient::default(),
             },
         }
     }
@@ -432,12 +428,12 @@ impl Builder<WantsServerSMTPConfig2> {
         Builder::<WantsServerSMTPConfig3> {
             state: WantsServerSMTPConfig3 {
                 parent: self.state,
-                error: ConfigServerSMTPError {
+                error: FieldServerSMTPError {
                     soft_count,
                     hard_count,
                     delay,
                 },
-                timeout_client: ConfigServerSMTPTimeoutClient {
+                timeout_client: FieldServerSMTPTimeoutClient {
                     connect: *timeout_client
                         .get(&StateSMTP::Connect)
                         .unwrap_or(&std::time::Duration::from_millis(1000)),
@@ -483,6 +479,7 @@ impl Builder<WantsServerSMTPConfig3> {
 
 impl Builder<WantsServerSMTPAuth> {
     ///
+    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn without_auth(self) -> Builder<WantsApp> {
         Builder::<WantsApp> {
@@ -502,8 +499,8 @@ impl Builder<WantsServerSMTPAuth> {
     ) -> Builder<WantsApp> {
         self.with_auth(
             must_be_authenticated,
-            ConfigServerSMTPAuth::default_enable_dangerous_mechanism_in_clair(),
-            ConfigServerSMTPAuth::default_mechanisms(),
+            FieldServerSMTPAuth::default_enable_dangerous_mechanism_in_clair(),
+            FieldServerSMTPAuth::default_mechanisms(),
             attempt_count_max,
         )
     }
@@ -520,7 +517,7 @@ impl Builder<WantsServerSMTPAuth> {
         Builder::<WantsApp> {
             state: WantsApp {
                 parent: self.state,
-                auth: Some(ConfigServerSMTPAuth {
+                auth: Some(FieldServerSMTPAuth {
                     must_be_authenticated,
                     enable_dangerous_mechanism_in_clair,
                     mechanisms,
@@ -535,7 +532,7 @@ impl Builder<WantsApp> {
     ///
     #[must_use]
     pub fn with_default_app(self) -> Builder<WantsAppVSL> {
-        self.with_app_at_location(ConfigApp::default_dirpath())
+        self.with_app_at_location(FieldApp::default_dirpath())
     }
 
     ///
@@ -556,6 +553,7 @@ impl Builder<WantsApp> {
 impl Builder<WantsAppVSL> {
     ///
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn with_default_vsl_settings(self) -> Builder<WantsAppLogs> {
         Builder::<WantsAppLogs> {
             state: WantsAppLogs {
@@ -581,7 +579,7 @@ impl Builder<WantsAppLogs> {
     ///
     #[must_use]
     pub fn with_default_app_logs(self) -> Builder<WantsServerDNS> {
-        self.with_app_logs_at(ConfigAppLogs::default_filepath())
+        self.with_app_logs_at(FieldAppLogs::default_filepath())
     }
 
     ///
@@ -592,10 +590,10 @@ impl Builder<WantsAppLogs> {
     ) -> Builder<WantsServerDNS> {
         self.with_app_logs_level_and_format(
             filepath,
-            ConfigAppLogs::default_level(),
-            ConfigAppLogs::default_format(),
-            ConfigAppLogs::default_size_limit(),
-            ConfigAppLogs::default_archive_count(),
+            FieldAppLogs::default_level(),
+            FieldAppLogs::default_format(),
+            FieldAppLogs::default_size_limit(),
+            FieldAppLogs::default_archive_count(),
         )
     }
 
@@ -629,7 +627,7 @@ impl Builder<WantsServerDNS> {
         Builder::<WantsServerVirtual> {
             state: WantsServerVirtual {
                 parent: self.state,
-                config: ConfigServerDNS::Google {
+                config: FieldServerDNS::Google {
                     options: ResolverOptsWrapper::default(),
                 },
             },
@@ -642,7 +640,7 @@ impl Builder<WantsServerDNS> {
         Builder::<WantsServerVirtual> {
             state: WantsServerVirtual {
                 parent: self.state,
-                config: ConfigServerDNS::CloudFlare {
+                config: FieldServerDNS::CloudFlare {
                     options: ResolverOptsWrapper::default(),
                 },
             },
@@ -651,17 +649,19 @@ impl Builder<WantsServerDNS> {
 
     /// dns resolutions will be made using the system configuration.
     /// (/etc/resolv.conf on unix systems & the registry on Windows).
+    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_system_dns(self) -> Builder<WantsServerVirtual> {
         Builder::<WantsServerVirtual> {
             state: WantsServerVirtual {
                 parent: self.state,
-                config: ConfigServerDNS::System,
+                config: FieldServerDNS::System,
             },
         }
     }
 
     /// dns resolutions will be made using the following dns configuration.
+    #[allow(clippy::missing_const_for_fn)]
     #[must_use]
     pub fn with_dns(
         self,
@@ -671,7 +671,7 @@ impl Builder<WantsServerDNS> {
         Builder::<WantsServerVirtual> {
             state: WantsServerVirtual {
                 parent: self.state,
-                config: ConfigServerDNS::Custom { config, options },
+                config: FieldServerDNS::Custom { config, options },
             },
         }
     }
@@ -684,7 +684,7 @@ pub struct VirtualEntry {
     /// path to the certificate and private key used for tls.
     pub tls: Option<(String, String)>,
     /// dns configuration.
-    pub dns: Option<ConfigServerDNS>,
+    pub dns: Option<FieldServerDNS>,
 }
 
 impl Builder<WantsServerVirtual> {
@@ -715,13 +715,13 @@ impl Builder<WantsServerVirtual> {
             r#virtual.insert(
                 entry.domain.clone(),
                 match (entry.tls.as_ref(), entry.dns.as_ref()) {
-                    (None, None) => ConfigServerVirtual::new(),
-                    (None, Some(dns_config)) => ConfigServerVirtual::with_dns(dns_config.clone())?,
+                    (None, None) => FieldServerVirtual::new(),
+                    (None, Some(dns_config)) => FieldServerVirtual::with_dns(dns_config.clone())?,
                     (Some((certificate, private_key)), None) => {
-                        ConfigServerVirtual::with_tls(certificate, private_key)?
+                        FieldServerVirtual::with_tls(certificate, private_key)?
                     }
                     (Some((certificate, private_key)), Some(dns_config)) => {
-                        ConfigServerVirtual::with_tls_and_dns(
+                        FieldServerVirtual::with_tls_and_dns(
                             certificate,
                             private_key,
                             dns_config.clone(),

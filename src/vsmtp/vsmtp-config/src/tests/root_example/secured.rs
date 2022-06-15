@@ -14,12 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{collection, state::StateSMTP};
-
 use crate::{
-    config::{ConfigQueueDelivery, ConfigQueueWorking},
+    config::field::{FieldQueueDelivery, FieldQueueWorking},
     Config,
 };
+use vsmtp_common::{collection, state::StateSMTP};
 
 #[test]
 fn parse() {
@@ -35,8 +34,8 @@ fn parse() {
             .with_default_logs_settings()
             .with_spool_dir_and_queues(
                 "/var/spool/vsmtp",
-                ConfigQueueWorking { channel_size: 16 },
-                ConfigQueueDelivery {
+                FieldQueueWorking { channel_size: 16 },
+                FieldQueueDelivery {
                     channel_size: 16,
                     deferred_retry_max: 10,
                     deferred_retry_period: std::time::Duration::from_secs(600)
@@ -74,7 +73,7 @@ fn parse() {
 
                     cfg
                 },
-                crate::ResolverOptsWrapper::default()
+                crate::field::ResolverOptsWrapper::default()
             )
             .without_virtual_entries()
             .validate()
