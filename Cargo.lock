@@ -245,16 +245,16 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.2"
+version = "3.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e538f9ee5aa3b3963f09a997035f883677966ed50fce0292611927ce6f6d8c6"
+checksum = "6d20de3739b4fb45a17837824f40aa1769cc7655d7a83e68739a77fe7b30c87a"
 dependencies = [
  "atty",
  "bitflags",
  "clap_derive",
  "clap_lex",
  "indexmap",
- "lazy_static",
+ "once_cell",
  "strsim 0.10.0",
  "termcolor",
  "textwrap 0.15.0",
@@ -262,9 +262,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "3.2.2"
+version = "3.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7f98063cac4652f23ccda556b8d04347a7fc4b2cff1f7577cc8c6546e0d8078"
+checksum = "026baf08b89ffbd332836002ec9378ef0e69648cbfadd68af7cd398ca5bf98f7"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -2038,7 +2038,7 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 name = "vqueue"
 version = "1.0.0"
 dependencies = [
- "clap 3.2.2",
+ "clap 3.2.4",
  "itertools",
  "pretty_assertions",
  "vsmtp-common",
@@ -2049,7 +2049,7 @@ dependencies = [
 name = "vsmtp"
 version = "1.0.1"
 dependencies = [
- "clap 3.2.2",
+ "clap 3.2.4",
  "diff",
  "vsmtp-common",
  "vsmtp-config",
