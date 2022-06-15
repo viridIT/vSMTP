@@ -18,11 +18,19 @@
 use crate::ReplyCode;
 
 /// SMTP message send by the server to the client as defined in RFC5321#4.2
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reply {
-    #[serde(flatten)]
     code: ReplyCode,
     text: String,
+}
+
+impl serde::Serialize for Reply {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.fold())
+    }
 }
 
 impl<'de> serde::Deserialize<'de> for Reply {
@@ -128,6 +136,8 @@ impl Reply {
     }
 
     ///
+    // TODO: should be private and called only when the object is construct,
+    // the result should be cached
     #[must_use]
     pub fn fold(&self) -> String {
         let prefix = match &self.code {
