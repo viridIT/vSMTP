@@ -16,15 +16,11 @@
 */
 #![allow(clippy::module_name_repetitions)]
 
-use vsmtp_common::{re::log, CodeID, Reply};
-
-use crate::{
-    config::{
-        FieldQueueDelivery, FieldQueueWorking, FieldServerDNS, FieldServerSMTPError,
-        FieldServerSMTPTimeoutClient, FieldServerTls,
-    },
-    FieldServerSMTPAuth, FieldServerVirtual,
+use crate::field::{
+    FieldQueueDelivery, FieldQueueWorking, FieldServerDNS, FieldServerSMTPAuth,
+    FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerTls, FieldServerVirtual,
 };
+use vsmtp_common::{re::log, CodeID, Reply};
 
 ///
 pub struct WantsVersion(pub(crate) ());

@@ -14,7 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{builder::VirtualEntry, Config, FieldServerDNS, ResolverOptsWrapper};
+use crate::{
+    builder::VirtualEntry,
+    field::{FieldServerDNS, ResolverOptsWrapper},
+    Config,
+};
 
 #[test]
 fn parse() {

@@ -14,24 +14,21 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::{
-    wants::{
-        WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
-        WantsServerLogs, WantsServerQueues, WantsServerSMTPConfig1, WantsServerSMTPConfig2,
-        WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig, WantsValidate,
-        WantsVersion,
-    },
-    WantsServerSMTPAuth, WantsServerVirtual,
+use super::wants::{
+    WantsApp, WantsAppLogs, WantsAppVSL, WantsServer, WantsServerDNS, WantsServerInterfaces,
+    WantsServerLogs, WantsServerQueues, WantsServerSMTPAuth, WantsServerSMTPConfig1,
+    WantsServerSMTPConfig2, WantsServerSMTPConfig3, WantsServerSystem, WantsServerTLSConfig,
+    WantsServerVirtual, WantsValidate, WantsVersion,
 };
 use crate::{
-    config::{
+    field::{
         FieldApp, FieldAppLogs, FieldQueueDelivery, FieldQueueWorking, FieldServer, FieldServerDNS,
         FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
-        FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
-        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, TlsSecurityLevel,
+        FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
+        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, ResolverOptsWrapper,
+        TlsFile, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
-    FieldServerSMTPAuth, ResolverOptsWrapper, TlsFile,
 };
 use vsmtp_common::{
     auth::Mechanism,

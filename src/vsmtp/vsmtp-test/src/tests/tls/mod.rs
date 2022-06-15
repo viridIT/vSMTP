@@ -22,7 +22,10 @@ mod tunneled_with_auth;
 const TEST_SERVER_CERT: &str = "src/template/certs/certificate.crt";
 const TEST_SERVER_KEY: &str = "src/template/certs/private_key.rsa.key";
 
-use vsmtp_common::re::{anyhow, tokio};
+use vsmtp_common::{
+    re::{anyhow, tokio},
+    ConnectionKind,
+};
 use vsmtp_config::{
     get_rustls_config,
     re::{rustls, rustls_pemfile},
@@ -30,7 +33,7 @@ use vsmtp_config::{
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::auth;
-use vsmtp_server::{ConnectionKind, ProcessMessage, Server};
+use vsmtp_server::{ProcessMessage, Server};
 
 pub fn get_tls_config() -> Config {
     Config::builder()

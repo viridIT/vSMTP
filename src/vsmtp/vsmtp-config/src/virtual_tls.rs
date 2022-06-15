@@ -15,8 +15,8 @@
  *
 */
 use crate::{
+    field::{FieldServerDNS, FieldServerVirtual, FieldServerVirtualTls, TlsFile},
     parser::{tls_certificate, tls_private_key},
-    FieldServerDNS, FieldServerVirtual, FieldServerVirtualTls, TlsFile,
 };
 use vsmtp_common::re::anyhow;
 

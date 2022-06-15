@@ -18,16 +18,14 @@ use crate::{
     auth,
     channel_message::ProcessMessage,
     log_channels,
-    receiver::{
-        handle_connection, MailHandler, {Connection, ConnectionKind},
-    },
+    receiver::{handle_connection, Connection, MailHandler},
 };
 use vsmtp_common::{
     re::{
         anyhow::{self, Context},
         log, tokio, vsmtp_rsasl,
     },
-    CodeID,
+    CodeID, ConnectionKind,
 };
 use vsmtp_config::{get_rustls_config, re::rustls, Config, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;

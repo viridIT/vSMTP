@@ -18,7 +18,7 @@ use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_
 use vsmtp_common::{
     addr, mail_context::MessageBody, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
 };
-use vsmtp_config::{builder::VirtualEntry, Config, FieldServerDNS};
+use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
 
 #[test]
 fn test_status() {

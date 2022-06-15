@@ -14,11 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use std::str::FromStr;
-
 use crate::rule_state::RuleState;
 use crate::tests::helpers::get_default_config;
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
+use std::str::FromStr;
 use vsmtp_common::auth::Mechanism;
 use vsmtp_common::re::serde_json;
 use vsmtp_common::transfer::ForwardTarget;
@@ -30,7 +29,7 @@ use vsmtp_common::{
     Mail,
 };
 use vsmtp_common::{BodyType, CodeID, ReplyOrCodeID};
-use vsmtp_config::FieldServerVirtual;
+use vsmtp_config::field::FieldServerVirtual;
 
 #[test]
 fn test_logs() {

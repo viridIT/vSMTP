@@ -17,7 +17,7 @@
 use rustls::ALL_CIPHER_SUITES;
 use vsmtp_common::re::{anyhow, log};
 
-use crate::{config::FieldServerTls, FieldServerVirtual};
+use crate::field::{FieldServerTls, FieldServerVirtual};
 
 struct TlsLogger;
 impl rustls::KeyLog for TlsLogger {

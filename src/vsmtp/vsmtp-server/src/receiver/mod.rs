@@ -26,7 +26,7 @@ use vsmtp_common::{
     re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
-    CodeID, MailParserOnFly,
+    CodeID, ConnectionKind, MailParserOnFly,
 };
 use vsmtp_config::{re::rustls, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -37,7 +37,7 @@ mod io;
 mod on_mail;
 pub mod transaction;
 
-pub use connection::{Connection, ConnectionKind};
+pub use connection::Connection;
 pub use io::AbstractIO;
 pub use on_mail::{MailHandler, MailHandlerError, OnMail};
 

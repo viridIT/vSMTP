@@ -15,7 +15,7 @@
  *
 */
 
-use crate::config::{
+use crate::config::field::{
     Config, FieldApp, FieldAppLogs, FieldAppVSL, FieldQueueDelivery, FieldQueueWorking,
     FieldServer, FieldServerDNS, FieldServerInterfaces, FieldServerLogs, FieldServerQueues,
     FieldServerSMTP, FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient,
@@ -312,6 +312,7 @@ impl FieldServerSMTP {
             .collect()
     }
 
+    // TODO: should be const and compile time checked
     pub(crate) fn default_smtp_codes() -> std::collections::BTreeMap<CodeID, Reply> {
         let codes: std::collections::BTreeMap<CodeID, Reply> = collection! {
             CodeID::Greetings => Reply::new(

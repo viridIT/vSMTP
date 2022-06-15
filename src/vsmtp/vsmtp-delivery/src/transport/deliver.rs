@@ -201,7 +201,7 @@ mod test {
         re::{lettre, tokio},
         transfer::EmailTransferStatus,
     };
-    use vsmtp_config::{Config, FieldServerDNS};
+    use vsmtp_config::{field::FieldServerDNS, Config};
 
     #[test]
     fn test_update_rcpt_held_back() {

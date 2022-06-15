@@ -14,12 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{collection, state::StateSMTP};
-
 use crate::{
-    config::{FieldQueueDelivery, FieldQueueWorking},
+    config::field::{FieldQueueDelivery, FieldQueueWorking},
     Config,
 };
+use vsmtp_common::{collection, state::StateSMTP};
 
 #[test]
 fn parse() {
@@ -74,7 +73,7 @@ fn parse() {
 
                     cfg
                 },
-                crate::ResolverOptsWrapper::default()
+                crate::field::ResolverOptsWrapper::default()
             )
             .without_virtual_entries()
             .validate()

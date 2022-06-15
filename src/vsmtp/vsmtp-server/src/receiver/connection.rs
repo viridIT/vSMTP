@@ -17,21 +17,9 @@
 use crate::{log_channels, AbstractIO};
 use vsmtp_common::{
     re::{anyhow, log, tokio},
-    CodeID, Reply, ReplyOrCodeID,
+    CodeID, ConnectionKind, Reply, ReplyOrCodeID,
 };
 use vsmtp_config::Config;
-
-/// how the server would react to tls interaction for this connection
-#[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, vsmtp_common::re::strum::Display)]
-pub enum ConnectionKind {
-    /// Connection coming for relay (MTA on port 25)
-    Relay,
-    /// Connection coming for submission (MSA on port 587)
-    Submission,
-    /// Connection coming for submissionS (MSA on port 465)
-    Tunneled,
-}
 
 // TODO:? merge with [`ConnectionContext`]
 /// Instance containing connection to the server's information
