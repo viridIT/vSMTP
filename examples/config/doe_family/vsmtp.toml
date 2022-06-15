@@ -6,7 +6,7 @@ version_requirement = ">=1.0.0"
 domain = "doe-family.com"
 
 [server.interfaces]
-addr = ["192.168.1.254:25"]
+addr = ["192.168.1.254:25", "192.168.1.254:10025"]
 addr_submission = ["192.168.1.254:587"]
 addr_submissions = ["192.168.1.254:465"]
 

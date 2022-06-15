@@ -21,3 +21,5 @@ object virus_queue string = "doe/virus";
 
 // A user blacklist file
 object blacklist file:fqdn = "../../../examples/config/doe_family/blacklist.txt";
+
+object untrusted regex = "^[a-z0-9.]+@example.com$"
