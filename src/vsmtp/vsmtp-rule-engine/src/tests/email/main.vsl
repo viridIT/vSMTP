@@ -151,10 +151,10 @@
         },
 
         rule "check rewrites" || {
-            if "added@rcpt.com" in ctx().rcpt
-            && !("rcpt@toremove.org" in ctx().rcpt)
-            && "new@rcpt.net" in ctx().rcpt
-            && !("rcpt@torewrite.net" in ctx().rcpt)
+            if "added@rcpt.com" in ctx().rcpt_list
+            && !("rcpt@toremove.org" in ctx().rcpt_list)
+            && "new@rcpt.net" in ctx().rcpt_list
+            && !("rcpt@torewrite.net" in ctx().rcpt_list)
             && ctx().mail_from is "new@mailfrom.eu" {
                 next()
             } else {

@@ -8,14 +8,14 @@ import "objects" as doe;
 
   rcpt: [
     // jane will always be added as a bcc when jenny is part of the recipients.
-    action "bcc jenny" || if doe::jenny in ctx().rcpt { bcc(doe::jane) },
+    action "bcc jenny" || if doe::jenny in ctx().rcpt_list { bcc(doe::jane) },
   ],
 
   delivery: [
     action "setup delivery" ||
       // we loop over all recipients and deliver localy if any of them is part of the family.
       // otherwise, we simply deliver the email over SMTP.
-      for rcpt in ctx().rcpt {
+      for rcpt in ctx().rcpt_list {
         if rcpt in doe::family_addr { maildir(rcpt) } else { deliver(rcpt) }
       }
   ],

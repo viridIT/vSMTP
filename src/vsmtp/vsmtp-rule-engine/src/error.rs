@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::re::anyhow;
+use vsmtp_common::{re::anyhow, state::StateSMTP};
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
@@ -106,8 +106,10 @@ impl From<CompilationError> for Box<rhai::EvalAltResult> {
 pub enum RuntimeError {
     #[error("a lock guard is poisoned: `{source}`")]
     PoisonedGuard { source: anyhow::Error },
-    #[error("the field: `{field}` is not defined yet")]
-    MissingField { field: String },
+    #[error(
+        "the field: `{field}` is not defined yet, it only is available from the `{stage}` stage"
+    )]
+    MissingField { field: String, stage: StateSMTP },
     #[error("failed to parse the message body, `{source}`")]
     ParseMessageBody { source: anyhow::Error },
     #[error("invalid type conversion expected: `{r#type}`, but got: `{source}`")]
@@ -129,31 +131,33 @@ macro_rules! vsl_guard_ok {
 }
 
 macro_rules! vsl_missing_ok {
-    ($option:expr, $field:expr) => {
+    ($option:expr, $field:expr, $stage:expr) => {
         $option
             .as_ref()
             .ok_or_else(|| $crate::error::RuntimeError::MissingField {
                 field: $field.to_string(),
+                stage: $stage,
             })?
     };
-    (mut $option:expr, $field:expr) => {
+    (mut $option:expr, $field:expr,  $stage:expr) => {
         $option
             .as_mut()
             .ok_or_else(|| $crate::error::RuntimeError::MissingField {
                 field: $field.to_string(),
+                stage: $stage,
             })?
     };
 }
 
 macro_rules! vsl_parse_ok {
     ($writer:expr) => {{
-        let message = vsl_missing_ok!(mut $writer, "message");
+        let message = vsl_missing_ok!(mut $writer, "message", StateSMTP::PreQ);
         if !matches!(&message, MessageBody::Parsed(..)) {
             message
                 .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
                 .map_err(|source| $crate::error::RuntimeError::ParseMessageBody { source })?;
         }
-        vsl_missing_ok!(mut $writer, "message")
+        vsl_missing_ok!(mut $writer, "message", StateSMTP::PreQ)
     }};
 }
 
