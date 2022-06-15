@@ -30,7 +30,7 @@ use vsmtp_common::{
     Mail,
 };
 use vsmtp_common::{BodyType, CodeID, ReplyOrCodeID};
-use vsmtp_config::ConfigServerVirtual;
+use vsmtp_config::FieldServerVirtual;
 
 #[test]
 fn test_logs() {
@@ -452,9 +452,9 @@ fn test_in_domain_and_server_name() {
 fn test_in_domain_and_server_name_sni() {
     let mut config = get_default_config("./tmp/app");
     config.server.r#virtual = std::collections::BTreeMap::from_iter([
-        ("example.com".to_string(), ConfigServerVirtual::new()),
-        ("doe.com".to_string(), ConfigServerVirtual::new()),
-        ("green.com".to_string(), ConfigServerVirtual::new()),
+        ("example.com".to_string(), FieldServerVirtual::new()),
+        ("doe.com".to_string(), FieldServerVirtual::new()),
+        ("green.com".to_string(), FieldServerVirtual::new()),
     ]);
 
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();

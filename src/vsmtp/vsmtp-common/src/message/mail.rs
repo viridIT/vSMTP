@@ -14,9 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
 use super::mime_type::Mime;
 
-/// we use Vec instead of a HashMap because header ordering is important.
+/// we use Vec instead of a `HashMap` because header ordering is important.
 #[allow(clippy::module_name_repetitions)]
 pub type MailHeaders = Vec<(String, String)>;
 

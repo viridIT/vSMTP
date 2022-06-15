@@ -20,10 +20,10 @@ use vsmtp_common::{re::log, CodeID, Reply};
 
 use crate::{
     config::{
-        ConfigQueueDelivery, ConfigQueueWorking, ConfigServerDNS, ConfigServerSMTPError,
-        ConfigServerSMTPTimeoutClient, ConfigServerTls,
+        FieldQueueDelivery, FieldQueueWorking, FieldServerDNS, FieldServerSMTPError,
+        FieldServerSMTPTimeoutClient, FieldServerTls,
     },
-    ConfigServerSMTPAuth, ConfigServerVirtual,
+    FieldServerSMTPAuth, FieldServerVirtual,
 };
 
 ///
@@ -76,14 +76,14 @@ pub struct WantsServerQueues {
 pub struct WantsServerTLSConfig {
     pub(crate) parent: WantsServerQueues,
     pub(super) dirpath: std::path::PathBuf,
-    pub(super) working: ConfigQueueWorking,
-    pub(super) delivery: ConfigQueueDelivery,
+    pub(super) working: FieldQueueWorking,
+    pub(super) delivery: FieldQueueDelivery,
 }
 
 ///
 pub struct WantsServerSMTPConfig1 {
     pub(crate) parent: WantsServerTLSConfig,
-    pub(super) tls: Option<ConfigServerTls>,
+    pub(super) tls: Option<FieldServerTls>,
 }
 
 ///
@@ -97,8 +97,8 @@ pub struct WantsServerSMTPConfig2 {
 ///
 pub struct WantsServerSMTPConfig3 {
     pub(crate) parent: WantsServerSMTPConfig2,
-    pub(super) error: ConfigServerSMTPError,
-    pub(super) timeout_client: ConfigServerSMTPTimeoutClient,
+    pub(super) error: FieldServerSMTPError,
+    pub(super) timeout_client: FieldServerSMTPTimeoutClient,
 }
 
 ///
@@ -110,7 +110,7 @@ pub struct WantsServerSMTPAuth {
 ///
 pub struct WantsApp {
     pub(crate) parent: WantsServerSMTPAuth,
-    pub(super) auth: Option<ConfigServerSMTPAuth>,
+    pub(super) auth: Option<FieldServerSMTPAuth>,
 }
 
 ///
@@ -138,11 +138,11 @@ pub struct WantsServerDNS {
 ///
 pub struct WantsServerVirtual {
     pub(crate) parent: WantsServerDNS,
-    pub(super) config: ConfigServerDNS,
+    pub(super) config: FieldServerDNS,
 }
 
 ///
 pub struct WantsValidate {
     pub(crate) parent: WantsServerVirtual,
-    pub(super) r#virtual: std::collections::BTreeMap<String, ConfigServerVirtual>,
+    pub(super) r#virtual: std::collections::BTreeMap<String, FieldServerVirtual>,
 }

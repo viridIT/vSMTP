@@ -29,7 +29,7 @@ pub fn parse_smtp_service(
     input: &[rhai::Expression],
     service_name: &str,
 ) -> EngineResult<Service> {
-    /// extract a value from a rhai::Map, optionally inserting a default value.
+    /// extract a value from a `rhai::Map`, optionally inserting a default value.
     fn get_or_default<T: Clone + Send + Sync + 'static>(
         map_name: &str,
         map: &rhai::Map,

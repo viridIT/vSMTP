@@ -43,7 +43,7 @@ pub struct Server {
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 }
 
-/// Create a TCPListener ready to be listened to
+/// Create a `TCPListener` ready to be listened to
 ///
 /// # Errors
 ///
@@ -81,7 +81,7 @@ impl Server {
     /// # Errors
     ///
     /// * `spool_dir` does not exist and failed to be created
-    /// * cannot convert sockets to [tokio::net::TcpListener]
+    /// * cannot convert sockets to `[tokio::net::TcpListener]`
     /// * cannot initialize [rustls] config
     pub fn new(
         config: std::sync::Arc<Config>,
@@ -125,11 +125,9 @@ impl Server {
     }
 
     #[allow(clippy::too_many_lines)]
-    /// Main loop of vSMTP's server
+    /// Main loop of `vSMTP`'s server
     ///
     /// # Errors
-    ///
-    /// * failed to initialize the [RuleEngine]
     pub async fn listen_and_serve(
         self,
         sockets: (

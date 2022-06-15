@@ -14,16 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::use_self)] // false positive
 #![allow(missing_docs)]
-#![allow(clippy::use_self)]
 
 use serde_with::serde_as;
-use vsmtp_common::{
-    auth::Mechanism,
-    re::{anyhow, log},
-    CodeID, Reply,
-};
+use vsmtp_common::{auth::Mechanism, re::log, CodeID, Reply};
 
 ///
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -35,46 +30,46 @@ pub struct Config {
     )]
     pub version_requirement: semver::VersionReq,
     #[serde(default)]
-    pub server: ConfigServer,
+    pub server: FieldServer,
     #[serde(default)]
-    pub app: ConfigApp,
+    pub app: FieldApp,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServer {
+pub struct FieldServer {
     // TODO: parse valid fqdn
-    #[serde(default = "ConfigServer::hostname")]
+    #[serde(default = "FieldServer::hostname")]
     pub domain: String,
-    #[serde(default = "ConfigServer::default_client_count_max")]
+    #[serde(default = "FieldServer::default_client_count_max")]
     pub client_count_max: i64,
     #[serde(default)]
-    pub system: ConfigServerSystem,
+    pub system: FieldServerSystem,
     #[serde(default)]
-    pub interfaces: ConfigServerInterfaces,
+    pub interfaces: FieldServerInterfaces,
     #[serde(default)]
-    pub logs: ConfigServerLogs,
+    pub logs: FieldServerLogs,
     #[serde(default)]
-    pub queues: ConfigServerQueues,
-    pub tls: Option<ConfigServerTls>,
+    pub queues: FieldServerQueues,
+    pub tls: Option<FieldServerTls>,
     #[serde(default)]
-    pub smtp: ConfigServerSMTP,
+    pub smtp: FieldServerSMTP,
     #[serde(default)]
-    pub dns: ConfigServerDNS,
+    pub dns: FieldServerDNS,
     #[serde(default)]
-    pub r#virtual: std::collections::BTreeMap<String, ConfigServerVirtual>,
+    pub r#virtual: std::collections::BTreeMap<String, FieldServerVirtual>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerSystem {
-    #[serde(default = "ConfigServerSystem::default_user")]
+pub struct FieldServerSystem {
+    #[serde(default = "FieldServerSystem::default_user")]
     #[serde(
         serialize_with = "crate::parser::syst_user::serialize",
         deserialize_with = "crate::parser::syst_user::deserialize"
     )]
     pub user: users::User,
-    #[serde(default = "ConfigServerSystem::default_group")]
+    #[serde(default = "FieldServerSystem::default_group")]
     #[serde(
         serialize_with = "crate::parser::syst_group::serialize",
         deserialize_with = "crate::parser::syst_group::deserialize"
@@ -87,10 +82,10 @@ pub struct ConfigServerSystem {
     )]
     pub group_local: Option<users::Group>,
     #[serde(default)]
-    pub thread_pool: ConfigServerSystemThreadPool,
+    pub thread_pool: FieldServerSystemThreadPool,
 }
 
-impl PartialEq for ConfigServerSystem {
+impl PartialEq for FieldServerSystem {
     fn eq(&self, other: &Self) -> bool {
         self.user.uid() == other.user.uid()
             && self.group.gid() == other.group.gid()
@@ -98,11 +93,11 @@ impl PartialEq for ConfigServerSystem {
     }
 }
 
-impl Eq for ConfigServerSystem {}
+impl Eq for FieldServerSystem {}
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerSystemThreadPool {
+pub struct FieldServerSystemThreadPool {
     pub receiver: usize,
     pub processing: usize,
     pub delivery: usize,
@@ -110,7 +105,7 @@ pub struct ConfigServerSystemThreadPool {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerInterfaces {
+pub struct FieldServerInterfaces {
     #[serde(default)]
     #[serde(deserialize_with = "crate::parser::socket_addr::deserialize")]
     pub addr: Vec<std::net::SocketAddr>,
@@ -124,112 +119,58 @@ pub struct ConfigServerInterfaces {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerLogs {
-    #[serde(default = "ConfigServerLogs::default_filepath")]
+pub struct FieldServerLogs {
+    #[serde(default = "FieldServerLogs::default_filepath")]
     pub filepath: std::path::PathBuf,
-    #[serde(default = "ConfigServerLogs::default_format")]
+    #[serde(default = "FieldServerLogs::default_format")]
     pub format: String,
-    #[serde(default = "ConfigServerLogs::default_level")]
+    #[serde(default = "FieldServerLogs::default_level")]
     pub level: std::collections::BTreeMap<String, log::LevelFilter>,
-    #[serde(default = "ConfigAppLogs::default_size_limit")]
+    #[serde(default = "FieldServerLogs::default_size_limit")]
     pub size_limit: u64,
-    #[serde(default = "ConfigAppLogs::default_archive_count")]
+    #[serde(default = "FieldServerLogs::default_archive_count")]
     pub archive_count: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigQueueWorking {
-    #[serde(default = "ConfigQueueWorking::default_channel_size")]
+pub struct FieldQueueWorking {
+    #[serde(default = "FieldQueueWorking::default_channel_size")]
     pub channel_size: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigQueueDelivery {
-    #[serde(default = "ConfigQueueDelivery::default_channel_size")]
+pub struct FieldQueueDelivery {
+    #[serde(default = "FieldQueueDelivery::default_channel_size")]
     pub channel_size: usize,
-    #[serde(default = "ConfigQueueDelivery::default_deferred_retry_max")]
+    #[serde(default = "FieldQueueDelivery::default_deferred_retry_max")]
     pub deferred_retry_max: usize,
     #[serde(with = "humantime_serde")]
-    #[serde(default = "ConfigQueueDelivery::default_deferred_retry_period")]
+    #[serde(default = "FieldQueueDelivery::default_deferred_retry_period")]
     pub deferred_retry_period: std::time::Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerQueues {
+pub struct FieldServerQueues {
     pub dirpath: std::path::PathBuf,
     #[serde(default)]
-    pub working: ConfigQueueWorking,
+    pub working: FieldQueueWorking,
     #[serde(default)]
-    pub delivery: ConfigQueueDelivery,
+    pub delivery: FieldQueueDelivery,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerVirtual {
-    pub tls: Option<ConfigServerVirtualTls>,
-    pub dns: Option<ConfigServerDNS>,
-}
-
-impl ConfigServerVirtual {
-    /// create a new virtual domain using the root domain parameters.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self {
-            tls: None,
-            dns: None,
-        }
-    }
-
-    /// create a new virtual domain with tls parameters.
-    ///
-    /// # Errors
-    ///
-    /// * certificate is not valid
-    /// * private key is not valid
-    pub fn with_tls(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
-        Ok(Self {
-            tls: Some(ConfigServerVirtualTls::from_path(certificate, private_key)?),
-            dns: None,
-        })
-    }
-
-    /// create a new virtual domain with a dns config.
-    ///
-    /// # Errors
-    ///
-    /// * certificate is not valid
-    /// * private key is not valid
-    pub const fn with_dns(dns_config: ConfigServerDNS) -> anyhow::Result<Self> {
-        Ok(Self {
-            tls: None,
-            dns: Some(dns_config),
-        })
-    }
-
-    /// create a new virtual domain with a dns & tls parameters.
-    ///
-    /// # Errors
-    ///
-    /// * certificate is not valid
-    /// * private key is not valid
-    pub fn with_tls_and_dns(
-        certificate: &str,
-        private_key: &str,
-        dns_config: ConfigServerDNS,
-    ) -> anyhow::Result<Self> {
-        Ok(Self {
-            tls: Some(ConfigServerVirtualTls::from_path(certificate, private_key)?),
-            dns: Some(dns_config),
-        })
-    }
+pub struct FieldServerVirtual {
+    pub tls: Option<FieldServerVirtualTls>,
+    pub dns: Option<FieldServerDNS>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerVirtualTls {
+pub struct FieldServerVirtualTls {
     #[serde(
         serialize_with = "crate::parser::tls_protocol_version::serialize",
         deserialize_with = "crate::parser::tls_protocol_version::deserialize"
@@ -237,7 +178,7 @@ pub struct ConfigServerVirtualTls {
     pub protocol_version: Vec<rustls::ProtocolVersion>,
     pub certificate: TlsFile<rustls::Certificate>,
     pub private_key: TlsFile<rustls::PrivateKey>,
-    #[serde(default = "ConfigServerVirtualTls::default_sender_security_level")]
+    #[serde(default = "FieldServerVirtualTls::default_sender_security_level")]
     pub sender_security_level: TlsSecurityLevel,
 }
 
@@ -264,7 +205,7 @@ pub struct TlsFile<T> {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerTls {
+pub struct FieldServerTls {
     pub security_level: TlsSecurityLevel,
     pub preempt_cipherlist: bool,
     #[serde(with = "humantime_serde")]
@@ -277,7 +218,7 @@ pub struct ConfigServerTls {
     #[serde(
         serialize_with = "crate::parser::tls_cipher_suite::serialize",
         deserialize_with = "crate::parser::tls_cipher_suite::deserialize",
-        default = "ConfigServerTls::default_cipher_suite"
+        default = "FieldServerTls::default_cipher_suite"
     )]
     pub cipher_suite: Vec<rustls::CipherSuite>,
     pub certificate: TlsFile<rustls::Certificate>,
@@ -286,7 +227,7 @@ pub struct ConfigServerTls {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerSMTPError {
+pub struct FieldServerSMTPError {
     pub soft_count: i64,
     pub hard_count: i64,
     #[serde(with = "humantime_serde")]
@@ -295,7 +236,7 @@ pub struct ConfigServerSMTPError {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerSMTPTimeoutClient {
+pub struct FieldServerSMTPTimeoutClient {
     #[serde(with = "humantime_serde")]
     pub connect: std::time::Duration,
     #[serde(with = "humantime_serde")]
@@ -310,43 +251,43 @@ pub struct ConfigServerSMTPTimeoutClient {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerSMTPAuth {
-    #[serde(default = "ConfigServerSMTPAuth::default_must_be_authenticated")]
+pub struct FieldServerSMTPAuth {
+    #[serde(default = "FieldServerSMTPAuth::default_must_be_authenticated")]
     pub must_be_authenticated: bool,
-    #[serde(default = "ConfigServerSMTPAuth::default_enable_dangerous_mechanism_in_clair")]
+    #[serde(default = "FieldServerSMTPAuth::default_enable_dangerous_mechanism_in_clair")]
     pub enable_dangerous_mechanism_in_clair: bool,
-    #[serde(default = "ConfigServerSMTPAuth::default_mechanisms")]
+    #[serde(default = "FieldServerSMTPAuth::default_mechanisms")]
     pub mechanisms: Vec<Mechanism>,
-    #[serde(default = "ConfigServerSMTPAuth::default_attempt_count_max")]
+    #[serde(default = "FieldServerSMTPAuth::default_attempt_count_max")]
     pub attempt_count_max: i64,
 }
 
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigServerSMTP {
-    #[serde(default = "ConfigServerSMTP::default_rcpt_count_max")]
+pub struct FieldServerSMTP {
+    #[serde(default = "FieldServerSMTP::default_rcpt_count_max")]
     pub rcpt_count_max: usize,
-    #[serde(default = "ConfigServerSMTP::default_disable_ehlo")]
+    #[serde(default = "FieldServerSMTP::default_disable_ehlo")]
     pub disable_ehlo: bool,
     // TODO: parse extension enum
-    #[serde(default = "ConfigServerSMTP::default_required_extension")]
+    #[serde(default = "FieldServerSMTP::default_required_extension")]
     pub required_extension: Vec<String>,
     #[serde(default)]
-    pub error: ConfigServerSMTPError,
+    pub error: FieldServerSMTPError,
     #[serde(default)]
-    pub timeout_client: ConfigServerSMTPTimeoutClient,
+    pub timeout_client: FieldServerSMTPTimeoutClient,
     #[serde(default)]
     #[serde_as(as = "std::collections::BTreeMap<serde_with::DisplayFromStr, _>")]
     pub codes: std::collections::BTreeMap<CodeID, Reply>,
     // NOTE: extension settings here
-    pub auth: Option<ConfigServerSMTPAuth>,
+    pub auth: Option<FieldServerSMTPAuth>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::large_enum_variant)]
 #[serde(tag = "type", deny_unknown_fields)]
-pub enum ConfigServerDNS {
+pub enum FieldServerDNS {
     #[serde(rename = "system")]
     System,
     #[serde(rename = "google")]
@@ -367,6 +308,7 @@ pub enum ConfigServerDNS {
     },
 }
 
+// TODO: remove that and use serde_with
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct ResolverOptsWrapper {
@@ -402,32 +344,32 @@ pub struct ResolverOptsWrapper {
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigAppVSL {
+pub struct FieldAppVSL {
     pub filepath: Option<std::path::PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigAppLogs {
-    #[serde(default = "ConfigAppLogs::default_filepath")]
+pub struct FieldAppLogs {
+    #[serde(default = "FieldAppLogs::default_filepath")]
     pub filepath: std::path::PathBuf,
-    #[serde(default = "ConfigAppLogs::default_level")]
+    #[serde(default = "FieldAppLogs::default_level")]
     pub level: log::LevelFilter,
-    #[serde(default = "ConfigAppLogs::default_format")]
+    #[serde(default = "FieldAppLogs::default_format")]
     pub format: String,
-    #[serde(default = "ConfigAppLogs::default_size_limit")]
+    #[serde(default = "FieldAppLogs::default_size_limit")]
     pub size_limit: u64,
-    #[serde(default = "ConfigAppLogs::default_archive_count")]
+    #[serde(default = "FieldAppLogs::default_archive_count")]
     pub archive_count: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigApp {
-    #[serde(default = "ConfigApp::default_dirpath")]
+pub struct FieldApp {
+    #[serde(default = "FieldApp::default_dirpath")]
     pub dirpath: std::path::PathBuf,
     #[serde(default)]
-    pub vsl: ConfigAppVSL,
+    pub vsl: FieldAppVSL,
     #[serde(default)]
-    pub logs: ConfigAppLogs,
+    pub logs: FieldAppLogs,
 }

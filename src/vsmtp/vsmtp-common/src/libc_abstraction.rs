@@ -29,11 +29,11 @@ pub enum ForkResult {
 /// see fork(2) ERRORS
 ///
 /// * A system-imposed limit on the number of threads was encountered
-///   * the RLIMIT_NPROC soft resource limit was reached
+///   * the `RLIMIT_NPROC` soft resource limit was reached
 ///   * the kernel's system-wide limit on the number of processes and threads was reached
 ///   * the maximum number of PIDs was reached
 ///   * the PID limit imposed by the cgroup "process number" controller was reached.
-/// * The caller is operating under the SCHED_DEADLINE scheduling policy
+/// * The caller is operating under the `SCHED_DEADLINE` scheduling policy
 ///   and does not have the reset-on-fork flagset.
 /// * fork() is not supported on this platform
 /// * fork() failed to allocate the necessary kernel structures because memory is tight
@@ -154,7 +154,7 @@ pub fn initgroups(user: &str, gid: libc::gid_t) -> anyhow::Result<()> {
 ///
 /// # Errors
 ///
-/// * `@path` cannot be convert to CString
+/// * `@path` cannot be convert to `CString`
 /// * see chown(2) ERRORS
 pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> anyhow::Result<()> {
     let path = std::ffi::CString::new(path.to_string_lossy().as_bytes())?;
@@ -181,7 +181,7 @@ pub fn chown(path: &std::path::Path, user: Option<u32>, group: Option<u32>) -> a
 ///
 /// * `@name` contain an internal 0 byte
 ///
-/// see if_nametoindex(2) ERRORS
+/// see `if_nametoindex(2)` ERRORS
 /// * ENXIO: No index found for the @name
 pub fn if_nametoindex(name: &str) -> anyhow::Result<u32> {
     let ifname = std::ffi::CString::new(name)?;

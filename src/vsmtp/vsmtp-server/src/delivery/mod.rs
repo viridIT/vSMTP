@@ -98,8 +98,8 @@ pub async fn start(
 }
 
 /// send the email following each recipient transport method.
-/// return a list of recipients with updated email_status field.
-/// recipients tagged with the Sent email_status are discarded.
+/// return a list of recipients with updated `email_status` field.
+/// recipients tagged with the Sent `email_status` are discarded.
 async fn send_email(
     config: &Config,
     resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
@@ -182,7 +182,7 @@ fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
 }
 
 /// prepend trace informations to headers.
-/// see https://datatracker.ietf.org/doc/html/rfc5321#section-4.4
+/// see <https://datatracker.ietf.org/doc/html/rfc5321#section-4.4>
 fn add_trace_information(
     config: &Config,
     ctx: &mut MailContext,

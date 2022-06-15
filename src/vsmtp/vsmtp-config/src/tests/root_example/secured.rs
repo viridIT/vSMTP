@@ -17,7 +17,7 @@
 use vsmtp_common::{collection, state::StateSMTP};
 
 use crate::{
-    config::{ConfigQueueDelivery, ConfigQueueWorking},
+    config::{FieldQueueDelivery, FieldQueueWorking},
     Config,
 };
 
@@ -35,8 +35,8 @@ fn parse() {
             .with_default_logs_settings()
             .with_spool_dir_and_queues(
                 "/var/spool/vsmtp",
-                ConfigQueueWorking { channel_size: 16 },
-                ConfigQueueDelivery {
+                FieldQueueWorking { channel_size: 16 },
+                FieldQueueDelivery {
                     channel_size: 16,
                     deferred_retry_max: 10,
                     deferred_retry_period: std::time::Duration::from_secs(600)

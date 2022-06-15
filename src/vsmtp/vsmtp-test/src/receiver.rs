@@ -89,7 +89,7 @@ impl OnMail for DefaultMailHandler {
     }
 }
 
-/// run a connection and assert output produced by vSMTP and @expected_output
+/// run a connection and assert output produced by `vSMTP` and `expected_output`
 ///
 /// # Errors
 ///
@@ -138,7 +138,7 @@ where
     result
 }
 
-/// Call test_receiver_inner
+/// Call `test_receiver_inner`
 #[macro_export]
 macro_rules! test_receiver {
     ($input:expr, $output:expr) => {

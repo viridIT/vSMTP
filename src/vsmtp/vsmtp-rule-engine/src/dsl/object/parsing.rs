@@ -17,10 +17,11 @@
 use super::Object;
 use crate::error::CompilationError;
 use crate::modules::EngineResult;
+
 /// check of a "object" expression is valid.
 /// the syntax is:
-///   object $name$ $type[:file_type]$ = #{ value: "...", ... };
-///   object $name$ $type[:file_type]$ = "...";
+///   `object $name$ $type[:file_type]$ = #{ value: "...", ... };`
+///   `object $name$ $type[:file_type]$ = "...";`
 pub fn parse_object(
     symbols: &[rhai::ImmutableString],
     look_ahead: &str,

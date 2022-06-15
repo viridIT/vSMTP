@@ -9,7 +9,6 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 //
-#![allow(clippy::doc_markdown)]
 #![allow(clippy::multiple_crate_versions)]
 
 mod args;

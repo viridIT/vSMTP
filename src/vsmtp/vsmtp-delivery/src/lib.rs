@@ -25,8 +25,6 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
-//
-#![allow(clippy::doc_markdown)]
 
 /// a few helpers to create systems that will deliver emails.
 pub mod transport {

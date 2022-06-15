@@ -26,8 +26,7 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 //
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::use_self)]
+#![allow(clippy::use_self)] // false positive with enums
 
 /// Default smtp port
 pub const SMTP_PORT: u16 = 25;

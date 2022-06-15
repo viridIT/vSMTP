@@ -22,7 +22,7 @@ pub(super) fn has_wsc(input: &str) -> bool {
     input.starts_with(|c| c == ' ' || c == '\t')
 }
 
-/// See https://datatracker.ietf.org/doc/html/rfc5322#page-11
+/// See <https://datatracker.ietf.org/doc/html/rfc5322#page-11>
 pub(super) fn remove_comments(line: &str) -> anyhow::Result<String> {
     let (depth, is_escaped, output) = line.chars().into_iter().fold(
         (0, false, String::with_capacity(line.len())),
@@ -53,8 +53,8 @@ pub(super) fn remove_comments(line: &str) -> anyhow::Result<String> {
 /// if no content-type header is found, will check the parent for a default
 /// content-type header value.
 ///
-/// see https://datatracker.ietf.org/doc/html/rfc2045#page-14 for default content-type.
-/// see https://datatracker.ietf.org/doc/html/rfc2046#page-26 for digest multipart parent.
+/// see <https://datatracker.ietf.org/doc/html/rfc2045#page-14> for default content-type.
+/// see <https://datatracker.ietf.org/doc/html/rfc2046#page-26> for digest multipart parent.
 pub(super) fn get_mime_type<'a>(
     headers: &'a [MimeHeader],
     parent: Option<&'a [MimeHeader]>,

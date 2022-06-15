@@ -17,9 +17,9 @@
 use super::{wants::WantsValidate, with::Builder};
 use crate::{
     config::{
-        ConfigApp, ConfigAppLogs, ConfigAppVSL, ConfigServer, ConfigServerInterfaces,
-        ConfigServerLogs, ConfigServerQueues, ConfigServerSMTP, ConfigServerSMTPError,
-        ConfigServerSMTPTimeoutClient, ConfigServerSystem, ConfigServerSystemThreadPool,
+        FieldApp, FieldAppLogs, FieldAppVSL, FieldServer, FieldServerInterfaces, FieldServerLogs,
+        FieldServerQueues, FieldServerSMTP, FieldServerSMTPError, FieldServerSMTPTimeoutClient,
+        FieldServerSystem, FieldServerSystemThreadPool,
     },
     Config,
 };
@@ -55,47 +55,47 @@ impl Builder<WantsValidate> {
 
         Config::ensure(Config {
             version_requirement: version.version_requirement,
-            server: ConfigServer {
+            server: FieldServer {
                 domain: srv.domain,
                 client_count_max: srv.client_count_max,
-                system: ConfigServerSystem {
+                system: FieldServerSystem {
                     user: srv_syst.user,
                     group: srv_syst.group,
                     group_local: srv_syst.group_local,
-                    thread_pool: ConfigServerSystemThreadPool {
+                    thread_pool: FieldServerSystemThreadPool {
                         receiver: srv_syst.thread_pool_receiver,
                         processing: srv_syst.thread_pool_processing,
                         delivery: srv_syst.thread_pool_delivery,
                     },
                 },
-                interfaces: ConfigServerInterfaces {
+                interfaces: FieldServerInterfaces {
                     addr: srv_inet.addr,
                     addr_submission: srv_inet.addr_submission,
                     addr_submissions: srv_inet.addr_submissions,
                 },
-                logs: ConfigServerLogs {
+                logs: FieldServerLogs {
                     filepath: srv_logs.filepath,
                     format: srv_logs.format,
                     level: srv_logs.level,
                     size_limit: srv_logs.size_limit,
                     archive_count: srv_logs.archive_count,
                 },
-                queues: ConfigServerQueues {
+                queues: FieldServerQueues {
                     dirpath: srv_delivery.dirpath,
                     working: srv_delivery.working,
                     delivery: srv_delivery.delivery,
                 },
                 tls: srv_tls.tls,
-                smtp: ConfigServerSMTP {
+                smtp: FieldServerSMTP {
                     rcpt_count_max: smtp_opt.rcpt_count_max,
                     disable_ehlo: smtp_opt.disable_ehlo,
                     required_extension: smtp_opt.required_extension,
-                    error: ConfigServerSMTPError {
+                    error: FieldServerSMTPError {
                         soft_count: smtp_error.error.soft_count,
                         hard_count: smtp_error.error.hard_count,
                         delay: smtp_error.error.delay,
                     },
-                    timeout_client: ConfigServerSMTPTimeoutClient {
+                    timeout_client: FieldServerSMTPTimeoutClient {
                         connect: smtp_error.timeout_client.connect,
                         helo: smtp_error.timeout_client.helo,
                         mail_from: smtp_error.timeout_client.mail_from,
@@ -108,12 +108,12 @@ impl Builder<WantsValidate> {
                 dns: dns.config,
                 r#virtual: virtual_entries.r#virtual,
             },
-            app: ConfigApp {
+            app: FieldApp {
                 dirpath: app.dirpath,
-                vsl: ConfigAppVSL {
+                vsl: FieldAppVSL {
                     filepath: app_vsl.filepath,
                 },
-                logs: ConfigAppLogs {
+                logs: FieldAppLogs {
                     filepath: app_logs.filepath,
                     level: app_logs.level,
                     format: app_logs.format,
@@ -208,7 +208,7 @@ impl Config {
             );
         }
 
-        let default_values = ConfigServerSMTP::default_smtp_codes();
+        let default_values = FieldServerSMTP::default_smtp_codes();
         let reply_codes = &mut config.server.smtp.codes;
 
         for key in <CodeID as strum::IntoEnumIterator>::iter() {

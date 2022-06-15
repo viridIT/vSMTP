@@ -23,7 +23,7 @@ pub struct Address {
     full: String,
 }
 
-/// Syntax sugar Address object from dyn ToString
+/// Syntax sugar Address object from dyn `ToString`
 ///
 /// # Panics
 ///
