@@ -2,11 +2,11 @@
 use libfuzzer_sys::fuzz_target;
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
-    CodeID,
+    CodeID, ConnectionKind
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
-use vsmtp_server::{handle_connection, Connection, ConnectionKind, OnMail};
+use vsmtp_server::{handle_connection, Connection, OnMail};
 use vsmtp_test::receiver::Mock;
 
 struct FuzzOnMail;
