@@ -20,8 +20,7 @@ use rhai::plugin::{
     Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
     RhaiResult, TypeId,
 };
-use vsmtp_common::auth::Credentials;
-use vsmtp_common::Address;
+use vsmtp_common::{auth::Credentials, auth::Mechanism, state::StateSMTP, Address};
 
 #[rhai::plugin::export_module]
 pub mod mail_context {
@@ -89,7 +88,12 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "auth", return_raw, pure)]
     pub fn auth(this: &mut Context) -> EngineResult<Credentials> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()).connection.credentials, "auth").clone())
+        Ok(vsl_missing_ok!(
+            vsl_guard_ok!(this.read()).connection.credentials,
+            "auth",
+            StateSMTP::Authenticate(Mechanism::Anonymous, None)
+        )
+        .clone())
     }
 
     #[rhai_fn(global, get = "type", pure)]
@@ -152,26 +156,34 @@ pub mod mail_context {
 
     #[rhai_fn(global, get = "rcpt", return_raw, pure)]
     pub fn rcpt(this: &mut Context) -> EngineResult<Address> {
-        vsl_guard_ok!(this.read())
-            .envelop
-            .rcpt
-            .last()
-            .map(|rcpt| rcpt.address.clone())
-            .ok_or_else(|| "no recipient received yet".into())
+        Ok(vsl_missing_ok!(
+            vsl_guard_ok!(this.read()).envelop.rcpt.last(),
+            "rcpt",
+            StateSMTP::RcptTo
+        )
+        .address
+        .clone())
     }
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
     pub fn mail_timestamp(this: &mut Context) -> EngineResult<std::time::SystemTime> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()).metadata, "mail_timestamp").timestamp)
+        Ok(vsl_missing_ok!(
+            vsl_guard_ok!(this.read()).metadata,
+            "mail_timestamp",
+            StateSMTP::PreQ
+        )
+        .timestamp)
     }
 
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
     pub fn message_id(this: &mut Context) -> EngineResult<String> {
-        Ok(
-            vsl_missing_ok!(vsl_guard_ok!(this.read()).metadata, "message_id")
-                .message_id
-                .clone(),
+        Ok(vsl_missing_ok!(
+            vsl_guard_ok!(this.read()).metadata,
+            "message_id",
+            StateSMTP::PreQ
         )
+        .message_id
+        .clone())
     }
 
     #[rhai_fn(global, name = "to_string", pure)]

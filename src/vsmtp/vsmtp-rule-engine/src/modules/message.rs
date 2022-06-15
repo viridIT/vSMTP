@@ -20,46 +20,51 @@ use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::Address;
+use vsmtp_common::{rcpt::Rcpt, state::StateSMTP, Address};
 
 #[rhai::plugin::export_module]
 pub mod message {
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, return_raw, pure)]
     pub fn has_header(this: &mut Message, header: &str) -> EngineResult<bool> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "message")
-            .get_header(header)
-            .is_some())
+        Ok(
+            vsl_missing_ok!(vsl_guard_ok!(this.read()), "message", StateSMTP::PreQ)
+                .get_header(header)
+                .is_some(),
+        )
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
     #[rhai_fn(global, return_raw, pure)]
     pub fn get_header(this: &mut Message, header: &str) -> EngineResult<String> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "message")
-            .get_header(header)
-            .map(ToString::to_string)
-            .unwrap_or_default())
+        Ok(
+            vsl_missing_ok!(vsl_guard_ok!(this.read()), "message", StateSMTP::PreQ)
+                .get_header(header)
+                .map(ToString::to_string)
+                .unwrap_or_default(),
+        )
     }
 
     /// add a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
     pub fn add_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message").add_header(header, value);
+        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message", StateSMTP::PreQ)
+            .add_header(header, value);
         Ok(())
     }
 
     /// set a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
     pub fn set_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message").set_header(header, value);
+        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message", StateSMTP::PreQ)
+            .set_header(header, value);
         Ok(())
     }
 
     /// Get the message body as a string
     #[rhai_fn(global, get = "mail", return_raw, pure)]
     pub fn mail(this: &mut Message) -> EngineResult<String> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "mail").to_string())
+        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "mail", StateSMTP::PreQ).to_string())
     }
 
     /// Change the sender of the envelop
