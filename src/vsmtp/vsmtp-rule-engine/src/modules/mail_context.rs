@@ -157,7 +157,7 @@ pub mod mail_context {
             .rcpt
             .last()
             .map(|rcpt| rcpt.address.clone())
-            .ok_or_else(|| "not recipients received yet".into())
+            .ok_or_else(|| "no recipient received yet".into())
     }
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
