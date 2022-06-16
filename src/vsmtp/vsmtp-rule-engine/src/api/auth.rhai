@@ -39,7 +39,7 @@
 /// ```
 ///
 fn check_relay(allowed_hosts) {
-    for rcpt in ctx().rcpt {
+    for rcpt in ctx().rcpt_list {
         if !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts))
             && !in_domain(rcpt) {
                 remove_rcpt(rcpt.to_string());

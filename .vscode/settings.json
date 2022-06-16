@@ -6,6 +6,7 @@
         "authid",
         "authpass",
         "BITMIME",
+        "canonicalize",
         "capath",
         "CHACHA",
         "chrono",

@@ -2,6 +2,19 @@
 //!
 //! This module contains the configuration for the vSMTP server.
 //!
+//! The behavior of your server can be configured using a configuration file,
+//! and using the `-c, --config` flag of the `vsmtp`.
+//!
+//! All the parameters are optional and have default values.
+//! If `-c, --config` is not provided, the default values of the configuration will be used.
+//!
+//! The configuration file will be read and parsed right after starting the program,
+//! producing an error if there is an invalid syntax, a filepath failed to be opened,
+//! or any kind of errors.
+//!
+//! If you have a non-explicit error when you start your server, you can create an issue
+//! on the [github repo](https://github.com/viridIT/vSMTP), or ask for help in our discord server.
+//!
 //! # Configuration
 //!
 //! The type [`Config`] expose two methods :
@@ -11,10 +24,6 @@
 //! # Example
 //!
 //! You can find examples of TOML file at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
-//!
-//! # Fields
-//!
-//! TODO!
 
 #![doc(html_no_source)]
 #![deny(missing_docs)]
@@ -157,19 +166,33 @@ pub fn create_app_folder(
     config: &Config,
     path: Option<&str>,
 ) -> anyhow::Result<std::path::PathBuf> {
-    let path = path.map_or_else(
+    if !config.app.dirpath.exists() {
+        std::fs::create_dir_all(&config.app.dirpath)?;
+    }
+
+    let absolute_app_dirpath = config.app.dirpath.canonicalize()?;
+    let full_path = path.map_or_else(
         || config.app.dirpath.clone(),
         |path| config.app.dirpath.join(path),
     );
 
-    if !path.exists() {
-        std::fs::create_dir_all(&path)?;
+    if !full_path.exists() {
+        std::fs::create_dir_all(&full_path)?;
         chown(
-            &path,
+            &full_path,
             Some(config.server.system.user.uid()),
             Some(config.server.system.group.gid()),
         )?;
+
+        // NOTE: `canonicalize` cannot be used before creating folders
+        //        because it checks if the result path exists or not.
+        // FIXME: Even if the path is invalid (`path` parameter uses
+        //        `..` or `/` to go out of the app dirpath) the folder
+        //        is created anyway.
+        if !full_path.canonicalize()?.starts_with(&absolute_app_dirpath) {
+            anyhow::bail!("Tried to create the app folder at {:?} but the root app directory {:?} is no longer the parent. All application output must be within the app directory path specified in the toml configuration.", full_path, config.app.dirpath)
+        }
     }
 
-    Ok(path)
+    Ok(full_path)
 }

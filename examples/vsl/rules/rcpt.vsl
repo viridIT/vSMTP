@@ -2,9 +2,9 @@ import "rcpt_identifiers" as ident;
 
 #{
   rcpt: [
-    rule "test_ident" || if ident::john in ctx().rcpt.local_parts { next() } else { deny() },
-    rule "test_fqdn" || if ident::bar in ctx().rcpt.domains { next() } else { deny() },
-    rule "test_addr" || if ident::customer in ctx().rcpt { accept() } else { deny() },
+    rule "test_ident" || if ident::john in ctx().rcpt_list.local_parts { next() } else { deny() },
+    rule "test_fqdn" || if ident::bar in ctx().rcpt_list.domains { next() } else { deny() },
+    rule "test_addr" || if ident::customer in ctx().rcpt_list { accept() } else { deny() },
   ],
 
   postq: [
