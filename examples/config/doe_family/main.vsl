@@ -1,5 +1,6 @@
 // Import the object file. The 'doe' prefix permits to distinguish Doe's family objects from others.
 import "objects" as doe;
+import "services" as services;
 
 #{
   mail: [
@@ -9,7 +10,32 @@ import "objects" as doe;
   rcpt: [
     // jane will always be added as a bcc when jenny is part of the recipients.
     action "bcc jenny" || if doe::jenny in ctx().rcpt_list { bcc(doe::jane) },
+
+    // prevent delivery to untrusted domains using a regex.
+    // you could also use the `check_relay` function in this case.
+    action "do not deliver untrusted domains" || {
+      if ctx().rcpt == doe::untrusted {
+        disable_delivery(ctx().rcpt);
+      }
+    }
   ],
+
+  // NOTE: this is commented because I could not yet find a way to
+  //       run automated test with clamsmtpd running in the background.
+  //       the following preq delegation is still valid, you can use it
+  //       in you own scripts.
+
+  // preq: [
+  //   delegate services::clamsmtpd "antivirus" || {
+  //     // clamav inserts the 'X-Virus-Infected' header
+  //     // once a virus is detected.
+  //     if has_header("X-Virus-Infected") {
+  //       quarantine("virus_q")
+  //     } else {
+  //       next()
+  //     }
+  //   }
+  // ]
 
   delivery: [
     action "setup delivery" ||
