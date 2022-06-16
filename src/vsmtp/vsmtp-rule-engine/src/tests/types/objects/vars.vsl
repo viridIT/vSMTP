@@ -24,7 +24,7 @@ object regex regex = "^[a-z0-9.]+@domain.com$";
 object identifier ident = "local_part";
 object str string = "a string";
 
-object file file:address = "./src/tests/types/address/whitelist.txt";
+// object file file:address = "./src/tests/types/address/whitelist.txt";
 object group group = [
     ip4,
     ip6,
