@@ -4,7 +4,12 @@ import "services" as services;
 
 #{
   mail: [
-    rule "blacklist" || if ctx().mail_from.domain in doe::blacklist { deny() } else { next() }
+    // NOTE: This is commented because I could not yet find a way to
+    //       run automated test with file objects. Since the path must
+    //       be absolute, it does not integrate well with unit tests.
+
+    // rule "blacklist" || if ctx().mail_from.domain in doe::blacklist { deny() } else { next() }
+    rule "blacklist" || if ctx().mail_from.domain == "spam-domain.org" { deny() } else { next() }
   ],
 
   rcpt: [
