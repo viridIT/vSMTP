@@ -157,19 +157,33 @@ pub fn create_app_folder(
     config: &Config,
     path: Option<&str>,
 ) -> anyhow::Result<std::path::PathBuf> {
-    let path = path.map_or_else(
+    if !config.app.dirpath.exists() {
+        std::fs::create_dir_all(&config.app.dirpath)?;
+    }
+
+    let absolute_app_dirpath = config.app.dirpath.canonicalize()?;
+    let full_path = path.map_or_else(
         || config.app.dirpath.clone(),
         |path| config.app.dirpath.join(path),
     );
 
-    if !path.exists() {
-        std::fs::create_dir_all(&path)?;
+    if !full_path.exists() {
+        std::fs::create_dir_all(&full_path)?;
         chown(
-            &path,
+            &full_path,
             Some(config.server.system.user.uid()),
             Some(config.server.system.group.gid()),
         )?;
+
+        // NOTE: `canonicalize` cannot be used before creating folders
+        //        because it checks if the result path exists or not.
+        // FIXME: Even if the path is invalid (`path` parameter uses
+        //        `..` or `/` to go out of the app dirpath) the folder
+        //        is created anyway.
+        if !full_path.canonicalize()?.starts_with(&absolute_app_dirpath) {
+            anyhow::bail!("Tried to create the app folder at {:?} but the root app directory {:?} is no longer the parent. All application output must be within the app directory path specified in the toml configuration.", full_path, config.app.dirpath)
+        }
     }
 
-    Ok(path)
+    Ok(full_path)
 }

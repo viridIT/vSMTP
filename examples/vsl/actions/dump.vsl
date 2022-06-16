@@ -2,11 +2,11 @@
     preq: [
         action "dump raw email to disk" || {
             try {
-		dump("tests/generated");
-		next();
+                dump("tests/generated");
+                next();
             } catch (e) {
-		print(e);
-		deny();
+                print(e);
+                deny();
             }
         },
 
@@ -17,10 +17,10 @@
         action "dump parsed email to disk" || {
             try {
                 dump("tests/generated");
-		next();
+        		next();
             } catch (e) {
-		print(e);
-		deny();
+                print(e);
+                deny();
             }
         },
 
