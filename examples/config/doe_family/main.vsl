@@ -14,7 +14,7 @@ import "services" as services;
     // prevent delivery to untrusted domains using a regex.
     // you could also use the `check_relay` function in this case.
     action "do not deliver untrusted domains" || {
-      if ctx().rcpt in untrusted {
+      if ctx().rcpt == doe::untrusted {
         disable_delivery(ctx().rcpt);
       }
     }
