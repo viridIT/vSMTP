@@ -150,7 +150,7 @@ pub async fn send_mail2(
             Transfer::None => continue,
         };
 
-        log::info!("{key}, {group:#?}");
+        log::info!(target: log_channels::DEFERRED, "{key}, {group:#?}");
 
         updated_group.extend(
             transport
@@ -159,7 +159,7 @@ pub async fn send_mail2(
         );
     }
 
-    log::info!("{updated_group:#?}");
+    log::info!(target: log_channels::DEFERRED, "{updated_group:#?}");
 
     message_ctx.envelop.rcpt = updated_group;
 }
