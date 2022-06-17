@@ -150,7 +150,7 @@ pub async fn send_mail2(
             Transfer::None => continue,
         };
 
-        println!("{} {:?}", key, group);
+        log::info!("{key}, {group:#?}");
 
         updated_group.extend(
             transport
@@ -158,6 +158,9 @@ pub async fn send_mail2(
                 .await,
         );
     }
+
+    log::info!("{updated_group:#?}");
+
     message_ctx.envelop.rcpt = updated_group;
 }
 
