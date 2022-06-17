@@ -25,6 +25,7 @@ vsmtp-delivery = { path = "../vsmtp-delivery", version = "1.0.0-rc.1" }
 async-trait = "0.1.56"
 fastrand = "1.7.0"
 thiserror = "1.0.31"
+itertools = "0.10.3"
 
 tokio-stream = "0.1.9"
 async-stream = "0.3.3"

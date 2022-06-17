@@ -62,7 +62,7 @@ impl Directive {
                     ..
                 } = &**service
                 {
-                    let (from, rcpt, body) = {
+                    let (from, mut rcpt, body) = {
                         let ctx = state.context();
                         let ctx = ctx.read().map_err::<Box<rhai::EvalAltResult>, _>(|_| {
                             "context mutex poisoned".into()
@@ -104,7 +104,7 @@ impl Directive {
                         crate::dsl::service::smtp::delegate(
                             &mut *delegator,
                             &from,
-                            &rcpt,
+                            &rcpt.iter_mut().collect::<Vec<_>>(),
                             body.as_bytes(),
                         )
                         .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?;

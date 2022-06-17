@@ -19,7 +19,6 @@ use crate::transport::log_channels;
 use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    envelop::build_lettre,
     mail_context::MessageMetadata,
     rcpt::Rcpt,
     re::{anyhow, lettre, log},
@@ -36,11 +35,43 @@ pub struct Forward<'r> {
 impl<'r> Forward<'r> {
     /// create a new deliver with a resolver to get data from the distant dns server.
     #[must_use]
-    pub fn new(to: &ForwardTarget, resolver: &'r TokioAsyncResolver) -> Self {
-        Self {
-            to: to.clone(),
-            resolver,
-        }
+    pub const fn new(to: ForwardTarget, resolver: &'r TokioAsyncResolver) -> Self {
+        Self { to, resolver }
+    }
+}
+
+impl<'r> Forward<'r> {
+    async fn reverse_lookup(&self, query: &std::net::IpAddr) -> anyhow::Result<String> {
+        let result = self
+            .resolver
+            .reverse_lookup(*query)
+            .await
+            .with_context(|| format!("failed to forward email to {query}"))?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("no domain found for {query}"))?
+            .to_string();
+
+        Ok(result)
+    }
+
+    async fn send_email(
+        &self,
+        config: &Config,
+        from: &vsmtp_common::Address,
+        target: &str,
+        envelop: &lettre::address::Envelope,
+        content: &str,
+    ) -> anyhow::Result<()> {
+        lettre::AsyncTransport::send_raw(
+            // TODO: transport should be cached.
+            &crate::transport::build_transport(config, self.resolver, from, target)?,
+            envelop,
+            content.as_bytes(),
+        )
+        .await?;
+
+        Ok(())
     }
 }
 
@@ -51,37 +82,42 @@ impl<'r> Transport for Forward<'r> {
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
-        to: &mut [Rcpt],
+        to: Vec<Rcpt>,
         content: &str,
-    ) -> anyhow::Result<()> {
-        async fn reverse_lookup(
-            resolver: &TokioAsyncResolver,
-            query: &std::net::IpAddr,
-        ) -> anyhow::Result<String> {
-            Ok(resolver
-                .reverse_lookup(*query)
-                .await
-                .with_context(|| format!("failed to forward email to {query}"))?
-                .into_iter()
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("no domain found for {query}"))?
-                .to_string())
-        }
-
-        let envelop = build_lettre(from, to).context("failed to build envelop to forward email")?;
+    ) -> Vec<Rcpt> {
+        let envelop = lettre::address::Envelope::new(
+            Some(from.full().parse().unwrap()),
+            to.iter()
+                .map(|rcpt| {
+                    rcpt.address
+                        .full()
+                        .parse::<lettre::Address>()
+                        .context("failed to parse address")
+                })
+                .collect::<anyhow::Result<Vec<_>>>()
+                .unwrap(),
+        )
+        .unwrap();
 
         // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
         let target = match &self.to {
             ForwardTarget::Domain(domain) => domain.clone(),
-            ForwardTarget::Ip(ip) => reverse_lookup(self.resolver, ip).await?,
-            ForwardTarget::Socket(socket) => reverse_lookup(self.resolver, &socket.ip()).await?,
+            ForwardTarget::Ip(ip) => self.reverse_lookup(ip).await.unwrap(),
+            ForwardTarget::Socket(socket) => self.reverse_lookup(&socket.ip()).await.unwrap(),
         };
 
-        match send_email(config, self.resolver, from, &target, &envelop, content).await {
+        match self
+            .send_email(config, from, &target, &envelop, content)
+            .await
+        {
             Ok(()) => {
-                to.iter_mut()
-                    .for_each(|rcpt| rcpt.email_status = EmailTransferStatus::Sent);
-                return Ok(());
+                return to
+                    .into_iter()
+                    .map(|rcpt| Rcpt {
+                        email_status: EmailTransferStatus::Sent,
+                        ..rcpt
+                    })
+                    .collect();
             }
             Err(err) => {
                 log::debug!(
@@ -91,36 +127,17 @@ impl<'r> Transport for Forward<'r> {
                     &target
                 );
 
-                for rcpt in to.iter_mut() {
-                    rcpt.email_status = match rcpt.email_status {
-                        EmailTransferStatus::HeldBack(count) => {
-                            EmailTransferStatus::HeldBack(count)
-                        }
-                        _ => EmailTransferStatus::HeldBack(0),
-                    };
-                }
-
-                anyhow::bail!("failed to forward email to '{}'", target)
+                return to
+                    .into_iter()
+                    .map(|rcpt| Rcpt {
+                        email_status: EmailTransferStatus::HeldBack(match rcpt.email_status {
+                            EmailTransferStatus::HeldBack(count) => count + 1,
+                            _ => 0,
+                        }),
+                        ..rcpt
+                    })
+                    .collect();
             }
         }
     }
-}
-
-async fn send_email(
-    config: &Config,
-    resolver: &TokioAsyncResolver,
-    from: &vsmtp_common::Address,
-    target: &str,
-    envelop: &lettre::address::Envelope,
-    content: &str,
-) -> anyhow::Result<()> {
-    lettre::AsyncTransport::send_raw(
-        // TODO: transport should be cached.
-        &crate::transport::build_transport(config, resolver, from, target)?,
-        envelop,
-        content.as_bytes(),
-    )
-    .await?;
-
-    Ok(())
 }

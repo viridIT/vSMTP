@@ -71,41 +71,10 @@ impl PartialEq for Rcpt {
     }
 }
 
-/// filter recipients by their transfer method.
-#[must_use]
-pub fn filter_by_transfer_method(rcpt: &[Rcpt]) -> std::collections::HashMap<Transfer, Vec<Rcpt>> {
-    let mut output: std::collections::HashMap<Transfer, Vec<Rcpt>> =
-        std::collections::HashMap::new();
-    for i in rcpt.iter().cloned() {
-        if let Some(group) = output.get_mut(&i.transfer_method) {
-            group.push(i);
-        } else {
-            output.insert(i.transfer_method.clone(), vec![i]);
-        }
-    }
-    output
-}
-
-/// filter recipients by domain name using mutable reference on the recipients.
-#[must_use]
-pub fn filter_by_domain_mut(
-    rcpt: &mut [Rcpt],
-) -> std::collections::HashMap<String, Vec<&mut Rcpt>> {
-    let mut acc = std::collections::HashMap::<String, Vec<&mut Rcpt>>::new();
-    for rcpt in rcpt.iter_mut() {
-        if let Some(domain) = acc.get_mut(rcpt.address.domain()) {
-            domain.push(rcpt);
-        } else {
-            acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
-        }
-    }
-    acc
-}
-
 #[cfg(test)]
 mod test {
-    use super::*;
 
+    /*
     fn get_test_rcpt() -> Vec<Rcpt> {
         vec![
             Rcpt::with_transfer_method(addr!("green@foo.com"), Transfer::None),
@@ -118,7 +87,9 @@ mod test {
             Rcpt::with_transfer_method(addr!("user@localhost"), Transfer::Maildir),
         ]
     }
+    */
 
+    /*
     #[test]
     fn test_filter_by_transfer_method() {
         let filtered = filter_by_transfer_method(&get_test_rcpt()[..]);
@@ -148,7 +119,9 @@ mod test {
             .all(|rcpt| rcpt.transfer_method == Transfer::Maildir));
         assert_eq!(filtered.get(&Transfer::Maildir).unwrap().len(), 1);
     }
+    */
 
+    /*
     #[test]
     fn test_filter_by_domain_mut() {
         let mut rcpt = get_test_rcpt();
@@ -179,4 +152,5 @@ mod test {
             .all(|rcpt| rcpt.address.domain() == "localhost"));
         assert_eq!(filtered.get("localhost").unwrap().len(), 4);
     }
+    */
 }

@@ -39,50 +39,56 @@ impl Transport for Maildir {
         config: &Config,
         metadata: &MessageMetadata,
         _: &vsmtp_common::Address,
-        to: &mut [Rcpt],
+        to: Vec<Rcpt>,
         content: &str,
-    ) -> anyhow::Result<()> {
-        for rcpt in to.iter_mut() {
-            if let Some(user) = users::get_user_by_name(rcpt.address.local_part()) {
-                // TODO: write to defer / dead queue.
-                if let Err(err) = write_to_maildir(
-                    &user,
-                    config.server.system.group_local.as_ref(),
-                    metadata,
-                    content,
-                ) {
-                    log::error!(
-                        target: log_channels::MAILDIR,
-                        "(msg={}) failed to write email in maildir of '{rcpt}': {err}",
-                        metadata.message_id
-                    );
+    ) -> Vec<Rcpt> {
+        to.into_iter()
+            .map(|mut rcpt| {
+                match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
+                    write_to_maildir(
+                        &user,
+                        config.server.system.group_local.as_ref(),
+                        metadata,
+                        content,
+                    )
+                }) {
+                    Some(Ok(_)) => {
+                        rcpt.email_status = EmailTransferStatus::Sent;
+                    }
+                    // TODO: write to defer / dead queue.
+                    Some(Err(e)) => {
+                        log::error!(
+                            target: log_channels::MAILDIR,
+                            "(msg={}) failed to write email in maildir of '{rcpt}': {e}",
+                            metadata.message_id
+                        );
 
-                    rcpt.email_status = match rcpt.email_status {
-                        EmailTransferStatus::HeldBack(count) => {
-                            EmailTransferStatus::HeldBack(count)
-                        }
-                        _ => EmailTransferStatus::HeldBack(0),
-                    };
-                } else {
-                    rcpt.email_status = EmailTransferStatus::Sent;
+                        rcpt.email_status =
+                            EmailTransferStatus::HeldBack(match rcpt.email_status {
+                                EmailTransferStatus::HeldBack(count) => count + 1,
+                                _ => (0),
+                            });
+                    }
+                    // TODO: write to defer / dead queue.
+                    None => {
+                        log::error!(
+                            target: log_channels::MAILDIR,
+                            "(msg={}) failed to write email in maildir of '{}': '{}' is not a user",
+                            metadata.message_id,
+                            rcpt.address.local_part(),
+                            rcpt.address.local_part()
+                        );
+
+                        rcpt.email_status =
+                            EmailTransferStatus::HeldBack(match rcpt.email_status {
+                                EmailTransferStatus::HeldBack(count) => count + 1,
+                                _ => (0),
+                            });
+                    }
                 }
-            } else {
-                log::error!(
-                    target: log_channels::MAILDIR,
-                    "(msg={}) failed to write email in maildir of '{}': '{}' is not a user",
-                    metadata.message_id,
-                    rcpt.address.local_part(),
-                    rcpt.address.local_part()
-                );
-
-                rcpt.email_status = match rcpt.email_status {
-                    EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count),
-                    _ => EmailTransferStatus::HeldBack(0),
-                };
-            }
-        }
-
-        Ok(())
+                rcpt
+            })
+            .collect::<Vec<_>>()
     }
 }
 

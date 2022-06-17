@@ -16,7 +16,7 @@
 */
 use crate::{
     context_from_file_path,
-    delivery::{add_trace_information, move_to_queue, send_email},
+    delivery::{add_trace_information, send_mail2},
     log_channels, message_from_file_path,
     receiver::MailHandlerError,
     ProcessMessage,
@@ -30,7 +30,7 @@ use vsmtp_common::{
     },
     state::StateSMTP,
     status::Status,
-    transfer::EmailTransferStatus,
+    transfer::{EmailTransferStatus, Transfer},
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -146,26 +146,32 @@ pub async fn handle_one_in_delivery_queue(
             Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
         }
         _ => {
-            let metadata = ctx
-                .metadata
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("metadata not available in delivery"))?;
+            send_mail2(config, &mut ctx, &message, resolvers).await;
+            // .context(format!(
+            //     "failed to send '{}' located in the delivery queue",
+            //     process_message.message_id
+            // ))?;
+            println!("{ctx:#?}");
 
-            ctx.envelop.rcpt = send_email(
-                config,
-                resolvers,
-                metadata,
-                &ctx.envelop.mail_from,
-                &ctx.envelop.rcpt,
-                &message,
-            )
-            .await
-            .context(format!(
-                "failed to send '{}' located in the delivery queue",
-                process_message.message_id
-            ))?;
+            if ctx
+                .envelop
+                .rcpt
+                .iter()
+                .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
+            {
+                Queue::Deferred
+                    .write_to_queue(&config.server.queues.dirpath, &ctx)
+                    .context("failed to move message from delivery queue to deferred queue")?;
+            }
 
-            move_to_queue(config, &ctx)?;
+            if ctx.envelop.rcpt.iter().any(|rcpt| {
+                matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
+                    || matches!(rcpt.transfer_method, Transfer::None)
+            }) {
+                Queue::Dead
+                    .write_to_queue(&config.server.queues.dirpath, &ctx)
+                    .context("failed to move message from delivery queue to dead queue")?;
+            }
         }
     };
 

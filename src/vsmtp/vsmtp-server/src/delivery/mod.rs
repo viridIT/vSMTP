@@ -27,13 +27,11 @@ use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::re::tokio;
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody, MessageMetadata},
-    queue::Queue,
+    mail_context::{MailContext, MessageBody},
     rcpt::Rcpt,
     re::{anyhow, log},
     status::Status,
-    transfer::{EmailTransferStatus, ForwardTarget, Transfer},
-    Address,
+    transfer::{ForwardTarget, Transfer},
 };
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_delivery::transport::{deliver as smtp_deliver, forward, maildir, mbox, Transport};
@@ -97,6 +95,73 @@ pub async fn start(
     }
 }
 
+pub async fn send_mail2(
+    config: &Config,
+    message_ctx: &mut MailContext,
+    message_body: &MessageBody,
+    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
+) {
+    if message_ctx.envelop.rcpt.is_empty() {
+        // TODO!
+    }
+
+    let message_content = message_body.to_string();
+    let root_server_resolver = resolvers
+        .get(&config.server.domain)
+        .expect("root server's resolver is missing");
+
+    let metadata = &message_ctx.metadata.as_ref().unwrap();
+    let from = &message_ctx.envelop.mail_from;
+
+    let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
+    for i in message_ctx.envelop.rcpt.clone() {
+        if let Some(group) = acc.get_mut(&i.transfer_method) {
+            group.push(i);
+        } else {
+            acc.insert(i.transfer_method.clone(), vec![i]);
+        }
+    }
+
+    let mut updated_group = vec![];
+    for (key, group) in acc {
+        let mut transport: Box<dyn Transport + Send> = match &key {
+            Transfer::Forward(forward_target) => {
+                let resolver = match &forward_target {
+                    ForwardTarget::Domain(domain) => resolvers.get(domain),
+                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => None,
+                }
+                .unwrap_or(root_server_resolver);
+
+                Box::new(forward::Forward::new(forward_target.clone(), resolver))
+            }
+            Transfer::Deliver => Box::new(smtp_deliver::Deliver::new({
+                resolvers
+                    .get(
+                        group
+                            .get(0)
+                            .expect("at least one element in the group")
+                            .address
+                            .domain(),
+                    )
+                    .unwrap_or(root_server_resolver)
+            })),
+            Transfer::Mbox => Box::new(mbox::MBox),
+            Transfer::Maildir => Box::new(maildir::Maildir),
+            Transfer::None => continue,
+        };
+
+        println!("{} {:?}", key, group);
+
+        updated_group.extend(
+            transport
+                .deliver(config, metadata, from, group, &message_content)
+                .await,
+        );
+    }
+    message_ctx.envelop.rcpt = updated_group;
+}
+
+/*
 /// send the email following each recipient transport method.
 /// return a list of recipients with updated `email_status` field.
 /// recipients tagged with the Sent `email_status` are discarded.
@@ -154,32 +219,7 @@ async fn send_email(
         .filter(|rcpt| !matches!(rcpt.email_status, EmailTransferStatus::Sent))
         .collect::<Vec<_>>())
 }
-
-// FIXME: could be optimized by checking both conditions with the same iterator.
-/// copy the message into the deferred / dead queue if any recipient is held back or have failed delivery.
-fn move_to_queue(config: &Config, ctx: &MailContext) -> anyhow::Result<()> {
-    if ctx
-        .envelop
-        .rcpt
-        .iter()
-        .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
-    {
-        Queue::Deferred
-            .write_to_queue(&config.server.queues.dirpath, ctx)
-            .context("failed to move message from delivery queue to deferred queue")?;
-    }
-
-    if ctx.envelop.rcpt.iter().any(|rcpt| {
-        matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
-            || matches!(rcpt.transfer_method, Transfer::None)
-    }) {
-        Queue::Dead
-            .write_to_queue(&config.server.queues.dirpath, ctx)
-            .context("failed to move message from delivery queue to dead queue")?;
-    }
-
-    Ok(())
-}
+*/
 
 /// prepend trace informations to headers.
 /// see <https://datatracker.ietf.org/doc/html/rfc5321#section-4.4>

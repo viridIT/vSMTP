@@ -40,7 +40,9 @@ pub enum EmailTransferStatus {
 }
 
 /// possible format of the forward target.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, serde::Serialize, serde::Deserialize,
+)]
 pub enum ForwardTarget {
     /// the target is a domain name. (default)
     Domain(String),
@@ -52,7 +54,16 @@ pub enum ForwardTarget {
 
 /// the delivery method / protocol used for a specific recipient.
 #[derive(
-    Debug, PartialEq, Eq, Hash, Clone, strum::Display, serde::Serialize, serde::Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Clone,
+    strum::Display,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum Transfer {

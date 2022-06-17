@@ -14,15 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use super::{get_mx_records, Transport};
+use super::Transport;
 use crate::transport::log_channels;
-use anyhow::Context;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MessageMetadata,
-    rcpt::{filter_by_domain_mut, Rcpt},
-    re::{anyhow, lettre, log},
+    rcpt::Rcpt,
+    re::{
+        anyhow::{self, Context},
+        lettre, log,
+    },
     transfer::EmailTransferStatus,
+    Address,
 };
 use vsmtp_config::Config;
 
@@ -39,6 +42,123 @@ impl<'r> Deliver<'r> {
     }
 }
 
+impl<'r> Deliver<'r> {
+    /// fetch mx records for a specific domain and order them by priority.
+    async fn get_mx_records(
+        &self,
+        query: &str,
+    ) -> anyhow::Result<Vec<trust_dns_resolver::proto::rr::rdata::MX>> {
+        let mut records_by_priority = self
+            .resolver
+            .mx_lookup(query)
+            .await?
+            .into_iter()
+            .collect::<Vec<_>>();
+        records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
+
+        Ok(records_by_priority)
+    }
+
+    async fn deliver_domain(
+        &self,
+        config: &Config,
+        metadata: &MessageMetadata,
+        content: &str,
+        from: &Address,
+        domain: &str,
+        rcpt: Vec<lettre::Address>,
+    ) -> anyhow::Result<ResultSendMail> {
+        let envelop = lettre::address::Envelope::new(Some(from.full().parse()?), rcpt)?;
+
+        // getting mx records for a set of recipients.
+        let records = match self.get_mx_records(domain).await {
+            Ok(records) => records,
+            Err(err) => {
+                log::warn!(
+                    target: log_channels::DELIVER,
+                    "(msg={}) failed to get mx records for '{domain}': {err}",
+                    metadata.message_id
+                );
+
+                // could not find any mx records, we just skip all recipient in the group.
+                // update_rcpt_held_back(&rcpt[..]);
+
+                return Ok(ResultSendMail::IncreaseHeldBack);
+            }
+        };
+
+        if records.is_empty() {
+            log::warn!(
+                target: log_channels::DELIVER,
+                "(msg={}) empty set of MX records found for '{domain}'",
+                metadata.message_id
+            );
+
+            // using directly the AAAA record instead of an mx record.
+            // see https://www.rfc-editor.org/rfc/rfc5321#section-5.1
+            match send_email(config, self.resolver, domain, &envelop, from, content).await {
+                Ok(()) => return Ok(ResultSendMail::Sent), // update_rcpt_sent(&rcpt[..]),
+                Err(err) => {
+                    // update_rcpt_held_back(&rcpt[..]);
+
+                    log::error!(
+                        target: log_channels::DELIVER,
+                        "(msg={}) failed to send message from '{from}' for '{domain}': {err}",
+                        metadata.message_id
+                    );
+
+                    return Ok(ResultSendMail::IncreaseHeldBack);
+                }
+            }
+        }
+        let mut records = records.iter();
+        for record in records.by_ref() {
+            let host = record.exchange().to_ascii();
+
+            // checking for a null mx record.
+            // see https://datatracker.ietf.org/doc/html/rfc7505
+            if host == "." {
+                log::warn!(
+                        target: log_channels::DELIVER,
+                        "(msg={}) trying to delivery to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages.",
+                        metadata.message_id
+                    );
+
+                // update_rcpt_failed(&rcpt[..], );
+
+                // break;
+                return Ok(ResultSendMail::Failed(
+                    "null record found for this domain".to_string(),
+                ));
+            }
+
+            match send_email(config, self.resolver, &host, &envelop, from, content).await {
+                // if a transfer succeeded, we can stop the lookup.
+                Ok(_) => break,
+                Err(err) => log::warn!(
+                    target: log_channels::DELIVER,
+                    "(msg={}) failed to send message from '{from}' for '{domain}': {err}",
+                    metadata.message_id
+                ),
+            }
+        }
+
+        if records.next().is_none() {
+            log::error!(
+                target: log_channels::DELIVER,
+                "(msg={}) no valid mail exchanger found for '{domain}', check warnings above.",
+                metadata.message_id
+            );
+
+            // update_rcpt_held_back(&rcpt[..]);
+            return Ok(ResultSendMail::IncreaseHeldBack);
+        }
+
+        // update_rcpt_sent(&rcpt[..]);
+        Ok(ResultSendMail::Sent)
+    }
+}
+
 #[async_trait::async_trait]
 impl<'r> Transport for Deliver<'r> {
     async fn deliver(
@@ -46,103 +166,61 @@ impl<'r> Transport for Deliver<'r> {
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
-        to: &mut [Rcpt],
+        to: Vec<Rcpt>,
         content: &str,
-    ) -> anyhow::Result<()> {
-        for (query, rcpt) in &mut filter_by_domain_mut(to) {
-            let envelop = vsmtp_common::envelop::build_lettre(
-                from,
-                // TODO: 'to' parameter should be immutable, and the deliver
-                //       implementor should return a new set of recipients.
-                &rcpt.iter().map(|rcpt| (**rcpt).clone()).collect::<Vec<_>>()[..],
-            )
-            .context(format!(
-                "failed to build envelop to deliver email for '{query}'"
-            ))?;
-
-            // getting mx records for a set of recipients.
-            let records = match get_mx_records(self.resolver, query).await {
-                Ok(records) => records,
-                Err(err) => {
-                    log::warn!(
-                        target: log_channels::DELIVER,
-                        "(msg={}) failed to get mx records for '{query}': {err}",
-                        metadata.message_id
-                    );
-
-                    // could not find any mx records, we just skip all recipient in the group.
-                    update_rcpt_held_back(rcpt);
-
-                    continue;
-                }
-            };
-
-            if records.is_empty() {
-                log::warn!(
-                    target: log_channels::DELIVER,
-                    "(msg={}) empty set of MX records found for '{query}'",
-                    metadata.message_id
-                );
-
-                // using directly the AAAA record instead of an mx record.
-                // see https://www.rfc-editor.org/rfc/rfc5321#section-5.1
-                match send_email(config, self.resolver, query, &envelop, from, content).await {
-                    Ok(()) => update_rcpt_sent(rcpt),
-                    Err(err) => {
-                        update_rcpt_held_back(rcpt);
-
-                        log::error!(
-                            target: log_channels::DELIVER,
-                            "(msg={}) failed to send message from '{from}' for '{query}': {err}",
-                            metadata.message_id
-                        );
-                    }
-                }
+    ) -> Vec<Rcpt> {
+        let mut acc = std::collections::HashMap::<String, Vec<Rcpt>>::new();
+        for rcpt in to {
+            if let Some(domain) = acc.get_mut(rcpt.address.domain()) {
+                domain.push(rcpt);
             } else {
-                let mut records = records.iter();
-                for record in records.by_ref() {
-                    let host = record.exchange().to_ascii();
-
-                    // checking for a null mx record.
-                    // see https://datatracker.ietf.org/doc/html/rfc7505
-                    if host == "." {
-                        log::warn!(
-                            target: log_channels::DELIVER,
-                            "(msg={}) trying to delivery to '{query}', but a null mx record was found. '{query}' does not want to receive messages.",
-                            metadata.message_id
-                        );
-
-                        update_rcpt_failed(rcpt, "null record found for this domain");
-
-                        break;
-                    }
-
-                    match send_email(config, self.resolver, &host, &envelop, from, content).await {
-                        // if a transfer succeeded, we can stop the lookup.
-                        Ok(_) => break,
-                        Err(err) => log::warn!(
-                            target: log_channels::DELIVER,
-                            "(msg={}) failed to send message from '{from}' for '{query}': {err}",
-                            metadata.message_id
-                        ),
-                    }
-                }
-
-                if records.next().is_none() {
-                    log::error!(
-                        target: log_channels::DELIVER,
-                        "(msg={}) no valid mail exchanger found for '{query}', check warnings above.",
-                        metadata.message_id
-                    );
-
-                    update_rcpt_held_back(rcpt);
-                } else {
-                    update_rcpt_sent(rcpt);
-                }
+                acc.insert(rcpt.address.domain().to_string(), vec![rcpt]);
             }
         }
 
-        Ok(())
+        for (domain, rcpt) in &mut acc {
+            let updated_status = self
+                .deliver_domain(
+                    config,
+                    metadata,
+                    content,
+                    from,
+                    domain,
+                    rcpt.iter()
+                        .map(|i| {
+                            i.address
+                                .full()
+                                .parse::<lettre::Address>()
+                                .context("failed to parse address")
+                        })
+                        .collect::<anyhow::Result<Vec<_>>>()
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            match updated_status {
+                ResultSendMail::IncreaseHeldBack => rcpt.iter_mut().for_each(|i| {
+                    i.email_status = EmailTransferStatus::HeldBack(match i.email_status {
+                        EmailTransferStatus::HeldBack(count) => count + 1,
+                        _ => 0,
+                    });
+                }),
+                ResultSendMail::Sent => rcpt.iter_mut().for_each(|i| {
+                    i.email_status = EmailTransferStatus::Sent;
+                }),
+                ResultSendMail::Failed(reason) => {
+                    for i in rcpt {
+                        i.email_status = EmailTransferStatus::Failed(reason.clone());
+                    }
+                }
+            };
+        }
+
+        acc.into_iter().fold(vec![], |mut acc, (_, rcpt)| {
+            acc.extend(rcpt);
+            acc
+        })
     }
 }
 
@@ -166,7 +244,14 @@ async fn send_email(
     Ok(())
 }
 
-fn update_rcpt_held_back(rcpt: &mut [&mut Rcpt]) {
+enum ResultSendMail {
+    IncreaseHeldBack,
+    Sent,
+    Failed(String),
+}
+
+/*
+fn update_rcpt_held_back(rcpt: &[&mut Rcpt]) {
     for rcpt in rcpt.iter_mut() {
         rcpt.email_status = match rcpt.email_status {
             EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count + 1),
@@ -175,34 +260,31 @@ fn update_rcpt_held_back(rcpt: &mut [&mut Rcpt]) {
     }
 }
 
-fn update_rcpt_sent(rcpt: &mut [&mut Rcpt]) {
+fn update_rcpt_sent(rcpt: &[&mut Rcpt]) {
     for rcpt in rcpt.iter_mut() {
         rcpt.email_status = EmailTransferStatus::Sent;
     }
 }
 
-fn update_rcpt_failed(rcpt: &mut [&mut Rcpt], reason: &str) {
+fn update_rcpt_failed(rcpt: &[&mut Rcpt], reason: &str) {
     for rcpt in rcpt.iter_mut() {
         rcpt.email_status = EmailTransferStatus::Failed(reason.to_string());
     }
 }
+*/
 
 #[cfg(test)]
 mod test {
 
-    use super::update_rcpt_held_back;
-    use crate::transport::deliver::{
-        get_mx_records, send_email, update_rcpt_failed, update_rcpt_sent,
-    };
+    use crate::transport::deliver::{send_email, Deliver};
     use trust_dns_resolver::TokioAsyncResolver;
     use vsmtp_common::{
         addr,
-        rcpt::Rcpt,
         re::{lettre, tokio},
-        transfer::EmailTransferStatus,
     };
     use vsmtp_config::{field::FieldServerDNS, Config};
 
+    /*
     #[test]
     fn test_update_rcpt_held_back() {
         let mut rcpt1 = Rcpt::new(addr!("john.doe@example.com"));
@@ -228,6 +310,7 @@ mod test {
             .iter()
             .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Failed(_))));
     }
+    */
 
     #[tokio::test]
     async fn test_get_mx_records() {
@@ -235,13 +318,14 @@ mod test {
         let mut config = Config::default();
         config.server.dns = FieldServerDNS::System;
         let resolvers = vsmtp_config::build_resolvers(&config).unwrap();
-        let dns = resolvers.get(&config.server.domain).unwrap();
+        let deliver = Deliver::new(resolvers.get(&config.server.domain).unwrap());
 
-        get_mx_records(dns, "google.com")
+        deliver
+            .get_mx_records("google.com")
             .await
             .expect("couldn't find any mx records for google.com");
 
-        assert!(get_mx_records(dns, "invalid_query").await.is_err());
+        assert!(deliver.get_mx_records("invalid_query").await.is_err());
     }
 
     #[tokio::test]
