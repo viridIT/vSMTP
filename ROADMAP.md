@@ -33,6 +33,15 @@ Depending on versions fixes and user feedbacks, the production version is expect
 
 ## Older releases
 
+### Releases 1.0
+
+- Services.
+  - Databases. (csv format)
+  - Commands.
+- A rework of the syntax to be as easy to use as possible. (everything as functions)
+- Custom codes to send back to clients.
+- Authentification pipeline access in vsl via the `authenticate` stage.
+
 ### Releases 0.10.x
 
 - Configuration improvements.
