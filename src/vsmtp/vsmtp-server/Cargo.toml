@@ -25,7 +25,6 @@ vsmtp-delivery = { path = "../vsmtp-delivery", version = "1.0.0-rc.1" }
 async-trait = "0.1.56"
 fastrand = "1.7.0"
 thiserror = "1.0.31"
-itertools = "0.10.3"
 
 tokio-stream = "0.1.9"
 async-stream = "0.3.3"
@@ -34,9 +33,9 @@ signal-hook = "0.3.14"
 
 trust-dns-resolver = "0.21.2"
 time = { version = "0.3.9", default-features = false, features = [
-    "std",
-    "formatting",
-    "macros",
+  "std",
+  "formatting",
+  "macros",
 ] }
 
 tokio-rustls = "0.23.4"
@@ -51,10 +50,10 @@ iai = "0.1.1"
 rand = "0.8.5"
 
 lettre = { version = "0.10.0-rc.7", default-features = false, features = [
-    "smtp-transport",
-    "builder",
-    "tokio1-rustls-tls",
-    "tracing",
+  "smtp-transport",
+  "builder",
+  "tokio1-rustls-tls",
+  "tracing",
 ] }
 
 [[bench]]
