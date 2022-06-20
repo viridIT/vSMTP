@@ -52,10 +52,16 @@ pub async fn start(
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: std::sync::Arc<Resolvers>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
-) -> anyhow::Result<()> {
-    log::info!(target: log_channels::DELIVERY, "booting, flushing queue.",);
-
-    flush_deliver_queue(&config, &resolvers, &rule_engine).await?;
+) {
+    if let Err(e) =
+        flush_deliver_queue(config.clone(), resolvers.clone(), rule_engine.clone()).await
+    {
+        log::error!(
+            target: log_channels::DELIVERY,
+            "flushing queue failed: {}",
+            e
+        );
+    }
 
     let mut flush_deferred_interval =
         tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
@@ -63,25 +69,14 @@ pub async fn start(
     loop {
         tokio::select! {
             Some(pm) = delivery_receiver.recv() => {
-                let copy_config = config.clone();
-                let copy_rule_engine = rule_engine.clone();
-                let copy_resolvers = resolvers.clone();
-                tokio::spawn(async move {
-                    if let Err(error) = handle_one_in_delivery_queue(
-                        &copy_config,
-                        &copy_resolvers,
-                        &pm,
-                        &copy_rule_engine,
+                tokio::spawn(
+                    handle_one_in_delivery_queue(
+                        config.clone(),
+                        resolvers.clone(),
+                        pm,
+                        rule_engine.clone(),
                     )
-                    .await {
-                        log::error!(target: log_channels::DELIVERY,
-                             "(msg={}) could not deliver email: {error:?}", pm.message_id);
-                    }
-                });
-
-                if cfg!(test) {
-                    return Ok(());
-                }
+                );
             }
             _ = flush_deferred_interval.tick() => {
                 log::info!(
@@ -89,7 +84,8 @@ pub async fn start(
                     "cronjob delay elapsed, flushing queue.",
                 );
                 tokio::spawn(
-                flush_deferred_queue(config.clone(), resolvers.clone()));
+                    flush_deferred_queue(config.clone(), resolvers.clone())
+                );
             }
         };
     }
@@ -106,6 +102,7 @@ pub async fn send_mail2(
     }
 
     let message_content = message_body.to_string();
+
     let root_server_resolver = resolvers
         .get(&config.server.domain)
         .expect("root server's resolver is missing");
@@ -150,8 +147,7 @@ pub async fn send_mail2(
             Transfer::None => continue,
         };
 
-        log::info!(target: log_channels::DEFERRED, "{key}, {group:#?}");
-
+        // TODO: make the futures run concurrently
         updated_group.extend(
             transport
                 .deliver(config, metadata, from, group, &message_content)
@@ -237,22 +233,24 @@ fn add_trace_information(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("missing email metadata"))?;
 
-    let stamp = create_received_stamp(
-        &ctx.envelop.helo,
-        &config.server.domain,
-        &metadata.message_id,
-        &metadata.timestamp,
-    )
-    .context("failed to create Receive header timestamp")?;
-
-    let vsmtp_status = create_vsmtp_status_stamp(
-        &metadata.message_id,
-        env!("CARGO_PKG_VERSION"),
-        rule_engine_result,
+    message.add_header(
+        "X-VSMTP",
+        &create_vsmtp_status_stamp(
+            &metadata.message_id,
+            env!("CARGO_PKG_VERSION"),
+            rule_engine_result,
+        ),
     );
-
-    message.add_header("X-VSMTP", &vsmtp_status);
-    message.add_header("Received", &stamp);
+    message.add_header(
+        "Received",
+        &create_received_stamp(
+            &ctx.envelop.helo,
+            &config.server.domain,
+            &metadata.message_id,
+            &metadata.timestamp,
+        )
+        .context("failed to create Receive header timestamp")?,
+    );
 
     Ok(())
 }
@@ -264,22 +262,17 @@ fn create_received_stamp(
     message_id: &str,
     received_timestamp: &std::time::SystemTime,
 ) -> anyhow::Result<String> {
+    let odt: time::OffsetDateTime = (*received_timestamp).into();
+    let date = odt.format(&Rfc2822)?;
     Ok(format!(
-        "from {client_helo}\n\tby {server_domain}\n\twith SMTP\n\tid {message_id};\n\t{}",
-        {
-            let odt: time::OffsetDateTime = (*received_timestamp).into();
-
-            odt.format(&Rfc2822)?
-        }
+        "from {client_helo} by {server_domain} with SMTP id {message_id}; {date}"
     ))
 }
 
 /// create the "X-VSMTP" header stamp.
 fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -> String {
     format!(
-        "id='{}'\n\tversion='{}'\n\tstatus='{}'",
-        message_id,
-        version,
+        "id='{message_id}' version='{version}' status='{}'",
         status.as_ref()
     )
 }
@@ -361,32 +354,22 @@ mod test {
             message,
             MessageBody::Raw {
                 headers: vec![
+                    format!(
+                        "X-VSMTP: id='{id}' version='{ver}' status='next'",
+                        id = ctx.metadata.as_ref().unwrap().message_id,
+                        ver = env!("CARGO_PKG_VERSION"),
+                    ),
                     [
-                        format!(
-                            "X-VSMTP: id='{id}'\n",
-                            id = ctx.metadata.as_ref().unwrap().message_id
-                        ),
-                        format!("\tversion='{}'\n", env!("CARGO_PKG_VERSION")),
-                        "\tstatus='next'".to_string()
-                    ]
-                    .concat(),
-                    [
-                        "Received: from localhost\n".to_string(),
-                        format!("\tby {domain}\n", domain = config.server.domain),
-                        "\twith SMTP\n".to_string(),
-                        format!(
-                            "\tid {id};\n",
-                            id = ctx.metadata.as_ref().unwrap().message_id
-                        ),
-                        format!(
-                            "\t{odt}",
-                            odt = {
-                                let odt: time::OffsetDateTime =
-                                    ctx.metadata.as_ref().unwrap().timestamp.into();
-                                odt.format(&time::format_description::well_known::Rfc2822)
-                                    .unwrap()
-                            }
-                        ),
+                        "Received: from localhost".to_string(),
+                        format!(" by {domain}", domain = config.server.domain),
+                        " with SMTP".to_string(),
+                        format!(" id {id}; ", id = ctx.metadata.as_ref().unwrap().message_id),
+                        {
+                            let odt: time::OffsetDateTime =
+                                ctx.metadata.as_ref().unwrap().timestamp.into();
+                            odt.format(&time::format_description::well_known::Rfc2822)
+                                .unwrap()
+                        }
                     ]
                     .concat(),
                 ],

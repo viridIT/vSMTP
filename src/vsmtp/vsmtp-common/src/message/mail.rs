@@ -72,6 +72,7 @@ impl Default for Mail {
     }
 }
 
+#[derive(Debug)]
 struct HeaderFoldable<'a>(&'a str, &'a str);
 
 impl<'a> std::fmt::Display for HeaderFoldable<'a> {
@@ -89,7 +90,7 @@ impl<'a> std::fmt::Display for HeaderFoldable<'a> {
         while !byte_writable.is_empty() {
             let (left, right) = if byte_writable.len() + prev > 78 {
                 byte_writable[..78 - prev]
-                    .rfind(' ')
+                    .rfind(char::is_whitespace)
                     .map(|idx| (&byte_writable[..idx], &byte_writable[idx..]))
             } else {
                 None
