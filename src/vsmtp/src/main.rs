@@ -109,9 +109,9 @@ fn try_main() -> anyhow::Result<()> {
             config.server.system.group.gid(),
         )?;
         // setresgid ?
-        setgid(config.server.system.group.gid())?;
+        // setgid(config.server.system.group.gid())?;
         // setresuid ?
-        setuid(config.server.system.user.uid())?;
+        // setuid(config.server.system.user.uid())?;
     }
 
     get_log4rs_config(&config, args.no_daemon)
