@@ -39,6 +39,17 @@ pub enum EmailTransferStatus {
     // NOTE: is Quarantined(String) useful, or we just use Failed(String) instead ?
 }
 
+impl EmailTransferStatus {
+    /// Should the recipient be delivered, or it has been done already ?
+    #[must_use]
+    pub const fn is_sendable(&self) -> bool {
+        match self {
+            EmailTransferStatus::Waiting | EmailTransferStatus::HeldBack(_) => true,
+            EmailTransferStatus::Sent | EmailTransferStatus::Failed(_) => false,
+        }
+    }
+}
+
 /// possible format of the forward target.
 #[derive(
     Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, serde::Serialize, serde::Deserialize,

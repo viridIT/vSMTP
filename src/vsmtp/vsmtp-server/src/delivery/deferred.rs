@@ -15,7 +15,7 @@
  *
 */
 use crate::{
-    context_from_file_path, delivery::send_mail2, log_channels, message_from_file_path,
+    context_from_file_path, delivery::send_mail, log_channels, message_from_file_path,
     ProcessMessage,
 };
 use vsmtp_common::{
@@ -89,7 +89,7 @@ async fn handle_one_in_deferred_queue(
     let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
     let message = message_from_file_path(message_filepath).await?;
 
-    send_mail2(&config, &mut ctx, &message, &resolvers).await;
+    send_mail(&config, &mut ctx, &message, &resolvers).await;
 
     // updating retry count, set status to Failed if threshold reached.
     for rcpt in &mut ctx.envelop.rcpt {

@@ -91,7 +91,7 @@ pub async fn start(
     }
 }
 
-pub async fn send_mail2(
+pub async fn send_mail(
     config: &Config,
     message_ctx: &mut MailContext,
     message_body: &MessageBody,
@@ -99,6 +99,7 @@ pub async fn send_mail2(
 ) {
     if message_ctx.envelop.rcpt.is_empty() {
         // TODO!
+        return;
     }
 
     let message_content = message_body.to_string();

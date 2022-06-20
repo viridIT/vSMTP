@@ -16,7 +16,7 @@
 */
 use crate::{
     context_from_file_path,
-    delivery::{add_trace_information, send_mail2},
+    delivery::{add_trace_information, send_mail},
     log_channels, message_from_file_path,
     receiver::MailHandlerError,
     ProcessMessage,
@@ -167,7 +167,7 @@ async fn handle_one_in_delivery_queue_inner(
             Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
         }
         _ => {
-            send_mail2(&config, &mut ctx, &message, &resolvers).await;
+            send_mail(&config, &mut ctx, &message, &resolvers).await;
             // .context(format!(
             //     "failed to send '{}' located in the delivery queue",
             //     process_message.message_id
