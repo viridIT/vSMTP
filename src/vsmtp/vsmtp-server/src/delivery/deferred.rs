@@ -15,13 +15,12 @@
  *
 */
 use crate::{
-    context_from_file_path, delivery::send_email, log_channels, message_from_file_path,
+    context_from_file_path, delivery::send_mail, log_channels, message_from_file_path,
     ProcessMessage,
 };
 use vsmtp_common::{
     queue::Queue,
     queue_path,
-    rcpt::Rcpt,
     re::{
         anyhow::{self, Context},
         log,
@@ -88,46 +87,25 @@ async fn handle_one_in_deferred_queue(
         })?;
 
     let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
-    let metadata = ctx
-        .metadata
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("email metadata not available in deferred email"))?;
-
     let message = message_from_file_path(message_filepath).await?;
 
-    // TODO: at this point, only HeldBack recipients should be present in the queue.
-    //       check if it is true or not.
-    ctx.envelop.rcpt = send_email(
-        &config,
-        &resolvers,
-        metadata,
-        &ctx.envelop.mail_from,
-        &ctx.envelop.rcpt,
-        &message,
-    )
-    .await
-    .context("failed to send emails from the deferred queue")?;
+    send_mail(&config, &mut ctx, &message, &resolvers).await;
 
     // updating retry count, set status to Failed if threshold reached.
-    ctx.envelop.rcpt = ctx
-        .envelop
-        .rcpt
-        .into_iter()
-        .map(|rcpt| Rcpt {
-            email_status: match rcpt.email_status {
-                EmailTransferStatus::HeldBack(count) if count >= max_retry_deferred => {
-                    EmailTransferStatus::Failed(format!(
-                        "maximum retry count of '{max_retry_deferred}' reached"
-                    ))
-                }
-                EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count + 1),
-                status => EmailTransferStatus::Failed(format!(
-                    "wrong recipient status '{status}' found in the deferred queue"
-                )),
-            },
-            ..rcpt
-        })
-        .collect();
+    for rcpt in &mut ctx.envelop.rcpt {
+        match &mut rcpt.email_status {
+            EmailTransferStatus::HeldBack(count) if *count >= max_retry_deferred => {
+                rcpt.email_status = EmailTransferStatus::Failed(format!(
+                    "maximum retry count of '{max_retry_deferred}' reached"
+                ));
+            }
+            EmailTransferStatus::HeldBack(_) => {}
+            _ => {
+                // in the deferred queue, the email is considered as held back.
+                rcpt.email_status = EmailTransferStatus::HeldBack(0);
+            }
+        };
+    }
 
     if ctx
         .envelop

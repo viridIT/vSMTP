@@ -29,8 +29,8 @@ time = { version = "0.3.10", default-features = false, features = [
 
 users = { version = "0.11.0", features = [] }
 trust-dns-resolver = { version = "0.21.2", features = [
-    "dns-over-rustls",
-    "dnssec-openssl",
+  "dns-over-rustls",
+  "dnssec-openssl",
 ] }
 
 [dev-dependencies]

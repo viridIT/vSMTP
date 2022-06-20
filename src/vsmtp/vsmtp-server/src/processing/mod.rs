@@ -36,7 +36,7 @@ pub async fn start(
     resolvers: std::sync::Arc<Resolvers>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
-) -> anyhow::Result<()> {
+) {
     loop {
         if let Some(pm) = working_receiver.recv().await {
             tokio::spawn(handle_one_in_working_queue(
@@ -52,6 +52,37 @@ pub async fn start(
 
 #[allow(clippy::too_many_lines)]
 async fn handle_one_in_working_queue(
+    config: std::sync::Arc<Config>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    resolvers: std::sync::Arc<Resolvers>,
+    process_message: ProcessMessage,
+    delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
+) {
+    log::info!(
+        target: log_channels::POSTQ,
+        "handling message in working queue {}",
+        process_message.message_id
+    );
+
+    if let Err(e) = handle_one_in_working_queue_inner(
+        config,
+        rule_engine,
+        resolvers,
+        process_message,
+        delivery_sender,
+    )
+    .await
+    {
+        log::warn!(
+            target: log_channels::POSTQ,
+            "failed to handle one email in working queue: {}",
+            e
+        );
+    }
+}
+
+#[allow(clippy::too_many_lines)]
+async fn handle_one_in_working_queue_inner(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
     resolvers: std::sync::Arc<Resolvers>,
@@ -205,7 +236,7 @@ mod tests {
             vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
         );
 
-        assert!(handle_one_in_working_queue(
+        assert!(handle_one_in_working_queue_inner(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
                 RuleEngine::from_script(&config, "#{}")
@@ -284,7 +315,7 @@ mod tests {
             vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
         );
 
-        handle_one_in_working_queue(
+        handle_one_in_working_queue_inner(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
                 RuleEngine::from_script(&config, "#{}")
@@ -367,7 +398,7 @@ mod tests {
             vsmtp_config::build_resolvers(&config).expect("could not initialize dns"),
         );
 
-        handle_one_in_working_queue(
+        handle_one_in_working_queue_inner(
             config.clone(),
             std::sync::Arc::new(std::sync::RwLock::new(
                 RuleEngine::from_script(

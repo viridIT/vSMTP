@@ -38,6 +38,8 @@ const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::
 /// (see [rfc4155](https://datatracker.ietf.org/doc/html/rfc4155#appendix-A))
 pub struct MBox;
 
+// FIXME: use UsersCache.
+
 #[async_trait::async_trait]
 impl Transport for MBox {
     async fn deliver(
@@ -45,54 +47,60 @@ impl Transport for MBox {
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
-        to: &mut [Rcpt],
+        mut to: Vec<Rcpt>,
         content: &str,
-    ) -> anyhow::Result<()> {
+    ) -> Vec<Rcpt> {
         let timestamp = get_mbox_timestamp_format(metadata);
         let content = build_mbox_message(from, &timestamp, content);
 
-        // FIXME: use UsersCache.
-        for rcpt in to.iter_mut() {
-            if let Some(user) = users::get_user_by_name(rcpt.address.local_part()) {
+        for rcpt in &mut to {
+            match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
                 // NOTE: only linux system is supported here, is the
                 //       path to all mboxes always /var/mail ?
-                if let Err(err) = write_content_to_mbox(
+                write_content_to_mbox(
                     &std::path::PathBuf::from_iter(["/", "var", "mail", rcpt.address.local_part()]),
                     &user,
                     config.server.system.group_local.as_ref(),
                     metadata,
                     &content,
-                ) {
-                    log::error!(
+                )
+            }) {
+                Some(Ok(_)) => {
+                    log::info!(
                         target: log_channels::MBOX,
-                        "failed to write email '{}' in mbox of '{rcpt}': {err}",
+                        "(msg={}) successfully delivered to {rcpt} as mbox",
                         metadata.message_id
                     );
 
-                    rcpt.email_status = match rcpt.email_status {
-                        EmailTransferStatus::HeldBack(count) => {
-                            EmailTransferStatus::HeldBack(count)
-                        }
-                        _ => EmailTransferStatus::HeldBack(0),
-                    };
-                } else {
                     rcpt.email_status = EmailTransferStatus::Sent;
                 }
-            } else {
-                log::error!(
-                    target: log_channels::MBOX,
-                    "failed to write email '{}' in mbox of '{rcpt}': '{rcpt}' is not a user",
-                    metadata.message_id
-                );
+                Some(Err(e)) => {
+                    log::error!(
+                        target: log_channels::MBOX,
+                        "failed to write email '{}' in mbox of '{rcpt}': {e}",
+                        metadata.message_id
+                    );
 
-                rcpt.email_status = match rcpt.email_status {
-                    EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count),
-                    _ => EmailTransferStatus::HeldBack(0),
-                };
-            };
+                    rcpt.email_status = EmailTransferStatus::HeldBack(match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => count + 1,
+                        _ => (0),
+                    });
+                }
+                None => {
+                    log::error!(
+                        target: log_channels::MBOX,
+                        "failed to write email '{}' in mbox of '{rcpt}': '{rcpt}' is not a user",
+                        metadata.message_id
+                    );
+
+                    rcpt.email_status = EmailTransferStatus::HeldBack(match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => count + 1,
+                        _ => (0),
+                    });
+                }
+            }
         }
-
-        Ok(())
+        to
     }
 }
 

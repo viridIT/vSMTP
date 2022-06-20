@@ -16,7 +16,7 @@
 */
 use crate::{
     context_from_file_path,
-    delivery::{add_trace_information, move_to_queue, send_email},
+    delivery::{add_trace_information, send_mail},
     log_channels, message_from_file_path,
     receiver::MailHandlerError,
     ProcessMessage,
@@ -30,27 +30,31 @@ use vsmtp_common::{
     },
     state::StateSMTP,
     status::Status,
-    transfer::EmailTransferStatus,
+    transfer::{EmailTransferStatus, Transfer},
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
 pub async fn flush_deliver_queue(
-    config: &Config,
-    resolvers: &std::sync::Arc<Resolvers>,
-    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    config: std::sync::Arc<Config>,
+    resolvers: std::sync::Arc<Resolvers>,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
+    log::info!(target: log_channels::DELIVERY, "Flushing deliver queue");
+
     let dir_entries =
         std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deliver))?;
     for path in dir_entries {
         let process_message = ProcessMessage {
             message_id: path?.path().file_name().unwrap().to_string_lossy().into(),
         };
-        if let Err(e) =
-            handle_one_in_delivery_queue(config, resolvers, &process_message, rule_engine).await
-        {
-            log::warn!(target: log_channels::DELIVERY, "{}", e);
-        }
+        handle_one_in_delivery_queue(
+            config.clone(),
+            resolvers.clone(),
+            process_message,
+            rule_engine.clone(),
+        )
+        .await;
     }
 
     Ok(())
@@ -74,10 +78,33 @@ pub async fn flush_deliver_queue(
 ///
 /// # Panics
 pub async fn handle_one_in_delivery_queue(
-    config: &Config,
-    resolvers: &std::sync::Arc<Resolvers>,
-    process_message: &ProcessMessage,
-    rule_engine: &std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    config: std::sync::Arc<Config>,
+    resolvers: std::sync::Arc<Resolvers>,
+    process_message: ProcessMessage,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+) {
+    log::info!(
+        target: log_channels::DELIVERY,
+        "handling message in delivery queue {}",
+        process_message.message_id
+    );
+
+    if let Err(e) =
+        handle_one_in_delivery_queue_inner(config, resolvers, process_message, rule_engine).await
+    {
+        log::warn!(
+            target: log_channels::DELIVERY,
+            "failed to handle one email in delivery queue: {}",
+            e
+        );
+    }
+}
+
+async fn handle_one_in_delivery_queue_inner(
+    config: std::sync::Arc<Config>,
+    resolvers: std::sync::Arc<Resolvers>,
+    process_message: ProcessMessage,
+    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
     let (context_filepath, message_filepath) = (
         queue_path!(
@@ -90,12 +117,6 @@ pub async fn handle_one_in_delivery_queue(
             "mails".into(),
             process_message.message_id.clone().into(),
         ]),
-    );
-
-    log::trace!(
-        target: log_channels::DELIVERY,
-        "email received '{}'",
-        process_message.message_id
     );
 
     let ctx = context_from_file_path(&context_filepath)
@@ -115,18 +136,18 @@ pub async fn handle_one_in_delivery_queue(
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
         let mut state =
-            RuleState::with_context(config, resolvers.clone(), &rule_engine, ctx, Some(message));
+            RuleState::with_context(&config, resolvers.clone(), &rule_engine, ctx, Some(message));
         let result = rule_engine.run_when(&mut state, &StateSMTP::Delivery);
 
         (state.take()?, result)
     };
     let mut message = message.ok_or_else(|| anyhow::anyhow!("message is empty"))?;
 
-    add_trace_information(config, &mut ctx, &mut message, &result)?;
+    add_trace_information(&config, &mut ctx, &mut message, &result)?;
 
     match result {
         Status::Quarantine(path) => {
-            let mut path = create_app_folder(config, Some(&path))
+            let mut path = create_app_folder(&config, Some(&path))
                 .map_err(MailHandlerError::CreateAppFolder)?;
 
             path.push(format!("{}.json", process_message.message_id));
@@ -146,26 +167,31 @@ pub async fn handle_one_in_delivery_queue(
             Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
         }
         _ => {
-            let metadata = ctx
-                .metadata
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("metadata not available in delivery"))?;
+            send_mail(&config, &mut ctx, &message, &resolvers).await;
+            // .context(format!(
+            //     "failed to send '{}' located in the delivery queue",
+            //     process_message.message_id
+            // ))?;
 
-            ctx.envelop.rcpt = send_email(
-                config,
-                resolvers,
-                metadata,
-                &ctx.envelop.mail_from,
-                &ctx.envelop.rcpt,
-                &message,
-            )
-            .await
-            .context(format!(
-                "failed to send '{}' located in the delivery queue",
-                process_message.message_id
-            ))?;
+            if ctx
+                .envelop
+                .rcpt
+                .iter()
+                .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
+            {
+                Queue::Deferred
+                    .write_to_queue(&config.server.queues.dirpath, &ctx)
+                    .context("failed to move message from delivery queue to deferred queue")?;
+            }
 
-            move_to_queue(config, &ctx)?;
+            if ctx.envelop.rcpt.iter().any(|rcpt| {
+                matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
+                    || matches!(rcpt.transfer_method, Transfer::None)
+            }) {
+                Queue::Dead
+                    .write_to_queue(&config.server.queues.dirpath, &ctx)
+                    .context("failed to move message from delivery queue to dead queue")?;
+            }
         }
     };
 
@@ -255,15 +281,14 @@ mod tests {
         let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
 
         handle_one_in_delivery_queue(
-            &config,
-            &resolvers,
-            &ProcessMessage {
+            std::sync::Arc::new(config.clone()),
+            resolvers,
+            ProcessMessage {
                 message_id: "message_from_deliver_to_deferred".to_string(),
             },
-            &rule_engine,
+            rule_engine,
         )
-        .await
-        .unwrap();
+        .await;
 
         std::fs::remove_file(queue_path!(
             &config.server.queues.dirpath,

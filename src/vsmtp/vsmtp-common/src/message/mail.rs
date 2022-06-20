@@ -72,6 +72,7 @@ impl Default for Mail {
     }
 }
 
+#[derive(Debug)]
 struct HeaderFoldable<'a>(&'a str, &'a str);
 
 impl<'a> std::fmt::Display for HeaderFoldable<'a> {
@@ -86,10 +87,12 @@ impl<'a> std::fmt::Display for HeaderFoldable<'a> {
             return f.write_str("\r\n");
         }
 
+        // FIXME: we can fold at 78 chars for simple sentence.
+        // but must write a continuous string for base64 encoded values (like dkim)
         while !byte_writable.is_empty() {
-            let (left, right) = if byte_writable.len() + prev > 78 {
-                byte_writable[..78 - prev]
-                    .rfind(' ')
+            let (left, right) = if byte_writable.len() + prev > 998 {
+                byte_writable[..998 - prev]
+                    .rfind(char::is_whitespace)
                     .map(|idx| (&byte_writable[..idx], &byte_writable[idx..]))
             } else {
                 None

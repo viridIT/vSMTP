@@ -26,14 +26,14 @@ use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 fn init_runtime<F: 'static>(
-    sender: tokio::sync::mpsc::Sender<anyhow::Result<()>>,
+    sender: tokio::sync::mpsc::Sender<()>,
     name: impl Into<String>,
     worker_thread_count: usize,
     future: F,
     timeout: Option<std::time::Duration>,
 ) -> anyhow::Result<std::thread::JoinHandle<anyhow::Result<()>>>
 where
-    F: std::future::Future<Output = anyhow::Result<()>> + Send,
+    F: std::future::Future<Output = ()> + Send,
 {
     let name = name.into();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -46,24 +46,21 @@ where
         .name(format!("{name}-main"))
         .spawn(move || {
             let name_rt = name.clone();
-            let output = runtime
-                .block_on(async move {
-                    log::info!(
-                        target: log_channels::RUNTIME,
-                        "Runtime '{name_rt}' started successfully"
-                    );
+            runtime.block_on(async move {
+                log::info!(
+                    target: log_channels::RUNTIME,
+                    "Runtime '{name_rt}' started successfully"
+                );
 
-                    match timeout {
-                        Some(duration) => {
-                            tokio::time::timeout(duration, future).await.unwrap_err();
-                            anyhow::Ok(())
-                        }
-                        None => future.await,
+                match timeout {
+                    Some(duration) => {
+                        tokio::time::timeout(duration, future).await.unwrap_err();
                     }
-                })
-                .context(format!("An error terminated the '{name}' runtime"));
+                    None => future.await,
+                }
+            });
 
-            sender.blocking_send(output)?;
+            sender.blocking_send(())?;
             Ok(())
         })
         .map_err(anyhow::Error::new)
@@ -87,13 +84,12 @@ pub fn start_runtime(
         .map(|q| vsmtp_common::queue_path!(create_if_missing => &config.server.queues.dirpath, q))
         .collect::<std::io::Result<Vec<_>>>()?;
 
-    let mut error_handler = tokio::sync::mpsc::channel::<anyhow::Result<()>>(3);
+    let mut error_handler = tokio::sync::mpsc::channel::<()>(3);
 
-    let delivery_channel =
-        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size);
-
-    let working_channel =
-        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size);
+    let (delivery_channel, working_channel) = (
+        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.delivery.channel_size),
+        tokio::sync::mpsc::channel::<ProcessMessage>(config.server.queues.working.channel_size),
+    );
 
     let rule_engine = RuleEngine::new(&config, &config.app.vsl.filepath.clone())?;
 
@@ -136,22 +132,29 @@ pub fn start_runtime(
         "receiver",
         config_arc.server.system.thread_pool.receiver,
         async move {
-            Server::new(
+            let server = match Server::new(
                 config_arc.clone(),
                 rule_engine_arc.clone(),
                 resolvers.clone(),
                 working_channel.0.clone(),
                 delivery_channel.0.clone(),
-            )?
-            .listen_and_serve(sockets)
-            .await
+            ) {
+                Ok(server) => server,
+                Err(error) => {
+                    log::error!(target: log_channels::SERVER, "{}", error);
+                    return;
+                }
+            };
+            if let Err(error) = server.listen_and_serve(sockets).await {
+                log::error!(target: log_channels::SERVER, "{}", error);
+            }
         },
         timeout,
     );
 
     let error_handler_sig = error_handler.0.clone();
     let mut signals = signal_hook::iterator::Signals::new(&[
-        // Send by `systemctl stop` (and send sending `SIGKILL`)
+        // Send by `systemctl stop` (and then sending `SIGKILL`)
         signal_hook::consts::SIGTERM,
         // Ctrl+C on a terminal
         signal_hook::consts::SIGINT,
@@ -161,15 +164,14 @@ pub fn start_runtime(
             log::info!(target: log_channels::RUNTIME, "Received signal '{}'", sig);
             log::warn!(target: log_channels::RUNTIME, "Stopping vSMTP server");
             error_handler_sig
-                .blocking_send(Ok(()))
+                .blocking_send(())
                 .expect("failed to send terminating instruction");
         }
     });
 
-    error_handler
-        .1
-        .blocking_recv()
-        .ok_or_else(|| anyhow::anyhow!("Channel closed, but should not"))?
+    error_handler.1.blocking_recv();
+
+    Ok(())
 
     // if the runtime panicked (receiver/processing/delivery)
     // .join() would return an error,

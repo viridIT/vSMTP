@@ -27,62 +27,69 @@ use vsmtp_common::{
 use vsmtp_config::{re::users, Config};
 
 /// see <https://en.wikipedia.org/wiki/Maildir>
+//
+// NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
+//       and https://en.wikipedia.org/wiki/Maildir
 #[derive(Default)]
 pub struct Maildir;
 
 #[async_trait::async_trait]
 impl Transport for Maildir {
-    // NOTE: see https://docs.rs/tempfile/3.0.7/tempfile/index.html
-    //       and https://en.wikipedia.org/wiki/Maildir
     async fn deliver(
         &mut self,
         config: &Config,
         metadata: &MessageMetadata,
         _: &vsmtp_common::Address,
-        to: &mut [Rcpt],
+        mut to: Vec<Rcpt>,
         content: &str,
-    ) -> anyhow::Result<()> {
-        for rcpt in to.iter_mut() {
-            if let Some(user) = users::get_user_by_name(rcpt.address.local_part()) {
-                // TODO: write to defer / dead queue.
-                if let Err(err) = write_to_maildir(
+    ) -> Vec<Rcpt> {
+        for rcpt in &mut to {
+            match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
+                write_to_maildir(
                     &user,
                     config.server.system.group_local.as_ref(),
                     metadata,
                     content,
-                ) {
-                    log::error!(
+                )
+            }) {
+                Some(Ok(_)) => {
+                    log::info!(
                         target: log_channels::MAILDIR,
-                        "(msg={}) failed to write email in maildir of '{rcpt}': {err}",
+                        "(msg={}) successfully delivered to {rcpt} as maildir",
                         metadata.message_id
                     );
 
-                    rcpt.email_status = match rcpt.email_status {
-                        EmailTransferStatus::HeldBack(count) => {
-                            EmailTransferStatus::HeldBack(count)
-                        }
-                        _ => EmailTransferStatus::HeldBack(0),
-                    };
-                } else {
                     rcpt.email_status = EmailTransferStatus::Sent;
                 }
-            } else {
-                log::error!(
-                    target: log_channels::MAILDIR,
-                    "(msg={}) failed to write email in maildir of '{}': '{}' is not a user",
-                    metadata.message_id,
-                    rcpt.address.local_part(),
-                    rcpt.address.local_part()
-                );
+                Some(Err(e)) => {
+                    log::error!(
+                        target: log_channels::MAILDIR,
+                        "(msg={}) failed to write email in maildir of '{rcpt}': {e}",
+                        metadata.message_id
+                    );
 
-                rcpt.email_status = match rcpt.email_status {
-                    EmailTransferStatus::HeldBack(count) => EmailTransferStatus::HeldBack(count),
-                    _ => EmailTransferStatus::HeldBack(0),
-                };
+                    rcpt.email_status = EmailTransferStatus::HeldBack(match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => count + 1,
+                        _ => 0,
+                    });
+                }
+                None => {
+                    log::error!(
+                        target: log_channels::MAILDIR,
+                        "(msg={}) failed to write email in maildir of '{}': '{}' is not a user",
+                        metadata.message_id,
+                        rcpt.address.local_part(),
+                        rcpt.address.local_part()
+                    );
+
+                    rcpt.email_status = EmailTransferStatus::HeldBack(match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => count + 1,
+                        _ => 0,
+                    });
+                }
             }
         }
-
-        Ok(())
+        to
     }
 }
 
