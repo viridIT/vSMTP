@@ -17,7 +17,7 @@ categories = ["data-structures"]
 
 [dependencies]
 # Re-exported
-anyhow = "1.0.57"
+anyhow = "1.0.58"
 log = { version = "0.4.17", features = ["serde"] }
 serde_json = "1.0.81"
 addr = { version = "0.15.3" }
