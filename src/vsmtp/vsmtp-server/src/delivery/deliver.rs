@@ -167,14 +167,11 @@ async fn handle_one_in_delivery_queue_inner(
             Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
         }
         _ => {
-            println!("here");
             send_mail2(&config, &mut ctx, &message, &resolvers).await;
-            println!("here2");
             // .context(format!(
             //     "failed to send '{}' located in the delivery queue",
             //     process_message.message_id
             // ))?;
-            println!("{ctx:#?}");
 
             if ctx
                 .envelop
