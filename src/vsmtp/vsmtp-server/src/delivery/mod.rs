@@ -97,7 +97,22 @@ pub async fn send_mail(
     message_body: &MessageBody,
     resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
 ) {
-    if message_ctx.envelop.rcpt.is_empty() {
+    let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
+    for i in message_ctx
+        .envelop
+        .rcpt
+        .iter()
+        .filter(|r| r.email_status.is_sendable())
+        .cloned()
+    {
+        if let Some(group) = acc.get_mut(&i.transfer_method) {
+            group.push(i);
+        } else {
+            acc.insert(i.transfer_method.clone(), vec![i]);
+        }
+    }
+
+    if acc.is_empty() {
         // TODO!
         return;
     }
@@ -110,15 +125,6 @@ pub async fn send_mail(
 
     let metadata = &message_ctx.metadata.as_ref().unwrap();
     let from = &message_ctx.envelop.mail_from;
-
-    let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
-    for i in message_ctx.envelop.rcpt.clone() {
-        if let Some(group) = acc.get_mut(&i.transfer_method) {
-            group.push(i);
-        } else {
-            acc.insert(i.transfer_method.clone(), vec![i]);
-        }
-    }
 
     let mut updated_group = vec![];
     for (key, group) in acc {
