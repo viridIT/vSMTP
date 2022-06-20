@@ -47,63 +47,60 @@ impl Transport for MBox {
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
-        to: Vec<Rcpt>,
+        mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
         let timestamp = get_mbox_timestamp_format(metadata);
         let content = build_mbox_message(from, &timestamp, content);
 
-        to.into_iter()
-            .map(|mut rcpt| {
-                match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
-                    // NOTE: only linux system is supported here, is the
-                    //       path to all mboxes always /var/mail ?
-                    write_content_to_mbox(
-                        &std::path::PathBuf::from_iter([
-                            "/",
-                            "var",
-                            "mail",
-                            rcpt.address.local_part(),
-                        ]),
-                        &user,
-                        config.server.system.group_local.as_ref(),
-                        metadata,
-                        &content,
-                    )
-                }) {
-                    Some(Ok(_)) => {
-                        rcpt.email_status = EmailTransferStatus::Sent;
-                    }
-                    Some(Err(e)) => {
-                        log::error!(
-                            target: log_channels::MBOX,
-                            "failed to write email '{}' in mbox of '{rcpt}': {e}",
-                            metadata.message_id
-                        );
+        for rcpt in &mut to {
+            match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
+                // NOTE: only linux system is supported here, is the
+                //       path to all mboxes always /var/mail ?
+                write_content_to_mbox(
+                    &std::path::PathBuf::from_iter(["/", "var", "mail", rcpt.address.local_part()]),
+                    &user,
+                    config.server.system.group_local.as_ref(),
+                    metadata,
+                    &content,
+                )
+            }) {
+                Some(Ok(_)) => {
+                    log::info!(
+                        target: log_channels::MBOX,
+                        "(msg={}) successfully delivered to {rcpt} as mbox",
+                        metadata.message_id
+                    );
 
-                        rcpt.email_status =
-                            EmailTransferStatus::HeldBack(match rcpt.email_status {
-                                EmailTransferStatus::HeldBack(count) => count + 1,
-                                _ => (0),
-                            });
-                    }
-                    None => {
-                        log::error!(
+                    rcpt.email_status = EmailTransferStatus::Sent;
+                }
+                Some(Err(e)) => {
+                    log::error!(
+                        target: log_channels::MBOX,
+                        "failed to write email '{}' in mbox of '{rcpt}': {e}",
+                        metadata.message_id
+                    );
+
+                    rcpt.email_status = EmailTransferStatus::HeldBack(match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => count + 1,
+                        _ => (0),
+                    });
+                }
+                None => {
+                    log::error!(
                         target: log_channels::MBOX,
                         "failed to write email '{}' in mbox of '{rcpt}': '{rcpt}' is not a user",
                         metadata.message_id
                     );
 
-                        rcpt.email_status =
-                            EmailTransferStatus::HeldBack(match rcpt.email_status {
-                                EmailTransferStatus::HeldBack(count) => count + 1,
-                                _ => (0),
-                            });
-                    }
+                    rcpt.email_status = EmailTransferStatus::HeldBack(match rcpt.email_status {
+                        EmailTransferStatus::HeldBack(count) => count + 1,
+                        _ => (0),
+                    });
                 }
-                rcpt
-            })
-            .collect::<Vec<_>>()
+            }
+        }
+        to
     }
 }
 

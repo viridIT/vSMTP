@@ -17,7 +17,7 @@
 use anyhow::Context;
 use vsmtp::{Args, Commands};
 use vsmtp_common::{
-    libc_abstraction::{daemon, initgroups, setgid, setuid},
+    libc_abstraction::{daemon, initgroups},
     re::{anyhow, log, serde_json},
 };
 use vsmtp_config::{get_log4rs_config, re::log4rs, Config};

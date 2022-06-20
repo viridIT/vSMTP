@@ -147,6 +147,8 @@ pub mod transport {
 
 #[cfg(test)]
 pub mod test {
+    use vsmtp_common::mail_context::ConnectionContext;
+
     /// create an empty email context for testing purposes.
     ///
     /// # Panics
@@ -169,27 +171,4 @@ pub mod test {
             }),
         }
     }
-
-    use vsmtp_common::mail_context::ConnectionContext;
-
-    // #[test]
-    // fn test_build_lettre_envelop() {
-    //     assert_eq!(
-    //         build_lettre(
-    //             &addr!("a@a.a"),
-    //             [Rcpt {
-    //                 address: addr!("b@b.b"),
-    //                 transfer_method: Transfer::None,
-    //                 email_status: EmailTransferStatus::Sent
-    //             }]
-    //             .iter()
-    //         )
-    //         .expect("failed to build lettre envelop"),
-    //         lettre::address::Envelope::new(
-    //             Some("a@a.a".parse().unwrap()),
-    //             vec!["b@b.b".parse().unwrap()]
-    //         )
-    //         .unwrap()
-    //     );
-    // }
 }

@@ -38,33 +38,6 @@ impl Default for Envelop {
     }
 }
 
-/// build a [lettre] envelop using from address & recipients.
-///
-/// # Errors
-/// * Could not create lettre address.
-// fn build_lettre<Iter>(
-//     from: &Address,
-//     rcpt: impl IntoIterator<Item = impl AsRef<Rcpt>>,
-// ) -> anyhow::Result<lettre::address::Envelope> {
-//     lettre::address::Envelope::new(
-//         Some(
-//             from.full()
-//                 .parse()
-//                 .context("failed to parse `from` address")?,
-//         ),
-//         rcpt.into_iter()
-//             .map(|rcpt| {
-//                 rcpt.as_ref()
-//                     .address
-//                     .full()
-//                     .parse::<lettre::Address>()
-//                     .context("failed to parse `to` address")
-//             })
-//             .collect::<anyhow::Result<Vec<_>>>()?,
-//     )
-//     .context("failed to build the envelop")
-// }
-
 #[cfg(test)]
 pub mod test {
     use crate::mail_context::ConnectionContext;
@@ -90,24 +63,4 @@ pub mod test {
             }),
         }
     }
-
-    // #[test]
-    // fn test_build_lettre_envelop() {
-    //     assert_eq!(
-    //         build_lettre(
-    //             &addr!("a@a.a"),
-    //             &[Rcpt {
-    //                 address: addr!("b@b.b"),
-    //                 transfer_method: Transfer::None,
-    //                 email_status: EmailTransferStatus::Sent
-    //             }]
-    //         )
-    //         .expect("failed to build lettre envelop"),
-    //         lettre::address::Envelope::new(
-    //             Some("a@a.a".parse().unwrap()),
-    //             vec!["b@b.b".parse().unwrap()]
-    //         )
-    //         .unwrap()
-    //     );
-    // }
 }

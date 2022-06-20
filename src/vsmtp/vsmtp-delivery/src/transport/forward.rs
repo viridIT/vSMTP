@@ -73,6 +73,47 @@ impl<'r> Forward<'r> {
 
         Ok(())
     }
+
+    async fn deliver_inner(
+        &mut self,
+        config: &Config,
+        from: &vsmtp_common::Address,
+        to: &[Rcpt],
+        content: &str,
+    ) -> anyhow::Result<()> {
+        let envelop = from
+            .full()
+            .parse()
+            .context("envelop is invalid")
+            .and_then(|from| {
+                Ok((
+                    from,
+                    to.iter()
+                        .map(|i| {
+                            i.address
+                                .full()
+                                .parse::<lettre::Address>()
+                                .with_context(|| format!("receiver address is not valid: {i}"))
+                        })
+                        .collect::<anyhow::Result<Vec<_>>>()?,
+                ))
+            })
+            .and_then(|(from, rcpt_addresses)| {
+                lettre::address::Envelope::new(Some(from), rcpt_addresses)
+                    .context("envelop is invalid")
+            })?;
+
+        // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
+        let target = match &self.to {
+            ForwardTarget::Domain(domain) => Ok(domain.clone()),
+            ForwardTarget::Ip(ip) => self.reverse_lookup(ip).await,
+            ForwardTarget::Socket(socket) => self.reverse_lookup(&socket.ip()).await,
+        }?;
+
+        self.send_email(config, from, &target, &envelop, content)
+            .await
+            .with_context(|| format!("failed to forward email to {target}"))
+    }
 }
 
 #[async_trait::async_trait]
@@ -82,62 +123,36 @@ impl<'r> Transport for Forward<'r> {
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
-        to: Vec<Rcpt>,
+        mut to: Vec<Rcpt>,
         content: &str,
     ) -> Vec<Rcpt> {
-        let envelop = lettre::address::Envelope::new(
-            Some(from.full().parse().unwrap()),
-            to.iter()
-                .map(|rcpt| {
-                    rcpt.address
-                        .full()
-                        .parse::<lettre::Address>()
-                        .context("failed to parse address")
-                })
-                .collect::<anyhow::Result<Vec<_>>>()
-                .unwrap(),
-        )
-        .unwrap();
-
-        // if the domain is unknown, we ask the dns to get it (tls parameters required the domain).
-        let target = match &self.to {
-            ForwardTarget::Domain(domain) => domain.clone(),
-            ForwardTarget::Ip(ip) => self.reverse_lookup(ip).await.unwrap(),
-            ForwardTarget::Socket(socket) => self.reverse_lookup(&socket.ip()).await.unwrap(),
-        };
-
-        match self
-            .send_email(config, from, &target, &envelop, content)
-            .await
-        {
-            Ok(()) => {
-                return to
-                    .into_iter()
-                    .map(|rcpt| Rcpt {
-                        email_status: EmailTransferStatus::Sent,
-                        ..rcpt
-                    })
-                    .collect();
-            }
-            Err(err) => {
-                log::debug!(
+        match self.deliver_inner(config, from, &*to, content).await {
+            Ok(_) => {
+                log::info!(
                     target: log_channels::FORWARD,
-                    "(msg={}) failed to forward email to '{}': {err}",
+                    "(msg={}) email successfully forwarded",
                     metadata.message_id,
-                    &target
                 );
 
-                return to
-                    .into_iter()
-                    .map(|rcpt| Rcpt {
-                        email_status: EmailTransferStatus::HeldBack(match rcpt.email_status {
-                            EmailTransferStatus::HeldBack(count) => count + 1,
-                            _ => 0,
-                        }),
-                        ..rcpt
-                    })
-                    .collect();
+                for i in &mut to {
+                    i.email_status = EmailTransferStatus::Sent;
+                }
+            }
+            Err(error) => {
+                log::error!(
+                    target: log_channels::FORWARD,
+                    "(msg={}) failed to forward email: {error}",
+                    metadata.message_id,
+                    error = error
+                );
+                for i in &mut to {
+                    i.email_status = EmailTransferStatus::HeldBack(match i.email_status {
+                        EmailTransferStatus::HeldBack(count) => count + 1,
+                        _ => 0,
+                    });
+                }
             }
         }
+        to
     }
 }
