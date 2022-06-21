@@ -345,6 +345,10 @@ impl RuleEngine {
         let mut directives = Directives::new();
 
         for (stage, directive_set) in raw_directives {
+            if StateSMTP::try_from(stage.as_str()).is_err() {
+                anyhow::bail!("the '{}' smtp stage does not exist.", stage);
+            }
+
             let directive_set = directive_set
                 .try_cast::<rhai::Array>()
                 .ok_or_else(|| {
