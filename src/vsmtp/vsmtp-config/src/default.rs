@@ -32,7 +32,7 @@ use vsmtp_common::{
 impl Default for Config {
     fn default() -> Self {
         Self::ensure(Self {
-            version_requirement: semver::VersionReq::parse(">=1.0.0").unwrap(),
+            version_requirement: semver::VersionReq::parse(">=1.0.0, <2.0.0").unwrap(),
             server: FieldServer::default(),
             app: FieldApp::default(),
         })
