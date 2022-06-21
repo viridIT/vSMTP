@@ -16,15 +16,15 @@ keywords = ["vsmtp"]
 categories = ["data-structures"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.1.0" }
 
 log4rs = { version = "1.1.1", default-features = false, features = [
-    "rolling_file_appender",
-    "compound_policy",
-    "gzip",
-    "fixed_window_roller",
-    "size_trigger",
-    "console_appender",
+  "rolling_file_appender",
+  "compound_policy",
+  "gzip",
+  "fixed_window_roller",
+  "size_trigger",
+  "console_appender",
 ] }
 users = { version = "0.11.0", features = [] }
 
@@ -39,9 +39,9 @@ rustls-pemfile = "1.0.0"
 
 hostname = "0.3.1"
 trust-dns-resolver = { version = "0.21.2", default-features = false, features = [
-    "system-config",
-    "serde-config",
-    "tokio-runtime",
+  "system-config",
+  "serde-config",
+  "tokio-runtime",
 ] }
 
 semver = "1.0.10"

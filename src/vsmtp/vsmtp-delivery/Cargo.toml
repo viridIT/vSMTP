@@ -16,15 +16,15 @@ keywords = ["vsmtp"]
 categories = ["network-programming"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.1.0" }
+vsmtp-config = { path = "../vsmtp-config", version = "1.1.0" }
 
 async-trait = "0.1.56"
 
 time = { version = "0.3.10", default-features = false, features = [
-    "std",
-    "formatting",
-    "macros",
+  "std",
+  "formatting",
+  "macros",
 ] }
 
 users = { version = "0.11.0", features = [] }

@@ -16,9 +16,9 @@ keywords = ["vsmtp"]
 categories = ["config"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.1.0" }
+vsmtp-config = { path = "../vsmtp-config", version = "1.1.0" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.1.0" }
 
 thiserror = "1.0.31"
 
@@ -31,16 +31,16 @@ csv = "1.1"
 viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
 hostname = "0.3.1"
 time = { version = "0.3.10", default-features = false, features = [
-    "std",
-    "formatting",
-    "macros",
+  "std",
+  "formatting",
+  "macros",
 ] }
 
 rhai = { version = "1.7.0", git = "https://github.com/schungx/rhai", rev = "5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82", features = [
-    "unchecked",
-    "sync",
-    "internals",
-    "no_closure",
+  "unchecked",
+  "sync",
+  "internals",
+  "no_closure",
 ] }
 
 wait-timeout = "0.2.0"

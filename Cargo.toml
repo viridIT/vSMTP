@@ -18,21 +18,21 @@ default-run = "vsmtp"
 
 [package.metadata.release]
 pre-release-replacements = [
-    { file = "CHANGELOG.md", search = "Unreleased", replace = "{{version}}", prerelease = true },
-    { file = "CHANGELOG.md", search = "ReleaseDate", replace = "{{date}}", prerelease = true },
-    { file = "CHANGELOG.md", search = "<!-- next-header -->", replace = "<!-- next-header -->\n\n## [Unreleased] - ReleaseDate", exactly = 1, prerelease = true },
+  { file = "CHANGELOG.md", search = "Unreleased", replace = "{{version}}", prerelease = true },
+  { file = "CHANGELOG.md", search = "ReleaseDate", replace = "{{date}}", prerelease = true },
+  { file = "CHANGELOG.md", search = "<!-- next-header -->", replace = "<!-- next-header -->\n\n## [Unreleased] - ReleaseDate", exactly = 1, prerelease = true },
 ]
 
 [workspace]
 members = [
-    "src/vqueue",
-    "src/vsmtp/vsmtp-common",
-    "src/vsmtp/vsmtp-config",
-    "src/vsmtp/vsmtp-delivery",
-    "src/vsmtp/vsmtp-mail-parser",
-    "src/vsmtp/vsmtp-rule-engine",
-    "src/vsmtp/vsmtp-server",
-    "src/vsmtp/vsmtp-test",
+  "src/vqueue",
+  "src/vsmtp/vsmtp-common",
+  "src/vsmtp/vsmtp-config",
+  "src/vsmtp/vsmtp-delivery",
+  "src/vsmtp/vsmtp-mail-parser",
+  "src/vsmtp/vsmtp-rule-engine",
+  "src/vsmtp/vsmtp-server",
+  "src/vsmtp/vsmtp-test",
 ]
 
 exclude = ["fuzz", "benchmarks/stress"]
@@ -45,9 +45,9 @@ path = "./src/vsmtp/src/main.rs"
 path = "./src/vsmtp/src/lib.rs"
 
 [dependencies]
-vsmtp-common = { path = "./src/vsmtp/vsmtp-common", version = "1.0.1" }
-vsmtp-server = { path = "./src/vsmtp/vsmtp-server", version = "1.0.0-rc.1" }
-vsmtp-config = { path = "./src/vsmtp/vsmtp-config", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "./src/vsmtp/vsmtp-common", version = "1.1.0" }
+vsmtp-server = { path = "./src/vsmtp/vsmtp-server", version = "1.1.0" }
+vsmtp-config = { path = "./src/vsmtp/vsmtp-config", version = "1.1.0" }
 
 clap = { version = "3.2.5", features = ["derive"] }
 diff = "0.1.12"
@@ -70,56 +70,56 @@ section = "mail"
 priority = "optional"
 # TODO: recursive cp for example folders ?
 assets = [
-    [
-        "target/release/vsmtp",
-        "usr/sbin/",
-        "755",
-    ],
-    [
-        "target/release/vqueue",
-        "usr/sbin/",
-        "755",
-    ],
-    [
-        "./tools/install/man/*",
-        "usr/share/man/man1",
-        "644",
-    ],
-    [
-        "./README.md",
-        "usr/share/doc/vsmtp/README",
-        "644",
-    ],
-    [
-        "./examples/vsl/actions/*",
-        "usr/share/doc/vsmtp/vsl/actions/",
-        "644",
-    ],
-    [
-        "./examples/vsl/rules/*",
-        "usr/share/doc/vsmtp/vsl/rules/",
-        "644",
-    ],
-    [
-        "./examples/config/*",
-        "usr/share/doc/vsmtp/config/",
-        "644",
-    ],
-    [
-        "./examples/config/antivirus/*",
-        "usr/share/doc/vsmtp/config/antivirus/",
-        "644",
-    ],
-    [
-        "./examples/config/auth/*",
-        "usr/share/doc/vsmtp/config/auth/",
-        "644",
-    ],
-    [
-        "./examples/config/tls/*",
-        "usr/share/doc/vsmtp/config/tls/",
-        "644",
-    ],
+  [
+    "target/release/vsmtp",
+    "usr/sbin/",
+    "755",
+  ],
+  [
+    "target/release/vqueue",
+    "usr/sbin/",
+    "755",
+  ],
+  [
+    "./tools/install/man/*",
+    "usr/share/man/man1",
+    "644",
+  ],
+  [
+    "./README.md",
+    "usr/share/doc/vsmtp/README",
+    "644",
+  ],
+  [
+    "./examples/vsl/actions/*",
+    "usr/share/doc/vsmtp/vsl/actions/",
+    "644",
+  ],
+  [
+    "./examples/vsl/rules/*",
+    "usr/share/doc/vsmtp/vsl/rules/",
+    "644",
+  ],
+  [
+    "./examples/config/*",
+    "usr/share/doc/vsmtp/config/",
+    "644",
+  ],
+  [
+    "./examples/config/antivirus/*",
+    "usr/share/doc/vsmtp/config/antivirus/",
+    "644",
+  ],
+  [
+    "./examples/config/auth/*",
+    "usr/share/doc/vsmtp/config/auth/",
+    "644",
+  ],
+  [
+    "./examples/config/tls/*",
+    "usr/share/doc/vsmtp/config/tls/",
+    "644",
+  ],
 ]
 maintainer-scripts = "./tools/install/deb/"
 systemd-units = { unit-name = "vsmtp", enable = true, start = false }

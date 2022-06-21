@@ -16,7 +16,7 @@ keywords = ["vsmtp"]
 categories = ["email"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.1.0" }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
