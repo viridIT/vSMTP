@@ -183,15 +183,13 @@ impl RuleEngine {
                         let header =
                             vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
 
-                        let mut args = header.args.iter();
-                        let (stage, directive_name) = match (args.next(), args.next()) {
-                            (Some((_, stage)), Some((_, directive_name))) => {
-                                (stage, directive_name)
-                            }
-                            _ => return Status::DelegationResult,
-                        };
+                        let (stage, directive_name) =
+                            match (header.args.get("stage"), header.args.get("directive")) {
+                                (Some(stage), Some(directive_name)) => (stage, directive_name),
+                                _ => return Status::DelegationResult,
+                            };
 
-                        println!("stage: {stage}, directive: {directive_name}");
+                        println!("(run_when) X-VSMTP-DELEGATION received, stage: {stage}, directive: {directive_name}");
 
                         if *stage == smtp_state.to_string() {
                             if let Some(d) = directive_set

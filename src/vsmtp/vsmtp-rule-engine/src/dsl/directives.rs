@@ -94,13 +94,18 @@ impl Directive {
                         let ctx = state.context();
                         let ctx = vsl_guard_ok!(ctx.read());
 
-                        let msg = state.message();
-                        let mut msg = vsl_guard_ok!(msg.write());
-                        let msg = msg.as_mut().ok_or_else::<rhai::EvalAltResult, _>(|| {
-                            "tried to delegate email security but the body was empty".into()
-                        })?;
+                        let delegation_header_present = vsl_guard_ok!(state.message().read())
+                            .as_ref()
+                            .ok_or_else::<rhai::EvalAltResult, _>(|| {
+                                "tried to delegate email security but the body was empty".into()
+                            })?
+                            .get_header("X-VSMTP-DELEGATION")
+                            .is_some();
 
-                        let body = if msg.get_header("X-VSMTP-DELEGATION").is_some() {
+                        println!("(execute directive) stage: {smtp_stage}, directive: {name}");
+
+                        let body = if delegation_header_present {
+                            println!("(execute directive) X-VSMTP-DELEGATION received!");
                             // we received delegation results, we do not delegate & execute the body
                             // of the directive.
                             return state.engine().call_fn(
@@ -110,12 +115,22 @@ impl Directive {
                                 (),
                             );
                         } else {
+                            println!(
+                                "(execute directive) X-VSMTP-DELEGATION not found, delegating ..."
+                            );
+
+                            let msg = state.message();
+                            let mut msg = vsl_guard_ok!(msg.write());
+                            let msg = msg.as_mut().ok_or_else::<rhai::EvalAltResult, _>(|| {
+                                "tried to delegate email security but the body was empty".into()
+                            })?;
+
                             msg.add_header(
                                 "X-VSMTP-DELEGATION",
                                 &format!(
                                     "sent; stage={}; directive={}; id={}",
                                     smtp_stage,
-                                    pointer.fn_name(),
+                                    name,
                                     ctx.metadata.as_ref().unwrap().message_id
                                 ),
                             );
@@ -146,8 +161,7 @@ impl Directive {
                     >, _>(
                         |err| {
                             format!(
-                                "failed to delegate message using {} in {}:'{}' : {}",
-                                name,
+                                "failed to delegate in {}:'{}' : {}",
                                 smtp_stage,
                                 pointer.fn_name(),
                                 err
