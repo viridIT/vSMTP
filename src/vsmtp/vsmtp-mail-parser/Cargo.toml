@@ -19,7 +19,16 @@ keywords = ["vsmtp"]
 categories = ["email"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.1.0" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.1.0", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
+
+[features]
+default = ["vsmtp-common/gsasl_bindgen"]
+
+# TODO: improve that
+[package.metadata.docs.rs]
+features = []
+all-features = false
+no-default-features = true

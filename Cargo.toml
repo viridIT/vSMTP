@@ -48,12 +48,22 @@ path = "./src/vsmtp/src/main.rs"
 path = "./src/vsmtp/src/lib.rs"
 
 [dependencies]
-vsmtp-common = { path = "./src/vsmtp/vsmtp-common", version = "1.1.0" }
+vsmtp-common = { path = "./src/vsmtp/vsmtp-common", version = "1.1.0", default-features = false }
 vsmtp-server = { path = "./src/vsmtp/vsmtp-server", version = "1.1.0" }
 vsmtp-config = { path = "./src/vsmtp/vsmtp-config", version = "1.1.0" }
 
 clap = { version = "3.2.5", features = ["derive"] }
 diff = "0.1.12"
+
+[features]
+default = ["gsasl_bindgen"]
+gsasl_bindgen = ["vsmtp-common/gsasl_bindgen"]
+
+# TODO: improve that
+[package.metadata.docs.rs]
+features = []
+all-features = false
+no-default-features = true
 
 #
 # DEBIAN PACKAGING

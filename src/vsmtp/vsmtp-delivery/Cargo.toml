@@ -19,7 +19,7 @@ keywords = ["vsmtp"]
 categories = ["network-programming"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.1.0" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.1.0", default-features = false }
 vsmtp-config = { path = "../vsmtp-config", version = "1.1.0" }
 
 async-trait = "0.1.56"
@@ -37,3 +37,12 @@ trust-dns-resolver = { version = "0.21.2", features = [
 ] }
 
 [dev-dependencies]
+
+[features]
+default = ["vsmtp-common/gsasl_bindgen"]
+
+# TODO: improve that
+[package.metadata.docs.rs]
+features = []
+all-features = false
+no-default-features = true
