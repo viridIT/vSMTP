@@ -227,7 +227,7 @@ impl RuleEngine {
         let mut status = Status::Next;
 
         for directive in directives {
-            status = directive.execute(state, &self.ast)?;
+            status = directive.execute(state, &self.ast, smtp_state)?;
 
             log::debug!(
                 target: log_channels::RE,

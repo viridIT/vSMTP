@@ -1,5 +1,16 @@
-use crate::{modules::EngineResult, rule_state::RuleState, Service};
-use vsmtp_common::status::Status;
+use crate::{modules::EngineResult, rule_state::RuleState, vsl_guard_ok, Service};
+use vsmtp_common::{
+    rcpt::Rcpt,
+    re::{
+        anyhow::{self, Context},
+        lettre::{self, Transport},
+    },
+    state::StateSMTP,
+    status::Status,
+    Address,
+};
+
+use super::service::SmtpConnection;
 
 /// a set of directives, filtered by smtp stage.
 pub type Directives = std::collections::BTreeMap<String, Vec<Directive>>;
@@ -37,7 +48,12 @@ impl Directive {
         }
     }
 
-    pub fn execute(&self, state: &mut RuleState, ast: &rhai::AST) -> EngineResult<Status> {
+    pub fn execute(
+        &self,
+        state: &mut RuleState,
+        ast: &rhai::AST,
+        smtp_stage: &StateSMTP,
+    ) -> EngineResult<Status> {
         match self {
             Directive::Rule { pointer, .. } => {
                 state
@@ -62,11 +78,9 @@ impl Directive {
                     ..
                 } = &**service
                 {
-                    let (from, mut rcpt, body) = {
+                    let (from, rcpt, body) = {
                         let ctx = state.context();
-                        let ctx = ctx.read().map_err::<Box<rhai::EvalAltResult>, _>(|_| {
-                            "context mutex poisoned".into()
-                        })?;
+                        let ctx = vsl_guard_ok!(ctx.read());
 
                         // Delegated message has been returned to the server.
                         // We then just execute the rest of the directive.
@@ -99,22 +113,55 @@ impl Directive {
                     };
 
                     {
-                        let mut delegator = delegator.lock().unwrap();
+                        let delegator = delegator.lock().unwrap();
 
-                        crate::dsl::service::smtp::delegate(
-                            &mut *delegator,
-                            &from,
-                            &rcpt.iter_mut().collect::<Vec<_>>(),
-                            body.as_bytes(),
-                        )
-                        .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?;
+                        delegate(&*delegator, &from, &rcpt[..], body.as_bytes()).map_err::<Box<
+                            rhai::EvalAltResult,
+                        >, _>(
+                            |err| {
+                                format!(
+                                    "failed to delegate message using {} in {}:{}: {}",
+                                    name,
+                                    smtp_stage,
+                                    pointer.fn_name(),
+                                    err
+                                )
+                                .into()
+                            },
+                        )?;
                     }
 
                     Ok(Status::Delegated)
                 } else {
-                    Err(format!("cannot delegate security with '{}' service.", name).into())
+                    Err(format!(
+                        "cannot delegate security using the '{}' service in '{}'.",
+                        name,
+                        pointer.fn_name()
+                    )
+                    .into())
                 }
             }
         }
     }
+}
+
+fn delegate(
+    delegator: &SmtpConnection,
+    from: &Address,
+    rcpt: &[Rcpt],
+    body: &[u8],
+) -> anyhow::Result<lettre::transport::smtp::response::Response> {
+    let envelope = lettre::address::Envelope::new(
+        Some(from.full().parse()?),
+        rcpt.iter()
+            .map(|rcpt| {
+                rcpt.address
+                    .full()
+                    .parse::<lettre::Address>()
+                    .with_context(|| format!("failed to parse address {}", rcpt.address.full()))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?,
+    )?;
+
+    Ok(delegator.0.send_raw(&envelope, body)?)
 }

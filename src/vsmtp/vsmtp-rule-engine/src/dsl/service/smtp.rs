@@ -18,10 +18,7 @@
 use crate::dsl::service::SmtpConnection;
 use crate::{dsl::service::Service, modules::EngineResult};
 use rhai::EvalAltResult;
-use vsmtp_common::rcpt::Rcpt;
-use vsmtp_common::re::anyhow::{self, Context};
-use vsmtp_common::re::lettre::{self, Transport};
-use vsmtp_common::Address;
+use vsmtp_common::re::lettre;
 
 pub fn parse_smtp_service(
     context: &mut rhai::EvalContext,
@@ -94,29 +91,4 @@ pub fn parse_smtp_service(
         },
         receiver: receiver_addr,
     })
-}
-
-/// delegate security handling via the smtp protocol.
-pub fn delegate(
-    transport: &mut SmtpConnection,
-    from: &Address,
-    to: &[&mut Rcpt],
-    email: &[u8],
-) -> anyhow::Result<lettre::transport::smtp::response::Response> {
-    let envelope = lettre::address::Envelope::new(
-        Some(from.full().parse()?),
-        to.iter()
-            .map(|rcpt| {
-                rcpt.address
-                    .full()
-                    .parse::<lettre::Address>()
-                    .context("failed to parse address")
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?,
-    )?;
-
-    transport
-        .0
-        .send_raw(&envelope, email)
-        .with_context(|| format!("failed to send email from '{from}' to '{to:?}'"))
 }
