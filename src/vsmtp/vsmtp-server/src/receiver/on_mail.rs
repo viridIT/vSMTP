@@ -94,7 +94,7 @@ impl MailHandler {
                 );
                 return Ok(());
             }
-            Some(Status::DelegationResult(_)) | None => Queue::Working,
+            Some(Status::DelegationResult) | None => Queue::Working,
             Some(reason) => {
                 log::warn!(
                     target: log_channels::TRANSACTION,

@@ -172,15 +172,42 @@ impl RuleEngine {
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
             // check if we need to skip directive execution or resume because of a delegation.
             let directive_set = match rule_state.skipped() {
-                Some(status @ Status::DelegationResult(resume_here)) => {
-                    if let Some(d) = directive_set
-                        .iter()
-                        .position(|directive| directive.name() == resume_here)
+                Some(Status::DelegationResult) if smtp_state.email_received() => {
+                    if let Some(header) = rule_state
+                        .message()
+                        .read()
+                        .unwrap()
+                        .as_ref()
+                        .and_then(|message| message.get_header("X-VSMTP-DELEGATION"))
                     {
-                        rule_state.resume();
-                        &directive_set[d..]
+                        let header =
+                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
+
+                        let mut args = header.args.iter();
+                        let (stage, directive_name) = match (args.next(), args.next()) {
+                            (Some((_, stage)), Some((_, directive_name))) => {
+                                (stage, directive_name)
+                            }
+                            _ => return Status::DelegationResult,
+                        };
+
+                        println!("stage: {stage}, directive: {directive_name}");
+
+                        if *stage == smtp_state.to_string() {
+                            if let Some(d) = directive_set
+                                .iter()
+                                .position(|directive| directive.name() == directive_name)
+                            {
+                                rule_state.resume();
+                                &directive_set[d..]
+                            } else {
+                                return Status::DelegationResult;
+                            }
+                        } else {
+                            return Status::DelegationResult;
+                        }
                     } else {
-                        return (*status).clone();
+                        return Status::DelegationResult;
                     }
                 }
                 Some(status) => return (*status).clone(),
@@ -329,6 +356,7 @@ impl RuleEngine {
             .context("failed to create a module from vsl's api.")
     }
 
+    // FIXME: could be easily refactored.
     /// extract rules & actions from the main vsl script.
     fn extract_directives(engine: &rhai::Engine, ast: &rhai::AST) -> anyhow::Result<Directives> {
         let mut scope = Scope::new();
@@ -376,15 +404,15 @@ impl RuleEngine {
                         match directive_type.as_str() {
                             "rule" => Directive::Rule { name, pointer },
                             "action" => Directive::Action { name, pointer },
-			     "delegate" => {
-				let service = map
-				    .get("service")
-				    .ok_or_else(|| anyhow::anyhow!("the delegation {} in stage {} does not have a service to delegate processing to", name, stage))?
-				    .clone()
-				    .try_cast::<std::sync::Arc<Service>>()
-				    .ok_or_else(|| anyhow::anyhow!("the field after the delegate keyword in delegation {} in stage {} must be a service", name, stage))?;
-				Directive::Delegation { name, pointer, service}
-			    },
+			                "delegate" => {
+                                let service = map
+                                    .get("service")
+                                    .ok_or_else(|| anyhow::anyhow!("the delegation {} in stage {} does not have a service to delegate processing to", name, stage))?
+                                    .clone()
+                                    .try_cast::<std::sync::Arc<Service>>()
+                                    .ok_or_else(|| anyhow::anyhow!("the field after the delegate keyword in delegation {} in stage {} must be a service", name, stage))?;
+                                Directive::Delegation { name, pointer, service }
+                            },
                             unknown => anyhow::bail!("unknown directive '{}'", unknown),
                         };
 

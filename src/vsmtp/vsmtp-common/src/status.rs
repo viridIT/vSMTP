@@ -48,10 +48,11 @@ pub enum Status {
     /// the email as been delegated to another service.
     Delegated,
 
-    /// the rule engine must skip all rules until the given
-    /// rule because the message received is a delegation
+    /// the rule engine must skip all rules until a given
+    /// rule received in the email's header,
+    /// because the message received is a delegation
     /// result, it would be worthless to re-execute all rules.
-    DelegationResult(String),
+    DelegationResult,
 }
 
 impl Status {

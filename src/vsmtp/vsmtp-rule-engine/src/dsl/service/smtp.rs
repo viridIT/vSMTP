@@ -82,7 +82,6 @@ pub fn parse_smtp_service(
     Ok(Service::Smtp {
         delegator: {
             std::sync::Arc::new(std::sync::Mutex::new(SmtpConnection(
-                // std::net::TcpStream::connect(delegator_addr).unwrap(),
                 lettre::SmtpTransport::builder_dangerous(delegator_addr.ip().to_string())
                     .port(delegator_addr.port())
                     .timeout(Some(delegator_timeout))

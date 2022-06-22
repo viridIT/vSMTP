@@ -97,20 +97,19 @@ impl RuleState {
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
-        if let Some(directive) =
-            rule_engine
-                .directives
-                .iter()
-                .flat_map(|(_, d)| d)
-                .find(|d| match d {
-                    Directive::Delegation { service, .. } => match &**service {
-                        crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
-                        _ => false,
-                    },
+        if rule_engine
+            .directives
+            .iter()
+            .flat_map(|(_, d)| d)
+            .any(|d| match d {
+                Directive::Delegation { service, .. } => match &**service {
+                    crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
                     _ => false,
-                })
+                },
+                _ => false,
+            })
         {
-            state.skip = Some(Status::DelegationResult(directive.name().to_string()));
+            state.skip = Some(Status::DelegationResult);
         }
 
         state.mail_context.write().unwrap().connection = conn;
@@ -147,7 +146,7 @@ impl RuleState {
                 },
                 _ => false,
             })
-            .map(|directive| Status::DelegationResult(directive.name().to_string()));
+            .map(|_| Status::DelegationResult);
 
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let message = std::sync::Arc::new(std::sync::RwLock::new(message));
