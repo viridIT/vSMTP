@@ -11,6 +11,7 @@ use super::server_api::ServerAPI;
 use vsmtp_common::envelop::Envelop;
 use vsmtp_common::mail_context::{ConnectionContext, MailContext, MessageBody};
 use vsmtp_common::re::anyhow;
+use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
 use vsmtp_config::{Config, Resolvers};
 
@@ -94,7 +95,7 @@ impl RuleState {
     ) -> Self {
         let mut state = Self::new(config, resolvers, rule_engine);
 
-        // all rule are skiped until the designated rule
+        // all rule are skipped until the designated rule
         // in case of a delegation result.
         if let Some(directive) =
             rule_engine
@@ -131,7 +132,7 @@ impl RuleState {
             resolvers,
         });
 
-        // all rule are skiped until the designated rule
+        // all rule are skipped until the designated rule
         // in case of a delegation result.
         let skip = rule_engine
             .directives
@@ -214,6 +215,38 @@ impl RuleState {
     #[must_use]
     pub fn message(&self) -> std::sync::Arc<std::sync::RwLock<Option<MessageBody>>> {
         self.message.clone()
+    }
+
+    /// Instantiate a [`RuleState`] and run it for the only `state` provided
+    ///
+    /// # Errors
+    ///
+    /// * `rule_engine` mutex poisoned
+    pub fn just_run_when(
+        state: &StateSMTP,
+        config: &Config,
+        resolvers: std::sync::Arc<Resolvers>,
+        rule_engine: &std::sync::RwLock<RuleEngine>,
+        mail_context: MailContext,
+        mail_message: MessageBody,
+    ) -> anyhow::Result<(MailContext, Option<MessageBody>, Status)> {
+        let rule_engine = rule_engine
+            .read()
+            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
+
+        let mut rule_state = Self::with_context(
+            config,
+            resolvers,
+            &rule_engine,
+            mail_context,
+            Some(mail_message),
+        );
+        let result = rule_engine.run_when(&mut rule_state, state);
+
+        let (mail_context, mail_message) = rule_state
+            .take()
+            .expect("should not have strong reference here");
+        Ok((mail_context, mail_message, result))
     }
 
     /// Consume [`self`] and return the inner [`MailContext`] and [`MessageBody`]

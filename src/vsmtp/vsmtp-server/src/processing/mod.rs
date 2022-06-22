@@ -116,31 +116,28 @@ async fn handle_one_in_working_queue_inner(
         message_filepath.display(),
     );
 
-    let (ctx, message) = tokio::join!(
+    let (mail_context, mail_message) = tokio::join!(
         context_from_file_path(&context_filepath),
         message_from_file_path(message_filepath)
     );
-    let (ctx, message) = (
-        ctx.with_context(|| {
+    let (mail_context, mail_message) = (
+        mail_context.with_context(|| {
             format!(
                 "failed to deserialize email in working queue '{}'",
                 context_filepath.display()
             )
         })?,
-        message.context("error while reading message")?,
+        mail_message.context("error while reading message")?,
     );
 
-    let ((ctx, message), result) = {
-        let rule_engine = rule_engine
-            .read()
-            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
-
-        let mut state =
-            RuleState::with_context(config.as_ref(), resolvers, &rule_engine, ctx, Some(message));
-        let result = rule_engine.run_when(&mut state, &StateSMTP::PostQ);
-
-        (state.take()?, result)
-    };
+    let (ctx, message, result) = RuleState::just_run_when(
+        &StateSMTP::PostQ,
+        config.as_ref(),
+        resolvers,
+        &rule_engine,
+        mail_context,
+        mail_message,
+    )?;
 
     // writing the mails in any case because we don't know (yet) if it changed
     Queue::write_to_mails(

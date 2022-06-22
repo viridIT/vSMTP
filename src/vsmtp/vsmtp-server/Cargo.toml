@@ -9,10 +9,13 @@ rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
+
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
+documentation = "https://docs.rs/crate/vsmtp-server/"
+
 readme = "../../../README.md"
-keywords = ["vsmtp"]
+keywords = ["vsmtp", "email", "server", "mail-server"]
 categories = ["network-programming"]
 
 [dependencies]

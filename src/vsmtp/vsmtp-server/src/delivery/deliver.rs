@@ -119,7 +119,7 @@ async fn handle_one_in_delivery_queue_inner(
         ]),
     );
 
-    let ctx = context_from_file_path(&context_filepath)
+    let mail_context = context_from_file_path(&context_filepath)
         .await
         .with_context(|| {
             format!(
@@ -128,22 +128,20 @@ async fn handle_one_in_delivery_queue_inner(
             )
         })?;
 
-    let message = message_from_file_path(message_filepath).await?;
+    let mail_message = message_from_file_path(message_filepath).await?;
 
-    let ((mut ctx, message), result) = {
-        let rule_engine = rule_engine
-            .read()
-            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
+    let (mut mail_context, mail_message, result) = RuleState::just_run_when(
+        &StateSMTP::Delivery,
+        config.as_ref(),
+        resolvers.clone(),
+        &rule_engine,
+        mail_context,
+        mail_message,
+    )?;
 
-        let mut state =
-            RuleState::with_context(&config, resolvers.clone(), &rule_engine, ctx, Some(message));
-        let result = rule_engine.run_when(&mut state, &StateSMTP::Delivery);
+    let mut message = mail_message.ok_or_else(|| anyhow::anyhow!("message is empty"))?;
 
-        (state.take()?, result)
-    };
-    let mut message = message.ok_or_else(|| anyhow::anyhow!("message is empty"))?;
-
-    add_trace_information(&config, &mut ctx, &mut message, &result)?;
+    add_trace_information(&config, &mut mail_context, &mut message, &result)?;
 
     match result {
         Status::Quarantine(path) => {
@@ -152,7 +150,7 @@ async fn handle_one_in_delivery_queue_inner(
 
             path.push(format!("{}.json", process_message.message_id));
 
-            Queue::write_to_quarantine(&path, &ctx)
+            Queue::write_to_quarantine(&path, &mail_context)
                 .await
                 .map_err(MailHandlerError::WriteQuarantineFile)?;
 
@@ -160,36 +158,36 @@ async fn handle_one_in_delivery_queue_inner(
         }
         Status::Deny(_) => {
             // we update rcpt email status and write to dead queue in case of a deny.
-            for rcpt in &mut ctx.envelop.rcpt {
+            for rcpt in &mut mail_context.envelop.rcpt {
                 rcpt.email_status =
                     EmailTransferStatus::Failed("rule engine denied the email.".to_string());
             }
-            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &ctx)?;
+            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &mail_context)?;
         }
         _ => {
-            send_mail(&config, &mut ctx, &message, &resolvers).await;
+            send_mail(&config, &mut mail_context, &message, &resolvers).await;
             // .context(format!(
             //     "failed to send '{}' located in the delivery queue",
             //     process_message.message_id
             // ))?;
 
-            if ctx
+            if mail_context
                 .envelop
                 .rcpt
                 .iter()
                 .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
             {
                 Queue::Deferred
-                    .write_to_queue(&config.server.queues.dirpath, &ctx)
+                    .write_to_queue(&config.server.queues.dirpath, &mail_context)
                     .context("failed to move message from delivery queue to deferred queue")?;
             }
 
-            if ctx.envelop.rcpt.iter().any(|rcpt| {
+            if mail_context.envelop.rcpt.iter().any(|rcpt| {
                 matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
                     || matches!(rcpt.transfer_method, Transfer::None)
             }) {
                 Queue::Dead
-                    .write_to_queue(&config.server.queues.dirpath, &ctx)
+                    .write_to_queue(&config.server.queues.dirpath, &mail_context)
                     .context("failed to move message from delivery queue to dead queue")?;
             }
         }
