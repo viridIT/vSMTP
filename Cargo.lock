@@ -1764,9 +1764,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82501a4c1c0330d640a6e176a3d6a204f5ec5237aca029029d21864a902e27b0"
+checksum = "72c91f41dcb2f096c05f0873d667dceec1087ce5bcf984ec8ffb19acddbb3217"
 dependencies = [
  "itoa 1.0.2",
  "libc",
@@ -2104,7 +2104,7 @@ name = "vsmtp-delivery"
 version = "1.1.0"
 dependencies = [
  "async-trait",
- "time 0.3.10",
+ "time 0.3.11",
  "trust-dns-resolver",
  "users",
  "vsmtp-common",
@@ -2141,7 +2141,7 @@ dependencies = [
  "regex",
  "rhai",
  "thiserror",
- "time 0.3.10",
+ "time 0.3.11",
  "viaspf",
  "vsmtp-common",
  "vsmtp-config",
@@ -2163,7 +2163,7 @@ dependencies = [
  "rand",
  "signal-hook",
  "thiserror",
- "time 0.3.10",
+ "time 0.3.11",
  "tokio-rustls",
  "tokio-stream",
  "trust-dns-resolver",
