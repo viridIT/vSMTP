@@ -22,7 +22,7 @@ categories = ["command-line-utilities"]
 vsmtp-common = { path = "../vsmtp/vsmtp-common", version = "1.1.0", default-features = false }
 vsmtp-config = { path = "../vsmtp/vsmtp-config", version = "1.1.0" }
 
-clap = { version = "3.2.5", features = ["derive"] }
+clap = { version = "3.2.6", features = ["derive"] }
 itertools = "0.10.3"
 
 [dev-dependencies]
