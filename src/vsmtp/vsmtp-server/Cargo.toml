@@ -34,7 +34,7 @@ async-stream = "0.3.3"
 signal-hook = "0.3.14"
 
 trust-dns-resolver = "0.21.2"
-time = { version = "0.3.10", default-features = false, features = [
+time = { version = "0.3.11", default-features = false, features = [
   "std",
   "formatting",
   "macros",
