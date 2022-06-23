@@ -20,6 +20,7 @@ use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::mail_context::MessageBody;
 use vsmtp_common::{rcpt::Rcpt, state::StateSMTP, Address};
 
 #[rhai::plugin::export_module]
@@ -140,7 +141,53 @@ pub mod message {
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod message_calling_parse {
-    use vsmtp_common::mail_context::MessageBody;
+
+    #[rhai_fn(global, get = "headers", return_raw, pure)]
+    pub fn headers(this: &mut Message) -> EngineResult<rhai::Dynamic> {
+        let mut writer = vsl_guard_ok!(this.write());
+        match vsl_parse_ok!(writer) {
+            MessageBody::Parsed(body) => Ok(body.headers.clone().into()),
+            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
+        }
+    }
+
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn named(this: &mut rhai::Dynamic, name: &str) -> EngineResult<rhai::Dynamic> {
+        let name = name.to_lowercase();
+        Ok(this
+            .clone()
+            .into_typed_array::<(String, String)>()?
+            .into_iter()
+            .filter(|(k, _)| *k == name)
+            .collect::<Vec<_>>()
+            .into())
+    }
+
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn take(this: &mut rhai::Dynamic, count: rhai::INT) -> EngineResult<rhai::Dynamic> {
+        Ok(this
+            .clone()
+            .into_typed_array::<(String, String)>()?
+            .into_iter()
+            .take(
+                count
+                    .try_into()
+                    .map_err::<Box<rhai::EvalAltResult>, _>(|e| format!("{e}").into())?,
+            )
+            .collect::<Vec<_>>()
+            .into())
+    }
+
+    #[rhai_fn(global, get = "values", return_raw, pure)]
+    pub fn values(this: &mut rhai::Dynamic) -> EngineResult<rhai::Dynamic> {
+        Ok(this
+            .clone()
+            .into_typed_array::<(String, String)>()?
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect::<Vec<_>>()
+            .into())
+    }
 
     #[rhai_fn(global, return_raw, pure)]
     pub fn rewrite_mail_from_message(this: &mut Message, new_addr: &str) -> EngineResult<()> {

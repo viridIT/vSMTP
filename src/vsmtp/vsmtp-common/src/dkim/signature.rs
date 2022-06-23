@@ -25,7 +25,7 @@ pub enum ParseError {
     InvalidArgument { reason: String },
 }
 
-#[derive(Debug, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, PartialEq, Eq, Clone, strum::EnumString, strum::Display)]
 enum SigningAlgorithm {
     #[strum(serialize = "rsa-sha1")]
     RsaSha1,
@@ -33,14 +33,14 @@ enum SigningAlgorithm {
     RsaSha256,
 }
 
-#[derive(Debug, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, PartialEq, Eq, Clone, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 enum CanonicalizationAlgorithm {
     Simple,
     Relaxed,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct Canonicalization {
     header: CanonicalizationAlgorithm,
     body: CanonicalizationAlgorithm,
@@ -73,7 +73,7 @@ impl std::str::FromStr for Canonicalization {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(dead_code)]
 struct QueryMethod {
     r#type: String,
@@ -106,23 +106,37 @@ impl std::str::FromStr for QueryMethod {
 }
 
 /// Representation of the "DKIM-Signature" header
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Signature {
+    /// tag "v="
     version: usize,
+    /// tag "a="
     signing_algorithm: SigningAlgorithm,
     /// Signing Domain Identifier (SDID)
-    sdid: String,
-    selector: String,
+    /// tag "d="
+    pub sdid: String,
+    /// tag "s="
+    pub selector: String,
+    /// tag "c="
     canonicalization: Canonicalization,
+    /// tag "q="
     query_method: Vec<QueryMethod>,
     /// Agent or User Identifier (AUID)
+    /// tag "i="
     auid: String,
+    /// tag "t="
     signature_timestamp: Option<std::time::Duration>,
+    /// tag "x="
     expire_time: Option<std::time::Duration>,
+    /// tag "l="
     body_length: Option<usize>,
+    /// tag "h="
     headers_field: Vec<String>,
+    /// tag "z="
     copy_header_fields: Option<Vec<(String, String)>>,
+    /// tag "bh="
     body_hash: Vec<u8>,
+    /// tag "b="
     signature: Vec<u8>,
 }
 

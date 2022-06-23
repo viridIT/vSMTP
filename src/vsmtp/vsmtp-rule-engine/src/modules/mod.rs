@@ -35,6 +35,7 @@ mod inner {
 
             module.combine(rhai::exported_module!(actions::bcc::bcc))
                 .combine(rhai::exported_module!(actions::logging::logging))
+                .combine(rhai::exported_module!(actions::dkim::dkim))
                 .combine(rhai::exported_module!(actions::rule_state::rule_state))
                 .combine(rhai::exported_module!(actions::security::security))
                 .combine(rhai::exported_module!(actions::services::services))

@@ -174,3 +174,27 @@ fn check_null_mx_sender() {
 
     return sys::next();
 }
+
+fn dkim_verify() {
+    let policy = #{
+        // avoid infinite loop and dos/ddos attack
+        allowed_errors: 3,
+    };
+
+    let dkim_signatures = msg().headers
+        .named("DKIM-Signature")
+        .take(policy.allowed_errors)
+        .values;
+
+    for i in dkim_signatures {
+        try {
+            let signature = parse_signature(i);
+            print(signature);
+
+            let key = get_public_key(srv(), signature);
+
+        } catch (e) {
+            print(e);
+        }
+    }
+}
