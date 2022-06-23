@@ -92,6 +92,11 @@ impl MailHandler {
                     "[{}] postq & delivery skipped, email has been delegated to another service.",
                     conn.server_addr
                 );
+
+                Queue::Working
+                    .write_to_queue(&conn.config.server.queues.dirpath, &mail)
+                    .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
+
                 return Ok(());
             }
             Some(Status::DelegationResult) | None => Queue::Working,
