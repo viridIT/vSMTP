@@ -95,7 +95,7 @@ impl std::str::FromStr for ForwardTarget {
     type Err = anyhow::Error;
 
     /// create a forward target from a string and cast
-    /// it to the corect type.
+    /// it to the correct type.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.find('%').map_or_else(
             || {

@@ -122,6 +122,13 @@ pub mod auth {
     pub use mechanism::Mechanism;
 }
 
+/// DKIM
+pub mod dkim {
+    mod signature;
+
+    pub use signature::Signature;
+}
+
 mod r#trait {
     pub mod mail_parser;
 }
