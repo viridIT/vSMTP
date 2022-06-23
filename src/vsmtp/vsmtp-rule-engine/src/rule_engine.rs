@@ -371,9 +371,10 @@ impl RuleEngine {
         let mut directives = Directives::new();
 
         for (stage, directive_set) in raw_directives {
-            if StateSMTP::try_from(stage.as_str()).is_err() {
-                anyhow::bail!("the '{}' smtp stage does not exist.", stage);
-            }
+            let stage = match StateSMTP::try_from(stage.as_str()) {
+                Ok(stage) => stage,
+                Err(_) => anyhow::bail!("the '{}' smtp stage does not exist.", stage),
+            };
 
             let directive_set = directive_set
                 .try_cast::<rhai::Array>()
@@ -403,6 +404,11 @@ impl RuleEngine {
                             "rule" => Directive::Rule { name, pointer },
                             "action" => Directive::Action { name, pointer },
 			                "delegate" => {
+
+                                if !stage.email_received() {
+                                    anyhow::bail!("invalid delegation '{}' in stage '{}': delegation directives are available from the 'postq' stage and onwards.", name, stage);
+                                }
+
                                 let service = map
                                     .get("service")
                                     .ok_or_else(|| anyhow::anyhow!("the delegation '{}' in stage '{}' does not have a service to delegate processing to", name, stage))?
