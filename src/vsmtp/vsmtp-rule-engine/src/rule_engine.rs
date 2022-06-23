@@ -166,6 +166,7 @@ impl RuleEngine {
         })
     }
 
+    // FIXME: delegation handling to refactor.
     /// runs all rules from a stage using the current transaction state.
     /// # Panics
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
@@ -178,7 +179,7 @@ impl RuleEngine {
                         .read()
                         .unwrap()
                         .as_ref()
-                        .and_then(|message| message.get_header("X-VSMTP-DELEGATION"))
+                        .and_then(|message| message.get_header_rev("X-VSMTP-DELEGATION"))
                     {
                         let header =
                             vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
@@ -188,8 +189,6 @@ impl RuleEngine {
                                 (Some(stage), Some(directive_name)) => (stage, directive_name),
                                 _ => return Status::DelegationResult,
                             };
-
-                        println!("(run_when) X-VSMTP-DELEGATION received, stage: {stage}, directive: {directive_name}");
 
                         if *stage == smtp_state.to_string() {
                             if let Some(d) = directive_set
@@ -355,6 +354,7 @@ impl RuleEngine {
     }
 
     // FIXME: could be easily refactored.
+    //        every `ok_or_else` could be replaced by an unwrap here.
     /// extract rules & actions from the main vsl script.
     fn extract_directives(engine: &rhai::Engine, ast: &rhai::AST) -> anyhow::Result<Directives> {
         let mut scope = Scope::new();
@@ -378,25 +378,25 @@ impl RuleEngine {
             let directive_set = directive_set
                 .try_cast::<rhai::Array>()
                 .ok_or_else(|| {
-                    anyhow::anyhow!("the stage {} must be declared with an array", stage)
+                    anyhow::anyhow!("the stage '{}' must be declared using the array syntax", stage)
                 })?
                 .into_iter()
                 .map(|rule| {
                     let map = rule.try_cast::<rhai::Map>().unwrap();
                     let directive_type = map
                         .get("type")
-                        .ok_or_else(|| anyhow::anyhow!("a directive in stage {} does not have a valid type", stage))?
+                        .ok_or_else(|| anyhow::anyhow!("a directive in stage '{}' does not have a valid type", stage))?
                         .to_string();
                     let name = map
                         .get("name")
-                        .ok_or_else(|| anyhow::anyhow!("a directive in stage {} does not have a name", stage))?
+                        .ok_or_else(|| anyhow::anyhow!("a directive in stage '{}' does not have a name", stage))?
                         .to_string();
                     let pointer = map
                         .get("evaluate")
-                        .ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} does not have an evaluation function", stage, name))?
+                        .ok_or_else(|| anyhow::anyhow!("the directive '{}' in stage '{}' does not have an evaluation function", stage, name))?
 			.clone()
 			.try_cast::<rhai::FnPtr>()
-			.ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} evaluation field must be a function pointer", stage, name))?;
+			.ok_or_else(|| anyhow::anyhow!("the evaluation field for the directive '{}' in stage '{}' must be a function pointer", stage, name))?;
 
                     let directive =
                         match directive_type.as_str() {
@@ -405,13 +405,13 @@ impl RuleEngine {
 			                "delegate" => {
                                 let service = map
                                     .get("service")
-                                    .ok_or_else(|| anyhow::anyhow!("the delegation {} in stage {} does not have a service to delegate processing to", name, stage))?
+                                    .ok_or_else(|| anyhow::anyhow!("the delegation '{}' in stage '{}' does not have a service to delegate processing to", name, stage))?
                                     .clone()
                                     .try_cast::<std::sync::Arc<Service>>()
-                                    .ok_or_else(|| anyhow::anyhow!("the field after the delegate keyword in delegation {} in stage {} must be a service", name, stage))?;
+                                    .ok_or_else(|| anyhow::anyhow!("the field after the 'delegate' keyword in the directive '{}' in stage '{}' must be a smtp service", name, stage))?;
                                 Directive::Delegation { name, pointer, service }
                             },
-                            unknown => anyhow::bail!("unknown directive '{}'", unknown),
+                            unknown => anyhow::bail!("unknown directive type '{}' called '{}'", unknown, name),
                         };
 
                     Ok(directive)
@@ -427,7 +427,7 @@ impl RuleEngine {
             .map(crate::dsl::directives::Directive::name)
             .collect::<Vec<_>>();
 
-        // TODO: refactor l.418 with templated function 'find_duplicate'.
+        // TODO: refactor next loop with templated function 'find_duplicate'.
         for (idx, name) in names.iter().enumerate() {
             for other in &names[idx + 1..] {
                 if other == name {
@@ -435,27 +435,6 @@ impl RuleEngine {
                         "found duplicate rule '{}': a rule must have a unique name",
                         name
                     );
-                }
-            }
-        }
-
-        // check for delegation directive with smtp services with the same receiver port.
-        let sockets = directives
-            .iter()
-            .flat_map(|(_, d)| d)
-            .filter_map(|d| match d {
-                Directive::Delegation { service, .. } => match &**service {
-                    Service::Smtp { receiver, .. } => Some(receiver),
-                    _ => None,
-                },
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        for (idx, socket) in sockets.iter().enumerate() {
-            for other in &sockets[idx + 1..] {
-                if other == socket {
-                    anyhow::bail!("found duplicate smtp service receiver port {}: you must only use one port per smtp service receiver", socket);
                 }
             }
         }

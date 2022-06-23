@@ -85,25 +85,43 @@ impl MessageBody {
         Ok(())
     }
 
-    /// get the value of an header, return None if it does not exists or when the body is empty.
+    /// return the first header that match the `needle` parameter in the `haystack` iterator.
+    #[must_use]
+    fn get_raw_header<'a>(
+        haystack: impl Iterator<Item = &'a String>,
+        needle: &str,
+    ) -> Option<&'a str> {
+        for header in haystack {
+            let mut split = header.splitn(2, ": ");
+            match (split.next(), split.next()) {
+                (Some(header), Some(value)) if header == needle => {
+                    return Some(value);
+                }
+                (Some(_), Some(_)) => continue,
+                _ => break,
+            }
+        }
+
+        None
+    }
+
+    /// get the value of an header, checking from up to bottom.
+    /// Return None if it does not exists or when the body is empty.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {
         match self {
-            Self::Raw { headers, .. } => {
-                for header in headers {
-                    let mut split = header.splitn(2, ": ");
-                    match (split.next(), split.next()) {
-                        (Some(header), Some(value)) if header == name => {
-                            return Some(value);
-                        }
-                        (Some(_), Some(_)) => continue,
-                        _ => break,
-                    }
-                }
-
-                None
-            }
+            Self::Raw { headers, .. } => Self::get_raw_header(headers.iter(), name),
             Self::Parsed(parsed) => parsed.get_header(name),
+        }
+    }
+
+    /// Get the value of an header, checking from bottom to up.
+    /// Return None if it does not exists or when the body is empty.
+    #[must_use]
+    pub fn get_header_rev(&self, name: &str) -> Option<&str> {
+        match self {
+            Self::Raw { headers, .. } => Self::get_raw_header(headers.iter().rev(), name),
+            Self::Parsed(parsed) => parsed.get_header_rev(name),
         }
     }
 

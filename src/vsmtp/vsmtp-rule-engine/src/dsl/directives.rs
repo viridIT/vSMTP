@@ -65,6 +65,7 @@ impl Directive {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn execute(
         &self,
         state: &mut RuleState,
@@ -91,34 +92,38 @@ impl Directive {
             } => {
                 if let Service::Smtp { delegator, .. } = &**service {
                     let (from, rcpt, body) = {
-                        let ctx = state.context();
-                        let ctx = vsl_guard_ok!(ctx.read());
-
-                        let delegation_header_present = vsl_guard_ok!(state.message().read())
+                        let delegation_header = vsl_guard_ok!(state.message().read())
                             .as_ref()
                             .ok_or_else::<rhai::EvalAltResult, _>(|| {
                                 "tried to delegate email security but the body was empty".into()
                             })?
-                            .get_header("X-VSMTP-DELEGATION")
-                            .is_some();
+                            .get_header_rev("X-VSMTP-DELEGATION")
+                            .map(std::string::ToString::to_string);
 
-                        println!("(execute directive) stage: {smtp_stage}, directive: {name}");
+                        // FIXME: this check is made twice (once in RuleEngine::run_when).
+                        // if the 'directive' field set in the header matches the name
+                        // of the current directive, we run the block of code.
+                        if let Some(header) = delegation_header {
+                            let header =
+                                vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
 
-                        let body = if delegation_header_present {
-                            println!("(execute directive) X-VSMTP-DELEGATION received!");
-                            // we received delegation results, we do not delegate & execute the body
-                            // of the directive.
-                            return state.engine().call_fn(
-                                &mut rhai::Scope::new(),
-                                ast,
-                                pointer.fn_name(),
-                                (),
-                            );
-                        } else {
-                            println!(
-                                "(execute directive) X-VSMTP-DELEGATION not found, delegating ..."
-                            );
+                            match header.args.get("directive") {
+                                Some(directive_name) if directive_name == name => {
+                                    return state.engine().call_fn(
+                                        &mut rhai::Scope::new(),
+                                        ast,
+                                        pointer.fn_name(),
+                                        (),
+                                    );
+                                }
+                                _ => {}
+                            };
+                        }
 
+                        let ctx = state.context();
+                        let ctx = vsl_guard_ok!(ctx.read());
+
+                        let body = {
                             let msg = state.message();
                             let mut msg = vsl_guard_ok!(msg.write());
                             let msg = msg.as_mut().ok_or_else::<rhai::EvalAltResult, _>(|| {
