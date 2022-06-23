@@ -73,16 +73,7 @@ pub mod security {
             )
         };
 
-        let resolver = srv
-            .resolvers
-            .get(mail_from.domain())
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                format!(
-                    "no dns configuration found for {} while checking spf.",
-                    mail_from.domain()
-                )
-                .into()
-            })?;
+        let resolver = srv.resolvers.get(&srv.config.server.domain).unwrap();
 
         match identity {
             "mail_from" => {
