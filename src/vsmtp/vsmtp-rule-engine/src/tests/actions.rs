@@ -28,7 +28,7 @@ use vsmtp_common::{
     transfer::Transfer,
     Mail,
 };
-use vsmtp_common::{BodyType, CodeID, ReplyOrCodeID};
+use vsmtp_common::{BodyType, CodeID, MailHeaders, ReplyOrCodeID};
 use vsmtp_config::field::FieldServerVirtual;
 
 #[test]
@@ -148,11 +148,14 @@ fn test_context_dump() {
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
     *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
-        headers: vec![
-            ("From".to_string(), "john@doe.com".to_string()),
-            ("To".to_string(), "green@bar.net".to_string()),
-            ("X-Custom-Header".to_string(), "my header".to_string()),
-        ],
+        headers: MailHeaders(
+            [
+                ("From".to_string(), "john@doe.com".to_string()),
+                ("To".to_string(), "green@bar.net".to_string()),
+                ("X-Custom-Header".to_string(), "my header".to_string()),
+            ]
+            .to_vec(),
+        ),
         body: BodyType::Regular(vec!["this is an empty body".to_string()]),
     })));
     assert_eq!(
@@ -204,11 +207,11 @@ fn test_quarantine() {
         .all(|rcpt| rcpt.transfer_method == Transfer::None));
 
     *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
-        headers: vec![
+        headers: MailHeaders(vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),
             ("X-Custom-Header".to_string(), "my header".to_string()),
-        ],
+        ]),
         body: BodyType::Regular(vec!["this is an empty body".to_string()]),
     })));
     assert_eq!(

@@ -178,23 +178,50 @@ fn check_null_mx_sender() {
 fn dkim_verify() {
     let policy = #{
         // avoid infinite loop and dos/ddos attack
-        allowed_errors: 3,
+        nbr_headers: 3,
+        // among ["first_one", "cycle"]
+        on_multiple_key_records: "cycle",
     };
 
     let dkim_signatures = msg().headers
         .named("DKIM-Signature")
-        .take(policy.allowed_errors)
+        .take(policy.nbr_headers)
         .values;
 
     for i in dkim_signatures {
         try {
+            // `signature` is a valid DkimSignature, with rfc6376 valid format
             let signature = parse_signature(i);
-            print(signature);
 
-            let key = get_public_key(srv(), signature);
+            // TODO: verify expiration
+
+            // NOTE: for any reason, you can decide to ignore the signature
+            // if signature... {
+            //     continue;
+            // }
+
+            // the dns query may result in multiple public key,
+            // the registry with invalid format are ignored
+            for key in get_public_key(srv(), signature, policy.on_multiple_key_records) {
+                try {
+                    print(key);
+
+                    sys::dkim_verify(msg(), signature, key);
+
+                    // if key.has_test_flag {
+                    // TODO: log, and consider as unsigned
+                    // }
+
+                } catch (e) {
+                    print(e);
+                }
+            }
 
         } catch (e) {
             print(e);
+            // TODO: if header ParseError, ignored
+
+            // TEMPFAIL ?
         }
     }
 }

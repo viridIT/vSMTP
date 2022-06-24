@@ -45,6 +45,8 @@ time = { version = "0.3.11", default-features = false, features = [
   "macros",
 ] }
 
+rsa = "0.6.1"
+
 rhai = { version = "1.7.0", git = "https://github.com/schungx/rhai", rev = "5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82", features = [
   "unchecked",
   "sync",

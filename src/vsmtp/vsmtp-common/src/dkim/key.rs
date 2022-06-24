@@ -17,14 +17,14 @@
 
 use super::{signature::ParseError, HashAlgorithm};
 
-#[derive(Debug, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum Version {
     Dkim1,
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum KeyType {
     Rsa,
@@ -36,7 +36,7 @@ impl Default for KeyType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum ServiceType {
     #[strum(serialize = "*")]
@@ -44,7 +44,7 @@ pub enum ServiceType {
     Email,
 }
 
-#[derive(Debug, PartialEq, Eq, strum::EnumString, strum::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum Flags {
     /// Verifiers MUST treat messages from Signers as unsigned email
@@ -56,7 +56,7 @@ pub enum Flags {
 }
 
 ///
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Key {
     /// tag "v="
     /// MUST be "DKIM1"
@@ -81,7 +81,7 @@ impl std::str::FromStr for Key {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut version = None;
+        let mut version = Version::Dkim1;
         let mut acceptable_hash_algorithms =
             <HashAlgorithm as strum::IntoEnumIterator>::iter().collect::<Vec<_>>();
         let mut r#type = KeyType::default();
@@ -98,11 +98,10 @@ impl std::str::FromStr for Key {
                 reason: "tag syntax is `{tag}={value}`".to_string(),
             })? {
                 ("v", p_version) => {
-                    version = Some(Version::from_str(p_version).map_err(|e| {
-                        ParseError::SyntaxError {
+                    version =
+                        Version::from_str(p_version).map_err(|e| ParseError::SyntaxError {
                             reason: format!("when parsing `version`, got: `{e}`"),
-                        }
-                    })?);
+                        })?;
                 }
                 ("h", p_acceptable_hash_algorithms) => {
                     acceptable_hash_algorithms = p_acceptable_hash_algorithms
@@ -142,9 +141,7 @@ impl std::str::FromStr for Key {
         }
 
         Ok(Self {
-            version: version.ok_or(ParseError::MissingRequiredField {
-                field: "version".to_string(),
-            })?,
+            version,
             acceptable_hash_algorithms,
             r#type,
             notes,

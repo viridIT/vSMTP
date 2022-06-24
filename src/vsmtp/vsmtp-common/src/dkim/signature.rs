@@ -27,10 +27,10 @@ pub enum ParseError {
     InvalidArgument { reason: String },
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
 // NOTE: currently "dns/txt" is the only format supported (by signers and verifiers)
 // but others might be added in the future
-struct QueryMethod {
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
+pub struct QueryMethod {
     // r#type: String,
     // options: String,
 }
@@ -53,35 +53,35 @@ impl std::str::FromStr for QueryMethod {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Signature {
     /// tag "v="
-    version: usize,
+    pub version: usize,
     /// tag "a="
-    signing_algorithm: SigningAlgorithm,
+    pub signing_algorithm: SigningAlgorithm,
     /// Signing Domain Identifier (SDID)
     /// tag "d="
     pub sdid: String,
     /// tag "s="
     pub selector: String,
     /// tag "c="
-    canonicalization: Canonicalization,
+    pub canonicalization: Canonicalization,
     /// tag "q="
-    query_method: Vec<QueryMethod>,
+    pub query_method: Vec<QueryMethod>,
     /// Agent or User Identifier (AUID)
-    /// tag "i="
-    auid: String,
+    /// tag "i=", or "@d" is "i" is missing
+    pub auid: String,
     /// tag "t="
-    signature_timestamp: Option<std::time::Duration>,
+    pub signature_timestamp: Option<std::time::Duration>,
     /// tag "x="
-    expire_time: Option<std::time::Duration>,
+    pub expire_time: Option<std::time::Duration>,
     /// tag "l="
-    body_length: Option<usize>,
+    pub body_length: Option<usize>,
     /// tag "h="
-    headers_field: Vec<String>,
+    pub headers_field: Vec<String>,
     /// tag "z="
-    copy_header_fields: Option<Vec<(String, String)>>,
+    pub copy_header_fields: Option<Vec<(String, String)>>,
     /// tag "bh="
-    body_hash: Vec<u8>,
+    pub body_hash: Vec<u8>,
     /// tag "b="
-    signature: Vec<u8>,
+    pub signature: Vec<u8>,
 }
 
 impl Signature {

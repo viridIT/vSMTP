@@ -51,7 +51,7 @@ impl MailParser for MailMimeParser {
 
 impl MailMimeParser {
     fn parse_inner(&mut self, content: &mut &[&str]) -> ParserResult<Mail> {
-        let mut headers = MailHeaders::with_capacity(10);
+        let mut headers = MailHeaders(Vec::with_capacity(10));
         let mut mime_headers = Vec::with_capacity(10);
 
         while !content.is_empty() {
@@ -73,7 +73,7 @@ impl MailMimeParser {
                         name,
                         value
                     );
-                    headers.push((name, value));
+                    headers.0.push((name, value));
                 }
 
                 None => {
@@ -92,8 +92,8 @@ impl MailMimeParser {
                         "finished parsing headers, body found."
                     );
 
-                    check_mandatory_headers(&headers)?;
-                    let has_mime_version = headers.iter().any(|(name, _)| name == "mime-version");
+                    check_mandatory_headers(&headers.0)?;
+                    let has_mime_version = headers.0.iter().any(|(name, _)| name == "mime-version");
 
                     log::debug!(
                         target: log_channels::PARSER,

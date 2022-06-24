@@ -16,7 +16,7 @@
 */
 
 ///
-#[derive(Debug, PartialEq, Eq, Clone, strum::EnumString, strum::Display)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 #[allow(clippy::module_name_repetitions)]
 pub enum CanonicalizationAlgorithm {
@@ -24,6 +24,19 @@ pub enum CanonicalizationAlgorithm {
     Simple,
     ///
     Relaxed,
+}
+
+impl CanonicalizationAlgorithm {
+    ///
+    // TODO!
+    #[must_use]
+    pub fn canonicalize(self, input: &str) -> String {
+        match self {
+            CanonicalizationAlgorithm::Relaxed | CanonicalizationAlgorithm::Simple => {
+                input.to_string()
+            }
+        }
+    }
 }
 
 ///

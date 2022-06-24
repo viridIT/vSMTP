@@ -17,7 +17,7 @@
 use vsmtp_common::{
     collection,
     mail_context::MessageBody,
-    MailParser, {BodyType, Mail}, {Mime, MimeBodyType, MimeHeader},
+    MailHeaders, MailParser, {BodyType, Mail}, {Mime, MimeBodyType, MimeHeader},
 };
 
 use crate::parser::MailMimeParser;
@@ -31,30 +31,32 @@ fn mime_parser() {
             .parse_lines(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
             .unwrap(),
         MessageBody::Parsed(Box::new(Mail {
-            headers: vec![
-                (
-                    "message-id",
-                    "<20379972.1075855673249.JavaMail.evans@thyme>"
-                ),
-                ("date", "Fri, 10 Dec 1999 07:00:00 -0800 "),
-                ("from", "phillip.allen@enron.com"),
-                ("to", "naomi.johnston@enron.com"),
-                ("subject", ""),
-                ("mime-version", "1.0"),
-                ("x-from", "Phillip K Allen"),
-                ("x-to", "Naomi Johnston"),
-                ("x-cc", ""),
-                ("x-bcc", ""),
-                (
-                    "x-folder",
-                    "\\Phillip_Allen_Dec2000\\Notes Folders\\Discussion threads"
-                ),
-                ("x-origin", "Allen-P"),
-                ("x-filename", "pallen.nsf"),
-            ]
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect::<Vec<_>>(),
+            headers: MailHeaders(
+                [
+                    (
+                        "message-id",
+                        "<20379972.1075855673249.JavaMail.evans@thyme>"
+                    ),
+                    ("date", "Fri, 10 Dec 1999 07:00:00 -0800 "),
+                    ("from", "phillip.allen@enron.com"),
+                    ("to", "naomi.johnston@enron.com"),
+                    ("subject", ""),
+                    ("mime-version", "1.0"),
+                    ("x-from", "Phillip K Allen"),
+                    ("x-to", "Naomi Johnston"),
+                    ("x-cc", ""),
+                    ("x-bcc", ""),
+                    (
+                        "x-folder",
+                        "\\Phillip_Allen_Dec2000\\Notes Folders\\Discussion threads"
+                    ),
+                    ("x-origin", "Allen-P"),
+                    ("x-filename", "pallen.nsf"),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect::<Vec<_>>()
+            ),
             body: BodyType::Mime(Box::new(Mime {
                 headers: vec![
                     MimeHeader {

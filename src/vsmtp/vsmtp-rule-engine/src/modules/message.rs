@@ -146,7 +146,7 @@ pub mod message_calling_parse {
     pub fn headers(this: &mut Message) -> EngineResult<rhai::Dynamic> {
         let mut writer = vsl_guard_ok!(this.write());
         match vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => Ok(body.headers.clone().into()),
+            MessageBody::Parsed(body) => Ok(body.headers.clone().0.into()),
             MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }
     }

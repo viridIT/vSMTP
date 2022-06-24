@@ -19,7 +19,7 @@ use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
     re::tokio,
-    CodeID, {BodyType, Mail},
+    CodeID, {BodyType, Mail, MailHeaders},
 };
 use vsmtp_server::{Connection, OnMail};
 
@@ -49,7 +49,7 @@ macro_rules! test_lang {
                 pretty_assertions::assert_eq!(
                     message,
                     MessageBody::Parsed(Box::new(Mail {
-                        headers: [
+                        headers: MailHeaders([
                             ("from", "john doe <john@doe>"),
                             ("subject", "ar"),
                             ("to", "aa@bb"),
@@ -58,7 +58,7 @@ macro_rules! test_lang {
                         ]
                         .into_iter()
                         .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect::<Vec<_>>(),
+                        .collect::<Vec<_>>()),
                         body: BodyType::Regular(
                             include_str!($lang_code)
                                 .lines()

@@ -19,7 +19,7 @@ use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
     re::tokio,
-    CodeID, {BodyType, Mail},
+    CodeID, MailHeaders, {BodyType, Mail},
 };
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_server::Connection;
@@ -289,16 +289,18 @@ async fn test_receiver_13() {
             pretty_assertions::assert_eq!(
                 message,
                 MessageBody::Parsed(Box::new(Mail {
-                    headers: [
-                        (
-                            "from",
-                            format!("john{} doe <john{}@doe>", self.count, self.count)
-                        ),
-                        ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
-                    ]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v))
-                    .collect::<Vec<_>>(),
+                    headers: MailHeaders(
+                        [
+                            (
+                                "from",
+                                format!("john{} doe <john{}@doe>", self.count, self.count)
+                            ),
+                            ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v))
+                        .collect::<Vec<_>>()
+                    ),
                     body: BodyType::Regular(vec![format!("mail {}", self.count)])
                 }))
             );
@@ -378,16 +380,18 @@ async fn test_receiver_14() {
             pretty_assertions::assert_eq!(
                 message,
                 MessageBody::Parsed(Box::new(Mail {
-                    headers: [
-                        (
-                            "from",
-                            format!("john{} doe <john{}@doe>", self.count, self.count)
-                        ),
-                        ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
-                    ]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v))
-                    .collect::<Vec<_>>(),
+                    headers: MailHeaders(
+                        [
+                            (
+                                "from",
+                                format!("john{} doe <john{}@doe>", self.count, self.count)
+                            ),
+                            ("date", "tue, 30 nov 2021 20:54:27 +0100".to_string()),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v))
+                        .collect::<Vec<_>>()
+                    ),
                     body: BodyType::Regular(vec![format!("mail {}", self.count)])
                 }))
             );

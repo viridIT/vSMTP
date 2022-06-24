@@ -2,7 +2,7 @@ use crate::MailMimeParser;
 use vsmtp_common::{
     collection,
     mail_context::MessageBody,
-    MailParser, {BodyType, Mail}, {Mime, MimeBodyType, MimeHeader, MimeMultipart},
+    MailHeaders, MailParser, {BodyType, Mail}, {Mime, MimeBodyType, MimeHeader, MimeMultipart},
 };
 
 const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");
@@ -16,16 +16,18 @@ fn simple() {
     pretty_assertions::assert_eq!(
         parsed,
         MessageBody::Parsed(Box::new(Mail {
-            headers: vec![
-                ("mime-version", "1.0"),
-                ("from", "Nathaniel Borenstein <nsb@nsb.fv.com>",),
-                ("date", "Fri, 07 Oct 1994 16:15:05 -0700 ",),
-                ("to", "Ned Freed <ned@innosoft.com>",),
-                ("subject", "A multipart example",),
-            ]
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect::<Vec<_>>(),
+            headers: MailHeaders(
+                [
+                    ("mime-version", "1.0"),
+                    ("from", "Nathaniel Borenstein <nsb@nsb.fv.com>",),
+                    ("date", "Fri, 07 Oct 1994 16:15:05 -0700 ",),
+                    ("to", "Ned Freed <ned@innosoft.com>",),
+                    ("subject", "A multipart example",),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect::<Vec<_>>()
+            ),
             body: BodyType::Mime(Box::new(Mime {
                 headers: [MimeHeader {
                     name: "content-type".to_string(),
@@ -171,15 +173,12 @@ fn simple() {
                                 args: collection! {},
                             },],
                             content: MimeBodyType::Embedded(Mail {
-                                headers: [
-                                    ("date", "",),
-                                    ("from", "",),
-                                    ("to", "",),
-                                    ("subject", "",),
-                                ]
-                                .into_iter()
-                                .map(|(k, v)| (k.to_string(), v.to_string()))
-                                .collect::<Vec<_>>(),
+                                headers: MailHeaders(
+                                    [("date", "",), ("from", "",), ("to", "",), ("subject", "",),]
+                                        .into_iter()
+                                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                                        .collect::<Vec<_>>()
+                                ),
                                 // FIXME: line 68 and 69 are skipped (from .eml)
                                 body: BodyType::Regular(
                                     ["  ... Additional text in ISO-8859-1 goes here ...", "",]

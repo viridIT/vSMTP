@@ -51,7 +51,7 @@ mod tests {
         queue::Queue,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
-        BodyType, Mail,
+        BodyType, Mail, MailHeaders,
     };
 
     fn get_mail(msg_id: &str) -> (MailContext, MessageBody) {
@@ -82,13 +82,15 @@ mod tests {
                 }),
             },
             MessageBody::Parsed(Box::new(Mail {
-                headers: [
-                    ("from", "foo2 foo <foo2@foo>"),
-                    ("date", "tue, 30 nov 2021 20:54:27 +0100"),
-                ]
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect::<Vec<_>>(),
+                headers: MailHeaders(
+                    [
+                        ("from", "foo2 foo <foo2@foo>"),
+                        ("date", "tue, 30 nov 2021 20:54:27 +0100"),
+                    ]
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect::<Vec<_>>(),
+                ),
                 body: BodyType::Regular(vec!["Hello World!!".to_string()]),
             })),
         )

@@ -19,7 +19,17 @@ use super::mime_type::Mime;
 
 /// we use Vec instead of a `HashMap` because header ordering is important.
 #[allow(clippy::module_name_repetitions)]
-pub type MailHeaders = Vec<(String, String)>;
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct MailHeaders(pub Vec<(String, String)>);
+
+impl std::fmt::Display for MailHeaders {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for i in self.0.iter().map(|(k, v)| HeaderFoldable(k, v)) {
+            write!(f, "{}", i)?;
+        }
+        Ok(())
+    }
+}
 
 /// see rfc5322 (section 2.1 and 2.3)
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -31,6 +41,12 @@ pub enum BodyType {
     Mime(Box<Mime>),
     /// Empty message body
     Undefined,
+}
+
+impl Default for BodyType {
+    fn default() -> Self {
+        Self::Undefined
+    }
 }
 
 impl std::fmt::Display for BodyType {
@@ -55,21 +71,12 @@ impl std::fmt::Display for BodyType {
 }
 
 /// Message body representation
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Mail {
     /// Message body 's headers
     pub headers: MailHeaders,
     /// Message body content
     pub body: BodyType,
-}
-
-impl Default for Mail {
-    fn default() -> Self {
-        Self {
-            headers: vec![],
-            body: BodyType::Undefined,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -114,9 +121,8 @@ impl<'a> std::fmt::Display for HeaderFoldable<'a> {
 
 impl std::fmt::Display for Mail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for i in self.headers.iter().map(|(k, v)| HeaderFoldable(k, v)) {
-            write!(f, "{}", i)?;
-        }
+        write!(f, "{}", self.headers)?;
+
         if !matches!(self.body, BodyType::Mime(_)) {
             f.write_str("\r\n")?;
         }
@@ -128,34 +134,40 @@ impl std::fmt::Display for Mail {
 impl Mail {
     /// change the from field of the header
     pub fn rewrite_mail_from(&mut self, value: &str) {
-        if let Some((_, old)) = self.headers.iter_mut().find(|(header, _)| header == "from") {
+        if let Some((_, old)) = self
+            .headers
+            .0
+            .iter_mut()
+            .find(|(header, _)| header == "from")
+        {
             *old = value.to_string();
         } else {
-            self.headers.push(("from".to_string(), value.to_string()));
+            self.headers.0.push(("from".to_string(), value.to_string()));
         }
     }
 
     /// change one recipients value from @old to @new.
     pub fn rewrite_rcpt(&mut self, old: &str, new: &str) {
-        if let Some((_, rcpts)) = self.headers.iter_mut().find(|(header, _)| header == "to") {
+        if let Some((_, rcpts)) = self.headers.0.iter_mut().find(|(header, _)| header == "to") {
             *rcpts = rcpts.replace(old, new);
         } else {
-            self.headers.push(("to".to_string(), new.to_string()));
+            self.headers.0.push(("to".to_string(), new.to_string()));
         }
     }
 
     /// add a recipients
     pub fn add_rcpt(&mut self, new: &str) {
-        if let Some((_, rcpts)) = self.headers.iter_mut().find(|(header, _)| header == "to") {
+        if let Some((_, rcpts)) = self.headers.0.iter_mut().find(|(header, _)| header == "to") {
             *rcpts = format!("{rcpts}, {new}");
         } else {
-            self.headers.push(("to".to_string(), new.to_string()));
+            self.headers.0.push(("to".to_string(), new.to_string()));
         }
     }
 
     /// remove a recipients
     pub fn remove_rcpt(&mut self, old: &str) {
         self.headers
+            .0
             .iter_mut()
             .find(|(header, _)| header == "to")
             .and_then::<(), _>(|(_, rcpts)| {
@@ -170,10 +182,10 @@ impl Mail {
 
     /// rewrite a header with a new value or push it to the header stack.
     pub fn set_header(&mut self, name: &str, value: &str) {
-        if let Some((_, old_value)) = self.headers.iter_mut().find(|(header, _)| header == name) {
+        if let Some((_, old_value)) = self.headers.0.iter_mut().find(|(header, _)| header == name) {
             *old_value = value.to_string();
         } else {
-            self.headers.push((name.to_string(), value.to_string()));
+            self.headers.0.push((name.to_string(), value.to_string()));
         }
     }
 
@@ -181,6 +193,7 @@ impl Mail {
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {
         self.headers
+            .0
             .iter()
             .find(|(header, _)| header == name)
             .map(|(_, value)| value.as_str())
@@ -188,12 +201,12 @@ impl Mail {
 
     /// prepend new headers to the email, folding if necessary.
     pub fn prepend_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {
-        self.headers.splice(..0, headers);
+        self.headers.0.splice(..0, headers);
     }
 
     /// push new headers to the email, folding if necessary.
     pub fn push_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {
-        self.headers.extend(headers);
+        self.headers.0.extend(headers);
     }
 }
 
@@ -207,7 +220,7 @@ mod test {
     #[test]
     fn test_construct_mail() {
         let empty_mail = Mail {
-            headers: vec![("from".to_string(), "a@a".to_string())],
+            headers: MailHeaders(vec![("from".to_string(), "a@a".to_string())]),
             body: BodyType::Undefined,
         };
 
@@ -216,7 +229,7 @@ mod test {
         assert_eq!(format!("{empty_mail}"), "from: a@a\r\n\r\n".to_string());
 
         let regular_mail = Mail {
-            headers: vec![("from".to_string(), "a@a".to_string())],
+            headers: MailHeaders(vec![("from".to_string(), "a@a".to_string())]),
             body: BodyType::Regular(vec!["This is a regular body.".to_string()]),
         };
 
@@ -226,10 +239,10 @@ mod test {
         );
 
         let mime_mail = Mail {
-            headers: vec![
+            headers: MailHeaders(vec![
                 ("from".to_string(), "a@a".to_string()),
                 ("mime-version".to_string(), "1.0".to_string()),
-            ],
+            ]),
             body: BodyType::Mime(Box::new(Mime {
                 headers: vec![MimeHeader {
                     name: "content-type".to_string(),
@@ -307,45 +320,51 @@ mod test {
 
         // rewrite when the header does not exists inserts the header.
         mail.rewrite_mail_from("a@a");
-        assert_eq!(mail.headers, vec![("from".to_string(), "a@a".to_string())]);
+        assert_eq!(
+            mail.headers,
+            MailHeaders(vec![("from".to_string(), "a@a".to_string())])
+        );
 
         mail.rewrite_mail_from("b@b");
-        assert_eq!(mail.headers, vec![("from".to_string(), "b@b".to_string())]);
+        assert_eq!(
+            mail.headers,
+            MailHeaders(vec![("from".to_string(), "b@b".to_string())])
+        );
 
         mail.rewrite_rcpt("b@b", "a@a");
         assert_eq!(
             mail.headers,
-            vec![
+            MailHeaders(vec![
                 ("from".to_string(), "b@b".to_string()),
                 ("to".to_string(), "a@a".to_string())
-            ]
+            ])
         );
 
         mail.add_rcpt("green@foo.bar");
         assert_eq!(
             mail.headers,
-            vec![
+            MailHeaders(vec![
                 ("from".to_string(), "b@b".to_string()),
                 ("to".to_string(), "a@a, green@foo.bar".to_string())
-            ]
+            ])
         );
 
         mail.rewrite_rcpt("a@a", "john@doe");
         assert_eq!(
             mail.headers,
-            vec![
+            MailHeaders(vec![
                 ("from".to_string(), "b@b".to_string()),
                 ("to".to_string(), "john@doe, green@foo.bar".to_string())
-            ]
+            ])
         );
 
         mail.remove_rcpt("john@doe");
         assert_eq!(
             mail.headers,
-            vec![
+            MailHeaders(vec![
                 ("from".to_string(), "b@b".to_string()),
                 ("to".to_string(), "green@foo.bar".to_string())
-            ]
+            ])
         );
     }
 }

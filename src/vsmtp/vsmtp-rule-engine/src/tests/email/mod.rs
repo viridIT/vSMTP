@@ -24,7 +24,7 @@ use vsmtp_common::{
     mail_context::{MessageBody, MessageMetadata},
     state::StateSMTP,
     status::Status,
-    CodeID, ReplyOrCodeID, {BodyType, Mail},
+    CodeID, MailHeaders, ReplyOrCodeID, {BodyType, Mail},
 };
 
 #[test]
@@ -68,10 +68,13 @@ fn test_email_context_mail() {
     let mut state = RuleState::new(&config, resolvers, &re);
 
     *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
-        headers: vec![(
-            "to".to_string(),
-            "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
-        )],
+        headers: MailHeaders(
+            [(
+                "to".to_string(),
+                "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
+            )]
+            .to_vec(),
+        ),
         body: BodyType::Regular(vec![]),
     })));
     state.context().write().unwrap().envelop.rcpt = vec![
@@ -130,7 +133,7 @@ fn test_email_add_get_set_header() {
     assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)));
 
     *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
-        headers: vec![],
+        headers: MailHeaders(vec![]),
         body: BodyType::Regular(vec![]),
     })));
 

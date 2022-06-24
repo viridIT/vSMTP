@@ -151,7 +151,7 @@ pub struct ConnectionContext {
     pub credentials: Option<Credentials>,
     /// server's domain of the connection. (from config.server.domain or sni)
     pub server_name: String,
-    /// server socket used for this connexion.
+    /// server socket used for this connection.
     pub server_address: std::net::SocketAddr,
     /// is the client authenticated ?
     pub is_authenticated: bool,

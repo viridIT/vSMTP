@@ -18,7 +18,7 @@ use vsmtp_common::{
     addr,
     mail_context::{MailContext, MessageBody},
     re::tokio,
-    CodeID, {BodyType, Mail},
+    CodeID, MailHeaders, {BodyType, Mail},
 };
 use vsmtp_mail_parser::MailMimeParser;
 use vsmtp_server::Connection;
@@ -46,13 +46,15 @@ async fn reset_helo() {
             assert_eq!(
                 message,
                 MessageBody::Parsed(Box::new(Mail {
-                    headers: [
-                        ("from", "a b <a@b>"),
-                        ("date", "tue, 30 nov 2021 20:54:27 +0100"),
-                    ]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect::<Vec<_>>(),
+                    headers: MailHeaders(
+                        [
+                            ("from", "a b <a@b>"),
+                            ("date", "tue, 30 nov 2021 20:54:27 +0100"),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect::<Vec<_>>()
+                    ),
                     body: BodyType::Regular(vec!["mail content wow".to_string()])
                 }))
             );
@@ -156,7 +158,7 @@ async fn reset_rcpt_to_ok() {
             assert_eq!(
                 message,
                 MessageBody::Parsed(Box::new(Mail {
-                    headers: vec![],
+                    headers: MailHeaders(vec![]),
                     body: BodyType::Undefined
                 }))
             );
@@ -240,13 +242,15 @@ async fn reset_rcpt_to_multiple_rcpt() {
             pretty_assertions::assert_eq!(
                 message,
                 MessageBody::Parsed(Box::new(Mail {
-                    headers: [
-                        ("from", "foo2 foo <foo2@foo>"),
-                        ("date", "tue, 30 nov 2021 20:54:27 +0100"),
-                    ]
-                    .into_iter()
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect::<Vec<_>>(),
+                    headers: MailHeaders(
+                        [
+                            ("from", "foo2 foo <foo2@foo>"),
+                            ("date", "tue, 30 nov 2021 20:54:27 +0100"),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect::<Vec<_>>()
+                    ),
                     body: BodyType::Undefined
                 }))
             );
