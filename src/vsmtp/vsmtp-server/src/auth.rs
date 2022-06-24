@@ -116,9 +116,11 @@ impl
                 .read()
                 .map_err(|_| vsmtp_rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
 
+            let server_address = conn.server_address;
             let mut rule_state = RuleState::with_connection(&config, resolvers.clone(), &re, conn);
 
             re.run_when(
+                &server_address,
                 &mut rule_state,
                 &StateSMTP::Authenticate(Mechanism::default(), None),
             )

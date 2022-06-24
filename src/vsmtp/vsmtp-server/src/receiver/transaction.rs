@@ -117,12 +117,11 @@ impl Transaction {
             (_, Event::HeloCmd(helo)) => {
                 self.set_helo(helo);
 
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, &StateSMTP::Helo)
-                {
+                match self.rule_engine.read().unwrap().run_when(
+                    &connection.server_addr,
+                    &mut self.rule_state,
+                    &StateSMTP::Helo,
+                ) {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
@@ -141,12 +140,11 @@ impl Transaction {
             (_, Event::EhloCmd(helo)) => {
                 self.set_helo(helo);
 
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, &StateSMTP::Helo)
-                {
+                match self.rule_engine.read().unwrap().run_when(
+                    &connection.server_addr,
+                    &mut self.rule_state,
+                    &StateSMTP::Helo,
+                ) {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
@@ -214,12 +212,11 @@ impl Transaction {
                 // TODO: handle : mail_from can be "<>""
                 self.set_mail_from(mail_from.unwrap(), connection);
 
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
-                {
+                match self.rule_engine.read().unwrap().run_when(
+                    &connection.server_addr,
+                    &mut self.rule_state,
+                    &StateSMTP::MailFrom,
+                ) {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
@@ -241,12 +238,11 @@ impl Transaction {
             (StateSMTP::MailFrom | StateSMTP::RcptTo, Event::RcptCmd(rcpt_to)) => {
                 self.set_rcpt_to(rcpt_to);
 
-                match self
-                    .rule_engine
-                    .read()
-                    .unwrap()
-                    .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
-                {
+                match self.rule_engine.read().unwrap().run_when(
+                    &connection.server_addr,
+                    &mut self.rule_state,
+                    &StateSMTP::RcptTo,
+                ) {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
                     Status::Deny(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::Stop, packet)
@@ -448,7 +444,11 @@ impl Transaction {
                 .rule_engine
                 .read()
                 .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
-                .run_when(&mut self.rule_state, &StateSMTP::Connect);
+                .run_when(
+                    &connection.server_addr,
+                    &mut self.rule_state,
+                    &StateSMTP::Connect,
+                );
 
             match status {
                 Status::Info(packet) => connection.send_reply_or_code(packet).await?,

@@ -233,6 +233,8 @@ impl RuleState {
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
+        let server_address = mail_context.connection.server_address;
+
         let mut rule_state = Self::with_context(
             config,
             resolvers,
@@ -240,7 +242,7 @@ impl RuleState {
             mail_context,
             Some(mail_message),
         );
-        let result = rule_engine.run_when(&mut rule_state, state);
+        let result = rule_engine.run_when(&server_address, &mut rule_state, state);
 
         let (mail_context, mail_message) = rule_state
             .take()
