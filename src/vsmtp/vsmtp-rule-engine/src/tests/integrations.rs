@@ -35,7 +35,11 @@ fn test_greylist() {
     let mut state = RuleState::new(&config, resolvers.clone(), &re);
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::MailFrom),
+        re.run_when(
+            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
+            &mut state,
+            &StateSMTP::MailFrom
+        ),
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
 
@@ -43,7 +47,11 @@ fn test_greylist() {
     let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::MailFrom),
+        re.run_when(
+            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
+            &mut state,
+            &StateSMTP::MailFrom
+        ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 
@@ -67,7 +75,11 @@ fn test_check_relay() {
         .push(Rcpt::new(addr!("satan@example.com")));
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::RcptTo),
+        re.run_when(
+            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
+            &mut state,
+            &StateSMTP::RcptTo
+        ),
         Status::Deny(ReplyOrCodeID::Reply(Reply::new(
             Enhanced {
                 code: 554,
@@ -87,5 +99,12 @@ fn test_check_relay() {
         .rcpt
         .push(Rcpt::new(addr!("john.doe@testserver.com")));
 
-    assert_eq!(re.run_when(&mut state, &StateSMTP::RcptTo), Status::Next);
+    assert_eq!(
+        re.run_when(
+            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
+            &mut state,
+            &StateSMTP::RcptTo
+        ),
+        Status::Next
+    );
 }
