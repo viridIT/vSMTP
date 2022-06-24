@@ -19,6 +19,7 @@ use rhai::module_resolvers::FileModuleResolver;
 use rhai::packages::Package;
 use rhai::{plugin::EvalAltResult, Engine, Scope, AST};
 use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::queue::Queue;
 use vsmtp_common::queue_path;
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
@@ -202,14 +203,21 @@ impl RuleEngine {
                                 .iter()
                                 .position(|directive| directive.name() == directive_name)
                             {
-                                // if delegation results are coming in and that this is the correct
+                                // If delegation results are coming in and that this is the correct
                                 // directive that has been delegated, we need to pull
                                 // the old context because its state has been lost
                                 // when the delegation happened.
+                                //
+                                // There is however no need to discard the old email because it
+                                // will be overridden by the results once it's time to write
+                                // in the 'mail' queue.
                                 let path_to_context = queue_path!(
                                     &rule_state.server.config.server.queues.dirpath,
+                                    Queue::Working,
                                     message_id
                                 );
+
+                                dbg!(&path_to_context);
 
                                 match MailContext::from_file_path_sync(&path_to_context) {
                                     Ok(context) => *rule_state.context().write().unwrap() = context,
@@ -237,7 +245,8 @@ impl RuleEngine {
                     if status.stop() {
                         log::debug!(
                             target: log_channels::RE,
-                            "[{}] the rule engine will skip all rules because of the previous result.",
+                            "[{}/{}] the rule engine will skip all rules because of the previous result.",
+                            rule_state.context().read().unwrap().connection.server_address,
                             smtp_state
                         );
                         rule_state.skipping(status.clone());
@@ -270,13 +279,15 @@ impl RuleEngine {
         smtp_state: &StateSMTP,
     ) -> EngineResult<Status> {
         let mut status = Status::Next;
+        let server_address = state.context().read().unwrap().connection.server_address;
 
         for directive in directives {
             status = directive.execute(state, &self.ast, smtp_state)?;
 
             log::debug!(
                 target: log_channels::RE,
-                "[{}] {} '{}' evaluated => {:?}.",
+                "[{}/{}] {} '{}' evaluated => {:?}.",
+                server_address,
                 smtp_state,
                 directive.directive_type(),
                 directive.name(),
@@ -290,7 +301,8 @@ impl RuleEngine {
 
         log::debug!(
             target: log_channels::RE,
-            "[{}] evaluated => {:?}.",
+            "[{}/{}] evaluated => {:?}.",
+            server_address,
             smtp_state,
             status
         );
