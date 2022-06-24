@@ -124,8 +124,14 @@ pub mod auth {
 
 /// DKIM
 pub mod dkim {
+    mod algorithm;
+    mod canonicalization;
+    mod key;
     mod signature;
 
+    pub use algorithm::{HashAlgorithm, SigningAlgorithm};
+    pub use canonicalization::{Canonicalization, CanonicalizationAlgorithm};
+    pub use key::Key;
     pub use signature::Signature;
 }
 

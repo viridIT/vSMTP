@@ -21,6 +21,7 @@ use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::dkim::Key;
 use vsmtp_common::dkim::Signature;
 use vsmtp_common::re::tokio;
 
@@ -40,18 +41,17 @@ pub mod dkim {
         let resolver = server.resolvers.get(&server.config.server.domain).unwrap();
 
         let result = tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                resolver
-                    .txt_lookup(format!(
-                        "{}._domainkey.{}",
-                        signature.selector, signature.sdid
-                    ))
-                    .await
-            })
+            tokio::runtime::Handle::current()
+                .block_on(async move { resolver.txt_lookup(signature.get_dns_query()).await })
         })
         .map_err::<Box<EvalAltResult>, _>(|e| format!("{e}").into())?;
 
-        println!("{result:?}");
+        println!("{result:#?}");
+
+        for i in result {
+            let key = <Key as std::str::FromStr>::from_str(&format!("{i}"));
+            println!("{key:#?}");
+        }
 
         Ok(())
     }

@@ -15,6 +15,8 @@
  *
 */
 
+use super::{Canonicalization, SigningAlgorithm};
+
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
     #[error("missing required field: `{field}`")]
@@ -25,75 +27,17 @@ pub enum ParseError {
     InvalidArgument { reason: String },
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, strum::EnumString, strum::Display)]
-enum SigningAlgorithm {
-    #[strum(serialize = "rsa-sha1")]
-    RsaSha1,
-    #[strum(serialize = "rsa-sha256")]
-    RsaSha256,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, strum::EnumString, strum::Display)]
-#[strum(serialize_all = "lowercase")]
-enum CanonicalizationAlgorithm {
-    Simple,
-    Relaxed,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct Canonicalization {
-    header: CanonicalizationAlgorithm,
-    body: CanonicalizationAlgorithm,
-}
-
-impl Default for Canonicalization {
-    fn default() -> Self {
-        Self {
-            header: CanonicalizationAlgorithm::Simple,
-            body: CanonicalizationAlgorithm::Simple,
-        }
-    }
-}
-
-impl std::str::FromStr for Canonicalization {
-    type Err = <CanonicalizationAlgorithm as std::str::FromStr>::Err;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (header, body) = s
-            .split_once('/')
-            .map_or_else(|| (s, None), |(k, v)| (k, Some(v)));
-
-        Ok(Self {
-            header: CanonicalizationAlgorithm::from_str(header)?,
-            body: body.map_or(
-                Ok(CanonicalizationAlgorithm::Simple),
-                CanonicalizationAlgorithm::from_str,
-            )?,
-        })
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-#[allow(dead_code)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
+// NOTE: currently "dns/txt" is the only format supported (by signers and verifiers)
+// but others might be added in the future
 struct QueryMethod {
-    r#type: String,
-    options: String,
-}
-
-impl Default for QueryMethod {
-    fn default() -> Self {
-        Self {
-            r#type: "dns".to_string(),
-            options: "txt".to_string(),
-        }
-    }
+    // r#type: String,
+    // options: String,
 }
 
 impl std::str::FromStr for QueryMethod {
     type Err = ParseError;
 
-    // NOTE: currently "dns/txt" is the only format supported (by signers and verifiers)
-    // but others might be added in the future
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "dns/txt" {
             Ok(Self::default())
@@ -138,6 +82,18 @@ pub struct Signature {
     body_hash: Vec<u8>,
     /// tag "b="
     signature: Vec<u8>,
+}
+
+impl Signature {
+    ///
+    #[must_use]
+    pub fn get_dns_query(&self) -> String {
+        format!(
+            "{selector}._domainkey.{sdid}",
+            selector = self.selector,
+            sdid = self.sdid
+        )
+    }
 }
 
 impl std::str::FromStr for Signature {
@@ -334,9 +290,8 @@ impl std::str::FromStr for Signature {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        Canonicalization, CanonicalizationAlgorithm, QueryMethod, Signature, SigningAlgorithm,
-    };
+    use super::{Canonicalization, QueryMethod, Signature, SigningAlgorithm};
+    use crate::dkim::CanonicalizationAlgorithm;
 
     #[test]
     fn from_str_wikipedia() {
