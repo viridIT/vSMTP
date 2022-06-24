@@ -15,13 +15,13 @@
  *
 */
 use crate::{
-    context_from_file_path,
     delivery::{add_trace_information, send_mail},
-    log_channels, message_from_file_path,
+    log_channels,
     receiver::MailHandlerError,
     ProcessMessage,
 };
 use vsmtp_common::{
+    mail_context::{MailContext, MessageBody},
     queue::Queue,
     queue_path,
     re::{
@@ -119,7 +119,7 @@ async fn handle_one_in_delivery_queue_inner(
         ]),
     );
 
-    let mail_context = context_from_file_path(&context_filepath)
+    let mail_context = MailContext::from_file_path(&context_filepath)
         .await
         .with_context(|| {
             format!(
@@ -128,7 +128,7 @@ async fn handle_one_in_delivery_queue_inner(
             )
         })?;
 
-    let mail_message = message_from_file_path(message_filepath).await?;
+    let mail_message = MessageBody::from_file_path(message_filepath).await?;
 
     let (mut mail_context, mail_message, result) = RuleState::just_run_when(
         &StateSMTP::Delivery,

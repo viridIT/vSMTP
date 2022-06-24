@@ -118,7 +118,7 @@ impl MailHandler {
         match next_queue {
             Queue::Working => &self.working_sender,
             Queue::Deliver => &self.delivery_sender,
-            _ => unreachable!(),
+            _ => return Ok(()),
         }
         .send(ProcessMessage {
             message_id: metadata.message_id.clone(),

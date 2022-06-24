@@ -14,12 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    context_from_file_path, log_channels, message_from_file_path, receiver::MailHandlerError,
-    ProcessMessage,
-};
+use crate::{log_channels, receiver::MailHandlerError, ProcessMessage};
 use anyhow::Context;
 use vsmtp_common::{
+    mail_context::{MailContext, MessageBody},
     queue::Queue,
     queue_path,
     re::{anyhow, log, tokio},
@@ -117,8 +115,8 @@ async fn handle_one_in_working_queue_inner(
     );
 
     let (mail_context, mail_message) = tokio::join!(
-        context_from_file_path(&context_filepath),
-        message_from_file_path(message_filepath)
+        MailContext::from_file_path(&context_filepath),
+        MessageBody::from_file_path(message_filepath)
     );
     let (mail_context, mail_message) = (
         mail_context.with_context(|| {

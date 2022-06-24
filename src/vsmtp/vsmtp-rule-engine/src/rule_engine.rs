@@ -18,6 +18,8 @@ use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::packages::Package;
 use rhai::{plugin::EvalAltResult, Engine, Scope, AST};
+use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::queue_path;
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
@@ -184,17 +186,36 @@ impl RuleEngine {
                         let header =
                             vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
 
-                        let (stage, directive_name) =
-                            match (header.args.get("stage"), header.args.get("directive")) {
-                                (Some(stage), Some(directive_name)) => (stage, directive_name),
-                                _ => return Status::DelegationResult,
-                            };
+                        let (stage, directive_name, message_id) = match (
+                            header.args.get("stage"),
+                            header.args.get("directive"),
+                            header.args.get("id"),
+                        ) {
+                            (Some(stage), Some(directive_name), Some(message_id)) => {
+                                (stage, directive_name, message_id)
+                            }
+                            _ => return Status::DelegationResult,
+                        };
 
                         if *stage == smtp_state.to_string() {
                             if let Some(d) = directive_set
                                 .iter()
                                 .position(|directive| directive.name() == directive_name)
                             {
+                                // if delegation results are coming in and that this is the correct
+                                // directive that has been delegated, we need to pull
+                                // the old context because its state has been lost
+                                // when the delegation happened.
+                                let path_to_context = queue_path!(
+                                    &rule_state.server.config.server.queues.dirpath,
+                                    message_id
+                                );
+
+                                match MailContext::from_file_path_sync(&path_to_context) {
+                                    Ok(context) => *rule_state.context().write().unwrap() = context,
+                                    Err(err) => log::error!(target: log_channels::RE, "tried to get old mail context '{}' from the working queue after a delegation: {}", message_id, err)
+                                };
+
                                 rule_state.resume();
                                 &directive_set[d..]
                             } else {

@@ -14,11 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    context_from_file_path, delivery::send_mail, log_channels, message_from_file_path,
-    ProcessMessage,
-};
+use crate::{delivery::send_mail, log_channels, ProcessMessage};
 use vsmtp_common::{
+    mail_context::{MailContext, MessageBody},
     queue::Queue,
     queue_path,
     re::{
@@ -77,7 +75,7 @@ async fn handle_one_in_deferred_queue(
         process_message.message_id
     );
 
-    let mut ctx = context_from_file_path(&context_filepath)
+    let mut ctx = MailContext::from_file_path(&context_filepath)
         .await
         .with_context(|| {
             format!(
@@ -87,7 +85,7 @@ async fn handle_one_in_deferred_queue(
         })?;
 
     let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
-    let message = message_from_file_path(message_filepath).await?;
+    let message = MessageBody::from_file_path(message_filepath).await?;
 
     send_mail(&config, &mut ctx, &message, &resolvers).await;
 
@@ -209,7 +207,7 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            context_from_file_path(&path).await.unwrap(),
+            MailContext::from_file_path(&path).await.unwrap(),
             MailContext {
                 connection: ConnectionContext {
                     timestamp: now,
@@ -244,7 +242,7 @@ mod tests {
             }
         );
         pretty_assertions::assert_eq!(
-            message_from_file_path(msg).await.unwrap(),
+            MessageBody::from_file_path(msg).await.unwrap(),
             MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string(),],
                 body: "Hello world".to_string(),

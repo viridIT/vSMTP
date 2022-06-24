@@ -17,15 +17,15 @@ use vsmtp_config::{Config, Resolvers};
 
 /// a state container that bridges rhai's & rust contexts.
 pub struct RuleState {
-    /// a lightweight engine for evaluation.
+    /// A lightweight engine for evaluation.
     engine: rhai::Engine,
-    /// a pointer to the server api.
-    #[allow(dead_code)]
-    server: std::sync::Arc<ServerAPI>,
-    /// a pointer to the mail context for the current connection.
+    /// A pointer to the server api.
+    pub server: std::sync::Arc<ServerAPI>,
+    /// A pointer to the mail context for the current connection.
     mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
+    /// A pointer to the mail body for the current connection.
     message: std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>,
-    /// does the following rules needs to be skipped ?
+    /// A state to check if the next rules need to be executed or skipped.
     skip: Option<Status>,
 }
 

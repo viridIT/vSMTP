@@ -166,6 +166,7 @@ where
         .read()
         .unwrap()
         .run_when(&mut transaction.rule_state, &StateSMTP::PreQ);
+
     match status {
         Status::Info(packet) => {
             conn.send_reply_or_code(packet).await?;
