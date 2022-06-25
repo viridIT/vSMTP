@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::mail_context::MessageBody;
+use vsmtp_common::MessageBody;
 
 use crate::MailMimeParser;
 

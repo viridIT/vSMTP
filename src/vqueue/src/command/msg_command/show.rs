@@ -1,10 +1,11 @@
 use crate::{command::get_message_path, MessageShowFormat};
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     re::{
         anyhow::{self, Context},
         serde_json,
     },
+    MessageBody,
 };
 
 pub fn show<OUT: std::io::Write>(
@@ -47,7 +48,7 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MessageMetadata},
         queue::Queue,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},

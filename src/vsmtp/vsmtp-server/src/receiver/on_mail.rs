@@ -1,10 +1,10 @@
 use crate::{log_channels, Connection, ProcessMessage};
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     queue::Queue,
     re::{anyhow, log, tokio},
     status::Status,
-    CodeID,
+    CodeID, MessageBody,
 };
 use vsmtp_config::create_app_folder;
 

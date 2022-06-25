@@ -20,7 +20,7 @@ use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::mail_context::MessageBody;
+use vsmtp_common::MessageBody;
 use vsmtp_common::{rcpt::Rcpt, state::StateSMTP, Address};
 
 #[rhai::plugin::export_module]

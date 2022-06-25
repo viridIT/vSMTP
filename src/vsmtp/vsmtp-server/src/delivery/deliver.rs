@@ -208,10 +208,11 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::tokio,
         transfer::{EmailTransferStatus, Transfer},
+        MessageBody,
     };
     use vsmtp_config::build_resolvers;
     use vsmtp_rule_engine::rule_engine::RuleEngine;

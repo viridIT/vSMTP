@@ -1,7 +1,6 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
-    mail_context::MessageBody,
-    MailHeaders, MailParser, {BodyType, Mail},
+    MailHeaders, MailParser, MessageBody, {BodyType, Mail},
 };
 
 #[test]
@@ -37,19 +36,10 @@ fn simple() {
             )
         }))
     );
+
     pretty_assertions::assert_eq!(
         parsed.to_string(),
-        [
-            "from: John Doe <jdoe@machine.example>\r\n".to_string(),
-            "to: Mary Smith <mary@example.net>\r\n".to_string(),
-            "subject: Saying Hello\r\n".to_string(),
-            "date: Fri, 21 Nov 1997 09:55:06 -0600\r\n".to_string(),
-            "message-id: <1234@local.machine.example>\r\n".to_string(),
-            "\r\n".to_string(),
-            "This is a message just to say hello.\r\n".to_string(),
-            "So, \"Hello\".\r\n".to_string()
-        ]
-        .concat(),
+        include_str!("../../mail/rfc5322/A.1.1.a.eml").replace('\n', "\r\n"),
     );
 }
 
@@ -89,17 +79,6 @@ fn forward() {
     );
     pretty_assertions::assert_eq!(
         parsed.to_string(),
-        [
-            "from: John Doe <jdoe@machine.example>\r\n".to_string(),
-            "sender: Michael Jones <mjones@machine.example>\r\n".to_string(),
-            "to: Mary Smith <mary@example.net>\r\n".to_string(),
-            "subject: Saying Hello\r\n".to_string(),
-            "date: Fri, 21 Nov 1997 09:55:06 -0600\r\n".to_string(),
-            "message-id: <1234@local.machine.example>\r\n".to_string(),
-            "\r\n".to_string(),
-            "This is a message just to say hello.\r\n".to_string(),
-            "So, \"Hello\".\r\n".to_string()
-        ]
-        .concat(),
+        include_str!("../../mail/rfc5322/A.1.1.b.eml").replace('\n', "\r\n")
     );
 }

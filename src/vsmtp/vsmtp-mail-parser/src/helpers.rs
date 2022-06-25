@@ -15,13 +15,14 @@
  *
 */
 use crate::error::{ParserError, ParserResult};
-use vsmtp_common::{re::anyhow, MimeHeader};
+use vsmtp_common::MimeHeader;
 
 #[inline]
-pub(super) fn has_wsc(input: &str) -> bool {
+pub(super) fn start_with_fws(input: &str) -> bool {
     input.starts_with(|c| c == ' ' || c == '\t')
 }
 
+/*
 /// See <https://datatracker.ietf.org/doc/html/rfc5322#page-11>
 pub(super) fn remove_comments(line: &str) -> anyhow::Result<String> {
     let (depth, is_escaped, output) = line.chars().into_iter().fold(
@@ -48,6 +49,7 @@ pub(super) fn remove_comments(line: &str) -> anyhow::Result<String> {
     }
     Ok(output)
 }
+*/
 
 /// cut the mime type of the current section and return the type and subtype.
 /// if no content-type header is found, will check the parent for a default
@@ -99,26 +101,30 @@ pub(super) fn read_header(content: &mut &[&str]) -> Option<(String, String)> {
     let mut split = content[0].splitn(2, ':');
 
     match (split.next(), split.next()) {
-        (Some(header), Some(field)) => Some((
-            header.trim().to_ascii_lowercase(),
-            remove_comments(
-                // NOTE: was previously String + String, check for performance.
-                &(format!(
-                    "{}{}",
-                    field.trim(),
-                    content[1..]
-                        .iter()
-                        .take_while(|s| has_wsc(s))
-                        .map(|s| {
-                            *content = &content[1..];
-                            &s[..]
-                        })
-                        .collect::<Vec<&str>>()
-                        .join("")
-                )),
-            )
-            .unwrap(),
-        )),
+        (Some(header), Some(mut field)) => {
+            let folded_header = content[1..]
+                .iter()
+                .take_while(|s| start_with_fws(s))
+                .map(|s| {
+                    *content = &content[1..];
+                    *s
+                })
+                .collect::<Vec<&str>>()
+                .join("\r\n");
+
+            if field.starts_with(' ') {
+                field = &field[1..];
+            }
+
+            Some((
+                header.trim().to_ascii_lowercase(),
+                if folded_header.is_empty() {
+                    field.to_string()
+                } else {
+                    format!("{}\r\n{}", field, folded_header)
+                },
+            ))
+        }
         _ => None,
     }
 }

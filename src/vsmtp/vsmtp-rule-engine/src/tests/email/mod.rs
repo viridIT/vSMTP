@@ -21,10 +21,10 @@ use crate::{
 };
 use vsmtp_common::{
     addr,
-    mail_context::{MessageBody, MessageMetadata},
+    mail_context::MessageMetadata,
     state::StateSMTP,
     status::Status,
-    CodeID, MailHeaders, ReplyOrCodeID, {BodyType, Mail},
+    CodeID, MailHeaders, MessageBody, ReplyOrCodeID, {BodyType, Mail},
 };
 
 #[test]

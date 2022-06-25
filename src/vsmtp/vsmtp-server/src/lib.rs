@@ -42,11 +42,12 @@ pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     re::{
         anyhow::{self, Context},
         serde_json, tokio,
     },
+    MessageBody,
 };
 
 pub(crate) async fn context_from_file_path(file: &std::path::Path) -> anyhow::Result<MailContext> {

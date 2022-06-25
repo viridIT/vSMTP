@@ -1,7 +1,6 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
-    mail_context::MessageBody,
-    MailHeaders, MailParser, {BodyType, Mail},
+    MailHeaders, MailParser, MessageBody, {BodyType, Mail},
 };
 
 const MAIL: &str = include_str!("../../mail/rfc5322/A.1.3.eml");
@@ -37,17 +36,5 @@ fn group_addresses() {
             )
         }))
     );
-    pretty_assertions::assert_eq!(
-        parsed.to_string(),
-        [
-            "from: Pete <pete@silly.example>\r\n".to_string(),
-            "to: A Group:Ed Jones <c@a.test>,joe@where.test,John <jdoe@one.test>;\r\n".to_string(),
-            "cc: Undisclosed recipients:;\r\n".to_string(),
-            "date: Thu, 13 Feb 1969 23:32:54 -0330\r\n".to_string(),
-            "message-id: <testabcd.1234@silly.example>\r\n".to_string(),
-            "\r\n".to_string(),
-            "Testing.\r\n".to_string(),
-        ]
-        .concat()
-    );
+    pretty_assertions::assert_eq!(parsed.to_string(), MAIL.replace('\n', "\r\n"));
 }

@@ -19,12 +19,14 @@ use crate::log_channels;
 use super::error::{ParserError, ParserResult};
 use super::helpers::get_mime_type;
 use super::helpers::read_header;
-use vsmtp_common::mail_context::MessageBody;
-use vsmtp_common::re::anyhow::Context;
-use vsmtp_common::re::{anyhow, log};
-use vsmtp_common::MailParser;
-use vsmtp_common::{BodyType, Mail, MailHeaders};
-use vsmtp_common::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
+use vsmtp_common::{
+    re::{
+        anyhow::{self, Context},
+        log,
+    },
+    BodyType, Mail, MailHeaders, MailParser, MessageBody, Mime, MimeBodyType, MimeHeader,
+    MimeMultipart,
+};
 
 /// a boundary serves as a delimiter between mime parts in a multipart section.
 enum BoundaryType {
@@ -59,9 +61,7 @@ impl MailMimeParser {
                 Some((name, value)) if is_mime_header(&name) => {
                     log::debug!(
                         target: log_channels::PARSER,
-                        "new mime header found: '{}' => '{}'",
-                        name,
-                        value
+                        "new mime header found: '{name}' => '{value}'",
                     );
                     mime_headers.push(get_mime_header(&name, &value));
                 }
@@ -69,9 +69,7 @@ impl MailMimeParser {
                 Some((name, value)) => {
                     log::debug!(
                         target: log_channels::PARSER,
-                        "new header found: '{}' => '{}'",
-                        name,
-                        value
+                        "new header found: '{name}' => '{value}'",
                     );
                     headers.0.push((name, value));
                 }
@@ -97,8 +95,7 @@ impl MailMimeParser {
 
                     log::debug!(
                         target: log_channels::PARSER,
-                        "mime-version header found?: {}",
-                        has_mime_version
+                        "mime-version header found?: {has_mime_version}",
                     );
 
                     return Ok(Mail {

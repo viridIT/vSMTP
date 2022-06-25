@@ -21,12 +21,11 @@ use crate::{
 };
 use vsmtp_common::{
     auth::Mechanism,
-    mail_context::MessageBody,
     mail_context::MAIL_CAPACITY,
     re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
-    CodeID, ConnectionKind, MailParserOnFly,
+    CodeID, ConnectionKind, MailParserOnFly, MessageBody,
 };
 use vsmtp_config::{re::rustls, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;

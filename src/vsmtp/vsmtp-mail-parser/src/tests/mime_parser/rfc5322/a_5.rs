@@ -1,7 +1,6 @@
 use crate::parser::MailMimeParser;
 use vsmtp_common::{
-    mail_context::MessageBody,
-    MailHeaders, MailParser, {BodyType, Mail},
+    MailHeaders, MailParser, MessageBody, {BodyType, Mail},
 };
 
 #[test]
@@ -19,29 +18,31 @@ fn white_space_and_comments() {
         MessageBody::Parsed(Box::new(Mail {
             headers: MailHeaders(
                 [
-                    ("from", "Pete <pete@silly.test>"),
+                    (
+                        "from",
+                        "Pete(A nice \\) chap) <pete(his account)@silly.test(his host)>"
+                    ),
                     (
                         "to",
                         concat!(
-                            "A Group",
-                            "     :Chris Jones <c@public.example>,",
-                            "         joe@example.org,",
-                            "  John <jdoe@one.test> ; ",
+                            "A Group(Some people)\r\n",
+                            "     :Chris Jones <c@(Chris's host.)public.example>,\r\n",
+                            "         joe@example.org,\r\n  John <jdoe@one.test> (my dear friend); (the end of the group)",
                         )
                     ),
-                    ("cc", "Hidden recipients  :  ;"),
+                    ("cc", "(Empty list)(start)Hidden recipients  :(nobody(that I know))  ;"),
                     (
                         "date",
                         concat!(
-                            "Thu,",
-                            "      13",
-                            "        Feb",
-                            "          1969",
-                            "      23:32",
-                            "               -0330 "
-                        )
+                            "Thu,\r\n",
+                            "      13\r\n",
+                            "        Feb\r\n",
+                            "          1969\r\n",
+                            "      23:32\r\n",
+                            "               -0330 (Newfoundland Time)",
+                        ),
                     ),
-                    ("message-id", "<testabcd.1234@silly.test>"),
+                    ("message-id", "             <testabcd.1234@silly.test>"),
                 ]
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -57,18 +58,13 @@ fn white_space_and_comments() {
     );
     pretty_assertions::assert_eq!(
         parsed.to_string(),
-        [
-            "from: Pete <pete@silly.test>\r\n".to_string(),
-            "to: A Group     :Chris Jones <c@public.example>,         joe@example.org, "
-                .to_string(),
-            " John <jdoe@one.test> ; \r\n".to_string(),
-            "cc: Hidden recipients  :  ;\r\n".to_string(),
-            "date: Thu,      13        Feb          1969      23:32               -0330 \r\n"
-                .to_string(),
-            "message-id: <testabcd.1234@silly.test>\r\n".to_string(),
-            "\r\n".to_string(),
-            "Testing.\r\n".to_string(),
-        ]
-        .concat()
+        include_str!("../../mail/rfc5322/A.5.eml")
+            .replace('\n', "\r\n")
+            // TODO: verify the rfc
+            .replace("To:A Group(Some people)", "To: A Group(Some people)")
+            .replace(
+                "Cc:(Empty list)(start)Hidden recipients  :(nobody(that I know))  ;",
+                "Cc: (Empty list)(start)Hidden recipients  :(nobody(that I know))  ;"
+            )
     );
 }

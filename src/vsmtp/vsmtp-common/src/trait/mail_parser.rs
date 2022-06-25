@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::mail_context::MessageBody;
+use crate::MessageBody;
 
 /// An abstract mail parser
 pub trait MailParser: Default {

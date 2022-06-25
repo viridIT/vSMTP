@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    log_channels,
-    mail_context::{MailContext, MessageBody},
-};
+use crate::{log_channels, mail_context::MailContext, MessageBody};
 use anyhow::Context;
 
 /// identifiers for all mail queues.

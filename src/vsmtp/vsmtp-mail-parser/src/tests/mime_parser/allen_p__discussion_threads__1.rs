@@ -15,9 +15,8 @@
  *
 */
 use vsmtp_common::{
-    collection,
-    mail_context::MessageBody,
-    MailHeaders, MailParser, {BodyType, Mail}, {Mime, MimeBodyType, MimeHeader},
+    collection, MailHeaders, MailParser, MessageBody, {BodyType, Mail},
+    {Mime, MimeBodyType, MimeHeader},
 };
 
 use crate::parser::MailMimeParser;

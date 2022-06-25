@@ -68,10 +68,12 @@ mod r#type {
 
 mod message {
     pub mod mail;
+    #[allow(clippy::module_name_repetitions)]
+    pub mod message_body;
     pub mod mime_type;
 }
 
-pub use message::{mail::*, mime_type::*};
+pub use message::{mail::*, message_body::MessageBody, mime_type::*};
 pub use r#type::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 
 ///

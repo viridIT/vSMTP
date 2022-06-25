@@ -15,9 +15,7 @@
  *
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
-use vsmtp_common::{
-    addr, mail_context::MessageBody, state::StateSMTP, status::Status, CodeID, ReplyOrCodeID,
-};
+use vsmtp_common::{addr, state::StateSMTP, status::Status, CodeID, MessageBody, ReplyOrCodeID};
 use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
 
 #[test]

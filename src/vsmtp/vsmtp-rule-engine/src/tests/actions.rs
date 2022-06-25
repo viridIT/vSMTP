@@ -22,11 +22,8 @@ use vsmtp_common::auth::Mechanism;
 use vsmtp_common::re::serde_json;
 use vsmtp_common::transfer::ForwardTarget;
 use vsmtp_common::{
-    mail_context::{MessageBody, MessageMetadata},
-    state::StateSMTP,
-    status::Status,
-    transfer::Transfer,
-    Mail,
+    mail_context::MessageMetadata, state::StateSMTP, status::Status, transfer::Transfer, Mail,
+    MessageBody,
 };
 use vsmtp_common::{BodyType, CodeID, MailHeaders, ReplyOrCodeID};
 use vsmtp_config::field::FieldServerVirtual;

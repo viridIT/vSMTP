@@ -23,9 +23,9 @@ use rhai::plugin::{
 };
 use rhai::EvalAltResult;
 use vsmtp_common::dkim::{Key, Signature};
-use vsmtp_common::mail_context::MessageBody;
-use vsmtp_common::re::{base64, log, tokio};
+use vsmtp_common::re::tokio;
 use vsmtp_common::state::StateSMTP;
+use vsmtp_common::MessageBody;
 
 #[doc(hidden)]
 #[rhai::plugin::export_module]

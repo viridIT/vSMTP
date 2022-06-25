@@ -84,15 +84,17 @@ struct HeaderFoldable<'a>(&'a str, &'a str);
 
 impl<'a> std::fmt::Display for HeaderFoldable<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let key = format!("{}: ", self.0);
+        let key =
+            convert_case::Casing::to_case(&self.0, convert_case::Case::Train).replace("Id", "ID");
         f.write_str(&key)?;
+        f.write_str(": ")?;
 
         let mut byte_writable = self.1;
-        let mut prev = key.len();
-
         if byte_writable.is_empty() {
             return f.write_str("\r\n");
         }
+
+        let mut prev = key.len() + 2;
 
         // FIXME: we can fold at 78 chars for simple sentence.
         // but must write a continuous string for base64 encoded values (like dkim)

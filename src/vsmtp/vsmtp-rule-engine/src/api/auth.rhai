@@ -105,8 +105,7 @@ fn check_spf(identity, header, policy) {
 
     let auth_header =
 `${hostname()}; spf=${query.result}
- reason=\"${spf_header}\" smtp.mailfrom=${ctx().mail_from}
-`;
+ reason=\"${spf_header}\" smtp.mailfrom=${ctx().mail_from}`;
 
     // The Received-SPF header field is a trace field
     // and SHOULD be prepended to the existing header, above the Received: field

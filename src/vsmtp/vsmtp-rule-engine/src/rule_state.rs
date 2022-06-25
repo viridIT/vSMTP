@@ -8,11 +8,14 @@ use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
-use vsmtp_common::envelop::Envelop;
-use vsmtp_common::mail_context::{ConnectionContext, MailContext, MessageBody};
 use vsmtp_common::re::anyhow;
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
+use vsmtp_common::{
+    envelop::Envelop,
+    mail_context::{ConnectionContext, MailContext},
+    MessageBody,
+};
 use vsmtp_config::{Config, Resolvers};
 
 /// a state container that bridges rhai's & rust contexts.

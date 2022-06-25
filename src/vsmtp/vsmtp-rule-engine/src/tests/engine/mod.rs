@@ -16,10 +16,10 @@
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
 use vsmtp_common::{
-    mail_context::{ConnectionContext, MailContext, MessageBody},
+    mail_context::{ConnectionContext, MailContext},
     state::StateSMTP,
     status::Status,
-    CodeID, ReplyOrCodeID,
+    CodeID, MessageBody, ReplyOrCodeID,
 };
 
 #[test]

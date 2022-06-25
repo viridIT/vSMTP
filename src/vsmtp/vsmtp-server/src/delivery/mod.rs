@@ -27,11 +27,12 @@ use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::re::tokio;
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     rcpt::Rcpt,
     re::{anyhow, log},
     status::Status,
     transfer::{ForwardTarget, Transfer},
+    MessageBody,
 };
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_delivery::transport::{deliver as smtp_deliver, forward, maildir, mbox, Transport};
@@ -287,10 +288,7 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::{
-        mail_context::{ConnectionContext, MessageBody},
-        status::Status,
-    };
+    use vsmtp_common::{mail_context::ConnectionContext, status::Status, MessageBody};
 
     /*
     /// This test produce side-effect and may make other test fails

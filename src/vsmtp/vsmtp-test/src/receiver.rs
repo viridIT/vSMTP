@@ -16,9 +16,8 @@
 */
 
 use vsmtp_common::{
-    mail_context::MessageBody,
     re::{anyhow, tokio},
-    CodeID, ConnectionKind,
+    CodeID, ConnectionKind, MessageBody,
 };
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
