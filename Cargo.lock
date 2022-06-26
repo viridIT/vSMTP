@@ -2298,13 +2298,11 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "sha1",
- "sha2",
  "strum",
- "thiserror",
  "tokio",
  "tokio-stream",
  "users",
+ "vsmtp-mail-parser",
  "vsmtp-rsasl",
 ]
 
@@ -2342,6 +2340,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "vsmtp-dkim"
+version = "1.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "convert_case",
+ "pretty_assertions",
+ "rsa",
+ "sha1",
+ "sha2",
+ "strum",
+ "thiserror",
+ "tokio",
+ "trust-dns-resolver",
+ "vsmtp-common",
+ "vsmtp-mail-parser",
+]
+
+[[package]]
 name = "vsmtp-mail-parser"
 version = "1.1.0"
 dependencies = [
@@ -2370,12 +2387,12 @@ dependencies = [
  "iprange",
  "regex",
  "rhai",
- "rsa",
  "thiserror",
  "time 0.3.11",
  "viaspf",
  "vsmtp-common",
  "vsmtp-config",
+ "vsmtp-dkim",
  "vsmtp-mail-parser",
  "wait-timeout",
 ]

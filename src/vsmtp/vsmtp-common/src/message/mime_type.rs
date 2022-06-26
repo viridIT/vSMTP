@@ -52,12 +52,16 @@ pub struct MimeMultipart {
 // TODO: handle folding here
 impl std::fmt::Display for MimeHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {}", self.name, self.value))?;
-        if !self.args.is_empty() {
-            for (key, value) in &self.args {
-                f.write_fmt(format_args!("; {key}=\"{value}\""))?;
-            }
+        let key = convert_case::Casing::to_case(&self.name, convert_case::Case::Train);
+
+        f.write_str(&key)?;
+        f.write_str(": ")?;
+        f.write_str(&self.value)?;
+
+        for (key, value) in &self.args {
+            f.write_fmt(format_args!("; {key}={value}"))?;
         }
+
         f.write_str("\r\n")?;
         Ok(())
     }

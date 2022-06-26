@@ -69,7 +69,7 @@ pub struct Key {
     /// a message to the administrator
     pub notes: Option<String>,
     /// tag "p="
-    pub public_key: Vec<u8>,
+    pub public_key: rsa::RsaPublicKey,
     /// tag "s="
     /// default: "*"
     pub service_type: Vec<ServiceType>,
@@ -93,6 +93,8 @@ impl std::str::FromStr for Key {
         for i in s
             .split(';')
             .map(|tag| tag.split_whitespace().collect::<Vec<_>>().concat())
+            // ?
+            .take_while(|s| !s.is_empty())
         {
             match i.split_once('=').ok_or(ParseError::SyntaxError {
                 reason: "tag syntax is `{tag}={value}`".to_string(),
@@ -145,8 +147,13 @@ impl std::str::FromStr for Key {
             acceptable_hash_algorithms,
             r#type,
             notes,
-            public_key: public_key.ok_or(ParseError::MissingRequiredField {
-                field: "public_key".to_string(),
+            public_key: <rsa::RsaPublicKey as rsa::pkcs8::DecodePublicKey>::from_public_key_der(
+                &public_key.ok_or(ParseError::MissingRequiredField {
+                    field: "public_key".to_string(),
+                })?,
+            )
+            .map_err(|e| ParseError::InvalidArgument {
+                reason: format!("{e}"),
             })?,
             service_type,
             flags,
@@ -156,7 +163,7 @@ impl std::str::FromStr for Key {
 
 #[cfg(test)]
 mod tests {
-    use crate::dkim::{
+    use crate::{
         key::{KeyType, ServiceType, Version},
         HashAlgorithm,
     };
@@ -174,7 +181,14 @@ mod tests {
                 acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
                 r#type: KeyType::Rsa,
                 notes: None,
-                public_key: base64::decode("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2j7g33viWEfTCro0+Nyicz/vjTQZv+cq5Wla+ADyXkdSGJ0OFp9SrUu9tGeDhil2UEPsHHdnf3AaarX3hyY8Ne5X5EOnJ5WY3QSpTL+eVUtSTt5DbsDqfShzxbc/BsKb5sfHuGJxcKuCyFVqCyhpSKT4kdpzZ5FLLrEiyvJGYUfq7qvqPB+A/wx1TIO5YONWWH2mqy3zviLx70u06wnxwyvGve2HMKeMvDm1HGibZShJnOIRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB").unwrap(),
+                public_key:<rsa::RsaPublicKey as rsa::pkcs8::DecodePublicKey>::from_public_key_der(&base64::decode(
+                    concat!(
+                        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2",
+                        "j7g33viWEfTCro0+Nyicz/vjTQZv+cq5Wla+ADyXkdSGJ0OFp9SrUu9tGeDhil2UEPsHHdnf3AaarX3",
+                        "hyY8Ne5X5EOnJ5WY3QSpTL+eVUtSTt5DbsDqfShzxbc/BsKb5sfHuGJxcKuCyFVqCyhpSKT4kdpzZ5F",
+                        "LLrEiyvJGYUfq7qvqPB+A/wx1TIO5YONWWH2mqy3zviLx70u06wnxwyvGve2HMKeMvDm1HGibZShJnO",
+                        "IRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB"
+                    )).unwrap()).unwrap(),
                 service_type: vec![ServiceType::Wildcard],
                 flags: vec![]
             }

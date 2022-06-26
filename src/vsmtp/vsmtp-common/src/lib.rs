@@ -124,19 +124,6 @@ pub mod auth {
     pub use mechanism::Mechanism;
 }
 
-/// DKIM
-pub mod dkim {
-    mod algorithm;
-    mod canonicalization;
-    mod key;
-    mod signature;
-
-    pub use algorithm::{HashAlgorithm, SigningAlgorithm};
-    pub use canonicalization::{Canonicalization, CanonicalizationAlgorithm};
-    pub use key::Key;
-    pub use signature::Signature;
-}
-
 mod r#trait {
     pub mod mail_parser;
 }

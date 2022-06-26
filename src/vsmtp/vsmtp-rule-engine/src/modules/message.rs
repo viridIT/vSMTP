@@ -41,7 +41,6 @@ pub mod message {
         Ok(
             vsl_missing_ok!(vsl_guard_ok!(this.read()), "message", StateSMTP::PreQ)
                 .get_header(header)
-                .map(ToString::to_string)
                 .unwrap_or_default(),
         )
     }

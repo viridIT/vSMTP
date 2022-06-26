@@ -63,14 +63,24 @@ impl MessageBody {
 
     /// get the value of an header, return None if it does not exists or when the body is empty.
     #[must_use]
-    pub fn get_header(&self, name: &str) -> Option<&str> {
+    pub fn get_header(&self, name: &str) -> Option<String> {
         match self {
             Self::Raw { headers, .. } => {
-                for header in headers {
-                    let mut split = header.splitn(2, ": ");
+                for (idx, header) in headers.iter().enumerate() {
+                    if header.starts_with(' ') || header.starts_with('\t') {
+                        continue;
+                    }
+                    let mut split = header.splitn(2, ':');
                     match (split.next(), split.next()) {
-                        (Some(header), Some(value)) if header == name => {
-                            return Some(value);
+                        (Some(key), Some(value)) if key.to_lowercase() == name.to_lowercase() => {
+                            let mut s = value.to_string();
+                            for i in headers[idx + 1..]
+                                .iter()
+                                .take_while(|s| s.starts_with(' ') || s.starts_with('\t'))
+                            {
+                                s.push_str(i);
+                            }
+                            return Some(s);
                         }
                         (Some(_), Some(_)) => continue,
                         _ => break,
@@ -79,7 +89,7 @@ impl MessageBody {
 
                 None
             }
-            Self::Parsed(parsed) => parsed.get_header(name),
+            Self::Parsed(parsed) => parsed.get_header(name).map(str::to_string),
         }
     }
 

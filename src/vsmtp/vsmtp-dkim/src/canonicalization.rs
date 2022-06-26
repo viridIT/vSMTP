@@ -27,13 +27,53 @@ pub enum CanonicalizationAlgorithm {
 }
 
 impl CanonicalizationAlgorithm {
+    fn trim_whitespace(s: &str) -> String {
+        let mut new_str = s.trim().to_owned();
+        let mut prev = ' ';
+        new_str.retain(|ch| {
+            let result = ch != ' ' || prev != ' ';
+            prev = ch;
+            result
+        });
+        new_str
+    }
+
     ///
-    // TODO!
     #[must_use]
-    pub fn canonicalize(self, input: &str) -> String {
+    pub fn canonicalize_body(self, input: String) -> String {
         match self {
-            CanonicalizationAlgorithm::Relaxed | CanonicalizationAlgorithm::Simple => {
-                input.to_string()
+            CanonicalizationAlgorithm::Relaxed => {
+                // TODO:
+                input
+            }
+            CanonicalizationAlgorithm::Simple => {
+                if input.is_empty() {
+                    return "\r\n".to_string();
+                }
+
+                let mut i = input.as_str();
+                while i.ends_with("\r\n\r\n") {
+                    i = &i[..i.len() - 2];
+                }
+
+                i.to_string()
+            }
+        }
+    }
+
+    ///
+    #[must_use]
+    pub fn canonicalize_header(self, key: &str, value: &str) -> String {
+        match self {
+            CanonicalizationAlgorithm::Relaxed => {
+                format!(
+                    "{}:{}\r\n",
+                    key.to_lowercase().trim_end(),
+                    Self::trim_whitespace(&value.replace('\t', " "))
+                )
+            }
+            CanonicalizationAlgorithm::Simple => {
+                format!("{key}:{value}\r\n")
             }
         }
     }

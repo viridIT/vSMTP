@@ -15,6 +15,8 @@
  *
 */
 
+use vsmtp_common::MessageBody;
+
 use super::{Canonicalization, SigningAlgorithm};
 
 #[derive(Debug, thiserror::Error)]
@@ -79,20 +81,65 @@ pub struct Signature {
     /// tag "z="
     pub copy_header_fields: Option<Vec<(String, String)>>,
     /// tag "bh="
-    pub body_hash: Vec<u8>,
+    pub body_hash: String,
     /// tag "b="
-    pub signature: Vec<u8>,
+    pub signature: String,
+    raw: String,
 }
 
 impl Signature {
     ///
-    #[must_use]
-    pub fn get_dns_query(&self) -> String {
+    /// # Errors
+    ///
+    /// * see [`trust_dns_resolver::TokioAsyncResolver::txt_lookup`]
+    pub async fn get_public_key(
+        &self,
+        resolver: &trust_dns_resolver::TokioAsyncResolver,
+    ) -> Result<trust_dns_resolver::lookup::TxtLookup, trust_dns_resolver::error::ResolveError>
+    {
+        resolver.txt_lookup(self.get_dns_query()).await
+    }
+
+    fn get_dns_query(&self) -> String {
         format!(
             "{selector}._domainkey.{sdid}",
             selector = self.selector,
             sdid = self.sdid
         )
+    }
+
+    ///
+    /// # Panics
+    ///
+    /// header is missing
+    #[must_use]
+    pub fn get_header_hash(&self, message: &MessageBody) -> Vec<u8> {
+        let headers = self
+            .headers_field
+            .iter()
+            .map(|i| {
+                self.canonicalization.header.canonicalize_header(
+                    i,
+                    &message
+                        .get_header(i)
+                        .unwrap_or_else(|| todo!("header missing {i}")),
+                )
+            })
+            .collect::<String>();
+
+        let mut a = format!(
+            "{headers}{}",
+            self.canonicalization.header.canonicalize_header(
+                "dkim-signature",
+                &self.raw.replace(&self.signature, "").replace("\r\n", "")
+            )
+        );
+
+        // remove the final "\r\n"
+        a.pop();
+        a.pop();
+        println!("{a}");
+        self.signing_algorithm.hash(a)
     }
 }
 
@@ -206,20 +253,18 @@ impl std::str::FromStr for Signature {
                     );
                 }
                 ("bh", p_body_hash) => {
-                    body_hash =
-                        Some(
-                            base64::decode(p_body_hash).map_err(|e| ParseError::SyntaxError {
-                                reason: format!("failed to pase `body_hash`: got `{e}`"),
-                            })?,
-                        );
+                    base64::decode(p_body_hash).map_err(|e| ParseError::SyntaxError {
+                        reason: format!("failed to pase `body_hash`: got `{e}`"),
+                    })?;
+
+                    body_hash = Some(p_body_hash.to_string());
                 }
                 ("b", p_signature) => {
-                    signature =
-                        Some(
-                            base64::decode(p_signature).map_err(|e| ParseError::SyntaxError {
-                                reason: format!("failed to pase `signature`: got `{e}`"),
-                            })?,
-                        );
+                    base64::decode(p_signature).map_err(|e| ParseError::SyntaxError {
+                        reason: format!("failed to pase `signature`: got `{e}`"),
+                    })?;
+
+                    signature = Some(p_signature.to_string());
                 }
                 // unknown tags are ignored
                 _ => continue,
@@ -284,6 +329,7 @@ impl std::str::FromStr for Signature {
             signature: signature.ok_or(ParseError::MissingRequiredField {
                 field: "signature".to_string(),
             })?,
+            raw: s.to_string(),
         })
     }
 }
@@ -291,7 +337,7 @@ impl std::str::FromStr for Signature {
 #[cfg(test)]
 mod tests {
     use super::{Canonicalization, QueryMethod, Signature, SigningAlgorithm};
-    use crate::dkim::CanonicalizationAlgorithm;
+    use crate::CanonicalizationAlgorithm;
 
     #[test]
     fn from_str_wikipedia() {
@@ -311,7 +357,7 @@ mod tests {
         let sign =
             <Signature as std::str::FromStr>::from_str(&signature["DKIM-Signature: ".len()..])
                 .unwrap();
-        assert_eq!(
+        pretty_assertions::assert_eq!(
             sign,
             Signature {
                 version: 1,
@@ -342,11 +388,10 @@ mod tests {
                     .map(|(k, v)| (k.to_string(), v.to_string()))
                     .collect()
                 ),
-                body_hash: base64::decode("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI").unwrap(),
-                signature: base64::decode(
-                    "dzdVyOfAKCdLXdJOc9G2q8LoXSlEniSbav+yuU4zGeeruD00lszZVoG4ZHRNiYzR"
-                )
-                .unwrap()
+                body_hash: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=".to_string(),
+                signature: "dzdVyOfAKCdLXdJOc9G2q8LoXSlEniSbav+yuU4zGeeruD00lszZVoG4ZHRNiYzR"
+                    .to_string(),
+                raw: signature["DKIM-Signature: ".len()..].to_string()
             }
         );
         println!("{sign:#?}");

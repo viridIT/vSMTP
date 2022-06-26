@@ -56,8 +56,11 @@ fn test_get_header() {
 
     let (raw, parsed) = generate_test_bodies();
 
-    assert_eq!(raw.get_header("To"), Some("green@example.com"));
-    assert_eq!(parsed.get_header("to"), Some("green@example.com"));
+    assert_eq!(raw.get_header("To"), Some("green@example.com".to_string()));
+    assert_eq!(
+        parsed.get_header("to"),
+        Some("green@example.com".to_string())
+    );
 }
 
 #[test]
@@ -72,11 +75,20 @@ fn test_set_and_add_header() {
 
     raw.set_header("Subject", subject_message);
     raw.set_header(new_header, new_header_message);
-    assert_eq!(raw.get_header("Subject"), Some(subject_message));
-    assert_eq!(raw.get_header(new_header), Some(new_header_message));
+    assert_eq!(raw.get_header("Subject"), Some(subject_message.to_string()));
+    assert_eq!(
+        raw.get_header(new_header),
+        Some(new_header_message.to_string())
+    );
 
     parsed.set_header("subject", subject_message);
     parsed.set_header(new_header, new_header_message);
-    assert_eq!(parsed.get_header("subject"), Some(subject_message));
-    assert_eq!(parsed.get_header(new_header), Some(new_header_message));
+    assert_eq!(
+        parsed.get_header("subject"),
+        Some(subject_message.to_string())
+    );
+    assert_eq!(
+        parsed.get_header(new_header),
+        Some(new_header_message.to_string())
+    );
 }

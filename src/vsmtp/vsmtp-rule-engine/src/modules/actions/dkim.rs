@@ -22,15 +22,12 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use rhai::EvalAltResult;
-use vsmtp_common::dkim::{Key, Signature};
-use vsmtp_common::re::tokio;
-use vsmtp_common::state::StateSMTP;
-use vsmtp_common::MessageBody;
+use vsmtp_common::{re::tokio, state::StateSMTP};
+use vsmtp_dkim::{verify, Key, Signature};
 
 #[doc(hidden)]
 #[rhai::plugin::export_module]
 pub mod dkim {
-    use vsmtp_common::dkim::SigningAlgorithm;
 
     #[rhai_fn(global, return_raw)]
     pub fn parse_signature(input: &str) -> EngineResult<Signature> {
@@ -56,8 +53,7 @@ pub mod dkim {
         let resolver = server.resolvers.get(&server.config.server.domain).unwrap();
 
         let result = tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current()
-                .block_on(async move { resolver.txt_lookup(signature.get_dns_query()).await })
+            tokio::runtime::Handle::current().block_on(signature.get_public_key(resolver))
         })
         .map_err::<Box<EvalAltResult>, _>(|e| format!("{e}").into())?;
 
@@ -85,71 +81,7 @@ pub mod dkim {
         let guard = vsl_guard_ok!(message.read());
         let message = vsl_missing_ok!(guard, "message", StateSMTP::PreQ);
 
-        if !signature
-            .signing_algorithm
-            .is_supported(&key.acceptable_hash_algorithms)
-        {
-            return Err(format!(
-                "the `signing_algorithm` ({}) is not suitable for the `acceptable_hash_algorithms` ({})",
-                signature.signing_algorithm,
-                key.acceptable_hash_algorithms.iter().map(ToString::to_string).collect::<Vec<_>>().join(",")
-            )
-            .into());
-        }
-
-        if key.public_key.is_empty() {
-            return Err("the key has been revoked".into());
-        }
-
-        println!("signature = {signature:?}");
-        println!("key = {key:?}");
-
-        let body = signature
-            .canonicalization
-            .body
-            .canonicalize(&match &message {
-                MessageBody::Raw { body, .. } => body.clone(),
-                MessageBody::Parsed(mail) => format!("{}", mail.body),
-            });
-
-        let body_hash = signature
-            .signing_algorithm
-            .hash(match signature.body_length {
-                // TODO: handle policy
-                Some(len) => &body[..std::cmp::min(body.len(), len)],
-                None => &body,
-            });
-        if signature.body_hash != body_hash {
-            return Err("body hash does not match".into());
-        }
-
-        let headers = signature
-            .canonicalization
-            .header
-            // TODO: filter
-            .canonicalize(&match &message {
-                MessageBody::Raw { headers, .. } => headers.join("\r\n"),
-                MessageBody::Parsed(mail) => format!("{}", mail.headers),
-            });
-
-        let key = <rsa::RsaPublicKey as rsa::pkcs8::DecodePublicKey>::from_public_key_der(
-            &key.public_key,
-        )
-        .map_err::<Box<EvalAltResult>, _>(|e| format!("{e}").into())?;
-
-        if let Err(e) = rsa::PublicKey::verify(
-            &key,
-            rsa::PaddingScheme::PKCS1v15Sign {
-                hash: Some(match signature.signing_algorithm {
-                    SigningAlgorithm::RsaSha1 => rsa::hash::Hash::SHA1,
-                    SigningAlgorithm::RsaSha256 => rsa::hash::Hash::SHA2_256,
-                }),
-            },
-            headers.as_bytes(),
-            &signature.signature,
-        ) {
-            println!("{e}");
-        }
+        verify(message, &signature, &key).unwrap();
 
         Ok(())
     }

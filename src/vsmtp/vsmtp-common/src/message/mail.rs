@@ -84,8 +84,15 @@ struct HeaderFoldable<'a>(&'a str, &'a str);
 
 impl<'a> std::fmt::Display for HeaderFoldable<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let key =
-            convert_case::Casing::to_case(&self.0, convert_case::Case::Train).replace("Id", "ID");
+        let key = convert_case::Casing::to_case(&self.0, convert_case::Case::Train)
+            .replace("Id", "ID")
+            .replace("Mime-Version", "MIME-Version")
+            .replace("Dkim", "DKIM")
+            .replace("Arc", "ARC")
+            .replace("Spf", "SPF")
+            .replace("X-Ms", "X-MS")
+            .replace("X-Vr", "X-VR");
+
         f.write_str(&key)?;
         f.write_str(": ")?;
 

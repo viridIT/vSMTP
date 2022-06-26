@@ -95,7 +95,7 @@ fn test_email_context_mail() {
             .as_ref()
             .unwrap()
             .get_header("to"),
-        Some("other.new@rcpt.net, other.added@rcpt.com")
+        Some("other.new@rcpt.net, other.added@rcpt.com".to_string())
     );
 }
 
