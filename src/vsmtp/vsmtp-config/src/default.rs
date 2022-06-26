@@ -188,6 +188,10 @@ impl FieldServerTls {
             rustls::CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
         ]
     }
+
+    pub(crate) const fn default_handshake_timeout() -> std::time::Duration {
+        std::time::Duration::from_secs(1)
+    }
 }
 
 impl Default for FieldServerQueues {

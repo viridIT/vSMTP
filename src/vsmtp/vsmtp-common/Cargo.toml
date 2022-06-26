@@ -57,7 +57,8 @@ users = { version = "0.11.0", features = [] }
 pretty_assertions = "1.2.1"
 
 [features]
-default = ["vsmtp-rsasl/gsasl_bindgen"]
+default = ["gsasl_bindgen"]
+gsasl_bindgen = ["vsmtp-rsasl/gsasl_bindgen"]
 
 # TODO: improve that
 [package.metadata.docs.rs]

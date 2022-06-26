@@ -25,9 +25,9 @@ keywords = [
 categories = ["config"]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.1.0" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.1.0" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.1.0" }
+vsmtp-common = { path = "../vsmtp-common", version = "1.1.0", default-features = false }
+vsmtp-config = { path = "../vsmtp-config", version = "1.1.0", default-features = false }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.1.0", default-features = false }
 
 thiserror = "1.0.31"
 
@@ -39,7 +39,7 @@ csv = "1.1"
 
 viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
 hostname = "0.3.1"
-time = { version = "0.3.10", default-features = false, features = [
+time = { version = "0.3.11", default-features = false, features = [
   "std",
   "formatting",
   "macros",
@@ -56,3 +56,12 @@ wait-timeout = "0.2.0"
 
 [dev-dependencies]
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
+
+[features]
+default = ["vsmtp-common/gsasl_bindgen"]
+
+# TODO: improve that
+[package.metadata.docs.rs]
+features = []
+all-features = false
+no-default-features = true

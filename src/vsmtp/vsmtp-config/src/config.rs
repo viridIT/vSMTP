@@ -318,9 +318,11 @@ pub mod field {
         pub security_level: TlsSecurityLevel,
         /// Ignore the client’s ciphersuite order.
         /// Instead, choose the top ciphersuite in the server list which is supported by the client.
+        #[serde(default)]
         pub preempt_cipherlist: bool,
         /// Timeout for the TLS handshake. Sending a [`CodeID::Timeout`] to the client.
         #[serde(with = "humantime_serde")]
+        #[serde(default = "FieldServerTls::default_handshake_timeout")]
         pub handshake_timeout: std::time::Duration,
         /// TLS protocol supported
         #[serde(
