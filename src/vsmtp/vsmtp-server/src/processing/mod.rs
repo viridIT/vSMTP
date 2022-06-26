@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{log_channels, receiver::MailHandlerError, ProcessMessage};
+use crate::{delegate, log_channels, receiver::MailHandlerError, Process, ProcessMessage};
 use anyhow::Context;
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
@@ -23,7 +23,7 @@ use vsmtp_common::{
     re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
-    transfer::Transfer,
+    transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -93,7 +93,7 @@ async fn handle_one_in_working_queue_inner(
         process_message.message_id,
     );
 
-    let (context_filepath, message_filepath) = (
+    let (context_working_filepath, message_working_filepath) = (
         queue_path!(
             &config.server.queues.dirpath,
             Queue::Working,
@@ -110,95 +110,154 @@ async fn handle_one_in_working_queue_inner(
         target: log_channels::POSTQ,
         "(msg={}) opening file: ctx=`{}` msg=`{}`",
         process_message.message_id,
-        context_filepath.display(),
-        message_filepath.display(),
+        context_working_filepath.display(),
+        message_working_filepath.display(),
     );
 
-    let (mail_context, mail_message) = tokio::join!(
-        MailContext::from_file_path(&context_filepath),
-        MessageBody::from_file_path(message_filepath)
+    let (context_working, message_working) = tokio::join!(
+        MailContext::from_file_path(&context_working_filepath),
+        MessageBody::from_file_path(message_working_filepath)
     );
-    let (mail_context, mail_message) = (
-        mail_context.with_context(|| {
+
+    let (context_working, message_working) = (
+        context_working.with_context(|| {
             format!(
                 "failed to deserialize email in working queue '{}'",
-                context_filepath.display()
+                context_working_filepath.display()
             )
         })?,
-        mail_message.context("error while reading message")?,
+        message_working.context("error while reading message")?,
     );
 
-    let (ctx, message, result) = RuleState::just_run_when(
+    let (mut context, message, _, skipped) = RuleState::just_run_when(
         &StateSMTP::PostQ,
         config.as_ref(),
         resolvers,
         &rule_engine,
-        mail_context,
-        mail_message,
+        context_working,
+        message_working,
     )?;
 
-    // writing the mails in any case because we don't know (yet) if it changed
-    Queue::write_to_mails(
-        &config.server.queues.dirpath,
-        &process_message.message_id,
-        &message.ok_or_else(|| anyhow::anyhow!("message is empty"))?,
-    )?;
+    let message = message.ok_or_else(|| anyhow::anyhow!("message is empty"))?;
 
-    let queue = match result {
-        Status::Quarantine(path) => {
-            let mut path = create_app_folder(&config, Some(&path))
+    let mut write_to_queue = Option::<Queue>::None;
+    let mut send_to_delivery = false;
+    let mut write_email = true;
+
+    match &skipped {
+        Some(Status::Quarantine(path)) => {
+            let mut path = create_app_folder(&config, Some(path))
                 .map_err(MailHandlerError::CreateAppFolder)?;
 
             path.push(format!("{}.json", process_message.message_id));
 
-            Queue::write_to_quarantine(&path, &ctx)
+            Queue::write_to_quarantine(&path, &context)
                 .await
                 .map_err(MailHandlerError::WriteQuarantineFile)?;
 
-            std::fs::remove_file(&context_filepath).context(format!(
+            std::fs::remove_file(&context_working_filepath).context(format!(
                 "failed to remove '{}' from the working queue",
                 process_message.message_id
             ))?;
 
-            log::warn!("delivery skipped due to quarantine.");
-            return Ok(());
-        }
-        Status::Deny(_) => Queue::Dead,
-        _ if ctx
-            .envelop
-            .rcpt
-            .iter()
-            .all(|rcpt| rcpt.transfer_method == Transfer::None) =>
-        {
             log::warn!(
                 target: log_channels::POSTQ,
-                "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
-                process_message.message_id,
+                "[{}/postq] skipped due to quarantine.",
+                context.connection.server_address
             );
-            Queue::Dead
         }
-        _ => Queue::Deliver,
+        Some(Status::Delegated(delegator)) => {
+            context.metadata.as_mut().unwrap().skipped = None;
+
+            // FIXME: find a way to use `write_to_queue` instead to be consistant
+            //        with the rest of the function.
+            Queue::Working
+                .write_to_queue(&config.server.queues.dirpath, &context)
+                .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
+
+            // NOTE: needs to be executed after writing, because the other
+            //       thread could pickup the email faster than this function.
+            delegate(delegator, &context, &message).map_err(MailHandlerError::DelegateMessage)?;
+
+            write_email = false;
+
+            log::warn!(
+                target: log_channels::POSTQ,
+                "[{}/postq] skipped due to delegation.",
+                context.connection.server_address
+            );
+        }
+        Some(Status::DelegationResult) => {
+            send_to_delivery = true;
+        }
+        Some(Status::Deny(code)) => {
+            for rcpt in &mut context.envelop.rcpt {
+                rcpt.email_status = EmailTransferStatus::Failed(format!(
+                    "rule engine denied the email in delivery: {code:?}."
+                ));
+            }
+
+            write_to_queue = Some(Queue::Dead);
+        }
+        Some(reason) => {
+            log::warn!(
+                target: log_channels::POSTQ,
+                "[{}/postq] skipped due to '{}'.",
+                context.connection.server_address,
+                reason.as_ref()
+            );
+            write_to_queue = Some(Queue::Deliver);
+            send_to_delivery = true;
+        }
+        None => {
+            write_to_queue = Some(Queue::Deliver);
+            send_to_delivery = true;
+        }
     };
 
-    queue
-        .write_to_queue(&config.server.queues.dirpath, &ctx)
-        .context(format!(
-            "failed to move '{}' from delivery queue to deferred queue",
-            process_message.message_id
-        ))?;
+    println!("postq status: write_email: {write_email}, skip: {skipped:?}, write_to_queue: {write_to_queue:?}, send_to_delivery: {send_to_delivery}");
 
-    if queue != Queue::Dead {
-        delivery_sender
-            .send(ProcessMessage {
-                message_id: process_message.message_id.to_string(),
-            })
-            .await?;
+    // FIXME: sending the email down a ProcessMessage instead
+    //        of writing on disk would be great here.
+    if write_email {
+        Queue::write_to_mails(
+            &config.server.queues.dirpath,
+            &process_message.message_id,
+            &message,
+        )
+        .map_err(MailHandlerError::WriteMessageBody)?;
+
+        log::debug!(
+            target: log_channels::TRANSACTION,
+            "[{}/postq] (msg={}) email written in 'mails' queue.",
+            context.connection.server_address,
+            process_message.message_id
+        );
     }
 
-    std::fs::remove_file(&context_filepath).context(format!(
-        "failed to remove '{}' from the working queue",
-        process_message.message_id
-    ))?;
+    if let Some(queue) = write_to_queue {
+        queue
+            .write_to_queue(&config.server.queues.dirpath, &context)
+            .map_err(|error| MailHandlerError::WriteToQueue(queue, error))?;
+
+        // we remove the old working queue message only
+        // if the message as not been overwritten already.
+        if !matches!(queue, Queue::Working) {
+            std::fs::remove_file(&context_working_filepath).context(format!(
+                "failed to remove '{}' from the working queue",
+                process_message.message_id
+            ))?;
+        }
+    }
+
+    if send_to_delivery {
+        delivery_sender
+            .send(ProcessMessage {
+                message_id: process_message.message_id.clone(),
+            })
+            .await
+            .map_err(|error| MailHandlerError::SendToNextProcess(Process::Delivery, error))?;
+    }
 
     Ok(())
 }

@@ -17,17 +17,8 @@
 
 use crate::{modules::EngineResult, rule_state::RuleState, vsl_guard_ok, Service};
 use vsmtp_common::{
-    rcpt::Rcpt,
-    re::{
-        anyhow::{self, Context},
-        lettre::{self, Transport},
-    },
-    state::StateSMTP,
-    status::Status,
-    Address,
+    mail_context::MailContext, queue::Queue, queue_path, state::StateSMTP, status::Status,
 };
-
-use super::service::SmtpConnection;
 
 /// a set of directives, filtered by smtp stage.
 pub type Directives = std::collections::BTreeMap<String, Vec<Directive>>;
@@ -91,122 +82,82 @@ impl Directive {
                 name,
             } => {
                 if let Service::Smtp { delegator, .. } = &**service {
-                    let (from, rcpt, body) = {
-                        let delegation_header = vsl_guard_ok!(state.message().read())
-                            .as_ref()
-                            .ok_or_else::<rhai::EvalAltResult, _>(|| {
-                                "tried to delegate email security but the body was empty".into()
-                            })?
-                            .get_header_rev("X-VSMTP-DELEGATION")
-                            .map(std::string::ToString::to_string);
-
-                        // FIXME: this check is made twice (once in RuleEngine::run_when).
-                        // if the 'directive' field set in the header matches the name
-                        // of the current directive, we run the block of code.
-                        if let Some(header) = delegation_header {
+                    let args = vsl_guard_ok!(state.message().read())
+                        .as_ref()
+                        .ok_or_else::<rhai::EvalAltResult, _>(|| {
+                            "tried to delegate email security but the body was empty".into()
+                        })?
+                        .get_header_rev("X-VSMTP-DELEGATION")
+                        .map(|header| {
                             let header =
-                                vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
+                                vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
+                            (
+                                header.args.get("id").cloned(),
+                                header.args.get("directive").cloned(),
+                            )
+                        });
 
-                            match header.args.get("directive") {
-                                Some(directive_name) if directive_name == name => {
-                                    return state.engine().call_fn(
-                                        &mut rhai::Scope::new(),
-                                        ast,
-                                        pointer.fn_name(),
-                                        (),
-                                    );
-                                }
-                                _ => {}
-                            };
-                        }
-
-                        let ctx = state.context();
-                        let ctx = vsl_guard_ok!(ctx.read());
-
-                        let body = {
-                            let msg = state.message();
-                            let mut msg = vsl_guard_ok!(msg.write());
-                            let msg = msg.as_mut().ok_or_else::<rhai::EvalAltResult, _>(|| {
-                                "tried to delegate email security but the body was empty".into()
-                            })?;
-
-                            msg.add_header(
-                                "X-VSMTP-DELEGATION",
-                                &format!(
-                                    "sent; stage={}; directive={}; id={}",
-                                    smtp_stage,
-                                    name,
-                                    ctx.metadata.as_ref().unwrap().message_id
-                                ),
+                    // FIXME: This check is made twice (once in RuleEngine::run_when).
+                    //
+                    // If the 'directive' field set in the header matches the name
+                    // of the current directive, we pull old context from the working
+                    // queue and run the block of code.
+                    // Otherwise, we add the X-VSMTP-DELEGATION to the message.
+                    return match args {
+                        Some((Some(message_id), Some(header_directive)))
+                            if header_directive == *name =>
+                        {
+                            let context_path = queue_path!(
+                                &state.server.config.server.queues.dirpath,
+                                Queue::Working,
+                                &message_id
                             );
 
-                            msg.to_string()
-                        };
+                            *state.context().write().unwrap() =
+                                MailContext::from_file_path_sync(&context_path)
+                                    .map_err::<rhai::EvalAltResult, _>(|_| {
+                                    format!("failed to pull old metadata for message {message_id}")
+                                        .into()
+                                })?;
 
-                        (
-                            ctx.envelop.mail_from.clone(),
-                            ctx.envelop.rcpt.clone(),
-                            body,
-                        )
-                    };
-
-                    let delegator =
-                        delegator
-                            .lock()
-                            .map_err::<Box<rhai::EvalAltResult>, _>(|err| {
-                                format!(
-                                "delegation connector for the '{}' smtp service is poisoned: {}",
-                                name, err
-                            )
-                                .into()
-                            })?;
-
-                    delegate(&*delegator, &from, &rcpt[..], body.as_bytes()).map_err::<Box<
-                        rhai::EvalAltResult,
-                    >, _>(
-                        |err| {
-                            format!(
-                                "failed to delegate in {}:'{}' : {}",
-                                smtp_stage,
+                            state.engine().call_fn(
+                                &mut rhai::Scope::new(),
+                                ast,
                                 pointer.fn_name(),
-                                err
+                                (),
                             )
-                            .into()
-                        },
-                    )?;
+                        }
+                        _ => {
+                            vsl_guard_ok!(state.message().write())
+                                .as_mut()
+                                .ok_or_else::<rhai::EvalAltResult, _>(|| {
+                                    "tried to delegate email security but the body was empty".into()
+                                })?
+                                .add_header(
+                                    "X-VSMTP-DELEGATION",
+                                    &format!(
+                                        "sent; stage={}; directive=\"{}\"; id=\"{}\"",
+                                        smtp_stage,
+                                        name,
+                                        vsl_guard_ok!(state.context().read())
+                                            .metadata
+                                            .as_ref()
+                                            .unwrap()
+                                            .message_id
+                                    ),
+                                );
 
-                    Ok(Status::Delegated)
-                } else {
-                    Err(format!(
-                        "cannot delegate security using the '{}' service in {}:'{}'.",
-                        name,
-                        smtp_stage,
-                        pointer.fn_name()
-                    )
-                    .into())
+                            Ok(Status::Delegated(delegator.clone()))
+                        }
+                    };
                 }
+
+                Err(format!(
+                    "cannot delegate security using a '{}' service in {}:'{}'.",
+                    service, smtp_stage, name,
+                )
+                .into())
             }
         }
     }
-}
-
-fn delegate(
-    delegator: &SmtpConnection,
-    from: &Address,
-    rcpt: &[Rcpt],
-    body: &[u8],
-) -> anyhow::Result<lettre::transport::smtp::response::Response> {
-    let envelope = lettre::address::Envelope::new(
-        Some(from.full().parse()?),
-        rcpt.iter()
-            .map(|rcpt| {
-                rcpt.address
-                    .full()
-                    .parse::<lettre::Address>()
-                    .with_context(|| format!("failed to parse address {}", rcpt.address.full()))
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?,
-    )?;
-
-    Ok(delegator.0.send_raw(&envelope, body)?)
 }

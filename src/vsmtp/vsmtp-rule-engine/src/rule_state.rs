@@ -25,6 +25,8 @@ pub struct RuleState {
     mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
     /// A pointer to the mail body for the current connection.
     message: std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>,
+    // NOTE: we could replace this property by a `skip` function on
+    //       the `Status` enum.
     /// A state to check if the next rules need to be executed or skipped.
     skip: Option<Status>,
 }
@@ -218,6 +220,9 @@ impl RuleState {
 
     /// Instantiate a [`RuleState`] and run it for the only `state` provided
     ///
+    /// # Return
+    /// A tuple with the mail context, body, result status, and skip status.
+    ///
     /// # Errors
     ///
     /// * `rule_engine` mutex poisoned
@@ -228,7 +233,7 @@ impl RuleState {
         rule_engine: &std::sync::RwLock<RuleEngine>,
         mail_context: MailContext,
         mail_message: MessageBody,
-    ) -> anyhow::Result<(MailContext, Option<MessageBody>, Status)> {
+    ) -> anyhow::Result<(MailContext, Option<MessageBody>, Status, Option<Status>)> {
         let rule_engine = rule_engine
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
@@ -244,10 +249,10 @@ impl RuleState {
         );
         let result = rule_engine.run_when(&server_address, &mut rule_state, state);
 
-        let (mail_context, mail_message) = rule_state
+        let (mail_context, mail_message, skipped) = rule_state
             .take()
             .expect("should not have strong reference here");
-        Ok((mail_context, mail_message, result))
+        Ok((mail_context, mail_message, result, skipped))
     }
 
     /// Consume [`self`] and return the inner [`MailContext`] and [`MessageBody`]
@@ -256,8 +261,9 @@ impl RuleState {
     ///
     /// * at least one strong reference of the [`std::sync::Arc`] is living
     /// * the [`std::sync::RwLock`] is poisoned
-    pub fn take(self) -> anyhow::Result<(MailContext, Option<MessageBody>)> {
+    pub fn take(self) -> anyhow::Result<(MailContext, Option<MessageBody>, Option<Status>)> {
         // early drop of engine because a strong reference is living inside
+        let skipped = self.skipped().cloned();
         drop(self.engine);
         Ok((
             std::sync::Arc::try_unwrap(self.mail_context)
@@ -268,6 +274,7 @@ impl RuleState {
             std::sync::Arc::try_unwrap(self.message)
                 .map_err(|_| anyhow::anyhow!("strong reference of the field `message` exists"))?
                 .into_inner()?,
+            skipped,
         ))
     }
 

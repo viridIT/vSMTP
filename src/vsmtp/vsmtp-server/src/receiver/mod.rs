@@ -187,7 +187,7 @@ where
         }
     }
 
-    let (mail_context, message) = transaction.rule_state.take().unwrap();
+    let (mail_context, message, _) = transaction.rule_state.take().unwrap();
 
     let helo = mail_context.envelop.helo.clone();
     let code = mail_handler

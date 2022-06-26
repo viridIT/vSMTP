@@ -224,7 +224,7 @@ impl Transaction {
                     Status::Accept(packet) | Status::Faccept(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::MailFrom, packet)
                     }
-                    Status::Delegated
+                    Status::Delegated(_)
                     | Status::DelegationResult
                     | Status::Next
                     | Status::Quarantine(_)
@@ -255,7 +255,7 @@ impl Transaction {
                     Status::Accept(packet) | Status::Faccept(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::RcptTo, packet)
                     }
-                    Status::Delegated
+                    Status::Delegated(_)
                     | Status::DelegationResult
                     | Status::Next
                     | Status::Quarantine(_)
