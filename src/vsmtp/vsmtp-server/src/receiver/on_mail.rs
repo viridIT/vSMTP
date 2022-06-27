@@ -167,8 +167,6 @@ impl MailHandler {
             }
         };
 
-        println!("preq status: skip: {:?}, write_to_queue: {write_to_queue:?}, send_to_next_process: {send_to_next_process:?}", skipped);
-
         Queue::write_to_mails(&conn.config.server.queues.dirpath, &message_id, &message)
             .map_err(MailHandlerError::WriteMessageBody)?;
 

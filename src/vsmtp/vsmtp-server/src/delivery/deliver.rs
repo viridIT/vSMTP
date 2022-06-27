@@ -213,8 +213,6 @@ async fn handle_one_in_delivery_queue_inner(
         None => {}
     };
 
-    println!("delivery status: skip: {skipped:?}, write_to_queue: {write_to_queue:?}");
-
     if let Some(queue) = write_to_queue {
         // writing the whole email anyway because it
         // has not being sent.
@@ -240,7 +238,7 @@ async fn handle_one_in_delivery_queue_inner(
         // if the message as not been overwritten already.
         if !matches!(queue, Queue::Working) {
             std::fs::remove_file(&context_deliver_filepath).context(format!(
-                "failed to remove '{}' from the working queue",
+                "failed to remove '{}' from the deliver queue",
                 process_message.message_id
             ))?;
         }
@@ -277,6 +275,11 @@ async fn handle_one_in_delivery_queue_inner(
             success
         };
 
+        std::fs::remove_file(&context_deliver_filepath).context(format!(
+            "failed to remove '{}' from the delivery queue",
+            process_message.message_id
+        ))?;
+
         if success {
             message_deliver_filepath.set_extension(match message {
                 MessageBody::Raw { .. } => "eml",
@@ -286,11 +289,6 @@ async fn handle_one_in_delivery_queue_inner(
             std::fs::remove_file(&message_deliver_filepath).context(format!(
                 "failed to remove {:?} from the mail queue",
                 message_deliver_filepath
-            ))?;
-
-            std::fs::remove_file(&context_deliver_filepath).context(format!(
-                "failed to remove '{}' from the delivery queue",
-                process_message.message_id
             ))?;
         }
     }

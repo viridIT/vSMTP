@@ -215,8 +215,6 @@ async fn handle_one_in_working_queue_inner(
         }
     };
 
-    println!("postq status: write_email: {write_email}, skip: {skipped:?}, write_to_queue: {write_to_queue:?}, send_to_delivery: {send_to_delivery}");
-
     // FIXME: sending the email down a ProcessMessage instead
     //        of writing on disk would be great here.
     if write_email {
