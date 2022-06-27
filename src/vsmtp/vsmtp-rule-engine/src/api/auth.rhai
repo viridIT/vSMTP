@@ -61,6 +61,29 @@ fn check_spf(identity, header) {
     check_spf(identity, header, "strict")
 }
 
+/// create key-value pairs of spf results
+/// to inject into the spf or auth headers.
+private fn spf_key_value_list(query) {
+`receiver=${hostname()}; client-ip=${ctx().client_ip};
+ identity=mailfrom; envelope_from=${ctx().mail_from};
+ ${
+   if "mechanism" in query { `mechanism=${query.mechanism};` }
+   else if "problem" in query { `problem=${query.problem};` }
+ }`
+}
+
+/// Record results in a spf header (RFC 7208-9)
+private fn spf_header(query) {
+    `${query.result} ${spf_key_value_list(query)}`
+}
+
+/// Record results in the auth header (RFC 7208-9)
+fn auth_header(query) {
+`${hostname()}; spf=${query.result}
+ reason="${spf_key_value_list(query)}"
+ smtp.mailfrom=${ctx().mail_from}`;
+}
+
 /// check spf record.
 /// Sender Policy Framework (RFC 7208).
 ///
@@ -85,27 +108,6 @@ fn check_spf(identity, header, policy) {
     const AUTH_HEADER = "Authentication-Results";
     const SPF_HEADER = "Received-SPF";
 
-    fn spf_key_value_list(query) {
-`receiver=${hostname()}; client-ip=${ctx().client_ip};
- identity=mailfrom; envelope_from=${ctx().mail_from};
- ${
-   if "mechanism" in query { `mechanism=${query.mechanism};` }
-   else if "problem" in query { `problem=${query.problem};` }
- }`
-    }
-
-    // Record results in a spf header (RFC 7208-9)
-    fn spf_header(query) {
-        `${query.result} ${spf_key_value_list(query)}`
-    }
-
-    // Record results in the auth header (RFC 7208-9)
-    fn auth_header(query) {
-`${hostname()}; spf=${query.result}
- reason="${spf_key_value_list(query)}"
- smtp.mailfrom=${ctx().mail_from}`;
-    }
-
     let query = sys::check_spf(ctx(), srv(), identity);
 
     // TODO: The Received-SPF header field is a trace field
@@ -124,12 +126,12 @@ fn check_spf(identity, header, policy) {
 
     if policy == "strict" {
         switch query.result {
-            "pass" => {},
-            "fail" => return deny(code550_7_23),
-            "softfail" => return deny(code550_7_23),
-            "temperror" => return deny(code451_7_24),
-            "permerror" => return deny(code550_7_24),
-            _ => set_header("subject", "JUNK: " + get_header("subject")),
+            "pass" => next(),
+            "fail" => deny(code550_7_23),
+            "softfail" => deny(code550_7_23),
+            "temperror" => deny(code451_7_24),
+            "permerror" => deny(code550_7_24),
+            _ => { set_header("subject", "JUNK: " + get_header("subject")); next() },
         }
     } else {
         next()
