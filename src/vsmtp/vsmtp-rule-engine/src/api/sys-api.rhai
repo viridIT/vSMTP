@@ -15,6 +15,7 @@ fn quarantine(queue) { sys::quarantine(ctx(), queue) }
 fn has_header(header) { sys::has_header(msg(), header) }
 fn get_header(header) { sys::get_header(msg(), header) }
 fn add_header(header, value) { sys::add_header(msg(), header, value) }
+fn prepend_header(header, value) { sys::prepend_header(msg(), header, value) }
 fn set_header(header, value) { sys::set_header(msg(), header, value) }
 fn add_to(addr) { sys::add_to(msg(), addr) }
 fn remove_to(addr) { sys::remove_to(msg(), addr) }
