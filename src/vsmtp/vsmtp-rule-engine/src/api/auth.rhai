@@ -133,8 +133,15 @@ fn check_spf(identity, header, policy) {
             "permerror" => deny(code550_7_24),
             _ => { set_header("subject", "JUNK: " + get_header("subject")); next() },
         }
+    } else if policy == "soft" {
+        switch query.result {
+            "fail" => deny(code550_7_23),
+            "temperror" => deny(code451_7_24),
+            "permerror" => deny(code550_7_24),
+            _ => next(),
+        }
     } else {
-        next()
+        throw `spf 'policy' argument must be 'strict' or 'soft', not '${policy}'`;
     }
 }
 
