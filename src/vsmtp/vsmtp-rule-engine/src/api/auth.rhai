@@ -82,47 +82,58 @@ fn check_spf(identity, header) {
 /// ```
 fn check_spf(identity, header, policy) {
 
+    const AUTH_HEADER = "Authentication-Results";
+    const SPF_HEADER = "Received-SPF";
+
+    fn spf_key_value_list(query) {
+`receiver=${hostname()}; client-ip=${ctx().client_ip};
+ identity=mailfrom; envelope_from=${ctx().mail_from};
+ ${
+   if "mechanism" in query { `mechanism=${query.mechanism};` }
+   else if "problem" in query { `problem=${query.problem};` }
+ }`
+    }
+
+    // Record results in a spf header (RFC 7208-9)
+    fn spf_header(query) {
+        `${query.result} ${spf_key_value_list(query)}`
+    }
+
+    // Record results in the auth header (RFC 7208-9)
+    fn auth_header(query) {
+`${hostname()}; spf=${query.result}
+ reason="${spf_key_value_list(query)}"
+ smtp.mailfrom=${ctx().mail_from}`;
+    }
+
     let query = sys::check_spf(ctx(), srv(), identity);
+
+    // TODO: The Received-SPF header field is a trace field
+    // and SHOULD be prepended to the existing header, above the Received: field
+    // It MUST appear above all other Received-SPF fields in the message.
+    switch header {
+        // It is RECOMMENDED that SMTP receivers record the result"
+        "spf" => add_header(SPF_HEADER, spf_header(query)),
+        "auth" => add_header(AUTH_HEADER, auth_header(query)),
+        "both" => {
+            add_header(AUTH_HEADER, auth_header(query));
+            add_header(SPF_HEADER, spf_header(query));
+        },
+        _ => {},
+    }
 
     if policy == "strict" {
         switch query.result {
             "pass" => {},
             "fail" => return deny(code550_7_23),
+            "softfail" => return deny(code550_7_23),
             "temperror" => return deny(code451_7_24),
             "permerror" => return deny(code550_7_24),
             _ => set_header("subject", "JUNK: " + get_header("subject")),
         }
+    } else {
+        next()
     }
-
-    // Record the result in a header (RFC 7208-9)
-    let spf_header =
-        // + if query.result == "fail" { ` ( ${query.cause} )` }
-`${query.result}
- receiver=${hostname()}; client-ip=${ctx().client_ip};
- identity=mailfrom; envelope_from=${ctx().mail_from};
- ${if query.result == "pass" { `mechanism=${query.cause};` }}`;
-        // + if (query.result == "temperror" || query.result == "permerror") { "\n problem=${query.cause};" };
-
-    let auth_header =
-`${hostname()}; spf=${query.result}
- reason=\"${spf_header}\" smtp.mailfrom=${ctx().mail_from}
-`;
-
-    // The Received-SPF header field is a trace field
-    // and SHOULD be prepended to the existing header, above the Received: field
-    // It MUST appear above all other Received-SPF fields in the message.
-    switch header {
-        // It is RECOMMENDED that SMTP receivers record the result"
-        "none" => {},
-        "spf" => add_header("Received-SPF", spf_header),
-        "auth" => add_header("Authentication-Results", auth_header),
-        _ => {
-            add_header("Authentication-Results", auth_header);
-            add_header("Received-SPF", spf_header);
-        },
-    }
-
-    next()
 }
 
 ///
