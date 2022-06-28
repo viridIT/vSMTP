@@ -61,7 +61,7 @@ fn test_get_header() {
 }
 
 #[test]
-fn test_set_and_add_header() {
+fn test_set_and_append_header() {
     use crate::tests::mime_parser::methods::generate_test_bodies;
 
     let (mut raw, mut parsed) = generate_test_bodies();

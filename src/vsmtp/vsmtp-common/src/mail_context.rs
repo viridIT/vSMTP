@@ -122,14 +122,14 @@ impl MessageBody {
                         _ => {}
                     }
                 }
-                self.add_header(name, value);
+                self.append_header(name, value);
             }
             Self::Parsed(parsed) => parsed.set_header(name, value),
         }
     }
 
     /// push a header to the header section.
-    pub fn add_header(&mut self, name: &str, value: &str) {
+    pub fn append_header(&mut self, name: &str, value: &str) {
         match self {
             Self::Raw { headers, .. } => {
                 // TODO: handle folding ?

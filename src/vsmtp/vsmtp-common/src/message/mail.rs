@@ -256,7 +256,7 @@ mod test {
     }
 
     #[test]
-    fn test_add_headers() {
+    fn test_append_headers() {
         let mut mail = Mail {
             body: BodyType::Regular(vec!["email content".to_string()]),
             ..Mail::default()

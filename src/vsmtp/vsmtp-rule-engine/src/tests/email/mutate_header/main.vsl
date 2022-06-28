@@ -16,10 +16,10 @@
 */
 
 fn mutate_headers() {
-    add_header("X-New-Header", "value of header");
-    add_header("X-Another-Header", "value of another");
-    add_header("From", "<john@doe.com>");
-    add_header("To", "<green@foo.net>");
+    append_header("X-New-Header", "value of header");
+    append_header("X-Another-Header", "value of another");
+    append_header("From", "<john@doe.com>");
+    append_header("To", "<green@foo.net>");
 
     prepend_header("X-VSMTP-STATUS", "delivered");
     prepend_header("X-VSMTP-TRACING", "empty");

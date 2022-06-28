@@ -240,7 +240,7 @@ fn add_trace_information(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("missing email metadata"))?;
 
-    message.add_header(
+    message.append_header(
         "X-VSMTP",
         &create_vsmtp_status_stamp(
             &metadata.message_id,
@@ -248,7 +248,7 @@ fn add_trace_information(
             rule_engine_result,
         ),
     );
-    message.add_header(
+    message.append_header(
         "Received",
         &create_received_stamp(
             &ctx.envelop.helo,
