@@ -122,18 +122,31 @@ impl MessageBody {
                         _ => {}
                     }
                 }
-                self.add_header(name, value);
+                self.append_header(name, value);
             }
             Self::Parsed(parsed) => parsed.set_header(name, value),
         }
     }
 
-    /// prepend a header to the header section.
-    pub fn add_header(&mut self, name: &str, value: &str) {
+    /// push a header to the header section.
+    pub fn append_header(&mut self, name: &str, value: &str) {
         match self {
             Self::Raw { headers, .. } => {
                 // TODO: handle folding ?
                 headers.push(format!("{name}: {value}"));
+            }
+            Self::Parsed(parsed) => {
+                parsed.push_headers([(name.to_string(), value.to_string())]);
+            }
+        }
+    }
+
+    /// prepend a header to the header section.
+    pub fn prepend_header(&mut self, name: &str, value: &str) {
+        match self {
+            Self::Raw { headers, .. } => {
+                // TODO: handle folding ?
+                headers.splice(..0, [format!("{name}: {value}")]);
             }
             Self::Parsed(parsed) => {
                 parsed.prepend_headers([(name.to_string(), value.to_string())]);

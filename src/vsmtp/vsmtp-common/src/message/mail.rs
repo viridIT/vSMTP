@@ -186,12 +186,13 @@ impl Mail {
             .map(|(_, value)| value.as_str())
     }
 
-    /// prepend new headers to the email, folding if necessary.
+    // NOTE: would a double ended queue / linked list interesting in this case ?
+    /// prepend new headers to the email.
     pub fn prepend_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {
         self.headers.splice(..0, headers);
     }
 
-    /// push new headers to the email, folding if necessary.
+    /// push new headers to the email.
     pub fn push_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {
         self.headers.extend(headers);
     }
@@ -255,7 +256,7 @@ mod test {
     }
 
     #[test]
-    fn test_add_headers() {
+    fn test_append_headers() {
         let mut mail = Mail {
             body: BodyType::Regular(vec!["email content".to_string()]),
             ..Mail::default()

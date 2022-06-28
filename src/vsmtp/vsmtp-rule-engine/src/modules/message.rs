@@ -45,11 +45,19 @@ pub mod message {
         )
     }
 
-    /// add a header to the raw or parsed email contained in ctx.
+    /// add a header to the end of the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn add_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
+    pub fn append_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
         vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message", StateSMTP::PreQ)
-            .add_header(header, value);
+            .append_header(header, value);
+        Ok(())
+    }
+
+    /// prepend a header to the raw or parsed email contained in ctx.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn prepend_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
+        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message", StateSMTP::PreQ)
+            .prepend_header(header, value);
         Ok(())
     }
 

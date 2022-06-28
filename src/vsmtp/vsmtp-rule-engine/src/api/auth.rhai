@@ -115,11 +115,11 @@ fn check_spf(identity, header, policy) {
     // It MUST appear above all other Received-SPF fields in the message.
     switch header {
         // It is RECOMMENDED that SMTP receivers record the result"
-        "spf" => add_header(SPF_HEADER, spf_header(query)),
-        "auth" => add_header(AUTH_HEADER, auth_header(query)),
+        "spf" => prepend_header(SPF_HEADER, spf_header(query)),
+        "auth" => prepend_header(AUTH_HEADER, auth_header(query)),
         "both" => {
-            add_header(AUTH_HEADER, auth_header(query));
-            add_header(SPF_HEADER, spf_header(query));
+            prepend_header(AUTH_HEADER, auth_header(query));
+            prepend_header(SPF_HEADER, spf_header(query));
         },
         _ => {},
     }
@@ -186,7 +186,7 @@ fn check_null_mx_sender() {
     // There's no standard header for null MX
     if srv_domain.auth.null_mx.header == "X-nullMX" {
         let header = `${hostname()}; null MX sender detected for ${ctx().mail_from.domain}`;
-        sys::add_header(ctx(), "X-NullMX", header);
+        sys::prepend_header(ctx(), "X-NullMX", header);
     }
 
     // Modify the subject
