@@ -48,6 +48,8 @@ pub mod log_channel {
     pub const DEFAULT: &str = "server";
     /// application logs (rule engine).
     pub const APP: &str = "app";
+    /// root log, used to display dependencies logs.
+    pub const ROOT: &str = "root";
 }
 
 #[cfg(test)]
