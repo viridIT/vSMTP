@@ -172,7 +172,7 @@ mod tests {
         config.app.logs.filepath = "./tmp/app.log".into();
         config.server.logs.filepath = "/root/var/vsmtp.log".into();
 
-        let res = get_log4rs_config(&config, true);
+        let res = get_log4rs_config(&config, false);
         assert!(res.is_err(), "{:?}", res);
     }
 
@@ -182,7 +182,7 @@ mod tests {
         config.app.logs.filepath = "/root/var/app.log".into();
         config.server.logs.filepath = "./tmp/vsmtp.log".into();
 
-        let res = get_log4rs_config(&config, true);
+        let res = get_log4rs_config(&config, false);
         assert!(res.is_err(), "{:?}", res);
     }
 }
