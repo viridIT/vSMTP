@@ -143,7 +143,7 @@ async fn handle_one_in_working_queue_inner(
     Queue::write_to_mails(
         &config.server.queues.dirpath,
         &process_message.message_id,
-        &message.ok_or_else(|| anyhow::anyhow!("message is empty"))?,
+        &message,
     )?;
 
     let queue = match result {

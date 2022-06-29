@@ -56,6 +56,15 @@ pub enum MessageBody {
     Parsed(Box<Mail>),
 }
 
+impl Default for MessageBody {
+    fn default() -> Self {
+        Self::Raw {
+            headers: vec![],
+            body: None,
+        }
+    }
+}
+
 impl std::fmt::Display for MessageBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -73,6 +82,21 @@ impl std::fmt::Display for MessageBody {
 }
 
 impl MessageBody {
+    /// add headers from another body to the current instance.
+    pub fn extend_raw_headers(&mut self, other: &Self) {
+        if let MessageBody::Raw { headers, .. } = self {
+            let to_extend = headers;
+            match other {
+                MessageBody::Raw { headers, .. } => to_extend.extend(headers.clone()),
+                MessageBody::Parsed(o) => to_extend.extend(
+                    o.headers
+                        .iter()
+                        .map(|(name, value)| format!("{name}: {value}")),
+                ),
+            }
+        };
+    }
+
     /// Create a new instance of [`MessageBody::Parsed`], cloning if already parsed
     ///
     /// # Errors

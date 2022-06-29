@@ -5,6 +5,7 @@ use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
+use crate::modules::types::types::{Context, Message, Server};
 use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
@@ -21,10 +22,10 @@ pub struct RuleState {
     engine: rhai::Engine,
     /// a pointer to the server api.
     #[allow(dead_code)]
-    server: std::sync::Arc<ServerAPI>,
+    server: Server,
     /// a pointer to the mail context for the current connection.
-    mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
-    message: std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>,
+    mail_context: Context,
+    message: Message,
     /// does the following rules needs to be skipped ?
     skip: Option<Status>,
 }
@@ -66,7 +67,10 @@ impl RuleState {
             envelop: Envelop::default(),
             metadata: None,
         }));
-        let message = std::sync::Arc::new(std::sync::RwLock::new(None));
+        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::Raw {
+            headers: vec![],
+            body: None,
+        }));
 
         let engine = Self::build_rhai_engine(
             mail_context.clone(),
@@ -125,7 +129,7 @@ impl RuleState {
         resolvers: std::sync::Arc<Resolvers>,
         rule_engine: &RuleEngine,
         mail_context: MailContext,
-        message: Option<MessageBody>,
+        message: MessageBody,
     ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
@@ -169,9 +173,9 @@ impl RuleState {
 
     /// build a cheap rhai engine with vsl's api.
     fn build_rhai_engine(
-        mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
-        message: std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>,
-        server: std::sync::Arc<ServerAPI>,
+        mail_context: Context,
+        message: Message,
+        server: Server,
         rule_engine: &RuleEngine,
     ) -> rhai::Engine {
         let mut engine = rhai::Engine::new_raw();
@@ -207,13 +211,13 @@ impl RuleState {
 
     /// fetch the email context (possibly) mutated by the user's rules.
     #[must_use]
-    pub fn context(&self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
+    pub fn context(&self) -> Context {
         self.mail_context.clone()
     }
 
     /// fetch the message body (possibly) mutated by the user's rules.
     #[must_use]
-    pub fn message(&self) -> std::sync::Arc<std::sync::RwLock<Option<MessageBody>>> {
+    pub fn message(&self) -> Message {
         self.message.clone()
     }
 
@@ -229,18 +233,13 @@ impl RuleState {
         rule_engine: &std::sync::RwLock<RuleEngine>,
         mail_context: MailContext,
         mail_message: MessageBody,
-    ) -> anyhow::Result<(MailContext, Option<MessageBody>, Status)> {
+    ) -> anyhow::Result<(MailContext, MessageBody, Status)> {
         let rule_engine = rule_engine
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
-        let mut rule_state = Self::with_context(
-            config,
-            resolvers,
-            &rule_engine,
-            mail_context,
-            Some(mail_message),
-        );
+        let mut rule_state =
+            Self::with_context(config, resolvers, &rule_engine, mail_context, mail_message);
         let result = rule_engine.run_when(&mut rule_state, state);
 
         let (mail_context, mail_message) = rule_state
@@ -255,7 +254,7 @@ impl RuleState {
     ///
     /// * at least one strong reference of the [`std::sync::Arc`] is living
     /// * the [`std::sync::RwLock`] is poisoned
-    pub fn take(self) -> anyhow::Result<(MailContext, Option<MessageBody>)> {
+    pub fn take(self) -> anyhow::Result<(MailContext, MessageBody)> {
         // early drop of engine because a strong reference is living inside
         drop(self.engine);
         Ok((
