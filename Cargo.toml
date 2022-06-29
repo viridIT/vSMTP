@@ -53,7 +53,7 @@ vsmtp-server = { path = "./src/vsmtp/vsmtp-server", version = "1.1.0", default-f
 vsmtp-config = { path = "./src/vsmtp/vsmtp-config", version = "1.1.0", default-features = false }
 
 clap = { version = "3.2.7", features = ["derive"] }
-diff = "0.1.12"
+diff = "0.1.13"
 
 [features]
 default = ["gsasl_bindgen"]
