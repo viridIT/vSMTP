@@ -96,7 +96,7 @@ fn test_context_write() {
             "To: green@foo.net".to_string(),
             "Subject: test email".to_string(),
         ],
-        body: "This is a raw email.".to_string(),
+        body: Some("This is a raw email.".to_string()),
     });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
@@ -141,7 +141,7 @@ fn test_context_dump() {
     });
     *state.message().write().unwrap() = Some(MessageBody::Raw {
         headers: vec![],
-        body: "".to_string(),
+        body: Some("".to_string()),
     });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
@@ -187,7 +187,7 @@ fn test_quarantine() {
     });
     *state.message().write().unwrap() = Some(MessageBody::Raw {
         headers: vec![],
-        body: "".to_string(),
+        body: Some("".to_string()),
     });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),

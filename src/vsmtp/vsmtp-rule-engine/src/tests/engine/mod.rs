@@ -117,7 +117,7 @@ fn test_rule_state() {
         },
         Some(MessageBody::Raw {
             headers: vec![],
-            body: "".to_string(),
+            body: Some("".to_string()),
         }),
     );
 

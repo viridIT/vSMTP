@@ -298,7 +298,7 @@ mod tests {
             "test",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();
@@ -381,7 +381,7 @@ mod tests {
             "test_denied",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();

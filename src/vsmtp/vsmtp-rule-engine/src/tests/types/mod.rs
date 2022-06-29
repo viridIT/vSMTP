@@ -124,7 +124,7 @@ fn test_services() {
 
     *state.message().write().unwrap() = Some(MessageBody::Raw {
         headers: vec![],
-        body: "".to_string(),
+        body: Some("".to_string()),
     });
 
     assert_eq!(
@@ -177,7 +177,7 @@ fn test_config_display() {
 
     *state.message().write().unwrap() = Some(MessageBody::Raw {
         headers: vec![],
-        body: "".to_string(),
+        body: Some("".to_string()),
     });
 
     assert_eq!(

@@ -352,7 +352,7 @@ mod test {
 
         let mut message = MessageBody::Raw {
             headers: vec![],
-            body: "".to_string(),
+            body: Some("".to_string()),
         };
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &mut ctx, &mut message, &Status::Next).unwrap();
@@ -380,7 +380,7 @@ mod test {
                     ]
                     .concat(),
                 ],
-                body: "".to_string(),
+                body: Some("".to_string()),
             }
         );
     }

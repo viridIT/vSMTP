@@ -43,7 +43,10 @@ fn generate_test_bodies() -> (MessageBody, MessageBody) {
 "#
     .to_string();
 
-    let raw = MessageBody::Raw { headers, body };
+    let raw = MessageBody::Raw {
+        headers,
+        body: Some(body),
+    };
     let mut parsed = raw.clone();
     parsed.to_parsed::<MailMimeParser>().unwrap();
 

@@ -50,7 +50,7 @@ pub enum MessageBody {
         /// The headers of the top level message
         headers: Vec<String>,
         /// Complete body of the message
-        body: String,
+        body: Option<String>,
     },
     /// The message parsed using a [`MailParser`]
     Parsed(Box<Mail>),
@@ -65,7 +65,7 @@ impl std::fmt::Display for MessageBody {
                     f.write_str("\r\n")?;
                 }
                 f.write_str("\r\n")?;
-                f.write_str(body)
+                f.write_str(body.as_ref().map_or("", std::string::String::as_str))
             }
             Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
         }
@@ -80,7 +80,8 @@ impl MessageBody {
     /// * Fail to parse using the provided [`MailParser`]
     pub fn to_parsed<P: MailParser>(&mut self) -> anyhow::Result<()> {
         if let Self::Raw { headers, body } = self {
-            *self = P::default().parse_raw(std::mem::take(headers), std::mem::take(body))?;
+            *self =
+                P::default().parse_raw(std::mem::take(headers), body.take().unwrap_or_default())?;
         }
         Ok(())
     }
