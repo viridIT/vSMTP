@@ -42,11 +42,10 @@
 ///    }        
 /// ]
 fn check_mail_relay(allowed_hosts) {
-    if in_domain(ctx().mail_from.domain) 
-       && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        return deny(code554_7_1);
-    }
-    else { 
+    if in_domain(ctx().mail_from)
+    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
+        deny(code554_7_1)
+    } else {
         next()
     }    
 }
@@ -74,12 +73,11 @@ fn check_mail_relay(allowed_hosts) {
 ///    }        
 /// ]
 fn check_rcpt_relay(allowed_hosts) {
-    if !in_domain(ctx().rcpt) 
-       && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        remove_rcpt(rcpt.to_string());
-        return deny(code554_7_1);
-    }
-    else { 
+    if !in_domain(ctx().rcpt)
+    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
+        remove_rcpt(ctx().rcpt.to_string());
+        deny(code554_7_1)
+    } else {
         next()
     }    
 }
