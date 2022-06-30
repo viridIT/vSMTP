@@ -1,14 +1,9 @@
 #{
     mail: [
-        rule "fail write to disk: body not received" || {
-            try {
-                write("tests/generated");
-                return deny();
-            } catch (err) {
-                if "failed to write email: the body has not been received yet" in err { return next(); } else {
-                    return deny();
-                }
-            }
+        rule "partial write to disk, body not received" || {
+            prepend_header("X-VSMTP-INIT", "done.");
+            write("tests/generated");
+            next()
         },
 
         rule "trailing mail" || accept(),

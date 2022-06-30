@@ -35,7 +35,7 @@ pub mod types {
 
     // type aliases for complex struct names
     pub type Context = std::sync::Arc<std::sync::RwLock<MailContext>>;
-    pub type Message = std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>;
+    pub type Message = std::sync::Arc<std::sync::RwLock<MessageBody>>;
     pub type Server = std::sync::Arc<ServerAPI>;
 
     // Status

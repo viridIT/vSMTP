@@ -61,6 +61,29 @@ fn check_spf(identity, header) {
     check_spf(identity, header, "strict")
 }
 
+/// create key-value pairs of spf results
+/// to inject into the spf or auth headers.
+private fn spf_key_value_list(query) {
+`receiver=${hostname()}; client-ip=${ctx().client_ip};
+ identity=mailfrom; envelope_from=${ctx().mail_from};
+ ${
+   if "mechanism" in query { `mechanism=${query.mechanism};` }
+   else if "problem" in query { `problem=${query.problem};` }
+ }`
+}
+
+/// Record results in a spf header (RFC 7208-9)
+private fn spf_header(query) {
+    `${query.result} ${spf_key_value_list(query)}`
+}
+
+/// Record results in the auth header (RFC 7208-9)
+fn auth_header(query) {
+`${hostname()}; spf=${query.result}
+ reason="${spf_key_value_list(query)}"
+ smtp.mailfrom=${ctx().mail_from}`;
+}
+
 /// check spf record.
 /// Sender Policy Framework (RFC 7208).
 ///
@@ -82,8 +105,10 @@ fn check_spf(identity, header) {
 /// ```
 fn check_spf(identity, header, policy) {
 
-    let query = sys::check_spf(ctx(), srv(), identity);
+    const AUTH_HEADER = "Authentication-Results";
+    const SPF_HEADER = "Received-SPF";
 
+<<<<<<< HEAD
     if policy == "strict" {
         switch query.result {
             "pass" => {},
@@ -106,22 +131,43 @@ fn check_spf(identity, header, policy) {
     let auth_header =
 `${hostname()}; spf=${query.result}
  reason=\"${spf_header}\" smtp.mailfrom=${ctx().mail_from}`;
+=======
+    let query = sys::check_spf(ctx(), srv(), identity);
+>>>>>>> 8854b3cf0444d51251bbb96199586b2483f2ce86
 
-    // The Received-SPF header field is a trace field
+    // TODO: The Received-SPF header field is a trace field
     // and SHOULD be prepended to the existing header, above the Received: field
     // It MUST appear above all other Received-SPF fields in the message.
     switch header {
         // It is RECOMMENDED that SMTP receivers record the result"
-        "none" => {},
-        "spf" => add_header("Received-SPF", spf_header),
-        "auth" => add_header("Authentication-Results", auth_header),
-        _ => {
-            add_header("Authentication-Results", auth_header);
-            add_header("Received-SPF", spf_header);
+        "spf" => prepend_header(SPF_HEADER, spf_header(query)),
+        "auth" => prepend_header(AUTH_HEADER, auth_header(query)),
+        "both" => {
+            prepend_header(AUTH_HEADER, auth_header(query));
+            prepend_header(SPF_HEADER, spf_header(query));
         },
+        _ => {},
     }
 
-    next()
+    if policy == "strict" {
+        switch query.result {
+            "pass" => next(),
+            "fail" => deny(code550_7_23),
+            "softfail" => deny(code550_7_23),
+            "temperror" => deny(code451_7_24),
+            "permerror" => deny(code550_7_24),
+            _ => next(),
+        }
+    } else if policy == "soft" {
+        switch query.result {
+            "fail" => deny(code550_7_23),
+            "temperror" => deny(code451_7_24),
+            "permerror" => deny(code550_7_24),
+            _ => next(),
+        }
+    } else {
+        throw `spf 'policy' argument must be 'strict' or 'soft', not '${policy}'`;
+    }
 }
 
 ///
@@ -165,7 +211,7 @@ fn check_null_mx_sender() {
     // There's no standard header for null MX
     if srv_domain.auth.null_mx.header == "X-nullMX" {
         let header = `${hostname()}; null MX sender detected for ${ctx().mail_from.domain}`;
-        sys::add_header(ctx(), "X-NullMX", header);
+        sys::prepend_header(ctx(), "X-NullMX", header);
     }
 
     // Modify the subject

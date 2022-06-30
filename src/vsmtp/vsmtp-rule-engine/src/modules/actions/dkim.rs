@@ -22,7 +22,7 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use rhai::EvalAltResult;
-use vsmtp_common::{re::tokio, state::StateSMTP};
+use vsmtp_common::re::tokio;
 use vsmtp_dkim::{verify, Key, Signature};
 
 #[doc(hidden)]
@@ -79,9 +79,8 @@ pub mod dkim {
     #[rhai_fn(global, pure, return_raw)]
     pub fn dkim_verify(message: &mut Message, signature: Signature, key: Key) -> EngineResult<()> {
         let guard = vsl_guard_ok!(message.read());
-        let message = vsl_missing_ok!(guard, "message", StateSMTP::PreQ);
 
-        verify(message, &signature, &key).unwrap();
+        verify(&guard, &signature, &key).unwrap();
 
         Ok(())
     }

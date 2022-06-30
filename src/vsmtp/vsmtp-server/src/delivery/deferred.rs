@@ -190,7 +190,7 @@ mod tests {
             "test_deferred",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();
@@ -248,7 +248,7 @@ mod tests {
             message_from_file_path(msg).await.unwrap(),
             MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string(),],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             }
         );
     }

@@ -69,7 +69,7 @@ pub fn verify(
         .canonicalization
         .body
         .canonicalize_body(match &message {
-            MessageBody::Raw { body, .. } => body.clone(),
+            MessageBody::Raw { body, .. } => body.clone().unwrap_or_default(),
             MessageBody::Parsed(mail) => format!("{}", mail.body),
         });
 

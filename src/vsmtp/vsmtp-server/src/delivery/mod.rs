@@ -241,7 +241,7 @@ fn add_trace_information(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("missing email metadata"))?;
 
-    message.add_header(
+    message.append_header(
         "X-VSMTP",
         &create_vsmtp_status_stamp(
             &metadata.message_id,
@@ -249,7 +249,7 @@ fn add_trace_information(
             rule_engine_result,
         ),
     );
-    message.add_header(
+    message.append_header(
         "Received",
         &create_received_stamp(
             &ctx.envelop.helo,
@@ -350,7 +350,7 @@ mod test {
 
         let mut message = MessageBody::Raw {
             headers: vec![],
-            body: "".to_string(),
+            body: Some("".to_string()),
         };
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &mut ctx, &mut message, &Status::Next).unwrap();
@@ -378,7 +378,7 @@ mod test {
                     ]
                     .concat(),
                 ],
-                body: "".to_string(),
+                body: Some("".to_string()),
             }
         );
     }

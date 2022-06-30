@@ -26,7 +26,7 @@ use vsmtp_common::{
     re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
-    Address, CodeID, ReplyOrCodeID,
+    Address, CodeID, MessageBody, ReplyOrCodeID,
 };
 use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -99,7 +99,7 @@ impl Transaction {
                 }
                 {
                     let state = self.rule_state.message();
-                    *state.write().unwrap() = None;
+                    *state.write().unwrap() = MessageBody::default();
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, ReplyOrCodeID::CodeID(CodeID::Ok))
@@ -304,7 +304,7 @@ impl Transaction {
         }
         {
             let state = self.rule_state.message();
-            *state.write().unwrap() = None;
+            *state.write().unwrap() = MessageBody::default();
         }
     }
 
@@ -347,7 +347,7 @@ impl Transaction {
         }
         {
             let state = self.rule_state.message();
-            *state.write().unwrap() = None;
+            *state.write().unwrap() = MessageBody::default();
         }
     }
 

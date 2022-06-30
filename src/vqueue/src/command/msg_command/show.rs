@@ -140,8 +140,8 @@ mod tests {
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             [
-                "from: foo2 foo <foo2@foo>\r\n",
-                "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+                "From: foo2 foo <foo2@foo>\r\n",
+                "Date: tue, 30 nov 2021 20:54:27 +0100\r\n",
                 "\r\n",
                 "Hello World!!\r\n",
             ]

@@ -51,6 +51,7 @@
         "pemfile",
         "PKCS8",
         "postq",
+        "prepending",
         "preq",
         "rcpts",
         "RDONLY",

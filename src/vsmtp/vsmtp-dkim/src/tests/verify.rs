@@ -36,7 +36,10 @@ impl MailParser for NoParsing {
             body.push_str("\r\n");
         }
 
-        Ok(MessageBody::Raw { headers, body })
+        Ok(MessageBody::Raw {
+            headers,
+            body: Some(body),
+        })
     }
 }
 
