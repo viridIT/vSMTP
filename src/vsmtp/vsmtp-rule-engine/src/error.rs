@@ -150,14 +150,13 @@ macro_rules! vsl_missing_ok {
 }
 
 macro_rules! vsl_parse_ok {
-    ($writer:expr) => {{
-        let message = vsl_missing_ok!(mut $writer, "message", StateSMTP::PreQ);
-        if !matches!(&message, MessageBody::Parsed(..)) {
-            message
+    ($message:expr) => {{
+        if !matches!(&*$message, MessageBody::Parsed(..)) {
+            $message
                 .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
                 .map_err(|source| $crate::error::RuntimeError::ParseMessageBody { source })?;
         }
-        vsl_missing_ok!(mut $writer, "message", StateSMTP::PreQ)
+        $message
     }};
 }
 

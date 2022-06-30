@@ -91,7 +91,7 @@ pub async fn message_from_file_path(
 
         return Ok(MessageBody::Raw {
             headers: headers.lines().map(str::to_string).collect(),
-            body: body.to_string(),
+            body: Some(body.to_string()),
         });
     }
     anyhow::bail!("failed does not exist")

@@ -139,7 +139,10 @@ impl MailParserOnFly for NoParsing {
             body.push_str("\r\n");
         }
 
-        Ok(MessageBody::Raw { headers, body })
+        Ok(MessageBody::Raw {
+            headers,
+            body: Some(body),
+        })
     }
 }
 
@@ -153,13 +156,20 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
     M: OnMail + Send,
 {
-    let body = {
+    let mut body = {
         let stream = Transaction::stream(conn);
         tokio::pin!(stream);
         NoParsing::default().parse(stream).await?
     };
 
-    *transaction.rule_state.message().write().unwrap() = Some(body);
+    {
+        let handle = transaction.rule_state.message();
+        let mut message = handle.write().unwrap();
+
+        // headers could have been added to the email before preq.
+        body.extend_raw_headers(&*message);
+        *message = body;
+    }
 
     let status = transaction
         .rule_engine
@@ -190,7 +200,7 @@ where
 
     let helo = mail_context.envelop.helo.clone();
     let code = mail_handler
-        .on_mail(conn, Box::new(mail_context), message.unwrap())
+        .on_mail(conn, Box::new(mail_context), message)
         .await;
     *helo_domain = Some(helo);
     conn.send_code(code).await?;

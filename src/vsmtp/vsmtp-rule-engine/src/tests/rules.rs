@@ -69,19 +69,17 @@ fn test_mail_from_rules() {
         let message = state.message();
         let mut message = message.write().unwrap();
 
-        *message = Some(
-            MailMimeParser::default()
-                .parse_lines(
-                    r#"From: staff <staff@example.com>
+        *message = MailMimeParser::default()
+            .parse_lines(
+                r#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
 This is a reply to your hello."#
-                        .lines()
-                        .map(str::to_string)
-                        .collect::<Vec<_>>(),
-                )
-                .unwrap(),
-        );
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap();
     }
 
     assert_eq!(
@@ -120,19 +118,17 @@ fn test_rcpt_rules() {
         let message = state.message();
         let mut message = message.write().unwrap();
 
-        *message = Some(
-            MailMimeParser::default()
-                .parse_lines(
-                    r#"From: staff <staff@example.com>
+        *message = MailMimeParser::default()
+            .parse_lines(
+                r#"From: staff <staff@example.com>
 Date: Fri, 21 Nov 1997 10:01:10 -0600
 
 This is a reply to your hello."#
-                        .lines()
-                        .map(str::to_string)
-                        .collect::<Vec<_>>(),
-                )
-                .unwrap(),
-        );
+                    .lines()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap();
     }
 
     assert_eq!(

@@ -50,10 +50,19 @@ pub enum MessageBody {
         /// The headers of the top level message
         headers: Vec<String>,
         /// Complete body of the message
-        body: String,
+        body: Option<String>,
     },
     /// The message parsed using a [`MailParser`]
     Parsed(Box<Mail>),
+}
+
+impl Default for MessageBody {
+    fn default() -> Self {
+        Self::Raw {
+            headers: vec![],
+            body: None,
+        }
+    }
 }
 
 impl std::fmt::Display for MessageBody {
@@ -65,7 +74,7 @@ impl std::fmt::Display for MessageBody {
                     f.write_str("\r\n")?;
                 }
                 f.write_str("\r\n")?;
-                f.write_str(body)
+                f.write_str(body.as_ref().map_or("", std::string::String::as_str))
             }
             Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
         }
@@ -73,6 +82,21 @@ impl std::fmt::Display for MessageBody {
 }
 
 impl MessageBody {
+    /// add headers from another body to the current instance.
+    pub fn extend_raw_headers(&mut self, other: &Self) {
+        if let MessageBody::Raw { headers, .. } = self {
+            let to_extend = headers;
+            match other {
+                MessageBody::Raw { headers, .. } => to_extend.extend(headers.clone()),
+                MessageBody::Parsed(o) => to_extend.extend(
+                    o.headers
+                        .iter()
+                        .map(|(name, value)| format!("{name}: {value}")),
+                ),
+            }
+        };
+    }
+
     /// Create a new instance of [`MessageBody::Parsed`], cloning if already parsed
     ///
     /// # Errors
@@ -80,7 +104,8 @@ impl MessageBody {
     /// * Fail to parse using the provided [`MailParser`]
     pub fn to_parsed<P: MailParser>(&mut self) -> anyhow::Result<()> {
         if let Self::Raw { headers, body } = self {
-            *self = P::default().parse_raw(std::mem::take(headers), std::mem::take(body))?;
+            *self =
+                P::default().parse_raw(std::mem::take(headers), body.take().unwrap_or_default())?;
         }
         Ok(())
     }

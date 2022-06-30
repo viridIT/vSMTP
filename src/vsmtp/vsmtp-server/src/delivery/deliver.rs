@@ -130,7 +130,7 @@ async fn handle_one_in_delivery_queue_inner(
 
     let mail_message = message_from_file_path(message_filepath).await?;
 
-    let (mut mail_context, mail_message, result) = RuleState::just_run_when(
+    let (mut mail_context, mut mail_message, result) = RuleState::just_run_when(
         &StateSMTP::Delivery,
         config.as_ref(),
         resolvers.clone(),
@@ -139,9 +139,7 @@ async fn handle_one_in_delivery_queue_inner(
         mail_message,
     )?;
 
-    let mut message = mail_message.ok_or_else(|| anyhow::anyhow!("message is empty"))?;
-
-    add_trace_information(&config, &mut mail_context, &mut message, &result)?;
+    add_trace_information(&config, &mut mail_context, &mut mail_message, &result)?;
 
     match result {
         Status::Quarantine(path) => {
@@ -165,7 +163,7 @@ async fn handle_one_in_delivery_queue_inner(
             Queue::Dead.write_to_queue(&config.server.queues.dirpath, &mail_context)?;
         }
         _ => {
-            send_mail(&config, &mut mail_context, &message, &resolvers).await;
+            send_mail(&config, &mut mail_context, &mail_message, &resolvers).await;
             // .context(format!(
             //     "failed to send '{}' located in the delivery queue",
             //     process_message.message_id
@@ -267,7 +265,7 @@ mod tests {
             "message_from_deliver_to_deferred",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();

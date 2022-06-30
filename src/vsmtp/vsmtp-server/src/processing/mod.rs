@@ -143,7 +143,7 @@ async fn handle_one_in_working_queue_inner(
     Queue::write_to_mails(
         &config.server.queues.dirpath,
         &process_message.message_id,
-        &message.ok_or_else(|| anyhow::anyhow!("message is empty"))?,
+        &message,
     )?;
 
     let queue = match result {
@@ -298,7 +298,7 @@ mod tests {
             "test",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();
@@ -381,7 +381,7 @@ mod tests {
             "test_denied",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();

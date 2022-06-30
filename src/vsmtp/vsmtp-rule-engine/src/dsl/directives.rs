@@ -85,12 +85,7 @@ impl Directive {
                             .map_err::<Box<rhai::EvalAltResult>, _>(|_| {
                                 "context mutex poisoned".into()
                             })?
-                            .as_ref()
-                            .map(std::string::ToString::to_string)
-                            .ok_or_else::<Box<rhai::EvalAltResult>, _>(|| {
-                                "tried to delegate email security but the body was empty".into()
-                            })?;
-
+                            .to_string();
                         (
                             ctx.envelop.mail_from.clone(),
                             ctx.envelop.rcpt.clone(),

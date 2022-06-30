@@ -16,19 +16,6 @@
 */
 #{
     connect: [
-        rule "fail mail_from rewrite: email not received" || {
-            try {
-                rewrite_mail_from("impossible@torewrite.com");
-                return deny();
-            } catch (err) {
-                if "the field: `message` is not defined" in err {
-                    return next();
-                } else {
-                    return deny();
-                }
-            }
-        },
-
         rule "fail mail_from rewrite: bad address format" || {
             try {
                 rewrite_mail_from("invalid");
