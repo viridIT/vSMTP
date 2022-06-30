@@ -82,19 +82,13 @@ impl std::fmt::Display for MessageBody {
 }
 
 impl MessageBody {
-    /// add headers from another body to the current instance.
-    pub fn extend_raw_headers(&mut self, other: &Self) {
+    ///
+    pub fn take_headers(&mut self) -> Vec<String> {
         if let MessageBody::Raw { headers, .. } = self {
-            let to_extend = headers;
-            match other {
-                MessageBody::Raw { headers, .. } => to_extend.extend(headers.clone()),
-                MessageBody::Parsed(o) => to_extend.extend(
-                    o.headers
-                        .iter()
-                        .map(|(name, value)| format!("{name}: {value}")),
-                ),
-            }
-        };
+            return std::mem::take(headers);
+        }
+
+        vec![]
     }
 
     /// Create a new instance of [`MessageBody::Parsed`], cloning if already parsed
@@ -176,6 +170,13 @@ impl MessageBody {
             Self::Parsed(parsed) => {
                 parsed.prepend_headers([(name.to_string(), value.to_string())]);
             }
+        }
+    }
+
+    /// prepend a set of headers to the header section.
+    pub fn prepend_raw_headers(&mut self, to_prepend: impl Iterator<Item = String>) {
+        if let MessageBody::Raw { headers, .. } = self {
+            headers.splice(..0, to_prepend);
         }
     }
 }

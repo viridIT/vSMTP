@@ -156,18 +156,21 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + Sync,
     M: OnMail + Send,
 {
-    let mut body = {
-        let stream = Transaction::stream(conn);
-        tokio::pin!(stream);
-        NoParsing::default().parse(stream).await?
-    };
-
+    // fetching the email using the transaction's stream.
     {
+        let mut body = {
+            let stream = Transaction::stream(conn);
+            tokio::pin!(stream);
+            NoParsing::default().parse(stream).await?
+        };
+
         let handle = transaction.rule_state.message();
         let mut message = handle.write().unwrap();
 
-        // headers could have been added to the email before preq.
-        body.extend_raw_headers(&*message);
+        // Headers could have been added to the email before preq,
+        // so we start by prepending them to the headers received.
+        let headers = message.take_headers();
+        body.prepend_raw_headers(headers.into_iter());
         *message = body;
     }
 
