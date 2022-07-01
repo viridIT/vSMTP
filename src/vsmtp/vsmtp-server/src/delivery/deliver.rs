@@ -132,7 +132,7 @@ async fn handle_one_in_delivery_queue_inner(
 
     let message_delivery = MessageBody::from_file_path(message_deliver_filepath.clone()).await?;
 
-    let (mut context, message, result, skipped) = RuleState::just_run_when(
+    let (mut mail_context, mut mail_message, result, skipped) = RuleState::just_run_when(
         &StateSMTP::Delivery,
         config.as_ref(),
         resolvers.clone(),
@@ -141,9 +141,7 @@ async fn handle_one_in_delivery_queue_inner(
         message_delivery,
     )?;
 
-    let mut message = message.ok_or_else(|| anyhow::anyhow!("message is empty"))?;
-
-    add_trace_information(&config, &mut context, &mut message, &result)?;
+    add_trace_information(&config, &mut mail_context, &mut mail_message, &result)?;
 
     let mut write_to_queue = Option::<Queue>::None;
 
@@ -154,7 +152,7 @@ async fn handle_one_in_delivery_queue_inner(
 
             path.push(format!("{}.json", process_message.message_id));
 
-            Queue::write_to_quarantine(&path, &context)
+            Queue::write_to_quarantine(&path, &mail_context)
                 .await
                 .map_err(MailHandlerError::WriteQuarantineFile)?;
 
@@ -166,35 +164,36 @@ async fn handle_one_in_delivery_queue_inner(
             log::warn!(
                 target: log_channels::DELIVERY,
                 "[{}/delivery] skipped due to quarantine.",
-                context.connection.server_address
+                mail_context.connection.server_address
             );
 
             return Ok(());
         }
         Some(Status::Delegated(delegator)) => {
-            context.metadata.as_mut().unwrap().skipped = None;
+            mail_context.metadata.as_mut().unwrap().skipped = None;
 
             // FIXME: find a way to use `write_to_queue` instead to be consistant
             //        with the rest of the function.
             Queue::Working
-                .write_to_queue(&config.server.queues.dirpath, &context)
+                .write_to_queue(&config.server.queues.dirpath, &mail_context)
                 .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
-            delegate(delegator, &context, &message).map_err(MailHandlerError::DelegateMessage)?;
+            delegate(delegator, &mail_context, &mail_message)
+                .map_err(MailHandlerError::DelegateMessage)?;
 
             log::warn!(
                 target: log_channels::DELIVERY,
                 "[{}/delivery] skipped due to delegation.",
-                context.connection.server_address
+                mail_context.connection.server_address
             );
         }
         Some(Status::DelegationResult) => unreachable!(
             "delivery is the last stage, delegation results cannot travel down any further."
         ),
         Some(Status::Deny(code)) => {
-            for rcpt in &mut context.envelop.rcpt {
+            for rcpt in &mut mail_context.envelop.rcpt {
                 rcpt.email_status = EmailTransferStatus::Failed(format!(
                     "rule engine denied the email in delivery: {code:?}."
                 ));
@@ -206,7 +205,7 @@ async fn handle_one_in_delivery_queue_inner(
             log::warn!(
                 target: log_channels::DELIVERY,
                 "[{}/delivery] skipped due to '{}'.",
-                context.connection.server_address,
+                mail_context.connection.server_address,
                 reason.as_ref()
             );
         }
@@ -219,19 +218,19 @@ async fn handle_one_in_delivery_queue_inner(
         Queue::write_to_mails(
             &config.server.queues.dirpath,
             &process_message.message_id,
-            &message,
+            &mail_message,
         )
         .map_err(MailHandlerError::WriteMessageBody)?;
 
         log::debug!(
             target: log_channels::DELIVERY,
             "[{}/delivery] (msg={}) email written in 'mails' queue.",
-            context.connection.server_address,
+            mail_context.connection.server_address,
             process_message.message_id
         );
 
         queue
-            .write_to_queue(&config.server.queues.dirpath, &context)
+            .write_to_queue(&config.server.queues.dirpath, &mail_context)
             .map_err(|error| MailHandlerError::WriteToQueue(queue, error))?;
 
         // we remove the old working queue message only
@@ -243,16 +242,16 @@ async fn handle_one_in_delivery_queue_inner(
             ))?;
         }
     } else {
-        send_mail(&config, &mut context, &message, &resolvers).await;
+        send_mail(&config, &mut mail_context, &mail_message, &resolvers).await;
 
-        let success = if context
+        let success = if mail_context
             .envelop
             .rcpt
             .iter()
             .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
         {
             Queue::Deferred
-                .write_to_queue(&config.server.queues.dirpath, &context)
+                .write_to_queue(&config.server.queues.dirpath, &mail_context)
                 .context("failed to move message from delivery queue to deferred queue")?;
 
             false
@@ -260,14 +259,14 @@ async fn handle_one_in_delivery_queue_inner(
             true
         };
 
-        let success = if context
+        let success = if mail_context
             .envelop
             .rcpt
             .iter()
             .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Failed(..)))
         {
             Queue::Dead
-                .write_to_queue(&config.server.queues.dirpath, &context)
+                .write_to_queue(&config.server.queues.dirpath, &mail_context)
                 .context("failed to move message from delivery queue to dead queue")?;
 
             false
@@ -281,7 +280,7 @@ async fn handle_one_in_delivery_queue_inner(
         ))?;
 
         if success {
-            message_deliver_filepath.set_extension(match message {
+            message_deliver_filepath.set_extension(match mail_message {
                 MessageBody::Raw { .. } => "eml",
                 MessageBody::Parsed(_) => "json",
             });
@@ -361,7 +360,7 @@ mod tests {
             "message_from_deliver_to_deferred",
             &MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: "Hello world".to_string(),
+                body: Some("Hello world".to_string()),
             },
         )
         .unwrap();

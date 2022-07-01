@@ -80,7 +80,7 @@ async fn test_quarantine() {
         MessageBody::from_file_path(path).await.unwrap(),
         MessageBody::Raw {
             headers: vec!["from: 'abc'".to_string(), "to: 'def'".to_string()],
-            body: "".to_string()
+            body: Some("".to_string())
         }
     );
 }

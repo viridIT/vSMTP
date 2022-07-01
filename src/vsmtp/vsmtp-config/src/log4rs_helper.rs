@@ -15,7 +15,7 @@
  *
 */
 use crate::{log_channel, Config};
-use log4rs::append::rolling_file::RollingFileAppender;
+use log4rs::append::{self, rolling_file::RollingFileAppender};
 use vsmtp_common::re::{anyhow, log};
 
 fn init_rolling_log(
@@ -51,50 +51,52 @@ fn init_rolling_log(
         .with_context(|| format!("For filepath: '{}'", filepath.display()))
 }
 
+fn init_console_log(format: &str) -> append::console::ConsoleAppender {
+    append::console::ConsoleAppender::builder()
+        .encoder(Box::new(log4rs::encode::pattern::PatternEncoder::new(
+            format,
+        )))
+        .build()
+}
+
 #[doc(hidden)]
 pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log4rs::Config> {
-    use log4rs::{append, config, encode, Config};
+    use log4rs::{config, Config};
 
-    let server: RollingFileAppender = init_rolling_log(
-        &config.server.logs.format,
-        &config.server.logs.filepath,
-        config.server.logs.size_limit,
-        config.server.logs.archive_count,
-    )?;
-    let app: RollingFileAppender = init_rolling_log(
-        &config.app.logs.format,
-        &config.app.logs.filepath,
-        config.app.logs.size_limit,
-        config.app.logs.archive_count,
-    )?;
+    let log_builder = if no_daemon {
+        Config::builder()
+            .appender(config::Appender::builder().build(
+                log_channel::DEFAULT,
+                Box::new(init_console_log(&config.server.logs.format)),
+            ))
+            .appender(config::Appender::builder().build(
+                log_channel::APP,
+                Box::new(init_console_log(&config.app.logs.format)),
+            ))
+    } else {
+        let server: RollingFileAppender = init_rolling_log(
+            &config.server.logs.format,
+            &config.server.logs.filepath,
+            config.server.logs.size_limit,
+            config.server.logs.archive_count,
+        )?;
+        let app: RollingFileAppender = init_rolling_log(
+            &config.app.logs.format,
+            &config.app.logs.filepath,
+            config.app.logs.size_limit,
+            config.app.logs.archive_count,
+        )?;
 
-    let mut log_builder = Config::builder();
-    let mut log_root_builder = config::Root::builder();
-
-    if no_daemon {
-        log_builder = log_builder.appender(
-            config::Appender::builder().build(
-                "stdout",
-                Box::new(
-                    append::console::ConsoleAppender::builder()
-                        .encoder(Box::new(encode::pattern::PatternEncoder::new(
-                            &config.server.logs.format,
-                        )))
-                        .build(),
-                ),
-            ),
-        );
-
-        log_root_builder = log_root_builder.appender("stdout");
-    }
+        Config::builder()
+            .appender(config::Appender::builder().build(log_channel::DEFAULT, Box::new(server)))
+            .appender(config::Appender::builder().build(log_channel::APP, Box::new(app)))
+    };
 
     log_builder
-        .appender(config::Appender::builder().build(log_channel::DEFAULT, Box::new(server)))
-        .appender(config::Appender::builder().build(log_channel::APP, Box::new(app)))
         .loggers(config.server.logs.level.iter().filter_map(|(name, level)| {
             // adding all loggers under the "server" logger to simulate a root logger.
             match name.as_str() {
-                log_channel::DEFAULT | "root" => None,
+                log_channel::APP | log_channel::DEFAULT | log_channel::ROOT => None,
                 _ => Some(
                     config::Logger::builder()
                         .build(format!("{}::{}", log_channel::DEFAULT, name), *level),
@@ -103,32 +105,37 @@ pub fn get_log4rs_config(config: &Config, no_daemon: bool) -> anyhow::Result<log
         }))
         .logger(
             config::Logger::builder()
-                .appender("app")
+                .appender(log_channel::APP)
                 .build(log_channel::APP, config.app.logs.level),
         )
         // vSMTP's "root" logger under the name "default", all sub loggers inherit from this one.
         .logger(
-            config::Logger::builder().appender("server").build(
-                log_channel::DEFAULT,
-                *config
-                    .server
-                    .logs
-                    .level
-                    .get(log_channel::DEFAULT)
-                    .unwrap_or(&log::LevelFilter::Warn),
-            ),
+            config::Logger::builder()
+                .additive(false)
+                .appender(log_channel::DEFAULT)
+                .build(
+                    log_channel::DEFAULT,
+                    *config
+                        .server
+                        .logs
+                        .level
+                        .get(log_channel::DEFAULT)
+                        .unwrap_or(&log::LevelFilter::Warn),
+                ),
         )
         .build(
             // true "root" logger, enabling it set logs for vSMTP's dependencies.
             // the user doesn't need to set this 99% of the time.
-            log_root_builder.appender("server").build(
-                *config
-                    .server
-                    .logs
-                    .level
-                    .get("root")
-                    .unwrap_or(&log::LevelFilter::Error),
-            ),
+            config::Root::builder()
+                .appender(log_channel::DEFAULT)
+                .build(
+                    *config
+                        .server
+                        .logs
+                        .level
+                        .get(log_channel::ROOT)
+                        .unwrap_or(&log::LevelFilter::Error),
+                ),
         )
         .map_err(anyhow::Error::new)
 }
@@ -165,7 +172,7 @@ mod tests {
         config.app.logs.filepath = "./tmp/app.log".into();
         config.server.logs.filepath = "/root/var/vsmtp.log".into();
 
-        let res = get_log4rs_config(&config, true);
+        let res = get_log4rs_config(&config, false);
         assert!(res.is_err(), "{:?}", res);
     }
 
@@ -175,7 +182,7 @@ mod tests {
         config.app.logs.filepath = "/root/var/app.log".into();
         config.server.logs.filepath = "./tmp/vsmtp.log".into();
 
-        let res = get_log4rs_config(&config, true);
+        let res = get_log4rs_config(&config, false);
         assert!(res.is_err(), "{:?}", res);
     }
 }

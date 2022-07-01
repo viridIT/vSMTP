@@ -83,10 +83,6 @@ impl Directive {
             } => {
                 if let Service::Smtp { delegator, .. } = &**service {
                     let args = vsl_guard_ok!(state.message().read())
-                        .as_ref()
-                        .ok_or_else::<rhai::EvalAltResult, _>(|| {
-                            "tried to delegate email security but the body was empty".into()
-                        })?
                         .get_header_rev("X-VSMTP-DELEGATION")
                         .map(|header| {
                             let header =
@@ -128,24 +124,19 @@ impl Directive {
                             )
                         }
                         _ => {
-                            vsl_guard_ok!(state.message().write())
-                                .as_mut()
-                                .ok_or_else::<rhai::EvalAltResult, _>(|| {
-                                    "tried to delegate email security but the body was empty".into()
-                                })?
-                                .add_header(
-                                    "X-VSMTP-DELEGATION",
-                                    &format!(
-                                        "sent; stage={}; directive=\"{}\"; id=\"{}\"",
-                                        smtp_stage,
-                                        name,
-                                        vsl_guard_ok!(state.context().read())
-                                            .metadata
-                                            .as_ref()
-                                            .unwrap()
-                                            .message_id
-                                    ),
-                                );
+                            vsl_guard_ok!(state.message().write()).prepend_header(
+                                "X-VSMTP-DELEGATION",
+                                &format!(
+                                    "sent; stage={}; directive=\"{}\"; id=\"{}\"",
+                                    smtp_stage,
+                                    name,
+                                    vsl_guard_ok!(state.context().read())
+                                        .metadata
+                                        .as_ref()
+                                        .unwrap()
+                                        .message_id
+                                ),
+                            );
 
                             Ok(Status::Delegated(delegator.clone()))
                         }

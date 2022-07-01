@@ -5,6 +5,7 @@ use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
+use crate::modules::types::types::{Context, Message, Server};
 use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
@@ -20,11 +21,11 @@ pub struct RuleState {
     /// A lightweight engine for evaluation.
     engine: rhai::Engine,
     /// A pointer to the server api.
-    pub server: std::sync::Arc<ServerAPI>,
+    pub server: Server,
     /// A pointer to the mail context for the current connection.
-    mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
+    mail_context: Context,
     /// A pointer to the mail body for the current connection.
-    message: std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>,
+    message: Message,
     // NOTE: we could replace this property by a `skip` function on
     //       the `Status` enum.
     /// A state to check if the next rules need to be executed or skipped.
@@ -68,7 +69,10 @@ impl RuleState {
             envelop: Envelop::default(),
             metadata: None,
         }));
-        let message = std::sync::Arc::new(std::sync::RwLock::new(None));
+        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::Raw {
+            headers: vec![],
+            body: None,
+        }));
 
         let engine = Self::build_rhai_engine(
             mail_context.clone(),
@@ -126,7 +130,7 @@ impl RuleState {
         resolvers: std::sync::Arc<Resolvers>,
         rule_engine: &RuleEngine,
         mail_context: MailContext,
-        message: Option<MessageBody>,
+        message: MessageBody,
     ) -> Self {
         let server = std::sync::Arc::new(ServerAPI {
             config: config.clone(),
@@ -170,9 +174,9 @@ impl RuleState {
 
     /// build a cheap rhai engine with vsl's api.
     fn build_rhai_engine(
-        mail_context: std::sync::Arc<std::sync::RwLock<MailContext>>,
-        message: std::sync::Arc<std::sync::RwLock<Option<MessageBody>>>,
-        server: std::sync::Arc<ServerAPI>,
+        mail_context: Context,
+        message: Message,
+        server: Server,
         rule_engine: &RuleEngine,
     ) -> rhai::Engine {
         let mut engine = rhai::Engine::new_raw();
@@ -208,13 +212,13 @@ impl RuleState {
 
     /// fetch the email context (possibly) mutated by the user's rules.
     #[must_use]
-    pub fn context(&self) -> std::sync::Arc<std::sync::RwLock<MailContext>> {
+    pub fn context(&self) -> Context {
         self.mail_context.clone()
     }
 
     /// fetch the message body (possibly) mutated by the user's rules.
     #[must_use]
-    pub fn message(&self) -> std::sync::Arc<std::sync::RwLock<Option<MessageBody>>> {
+    pub fn message(&self) -> Message {
         self.message.clone()
     }
 
@@ -233,20 +237,15 @@ impl RuleState {
         rule_engine: &std::sync::RwLock<RuleEngine>,
         mail_context: MailContext,
         mail_message: MessageBody,
-    ) -> anyhow::Result<(MailContext, Option<MessageBody>, Status, Option<Status>)> {
+    ) -> anyhow::Result<(MailContext, MessageBody, Status, Option<Status>)> {
         let rule_engine = rule_engine
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
 
         let server_address = mail_context.connection.server_address;
 
-        let mut rule_state = Self::with_context(
-            config,
-            resolvers,
-            &rule_engine,
-            mail_context,
-            Some(mail_message),
-        );
+        let mut rule_state =
+            Self::with_context(config, resolvers, &rule_engine, mail_context, mail_message);
         let result = rule_engine.run_when(&server_address, &mut rule_state, state);
 
         let (mail_context, mail_message, skipped) = rule_state
@@ -261,7 +260,7 @@ impl RuleState {
     ///
     /// * at least one strong reference of the [`std::sync::Arc`] is living
     /// * the [`std::sync::RwLock`] is poisoned
-    pub fn take(self) -> anyhow::Result<(MailContext, Option<MessageBody>, Option<Status>)> {
+    pub fn take(self) -> anyhow::Result<(MailContext, MessageBody, Option<Status>)> {
         // early drop of engine because a strong reference is living inside
         let skipped = self.skipped().cloned();
         drop(self.engine);

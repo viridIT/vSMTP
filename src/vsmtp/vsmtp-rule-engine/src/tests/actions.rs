@@ -106,14 +106,14 @@ fn test_context_write() {
         ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    *state.message().write().unwrap() = Some(MessageBody::Raw {
+    *state.message().write().unwrap() = MessageBody::Raw {
         headers: vec![
             "From: john doe <john@doe.com>".to_string(),
             "To: green@foo.net".to_string(),
             "Subject: test email".to_string(),
         ],
-        body: "This is a raw email.".to_string(),
-    });
+        body: Some("This is a raw email.".to_string()),
+    };
     assert_eq!(
         re.run_when(
             &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
@@ -163,10 +163,10 @@ fn test_context_dump() {
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    *state.message().write().unwrap() = Some(MessageBody::Raw {
+    *state.message().write().unwrap() = MessageBody::Raw {
         headers: vec![],
-        body: "".to_string(),
-    });
+        body: Some("".to_string()),
+    };
     assert_eq!(
         re.run_when(
             &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
@@ -175,14 +175,14 @@ fn test_context_dump() {
         ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
+    *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),
             ("X-Custom-Header".to_string(), "my header".to_string()),
         ],
         body: BodyType::Regular(vec!["this is an empty body".to_string()]),
-    })));
+    }));
     assert_eq!(
         re.run_when(
             &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
@@ -217,10 +217,10 @@ fn test_quarantine() {
         timestamp: std::time::SystemTime::now(),
         skipped: None,
     });
-    *state.message().write().unwrap() = Some(MessageBody::Raw {
+    *state.message().write().unwrap() = MessageBody::Raw {
         headers: vec![],
-        body: "".to_string(),
-    });
+        body: Some("".to_string()),
+    };
     assert_eq!(
         re.run_when(
             &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
@@ -239,14 +239,14 @@ fn test_quarantine() {
         .iter()
         .all(|rcpt| rcpt.transfer_method == Transfer::None));
 
-    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
+    *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail {
         headers: vec![
             ("From".to_string(), "john@doe.com".to_string()),
             ("To".to_string(), "green@bar.net".to_string()),
             ("X-Custom-Header".to_string(), "my header".to_string()),
         ],
         body: BodyType::Regular(vec!["this is an empty body".to_string()]),
-    })));
+    }));
     assert_eq!(
         re.run_when(
             &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
@@ -265,7 +265,7 @@ fn test_forward() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail::default())));
+    *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail::default()));
 
     assert_eq!(
         re.run_when(
@@ -350,7 +350,7 @@ fn test_forward_all() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail::default())));
+    *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail::default()));
 
     re.run_when(
         &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),

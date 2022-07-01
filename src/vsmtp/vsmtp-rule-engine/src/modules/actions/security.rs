@@ -107,17 +107,19 @@ pub fn map_from_query_result(q_result: &viaspf::QueryResult) -> rhai::Map {
             "result".into(),
             rhai::Dynamic::from(q_result.spf_result.to_string()),
         ),
-        (
-            "cause".into(),
-            q_result
-                .cause
-                .as_ref()
-                .map_or(rhai::Dynamic::from("default"), |cause| match cause {
-                    viaspf::SpfResultCause::Match(mechanism) => {
-                        rhai::Dynamic::from(mechanism.to_string())
+        {
+            q_result.cause.as_ref().map_or(
+                ("mechanism".into(), rhai::Dynamic::from("default")),
+                |cause| match cause {
+                    viaspf::SpfResultCause::Match(mechanism) => (
+                        "mechanism".into(),
+                        rhai::Dynamic::from(mechanism.to_string()),
+                    ),
+                    viaspf::SpfResultCause::Error(error) => {
+                        ("problem".into(), rhai::Dynamic::from(error.to_string()))
                     }
-                    viaspf::SpfResultCause::Error(error) => rhai::Dynamic::from(error.to_string()),
-                }),
-        ),
+                },
+            )
+        },
     ])
 }

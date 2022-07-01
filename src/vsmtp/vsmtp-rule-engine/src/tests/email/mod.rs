@@ -51,13 +51,13 @@ fn test_email_context_raw() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = Some(MessageBody::Raw {
+    *state.message().write().unwrap() = MessageBody::Raw {
         headers: vec![
             "from: <foo@bar>".to_string(),
             "date: Tue, 30 Nov 2021 20:54:27 +0100".to_string(),
         ],
-        body: "".to_string(),
-    });
+        body: Some("".to_string()),
+    };
     assert_eq!(
         re.run_when(
             &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
@@ -75,13 +75,13 @@ fn test_email_context_mail() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
+    *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail {
         headers: vec![(
             "to".to_string(),
             "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
         )],
         body: BodyType::Regular(vec![]),
-    })));
+    }));
     state.context().write().unwrap().envelop.rcpt = vec![
         addr!("rcpt@toremove.org").into(),
         addr!("rcpt@torewrite.net").into(),
@@ -97,13 +97,7 @@ fn test_email_context_mail() {
     );
 
     assert_eq!(
-        state
-            .message()
-            .read()
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .get_header("to"),
+        state.message().read().unwrap().get_header("to"),
         Some("other.new@rcpt.net, other.added@rcpt.com")
     );
 }
@@ -138,14 +132,14 @@ fn test_email_add_get_set_header() {
             &mut state,
             &StateSMTP::Connect
         ),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
+        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok))
     );
 
     let (mut state, _) = get_default_state("./tmp/app");
-    *state.message().write().unwrap() = Some(MessageBody::Raw {
+    *state.message().write().unwrap() = MessageBody::Raw {
         headers: vec![],
-        body: "".to_string(),
-    });
+        body: Some("".to_string()),
+    };
     let status = re.run_when(
         &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
         &mut state,
@@ -153,10 +147,10 @@ fn test_email_add_get_set_header() {
     );
     assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)));
 
-    *state.message().write().unwrap() = Some(MessageBody::Parsed(Box::new(Mail {
+    *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail {
         headers: vec![],
         body: BodyType::Regular(vec![]),
-    })));
+    }));
 
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(
