@@ -1,21 +1,19 @@
 use crate::parser::MailMimeParser;
-use vsmtp_common::{
-    MailHeaders, MailParser, MessageBody, {BodyType, Mail},
-};
+use vsmtp_common::{BodyType, Mail, MailHeaders, MailParser};
 
 #[test]
 fn white_space_and_comments() {
     let parsed = MailMimeParser::default()
         .parse_lines(
-            include_str!("../../mail/rfc5322/A.5.eml")
+            &include_str!("../../mail/rfc5322/A.5.eml")
                 .lines()
-                .map(str::to_string)
                 .collect::<Vec<_>>(),
         )
-        .unwrap();
+        .unwrap()
+        .unwrap_right();
     pretty_assertions::assert_eq!(
         parsed,
-        MessageBody::Parsed(Box::new(Mail {
+        Mail {
             headers: MailHeaders(
                 [
                     (
@@ -54,7 +52,7 @@ fn white_space_and_comments() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }))
+        }
     );
     pretty_assertions::assert_eq!(
         parsed.to_string(),

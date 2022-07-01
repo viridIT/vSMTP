@@ -1,18 +1,17 @@
 use crate::parser::MailMimeParser;
-use vsmtp_common::{
-    MailHeaders, MailParser, MessageBody, {BodyType, Mail},
-};
+use vsmtp_common::{BodyType, Mail, MailHeaders, MailParser};
 
 const MAIL: &str = include_str!("../../mail/rfc5322/A.1.3.eml");
 
 #[test]
 fn group_addresses() {
     let parsed = MailMimeParser::default()
-        .parse_lines(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
-        .unwrap();
+        .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+        .unwrap()
+        .unwrap_right();
     pretty_assertions::assert_eq!(
         parsed,
-        MessageBody::Parsed(Box::new(Mail {
+        Mail {
             headers: MailHeaders(
                 [
                     ("from", "Pete <pete@silly.example>"),
@@ -34,7 +33,7 @@ fn group_addresses() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }))
+        }
     );
     pretty_assertions::assert_eq!(parsed.to_string(), MAIL.replace('\n', "\r\n"));
 }

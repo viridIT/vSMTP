@@ -1,5 +1,5 @@
 use trust_dns_resolver::config::ResolverOpts;
-use vsmtp_common::{MailParser, MessageBody};
+use vsmtp_common::{Either, MailParser, MessageBody, ParserOutcome, RawBody};
 use vsmtp_mail_parser::MailMimeParser;
 
 use crate::{verify, Key, Signature};
@@ -18,7 +18,7 @@ const SIGNATURE: &str = concat!(
 struct NoParsing;
 
 impl MailParser for NoParsing {
-    fn parse_lines(&mut self, raw: Vec<String>) -> anyhow::Result<MessageBody> {
+    fn parse_lines(&mut self, raw: &[&str]) -> ParserOutcome {
         let mut headers = Vec::<String>::new();
         let mut body = String::new();
 
@@ -28,7 +28,7 @@ impl MailParser for NoParsing {
             if line.is_empty() {
                 break;
             }
-            headers.push(line);
+            headers.push(line.to_string());
         }
 
         for line in stream {
@@ -36,18 +36,19 @@ impl MailParser for NoParsing {
             body.push_str("\r\n");
         }
 
-        Ok(MessageBody::Raw {
+        Ok(Either::Left(RawBody {
             headers,
             body: Some(body),
-        })
+        }))
     }
 }
 
 #[tokio::test]
 async fn verify_with_raw_message() {
     let body = NoParsing::default()
-        .parse_lines(MAIL.lines().map(str::to_string).collect())
-        .unwrap();
+        .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+        .unwrap()
+        .unwrap_left();
 
     let resolver = trust_dns_resolver::TokioAsyncResolver::tokio(
         trust_dns_resolver::config::ResolverConfig::google(),
@@ -69,9 +70,10 @@ async fn verify_with_raw_message() {
 fn prerequisite() {
     let parsed = MailParser::parse_lines(
         &mut MailMimeParser::default(),
-        MAIL.lines().map(str::to_string).collect(),
+        &MAIL.lines().collect::<Vec<_>>()[..],
     )
-    .unwrap();
+    .unwrap()
+    .unwrap_right();
 
     pretty_assertions::assert_eq!(parsed.to_string(), MAIL);
 }
@@ -79,11 +81,10 @@ fn prerequisite() {
 // FIXME:
 #[tokio::test]
 async fn verify_with_parsed() {
-    let body = MailParser::parse_lines(
-        &mut MailMimeParser::default(),
-        MAIL.lines().map(str::to_string).collect(),
-    )
-    .unwrap();
+    let body = NoParsing::default()
+        .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+        .unwrap()
+        .unwrap_left();
 
     let resolver = trust_dns_resolver::TokioAsyncResolver::tokio(
         trust_dns_resolver::config::ResolverConfig::google(),

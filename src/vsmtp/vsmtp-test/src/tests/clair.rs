@@ -275,7 +275,7 @@ async fn test_receiver_13() {
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.to_parsed::<MailMimeParser>().unwrap();
+            message.parse::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(
@@ -366,7 +366,7 @@ async fn test_receiver_14() {
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.to_parsed::<MailMimeParser>().unwrap();
+            message.parse::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
             assert_eq!(

@@ -14,12 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{
-    collection, MailHeaders, MailParser, MessageBody, {BodyType, Mail},
-    {Mime, MimeBodyType, MimeHeader},
-};
-
 use crate::parser::MailMimeParser;
+use vsmtp_common::{
+    collection, BodyType, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader,
+};
 
 const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");
 
@@ -27,9 +25,10 @@ const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");
 fn mime_parser() {
     assert_eq!(
         MailMimeParser::default()
-            .parse_lines(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
-            .unwrap(),
-        MessageBody::Parsed(Box::new(Mail {
+            .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+            .unwrap()
+            .unwrap_right(),
+        Mail {
             headers: MailHeaders(
                 [
                     (
@@ -94,6 +93,6 @@ fn mime_parser() {
                     .collect::<Vec<_>>()
                 )
             }))
-        }))
+        }
     );
 }

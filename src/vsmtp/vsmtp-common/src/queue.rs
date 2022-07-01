@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{log_channels, mail_context::MailContext, MessageBody};
+use crate::{log_channels, mail_context::MailContext};
 use anyhow::Context;
 
 /// identifiers for all mail queues.
@@ -142,42 +142,5 @@ impl Queue {
         let serialized = serde_json::to_string(mail)?;
 
         tokio::io::AsyncWriteExt::write_all(&mut file, serialized.as_bytes()).await
-    }
-
-    ///
-    /// # Errors
-    ///
-    /// * failed to create the folder in `queues_dirpath`
-    pub fn write_to_mails(
-        queues_dirpath: &std::path::Path,
-        message_id: &str,
-        message: &MessageBody,
-    ) -> std::io::Result<()> {
-        let buf = std::path::PathBuf::from(queues_dirpath).join("mails");
-        if !buf.exists() {
-            std::fs::DirBuilder::new().recursive(true).create(&buf)?;
-        }
-        let mut to_write = buf.join(message_id);
-        to_write.set_extension(match &message {
-            MessageBody::Raw { .. } => "eml",
-            MessageBody::Parsed(_) => "json",
-        });
-
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&to_write)?;
-
-        std::io::Write::write_all(
-            &mut file,
-            match message {
-                MessageBody::Raw { .. } => message.to_string(),
-                MessageBody::Parsed(parsed) => serde_json::to_string(parsed)?,
-            }
-            .as_bytes(),
-        )?;
-
-        Ok(())
     }
 }

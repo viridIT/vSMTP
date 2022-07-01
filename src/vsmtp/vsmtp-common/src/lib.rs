@@ -66,6 +66,9 @@ mod r#type {
     pub mod reply_code;
 }
 
+mod either;
+pub use either::Either;
+
 mod message {
     pub mod mail;
     #[allow(clippy::module_name_repetitions)]
@@ -73,7 +76,11 @@ mod message {
     pub mod mime_type;
 }
 
-pub use message::{mail::*, message_body::MessageBody, mime_type::*};
+pub use message::{
+    mail::*,
+    message_body::{MessageBody, RawBody},
+    mime_type::*,
+};
 pub use r#type::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 
 ///
@@ -128,7 +135,7 @@ mod r#trait {
     pub mod mail_parser;
 }
 
-pub use r#trait::mail_parser::{MailParser, MailParserOnFly};
+pub use r#trait::mail_parser::{MailParser, MailParserOnFly, ParserOutcome};
 
 #[cfg(test)]
 mod tests {

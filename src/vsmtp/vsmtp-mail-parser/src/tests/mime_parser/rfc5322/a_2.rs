@@ -1,21 +1,19 @@
 use crate::parser::MailMimeParser;
-use vsmtp_common::{
-    MailHeaders, MailParser, MessageBody, {BodyType, Mail},
-};
+use vsmtp_common::{BodyType, Mail, MailHeaders, MailParser};
 
 #[test]
 fn simple() {
     let parsed = MailMimeParser::default()
         .parse_lines(
-            include_str!("../../mail/rfc5322/A.2.a.eml")
+            &include_str!("../../mail/rfc5322/A.2.a.eml")
                 .lines()
-                .map(str::to_string)
                 .collect::<Vec<_>>(),
         )
-        .unwrap();
+        .unwrap()
+        .unwrap_right();
     pretty_assertions::assert_eq!(
         parsed,
-        MessageBody::Parsed(Box::new(Mail {
+        Mail {
             headers: MailHeaders(
                 [
                     ("from", "John Doe <jdoe@machine.example>"),
@@ -34,7 +32,7 @@ fn simple() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }))
+        }
     );
     pretty_assertions::assert_eq!(
         parsed.to_string(),
@@ -46,15 +44,15 @@ fn simple() {
 fn reply_simple() {
     let parsed = MailMimeParser::default()
         .parse_lines(
-            include_str!("../../mail/rfc5322/A.2.b.eml")
+            &include_str!("../../mail/rfc5322/A.2.b.eml")
                 .lines()
-                .map(str::to_string)
                 .collect::<Vec<_>>(),
         )
-        .unwrap();
+        .unwrap()
+        .unwrap_right();
     pretty_assertions::assert_eq!(
         parsed,
-        MessageBody::Parsed(Box::new(Mail {
+        Mail {
             headers: MailHeaders(
                 [
                     ("from", "Mary Smith <mary@example.net>"),
@@ -79,7 +77,7 @@ fn reply_simple() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }))
+        }
     );
     pretty_assertions::assert_eq!(
         parsed.to_string(),
@@ -91,15 +89,15 @@ fn reply_simple() {
 fn reply_reply() {
     let parsed = MailMimeParser::default()
         .parse_lines(
-            include_str!("../../mail/rfc5322/A.2.c.eml")
+            &include_str!("../../mail/rfc5322/A.2.c.eml")
                 .lines()
-                .map(str::to_string)
                 .collect::<Vec<_>>(),
         )
-        .unwrap();
+        .unwrap()
+        .unwrap_right();
     pretty_assertions::assert_eq!(
         parsed,
-        MessageBody::Parsed(Box::new(Mail {
+        Mail {
             headers: MailHeaders(
                 [
                     (
@@ -126,7 +124,7 @@ fn reply_reply() {
                     .map(str::to_string)
                     .collect::<_>()
             )
-        }))
+        }
     );
     pretty_assertions::assert_eq!(
         parsed.to_string(),

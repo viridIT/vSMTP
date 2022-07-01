@@ -38,7 +38,7 @@ async fn reset_helo() {
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.to_parsed::<MailMimeParser>().unwrap();
+            message.parse::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "a@b");
@@ -150,7 +150,7 @@ async fn reset_rcpt_to_ok() {
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.to_parsed::<MailMimeParser>().unwrap();
+            message.parse::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo2");
             assert_eq!(mail.envelop.mail_from.full(), "d@e");
@@ -231,7 +231,7 @@ async fn reset_rcpt_to_multiple_rcpt() {
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.to_parsed::<MailMimeParser>().unwrap();
+            message.parse::<MailMimeParser>().unwrap();
 
             assert_eq!(mail.envelop.helo, "foo");
             assert_eq!(mail.envelop.mail_from.full(), "foo2@foo");

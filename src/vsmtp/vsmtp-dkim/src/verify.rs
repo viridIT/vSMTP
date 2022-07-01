@@ -68,10 +68,7 @@ pub fn verify(
     let body = signature
         .canonicalization
         .body
-        .canonicalize_body(match &message {
-            MessageBody::Raw { body, .. } => body.clone().unwrap_or_default(),
-            MessageBody::Parsed(mail) => format!("{}", mail.body),
-        });
+        .canonicalize_body(message.to_string());
 
     let body_hash = signature
         .signing_algorithm

@@ -70,10 +70,7 @@ impl RuleState {
             envelop: Envelop::default(),
             metadata: None,
         }));
-        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::Raw {
-            headers: vec![],
-            body: None,
-        }));
+        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
         let engine = Self::build_rhai_engine(
             mail_context.clone(),

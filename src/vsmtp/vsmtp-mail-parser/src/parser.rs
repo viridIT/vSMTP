@@ -14,18 +14,14 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::log_channels;
-
 use super::error::{ParserError, ParserResult};
 use super::helpers::get_mime_type;
 use super::helpers::read_header;
+use crate::log_channels;
 use vsmtp_common::{
-    re::{
-        anyhow::{self, Context},
-        log,
-    },
-    BodyType, Mail, MailHeaders, MailParser, MessageBody, Mime, MimeBodyType, MimeHeader,
-    MimeMultipart,
+    re::{anyhow::Context, log},
+    BodyType, Either, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader, MimeMultipart,
+    ParserOutcome,
 };
 
 /// a boundary serves as a delimiter between mime parts in a multipart section.
@@ -43,11 +39,10 @@ pub struct MailMimeParser {
 }
 
 impl MailParser for MailMimeParser {
-    fn parse_lines(&mut self, data: Vec<String>) -> anyhow::Result<MessageBody> {
-        let data = data.iter().map(String::as_str).collect::<Vec<_>>();
-        Ok(MessageBody::Parsed(Box::new(
+    fn parse_lines(&mut self, data: &[&str]) -> ParserOutcome {
+        Ok(Either::Right(
             self.parse_inner(&mut &data[..]).context("parsing failed")?,
-        )))
+        ))
     }
 }
 

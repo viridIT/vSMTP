@@ -27,11 +27,7 @@ fn generate_test_bodies() -> (MessageBody, MessageBody) {
         "Subject: test message",
         "Content-Type: text/html; charset=UTF-8",
         "Content-Transfer-Encoding: 7bit",
-    ]
-    .into_iter()
-    .map(str::to_string)
-    .collect::<Vec<_>>();
-
+    ];
     let body = r#"<html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -40,15 +36,11 @@ fn generate_test_bodies() -> (MessageBody, MessageBody) {
     only plain text here<br>
   </body>
 </html>
-"#
-    .to_string();
+"#;
 
-    let raw = MessageBody::Raw {
-        headers,
-        body: Some(body),
-    };
+    let raw = MessageBody::new(&headers, body);
     let mut parsed = raw.clone();
-    parsed.to_parsed::<MailMimeParser>().unwrap();
+    parsed.parse::<MailMimeParser>().unwrap();
 
     (raw, parsed)
 }

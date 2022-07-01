@@ -1,7 +1,7 @@
 use crate::MailMimeParser;
 use vsmtp_common::{
-    collection, MailHeaders, MailParser, MessageBody, {BodyType, Mail},
-    {Mime, MimeBodyType, MimeHeader, MimeMultipart},
+    collection, BodyType, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader,
+    MimeMultipart,
 };
 
 const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");
@@ -10,11 +10,12 @@ const MAIL: &str = include_str!("../../mail/rfc2049/A.eml");
 #[allow(clippy::too_many_lines)]
 fn simple() {
     let parsed = MailMimeParser::default()
-        .parse_lines(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
-        .unwrap();
+        .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+        .unwrap()
+        .unwrap_right();
     pretty_assertions::assert_eq!(
         parsed,
-        MessageBody::Parsed(Box::new(Mail {
+        Mail {
             headers: MailHeaders(
                 [
                     ("mime-version", "1.0"),
@@ -196,7 +197,7 @@ fn simple() {
                     epilogue: "".to_string(),
                 })
             }))
-        }))
+        }
     );
 
     pretty_assertions::assert_eq!(parsed.to_string(), MAIL.replace('\n', "\r\n"));
