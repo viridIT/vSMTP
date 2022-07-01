@@ -71,7 +71,11 @@ fn test_check_relay() {
     state.context().write().unwrap().envelop.mail_from = addr!("satan@testserver.com");
 
     assert_eq!(
-        re.run_when(&mut state, &StateSMTP::MailFrom),
+        re.run_when(
+            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
+            &mut state,
+            &StateSMTP::MailFrom
+        ),
         Status::Deny(ReplyOrCodeID::Reply(Reply::new(
             Enhanced {
                 code: 554,
