@@ -28,7 +28,7 @@ vsmtp-rsasl = { version = "1.5.1-rc2", default-features = false }
 
 strum = { version = "0.24.1", features = ["derive"] }
 libc = "0.2.126"
-lettre = { version = "0.10.0-rc.7", default-features = false, features = [
+lettre = { version = "0.10.0", default-features = false, features = [
     "smtp-transport",
     "builder",
     "tokio1-rustls-tls",
