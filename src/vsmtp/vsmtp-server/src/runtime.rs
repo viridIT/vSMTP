@@ -25,7 +25,7 @@ use vsmtp_common::{
 use vsmtp_config::Config;
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 
-fn init_runtime<F: 'static>(
+fn init_runtime<F>(
     sender: tokio::sync::mpsc::Sender<()>,
     name: impl Into<String>,
     worker_thread_count: usize,
@@ -33,7 +33,7 @@ fn init_runtime<F: 'static>(
     timeout: Option<std::time::Duration>,
 ) -> anyhow::Result<std::thread::JoinHandle<anyhow::Result<()>>>
 where
-    F: std::future::Future<Output = ()> + Send,
+    F: std::future::Future<Output = ()> + Send + 'static,
 {
     let name = name.into();
     let runtime = tokio::runtime::Builder::new_multi_thread()
