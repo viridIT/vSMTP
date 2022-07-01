@@ -120,10 +120,7 @@ fn test_services() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = MessageBody::Raw {
-        headers: vec![],
-        body: Some("".to_string()),
-    };
+    *state.message().write().unwrap() = MessageBody::default();
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
@@ -173,10 +170,7 @@ fn test_config_display() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = MessageBody::Raw {
-        headers: vec![],
-        body: Some("".to_string()),
-    };
+    *state.message().write().unwrap() = MessageBody::default();
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Helo),

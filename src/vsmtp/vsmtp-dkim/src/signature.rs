@@ -15,7 +15,7 @@
  *
 */
 
-use vsmtp_common::MessageBody;
+use vsmtp_common::{MessageBody, RawBody};
 
 use super::{Canonicalization, SigningAlgorithm};
 
@@ -113,7 +113,7 @@ impl Signature {
     ///
     /// header is missing
     #[must_use]
-    pub fn get_header_hash(&self, message: &MessageBody) -> Vec<u8> {
+    pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
         let headers = self
             .headers_field
             .iter()

@@ -26,7 +26,7 @@ pub fn show<OUT: std::io::Write>(
             copy.push(format!("mails/{msg_id}"));
 
             match std::fs::read_to_string(copy).map(|s| serde_json::from_str::<MessageBody>(&s)) {
-                Ok(Ok(message)) => output.write_fmt(format_args!("{}", message)),
+                Ok(Ok(message)) => output.write_all(message.inner().to_string().as_bytes()),
                 Ok(Err(error)) => {
                     output.write_fmt(format_args!("Failed to deserialize message: '{error}'"))
                 }
@@ -55,7 +55,7 @@ mod tests {
         BodyType, Mail, MailHeaders,
     };
 
-    fn get_mail(msg_id: &str) -> (MailContext, MessageBody) {
+    fn get_mail(msg_id: &str) -> (MailContext, Mail) {
         (
             MailContext {
                 connection: ConnectionContext {
@@ -82,7 +82,7 @@ mod tests {
                     skipped: None,
                 }),
             },
-            MessageBody::Parsed(Box::new(Mail {
+            Mail {
                 headers: MailHeaders(
                     [
                         ("from", "foo2 foo <foo2@foo>"),
@@ -93,7 +93,7 @@ mod tests {
                     .collect::<Vec<_>>(),
                 ),
                 body: BodyType::Regular(vec!["Hello World!!".to_string()]),
-            })),
+            },
         )
     }
 

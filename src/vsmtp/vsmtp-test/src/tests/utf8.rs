@@ -42,13 +42,11 @@ macro_rules! test_lang {
                     vec![addr!("aa@bb").into()]
                 );
 
-                message
-                    .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
-                    .unwrap();
-
                 pretty_assertions::assert_eq!(
-                    message,
-                    MessageBody::Parsed(Box::new(Mail {
+                    *message
+                        .parsed::<vsmtp_mail_parser::MailMimeParser>()
+                        .unwrap(),
+                    Mail {
                         headers: MailHeaders([
                             ("from", "john doe <john@doe>"),
                             ("subject", "ar"),
@@ -70,7 +68,7 @@ macro_rules! test_lang {
                                 })
                                 .collect::<Vec<_>>()
                         )
-                    }))
+                    }
                 );
                 CodeID::Ok
             }

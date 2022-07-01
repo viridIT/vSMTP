@@ -59,7 +59,7 @@ pub mod write {
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        std::io::Write::write_all(&mut writer, body.to_string().as_bytes())
+        std::io::Write::write_all(&mut writer, body.inner().to_string().as_bytes())
             .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
     }
 

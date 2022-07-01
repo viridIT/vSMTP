@@ -90,10 +90,7 @@ pub async fn message_from_file_path(
             .split_once("\r\n\r\n")
             .ok_or_else(|| anyhow::anyhow!("Cannot find message body"))?;
 
-        return Ok(MessageBody::Raw {
-            headers: headers.lines().map(str::to_string).collect(),
-            body: Some(body.to_string()),
-        });
+        return MessageBody::try_from(content.as_str());
     }
     anyhow::bail!("failed does not exist")
 }

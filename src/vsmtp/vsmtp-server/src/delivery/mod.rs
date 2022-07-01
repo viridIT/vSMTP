@@ -118,7 +118,7 @@ pub async fn send_mail(
         return;
     }
 
-    let message_content = message_body.to_string();
+    let message_content = message_body.inner().to_string();
 
     let root_server_resolver = resolvers
         .get(&config.server.domain)
@@ -288,7 +288,7 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::{mail_context::ConnectionContext, status::Status, MessageBody};
+    use vsmtp_common::{mail_context::ConnectionContext, status::Status, MessageBody, RawBody};
 
     /*
     /// This test produce side-effect and may make other test fails
@@ -348,17 +348,14 @@ mod test {
 
         let config = vsmtp_config::Config::default();
 
-        let mut message = MessageBody::Raw {
-            headers: vec![],
-            body: Some("".to_string()),
-        };
+        let mut message = MessageBody::default();
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &mut ctx, &mut message, &Status::Next).unwrap();
 
         pretty_assertions::assert_eq!(
-            message,
-            MessageBody::Raw {
-                headers: vec![
+            *message.inner(),
+            RawBody::new(
+                vec![
                     format!(
                         "X-VSMTP: id='{id}' version='{ver}' status='next'",
                         id = ctx.metadata.as_ref().unwrap().message_id,
@@ -378,8 +375,8 @@ mod test {
                     ]
                     .concat(),
                 ],
-                body: Some("".to_string()),
-            }
+                "".to_string(),
+            )
         );
     }
 }

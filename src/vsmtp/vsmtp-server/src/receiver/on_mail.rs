@@ -61,12 +61,9 @@ impl MailHandler {
     ) -> Result<(), MailHandlerError> {
         let metadata = mail.metadata.as_ref().unwrap();
 
-        Queue::write_to_mails(
-            &conn.config.server.queues.dirpath,
-            &metadata.message_id,
-            &message,
-        )
-        .map_err(MailHandlerError::WriteMessageBody)?;
+        message
+            .write_to_mails(&conn.config.server.queues.dirpath, &metadata.message_id)
+            .map_err(MailHandlerError::WriteMessageBody)?;
 
         let next_queue = match &metadata.skipped {
             Some(Status::Quarantine(path)) => {

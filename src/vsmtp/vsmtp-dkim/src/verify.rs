@@ -16,7 +16,7 @@
 */
 
 use super::{Key, Signature, SigningAlgorithm};
-use vsmtp_common::MessageBody;
+use vsmtp_common::{MessageBody, RawBody};
 
 #[derive(Debug, thiserror::Error)]
 pub enum VerifierResult {
@@ -41,11 +41,7 @@ pub enum VerifierResult {
 /// # Errors
 ///
 /// * see [`VerifierResult`]
-pub fn verify(
-    message: &MessageBody,
-    signature: &Signature,
-    key: &Key,
-) -> Result<(), VerifierResult> {
+pub fn verify(message: &RawBody, signature: &Signature, key: &Key) -> Result<(), VerifierResult> {
     if !signature
         .signing_algorithm
         .is_supported(&key.acceptable_hash_algorithms)

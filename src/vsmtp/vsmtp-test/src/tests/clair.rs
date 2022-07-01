@@ -275,8 +275,6 @@ async fn test_receiver_13() {
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.parse::<MailMimeParser>().unwrap();
-
             assert_eq!(mail.envelop.helo, "foobar");
             assert_eq!(
                 mail.envelop.mail_from.full(),
@@ -287,8 +285,8 @@ async fn test_receiver_13() {
                 vec![addr!(format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
-                message,
-                MessageBody::Parsed(Box::new(Mail {
+                *message.parsed::<MailMimeParser>().unwrap(),
+                Mail {
                     headers: MailHeaders(
                         [
                             (
@@ -302,7 +300,7 @@ async fn test_receiver_13() {
                         .collect::<Vec<_>>()
                     ),
                     body: BodyType::Regular(vec![format!("mail {}", self.count)])
-                }))
+                }
             );
 
             self.count += 1;
@@ -366,8 +364,6 @@ async fn test_receiver_14() {
             mail: Box<MailContext>,
             mut message: MessageBody,
         ) -> CodeID {
-            message.parse::<MailMimeParser>().unwrap();
-
             assert_eq!(mail.envelop.helo, format!("foobar{}", self.count));
             assert_eq!(
                 mail.envelop.mail_from.full(),
@@ -378,8 +374,8 @@ async fn test_receiver_14() {
                 vec![addr!(format!("aa{}@bb", self.count)).into()]
             );
             pretty_assertions::assert_eq!(
-                message,
-                MessageBody::Parsed(Box::new(Mail {
+                *message.parsed::<MailMimeParser>().unwrap(),
+                Mail {
                     headers: MailHeaders(
                         [
                             (
@@ -393,7 +389,7 @@ async fn test_receiver_14() {
                         .collect::<Vec<_>>()
                     ),
                     body: BodyType::Regular(vec![format!("mail {}", self.count)])
-                }))
+                }
             );
 
             self.count += 1;

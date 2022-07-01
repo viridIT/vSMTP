@@ -38,7 +38,10 @@ fn generate_test_bodies() -> (MessageBody, MessageBody) {
 </html>
 "#;
 
-    let raw = MessageBody::new(&headers, body);
+    let raw = MessageBody::new(
+        headers.iter().map(ToString::to_string).collect(),
+        body.to_string(),
+    );
     let mut parsed = raw.clone();
     parsed.parse::<MailMimeParser>().unwrap();
 

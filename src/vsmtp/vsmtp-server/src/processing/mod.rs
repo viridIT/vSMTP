@@ -140,11 +140,7 @@ async fn handle_one_in_working_queue_inner(
     )?;
 
     // writing the mails in any case because we don't know (yet) if it changed
-    Queue::write_to_mails(
-        &config.server.queues.dirpath,
-        &process_message.message_id,
-        &message,
-    )?;
+    message.write_to_mails(&config.server.queues.dirpath, &process_message.message_id)?;
 
     let queue = match result {
         Status::Quarantine(path) => {
@@ -294,14 +290,14 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            "test",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
-        )
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(&config.server.queues.dirpath, "test")
         .unwrap();
 
         let (delivery_sender, mut delivery_receiver) =
@@ -377,14 +373,14 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            "test_denied",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
-        )
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(&config.server.queues.dirpath, "test_denied")
         .unwrap();
 
         let (delivery_sender, _delivery_receiver) =

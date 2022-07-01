@@ -26,6 +26,7 @@ use vsmtp_common::{
     status::Status,
     CodeID, MailHeaders, MessageBody, ReplyOrCodeID, {BodyType, Mail},
 };
+use vsmtp_mail_parser::MailMimeParser;
 
 #[test]
 fn test_email_context_empty() {
@@ -47,13 +48,12 @@ fn test_email_context_raw() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = MessageBody::Raw {
-        headers: vec![
-            "from: <foo@bar>".to_string(),
-            "date: Tue, 30 Nov 2021 20:54:27 +0100".to_string(),
-        ],
-        body: Some("".to_string()),
-    };
+    *state.message().write().unwrap() = MessageBody::try_from(concat!(
+        "from: <foo@bar>\r\n",
+        "date: Tue, 30 Nov 2021 20:54:27 +0100\r\n",
+        "\r\n"
+    ))
+    .unwrap();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
@@ -67,23 +67,46 @@ fn test_email_context_mail() {
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
     let mut state = RuleState::new(&config, resolvers, &re);
 
-    *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail {
-        headers: MailHeaders(vec![(
-            "to".to_string(),
-            "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
-        )]),
-        body: BodyType::Regular(vec![]),
-    }));
-    state.context().write().unwrap().envelop.rcpt = vec![
-        addr!("rcpt@toremove.org").into(),
-        addr!("rcpt@torewrite.net").into(),
-    ];
-    state.context().write().unwrap().metadata = Some(MessageMetadata::default());
+    {
+        *state.message().write().unwrap() = MessageBody::try_from(concat!(
+            "To: other.rcpt@toremove.org, other.rcpt@torewrite.net\r\n",
+            "\r\n"
+        ))
+        .unwrap();
+        state
+            .message()
+            .write()
+            .unwrap()
+            .parse::<MailMimeParser>()
+            .unwrap();
+
+        assert_eq!(
+            *state
+                .message()
+                .write()
+                .unwrap()
+                .parsed::<MailMimeParser>()
+                .unwrap(),
+            Mail {
+                headers: MailHeaders(vec![(
+                    "to".to_string(),
+                    "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
+                )]),
+                body: BodyType::Regular(vec![]),
+            }
+        );
+
+        state.context().write().unwrap().envelop.rcpt = vec![
+            addr!("rcpt@toremove.org").into(),
+            addr!("rcpt@torewrite.net").into(),
+        ];
+        state.context().write().unwrap().metadata = Some(MessageMetadata::default());
+    }
+
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
-
     assert_eq!(
         state.message().read().unwrap().get_header("to"),
         Some("other.new@rcpt.net, other.added@rcpt.com".to_string())
@@ -116,17 +139,11 @@ fn test_email_add_get_set_header() {
     );
 
     let (mut state, _) = get_default_state("./tmp/app");
-    *state.message().write().unwrap() = MessageBody::Raw {
-        headers: vec![],
-        body: Some("".to_string()),
-    };
+    *state.message().write().unwrap() = MessageBody::default();
     let status = re.run_when(&mut state, &StateSMTP::PreQ);
     assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)));
 
-    *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail {
-        headers: MailHeaders(vec![]),
-        body: BodyType::Regular(vec![]),
-    }));
+    *state.message().write().unwrap() = MessageBody::default();
 
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(

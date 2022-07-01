@@ -18,7 +18,7 @@
 use crate::test_receiver;
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::re::{serde_json, tokio};
-use vsmtp_common::MessageBody;
+use vsmtp_common::RawBody;
 use vsmtp_server::message_from_file_path;
 use vsmtp_server::ProcessMessage;
 
@@ -79,10 +79,10 @@ async fn test_quarantine() {
     path.push(format!("mails/{}.eml", ctx.metadata.unwrap().message_id));
 
     assert_eq!(
-        message_from_file_path(path).await.unwrap(),
-        MessageBody::Raw {
-            headers: vec!["from: 'abc'".to_string(), "to: 'def'".to_string()],
-            body: Some("".to_string())
-        }
+        *message_from_file_path(path).await.unwrap().inner(),
+        RawBody::new(
+            vec!["from: 'abc'".to_string(), "to: 'def'".to_string()],
+            "".to_string(),
+        )
     );
 }

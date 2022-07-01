@@ -261,13 +261,16 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(
             &config.server.queues.dirpath,
             "message_from_deliver_to_deferred",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
         )
         .unwrap();
 

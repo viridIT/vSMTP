@@ -25,7 +25,7 @@ use vsmtp_common::{
     re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
-    CodeID, ConnectionKind, MailParserOnFly, MessageBody,
+    CodeID, ConnectionKind, Either, MailParserOnFly, MessageBody, ParserOutcome, RawBody,
 };
 use vsmtp_config::{re::rustls, Resolvers};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -122,7 +122,7 @@ impl MailParserOnFly for NoParsing {
     async fn parse<'a>(
         &'a mut self,
         mut stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> anyhow::Result<MessageBody> {
+    ) -> ParserOutcome {
         let mut headers = Vec::with_capacity(20);
         let mut body = String::with_capacity(MAIL_CAPACITY);
 
@@ -138,10 +138,7 @@ impl MailParserOnFly for NoParsing {
             body.push_str("\r\n");
         }
 
-        Ok(MessageBody::Raw {
-            headers,
-            body: Some(body),
-        })
+        Ok(Either::Left(RawBody::new(headers, body)))
     }
 }
 
@@ -168,9 +165,17 @@ where
 
         // Headers could have been added to the email before preq,
         // so we start by prepending them to the headers received.
-        let headers = message.take_headers();
-        body.prepend_raw_headers(headers.into_iter());
-        *message = body;
+        let preq_headers = message.inner().headers();
+
+        match &mut body {
+            Either::Left(raw) => raw.prepend_header(preq_headers.map(str::to_string)),
+            Either::Right(parsed) => parsed.prepend_headers(preq_headers.filter_map(|s| {
+                s.split_once(':')
+                    .map(|(key, value)| (key.to_string(), value.to_string()))
+            })),
+        };
+
+        *message = MessageBody::from(body);
     }
 
     let status = transaction
