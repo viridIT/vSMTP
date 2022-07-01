@@ -16,7 +16,7 @@
 */
 
 use super::{Key, Signature, SigningAlgorithm};
-use vsmtp_common::{MessageBody, RawBody};
+use vsmtp_common::RawBody;
 
 #[derive(Debug, thiserror::Error)]
 pub enum VerifierResult {

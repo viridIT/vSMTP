@@ -150,7 +150,12 @@ fn test_context_dump() {
         "this is an empty body\r\n",
     ))
     .unwrap();
-    state.message().write().unwrap().parse::<MailMimeParser>();
+    state
+        .message()
+        .write()
+        .unwrap()
+        .parse::<MailMimeParser>()
+        .unwrap();
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
@@ -205,7 +210,12 @@ fn test_quarantine() {
         "this is an empty body\r\n",
     ))
     .unwrap();
-    state.message().write().unwrap().parse::<MailMimeParser>();
+    state
+        .message()
+        .write()
+        .unwrap()
+        .parse::<MailMimeParser>()
+        .unwrap();
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
@@ -229,7 +239,12 @@ fn test_forward() {
         "this is an empty body\r\n",
     ))
     .unwrap();
-    state.message().write().unwrap().parse::<MailMimeParser>();
+    state
+        .message()
+        .write()
+        .unwrap()
+        .parse::<MailMimeParser>()
+        .unwrap();
 
     assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::Delivery), Status::Next);
@@ -308,7 +323,12 @@ fn test_forward_all() {
         "this is an empty body\r\n",
     ))
     .unwrap();
-    state.message().write().unwrap().parse::<MailMimeParser>();
+    state
+        .message()
+        .write()
+        .unwrap()
+        .parse::<MailMimeParser>()
+        .unwrap();
 
     re.run_when(&mut state, &StateSMTP::Connect);
 

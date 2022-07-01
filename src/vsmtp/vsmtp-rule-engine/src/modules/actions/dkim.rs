@@ -80,7 +80,7 @@ pub mod dkim {
     pub fn dkim_verify(message: &mut Message, signature: Signature, key: Key) -> EngineResult<()> {
         let guard = vsl_guard_ok!(message.read());
 
-        verify(&guard.inner(), &signature, &key).unwrap();
+        verify(guard.inner(), &signature, &key).unwrap();
         Ok(())
     }
 }

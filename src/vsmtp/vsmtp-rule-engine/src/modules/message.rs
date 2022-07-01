@@ -146,10 +146,7 @@ pub mod message_calling_parse {
         Ok(guard
             .inner()
             .headers()
-            .filter(|i| match i.split_once(':') {
-                Some((key, value)) if key.to_lowercase() == name_lowercase => true,
-                _ => false,
-            })
+            .filter(|i| matches!(i.split_once(':'), Some((key, _)) if key.to_lowercase() == name_lowercase))
             .take(count)
             .map(str::to_string)
             .collect::<Vec<_>>()

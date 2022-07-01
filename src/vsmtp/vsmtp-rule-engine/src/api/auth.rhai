@@ -19,35 +19,67 @@
 // standard library for authentication
 //
 
-/// Block relaying. Inspect all recipients domains & check if those are registered in the
-/// root domain or virtual ones.
+/// check "mail from" relaying.
+/// Do not accept a msg from a known internal domain if the client is unknown 
 ///
-/// The check is skipped if the client is authenticated or if it's api is present in the
-/// `allowed_host` parameter.
+/// # Args
+/// @allowed_hosts: group of (IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn)
 ///
-/// NOTE: you can use this function starting from the `rcpt` stage.
+/// # Return
+/// - deny() or next()
 ///
-/// # Returns
-///   * `next` if all recipients are valid.
-///   * `deny(554)` if any recipient tries to use the server as a relay.
+/// # Required stage : mail (only)
 ///
-/// ### Example
+/// # Example 
+/// ```
+/// mail: [
+///    rule "check mail relay" || {
+///        object allowed_hosts group = [
+///            object ip4 "192.168.1.254",
+///            object fqdn "mta-internal.foobar.com"
+///        ];
+///        check_mail_relay(allowed_hosts);
+///    }        
+/// ]
+fn check_mail_relay(allowed_hosts) {
+    if in_domain(ctx().mail_from)
+    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
+        deny(code554_7_1)
+    } else {
+        next()
+    }    
+}
+
+/// check "rcpt to" relaying.
+/// Do not accept open relaying
+///
+/// # Args
+/// @allowed_hosts: group of (IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn)
+///
+/// # Return
+/// - deny() or next()
+///
+/// # Required stage : rcpt (only)
+///
+/// # Example 
 /// ```
 /// rcpt: [
-///     rule "check relay" || vsl::check_relay(net_192)
+///    rule "check rcpt relay" || {
+///        object allowed_hosts group = [
+///            object ip4 "192.168.1.254",
+///            object fqdn "mta-internal.foobar.com"
+///        ];
+///        check_rcpt_relay(allowed_hosts);
+///    }        
 /// ]
-/// ```
-///
-fn check_relay(allowed_hosts) {
-    for rcpt in ctx().rcpt_list {
-        if !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts))
-            && !in_domain(rcpt) {
-                remove_rcpt(rcpt.to_string());
-                return deny(code554_7_1);
-        }
-    }
-
-    next()
+fn check_rcpt_relay(allowed_hosts) {
+    if !in_domain(ctx().rcpt)
+    && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
+        remove_rcpt(ctx().rcpt.to_string());
+        deny(code554_7_1)
+    } else {
+        next()
+    }    
 }
 
 /// check spf record.

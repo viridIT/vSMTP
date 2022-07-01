@@ -36,6 +36,7 @@ pub enum Queue {
 /// # Errors
 ///
 /// * if `create_if_missing` is provided, will attempt to create the folder
+#[allow(clippy::module_name_repetitions)]
 #[macro_export]
 macro_rules! queue_path {
     ($queues_dirpath:expr, $queue:expr) => {

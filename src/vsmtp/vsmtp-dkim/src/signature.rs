@@ -15,7 +15,7 @@
  *
 */
 
-use vsmtp_common::{MessageBody, RawBody};
+use vsmtp_common::RawBody;
 
 use super::{Canonicalization, SigningAlgorithm};
 

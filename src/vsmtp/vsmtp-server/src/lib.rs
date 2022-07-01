@@ -86,10 +86,6 @@ pub async fn message_from_file_path(
             .await
             .with_context(|| format!("Cannot read file '{}'", filepath.display()))?;
 
-        let (headers, body) = content
-            .split_once("\r\n\r\n")
-            .ok_or_else(|| anyhow::anyhow!("Cannot find message body"))?;
-
         return MessageBody::try_from(content.as_str());
     }
     anyhow::bail!("failed does not exist")
