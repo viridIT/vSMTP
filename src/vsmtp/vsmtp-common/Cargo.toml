@@ -22,7 +22,7 @@ categories = ["data-structures"]
 # Re-exported
 anyhow = "1.0.58"
 log = { version = "0.4.17", features = ["serde"] }
-serde_json = "1.0.81"
+serde_json = "1.0.82"
 addr = { version = "0.15.3" }
 vsmtp-rsasl = { version = "1.5.1-rc2", default-features = false }
 
