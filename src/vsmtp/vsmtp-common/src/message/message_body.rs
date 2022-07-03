@@ -28,10 +28,7 @@ impl From<Either<RawBody, Mail>> for MessageBody {
     fn from(this: Either<RawBody, Mail>) -> Self {
         match this {
             Either::Left(raw) => Self { raw, parsed: None },
-            Either::Right(_parsed) => Self {
-                raw: todo!(),
-                parsed: Some(_parsed),
-            },
+            Either::Right(_parsed) => todo!(),
         }
     }
 }
@@ -66,9 +63,15 @@ impl TryFrom<&str> for MessageBody {
             }
         }
 
+        let lines = value.split("\r\n").collect::<Vec<_>>();
+
         Ok(MessageBody {
             raw: NoParsing::default()
-                .parse_lines(&value.lines().collect::<Vec<_>>())?
+                .parse_lines(if lines.last().map_or(false, |i| i.is_empty()) {
+                    &lines[..lines.len() - 1]
+                } else {
+                    &lines
+                })?
                 .unwrap_left(),
             parsed: None,
         })
@@ -102,10 +105,10 @@ impl MessageBody {
     /// * failed to create the folder in `queues_dirpath`
     pub fn write_to_mails(
         &self,
-        queues_dirpath: &std::path::Path,
+        queues_dirpath: impl Into<std::path::PathBuf>,
         message_id: &str,
     ) -> std::io::Result<()> {
-        let mails = std::path::PathBuf::from(queues_dirpath).join("mails");
+        let mails = queues_dirpath.into().join("mails");
         if !mails.exists() {
             std::fs::DirBuilder::new().recursive(true).create(&mails)?;
         }

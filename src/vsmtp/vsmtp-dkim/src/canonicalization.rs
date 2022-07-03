@@ -40,18 +40,33 @@ impl CanonicalizationAlgorithm {
 
     ///
     #[must_use]
-    pub fn canonicalize_body(self, input: String) -> String {
+    pub fn canonicalize_body(self, input: &str) -> String {
         match self {
             CanonicalizationAlgorithm::Relaxed => {
-                // TODO:
-                input
+                let mut s = Self::trim_whitespace(&input.replace('\t', " "));
+
+                while let Some(idx) = s.find(" \r\n") {
+                    s.remove(idx);
+                }
+
+                while s.ends_with("\r\n\r\n") {
+                    s.remove(s.len() - 1);
+                    s.remove(s.len() - 1);
+                }
+
+                if !s.is_empty() && !s.ends_with("\r\n") {
+                    s.push('\r');
+                    s.push('\n');
+                }
+
+                s
             }
             CanonicalizationAlgorithm::Simple => {
                 if input.is_empty() {
                     return "\r\n".to_string();
                 }
 
-                let mut i = input.as_str();
+                let mut i = input;
                 while i.ends_with("\r\n\r\n") {
                     i = &i[..i.len() - 2];
                 }

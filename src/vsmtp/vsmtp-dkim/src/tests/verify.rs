@@ -13,7 +13,6 @@ const SIGNATURE: &str = concat!(
 );
 
 #[tokio::test]
-#[ignore]
 async fn verify_with_raw_message() {
     let body = MessageBody::try_from(MAIL).unwrap();
 

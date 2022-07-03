@@ -23,9 +23,9 @@ pub fn show<OUT: std::io::Write>(
     match format {
         MessageShowFormat::Eml => {
             let mut copy = std::path::PathBuf::from(queues_dirpath);
-            copy.push(format!("mails/{msg_id}"));
+            copy.push(format!("mails/{msg_id}.eml"));
 
-            match std::fs::read_to_string(copy).map(|s| serde_json::from_str::<MessageBody>(&s)) {
+            match std::fs::read_to_string(copy).map(|s| MessageBody::try_from(s.as_str())) {
                 Ok(Ok(message)) => output.write_all(message.inner().to_string().as_bytes()),
                 Ok(Err(error)) => {
                     output.write_fmt(format_args!("Failed to deserialize message: '{error}'"))
@@ -102,24 +102,7 @@ mod tests {
             .write_to_queue(&std::path::PathBuf::from(queues_dirpath), &ctx)
             .unwrap();
 
-        let buf = std::path::PathBuf::from(queues_dirpath).join("mails");
-        std::fs::DirBuilder::new()
-            .recursive(true)
-            .create(&buf)
-            .unwrap();
-
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&format!("{queues_dirpath}/mails/{msg_id}"))
-            .unwrap();
-
-        std::io::Write::write_all(
-            &mut file,
-            serde_json::to_string(&message).unwrap().as_bytes(),
-        )
-        .unwrap();
+        message.write_to_mails(queues_dirpath, msg_id).unwrap();
 
         let mut output = vec![];
 

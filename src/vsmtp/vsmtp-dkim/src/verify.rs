@@ -61,18 +61,26 @@ pub fn verify(message: &RawBody, signature: &Signature, key: &Key) -> Result<(),
     //     return Err(VerifierResult::KeyMissingOrRevoked);
     // }
 
-    let body = signature
-        .canonicalization
-        .body
-        .canonicalize_body(message.to_string());
+    let body = signature.canonicalization.body.canonicalize_body(
+        &message
+            .body()
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_default(),
+    );
+
+    dbg!(&body);
 
     let body_hash = signature
         .signing_algorithm
-        .hash(dbg!(match signature.body_length {
+        .hash(match signature.body_length {
             // TODO: handle policy
             Some(len) => &body[..std::cmp::min(body.len(), len)],
             None => &body,
-        }));
+        });
+
+    dbg!(base64::encode(&body_hash));
+    dbg!(signature);
 
     if signature.body_hash != base64::encode(body_hash) {
         return Err(VerifierResult::BodyHashMismatch);

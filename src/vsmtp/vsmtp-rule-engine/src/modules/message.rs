@@ -140,14 +140,18 @@ pub mod message {
 pub mod message_calling_parse {
 
     #[rhai_fn(global, return_raw, pure)]
-    pub fn headers(this: &mut Message, name: &str, count: usize) -> EngineResult<rhai::Dynamic> {
+    pub fn headers(
+        this: &mut Message,
+        name: &str,
+        count: rhai::INT,
+    ) -> EngineResult<rhai::Dynamic> {
         let guard = vsl_guard_ok!(this.read());
         let name_lowercase = name.to_lowercase();
         Ok(guard
             .inner()
             .headers()
             .filter(|i| matches!(i.split_once(':'), Some((key, _)) if key.to_lowercase() == name_lowercase))
-            .take(count)
+            .take(usize::try_from(count).map_err::<Box<rhai::EvalAltResult>, _>(|e| format!("{e}").into())?)
             .map(str::to_string)
             .collect::<Vec<_>>()
             .into())
