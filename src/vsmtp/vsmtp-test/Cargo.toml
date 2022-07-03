@@ -23,7 +23,7 @@ vsmtp-server = { path = "../vsmtp-server" }
 
 async-trait = "0.1.56"
 pretty_assertions = "1.2.1"
-lettre = { version = "0.10.0-rc.7", default-features = false, features = [
+lettre = { version = "0.10.0", default-features = false, features = [
   "smtp-transport",
   "builder",
   "tokio1-rustls-tls",
