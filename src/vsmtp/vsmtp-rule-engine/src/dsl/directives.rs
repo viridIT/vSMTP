@@ -127,7 +127,7 @@ impl Directive {
                             vsl_guard_ok!(state.message().write()).prepend_header(
                                 "X-VSMTP-DELEGATION",
                                 &format!(
-                                    "sent; stage={}; directive=\"{}\"; id=\"{}\"",
+                                    "sent; stage={};\n directive=\"{}\";\n id=\"{}\"",
                                     smtp_stage,
                                     name,
                                     vsl_guard_ok!(state.context().read())
