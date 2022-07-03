@@ -38,7 +38,7 @@ fn test_logs() {
     let (mut state, _) = get_default_state("./tmp/app");
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
+        Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
 }
 
@@ -53,7 +53,7 @@ fn test_users() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Delivery),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -65,7 +65,7 @@ fn test_send_mail() {
     // TODO: add test to send a valid email.
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -85,7 +85,7 @@ fn test_context_write() {
     });
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     *state.message().write().unwrap() = MessageBody::try_from(concat!(
         "From: john doe <john@doe.com>\r\n",
@@ -97,11 +97,11 @@ fn test_context_write() {
     .unwrap();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
     // raw mail should have been written on disk.
@@ -139,7 +139,7 @@ fn test_context_dump() {
     *state.message().write().unwrap() = MessageBody::default();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
     *state.message().write().unwrap() = MessageBody::try_from(concat!(
@@ -160,7 +160,7 @@ fn test_context_dump() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
     assert_eq!(
@@ -191,7 +191,7 @@ fn test_quarantine() {
     *state.message().write().unwrap() = MessageBody::default();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
     assert!(state
@@ -468,7 +468,7 @@ fn test_hostname() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -479,7 +479,7 @@ fn test_in_domain_and_server_name() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -498,6 +498,6 @@ fn test_in_domain_and_server_name_sni() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }

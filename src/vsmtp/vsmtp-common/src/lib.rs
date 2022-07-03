@@ -81,13 +81,7 @@ pub use message::{mail::*, message_body::MessageBody, mime_type::*, raw_body::Ra
 pub use r#type::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 
 ///
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub enum ReplyOrCodeID {
-    ///
-    CodeID(CodeID),
-    ///
-    Reply(Reply),
-}
+pub type ReplyOrCodeID = Either<CodeID, Reply>;
 
 /// envelop of a transaction
 pub mod envelop;

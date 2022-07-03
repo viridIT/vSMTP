@@ -34,7 +34,7 @@ fn test_connect_rules() {
     state.context().write().unwrap().client_addr = "0.0.0.0:0".parse().unwrap();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
+        Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
 }
 
@@ -82,11 +82,11 @@ fn test_mail_from_rules() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     assert_eq!(
         state.context().read().unwrap().envelop.mail_from.full(),
@@ -129,7 +129,7 @@ fn test_rcpt_rules() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::RcptTo),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Next);
     assert_eq!(

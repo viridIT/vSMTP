@@ -33,15 +33,15 @@ fn test_engine_errors() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
+        Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Helo),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
+        Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
+        Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
 }
 
@@ -58,7 +58,7 @@ fn test_engine_rules_syntax() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     assert_eq!(re.run_when(&mut state, &StateSMTP::Helo), Status::Next);
     assert_eq!(re.run_when(&mut state, &StateSMTP::MailFrom), Status::Next);

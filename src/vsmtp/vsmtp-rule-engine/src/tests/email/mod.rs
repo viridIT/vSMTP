@@ -37,7 +37,7 @@ fn test_email_context_empty() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -56,7 +56,7 @@ fn test_email_context_raw() {
     .unwrap();
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -105,7 +105,7 @@ fn test_email_context_mail() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
     assert_eq!(
         state.message().read().unwrap().get_header("to"),
@@ -122,7 +122,7 @@ fn test_email_bcc() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }
 
@@ -135,19 +135,19 @@ fn test_email_add_get_set_header() {
     let mut state = RuleState::new(&config, resolvers, &re);
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok))
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok))
     );
 
     let (mut state, _) = get_default_state("./tmp/app");
     *state.message().write().unwrap() = MessageBody::default();
     let status = re.run_when(&mut state, &StateSMTP::PreQ);
-    assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)));
+    assert_eq!(status, Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)));
 
     *state.message().write().unwrap() = MessageBody::default();
 
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PostQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 }

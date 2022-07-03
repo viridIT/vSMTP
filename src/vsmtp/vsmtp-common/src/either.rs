@@ -16,6 +16,7 @@
 */
 
 ///
+#[derive(Debug, PartialEq, Eq, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Either<L, R> {
     ///
     Left(L),
