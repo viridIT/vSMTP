@@ -247,8 +247,8 @@ mod tests {
         pretty_assertions::assert_eq!(
             *message_from_file_path(msg).await.unwrap().inner(),
             RawBody::new(
-                vec!["Date: bar".to_string(), "From: foo".to_string(),],
-                "Hello world".to_string(),
+                vec!["Date: bar".to_string(), "From: foo".to_string()],
+                "Hello world\r\n".to_string(),
             )
         );
     }

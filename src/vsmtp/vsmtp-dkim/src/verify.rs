@@ -68,11 +68,12 @@ pub fn verify(message: &RawBody, signature: &Signature, key: &Key) -> Result<(),
 
     let body_hash = signature
         .signing_algorithm
-        .hash(match signature.body_length {
+        .hash(dbg!(match signature.body_length {
             // TODO: handle policy
             Some(len) => &body[..std::cmp::min(body.len(), len)],
             None => &body,
-        });
+        }));
+
     if signature.body_hash != base64::encode(body_hash) {
         return Err(VerifierResult::BodyHashMismatch);
     }

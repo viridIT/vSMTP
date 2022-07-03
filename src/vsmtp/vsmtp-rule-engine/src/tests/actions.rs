@@ -113,7 +113,7 @@ fn test_context_write() {
             "To: green@foo.net\r\n",
             "Subject: test email\r\n",
             "\r\n",
-            "This is a raw email."
+            "This is a raw email.\r\n"
         ]
         .concat()
     );
@@ -146,6 +146,7 @@ fn test_context_dump() {
         "From: john@doe.com\r\n",
         "To: green@bar.net\r\n",
         "X-Custom-Header: my header\r\n",
+        "Date: toto\r\n",
         "\r\n",
         "this is an empty body\r\n",
     ))
@@ -205,6 +206,7 @@ fn test_quarantine() {
     *state.message().write().unwrap() = MessageBody::try_from(concat!(
         "From: john@doe.com\r\n",
         "To: green@bar.net\r\n",
+        "Date: toto\r\n",
         "X-Custom-Header: my header\r\n",
         "\r\n",
         "this is an empty body\r\n",
@@ -234,6 +236,7 @@ fn test_forward() {
     *state.message().write().unwrap() = MessageBody::try_from(concat!(
         "From: john@doe.com\r\n",
         "To: green@bar.net\r\n",
+        "Date: toto\r\n",
         "X-Custom-Header: my header\r\n",
         "\r\n",
         "this is an empty body\r\n",
@@ -318,6 +321,7 @@ fn test_forward_all() {
     *state.message().write().unwrap() = MessageBody::try_from(concat!(
         "From: john@doe.com\r\n",
         "To: green@bar.net\r\n",
+        "Date: toto\r\n",
         "X-Custom-Header: my header\r\n",
         "\r\n",
         "this is an empty body\r\n",

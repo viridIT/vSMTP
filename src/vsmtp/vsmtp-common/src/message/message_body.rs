@@ -105,37 +105,30 @@ impl MessageBody {
         queues_dirpath: &std::path::Path,
         message_id: &str,
     ) -> std::io::Result<()> {
-        let buf = std::path::PathBuf::from(queues_dirpath).join("mails");
-        if !buf.exists() {
-            std::fs::DirBuilder::new().recursive(true).create(&buf)?;
+        let mails = std::path::PathBuf::from(queues_dirpath).join("mails");
+        if !mails.exists() {
+            std::fs::DirBuilder::new().recursive(true).create(&mails)?;
         }
-        let mut to_write = buf.join(message_id);
-        // to_write.set_extension(match &self {
-        //     MessageBody::Raw { .. } => "eml",
-        //     MessageBody::Parsed(_) => "json",
-        // });
-        todo!();
-
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&to_write)?;
-
-        // std::io::Write::write_all(
-        //     &mut file,
-        //     match self {
-        //         MessageBody::Raw { .. } => message.to_string(),
-        //         MessageBody::Parsed(parsed) => serde_json::to_string(parsed)?,
-        //     }
-        //     .as_bytes(),
-        // )?;
+        {
+            let mails_eml = mails.join(format!("{message_id}.eml"));
+            let mut file = std::fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&mails_eml)?;
+            std::io::Write::write_all(&mut file, self.raw.to_string().as_bytes())?;
+        }
+        if let Some(parsed) = &self.parsed {
+            let mails_json = mails.join(format!("{message_id}.json"));
+            let mut file = std::fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&mails_json)?;
+            std::io::Write::write_all(&mut file, serde_json::to_string(parsed)?.as_bytes())?;
+        }
 
         Ok(())
-    }
-
-    fn stringify(&self) -> Option<String> {
-        self.parsed.as_ref().map(ToString::to_string)
     }
 
     /// get the value of an header, return None if it does not exists or when the body is empty.

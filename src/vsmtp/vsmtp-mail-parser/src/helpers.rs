@@ -143,7 +143,8 @@ mod tests {
             read_header(&mut (&input[..])),
             Some((
                 "user-agent".to_string(),
-                "Mozilla/5.0  Gecko/20100101 Thunderbird/78.8.1".to_string()
+                "Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101\r\n Thunderbird/78.8.1"
+                    .to_string()
             ))
         );
     }

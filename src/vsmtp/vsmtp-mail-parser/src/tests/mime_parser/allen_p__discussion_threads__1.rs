@@ -23,7 +23,7 @@ const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");
 
 #[test]
 fn mime_parser() {
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         MailMimeParser::default()
             .parse_lines(&MAIL.lines().collect::<Vec<_>>())
             .unwrap()
@@ -35,7 +35,7 @@ fn mime_parser() {
                         "message-id",
                         "<20379972.1075855673249.JavaMail.evans@thyme>"
                     ),
-                    ("date", "Fri, 10 Dec 1999 07:00:00 -0800 "),
+                    ("date", "Fri, 10 Dec 1999 07:00:00 -0800 (PST)"),
                     ("from", "phillip.allen@enron.com"),
                     ("to", "naomi.johnston@enron.com"),
                     ("subject", ""),

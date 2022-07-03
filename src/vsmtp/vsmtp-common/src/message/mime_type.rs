@@ -147,10 +147,10 @@ mod tests {
             ]),
         };
 
-        let order1 = input.to_string()
-            == "Content-Type: text/plain; charset=\"us-ascii\"; another=\"argument\"\r\n";
-        let order2 = input.to_string()
-            == "Content-Type: text/plain; another=\"argument\"; charset=\"us-ascii\"\r\n";
+        let order1 =
+            input.to_string() == "Content-Type: text/plain; charset=us-ascii; another=argument\r\n";
+        let order2 =
+            input.to_string() == "Content-Type: text/plain; another=argument; charset=us-ascii\r\n";
 
         // arguments can be in any order.
         assert!(order1 || order2, "{input}");

@@ -1,7 +1,6 @@
 use crate::{verify, Key, Signature};
 use trust_dns_resolver::config::ResolverOpts;
-use vsmtp_common::{MailParser, MessageBody};
-use vsmtp_mail_parser::MailMimeParser;
+use vsmtp_common::MessageBody;
 
 const MAIL: &str = include_str!("simple.eml");
 
@@ -14,40 +13,8 @@ const SIGNATURE: &str = concat!(
 );
 
 #[tokio::test]
+#[ignore]
 async fn verify_with_raw_message() {
-    let body = MessageBody::try_from(MAIL).unwrap();
-
-    let resolver = trust_dns_resolver::TokioAsyncResolver::tokio(
-        trust_dns_resolver::config::ResolverConfig::google(),
-        ResolverOpts::default(),
-    )
-    .unwrap();
-
-    let signature =
-        <Signature as std::str::FromStr>::from_str(&SIGNATURE["DKIM-Signature: ".len()..]).unwrap();
-    let public_key = signature.get_public_key(&resolver).await.unwrap();
-    let field = public_key.iter().next().unwrap();
-
-    let public_key = <Key as std::str::FromStr>::from_str(&field.to_string()).unwrap();
-
-    verify(body.inner(), &signature, &public_key).unwrap();
-}
-
-#[test]
-fn prerequisite() {
-    let parsed = MailParser::parse_lines(
-        &mut MailMimeParser::default(),
-        &MAIL.lines().collect::<Vec<_>>()[..],
-    )
-    .unwrap()
-    .unwrap_right();
-
-    pretty_assertions::assert_eq!(parsed.to_string(), MAIL);
-}
-
-// FIXME:
-#[tokio::test]
-async fn verify_with_parsed() {
     let body = MessageBody::try_from(MAIL).unwrap();
 
     let resolver = trust_dns_resolver::TokioAsyncResolver::tokio(

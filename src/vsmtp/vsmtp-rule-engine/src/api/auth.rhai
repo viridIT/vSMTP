@@ -20,7 +20,7 @@
 //
 
 /// check "mail from" relaying.
-/// Do not accept a msg from a known internal domain if the client is unknown 
+/// Do not accept a msg from a known internal domain if the client is unknown
 ///
 /// # Args
 /// @allowed_hosts: group of (IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn)
@@ -30,7 +30,7 @@
 ///
 /// # Required stage : mail (only)
 ///
-/// # Example 
+/// # Example
 /// ```
 /// mail: [
 ///    rule "check mail relay" || {
@@ -39,7 +39,7 @@
 ///            object fqdn "mta-internal.foobar.com"
 ///        ];
 ///        check_mail_relay(allowed_hosts);
-///    }        
+///    }
 /// ]
 fn check_mail_relay(allowed_hosts) {
     if in_domain(ctx().mail_from)
@@ -47,7 +47,7 @@ fn check_mail_relay(allowed_hosts) {
         deny(code554_7_1)
     } else {
         next()
-    }    
+    }
 }
 
 /// check "rcpt to" relaying.
@@ -61,7 +61,7 @@ fn check_mail_relay(allowed_hosts) {
 ///
 /// # Required stage : rcpt (only)
 ///
-/// # Example 
+/// # Example
 /// ```
 /// rcpt: [
 ///    rule "check rcpt relay" || {
@@ -70,7 +70,7 @@ fn check_mail_relay(allowed_hosts) {
 ///            object fqdn "mta-internal.foobar.com"
 ///        ];
 ///        check_rcpt_relay(allowed_hosts);
-///    }        
+///    }
 /// ]
 fn check_rcpt_relay(allowed_hosts) {
     if !in_domain(ctx().rcpt)
@@ -79,7 +79,7 @@ fn check_rcpt_relay(allowed_hosts) {
         deny(code554_7_1)
     } else {
         next()
-    }    
+    }
 }
 
 /// check spf record.
@@ -140,32 +140,7 @@ fn check_spf(identity, header, policy) {
     const AUTH_HEADER = "Authentication-Results";
     const SPF_HEADER = "Received-SPF";
 
-<<<<<<< HEAD
-    if policy == "strict" {
-        switch query.result {
-            "pass" => {},
-            "fail" => return deny(code550_7_23),
-            "temperror" => return deny(code451_7_24),
-            "permerror" => return deny(code550_7_24),
-            _ => set_header("subject", "JUNK: " + get_header("subject")),
-        }
-    }
-
-    // Record the result in a header (RFC 7208-9)
-    let spf_header =
-        // + if query.result == "fail" { ` ( ${query.cause} )` }
-`${query.result}
- receiver=${hostname()}; client-ip=${ctx().client_ip};
- identity=mailfrom; envelope_from=${ctx().mail_from};
- ${if query.result == "pass" { `mechanism=${query.cause};` }}`;
-        // + if (query.result == "temperror" || query.result == "permerror") { "\n problem=${query.cause};" };
-
-    let auth_header =
-`${hostname()}; spf=${query.result}
- reason=\"${spf_header}\" smtp.mailfrom=${ctx().mail_from}`;
-=======
     let query = sys::check_spf(ctx(), srv(), identity);
->>>>>>> 8854b3cf0444d51251bbb96199586b2483f2ce86
 
     // TODO: The Received-SPF header field is a trace field
     // and SHOULD be prepended to the existing header, above the Received: field
@@ -260,10 +235,7 @@ fn dkim_verify() {
         on_multiple_key_records: "cycle",
     };
 
-    let dkim_signatures = msg().headers
-        .named("DKIM-Signature")
-        .take(policy.nbr_headers)
-        .values;
+    let dkim_signatures = msg().headers("DKIM-Signature", policy.nbr_headers);
 
     for i in dkim_signatures {
         try {

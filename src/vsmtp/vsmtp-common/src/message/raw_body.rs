@@ -32,6 +32,15 @@ impl RawBody {
         }
     }
 
+    ///
+    #[must_use]
+    pub fn new_empty(headers: Vec<String>) -> Self {
+        Self {
+            headers,
+            body: None,
+        }
+    }
+
     /// Return an iterator over the headers field
     pub fn headers(&self) -> impl Iterator<Item = &str> {
         self.headers.iter().map(String::as_str)
@@ -60,7 +69,7 @@ impl RawBody {
                     {
                         s.push_str(i);
                     }
-                    return Some(s);
+                    return Some(s.trim_start().to_string());
                 }
                 (Some(_), Some(_)) => continue,
                 _ => break,

@@ -354,29 +354,26 @@ mod test {
 
         pretty_assertions::assert_eq!(
             *message.inner(),
-            RawBody::new(
-                vec![
-                    format!(
-                        "X-VSMTP: id='{id}' version='{ver}' status='next'",
-                        id = ctx.metadata.as_ref().unwrap().message_id,
-                        ver = env!("CARGO_PKG_VERSION"),
-                    ),
-                    [
-                        "Received: from localhost".to_string(),
-                        format!(" by {domain}", domain = config.server.domain),
-                        " with SMTP".to_string(),
-                        format!(" id {id}; ", id = ctx.metadata.as_ref().unwrap().message_id),
-                        {
-                            let odt: time::OffsetDateTime =
-                                ctx.metadata.as_ref().unwrap().timestamp.into();
-                            odt.format(&time::format_description::well_known::Rfc2822)
-                                .unwrap()
-                        }
-                    ]
-                    .concat(),
-                ],
-                "".to_string(),
-            )
+            RawBody::new_empty(vec![
+                format!(
+                    "X-VSMTP: id='{id}' version='{ver}' status='next'",
+                    id = ctx.metadata.as_ref().unwrap().message_id,
+                    ver = env!("CARGO_PKG_VERSION"),
+                ),
+                [
+                    "Received: from localhost".to_string(),
+                    format!(" by {domain}", domain = config.server.domain),
+                    " with SMTP".to_string(),
+                    format!(" id {id}; ", id = ctx.metadata.as_ref().unwrap().message_id),
+                    {
+                        let odt: time::OffsetDateTime =
+                            ctx.metadata.as_ref().unwrap().timestamp.into();
+                        odt.format(&time::format_description::well_known::Rfc2822)
+                            .unwrap()
+                    }
+                ]
+                .concat(),
+            ])
         );
     }
 }

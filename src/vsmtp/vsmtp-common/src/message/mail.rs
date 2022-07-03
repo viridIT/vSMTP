@@ -147,29 +147,39 @@ impl Mail {
             .headers
             .0
             .iter_mut()
-            .find(|(header, _)| header == "from")
+            .find(|(header, _)| header.to_lowercase() == "from")
         {
             *old = value.to_string();
         } else {
-            self.headers.0.push(("from".to_string(), value.to_string()));
+            self.headers.0.push(("From".to_string(), value.to_string()));
         }
     }
 
     /// change one recipients value from @old to @new.
     pub fn rewrite_rcpt(&mut self, old: &str, new: &str) {
-        if let Some((_, rcpts)) = self.headers.0.iter_mut().find(|(header, _)| header == "to") {
+        if let Some((_, rcpts)) = self
+            .headers
+            .0
+            .iter_mut()
+            .find(|(header, _)| header.to_lowercase() == "to")
+        {
             *rcpts = rcpts.replace(old, new);
         } else {
-            self.headers.0.push(("to".to_string(), new.to_string()));
+            self.headers.0.push(("To".to_string(), new.to_string()));
         }
     }
 
     /// add a recipients
     pub fn add_rcpt(&mut self, new: &str) {
-        if let Some((_, rcpts)) = self.headers.0.iter_mut().find(|(header, _)| header == "to") {
+        if let Some((_, rcpts)) = self
+            .headers
+            .0
+            .iter_mut()
+            .find(|(header, _)| header.to_lowercase() == "to")
+        {
             *rcpts = format!("{rcpts}, {new}");
         } else {
-            self.headers.0.push(("to".to_string(), new.to_string()));
+            self.headers.0.push(("To".to_string(), new.to_string()));
         }
     }
 
@@ -178,7 +188,7 @@ impl Mail {
         self.headers
             .0
             .iter_mut()
-            .find(|(header, _)| header == "to")
+            .find(|(header, _)| header.to_lowercase() == "to")
             .and_then::<(), _>(|(_, rcpts)| {
                 if rcpts.find(old) == Some(0) {
                     *rcpts = rcpts.replace(format!("{old}, ").as_str(), "");
@@ -230,28 +240,28 @@ mod test {
     #[test]
     fn test_construct_mail() {
         let empty_mail = Mail {
-            headers: MailHeaders(vec![("from".to_string(), "a@a".to_string())]),
+            headers: MailHeaders(vec![("From".to_string(), "a@a".to_string())]),
             body: BodyType::Undefined,
         };
 
         // on newline added to separate the body, one for the empty body.
         // anyway, this example should not happen in a real scenario.
-        assert_eq!(format!("{empty_mail}"), "from: a@a\r\n\r\n".to_string());
+        assert_eq!(format!("{empty_mail}"), "From: a@a\r\n\r\n".to_string());
 
         let regular_mail = Mail {
-            headers: MailHeaders(vec![("from".to_string(), "a@a".to_string())]),
+            headers: MailHeaders(vec![("From".to_string(), "a@a".to_string())]),
             body: BodyType::Regular(vec!["This is a regular body.".to_string()]),
         };
 
         assert_eq!(
             format!("{regular_mail}"),
-            "from: a@a\r\n\r\nThis is a regular body.\r\n".to_string()
+            "From: a@a\r\n\r\nThis is a regular body.\r\n".to_string()
         );
 
         let mime_mail = Mail {
             headers: MailHeaders(vec![
-                ("from".to_string(), "a@a".to_string()),
-                ("mime-version".to_string(), "1.0".to_string()),
+                ("From".to_string(), "a@a".to_string()),
+                ("Mime-Version".to_string(), "1.0".to_string()),
             ]),
             body: BodyType::Mime(Box::new(Mime {
                 headers: vec![MimeHeader {
@@ -267,9 +277,9 @@ mod test {
         assert_eq!(
             format!("{mime_mail}"),
             [
-                "from: a@a\r\n",
-                "mime-version: 1.0\r\n",
-                "content-type: text/plain\r\n",
+                "From: a@a\r\n",
+                "MIME-Version: 1.0\r\n",
+                "Content-Type: text/plain\r\n",
                 "\r\n",
                 "this is a regular mime body.\r\n",
             ]
@@ -285,15 +295,15 @@ mod test {
         };
 
         mail.push_headers(vec![
-            ("subject".to_string(), "testing an email".to_string()),
-            ("mime-version".to_string(), "1.0".to_string()),
+            ("Subject".to_string(), "testing an email".to_string()),
+            ("MIME-Version".to_string(), "1.0".to_string()),
         ]);
 
         assert_eq!(
             format!("{mail}"),
             [
-                "subject: testing an email\r\n",
-                "mime-version: 1.0\r\n",
+                "Subject: testing an email\r\n",
+                "MIME-Version: 1.0\r\n",
                 "\r\n",
                 "email content\r\n"
             ]
@@ -301,22 +311,22 @@ mod test {
         );
 
         mail.prepend_headers(vec![
-            ("from".to_string(), "b@b".to_string()),
+            ("From".to_string(), "b@b".to_string()),
             (
-                "date".to_string(),
+                "Date".to_string(),
                 "tue, 30 nov 2021 20:54:27 +0100".to_string(),
             ),
-            ("to".to_string(), "john@doe.com, green@foo.bar".to_string()),
+            ("To".to_string(), "john@doe.com, green@foo.bar".to_string()),
         ]);
 
         assert_eq!(
             format!("{mail}"),
             [
-                "from: b@b\r\n",
-                "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
-                "to: john@doe.com, green@foo.bar\r\n",
-                "subject: testing an email\r\n",
-                "mime-version: 1.0\r\n",
+                "From: b@b\r\n",
+                "Date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+                "To: john@doe.com, green@foo.bar\r\n",
+                "Subject: testing an email\r\n",
+                "MIME-Version: 1.0\r\n",
                 "\r\n",
                 "email content\r\n"
             ]
@@ -332,21 +342,21 @@ mod test {
         mail.rewrite_mail_from("a@a");
         assert_eq!(
             mail.headers,
-            MailHeaders(vec![("from".to_string(), "a@a".to_string())])
+            MailHeaders(vec![("From".to_string(), "a@a".to_string())])
         );
 
         mail.rewrite_mail_from("b@b");
         assert_eq!(
             mail.headers,
-            MailHeaders(vec![("from".to_string(), "b@b".to_string())])
+            MailHeaders(vec![("From".to_string(), "b@b".to_string())])
         );
 
         mail.rewrite_rcpt("b@b", "a@a");
         assert_eq!(
             mail.headers,
             MailHeaders(vec![
-                ("from".to_string(), "b@b".to_string()),
-                ("to".to_string(), "a@a".to_string())
+                ("From".to_string(), "b@b".to_string()),
+                ("To".to_string(), "a@a".to_string())
             ])
         );
 
@@ -354,8 +364,8 @@ mod test {
         assert_eq!(
             mail.headers,
             MailHeaders(vec![
-                ("from".to_string(), "b@b".to_string()),
-                ("to".to_string(), "a@a, green@foo.bar".to_string())
+                ("From".to_string(), "b@b".to_string()),
+                ("To".to_string(), "a@a, green@foo.bar".to_string())
             ])
         );
 
@@ -363,8 +373,8 @@ mod test {
         assert_eq!(
             mail.headers,
             MailHeaders(vec![
-                ("from".to_string(), "b@b".to_string()),
-                ("to".to_string(), "john@doe, green@foo.bar".to_string())
+                ("From".to_string(), "b@b".to_string()),
+                ("To".to_string(), "john@doe, green@foo.bar".to_string())
             ])
         );
 
@@ -372,8 +382,8 @@ mod test {
         assert_eq!(
             mail.headers,
             MailHeaders(vec![
-                ("from".to_string(), "b@b".to_string()),
-                ("to".to_string(), "green@foo.bar".to_string())
+                ("From".to_string(), "b@b".to_string()),
+                ("To".to_string(), "green@foo.bar".to_string())
             ])
         );
     }

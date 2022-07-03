@@ -92,7 +92,7 @@ fn test_email_context_mail() {
                     "to".to_string(),
                     "other.rcpt@toremove.org, other.rcpt@torewrite.net".to_string(),
                 )]),
-                body: BodyType::Regular(vec![]),
+                body: BodyType::Undefined,
             }
         );
 
