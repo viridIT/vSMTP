@@ -120,7 +120,7 @@ fn auth_header(query) {
 /// Sender Policy Framework (RFC 7208).
 ///
 /// # Args
-/// @identity: "helo" | "mail_from" | "both"
+/// @identity: "helo" | "mail_from"
 /// @header: "spf" | "auth" | "both" | "none"
 /// @policy: "strict" | "soft"
 ///
@@ -153,7 +153,8 @@ fn check_spf(identity, header, policy) {
             prepend_header(AUTH_HEADER, auth_header(query));
             prepend_header(SPF_HEADER, spf_header(query));
         },
-        _ => {},
+        "none" => {},
+        _ => throw `spf 'header' argument must be 'spf', 'auth' or 'both', not '${header}'`,
     }
 
     if policy == "strict" {
