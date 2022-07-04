@@ -76,25 +76,18 @@ pub mod security {
         let resolver = srv.resolvers.get(&srv.config.server.domain).unwrap();
 
         match identity {
-            "mail_from" => {
-                let sender = viaspf::Sender::new(mail_from.full())
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                Ok(query_spf(resolver, ip, &sender, Some(sender.domain())))
-            }
-            "helo" => {
-                let sender = viaspf::Sender::from_domain(&helo)
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                Ok(query_spf(resolver, ip, &sender, Some(sender.domain())))
-            }
-            // "both" checks first the helo identity and falls back to mail from.
-            "both" => {
-                let sender = viaspf::Sender::from_domain(&helo)
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                let domain = viaspf::DomainName::new(mail_from.domain())
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                Ok(query_spf(resolver, ip, &sender, Some(&domain)))
-            }
-            _ => Err("spf identity argument must be 'helo', 'mail_from' or 'both'".into()),
+            "mail_from" => match mail_from.full().parse() {
+                Ok(sender) => Ok(query_spf(resolver, ip, &sender, None)),
+                _ => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
+            },
+            "helo" => match mail_from.full().parse() {
+                Ok(sender) => {
+                    let helo_domain = helo.parse().ok();
+                    Ok(query_spf(resolver, ip, &sender, helo_domain.as_ref()))
+                }
+                _ => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
+            },
+            _ => Err("spf identity argument must be 'mail_from' or 'helo'".into()),
         }
     }
 }

@@ -3,7 +3,7 @@
         rule "auth /etc/shadow" || {
             switch ctx().auth.type {
                 "Verify" => {
-                    let result = srv().run_service(ctx, "saslauthd");
+                    let result = srv().run_service(ctx(), "saslauthd");
 
                     if result.has_signal {
                         // timed out
