@@ -165,7 +165,7 @@ where
 
         // Headers could have been added to the email before preq,
         // so we start by prepending them to the headers received.
-        let preq_headers = message.inner().headers();
+        let preq_headers = message.inner().headers_lines();
 
         match &mut body {
             Either::Left(raw) => raw.prepend_header(preq_headers.map(str::to_string)),

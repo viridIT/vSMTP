@@ -133,11 +133,6 @@ pub mod message {
                 },
             )
     }
-}
-
-#[allow(dead_code)]
-#[rhai::plugin::export_module]
-pub mod message_calling_parse {
 
     #[rhai_fn(global, return_raw, pure)]
     pub fn headers(
@@ -150,12 +145,21 @@ pub mod message_calling_parse {
         Ok(guard
             .inner()
             .headers()
-            .filter(|i| matches!(i.split_once(':'), Some((key, _)) if key.to_lowercase() == name_lowercase))
-            .take(usize::try_from(count).map_err::<Box<rhai::EvalAltResult>, _>(|e| format!("{e}").into())?)
-            .map(str::to_string)
+            .iter()
+            .filter(|(key, _)| key.to_lowercase() == name_lowercase)
+            .take(
+                usize::try_from(count)
+                    .map_err::<Box<rhai::EvalAltResult>, _>(|e| format!("{e}").into())?,
+            )
+            .map(|(key, value)| format!("{key}:{value}"))
             .collect::<Vec<_>>()
             .into())
     }
+}
+
+#[allow(dead_code)]
+#[rhai::plugin::export_module]
+pub mod message_calling_parse {
 
     #[rhai_fn(global, return_raw, pure)]
     pub fn rewrite_mail_from_message(this: &mut Message, new_addr: &str) -> EngineResult<()> {

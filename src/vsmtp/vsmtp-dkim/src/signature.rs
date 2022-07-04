@@ -131,14 +131,16 @@ impl Signature {
             "{headers}{}",
             self.canonicalization.header.canonicalize_header(
                 "dkim-signature",
-                &self.raw.replace(&self.signature, "").replace("\r\n", "")
+                &self.raw["dkim-signature:".len()..]
+                    .replace(&self.signature, "")
+                    .replace("\r\n", "")
             )
         );
 
         // remove the final "\r\n"
         a.pop();
         a.pop();
-        println!("{a}");
+        dbg!(&a);
         self.signing_algorithm.hash(a)
     }
 }
@@ -148,6 +150,12 @@ impl std::str::FromStr for Signature {
 
     #[allow(clippy::too_many_lines)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.to_lowercase().starts_with("dkim-signature:") {
+            return Err(ParseError::InvalidArgument {
+                reason: "not a dkim-signature header".to_string(),
+            });
+        }
+
         let mut version = None;
         let mut signing_algorithm = None;
         let mut sdid = None;
@@ -163,7 +171,7 @@ impl std::str::FromStr for Signature {
         let mut body_hash = None;
         let mut signature = None;
 
-        for i in s
+        for i in s["dkim-signature:".len()..]
             .split(';')
             .map(|tag| tag.split_whitespace().collect::<Vec<_>>().concat())
         {

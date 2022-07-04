@@ -235,6 +235,8 @@ fn dkim_verify() {
         on_multiple_key_records: "cycle",
     };
 
+    log("warn", `verifying DKIM signature with policy=${policy}`);
+
     let dkim_signatures = msg().headers("DKIM-Signature", policy.nbr_headers);
 
     for i in dkim_signatures {
@@ -253,13 +255,13 @@ fn dkim_verify() {
             // the registry with invalid format are ignored
             for key in get_public_key(srv(), signature, policy.on_multiple_key_records) {
                 try {
-                    print(key);
-
                     sys::dkim_verify(msg(), signature, key);
 
                     // if key.has_test_flag {
                     // TODO: log, and consider as unsigned
                     // }
+
+                    return accept()
 
                 } catch (e) {
                     print(e);
@@ -268,9 +270,15 @@ fn dkim_verify() {
 
         } catch (e) {
             print(e);
+            log("warn", `DKIM signature invalid: ${e}`);
+
             // TODO: if header ParseError, ignored
 
             // TEMPFAIL ?
         }
     }
+
+    log("warn", "no valid DKIM signature, returning `deny`");
+
+    deny()
 }

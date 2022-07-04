@@ -36,7 +36,10 @@ pub trait MailParser: Default {
     ///
     /// * the input is not compliant
     fn parse_raw(&mut self, raw: &RawBody) -> ParserOutcome {
-        let headers = raw.headers().into_iter().chain(std::iter::once("\r\n"));
+        let headers = raw
+            .headers_lines()
+            .into_iter()
+            .chain(std::iter::once("\r\n"));
 
         self.parse_lines(
             &if let Some(body) = raw.body_lines() {

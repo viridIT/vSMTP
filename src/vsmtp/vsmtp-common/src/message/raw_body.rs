@@ -42,7 +42,7 @@ impl RawBody {
     }
 
     /// Return an iterator over the headers field
-    pub fn headers(&self) -> impl Iterator<Item = &str> {
+    pub fn headers_lines(&self) -> impl Iterator<Item = &str> {
         self.headers.iter().map(String::as_str)
     }
 
@@ -56,6 +56,33 @@ impl RawBody {
     #[must_use]
     pub const fn body(&self) -> &Option<String> {
         &self.body
+    }
+
+    ///
+    // TODO: make it lazy if possible
+    #[must_use]
+    pub fn headers(&self) -> Vec<(String, String)> {
+        let mut out = vec![];
+        for (idx, header) in self.headers.iter().enumerate() {
+            if header.starts_with(' ') || header.starts_with('\t') {
+                continue;
+            }
+            let mut split = header.splitn(2, ':');
+            match (split.next(), split.next()) {
+                (Some(key), Some(value)) => {
+                    let mut s = value.to_string();
+                    for i in self.headers[idx + 1..]
+                        .iter()
+                        .take_while(|s| s.starts_with(' ') || s.starts_with('\t'))
+                    {
+                        s.push_str(i);
+                    }
+                    out.push((key.to_string(), s));
+                }
+                _ => continue,
+            }
+        }
+        out
     }
 
     ///
