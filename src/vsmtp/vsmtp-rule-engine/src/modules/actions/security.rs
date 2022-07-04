@@ -76,7 +76,7 @@ pub mod security {
         let resolver = srv.resolvers.get(&srv.config.server.domain).unwrap();
 
         match identity {
-            "mail_from" => match mail_from.full().parse() {
+            "mailfrom" => match mail_from.full().parse() {
                 Ok(sender) => Ok(query_spf(resolver, ip, &sender, None)),
                 _ => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
             },
@@ -87,7 +87,7 @@ pub mod security {
                 }
                 _ => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
             },
-            _ => Err("spf identity argument must be 'mail_from' or 'helo'".into()),
+            _ => Err("spf identity argument must be 'mailfrom' or 'helo'".into()),
         }
     }
 }

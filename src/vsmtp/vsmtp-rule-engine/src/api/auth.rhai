@@ -86,7 +86,7 @@ fn check_rcpt_relay(allowed_hosts) {
 /// a wrapper with the policy set to "strict" by default.
 ///
 /// # Args
-/// @identity: "helo" | "mail_from" | "both"
+/// @identity: "helo" | "mailfrom" | "both"
 /// @header: "spf" | "auth" | "both" | "none"
 ///
 fn check_spf(identity, header) {
@@ -95,9 +95,9 @@ fn check_spf(identity, header) {
 
 /// create key-value pairs of spf results
 /// to inject into the spf or auth headers.
-private fn spf_key_value_list(query) {
+private fn spf_key_value_list(query, identity) {
 `receiver=${hostname()}; client-ip=${ctx().client_ip};
- identity=mailfrom; envelope_from=${ctx().mail_from};
+ identity=${identity}; envelope_from=${ctx().mail_from};
  ${
    if "mechanism" in query { `mechanism=${query.mechanism};` }
    else if "problem" in query { `problem=${query.problem};` }
@@ -105,14 +105,14 @@ private fn spf_key_value_list(query) {
 }
 
 /// Record results in a spf header (RFC 7208-9)
-private fn spf_header(query) {
-    `${query.result} ${spf_key_value_list(query)}`
+private fn spf_header(query, identity) {
+    `${query.result} ${spf_key_value_list(query, identity)}`
 }
 
 /// Record results in the auth header (RFC 7208-9)
-fn auth_header(query) {
+fn auth_header(query, identity) {
 `${hostname()}; spf=${query.result}
- reason="${spf_key_value_list(query)}"
+ reason="${spf_key_value_list(query, identity)}"
  smtp.mailfrom=${ctx().mail_from}`;
 }
 
@@ -120,7 +120,7 @@ fn auth_header(query) {
 /// Sender Policy Framework (RFC 7208).
 ///
 /// # Args
-/// @identity: "helo" | "mail_from"
+/// @identity: "helo" | "mailfrom"
 /// @header: "spf" | "auth" | "both" | "none"
 /// @policy: "strict" | "soft"
 ///
@@ -147,11 +147,11 @@ fn check_spf(identity, header, policy) {
     // It MUST appear above all other Received-SPF fields in the message.
     switch header {
         // It is RECOMMENDED that SMTP receivers record the result"
-        "spf" => prepend_header(SPF_HEADER, spf_header(query)),
-        "auth" => prepend_header(AUTH_HEADER, auth_header(query)),
+        "spf" => prepend_header(SPF_HEADER, spf_header(query, identity)),
+        "auth" => prepend_header(AUTH_HEADER, auth_header(query, identity)),
         "both" => {
-            prepend_header(AUTH_HEADER, auth_header(query));
-            prepend_header(SPF_HEADER, spf_header(query));
+            prepend_header(AUTH_HEADER, auth_header(query, identity));
+            prepend_header(SPF_HEADER, spf_header(query, identity));
         },
         "none" => {},
         _ => throw `spf 'header' argument must be 'spf', 'auth' or 'both', not '${header}'`,
