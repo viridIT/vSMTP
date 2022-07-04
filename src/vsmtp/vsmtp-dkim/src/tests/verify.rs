@@ -22,8 +22,7 @@ async fn verify_with_raw_message() {
     )
     .unwrap();
 
-    let signature =
-        <Signature as std::str::FromStr>::from_str(&SIGNATURE["DKIM-Signature: ".len()..]).unwrap();
+    let signature = <Signature as std::str::FromStr>::from_str(SIGNATURE).unwrap();
     let public_key = signature.get_public_key(&resolver).await.unwrap();
     let field = public_key.iter().next().unwrap();
 
