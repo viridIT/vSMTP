@@ -77,6 +77,14 @@ pub struct Key {
     pub flags: Vec<Flags>,
 }
 
+impl Key {
+    /// Does the signature contains the tag: `t=y`
+    #[must_use]
+    pub fn has_debug_flag(&self) -> bool {
+        self.flags.iter().any(|f| *f == Flags::Testing)
+    }
+}
+
 impl std::str::FromStr for Key {
     type Err = ParseError;
 

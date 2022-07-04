@@ -37,69 +37,65 @@ pub enum VerifierResult {
     Base64Error,
 }
 
-///
-/// # Errors
-///
-/// * see [`VerifierResult`]
-pub fn verify(message: &RawBody, signature: &Signature, key: &Key) -> Result<(), VerifierResult> {
-    if !signature
-        .signing_algorithm
-        .is_supported(&key.acceptable_hash_algorithms)
-    {
-        return Err(VerifierResult::AlgorithmMismatch {
-            singing_algorithm: signature.signing_algorithm,
-            acceptable: key
-                .acceptable_hash_algorithms
-                .iter()
+impl Signature {
+    /// Verify a signature
+    ///
+    /// # Errors
+    ///
+    /// * see [`VerifierResult`]
+    pub fn verify(&self, message: &RawBody, key: &Key) -> Result<(), VerifierResult> {
+        if !self
+            .signing_algorithm
+            .is_supported(&key.acceptable_hash_algorithms)
+        {
+            return Err(VerifierResult::AlgorithmMismatch {
+                singing_algorithm: self.signing_algorithm,
+                acceptable: key
+                    .acceptable_hash_algorithms
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(","),
+            });
+        }
+
+        // if key.public_key.is_empty() {
+        //     return Err(VerifierResult::KeyMissingOrRevoked);
+        // }
+
+        let body = self.canonicalization.body.canonicalize_body(
+            &message
+                .body()
+                .as_ref()
                 .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(","),
-        });
-    }
+                .unwrap_or_default(),
+        );
 
-    // if key.public_key.is_empty() {
-    //     return Err(VerifierResult::KeyMissingOrRevoked);
-    // }
-
-    let body = signature.canonicalization.body.canonicalize_body(
-        &message
-            .body()
-            .as_ref()
-            .map(ToString::to_string)
-            .unwrap_or_default(),
-    );
-
-    dbg!(&body);
-
-    let body_hash = signature
-        .signing_algorithm
-        .hash(match signature.body_length {
+        let body_hash = self.signing_algorithm.hash(match self.body_length {
             // TODO: handle policy
             Some(len) => &body[..std::cmp::min(body.len(), len)],
             None => &body,
         });
 
-    dbg!(base64::encode(&body_hash));
-    dbg!(signature);
+        if self.body_hash != base64::encode(body_hash) {
+            return Err(VerifierResult::BodyHashMismatch);
+        }
 
-    if signature.body_hash != base64::encode(body_hash) {
-        return Err(VerifierResult::BodyHashMismatch);
+        let headers_hash = self.get_header_hash(message);
+
+        rsa::PublicKey::verify(
+            &key.public_key,
+            rsa::PaddingScheme::PKCS1v15Sign {
+                hash: Some(match self.signing_algorithm {
+                    SigningAlgorithm::RsaSha1 => rsa::hash::Hash::SHA1,
+                    SigningAlgorithm::RsaSha256 => rsa::hash::Hash::SHA2_256,
+                }),
+            },
+            &headers_hash,
+            &base64::decode(&self.signature).map_err(|_| VerifierResult::Base64Error)?,
+        )
+        .map_err(|e| VerifierResult::HeaderHashMismatch { error: e })?;
+
+        Ok(())
     }
-
-    let headers_hash = signature.get_header_hash(message);
-
-    rsa::PublicKey::verify(
-        &key.public_key,
-        rsa::PaddingScheme::PKCS1v15Sign {
-            hash: Some(match signature.signing_algorithm {
-                SigningAlgorithm::RsaSha1 => rsa::hash::Hash::SHA1,
-                SigningAlgorithm::RsaSha256 => rsa::hash::Hash::SHA2_256,
-            }),
-        },
-        &headers_hash,
-        &base64::decode(&signature.signature).map_err(|_| VerifierResult::Base64Error)?,
-    )
-    .map_err(|e| VerifierResult::HeaderHashMismatch { error: e })?;
-
-    Ok(())
 }

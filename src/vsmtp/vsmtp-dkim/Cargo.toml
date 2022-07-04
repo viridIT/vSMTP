@@ -12,10 +12,10 @@ description = "Next-gen MTA. Secured, Faster and Greener"
 
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
-documentation = "https://docs.rs/crate/vsmtp-common/"
+documentation = "https://docs.rs/crate/vsmtp-dkim/"
 
 readme = "../../../README.md"
-keywords = ["vsmtp"]
+keywords = ["vsmtp", "dkim"]
 categories = ["data-structures"]
 
 [dependencies]

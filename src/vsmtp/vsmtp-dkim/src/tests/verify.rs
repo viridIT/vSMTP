@@ -1,4 +1,4 @@
-use crate::{verify, Key, Signature};
+use crate::{Key, Signature};
 use trust_dns_resolver::config::ResolverOpts;
 use vsmtp_common::MessageBody;
 
@@ -29,5 +29,5 @@ async fn verify_with_raw_message() {
 
     let public_key = <Key as std::str::FromStr>::from_str(&field.to_string()).unwrap();
 
-    verify(body.inner(), &signature, &public_key).unwrap();
+    signature.verify(body.inner(), &public_key).unwrap();
 }

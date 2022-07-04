@@ -89,6 +89,30 @@ pub struct Signature {
 
 impl Signature {
     ///
+    #[must_use]
+    pub fn has_expired(&self, epsilon: u64) -> bool {
+        match self.expire_time {
+            Some(expire_time) => {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("Time went backwards");
+
+                // `now - x` or `x - now`, to get +/-
+                match now
+                    .as_secs()
+                    .checked_sub(expire_time.as_secs())
+                    .or_else(|| expire_time.as_secs().checked_sub(now.as_secs()))
+                {
+                    Some(diff) => diff > epsilon,
+                    None => false,
+                }
+            }
+            // expiration date is undefined
+            None => false,
+        }
+    }
+
+    ///
     /// # Errors
     ///
     /// * see [`trust_dns_resolver::TokioAsyncResolver::txt_lookup`]
@@ -140,7 +164,6 @@ impl Signature {
         // remove the final "\r\n"
         a.pop();
         a.pop();
-        dbg!(&a);
         self.signing_algorithm.hash(a)
     }
 }
@@ -362,9 +385,7 @@ mod tests {
         ]
         .concat();
 
-        let sign =
-            <Signature as std::str::FromStr>::from_str(&signature["DKIM-Signature: ".len()..])
-                .unwrap();
+        let sign = <Signature as std::str::FromStr>::from_str(&signature).unwrap();
         pretty_assertions::assert_eq!(
             sign,
             Signature {
@@ -399,9 +420,11 @@ mod tests {
                 body_hash: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=".to_string(),
                 signature: "dzdVyOfAKCdLXdJOc9G2q8LoXSlEniSbav+yuU4zGeeruD00lszZVoG4ZHRNiYzR"
                     .to_string(),
-                raw: signature["DKIM-Signature: ".len()..].to_string()
+                raw: signature
             }
         );
+        assert!(sign.has_expired(100));
+        assert!(!sign.has_expired(1_000_000_000));
         println!("{sign:#?}");
     }
 }

@@ -229,40 +229,42 @@ fn check_null_mx_sender() {
 
 fn dkim_verify() {
     let policy = #{
-        // avoid infinite loop and dos/ddos attack
-        nbr_headers: 3,
+        // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
+        nbr_headers: 5,
+        // the dns query may result in multiple public key, the registry with invalid format are ignored.
         // among ["first_one", "cycle"]
         on_multiple_key_records: "cycle",
+        // is the `expire_time` of the signature over `now +/- eplison` (as seconds)
+        expiration_epsilon: 100,
     };
-
     log("warn", `verifying DKIM signature with policy=${policy}`);
 
     let dkim_signatures = msg().headers("DKIM-Signature", policy.nbr_headers);
 
     for i in dkim_signatures {
         try {
-            // `signature` is a valid DkimSignature, with rfc6376 valid format
             let signature = parse_signature(i);
 
-            // TODO: verify expiration
+            if signature.has_expired(policy.expiration_epsilon) {
+                continue;
+            }
 
             // NOTE: for any reason, you can decide to ignore the signature
             // if signature... {
             //     continue;
             // }
 
-            // the dns query may result in multiple public key,
-            // the registry with invalid format are ignored
             for key in get_public_key(srv(), signature, policy.on_multiple_key_records) {
                 try {
                     sys::dkim_verify(msg(), signature, key);
+                    log("warn", `DKIM signature successfully verified`);
 
-                    // if key.has_test_flag {
-                    // TODO: log, and consider as unsigned
-                    // }
+                    if key.has_debug_flag {
+                        log("warn", `DKIM signature contains debug_flag, continuing`);
+                        continue;
+                    }
 
                     return accept()
-
                 } catch (e) {
                     print(e);
                 }
@@ -271,14 +273,9 @@ fn dkim_verify() {
         } catch (e) {
             print(e);
             log("warn", `DKIM signature invalid: ${e}`);
-
-            // TODO: if header ParseError, ignored
-
-            // TEMPFAIL ?
         }
     }
 
     log("warn", "no valid DKIM signature, returning `deny`");
-
     deny()
 }

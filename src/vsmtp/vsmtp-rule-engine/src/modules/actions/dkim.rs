@@ -23,7 +23,7 @@ use rhai::plugin::{
 };
 use rhai::EvalAltResult;
 use vsmtp_common::re::tokio;
-use vsmtp_dkim::{verify, Key, Signature};
+use vsmtp_dkim::{Key, Signature};
 
 #[doc(hidden)]
 #[rhai::plugin::export_module]
@@ -33,6 +33,14 @@ pub mod dkim {
     pub fn parse_signature(input: &str) -> EngineResult<Signature> {
         <Signature as std::str::FromStr>::from_str(input)
             .map_err::<Box<rhai::EvalAltResult>, _>(|e| format!("{e}").into())
+    }
+
+    #[rhai_fn(global, pure, return_raw)]
+    pub fn has_expired(signature: &mut Signature, epsilon: rhai::INT) -> EngineResult<bool> {
+        match epsilon.try_into() {
+            Ok(epsilon) => Ok(signature.has_expired(epsilon)),
+            e => Err(e.unwrap_err().to_string().into()),
+        }
     }
 
     #[rhai_fn(global, pure, return_raw)]
@@ -75,12 +83,20 @@ pub mod dkim {
         .into())
     }
 
+    #[rhai_fn(global, pure, get = "has_debug_flag")]
+    pub fn has_debug_flag(key: &mut Key) -> bool {
+        key.has_debug_flag()
+    }
+
     #[allow(clippy::module_name_repetitions, clippy::needless_pass_by_value)]
     #[rhai_fn(global, pure, return_raw)]
     pub fn dkim_verify(message: &mut Message, signature: Signature, key: Key) -> EngineResult<()> {
         let guard = vsl_guard_ok!(message.read());
 
-        verify(guard.inner(), &signature, &key).unwrap();
+        signature
+            .verify(guard.inner(), &key)
+            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
         Ok(())
     }
 }
