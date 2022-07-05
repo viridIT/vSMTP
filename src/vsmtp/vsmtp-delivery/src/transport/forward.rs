@@ -119,7 +119,7 @@ impl<'r> Forward<'r> {
 #[async_trait::async_trait]
 impl<'r> Transport for Forward<'r> {
     async fn deliver(
-        &mut self,
+        mut self,
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,

@@ -14,10 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    context_from_file_path, log_channels, message_from_file_path, receiver::MailHandlerError,
-    ProcessMessage,
-};
+use crate::{log_channels, receiver::MailHandlerError, ProcessMessage};
 use anyhow::Context;
 use vsmtp_common::{
     queue::Queue,
@@ -116,19 +113,9 @@ async fn handle_one_in_working_queue_inner(
         message_filepath.display(),
     );
 
-    let (mail_context, mail_message) = tokio::join!(
-        context_from_file_path(&context_filepath),
-        message_from_file_path(message_filepath)
-    );
-    let (mail_context, mail_message) = (
-        mail_context.with_context(|| {
-            format!(
-                "failed to deserialize email in working queue '{}'",
-                context_filepath.display()
-            )
-        })?,
-        mail_message.context("error while reading message")?,
-    );
+    let (mail_context, mail_message) = Queue::Working
+        .read(&config.server.queues.dirpath, &process_message.message_id)
+        .await?;
 
     let (ctx, message, result) = RuleState::just_run_when(
         &StateSMTP::PostQ,

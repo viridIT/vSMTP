@@ -193,7 +193,7 @@ impl<'r> Deliver<'r> {
 #[async_trait::async_trait]
 impl<'r> Transport for Deliver<'r> {
     async fn deliver(
-        &mut self,
+        self,
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,

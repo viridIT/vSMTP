@@ -14,17 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    context_from_file_path, delivery::send_mail, log_channels, message_from_file_path,
-    ProcessMessage,
-};
+use crate::{delivery::send_mail, log_channels, ProcessMessage};
 use vsmtp_common::{
     queue::Queue,
     queue_path,
-    re::{
-        anyhow::{self, Context},
-        log,
-    },
+    re::{anyhow, log},
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{Config, Resolvers};
@@ -58,41 +52,22 @@ async fn handle_one_in_deferred_queue(
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
 ) -> anyhow::Result<()> {
-    let (context_filepath, message_filepath) = (
-        queue_path!(
-            &config.server.queues.dirpath,
-            Queue::Deferred,
-            &process_message.message_id
-        ),
-        std::path::PathBuf::from_iter([
-            config.server.queues.dirpath.clone(),
-            "mails".into(),
-            process_message.message_id.clone().into(),
-        ]),
-    );
-
     log::debug!(
         target: log_channels::DEFERRED,
         "processing email '{}'",
         process_message.message_id
     );
 
-    let mut ctx = context_from_file_path(&context_filepath)
-        .await
-        .with_context(|| {
-            format!(
-                "failed to deserialize email in deferred queue '{}'",
-                process_message.message_id
-            )
-        })?;
+    let (mut mail_context, mail_message) = Queue::Deferred
+        .read(&config.server.queues.dirpath, &process_message.message_id)
+        .await?;
 
     let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
-    let message = message_from_file_path(message_filepath).await?;
 
-    send_mail(&config, &mut ctx, &message, &resolvers).await;
+    send_mail(&config, &mut mail_context, &mail_message, &resolvers).await;
 
     // updating retry count, set status to Failed if threshold reached.
-    for rcpt in &mut ctx.envelop.rcpt {
+    for rcpt in &mut mail_context.envelop.rcpt {
         match &mut rcpt.email_status {
             EmailTransferStatus::HeldBack(count) if *count >= max_retry_deferred => {
                 rcpt.email_status = EmailTransferStatus::Failed(format!(
@@ -107,17 +82,17 @@ async fn handle_one_in_deferred_queue(
         };
     }
 
-    if ctx
+    if mail_context
         .envelop
         .rcpt
         .iter()
         .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
     {
         // if there is still recipients left to send the email to, we just update the recipient list on disk.
-        Queue::Deferred.write_to_queue(&config.server.queues.dirpath, &ctx)?;
+        Queue::Deferred.write_to_queue(&config.server.queues.dirpath, &mail_context)?;
     } else {
         // otherwise, we remove the file from the deferred queue.
-        std::fs::remove_file(&context_filepath)?;
+        Queue::Deferred.remove(&config.server.queues.dirpath, &process_message.message_id)?;
     }
 
     Ok(())
@@ -195,11 +170,9 @@ mod tests {
         .unwrap();
 
         let resolvers = build_resolvers(&config).unwrap();
-        let path = config.server.queues.dirpath.join("deferred/test_deferred");
-        let msg = config.server.queues.dirpath.join("mails/test_deferred");
 
         handle_one_in_deferred_queue(
-            std::sync::Arc::new(config),
+            std::sync::Arc::new(config.clone()),
             std::sync::Arc::new(resolvers),
             ProcessMessage {
                 message_id: "test_deferred".to_string(),
@@ -209,7 +182,10 @@ mod tests {
         .unwrap();
 
         pretty_assertions::assert_eq!(
-            context_from_file_path(&path).await.unwrap(),
+            Queue::Deferred
+                .read_mail_context(&config.server.queues.dirpath, "test_deferred")
+                .await
+                .unwrap(),
             MailContext {
                 connection: ConnectionContext {
                     timestamp: now,
@@ -244,7 +220,9 @@ mod tests {
             }
         );
         pretty_assertions::assert_eq!(
-            message_from_file_path(msg).await.unwrap(),
+            Queue::read_mail_message(&config.server.queues.dirpath, "test_deferred")
+                .await
+                .unwrap(),
             MessageBody::Raw {
                 headers: vec!["Date: bar".to_string(), "From: foo".to_string(),],
                 body: Some("Hello world".to_string()),

@@ -91,11 +91,11 @@ pub async fn start(
     }
 }
 
-pub async fn send_mail(
+pub async fn send_mail<'a>(
     config: &Config,
     message_ctx: &mut MailContext,
     message_body: &MessageBody,
-    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
+    resolvers: &'a std::collections::HashMap<String, TokioAsyncResolver>,
 ) {
     let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
     for i in message_ctx
@@ -113,7 +113,7 @@ pub async fn send_mail(
     }
 
     if acc.is_empty() {
-        // TODO!
+        // TODO! there is no ore sendable recipient in this message : move to dead queue
         return;
     }
 
@@ -126,9 +126,10 @@ pub async fn send_mail(
     let metadata = &message_ctx.metadata.as_ref().unwrap();
     let from = &message_ctx.envelop.mail_from;
 
-    let mut updated_group = vec![];
-    for (key, group) in acc {
-        let mut transport: Box<dyn Transport + Send> = match &key {
+    let futures = acc
+        .into_iter()
+        .filter(|(key, _)| !matches!(key, Transfer::None))
+        .map(|(key, to)| match key {
             Transfer::Forward(forward_target) => {
                 let resolver = match &forward_target {
                     ForwardTarget::Domain(domain) => resolvers.get(domain),
@@ -136,102 +137,48 @@ pub async fn send_mail(
                 }
                 .unwrap_or(root_server_resolver);
 
-                Box::new(forward::Forward::new(forward_target.clone(), resolver))
+                forward::Forward::new(forward_target.clone(), resolver).deliver(
+                    config,
+                    metadata,
+                    from,
+                    to,
+                    &message_content,
+                )
             }
-            Transfer::Deliver => Box::new(smtp_deliver::Deliver::new({
+            Transfer::Deliver => smtp_deliver::Deliver::new({
                 resolvers
                     .get(
-                        group
-                            .get(0)
+                        to.get(0)
                             .expect("at least one element in the group")
                             .address
                             .domain(),
                     )
                     .unwrap_or(root_server_resolver)
-            })),
-            Transfer::Mbox => Box::new(mbox::MBox),
-            Transfer::Maildir => Box::new(maildir::Maildir),
-            Transfer::None => continue,
-        };
+            })
+            .deliver(config, metadata, from, to, &message_content),
+            Transfer::Mbox => mbox::MBox.deliver(config, metadata, from, to, &message_content),
+            Transfer::Maildir => {
+                maildir::Maildir.deliver(config, metadata, from, to, &message_content)
+            }
+            Transfer::None => unreachable!(),
+        })
+        .collect::<Vec<_>>();
 
-        // TODO: make the futures run concurrently
-        updated_group.extend(
-            transport
-                .deliver(config, metadata, from, group, &message_content)
-                .await,
-        );
+    let mut x = vec![];
+    for i in futures {
+        x.extend(i.await);
     }
 
-    log::info!(target: log_channels::DEFERRED, "{updated_group:#?}");
+    log::info!(target: log_channels::DEFERRED, "{x:#?}");
 
-    message_ctx.envelop.rcpt = updated_group;
+    message_ctx.envelop.rcpt = x;
 }
-
-/*
-/// send the email following each recipient transport method.
-/// return a list of recipients with updated `email_status` field.
-/// recipients tagged with the Sent `email_status` are discarded.
-async fn send_email(
-    config: &Config,
-    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
-    metadata: &MessageMetadata,
-    from: &Address,
-    to: &[Rcpt],
-    body: &MessageBody,
-) -> anyhow::Result<Vec<Rcpt>> {
-    // filtering recipients by domains and delivery method.
-    let mut triage = vsmtp_common::rcpt::filter_by_transfer_method(to);
-
-    let content = body.to_string();
-
-    for (method, rcpt) in &mut triage {
-        let mut transport: Box<dyn Transport + Send> = match method {
-            Transfer::Forward(to) => Box::new(forward::Forward::new(
-                to,
-                // if we are using an ip the default dns is used.
-                match to {
-                    ForwardTarget::Domain(domain) => resolvers
-                        .get(domain)
-                        .unwrap_or_else(|| resolvers.get(&config.server.domain).unwrap()),
-                    ForwardTarget::Ip(_) | ForwardTarget::Socket(_) => {
-                        resolvers.get(&config.server.domain).unwrap()
-                    }
-                },
-            )),
-            Transfer::Deliver => Box::new(smtp_deliver::Deliver::new({
-                let domain = rcpt[0].address.domain();
-                resolvers
-                    .get(domain)
-                    .unwrap_or_else(|| resolvers.get(&config.server.domain).unwrap())
-            })),
-            Transfer::Mbox => Box::new(mbox::MBox),
-            Transfer::Maildir => Box::new(maildir::Maildir),
-            Transfer::None => continue,
-        };
-
-        transport
-            .deliver(config, metadata, from, &mut rcpt[..], &content)
-            .await
-            .with_context(|| {
-                format!("failed to deliver email using '{method}' for group '{rcpt:?}'")
-            })?;
-    }
-
-    // recipient email transfer status could have been updated.
-    // we also filter out recipients if they have been sent the message already.
-    Ok(triage
-        .into_iter()
-        .flat_map(|(_, rcpt)| rcpt)
-        .filter(|rcpt| !matches!(rcpt.email_status, EmailTransferStatus::Sent))
-        .collect::<Vec<_>>())
-}
-*/
 
 /// prepend trace informations to headers.
 /// see <https://datatracker.ietf.org/doc/html/rfc5321#section-4.4>
 fn add_trace_information(
     config: &Config,
-    ctx: &mut MailContext,
+    ctx: &MailContext,
     message: &mut MessageBody,
     rule_engine_result: &Status,
 ) -> anyhow::Result<()> {
@@ -355,7 +302,7 @@ mod test {
             body: Some("".to_string()),
         };
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
-        add_trace_information(&config, &mut ctx, &mut message, &Status::Next).unwrap();
+        add_trace_information(&config, &ctx, &mut message, &Status::Next).unwrap();
 
         pretty_assertions::assert_eq!(
             message,

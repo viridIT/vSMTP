@@ -184,4 +184,88 @@ impl Queue {
 
         Ok(())
     }
+
+    ///
+    /// # Errors
+    pub async fn read_mail_context(
+        &self,
+        dirpath: &std::path::Path,
+        id: &str,
+    ) -> anyhow::Result<MailContext> {
+        let context_filepath = queue_path!(&dirpath, self, &id);
+
+        let content = tokio::fs::read_to_string(&context_filepath)
+            .await
+            .with_context(|| format!("Cannot read file '{}'", context_filepath.display()))?;
+
+        serde_json::from_str::<MailContext>(&content)
+            .with_context(|| format!("Cannot deserialize: '{content:?}'"))
+    }
+
+    /// # Errors
+    pub async fn read_mail_message(
+        dirpath: &std::path::Path,
+        id: &str,
+    ) -> anyhow::Result<MessageBody> {
+        let mut message_filepath =
+            std::path::PathBuf::from_iter([dirpath.to_path_buf(), "mails".into(), id.into()]);
+
+        message_filepath.set_extension("json");
+        if message_filepath.exists() {
+            let content = tokio::fs::read_to_string(&message_filepath)
+                .await
+                .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
+
+            return serde_json::from_str::<MessageBody>(&content)
+                .with_context(|| format!("Cannot deserialize: '{content:?}'"));
+        }
+
+        message_filepath.set_extension("eml");
+        if message_filepath.exists() {
+            let content = tokio::fs::read_to_string(&message_filepath)
+                .await
+                .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
+
+            let (headers, body) = content
+                .split_once("\r\n\r\n")
+                .ok_or_else(|| anyhow::anyhow!("Cannot find message body"))?;
+
+            return Ok(MessageBody::Raw {
+                headers: headers.lines().map(str::to_string).collect(),
+                body: Some(body.to_string()),
+            });
+        }
+        anyhow::bail!("failed does not exist")
+    }
+
+    /// Return a message body from a file path.
+    /// Try to parse the file as JSON, if it fails, try to parse it as plain text.
+    ///
+    /// # Errors
+    ///
+    /// * file(s) not found
+    /// * file found but failed to read
+    /// * file read but failed to serialize
+    pub async fn read(
+        &self,
+        dirpath: &std::path::Path,
+        id: &str,
+    ) -> anyhow::Result<(MailContext, MessageBody)> {
+        let (context, message) = tokio::join!(
+            self.read_mail_context(dirpath, id),
+            Self::read_mail_message(dirpath, id)
+        );
+
+        Ok((context?, message?))
+    }
+
+    /// Remove a message from the queue system.
+    ///
+    /// # Errors
+    ///
+    /// * see [`std::fs::remove_file`]
+    pub fn remove(&self, dirpath: &std::path::Path, id: &str) -> anyhow::Result<()> {
+        std::fs::remove_file(queue_path!(&dirpath, self, &id))
+            .with_context(|| format!("failed to remove `{id}` from the `{self}` queue"))
+    }
 }

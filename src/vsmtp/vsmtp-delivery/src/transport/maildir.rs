@@ -36,7 +36,7 @@ pub struct Maildir;
 #[async_trait::async_trait]
 impl Transport for Maildir {
     async fn deliver(
-        &mut self,
+        self,
         config: &Config,
         metadata: &MessageMetadata,
         _: &vsmtp_common::Address,

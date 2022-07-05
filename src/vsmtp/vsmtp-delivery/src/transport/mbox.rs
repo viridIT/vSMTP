@@ -43,7 +43,7 @@ pub struct MBox;
 #[async_trait::async_trait]
 impl Transport for MBox {
     async fn deliver(
-        &mut self,
+        self,
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
