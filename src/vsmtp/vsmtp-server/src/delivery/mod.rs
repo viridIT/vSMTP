@@ -89,6 +89,7 @@ pub enum SenderOutcome {
     RemoveFromDisk,
 }
 
+#[allow(clippy::too_many_lines)]
 pub async fn send_mail(
     config: &Config,
     message_ctx: &mut MailContext,
@@ -101,13 +102,10 @@ pub async fn send_mail(
         .rcpt
         .iter()
         .filter(|r| r.email_status.is_sendable())
-        .cloned()
     {
-        if let Some(group) = acc.get_mut(&i.transfer_method) {
-            group.push(i);
-        } else {
-            acc.insert(i.transfer_method.clone(), vec![i]);
-        }
+        acc.entry(i.transfer_method.clone())
+            .and_modify(|domain| domain.push(i.clone()))
+            .or_insert_with(|| vec![i.clone()]);
     }
 
     if acc.is_empty() {
@@ -169,19 +167,22 @@ pub async fn send_mail(
 
     // updating retry count, set status to Failed if threshold reached.
     for rcpt in &mut message_ctx.envelop.rcpt {
-        if matches!(rcpt.email_status, EmailTransferStatus::HeldBack(count)
-            if count >= config.server.queues.delivery.deferred_retry_max)
+        if matches!(&rcpt.email_status, EmailTransferStatus::HeldBack{errors}
+            if errors.len() >= config.server.queues.delivery.deferred_retry_max)
         {
-            rcpt.email_status = EmailTransferStatus::Failed(format!(
-                "maximum retry count of '{}' reached",
-                config.server.queues.delivery.deferred_retry_max
-            ));
+            rcpt.email_status = EmailTransferStatus::Failed {
+                timestamp: std::time::SystemTime::now(),
+                reason: format!(
+                    "maximum retry count of '{}' reached",
+                    config.server.queues.delivery.deferred_retry_max
+                ),
+            };
         }
     }
 
     if message_ctx.envelop.rcpt.is_empty()
         || message_ctx.envelop.rcpt.iter().any(|rcpt| {
-            matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
+            matches!(rcpt.email_status, EmailTransferStatus::Failed { .. })
                 || matches!(rcpt.transfer_method, Transfer::None)
         })
     {
@@ -190,18 +191,22 @@ pub async fn send_mail(
         .envelop
         .rcpt
         .iter()
-        .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
+        .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent { .. }))
     {
-        SenderOutcome::MoveToDeferred
+        SenderOutcome::RemoveFromDisk
     } else if message_ctx
         .envelop
         .rcpt
         .iter()
-        .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent))
+        .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack { .. }))
     {
-        SenderOutcome::RemoveFromDisk
+        SenderOutcome::MoveToDeferred
     } else {
-        unreachable!()
+        for i in &mut message_ctx.envelop.rcpt {
+            i.email_status
+                .held_back("ignored by delivery transport".to_string());
+        }
+        SenderOutcome::MoveToDeferred
     }
 }
 

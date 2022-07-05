@@ -150,8 +150,10 @@ async fn handle_one_in_delivery_queue_inner(
         Status::Deny(_) => {
             // we update rcpt email status and write to dead queue in case of a deny.
             for rcpt in &mut mail_context.envelop.rcpt {
-                rcpt.email_status =
-                    EmailTransferStatus::Failed("rule engine denied the email.".to_string());
+                rcpt.email_status = EmailTransferStatus::Failed {
+                    timestamp: std::time::SystemTime::now(),
+                    reason: "rule engine denied the email.".to_string(),
+                };
             }
             Queue::Dead.write_to_queue(&config.server.queues.dirpath, &mail_context)?;
 
@@ -246,12 +248,16 @@ mod tests {
                             Rcpt {
                                 address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                             Rcpt {
                                 address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                         ],
                     },

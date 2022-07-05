@@ -135,12 +135,16 @@ mod tests {
                             Rcpt {
                                 address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                             Rcpt {
                                 address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                         ],
                     },
@@ -197,12 +201,16 @@ mod tests {
                         Rcpt {
                             address: addr!("to+1@client.com"),
                             transfer_method: Transfer::Maildir,
-                            email_status: EmailTransferStatus::HeldBack(1),
+                            email_status: EmailTransferStatus::HeldBack {
+                                errors: vec![(std::time::SystemTime::now(), "".to_string().into())]
+                            },
                         },
                         Rcpt {
                             address: addr!("to+2@client.com"),
                             transfer_method: Transfer::Maildir,
-                            email_status: EmailTransferStatus::HeldBack(1),
+                            email_status: EmailTransferStatus::HeldBack {
+                                errors: vec![(std::time::SystemTime::now(), "".to_string().into())]
+                            },
                         },
                     ],
                 },
