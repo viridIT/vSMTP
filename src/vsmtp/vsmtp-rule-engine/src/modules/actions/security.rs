@@ -16,8 +16,8 @@
 */
 use rhai::{
     plugin::{
-        mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-        PluginFunction, RhaiResult, TypeId,
+        mem, Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult,
+        TypeId,
     },
     EvalAltResult,
 };
@@ -39,56 +39,35 @@ pub mod security {
     //    * cause  (String) : the "mechanism" that matched or the "problem" error (RFC 7208-9.1).
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw, pure)]
-    pub fn check_spf(ctx: &mut Context, srv: Server, identity: &str) -> EngineResult<rhai::Map> {
+    pub fn check_spf(ctx: &mut Context, srv: Server) -> EngineResult<rhai::Map> {
         fn query_spf(
             resolver: &impl viaspf::lookup::Lookup,
             ip: std::net::IpAddr,
             sender: &viaspf::Sender,
-            helo_domain: Option<&viaspf::DomainName>,
         ) -> rhai::Map {
             let result = tokio::task::block_in_place(move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    viaspf::evaluate_sender(
-                        resolver,
-                        &viaspf::Config::default(),
-                        ip,
-                        sender,
-                        helo_domain,
-                    )
-                    .await
+                    viaspf::evaluate_sender(resolver, &viaspf::Config::default(), ip, sender, None)
+                        .await
                 })
             });
 
             map_from_query_result(&result)
         }
 
-        let (helo, mail_from, ip) = {
+        let (mail_from, ip) = {
             let ctx = &ctx
                 .read()
                 .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?;
-            (
-                ctx.envelop.helo.clone(),
-                ctx.envelop.mail_from.clone(),
-                ctx.client_addr.ip(),
-            )
+            (ctx.envelop.mail_from.clone(), ctx.client_addr.ip())
         };
 
         let resolver = srv.resolvers.get(&srv.config.server.domain).unwrap();
 
-        match identity {
-            "mailfrom" => match mail_from.full().parse() {
-                Ok(sender) => Ok(query_spf(resolver, ip, &sender, None)),
-                _ => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
-            },
-            "helo" => match mail_from.full().parse() {
-                Ok(sender) => {
-                    let helo_domain = helo.parse().ok();
-                    Ok(query_spf(resolver, ip, &sender, helo_domain.as_ref()))
-                }
-                _ => Ok(rhai::Map::from_iter([("result".into(), "none".into())])),
-            },
-            _ => Err("spf identity argument must be 'mailfrom' or 'helo'".into()),
-        }
+        Ok(match mail_from.full().parse() {
+            Ok(sender) => query_spf(resolver, ip, &sender),
+            _ => rhai::Map::from_iter([("result".into(), "none".into())]),
+        })
     }
 }
 
