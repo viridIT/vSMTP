@@ -14,12 +14,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{delivery::send_mail, log_channels, ProcessMessage};
+use crate::{
+    delivery::{send_mail, SenderOutcome},
+    log_channels, ProcessMessage,
+};
 use vsmtp_common::{
     queue::Queue,
     queue_path,
-    re::{anyhow, log},
-    transfer::EmailTransferStatus,
+    re::{
+        anyhow::{self, Context},
+        log,
+    },
 };
 use vsmtp_config::{Config, Resolvers};
 
@@ -62,37 +67,26 @@ async fn handle_one_in_deferred_queue(
         .read(&config.server.queues.dirpath, &process_message.message_id)
         .await?;
 
-    let max_retry_deferred = config.server.queues.delivery.deferred_retry_max;
-
-    send_mail(&config, &mut mail_context, &mail_message, &resolvers).await;
-
-    // updating retry count, set status to Failed if threshold reached.
-    for rcpt in &mut mail_context.envelop.rcpt {
-        match &mut rcpt.email_status {
-            EmailTransferStatus::HeldBack(count) if *count >= max_retry_deferred => {
-                rcpt.email_status = EmailTransferStatus::Failed(format!(
-                    "maximum retry count of '{max_retry_deferred}' reached"
-                ));
-            }
-            EmailTransferStatus::HeldBack(_) => {}
-            _ => {
-                // in the deferred queue, the email is considered as held back.
-                rcpt.email_status = EmailTransferStatus::HeldBack(0);
-            }
-        };
-    }
-
-    if mail_context
-        .envelop
-        .rcpt
-        .iter()
-        .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
-    {
-        // if there is still recipients left to send the email to, we just update the recipient list on disk.
-        Queue::Deferred.write_to_queue(&config.server.queues.dirpath, &mail_context)?;
-    } else {
-        // otherwise, we remove the file from the deferred queue.
-        Queue::Deferred.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+    match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
+        SenderOutcome::MoveToDead => {
+            Queue::Deliver
+                .move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)
+                .with_context(|| {
+                    format!(
+                        "cannot move file from `{}` to `{}`",
+                        Queue::Deliver,
+                        Queue::Dead
+                    )
+                })?;
+        }
+        SenderOutcome::MoveToDeferred => {
+            Queue::Deferred
+                .write_to_queue(&config.server.queues.dirpath, &mail_context)
+                .with_context(|| format!("failed to update context in `{}`", Queue::Deferred))?;
+        }
+        SenderOutcome::RemoveFromDisk => {
+            Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+        }
     }
 
     Ok(())

@@ -268,4 +268,29 @@ impl Queue {
         std::fs::remove_file(queue_path!(&dirpath, self, &id))
             .with_context(|| format!("failed to remove `{id}` from the `{self}` queue"))
     }
+
+    /// Write the `ctx` to `other` **AND THEN** remove `ctx` from `self`
+    ///
+    /// # Errors
+    ///
+    /// * see [`Queue::write_to_queue`]
+    /// * see [`Queue::remove`]
+    pub fn move_to(
+        &self,
+        other: &Self,
+        queues_dirpath: &std::path::Path,
+        ctx: &MailContext,
+    ) -> anyhow::Result<()> {
+        other.write_to_queue(queues_dirpath, ctx)?;
+
+        self.remove(
+            queues_dirpath,
+            &ctx.metadata
+                .as_ref()
+                .expect("message is ill-formed")
+                .message_id,
+        )?;
+
+        Ok(())
+    }
 }

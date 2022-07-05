@@ -25,7 +25,6 @@ use crate::{
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
-use vsmtp_common::re::tokio;
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
     rcpt::Rcpt,
@@ -33,6 +32,7 @@ use vsmtp_common::{
     status::Status,
     transfer::{ForwardTarget, Transfer},
 };
+use vsmtp_common::{re::tokio, transfer::EmailTransferStatus};
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_delivery::transport::{deliver as smtp_deliver, forward, maildir, mbox, Transport};
 use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -82,12 +82,19 @@ pub async fn start(
     }
 }
 
+#[must_use]
+pub enum SenderOutcome {
+    MoveToDead,
+    MoveToDeferred,
+    RemoveFromDisk,
+}
+
 pub async fn send_mail(
     config: &Config,
     message_ctx: &mut MailContext,
     message_body: &MessageBody,
     resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
-) {
+) -> SenderOutcome {
     let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
     for i in message_ctx
         .envelop
@@ -104,8 +111,7 @@ pub async fn send_mail(
     }
 
     if acc.is_empty() {
-        // TODO! there is no ore sendable recipient in this message : move to dead queue
-        return;
+        return SenderOutcome::MoveToDead;
     }
 
     let message_content = message_body.to_string();
@@ -160,6 +166,43 @@ pub async fn send_mail(
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
+
+    // updating retry count, set status to Failed if threshold reached.
+    for rcpt in &mut message_ctx.envelop.rcpt {
+        if matches!(rcpt.email_status, EmailTransferStatus::HeldBack(count)
+            if count >= config.server.queues.delivery.deferred_retry_max)
+        {
+            rcpt.email_status = EmailTransferStatus::Failed(format!(
+                "maximum retry count of '{}' reached",
+                config.server.queues.delivery.deferred_retry_max
+            ));
+        }
+    }
+
+    if message_ctx.envelop.rcpt.is_empty()
+        || message_ctx.envelop.rcpt.iter().any(|rcpt| {
+            matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
+                || matches!(rcpt.transfer_method, Transfer::None)
+        })
+    {
+        SenderOutcome::MoveToDead
+    } else if message_ctx
+        .envelop
+        .rcpt
+        .iter()
+        .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
+    {
+        SenderOutcome::MoveToDeferred
+    } else if message_ctx
+        .envelop
+        .rcpt
+        .iter()
+        .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent))
+    {
+        SenderOutcome::RemoveFromDisk
+    } else {
+        unreachable!()
+    }
 }
 
 /// prepend trace informations to headers.

@@ -15,7 +15,7 @@
  *
 */
 use crate::{
-    delivery::{add_trace_information, send_mail},
+    delivery::{add_trace_information, send_mail, SenderOutcome},
     log_channels,
     receiver::MailHandlerError,
     ProcessMessage,
@@ -29,7 +29,7 @@ use vsmtp_common::{
     },
     state::StateSMTP,
     status::Status,
-    transfer::{EmailTransferStatus, Transfer},
+    transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -141,6 +141,11 @@ async fn handle_one_in_delivery_queue_inner(
                 target: log_channels::DELIVERY,
                 "delivery skipped due to quarantine."
             );
+
+            // after processing the email is removed from the delivery queue.
+            Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+
+            Ok(())
         }
         Status::Deny(_) => {
             // we update rcpt email status and write to dead queue in case of a deny.
@@ -154,36 +159,49 @@ async fn handle_one_in_delivery_queue_inner(
                 target: log_channels::DELIVERY,
                 "mail has been denied, moved to `dead` queue."
             );
+
+            // after processing the email is removed from the delivery queue.
+            Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+
+            Ok(())
         }
         _ => {
-            send_mail(&config, &mut mail_context, &mail_message, &resolvers).await;
-
-            if mail_context
-                .envelop
-                .rcpt
-                .iter()
-                .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack(..)))
-            {
-                Queue::Deferred
-                    .write_to_queue(&config.server.queues.dirpath, &mail_context)
-                    .context("failed to move message from delivery queue to deferred queue")?;
+            match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
+                SenderOutcome::MoveToDead => {
+                    Queue::Deliver
+                        .move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)
+                        .with_context(|| {
+                            format!(
+                                "cannot move file from `{}` to `{}`",
+                                Queue::Deliver,
+                                Queue::Dead
+                            )
+                        })?;
+                }
+                SenderOutcome::MoveToDeferred => {
+                    Queue::Deliver
+                        .move_to(
+                            &Queue::Deferred,
+                            &config.server.queues.dirpath,
+                            &mail_context,
+                        )
+                        .with_context(|| {
+                            format!(
+                                "cannot move file from `{}` to `{}`",
+                                Queue::Deliver,
+                                Queue::Deferred
+                            )
+                        })?;
+                }
+                SenderOutcome::RemoveFromDisk => {
+                    Queue::Deliver
+                        .remove(&config.server.queues.dirpath, &process_message.message_id)?;
+                }
             }
 
-            if mail_context.envelop.rcpt.iter().any(|rcpt| {
-                matches!(rcpt.email_status, EmailTransferStatus::Failed(..))
-                    || matches!(rcpt.transfer_method, Transfer::None)
-            }) {
-                Queue::Dead
-                    .write_to_queue(&config.server.queues.dirpath, &mail_context)
-                    .context("failed to move message from delivery queue to dead queue")?;
-            }
+            Ok(())
         }
-    };
-
-    // after processing the email is removed from the delivery queue.
-    Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
-
-    Ok(())
+    }
 }
 
 #[cfg(test)]
