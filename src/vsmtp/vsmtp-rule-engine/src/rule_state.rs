@@ -142,9 +142,7 @@ impl RuleState {
         let skip = mail_context
             .metadata
             .as_ref()
-            .expect("metadata must be set")
-            .skipped
-            .clone();
+            .and_then(|metadata| metadata.skipped.clone());
 
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let message = std::sync::Arc::new(std::sync::RwLock::new(message));

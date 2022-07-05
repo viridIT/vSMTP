@@ -101,7 +101,7 @@ fn test_check_relay() {
             &mut state,
             &StateSMTP::RcptTo
         ),
-        Status::Deny(ReplyOrCodeID::Reply(Reply::new(
+        Status::Info(ReplyOrCodeID::Reply(Reply::new(
             Enhanced {
                 code: 554,
                 enhanced: "5.7.1".to_string()
