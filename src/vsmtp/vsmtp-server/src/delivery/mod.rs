@@ -42,11 +42,6 @@ mod deliver;
 
 /// process used to deliver incoming emails force accepted by the smtp process
 /// or parsed by the vMime process.
-///
-/// # Errors
-///
-/// *
-///
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -56,11 +51,7 @@ pub async fn start(
     if let Err(e) =
         flush_deliver_queue(config.clone(), resolvers.clone(), rule_engine.clone()).await
     {
-        log::error!(
-            target: log_channels::DELIVERY,
-            "flushing queue failed: {}",
-            e
-        );
+        log::error!(target: log_channels::DELIVERY, "flushing queue failed: {e}",);
     }
 
     let mut flush_deferred_interval =
@@ -91,11 +82,11 @@ pub async fn start(
     }
 }
 
-pub async fn send_mail<'a>(
+pub async fn send_mail(
     config: &Config,
     message_ctx: &mut MailContext,
     message_body: &MessageBody,
-    resolvers: &'a std::collections::HashMap<String, TokioAsyncResolver>,
+    resolvers: &std::collections::HashMap<String, TokioAsyncResolver>,
 ) {
     let mut acc: std::collections::HashMap<Transfer, Vec<Rcpt>> = std::collections::HashMap::new();
     for i in message_ctx
@@ -164,14 +155,11 @@ pub async fn send_mail<'a>(
         })
         .collect::<Vec<_>>();
 
-    let mut x = vec![];
-    for i in futures {
-        x.extend(i.await);
-    }
-
-    log::info!(target: log_channels::DEFERRED, "{x:#?}");
-
-    message_ctx.envelop.rcpt = x;
+    message_ctx.envelop.rcpt = futures::future::join_all(futures)
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
 }
 
 /// prepend trace informations to headers.
