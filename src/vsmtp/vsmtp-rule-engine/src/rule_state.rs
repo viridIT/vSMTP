@@ -139,20 +139,12 @@ impl RuleState {
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
-        let skip = rule_engine
-            .directives
-            .iter()
-            .flat_map(|(_, d)| d)
-            .find(|d| match d {
-                Directive::Delegation { service, .. } => match &**service {
-                    crate::Service::Smtp { receiver, .. } => {
-                        *receiver == mail_context.connection.server_address
-                    }
-                    _ => false,
-                },
-                _ => false,
-            })
-            .map(|_| Status::DelegationResult);
+        let skip = mail_context
+            .metadata
+            .as_ref()
+            .expect("metadata must be set")
+            .skipped
+            .clone();
 
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let message = std::sync::Arc::new(std::sync::RwLock::new(message));

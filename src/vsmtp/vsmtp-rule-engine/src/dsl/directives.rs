@@ -83,7 +83,7 @@ impl Directive {
             } => {
                 if let Service::Smtp { delegator, .. } = &**service {
                     let args = vsl_guard_ok!(state.message().read())
-                        .get_header_rev("X-VSMTP-DELEGATION")
+                        .get_header("X-VSMTP-DELEGATION")
                         .map(|header| {
                             let header =
                                 vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
@@ -124,10 +124,11 @@ impl Directive {
                             )
                         }
                         _ => {
+                            // FIXME: fold this header.
                             vsl_guard_ok!(state.message().write()).prepend_header(
                                 "X-VSMTP-DELEGATION",
                                 &format!(
-                                    "sent; stage={};\n directive=\"{}\";\n id=\"{}\"",
+                                    "sent; stage={}; directive=\"{}\"; id=\"{}\"",
                                     smtp_stage,
                                     name,
                                     vsl_guard_ok!(state.context().read())

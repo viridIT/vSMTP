@@ -191,7 +191,7 @@ impl RuleEngine {
                         .message()
                         .read()
                         .unwrap()
-                        .get_header_rev("X-VSMTP-DELEGATION")
+                        .get_header("X-VSMTP-DELEGATION")
                     {
                         let header =
                             vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);

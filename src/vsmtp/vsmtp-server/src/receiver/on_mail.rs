@@ -105,8 +105,6 @@ impl MailHandler {
                 );
             }
             Some(Status::Delegated(delegator)) => {
-                // prevent looping because this context has `Status::Delegated`
-                // which would be written on disk.
                 context.metadata.as_mut().unwrap().skipped = None;
 
                 // FIXME: find a way to use `write_to_queue` instead to be consistant
@@ -125,17 +123,17 @@ impl MailHandler {
                     "[{}/preq] skipped due to delegation.",
                     conn.server_addr
                 );
+
+                return Ok(());
             }
             Some(Status::DelegationResult) => {
                 if let Some(old_message_id) =
-                    message
-                        .get_header_rev("X-VSMTP-DELEGATION")
-                        .and_then(|header| {
-                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header)
-                                .args
-                                .get("id")
-                                .cloned()
-                        })
+                    message.get_header("X-VSMTP-DELEGATION").and_then(|header| {
+                        vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header)
+                            .args
+                            .get("id")
+                            .cloned()
+                    })
                 {
                     message_id = old_message_id;
                 }

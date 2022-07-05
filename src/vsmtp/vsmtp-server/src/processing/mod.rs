@@ -173,6 +173,13 @@ async fn handle_one_in_working_queue_inner(
                 .write_to_queue(&config.server.queues.dirpath, &context)
                 .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
 
+            Queue::write_to_mails(
+                &config.server.queues.dirpath,
+                &process_message.message_id,
+                &message,
+            )
+            .map_err(MailHandlerError::WriteMessageBody)?;
+
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
             delegate(delegator, &context, &message).map_err(MailHandlerError::DelegateMessage)?;
@@ -187,6 +194,7 @@ async fn handle_one_in_working_queue_inner(
         }
         Some(Status::DelegationResult) => {
             send_to_delivery = true;
+            write_to_queue = Some(Queue::Deliver);
         }
         Some(Status::Deny(code)) => {
             for rcpt in &mut context.envelop.rcpt {

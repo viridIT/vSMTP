@@ -144,6 +144,7 @@ impl MessageBody {
     }
 
     /// return the first header that match the `needle` parameter in the `haystack` iterator.
+    /// FIXME: handle header folding.
     #[must_use]
     fn get_raw_header<'a>(
         haystack: impl Iterator<Item = &'a String>,
@@ -155,8 +156,7 @@ impl MessageBody {
                 (Some(header), Some(value)) if header == needle => {
                     return Some(value);
                 }
-                (Some(_), Some(_)) => continue,
-                _ => break,
+                _ => continue,
             }
         }
 
