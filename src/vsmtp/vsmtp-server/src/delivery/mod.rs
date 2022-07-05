@@ -279,7 +279,7 @@ fn create_received_stamp(
 /// create the "X-VSMTP" header stamp.
 fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -> String {
     format!(
-        "id='{message_id}' version='{version}' status='{}'",
+        "id=\"{message_id}\"; version=\"{version}\"; status=\"{}\"",
         status.as_ref()
     )
 }
