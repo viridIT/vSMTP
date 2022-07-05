@@ -86,18 +86,19 @@ fn check_rcpt_relay(allowed_hosts) {
 /// a wrapper with the policy set to "strict" by default.
 ///
 /// # Args
-/// @identity: "helo" | "mailfrom" | "both"
 /// @header: "spf" | "auth" | "both" | "none"
 ///
-fn check_spf(identity, header) {
-    check_spf(identity, header, "strict")
+fn check_spf(header) {
+    check_spf(header, "strict")
 }
 
 /// create key-value pairs of spf results
 /// to inject into the spf or auth headers.
-private fn spf_key_value_list(query, identity) {
-`receiver=${hostname()}; client-ip=${ctx().client_ip};
- identity=${identity}; envelope_from=${ctx().mail_from};
+private fn spf_key_value_list(query) {
+`receiver=${hostname()};
+ client-ip=${ctx().client_ip};
+ envelope_from=${ctx().mail_from};
+ identity=mailfrom;
  ${
    if "mechanism" in query { `mechanism=${query.mechanism};` }
    else if "problem" in query { `problem=${query.problem};` }
@@ -105,14 +106,14 @@ private fn spf_key_value_list(query, identity) {
 }
 
 /// Record results in a spf header (RFC 7208-9)
-private fn spf_header(query, identity) {
-    `${query.result} ${spf_key_value_list(query, identity)}`
+private fn spf_header(query) {
+    `${query.result} ${spf_key_value_list(query)}`
 }
 
 /// Record results in the auth header (RFC 7208-9)
-fn auth_header(query, identity) {
+fn auth_header(query) {
 `${hostname()}; spf=${query.result}
- reason="${spf_key_value_list(query, identity)}"
+ reason="${spf_key_value_list(query)}"
  smtp.mailfrom=${ctx().mail_from}`;
 }
 
@@ -120,7 +121,6 @@ fn auth_header(query, identity) {
 /// Sender Policy Framework (RFC 7208).
 ///
 /// # Args
-/// @identity: "helo" | "mailfrom"
 /// @header: "spf" | "auth" | "both" | "none"
 /// @policy: "strict" | "soft"
 ///
@@ -132,26 +132,26 @@ fn auth_header(query, identity) {
 /// # Example
 /// ```
 /// rcpt: [
-///     rule "check spf" || check_spf("both", "spf", "soft")
+///     rule "check spf" || check_spf("spf", "soft")
 /// ]
 /// ```
-fn check_spf(identity, header, policy) {
+fn check_spf(header, policy) {
 
     const AUTH_HEADER = "Authentication-Results";
     const SPF_HEADER = "Received-SPF";
 
-    let query = sys::check_spf(ctx(), srv(), identity);
+    let query = sys::check_spf(ctx(), srv());
 
     // TODO: The Received-SPF header field is a trace field
     // and SHOULD be prepended to the existing header, above the Received: field
     // It MUST appear above all other Received-SPF fields in the message.
     switch header {
         // It is RECOMMENDED that SMTP receivers record the result"
-        "spf" => prepend_header(SPF_HEADER, spf_header(query, identity)),
-        "auth" => prepend_header(AUTH_HEADER, auth_header(query, identity)),
+        "spf" => prepend_header(SPF_HEADER, spf_header(query)),
+        "auth" => prepend_header(AUTH_HEADER, auth_header(query)),
         "both" => {
-            prepend_header(AUTH_HEADER, auth_header(query, identity));
-            prepend_header(SPF_HEADER, spf_header(query, identity));
+            prepend_header(AUTH_HEADER, auth_header(query));
+            prepend_header(SPF_HEADER, spf_header(query));
         },
         "none" => {},
         _ => throw `spf 'header' argument must be 'spf', 'auth' or 'both', not '${header}'`,
