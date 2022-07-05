@@ -27,14 +27,14 @@ pub enum EmailTransferStatus {
     /// the email is in the deliver / working queue at this point.
     Waiting,
     /// email for this recipient has been successfully sent.
-    /// the email has been removed from all queues at this point.
+    /// When all [`Rcpt`] are [`EmailTransferStatus::Sent`], the files are removed from disk.
     Sent,
     /// the delivery failed, the system is trying to re-send the email.
     /// the email is located in the deferred queue at this point.
     // TODO: add error on deferred.
     // Vec<anyhow::Error>
     HeldBack(usize),
-    /// the email failed to be sent. the argument is the reason of the failure.
+    /// the email failed too many times. the argument is the reason of the failure.
     /// the email is probably written in the dead or quarantine queues at this point.
     Failed(String),
     // NOTE: is Quarantined(String) useful, or we just use Failed(String) instead ?
