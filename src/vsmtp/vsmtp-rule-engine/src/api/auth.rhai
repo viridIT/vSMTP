@@ -76,7 +76,7 @@ fn check_rcpt_relay(allowed_hosts) {
     if !in_domain(ctx().rcpt)
     && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
         remove_rcpt(ctx().rcpt.to_string());
-        deny(code554_7_1)
+        info(code554_7_1)
     } else {
         next()
     }    
