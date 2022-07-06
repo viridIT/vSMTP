@@ -24,7 +24,7 @@ const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
 const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[hour]:[minute]:[second]");
 
-#[doc(hidden)]
+///
 #[rhai::plugin::export_module]
 pub mod utils {
 

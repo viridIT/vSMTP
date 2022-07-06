@@ -19,7 +19,7 @@ use rhai::{
     Dynamic, EvalAltResult, ImmutableString, NativeCallContext,
 };
 
-#[doc(hidden)]
+///
 #[rhai::plugin::export_module]
 pub mod services {
     use crate::dsl::service::cmd::run;
@@ -27,11 +27,13 @@ pub mod services {
     use crate::dsl::service::Service;
     use crate::modules::EngineResult;
 
+    ///
     #[rhai_fn(global, pure)]
     pub fn to_string(service: &mut std::sync::Arc<Service>) -> String {
         service.to_string()
     }
 
+    ///
     #[rhai_fn(global, pure)]
     pub fn to_debug(service: &mut std::sync::Arc<Service>) -> String {
         format!("{service:#?}")

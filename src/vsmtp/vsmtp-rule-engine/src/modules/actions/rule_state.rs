@@ -39,7 +39,7 @@ fn reply_or_code_id_from_string(code: &str) -> EngineResult<ReplyOrCodeID> {
     )?))
 }
 
-#[doc(hidden)]
+///
 #[rhai::plugin::export_module]
 pub mod rule_state {
 
