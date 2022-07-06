@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [1.1.1] - 2022-07-06
+
 ### Added
 
 * a `prepend_header` and `append_header` in `vsl` api to push front/back headers in message (#410).
