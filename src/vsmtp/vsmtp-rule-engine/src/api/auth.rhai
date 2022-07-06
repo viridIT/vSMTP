@@ -137,6 +137,10 @@ fn auth_header(query) {
 /// ```
 fn check_spf(header, policy) {
 
+    if in_domain(ctx().mail_from) {
+        return next();
+    }
+
     const AUTH_HEADER = "Authentication-Results";
     const SPF_HEADER = "Received-SPF";
 
