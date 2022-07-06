@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-server"
-version = "1.1.1"
+version = "1.1.0"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
@@ -17,6 +17,14 @@ documentation = "https://docs.rs/crate/vsmtp-server/"
 readme = "../../../README.md"
 keywords = ["vsmtp", "email", "server", "mail-server", "mail-filter"]
 categories = ["network-programming"]
+
+[package.metadata.release]
+pre-release-replacements = [
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-rule-engine = \\{ path = \"../vsmtp-rule-engine\", default-features = false, version = .*", replace = "vsmtp-rule-engine = { path = \"../vsmtp-rule-engine\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-delivery = \\{ path = \"../vsmtp-delivery\", default-features = false, version = .*", replace = "vsmtp-delivery = { path = \"../vsmtp-delivery\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+]
 
 [dependencies]
 vsmtp-common = { path = "../vsmtp-common", version = "1.1.0", default-features = false }
