@@ -101,7 +101,7 @@ mod tests {
         mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
         rcpt::Rcpt,
         re::tokio,
-        transfer::{EmailTransferStatus, Transfer},
+        transfer::{EmailTransferStatus, Transfer, TransferErrors},
     };
     use vsmtp_config::build_resolvers;
     use vsmtp_test::config;
@@ -202,14 +202,24 @@ mod tests {
                             address: addr!("to+1@client.com"),
                             transfer_method: Transfer::Maildir,
                             email_status: EmailTransferStatus::HeldBack {
-                                errors: vec![(std::time::SystemTime::now(), "".to_string().into())]
+                                errors: vec![(
+                                    std::time::SystemTime::now(),
+                                    TransferErrors::NoSuchMailbox {
+                                        name: "to+1".to_string()
+                                    }
+                                )]
                             },
                         },
                         Rcpt {
                             address: addr!("to+2@client.com"),
                             transfer_method: Transfer::Maildir,
                             email_status: EmailTransferStatus::HeldBack {
-                                errors: vec![(std::time::SystemTime::now(), "".to_string().into())]
+                                errors: vec![(
+                                    std::time::SystemTime::now(),
+                                    TransferErrors::NoSuchMailbox {
+                                        name: "to+2".to_string()
+                                    }
+                                )]
                             },
                         },
                     ],

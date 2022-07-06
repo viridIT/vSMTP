@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// representation of a recipient with it's delivery method.
-#[derive(Debug, Clone, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Rcpt {
     /// email address of the recipient.
     pub address: Address,
@@ -69,9 +69,8 @@ impl std::fmt::Display for Rcpt {
     }
 }
 
-// TODO: is it good idea ?
-impl PartialEq for Rcpt {
-    fn eq(&self, other: &Self) -> bool {
-        self.address == other.address
+impl PartialEq<Rcpt> for Address {
+    fn eq(&self, other: &Rcpt) -> bool {
+        *self == other.address
     }
 }

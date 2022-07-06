@@ -44,7 +44,7 @@ impl From<String> for TransferErrors {
 }
 
 /// the delivery status of the email of the current rcpt.
-#[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, strum::Display, serde::Serialize, serde::Deserialize)]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum EmailTransferStatus {
@@ -74,6 +74,28 @@ pub enum EmailTransferStatus {
         /// why it is considered failed
         reason: String,
     },
+}
+
+impl PartialEq<EmailTransferStatus> for EmailTransferStatus {
+    fn eq(&self, other: &EmailTransferStatus) -> bool {
+        match (self, other) {
+            (Self::Sent { .. }, Self::Sent { .. })
+            | (Self::Waiting { .. }, Self::Waiting { .. }) => true,
+            (Self::HeldBack { errors: l_errors }, Self::HeldBack { errors: r_errors }) => l_errors
+                .iter()
+                .map(|(_, errors)| errors)
+                .eq(r_errors.iter().map(|(_, errors)| errors)),
+            (
+                Self::Failed {
+                    reason: l_reason, ..
+                },
+                Self::Failed {
+                    reason: r_reason, ..
+                },
+            ) => l_reason == r_reason,
+            _ => false,
+        }
+    }
 }
 
 impl EmailTransferStatus {

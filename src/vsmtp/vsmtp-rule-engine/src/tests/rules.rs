@@ -15,7 +15,9 @@
  *
 */
 use crate::{rule_engine::RuleEngine, tests::helpers::get_default_state};
-use vsmtp_common::{addr, state::StateSMTP, status::Status, CodeID, MailParser, ReplyOrCodeID};
+use vsmtp_common::{
+    addr, rcpt::Rcpt, state::StateSMTP, status::Status, CodeID, MailParser, ReplyOrCodeID,
+};
 use vsmtp_mail_parser::MailMimeParser;
 
 #[test]
@@ -137,11 +139,19 @@ This is a reply to your hello."#
     );
     assert_eq!(re.run_when(&mut state, &StateSMTP::PostQ), Status::Next);
     assert_eq!(
-        state.context().read().unwrap().envelop.rcpt,
+        state
+            .context()
+            .read()
+            .unwrap()
+            .envelop
+            .rcpt
+            .iter()
+            .map(|r| r.address.clone())
+            .collect::<Vec<_>>(),
         vec![
-            vsmtp_common::rcpt::Rcpt::new(addr!("johndoe@example.com")),
-            vsmtp_common::rcpt::Rcpt::new(addr!("user@example.com")),
-            vsmtp_common::rcpt::Rcpt::new(addr!("no-reply@example.com")),
+            Rcpt::new(addr!("johndoe@example.com")),
+            Rcpt::new(addr!("user@example.com")),
+            Rcpt::new(addr!("no-reply@example.com")),
         ]
     );
 }
