@@ -2157,7 +2157,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "csv",
  "hostname",
