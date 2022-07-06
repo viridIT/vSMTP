@@ -13,7 +13,7 @@ repository = "https://github.com/viridIT/vSMTP"
 documentation = "https://docs.rs/crate/vsmtp/"
 
 readme = "README.md"
-keywords = ["vsmtp", "mta", "smtp"]
+keywords = ["vsmtp", "mta", "smtp", "server", "mail", "greenhouse"]
 categories = ["email"]
 
 rust-version = "1.58"

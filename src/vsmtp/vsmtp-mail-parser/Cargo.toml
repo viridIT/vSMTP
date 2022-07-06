@@ -16,7 +16,7 @@ documentation = "https://docs.rs/crate/vsmtp-mail-parser/"
 
 readme = "../../../README.md"
 keywords = ["vsmtp"]
-categories = ["email"]
+categories = ["email", "parsing"]
 
 [dependencies]
 vsmtp-common = { path = "../vsmtp-common", version = "1.1.0", default-features = false }

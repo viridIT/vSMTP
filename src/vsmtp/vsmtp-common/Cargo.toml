@@ -15,7 +15,7 @@ repository = "https://github.com/viridIT/vSMTP"
 documentation = "https://docs.rs/crate/vsmtp-common/"
 
 readme = "../../../README.md"
-keywords = ["vsmtp"]
+keywords = ["vsmtp", "smtp", "mail"]
 categories = ["data-structures"]
 
 [dependencies]
