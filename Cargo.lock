@@ -2061,7 +2061,7 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 
 [[package]]
 name = "vqueue"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "clap 3.2.8",
  "itertools",
