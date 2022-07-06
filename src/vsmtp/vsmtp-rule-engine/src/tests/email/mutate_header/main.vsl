@@ -16,15 +16,22 @@
 */
 
 fn mutate_headers() {
-    add_header("X-New-Header", "value of header");
-    add_header("X-Another-Header", "value of another");
-    add_header("From", "<john@doe.com>");
-    add_header("To", "<green@foo.net>");
+    append_header("X-New-Header", "value of header");
+    append_header("X-Another-Header", "value of another");
+    append_header("From", "<john@doe.com>");
+    append_header("To", "<green@foo.net>");
+
+    prepend_header("X-VSMTP-STATUS", "delivered");
+    prepend_header("X-VSMTP-TRACING", "empty");
+    prepend_header("X-VSMTP-SENDER", "example.com");
 
     if !has_header("X-New-Header")
     || !has_header("X-Another-Header")
     || !has_header("From")
     || !has_header("To")
+    || !has_header("X-VSMTP-STATUS")
+    || !has_header("X-VSMTP-TRACING")
+    || !has_header("X-VSMTP-SENDER")
     {
         return deny();
     }
@@ -33,6 +40,7 @@ fn mutate_headers() {
     set_header("X-Yet-Another-Header", "adding to header section when not found");
 
     print(get_header("X-New-Header"));
+    print(get_header("X-VSMTP-STATUS"));
 
     if !has_header("X-New-Header")
     || !has_header("X-Yet-Another-Header")
@@ -45,6 +53,9 @@ fn mutate_headers() {
     && get_header("From") == "<john@doe.com>"
     && get_header("To") == "<green@foo.net>"
     && get_header("X-Yet-Another-Header") == "adding to header section when not found"
+    && get_header("X-VSMTP-STATUS") == "delivered"
+    && get_header("X-VSMTP-TRACING") == "empty"
+    && get_header("X-VSMTP-SENDER") == "example.com"
     {
         next()
     } else {

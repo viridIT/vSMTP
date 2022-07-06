@@ -21,7 +21,7 @@ use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
     event::Event,
-    mail_context::{ConnectionContext, MessageMetadata},
+    mail_context::{ConnectionContext, MessageBody, MessageMetadata},
     rcpt::Rcpt,
     re::{anyhow, log, tokio},
     state::StateSMTP,
@@ -99,7 +99,7 @@ impl Transaction {
                 }
                 {
                     let state = self.rule_state.message();
-                    *state.write().unwrap() = None;
+                    *state.write().unwrap() = MessageBody::default();
                 }
 
                 ProcessedEvent::ReplyChangeState(StateSMTP::Helo, ReplyOrCodeID::CodeID(CodeID::Ok))
@@ -304,7 +304,7 @@ impl Transaction {
         }
         {
             let state = self.rule_state.message();
-            *state.write().unwrap() = None;
+            *state.write().unwrap() = MessageBody::default();
         }
     }
 
@@ -347,7 +347,7 @@ impl Transaction {
         }
         {
             let state = self.rule_state.message();
-            *state.write().unwrap() = None;
+            *state.write().unwrap() = MessageBody::default();
         }
     }
 

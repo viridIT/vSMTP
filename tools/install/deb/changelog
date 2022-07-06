@@ -1,3 +1,29 @@
+vmstp (1.1.0) UNRELEASED; urgency=low
+
+  [ Updated by ltabis ]
+  * Added
+    - SMTP Delegation via vsl. (#330)
+    - Catching signals and responding accordingly. (#364)
+    - An anti relaying vsl function called `check_relay`. (#372)
+
+  * Changed
+    - Splitting headers & body for emails to improve performances. (#368)
+    - Renamed the `shell` service to `cmd`. (#365)
+    - Rename `rcpt` vsl getter to `rcpt_list`. (#374)
+    - `rcpt` getter now return the recipient
+      from the latest `RCPT TO:` command. (#374)
+    - The `quarantine(quarantine_path)` function can no longer get out
+      of the application path specified in toml
+      by the [app.dirpath] field (#377).
+    - Paths specified in vsl need to be absolute. (#380)
+
+  * Fixed
+    - `config-show` command now displays tls private key & certificate
+      paths correctly. (#367)
+    - Minor fixes in the delivery process. (#382)
+
+ -- ltabis <l.tabis@viridit.com>  Mon, 20 Jun 2022 19:27:27 +0200
+
 vmstp (1.0.2) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]

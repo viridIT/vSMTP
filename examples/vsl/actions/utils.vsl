@@ -2,7 +2,7 @@
     connect: [
         rule "check root domain" || {
             if in_domain(sys::new_address("rcpt@testserver.com"))
-            && in_domain("rcpt@testserver.com")
+            && in_domain("testserver.com")
             && ctx().server_name == "testserver.com" {
                 accept()
             } else {
@@ -16,7 +16,7 @@
             print(toml::server.virtual);
             if in_domain(sys::new_address("rcpt@example.com")) == true
             && in_domain(sys::new_address("john@unknown.com")) == false
-            && in_domain("john@unknown.com") == false
+            && in_domain("unknown.com") == false
             && in_domain("invalid") == false {
                 accept()
             } else {

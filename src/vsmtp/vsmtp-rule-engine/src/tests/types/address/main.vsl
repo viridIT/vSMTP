@@ -70,8 +70,8 @@ import "objects" as obj;
             && sys::new_address("add@obj.com") is obj::regex_obj
             && obj::regex_obj is sys::new_address("add@obj.com")
 
-            && !(sys::new_address("my@address.fqdn") in obj::file_obj)
-            && sys::new_address("nested@address.com") in obj::file_obj
+            // && !(sys::new_address("my@address.fqdn") in obj::file_obj)
+            // && sys::new_address("nested@address.com") in obj::file_obj
 
             && !(sys::new_address("my@address.fqdn") in obj::group_obj)
             && sys::new_address("nested@address.com") in obj::group_obj

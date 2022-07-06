@@ -139,6 +139,7 @@ where
 }
 
 /// Call `test_receiver_inner`
+#[allow(clippy::module_name_repetitions)]
 #[macro_export]
 macro_rules! test_receiver {
     ($input:expr, $output:expr) => {

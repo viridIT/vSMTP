@@ -26,7 +26,7 @@ fn parse() {
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
-            .with_version_str("=1.0.0")
+            .with_version_str(">=1.0.0, <2.0.0")
             .unwrap()
             .with_hostname_and_client_count_max(8)
             .with_default_user_and_thread_pool(3, 3, 3)

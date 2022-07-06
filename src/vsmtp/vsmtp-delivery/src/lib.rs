@@ -44,15 +44,15 @@ pub mod transport {
     ///
     #[async_trait::async_trait]
     pub trait Transport {
-        ///
+        /// Take the data required to deliver the email and return the updated version of the recipient.
         async fn deliver(
             &mut self,
             config: &Config,
             metadata: &MessageMetadata,
             from: &Address,
-            to: &mut [Rcpt],
+            to: Vec<Rcpt>,
             content: &str,
-        ) -> anyhow::Result<()>;
+        ) -> Vec<Rcpt>;
     }
 
     /// delivery transport.
@@ -74,10 +74,10 @@ pub mod transport {
             _: &Config,
             _: &MessageMetadata,
             _: &Address,
-            _: &mut [Rcpt],
+            to: Vec<Rcpt>,
             _: &str,
-        ) -> anyhow::Result<()> {
-            Ok(())
+        ) -> Vec<Rcpt> {
+            to
         }
     }
 
@@ -143,25 +143,12 @@ pub mod transport {
                 .build(),
         )
     }
-
-    /// fetch mx records for a specific domain and order them by priority.
-    async fn get_mx_records(
-        resolver: &trust_dns_resolver::TokioAsyncResolver,
-        query: &str,
-    ) -> anyhow::Result<Vec<trust_dns_resolver::proto::rr::rdata::MX>> {
-        let mut records_by_priority = resolver
-            .mx_lookup(query)
-            .await?
-            .into_iter()
-            .collect::<Vec<_>>();
-        records_by_priority.sort_by_key(trust_dns_resolver::proto::rr::rdata::MX::preference);
-
-        Ok(records_by_priority)
-    }
 }
 
 #[cfg(test)]
 pub mod test {
+    use vsmtp_common::mail_context::ConnectionContext;
+
     /// create an empty email context for testing purposes.
     ///
     /// # Panics
@@ -183,34 +170,5 @@ pub mod test {
                 ..vsmtp_common::mail_context::MessageMetadata::default()
             }),
         }
-    }
-
-    use vsmtp_common::{
-        addr,
-        envelop::build_lettre,
-        mail_context::ConnectionContext,
-        rcpt::Rcpt,
-        re::lettre,
-        transfer::{EmailTransferStatus, Transfer},
-    };
-
-    #[test]
-    fn test_build_lettre_envelop() {
-        assert_eq!(
-            build_lettre(
-                &addr!("a@a.a"),
-                &[Rcpt {
-                    address: addr!("b@b.b"),
-                    transfer_method: Transfer::None,
-                    email_status: EmailTransferStatus::Sent
-                }]
-            )
-            .expect("failed to build lettre envelop"),
-            lettre::address::Envelope::new(
-                Some("a@a.a".parse().unwrap()),
-                vec!["b@b.b".parse().unwrap()]
-            )
-            .unwrap()
-        );
     }
 }

@@ -20,51 +20,50 @@ use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::{rcpt::Rcpt, state::StateSMTP, Address};
+use vsmtp_common::{rcpt::Rcpt, Address};
 
 #[rhai::plugin::export_module]
 pub mod message {
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, return_raw, pure)]
     pub fn has_header(this: &mut Message, header: &str) -> EngineResult<bool> {
-        Ok(
-            vsl_missing_ok!(vsl_guard_ok!(this.read()), "message", StateSMTP::PreQ)
-                .get_header(header)
-                .is_some(),
-        )
+        Ok(vsl_guard_ok!(this.read()).get_header(header).is_some())
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
     #[rhai_fn(global, return_raw, pure)]
     pub fn get_header(this: &mut Message, header: &str) -> EngineResult<String> {
-        Ok(
-            vsl_missing_ok!(vsl_guard_ok!(this.read()), "message", StateSMTP::PreQ)
-                .get_header(header)
-                .map(ToString::to_string)
-                .unwrap_or_default(),
-        )
+        Ok(vsl_guard_ok!(this.read())
+            .get_header(header)
+            .map(ToString::to_string)
+            .unwrap_or_default())
     }
 
-    /// add a header to the raw or parsed email contained in ctx.
+    /// add a header to the end of the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn add_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message", StateSMTP::PreQ)
-            .add_header(header, value);
+    pub fn append_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
+        vsl_guard_ok!(this.write()).append_header(header, value);
+        Ok(())
+    }
+
+    /// prepend a header to the raw or parsed email contained in ctx.
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn prepend_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
+        vsl_guard_ok!(this.write()).prepend_header(header, value);
         Ok(())
     }
 
     /// set a header to the raw or parsed email contained in ctx.
     #[rhai_fn(global, return_raw, pure)]
     pub fn set_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        vsl_missing_ok!(mut vsl_guard_ok!(this.write()), "message", StateSMTP::PreQ)
-            .set_header(header, value);
+        vsl_guard_ok!(this.write()).set_header(header, value);
         Ok(())
     }
 
     /// Get the message body as a string
     #[rhai_fn(global, get = "mail", return_raw, pure)]
     pub fn mail(this: &mut Message) -> EngineResult<String> {
-        Ok(vsl_missing_ok!(vsl_guard_ok!(this.read()), "mail", StateSMTP::PreQ).to_string())
+        Ok(vsl_guard_ok!(this.read()).to_string())
     }
 
     /// Change the sender of the envelop
@@ -147,7 +146,7 @@ pub mod message_calling_parse {
         let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
 
         let mut writer = vsl_guard_ok!(this.write());
-        match vsl_parse_ok!(writer) {
+        match &mut *vsl_parse_ok!(writer) {
             MessageBody::Parsed(body) => body.rewrite_mail_from(new_addr.full()),
             MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }
@@ -164,7 +163,7 @@ pub mod message_calling_parse {
         let old_addr = vsl_conversion_ok!("address", Address::try_from(old_addr.to_string()));
 
         let mut writer = vsl_guard_ok!(this.write());
-        match vsl_parse_ok!(writer) {
+        match &mut *vsl_parse_ok!(writer) {
             MessageBody::Parsed(body) => body.rewrite_rcpt(old_addr.full(), new_addr.full()),
             MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }
@@ -177,7 +176,7 @@ pub mod message_calling_parse {
         let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
 
         let mut writer = vsl_guard_ok!(this.write());
-        match vsl_parse_ok!(writer) {
+        match &mut *vsl_parse_ok!(writer) {
             MessageBody::Parsed(body) => body.add_rcpt(new_addr.full()),
             MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }
@@ -190,7 +189,7 @@ pub mod message_calling_parse {
         let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
 
         let mut writer = vsl_guard_ok!(this.write());
-        match vsl_parse_ok!(writer) {
+        match &mut *vsl_parse_ok!(writer) {
             MessageBody::Parsed(body) => body.remove_rcpt(addr.full()),
             MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
         }

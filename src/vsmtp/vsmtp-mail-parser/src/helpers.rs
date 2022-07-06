@@ -18,12 +18,12 @@ use crate::error::{ParserError, ParserResult};
 use vsmtp_common::{re::anyhow, MimeHeader};
 
 #[inline]
-pub(super) fn has_wsc(input: &str) -> bool {
+pub fn has_wsc(input: &str) -> bool {
     input.starts_with(|c| c == ' ' || c == '\t')
 }
 
 /// See <https://datatracker.ietf.org/doc/html/rfc5322#page-11>
-pub(super) fn remove_comments(line: &str) -> anyhow::Result<String> {
+pub fn remove_comments(line: &str) -> anyhow::Result<String> {
     let (depth, is_escaped, output) = line.chars().into_iter().fold(
         (0, false, String::with_capacity(line.len())),
         |(depth, is_escaped, mut output), elem| {
@@ -55,7 +55,7 @@ pub(super) fn remove_comments(line: &str) -> anyhow::Result<String> {
 ///
 /// see <https://datatracker.ietf.org/doc/html/rfc2045#page-14> for default content-type.
 /// see <https://datatracker.ietf.org/doc/html/rfc2046#page-26> for digest multipart parent.
-pub(super) fn get_mime_type<'a>(
+pub fn get_mime_type<'a>(
     headers: &'a [MimeHeader],
     parent: Option<&'a [MimeHeader]>,
 ) -> ParserResult<(&'a str, &'a str)> {
@@ -95,7 +95,7 @@ pub(super) fn get_mime_type<'a>(
 ///
 /// * `Option<(String, String)>` - an option containing two strings,
 ///                                the name and value of the header parsed
-pub(super) fn read_header(content: &mut &[&str]) -> Option<(String, String)> {
+pub fn read_header(content: &mut &[&str]) -> Option<(String, String)> {
     let mut split = content[0].splitn(2, ':');
 
     match (split.next(), split.next()) {

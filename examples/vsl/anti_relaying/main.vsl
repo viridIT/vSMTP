@@ -1,11 +1,17 @@
 import "net" as net;
 
 #{
+    mail: [
+        // checking if the mail from domain can be found
+        // in our domain / sni configuration.
+        // in case of a relaying tentative, `check_relay`
+        // will send a 554 error code to the client.
+	    rule "check mail relay" || check_mail_relay(net::allowed_hosts),
+    ],
+
     rcpt: [
         // checking if all recipients domains can be found
         // in our configuration.
-        // in case of a relaying tentative, `check_relay`
-        // will send a 554 error code to the client.
-	    rule "check relay" || check_relay(net::custom_authorized),
+	    rule "check rcpt relay" || check_rcpt_relay(net::allowed_hosts),
     ],
 }

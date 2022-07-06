@@ -57,9 +57,9 @@ fn white_space_and_comments() {
         parsed.to_string(),
         [
             "from: Pete <pete@silly.test>\r\n".to_string(),
-            "to: A Group     :Chris Jones <c@public.example>,         joe@example.org, \r\n"
+            "to: A Group     :Chris Jones <c@public.example>,         joe@example.org, "
                 .to_string(),
-            "\t John <jdoe@one.test> ; \r\n".to_string(),
+            " John <jdoe@one.test> ; \r\n".to_string(),
             "cc: Hidden recipients  :  ;\r\n".to_string(),
             "date: Thu,      13        Feb          1969      23:32               -0330 \r\n"
                 .to_string(),

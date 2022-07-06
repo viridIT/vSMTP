@@ -4,22 +4,16 @@
 
 Depending on versions fixes and user feedbacks, the production version is expected for end of Q3/2022.
 
-> Release before should not be used for production purpose.
+> Release before 1.3 should not be used for production purpose.
 
-## Current version : 1.0.2
-
-- Support of the [Null MX](https://datatracker.ietf.org/doc/html/rfc7505) record.
-- [SPF](https://datatracker.ietf.org/doc/html/rfc7208) support.
-
-## Planned features and releases
-
-### Release 1.1.x : June 2022
+## Current version : 1.1
 
 - Security delegation via SMTP.
 
+## Planned features and releases
+
 ### Release 1.2.x : End of June 2022
 
-- [DANE](https://blog.apnic.net/2019/11/20/better-mail-security-with-dane-for-smtp/) support for vSMTP's transport system.
 - SQL databases support.
 - Performance improvement : connection caches.
 - [DKIM](https://datatracker.ietf.org/doc/html/rfc6376) and [DMARC](https://datatracker.ietf.org/doc/html/rfc7489) support.
@@ -35,8 +29,18 @@ Depending on versions fixes and user feedbacks, the production version is expect
 - Direct connections to anti-virus (ClamAV, Sophos, etc.) through internal plugins.
 - [ARC](https://datatracker.ietf.org/doc/html/rfc8617) support.
 - [BIMI](https://www.ietf.org/archive/id/draft-blank-ietf-bimi-02.txt) support.
+- [DANE](https://blog.apnic.net/2019/11/20/better-mail-security-with-dane-for-smtp/) support for vSMTP's transport system.
 
 ## Older releases
+
+### Releases 1.0
+
+- Services.
+  - Databases. (csv format)
+  - Commands.
+- A rework of the syntax to be as easy to use as possible. (everything as functions)
+- Custom codes to send back to clients.
+- Authentification pipeline access in vsl via the `authenticate` stage.
 
 ### Releases 0.10.x
 

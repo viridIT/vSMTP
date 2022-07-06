@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -40,26 +38,10 @@ impl Default for Envelop {
     }
 }
 
-/// build a [lettre] envelop using from address & recipients.
-///
-/// # Errors
-/// * Could not create lettre address.
-pub fn build_lettre(from: &Address, rcpt: &[Rcpt]) -> anyhow::Result<lettre::address::Envelope> {
-    Ok(lettre::address::Envelope::new(
-        Some(
-            from.full()
-                .parse()
-                .context("failed to parse from address")?,
-        ),
-        rcpt.iter()
-            // NOTE: address that couldn't be converted will be silently dropped.
-            .flat_map(|rcpt| rcpt.address.full().parse::<lettre::Address>())
-            .collect(),
-    )?)
-}
-
 #[cfg(test)]
 pub mod test {
+    use crate::mail_context::ConnectionContext;
+
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     /// create an empty email context for testing purposes.
@@ -80,33 +62,5 @@ pub mod test {
                 ..crate::mail_context::MessageMetadata::default()
             }),
         }
-    }
-
-    use crate::envelop::build_lettre;
-    use crate::{
-        addr,
-        mail_context::ConnectionContext,
-        rcpt::Rcpt,
-        transfer::{EmailTransferStatus, Transfer},
-    };
-
-    #[test]
-    fn test_build_lettre_envelop() {
-        assert_eq!(
-            build_lettre(
-                &addr!("a@a.a"),
-                &[Rcpt {
-                    address: addr!("b@b.b"),
-                    transfer_method: Transfer::None,
-                    email_status: EmailTransferStatus::Sent
-                }]
-            )
-            .expect("failed to build lettre envelop"),
-            lettre::address::Envelope::new(
-                Some("a@a.a".parse().unwrap()),
-                vec!["b@b.b".parse().unwrap()]
-            )
-            .unwrap()
-        );
     }
 }
