@@ -180,34 +180,45 @@ pub async fn send_mail(
         }
     }
 
+    // If there is no recipient, or no transfer method for each of them
     if message_ctx.envelop.rcpt.is_empty()
-        || message_ctx.envelop.rcpt.iter().any(|rcpt| {
-            matches!(rcpt.email_status, EmailTransferStatus::Failed { .. })
-                || matches!(rcpt.transfer_method, Transfer::None)
-        })
+        || message_ctx
+            .envelop
+            .rcpt
+            .iter()
+            .all(|rcpt| matches!(rcpt.transfer_method, Transfer::None))
     {
-        SenderOutcome::MoveToDead
-    } else if message_ctx
+        return SenderOutcome::MoveToDead;
+    }
+
+    // If all has been successfully sent
+    if message_ctx
         .envelop
         .rcpt
         .iter()
         .all(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::Sent { .. }))
     {
-        SenderOutcome::RemoveFromDisk
-    } else if message_ctx
+        return SenderOutcome::RemoveFromDisk;
+    }
+
+    // If there is no more sendable recipient
+    if message_ctx
         .envelop
         .rcpt
         .iter()
-        .any(|rcpt| matches!(rcpt.email_status, EmailTransferStatus::HeldBack { .. }))
+        .all(|rcpt| !rcpt.email_status.is_sendable())
     {
-        SenderOutcome::MoveToDeferred
-    } else {
-        for i in &mut message_ctx.envelop.rcpt {
+        return SenderOutcome::MoveToDead;
+    }
+
+    for i in &mut message_ctx.envelop.rcpt {
+        if matches!(&i.email_status, EmailTransferStatus::Waiting { .. }) {
             i.email_status
                 .held_back("ignored by delivery transport".to_string());
         }
-        SenderOutcome::MoveToDeferred
     }
+
+    SenderOutcome::MoveToDeferred
 }
 
 /// prepend trace informations to headers.

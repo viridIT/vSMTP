@@ -69,12 +69,12 @@ async fn handle_one_in_deferred_queue(
 
     match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
         SenderOutcome::MoveToDead => {
-            Queue::Deliver
+            Queue::Deferred
                 .move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)
                 .with_context(|| {
                     format!(
                         "cannot move file from `{}` to `{}`",
-                        Queue::Deliver,
+                        Queue::Deferred,
                         Queue::Dead
                     )
                 })?;
@@ -85,7 +85,7 @@ async fn handle_one_in_deferred_queue(
                 .with_context(|| format!("failed to update context in `{}`", Queue::Deferred))?;
         }
         SenderOutcome::RemoveFromDisk => {
-            Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+            Queue::Deferred.remove(&config.server.queues.dirpath, &process_message.message_id)?;
         }
     }
 
