@@ -36,6 +36,7 @@ pub async fn flush_deferred_queue(
     for path in dir_entries {
         let process_message = ProcessMessage {
             message_id: path?.path().file_name().unwrap().to_string_lossy().into(),
+            delegated: false,
         };
 
         if let Err(e) =
@@ -201,6 +202,7 @@ mod tests {
             std::sync::Arc::new(resolvers),
             ProcessMessage {
                 message_id: "test_deferred".to_string(),
+                delegated: false,
             },
         )
         .await

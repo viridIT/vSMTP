@@ -48,6 +48,7 @@ pub async fn flush_deliver_queue(
     for path in dir_entries {
         let process_message = ProcessMessage {
             message_id: path?.path().file_name().unwrap().to_string_lossy().into(),
+            delegated: false,
         };
         handle_one_in_delivery_queue(
             config.clone(),
@@ -111,7 +112,11 @@ async fn handle_one_in_delivery_queue_inner(
     let (context_deliver_filepath, mut message_deliver_filepath) = (
         queue_path!(
             &config.server.queues.dirpath,
-            Queue::Deliver,
+            if process_message.delegated {
+                Queue::Delegated
+            } else {
+                Queue::Deliver
+            },
             &process_message.message_id
         ),
         std::path::PathBuf::from_iter([
@@ -141,8 +146,6 @@ async fn handle_one_in_delivery_queue_inner(
         message_delivery,
     )?;
 
-    add_trace_information(&config, &mut mail_context, &mut mail_message, &result)?;
-
     let mut write_to_queue = Option::<Queue>::None;
 
     match &skipped {
@@ -170,11 +173,11 @@ async fn handle_one_in_delivery_queue_inner(
             return Ok(());
         }
         Some(Status::Delegated(delegator)) => {
-            mail_context.metadata.as_mut().unwrap().skipped = None;
+            mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
 
             // FIXME: find a way to use `write_to_queue` instead to be consistant
             //        with the rest of the function.
-            Queue::Working
+            Queue::Delegated
                 .write_to_queue(&config.server.queues.dirpath, &mail_context)
                 .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
 
@@ -211,6 +214,8 @@ async fn handle_one_in_delivery_queue_inner(
         }
         None => {}
     };
+
+    add_trace_information(&config, &mut mail_context, &mut mail_message, &result)?;
 
     if let Some(queue) = write_to_queue {
         // writing the whole email anyway because it
@@ -376,6 +381,7 @@ mod tests {
             resolvers,
             ProcessMessage {
                 message_id: "message_from_deliver_to_deferred".to_string(),
+                delegated: false,
             },
             rule_engine,
         )

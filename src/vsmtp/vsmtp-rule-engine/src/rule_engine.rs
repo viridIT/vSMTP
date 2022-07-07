@@ -222,12 +222,17 @@ impl RuleEngine {
                                 // in the 'mail' queue.
                                 let path_to_context = queue_path!(
                                     &rule_state.server.config.server.queues.dirpath,
-                                    Queue::Working,
+                                    Queue::Delegated,
                                     message_id
                                 );
 
+                                // FIXME: this is only useful for preq, the other processes
+                                //        already fetch the old context.
                                 match MailContext::from_file_path_sync(&path_to_context) {
-                                    Ok(context) => *rule_state.context().write().unwrap() = context,
+                                    Ok(mut context) => {
+                                        context.metadata.as_mut().unwrap().skipped = None;
+                                        *rule_state.context().write().unwrap() = context;
+                                    },
                                     Err(err) => log::error!(target: log_channels::RE, "[{}/{}] tried to get old mail context '{}' from the working queue after a delegation, but: {}", server_address, smtp_state, message_id, err)
                                 };
 

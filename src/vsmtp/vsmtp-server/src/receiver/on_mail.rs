@@ -73,6 +73,7 @@ impl MailHandler {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn on_mail_priv<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &self,
         conn: &mut Connection<S>,
@@ -86,6 +87,7 @@ impl MailHandler {
 
         let mut write_to_queue = Option::<Queue>::None;
         let mut send_to_next_process = Option::<Process>::None;
+        let mut delegated = false;
 
         match &skipped {
             Some(Status::Quarantine(path)) => {
@@ -109,7 +111,7 @@ impl MailHandler {
 
                 // FIXME: find a way to use `write_to_queue` instead to be consistant
                 //        with the rest of the function.
-                Queue::Working
+                Queue::Delegated
                     .write_to_queue(&conn.config.server.queues.dirpath, &context)
                     .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
 
@@ -138,6 +140,7 @@ impl MailHandler {
                     message_id = old_message_id;
                 }
 
+                delegated = true;
                 send_to_next_process = Some(Process::Processing);
             }
             Some(Status::Deny(code)) => {
@@ -181,12 +184,17 @@ impl MailHandler {
                 .map_err(|error| MailHandlerError::WriteToQueue(queue, error))?;
         }
 
-        match send_to_next_process {
+        // TODO: even if it's a rare case, a result of None should remove the
+        //       email from the queue.
+        match &send_to_next_process {
             Some(Process::Processing) => &self.working_sender,
             Some(Process::Delivery) => &self.delivery_sender,
             Some(Process::Receiver) | None => return Ok(()),
         }
-        .send(ProcessMessage { message_id })
+        .send(ProcessMessage {
+            message_id,
+            delegated,
+        })
         .await
         .map_err(|error| MailHandlerError::SendToNextProcess(send_to_next_process.unwrap(), error))
     }

@@ -2,7 +2,7 @@
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
  *
- * This program is free software: you can redistribute it and/or modify it under
+ &* This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or any later version.
  *
@@ -96,7 +96,11 @@ async fn handle_one_in_working_queue_inner(
     let (context_working_filepath, message_working_filepath) = (
         queue_path!(
             &config.server.queues.dirpath,
-            Queue::Working,
+            if process_message.delegated {
+                Queue::Delegated
+            } else {
+                Queue::Working
+            },
             &process_message.message_id
         ),
         std::path::PathBuf::from_iter([
@@ -141,6 +145,7 @@ async fn handle_one_in_working_queue_inner(
     let mut write_to_queue = Option::<Queue>::None;
     let mut send_to_delivery = false;
     let mut write_email = true;
+    let mut delegated = false;
 
     match &skipped {
         Some(Status::Quarantine(path)) => {
@@ -165,11 +170,11 @@ async fn handle_one_in_working_queue_inner(
             );
         }
         Some(Status::Delegated(delegator)) => {
-            context.metadata.as_mut().unwrap().skipped = None;
+            context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
 
             // FIXME: find a way to use `write_to_queue` instead to be consistant
             //        with the rest of the function.
-            Queue::Working
+            Queue::Delegated
                 .write_to_queue(&config.server.queues.dirpath, &context)
                 .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
 
@@ -185,6 +190,7 @@ async fn handle_one_in_working_queue_inner(
             delegate(delegator, &context, &message).map_err(MailHandlerError::DelegateMessage)?;
 
             write_email = false;
+            delegated = true;
 
             log::warn!(
                 target: log_channels::POSTQ,
@@ -194,7 +200,7 @@ async fn handle_one_in_working_queue_inner(
         }
         Some(Status::DelegationResult) => {
             send_to_delivery = true;
-            write_to_queue = Some(Queue::Deliver);
+            delegated = true;
         }
         Some(Status::Deny(code)) => {
             for rcpt in &mut context.envelop.rcpt {
@@ -258,6 +264,7 @@ async fn handle_one_in_working_queue_inner(
         delivery_sender
             .send(ProcessMessage {
                 message_id: process_message.message_id.clone(),
+                delegated,
             })
             .await
             .map_err(|error| MailHandlerError::SendToNextProcess(Process::Delivery, error))?;
@@ -304,6 +311,7 @@ mod tests {
             resolvers,
             ProcessMessage {
                 message_id: "not_such_message_named_like_this".to_string(),
+                delegated: false,
             },
             delivery_sender,
         )
@@ -383,6 +391,7 @@ mod tests {
             resolvers,
             ProcessMessage {
                 message_id: "test".to_string(),
+                delegated: false,
             },
             delivery_sender,
         )
@@ -469,6 +478,7 @@ mod tests {
             resolvers,
             ProcessMessage {
                 message_id: "test_denied".to_string(),
+                delegated: false,
             },
             delivery_sender,
         )

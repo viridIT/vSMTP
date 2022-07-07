@@ -16,9 +16,7 @@
  */
 
 use crate::{modules::EngineResult, rule_state::RuleState, vsl_guard_ok, Service};
-use vsmtp_common::{
-    mail_context::MailContext, queue::Queue, queue_path, state::StateSMTP, status::Status,
-};
+use vsmtp_common::{state::StateSMTP, status::Status};
 
 /// a set of directives, filtered by smtp stage.
 pub type Directives = std::collections::BTreeMap<String, Vec<Directive>>;
@@ -84,13 +82,11 @@ impl Directive {
                 if let Service::Smtp { delegator, .. } = &**service {
                     let args = vsl_guard_ok!(state.message().read())
                         .get_header("X-VSMTP-DELEGATION")
-                        .map(|header| {
-                            let header =
-                                vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
-                            (
-                                header.args.get("id").cloned(),
-                                header.args.get("directive").cloned(),
-                            )
+                        .and_then(|header| {
+                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header)
+                                .args
+                                .get("directive")
+                                .cloned()
                         });
 
                     // FIXME: This check is made twice (once in RuleEngine::run_when).
@@ -100,29 +96,9 @@ impl Directive {
                     // queue and run the block of code.
                     // Otherwise, we add the X-VSMTP-DELEGATION to the message.
                     return match args {
-                        Some((Some(message_id), Some(header_directive)))
-                            if header_directive == *name =>
-                        {
-                            let context_path = queue_path!(
-                                &state.server.config.server.queues.dirpath,
-                                Queue::Working,
-                                &message_id
-                            );
-
-                            *state.context().write().unwrap() =
-                                MailContext::from_file_path_sync(&context_path)
-                                    .map_err::<rhai::EvalAltResult, _>(|_| {
-                                    format!("failed to pull old metadata for message {message_id}")
-                                        .into()
-                                })?;
-
-                            state.engine().call_fn(
-                                &mut rhai::Scope::new(),
-                                ast,
-                                pointer.fn_name(),
-                                (),
-                            )
-                        }
+                        Some(header_directive) if header_directive == *name => state
+                            .engine()
+                            .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ()),
                         _ => {
                             // FIXME: fold this header.
                             vsl_guard_ok!(state.message().write()).prepend_header(

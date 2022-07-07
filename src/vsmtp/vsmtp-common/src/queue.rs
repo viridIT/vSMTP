@@ -28,6 +28,8 @@ pub enum Queue {
     Working,
     /// 1st attempt to deliver.
     Deliver,
+    /// the message has been delegated.
+    Delegated,
     /// 1st delivery attempt failed.
     Deferred,
     /// Too many attempts failed.
