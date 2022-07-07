@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "addr"
-version = "0.15.3"
+version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4299322d87d6ae73d3bd74918983e712acc3a1b73c880258eb5a0b45895e7b85"
+checksum = "fb028fa14f2f6843aa58b1a03c35bd9728dcb9c8292f758b85a8deb9811ad70f"
 dependencies = [
  "psl",
  "psl-types",
@@ -178,6 +178,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cast"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
+
+[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -293,12 +299,12 @@ dependencies = [
 
 [[package]]
 name = "criterion"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1604dafd25fba2fe2d5895a9da139f8dc9b319a5fe5354ca137cbbce4e178d10"
+checksum = "b01d6de93b2b6c65e17c634a26653a29d107b3c98c607c765bf38d041531cd8f"
 dependencies = [
  "atty",
- "cast",
+ "cast 0.3.0",
  "clap 2.34.0",
  "criterion-plot",
  "csv",
@@ -325,7 +331,7 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d00996de9f2f7559f7f4dc286073197f83e92256a59ed395f9aac01fe717da57"
 dependencies = [
- "cast",
+ "cast 0.2.7",
  "itertools",
 ]
 
@@ -1220,9 +1226,9 @@ dependencies = [
 
 [[package]]
 name = "plotters-backend"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c89e57ae773e34419b0f62d68c1934a97ac0637f36741dfde4efb88aaf711a0"
+checksum = "193228616381fecdc1224c62e96946dfbc73ff4384fba576e052ff8c1bea8142"
 
 [[package]]
 name = "plotters-svg"
@@ -2063,7 +2069,7 @@ checksum = "9a26a42057c64dfa1278cb3b9753a72e895e7ad8b109787bcee56223ece8202d"
 
 [[package]]
 name = "vqueue"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "clap 3.2.8",
  "itertools",
@@ -2074,7 +2080,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "clap 3.2.8",
  "diff",
@@ -2085,7 +2091,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-common"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "addr",
  "anyhow",
@@ -2107,7 +2113,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-config"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "hostname",
  "humantime-serde",
@@ -2128,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-delivery"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "async-trait",
  "time 0.3.11",
@@ -2140,7 +2146,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-mail-parser"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "pretty_assertions",
  "vsmtp-common",
@@ -2159,7 +2165,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-rule-engine"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "csv",
  "hostname",
@@ -2178,7 +2184,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-server"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2204,7 +2210,7 @@ dependencies = [
 
 [[package]]
 name = "vsmtp-test"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "async-trait",
  "lettre",

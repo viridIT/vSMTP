@@ -171,7 +171,7 @@ impl<'r> Deliver<'r> {
                 .send_email(config, &host, &envelop, from, content)
                 .await
             {
-                Ok(_) => break,
+                Ok(_) => return Ok(()),
                 Err(err) => log::warn!(
                     target: log_channels::DELIVER,
                     "(msg={}) failed to send message from '{from}' for '{domain}': {err}",
@@ -180,13 +180,9 @@ impl<'r> Deliver<'r> {
             }
         }
 
-        if records.next().is_none() {
-            return Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
-                "no valid mail exchanger found for '{domain}'",
-            )));
-        }
-
-        Ok(())
+        return Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
+            "no valid mail exchanger found for '{domain}'",
+        )));
     }
 }
 
