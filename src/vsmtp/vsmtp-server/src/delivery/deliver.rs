@@ -243,6 +243,7 @@ async fn handle_one_in_delivery_queue_inner(
         }
         SenderOutcome::RemoveFromDisk => {
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+            Queue::remove_mail(&config.server.queues.dirpath, &process_message.message_id)?;
         }
     }
 
