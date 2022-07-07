@@ -39,7 +39,7 @@ vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, v
 thiserror = "1.0.31"
 
 # objects
-regex = "1.5.5"
+regex = "1.6.0"
 iprange = "0.6.7"
 ipnet = "2.5.0"
 csv = "1.1"
