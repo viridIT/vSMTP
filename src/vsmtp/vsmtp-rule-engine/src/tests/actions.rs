@@ -40,11 +40,7 @@ fn test_logs() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
     );
 }
@@ -59,11 +55,7 @@ fn test_users() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Delivery
-        ),
+        re.run_when(&mut state, &StateSMTP::Delivery),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -75,11 +67,7 @@ fn test_send_mail() {
 
     // TODO: add test to send a valid email.
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -99,11 +87,7 @@ fn test_context_write() {
         skipped: None,
     });
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::MailFrom
-        ),
+        re.run_when(&mut state, &StateSMTP::MailFrom),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
     *state.message().write().unwrap() = MessageBody::Raw {
@@ -115,19 +99,11 @@ fn test_context_write() {
         body: Some("This is a raw email.".to_string()),
     };
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PreQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PostQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 
@@ -168,11 +144,7 @@ fn test_context_dump() {
         body: Some("".to_string()),
     };
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PreQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
     *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail {
@@ -184,11 +156,7 @@ fn test_context_dump() {
         body: BodyType::Regular(vec!["this is an empty body".to_string()]),
     }));
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PostQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 
@@ -222,11 +190,7 @@ fn test_quarantine() {
         body: Some("".to_string()),
     };
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PreQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 
@@ -248,11 +212,7 @@ fn test_quarantine() {
         body: BodyType::Regular(vec!["this is an empty body".to_string()]),
     }));
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PostQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Quarantine("tests/generated/quarantine2".to_string())
     );
 }
@@ -267,22 +227,8 @@ fn test_forward() {
     let (mut state, _) = get_default_state("./tmp/app");
     *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail::default()));
 
-    assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
-        Status::Next
-    );
-    assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Delivery
-        ),
-        Status::Next
-    );
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Delivery), Status::Next);
 
     let rcpt = state.context().read().unwrap().envelop.rcpt.clone();
 
@@ -352,17 +298,9 @@ fn test_forward_all() {
     let (mut state, _) = get_default_state("./tmp/app");
     *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail::default()));
 
-    re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::Connect,
-    );
+    re.run_when(&mut state, &StateSMTP::Connect);
 
-    re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::Authenticate(Mechanism::Login, None),
-    );
+    re.run_when(&mut state, &StateSMTP::Authenticate(Mechanism::Login, None));
 
     state
         .context()
@@ -378,11 +316,7 @@ fn test_forward_all() {
             );
         });
 
-    re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::MailFrom,
-    );
+    re.run_when(&mut state, &StateSMTP::MailFrom);
 
     state
         .context()
@@ -400,11 +334,7 @@ fn test_forward_all() {
             );
         });
 
-    re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::RcptTo,
-    );
+    re.run_when(&mut state, &StateSMTP::RcptTo);
 
     state
         .context()
@@ -422,11 +352,7 @@ fn test_forward_all() {
             );
         });
 
-    re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::Data,
-    );
+    re.run_when(&mut state, &StateSMTP::Data);
 
     state
         .context()
@@ -442,11 +368,7 @@ fn test_forward_all() {
             );
         });
 
-    re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::PreQ,
-    );
+    re.run_when(&mut state, &StateSMTP::PreQ);
 
     state
         .context()
@@ -464,11 +386,7 @@ fn test_forward_all() {
             );
         });
 
-    re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::PostQ,
-    );
+    re.run_when(&mut state, &StateSMTP::PostQ);
 
     state
         .context()
@@ -486,11 +404,7 @@ fn test_forward_all() {
             );
         });
 
-    re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::Delivery,
-    );
+    re.run_when(&mut state, &StateSMTP::Delivery);
 
     state
         .context()
@@ -517,11 +431,7 @@ fn test_hostname() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PostQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -532,11 +442,7 @@ fn test_in_domain_and_server_name() {
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -555,11 +461,7 @@ fn test_in_domain_and_server_name_sni() {
     let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PreQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }

@@ -177,12 +177,7 @@ impl RuleEngine {
     /// context. (because the context could have been pulled from the filesystem when
     /// receiving delegation results)
     /// # Panics
-    pub fn run_when(
-        &self,
-        server_address: &std::net::SocketAddr,
-        rule_state: &mut RuleState,
-        smtp_state: &StateSMTP,
-    ) -> Status {
+    pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
             // check if we need to skip directive execution or resume because of a delegation.
             let directive_set = match rule_state.skipped() {
@@ -233,7 +228,7 @@ impl RuleEngine {
                                         context.metadata.as_mut().unwrap().skipped = None;
                                         *rule_state.context().write().unwrap() = context;
                                     },
-                                    Err(err) => log::error!(target: log_channels::RE, "[{}/{}] tried to get old mail context '{}' from the working queue after a delegation, but: {}", server_address, smtp_state, message_id, err)
+                                    Err(err) => log::error!(target: log_channels::RE, "[{}] tried to get old mail context '{}' from the working queue after a delegation, but: {}", smtp_state, message_id, err)
                                 };
 
                                 rule_state.resume();
@@ -252,13 +247,12 @@ impl RuleEngine {
                 None => &directive_set[..],
             };
 
-            match self.execute_directives(server_address, rule_state, directive_set, smtp_state) {
+            match self.execute_directives(rule_state, directive_set, smtp_state) {
                 Ok(status) => {
                     if status.stop() {
                         log::debug!(
                             target: log_channels::RE,
-                            "[{}/{}] the rule engine will skip all rules because of the previous result.",
-                            server_address,
+                            "[{}] the rule engine will skip all rules because of the previous result.",
                             smtp_state
                         );
                         rule_state.skipping(status.clone());
@@ -286,7 +280,6 @@ impl RuleEngine {
 
     fn execute_directives(
         &self,
-        server_address: &std::net::SocketAddr,
         state: &mut RuleState,
         directives: &[Directive],
         smtp_state: &StateSMTP,
@@ -298,8 +291,7 @@ impl RuleEngine {
 
             log::debug!(
                 target: log_channels::RE,
-                "[{}/{}] {} '{}' evaluated => {:?}.",
-                server_address,
+                "[{}] {} '{}' evaluated => {:?}.",
                 smtp_state,
                 directive.directive_type(),
                 directive.name(),
@@ -313,8 +305,7 @@ impl RuleEngine {
 
         log::debug!(
             target: log_channels::RE,
-            "[{}/{}] stage evaluated => {:?}.",
-            server_address,
+            "[{}] stage evaluated => {:?}.",
             smtp_state,
             status
         );

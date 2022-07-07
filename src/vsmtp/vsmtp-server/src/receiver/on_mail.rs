@@ -100,11 +100,7 @@ impl MailHandler {
                     .await
                     .map_err(MailHandlerError::WriteQuarantineFile)?;
 
-                log::warn!(
-                    target: log_channels::PREQ,
-                    "[{}/preq] skipped due to quarantine.",
-                    conn.server_addr
-                );
+                log::warn!(target: log_channels::PREQ, "skipped due to quarantine.",);
             }
             Some(Status::Delegated(delegator)) => {
                 mail_context.metadata.as_mut().unwrap().skipped = None;
@@ -120,11 +116,7 @@ impl MailHandler {
                 delegate(delegator, &mail_context, &mail_message)
                     .map_err(MailHandlerError::DelegateMessage)?;
 
-                log::warn!(
-                    target: log_channels::PREQ,
-                    "[{}/preq] skipped due to delegation.",
-                    conn.server_addr
-                );
+                log::warn!(target: log_channels::PREQ, " skipped due to delegation.",);
 
                 return Ok(());
             }
@@ -157,8 +149,7 @@ impl MailHandler {
             Some(reason) => {
                 log::warn!(
                     target: log_channels::PREQ,
-                    "[{}/preq] skipped due to '{}'.",
-                    conn.server_addr,
+                    "skipped due to '{}'.",
                     reason.as_ref()
                 );
                 write_to_queue = Some(Queue::Deliver);
@@ -179,8 +170,7 @@ impl MailHandler {
 
         log::debug!(
             target: log_channels::PREQ,
-            "[{}/preq] (msg={}) email written in 'mails' queue.",
-            conn.server_addr,
+            "(msg={}) email written in 'mails' queue.",
             message_id
         );
 

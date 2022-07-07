@@ -174,11 +174,11 @@ where
         *message = body;
     }
 
-    let status = transaction.rule_engine.read().unwrap().run_when(
-        &conn.server_addr,
-        &mut transaction.rule_state,
-        &StateSMTP::PreQ,
-    );
+    let status = transaction
+        .rule_engine
+        .read()
+        .unwrap()
+        .run_when(&mut transaction.rule_state, &StateSMTP::PreQ);
 
     match status {
         Status::Info(packet) => {

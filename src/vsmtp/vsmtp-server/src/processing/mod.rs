@@ -127,11 +127,7 @@ async fn handle_one_in_working_queue_inner(
 
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
 
-            log::warn!(
-                target: log_channels::POSTQ,
-                "[{}/postq] skipped due to quarantine.",
-                mail_context.connection.server_address
-            );
+            log::warn!(target: log_channels::POSTQ, "skipped due to quarantine.",);
         }
         Some(Status::Delegated(delegator)) => {
             mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
@@ -161,11 +157,7 @@ async fn handle_one_in_working_queue_inner(
             write_email = false;
             delegated = true;
 
-            log::warn!(
-                target: log_channels::POSTQ,
-                "[{}/postq] skipped due to delegation.",
-                mail_context.connection.server_address
-            );
+            log::warn!(target: log_channels::POSTQ, "skipped due to delegation.",);
         }
         Some(Status::DelegationResult) => {
             send_to_delivery = true;
@@ -184,8 +176,7 @@ async fn handle_one_in_working_queue_inner(
         Some(reason) => {
             log::warn!(
                 target: log_channels::POSTQ,
-                "[{}/postq] skipped due to '{}'.",
-                mail_context.connection.server_address,
+                "skipped due to '{}'.",
                 reason.as_ref()
             );
             write_to_queue = Some(Queue::Deliver);
@@ -209,8 +200,7 @@ async fn handle_one_in_working_queue_inner(
 
         log::debug!(
             target: log_channels::TRANSACTION,
-            "[{}/postq] (msg={}) email written in 'mails' queue.",
-            mail_context.connection.server_address,
+            "(msg={}) email written in 'mails' queue.",
             process_message.message_id
         );
     }

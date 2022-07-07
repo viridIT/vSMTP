@@ -30,11 +30,7 @@ fn test_status() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -49,11 +45,7 @@ fn test_time_and_date() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -68,11 +60,7 @@ fn test_ip() {
     let (mut state, _) = get_default_state("./tmp/app");
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -89,11 +77,7 @@ fn test_address() {
     state.context().write().unwrap().envelop.mail_from = addr!("mail.from@test.net");
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -107,14 +91,7 @@ fn test_objects() {
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
 
-    assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
-        Status::Next
-    );
+    assert_eq!(re.run_when(&mut state, &StateSMTP::Connect), Status::Next);
 }
 
 #[test]
@@ -151,11 +128,7 @@ fn test_services() {
     };
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -208,11 +181,7 @@ fn test_config_display() {
     };
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Helo
-        ),
+        re.run_when(&mut state, &StateSMTP::Helo),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }

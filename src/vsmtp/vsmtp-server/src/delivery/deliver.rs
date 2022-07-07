@@ -154,11 +154,7 @@ async fn handle_one_in_delivery_queue_inner(
             )
             .map_err(MailHandlerError::WriteMessageBody)?;
 
-            log::warn!(
-                target: log_channels::DELIVERY,
-                "[{}/delivery] skipped due to quarantine.",
-                mail_context.connection.server_address
-            );
+            log::warn!(target: log_channels::DELIVERY, "skipped due to quarantine.",);
 
             return Ok(());
         }
@@ -183,11 +179,7 @@ async fn handle_one_in_delivery_queue_inner(
             delegate(delegator, &mail_context, &mail_message)
                 .map_err(MailHandlerError::DelegateMessage)?;
 
-            log::warn!(
-                target: log_channels::DELIVERY,
-                "[{}/delivery] skipped due to delegation.",
-                mail_context.connection.server_address
-            );
+            log::warn!(target: log_channels::DELIVERY, "skipped due to delegation.",);
 
             return Ok(());
         }
@@ -213,8 +205,7 @@ async fn handle_one_in_delivery_queue_inner(
 
             log::warn!(
                 target: log_channels::DELIVERY,
-                "[{}/delivery] mail has been denied and moved to the `dead` queue.",
-                mail_context.connection.server_address,
+                "mail has been denied and moved to the `dead` queue.",
             );
 
             return Ok(());
@@ -222,8 +213,7 @@ async fn handle_one_in_delivery_queue_inner(
         Some(reason) => {
             log::warn!(
                 target: log_channels::DELIVERY,
-                "[{}/delivery] skipped due to '{}'.",
-                mail_context.connection.server_address,
+                "skipped due to '{}'.",
                 reason.as_ref()
             );
         }

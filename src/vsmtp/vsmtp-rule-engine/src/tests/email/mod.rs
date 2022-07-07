@@ -35,11 +35,7 @@ fn test_email_context_empty() {
     let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -59,11 +55,7 @@ fn test_email_context_raw() {
         body: Some("".to_string()),
     };
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PreQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PreQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -88,11 +80,7 @@ fn test_email_context_mail() {
     ];
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PostQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 
@@ -110,11 +98,7 @@ fn test_email_bcc() {
     let mut state = RuleState::new(&config, resolvers, &re);
 
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PostQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
@@ -127,11 +111,7 @@ fn test_email_add_get_set_header() {
 
     let mut state = RuleState::new(&config, resolvers, &re);
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::Connect
-        ),
+        re.run_when(&mut state, &StateSMTP::Connect),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok))
     );
 
@@ -140,11 +120,7 @@ fn test_email_add_get_set_header() {
         headers: vec![],
         body: Some("".to_string()),
     };
-    let status = re.run_when(
-        &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-        &mut state,
-        &StateSMTP::PreQ,
-    );
+    let status = re.run_when(&mut state, &StateSMTP::PreQ);
     assert_eq!(status, Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)));
 
     *state.message().write().unwrap() = MessageBody::Parsed(Box::new(Mail {
@@ -154,11 +130,7 @@ fn test_email_add_get_set_header() {
 
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
     assert_eq!(
-        re.run_when(
-            &"0.0.0.0:0".parse::<std::net::SocketAddr>().unwrap(),
-            &mut state,
-            &StateSMTP::PostQ
-        ),
+        re.run_when(&mut state, &StateSMTP::PostQ),
         Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
     );
 }
