@@ -18,9 +18,16 @@ readme = "../../README.md"
 keywords = ["vsmtp"]
 categories = ["command-line-utilities"]
 
+
+[package.metadata.release]
+pre-release-replacements = [
+    { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp/vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp/vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+    { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp/vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"../vsmtp/vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+]
+
 [dependencies]
-vsmtp-common = { path = "../vsmtp/vsmtp-common", version = "1.1.0", default-features = false }
-vsmtp-config = { path = "../vsmtp/vsmtp-config", version = "1.1.0" }
+vsmtp-common = { path = "../vsmtp/vsmtp-common", default-features = false, version = "1.1.0" }
+vsmtp-config = { path = "../vsmtp/vsmtp-config", default-features = false, version = "1.1.0" }
 
 clap = { version = "3.2.8", features = ["derive"] }
 itertools = "0.10.3"
@@ -29,8 +36,7 @@ itertools = "0.10.3"
 pretty_assertions = "1.2.1"
 
 [features]
-default = ["gsasl_bindgen"]
-gsasl_bindgen = ["vsmtp-common/gsasl_bindgen"]
+default = ["vsmtp-common/gsasl_bindgen"]
 
 # TODO: improve that
 [package.metadata.docs.rs]

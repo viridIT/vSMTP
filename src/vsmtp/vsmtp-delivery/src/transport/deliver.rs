@@ -171,7 +171,7 @@ impl<'r> Deliver<'r> {
                 .send_email(config, &host, &envelop, from, content)
                 .await
             {
-                Ok(_) => break,
+                Ok(_) => return Ok(()),
                 Err(err) => log::warn!(
                     target: log_channels::DELIVER,
                     "(msg={}) failed to send message from '{from}' for '{domain}': {err}",
@@ -180,20 +180,16 @@ impl<'r> Deliver<'r> {
             }
         }
 
-        if records.next().is_none() {
-            return Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
-                "no valid mail exchanger found for '{domain}'",
-            )));
-        }
-
-        Ok(())
+        return Err(ResultSendMail::IncreaseHeldBack(anyhow::anyhow!(
+            "no valid mail exchanger found for '{domain}'",
+        )));
     }
 }
 
 #[async_trait::async_trait]
 impl<'r> Transport for Deliver<'r> {
     async fn deliver(
-        &mut self,
+        self,
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
@@ -202,11 +198,10 @@ impl<'r> Transport for Deliver<'r> {
     ) -> Vec<Rcpt> {
         let mut rcpt_by_domain = std::collections::HashMap::<String, Vec<Rcpt>>::new();
         for rcpt in to {
-            if let Some(domain) = rcpt_by_domain.get_mut(rcpt.address.domain()) {
-                domain.push(rcpt);
-            } else {
-                rcpt_by_domain.insert(rcpt.address.domain().to_string(), vec![rcpt]);
-            }
+            rcpt_by_domain
+                .entry(rcpt.address.domain().to_string())
+                .and_modify(|domain| domain.push(rcpt.clone()))
+                .or_insert_with(|| vec![rcpt.clone()]);
         }
 
         for (domain, rcpt) in &mut rcpt_by_domain {
@@ -217,7 +212,9 @@ impl<'r> Transport for Deliver<'r> {
                 .await
             {
                 Ok(_) => rcpt.iter_mut().for_each(|i| {
-                    i.email_status = EmailTransferStatus::Sent;
+                    i.email_status = EmailTransferStatus::Sent {
+                        timestamp: std::time::SystemTime::now(),
+                    };
                 }),
                 Err(ResultSendMail::IncreaseHeldBack(error)) => {
                     log::error!(
@@ -229,10 +226,7 @@ impl<'r> Transport for Deliver<'r> {
                         error = error
                     );
                     for i in rcpt {
-                        i.email_status = EmailTransferStatus::HeldBack(match i.email_status {
-                            EmailTransferStatus::HeldBack(count) => count + 1,
-                            _ => 0,
-                        });
+                        i.email_status.held_back(error.to_string());
                     }
                 }
                 Err(ResultSendMail::Failed(reason)) => {
@@ -246,7 +240,10 @@ impl<'r> Transport for Deliver<'r> {
                     );
 
                     for i in rcpt {
-                        i.email_status = EmailTransferStatus::Failed(reason.clone());
+                        i.email_status = EmailTransferStatus::Failed {
+                            timestamp: std::time::SystemTime::now(),
+                            reason: reason.clone(),
+                        }
                     }
                 }
             }

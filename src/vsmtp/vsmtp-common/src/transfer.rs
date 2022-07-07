@@ -17,27 +17,85 @@
 
 use crate::utils::ipv6_with_scope_id;
 
-// TODO: add timestamp for Sent / HeldBack / Failed.
-/// the delivery status of the email of the current rcpt.
+/// Error produced received by the Queue manager
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, serde::Serialize, serde::Deserialize)]
+pub enum TransferErrors {
+    /// For local delivery (Maildir / Mbox), the requested mailbox does not exist on the system
+    NoSuchMailbox {
+        /// Name requested
+        name: String,
+    },
+
+    /// TODO: used for convenience, should be removed
+    Other(String),
+}
+
+impl From<anyhow::Error> for TransferErrors {
+    fn from(e: anyhow::Error) -> Self {
+        Self::Other(e.to_string())
+    }
+}
+
+impl From<String> for TransferErrors {
+    fn from(e: String) -> Self {
+        Self::Other(e)
+    }
+}
+
+/// the delivery status of the email of the current rcpt.
+#[derive(Debug, Clone, Eq, strum::Display, serde::Serialize, serde::Deserialize)]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum EmailTransferStatus {
     /// the email has not been sent yet.
     /// the email is in the deliver / working queue at this point.
-    Waiting,
+    Waiting {
+        /// timestamp when the status has been set
+        timestamp: std::time::SystemTime,
+    },
     /// email for this recipient has been successfully sent.
-    /// the email has been removed from all queues at this point.
-    Sent,
+    /// When all [`Rcpt`] are [`EmailTransferStatus::Sent`], the files are removed from disk.
+    Sent {
+        /// timestamp when the status has been set
+        timestamp: std::time::SystemTime,
+    },
     /// the delivery failed, the system is trying to re-send the email.
     /// the email is located in the deferred queue at this point.
-    // TODO: add error on deferred.
-    // Vec<anyhow::Error>
-    HeldBack(usize),
-    /// the email failed to be sent. the argument is the reason of the failure.
+    HeldBack {
+        /// timestamp when the status has been set
+        errors: Vec<(std::time::SystemTime, TransferErrors)>,
+    },
+    /// the email failed too many times. the argument is the reason of the failure.
     /// the email is probably written in the dead or quarantine queues at this point.
-    Failed(String),
-    // NOTE: is Quarantined(String) useful, or we just use Failed(String) instead ?
+    Failed {
+        /// timestamp when the status has been set
+        timestamp: std::time::SystemTime,
+        /// why it is considered failed
+        reason: String,
+    },
+}
+
+impl PartialEq<EmailTransferStatus> for EmailTransferStatus {
+    fn eq(&self, other: &EmailTransferStatus) -> bool {
+        match (self, other) {
+            (Self::Sent { .. }, Self::Sent { .. })
+            | (Self::Waiting { .. }, Self::Waiting { .. }) => true,
+            (Self::HeldBack { errors: l_errors }, Self::HeldBack { errors: r_errors }) => l_errors
+                .iter()
+                .map(|(_, errors)| errors)
+                .eq(r_errors.iter().map(|(_, errors)| errors)),
+            (
+                Self::Failed {
+                    reason: l_reason, ..
+                },
+                Self::Failed {
+                    reason: r_reason, ..
+                },
+            ) => l_reason == r_reason,
+            _ => false,
+        }
+    }
 }
 
 impl EmailTransferStatus {
@@ -45,8 +103,23 @@ impl EmailTransferStatus {
     #[must_use]
     pub const fn is_sendable(&self) -> bool {
         match self {
-            EmailTransferStatus::Waiting | EmailTransferStatus::HeldBack(_) => true,
-            EmailTransferStatus::Sent | EmailTransferStatus::Failed(_) => false,
+            EmailTransferStatus::Waiting { .. } | EmailTransferStatus::HeldBack { .. } => true,
+            EmailTransferStatus::Sent { .. } | EmailTransferStatus::Failed { .. } => false,
+        }
+    }
+
+    /// Set the status to [`EmailTransferStatus::HeldBack`] with an error, or increase the previous stack.
+    pub fn held_back(&mut self, error: impl Into<TransferErrors>) {
+        let error = error.into();
+        match self {
+            EmailTransferStatus::HeldBack { errors } => {
+                errors.push((std::time::SystemTime::now(), error));
+            }
+            _ => {
+                *self = Self::HeldBack {
+                    errors: vec![(std::time::SystemTime::now(), error)],
+                }
+            }
         }
     }
 }
@@ -95,7 +168,7 @@ impl std::str::FromStr for ForwardTarget {
     type Err = anyhow::Error;
 
     /// create a forward target from a string and cast
-    /// it to the corect type.
+    /// it to the correct type.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.find('%').map_or_else(
             || {

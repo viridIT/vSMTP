@@ -1,4 +1,30 @@
-vmstp (1.1.0) UNRELEASED; urgency=low
+vsmtp (1.1.1) UNRELEASED; urgency=low
+
+  [ Updated by mlala ]
+  * added
+    - a `prepend_header` and `append_header` in `vsl` api to push front/back
+      headers in message (#410).
+    - run the deliveries of message concurrently (by transport method
+      maildir/mbox/...) (#425).
+
+  * changed
+    - you can now add headers to a message at any stages (instead of preq an
+      later) (#410).
+
+  * fixed
+    - improve SPF policies (#400).
+    - produce an error at startup with invalid rules stages (#391).
+    - fixed a bug where the delivery system would place successfully sent
+      emails into deferred queue when only one MX record was available (#427).
+
+  * breaking changes
+    - `vsl` api of SPF has changed (see the documentation
+      <https://vsmtp.rs/start/configuration/hardening.html#using-the-spf-protocol>).
+    - split `check_relay` to `check_mail_relay` and `check_rcpt_relay` (#412).
+
+ -- mlala <m.lala@viridit.com>  Wed, 06 Jul 2022 16:07:44 +0200
+
+vsmtp (1.1.0) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
   * Added
@@ -24,7 +50,7 @@ vmstp (1.1.0) UNRELEASED; urgency=low
 
  -- ltabis <l.tabis@viridit.com>  Mon, 20 Jun 2022 19:27:27 +0200
 
-vmstp (1.0.2) UNRELEASED; urgency=low
+vsmtp (1.0.2) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
   * Added
@@ -69,7 +95,7 @@ vmstp (1.0.2) UNRELEASED; urgency=low
 
  -- ltabis <l.tabis@viridit.com>  Tue, 07 Jun 2022 17:26:09 +0200
 
-vmstp (1.0.1) UNRELEASED; urgency=low
+vsmtp (1.0.1) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
   * Rule Engine Enhancements:
@@ -84,7 +110,7 @@ vmstp (1.0.1) UNRELEASED; urgency=low
 
  -- ltabis <l.tabis@viridit.com>  Tue, 17 May 2022 10:40:31 +0100
 
-vmstp (1.0.0) UNRELEASED; urgency=low
+vsmtp (1.0.0) UNRELEASED; urgency=low
 
   [ Updated by ltabis ]
   * Initial release:

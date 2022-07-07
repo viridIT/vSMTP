@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// representation of a recipient with it's delivery method.
-#[derive(Debug, Clone, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Rcpt {
     /// email address of the recipient.
     pub address: Address,
@@ -34,21 +34,25 @@ impl Rcpt {
     /// create a new recipient from it's address.
     /// there is no transfer method by default.
     #[must_use]
-    pub const fn new(address: Address) -> Self {
+    pub fn new(address: Address) -> Self {
         Self {
             address,
             transfer_method: Transfer::Deliver,
-            email_status: EmailTransferStatus::Waiting,
+            email_status: EmailTransferStatus::Waiting {
+                timestamp: std::time::SystemTime::now(),
+            },
         }
     }
 
     /// create a new recipient from it's address & transfer method.
     #[must_use]
-    pub const fn with_transfer_method(address: Address, method: Transfer) -> Self {
+    pub fn with_transfer_method(address: Address, method: Transfer) -> Self {
         Self {
             address,
             transfer_method: method,
-            email_status: EmailTransferStatus::Waiting,
+            email_status: EmailTransferStatus::Waiting {
+                timestamp: std::time::SystemTime::now(),
+            },
         }
     }
 }
@@ -65,9 +69,8 @@ impl std::fmt::Display for Rcpt {
     }
 }
 
-// TODO: is it good idea ?
-impl PartialEq for Rcpt {
-    fn eq(&self, other: &Self) -> bool {
-        self.address == other.address
+impl PartialEq<Rcpt> for Address {
+    fn eq(&self, other: &Rcpt) -> bool {
+        *self == other.address
     }
 }

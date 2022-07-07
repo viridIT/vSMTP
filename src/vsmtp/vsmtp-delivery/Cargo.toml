@@ -18,9 +18,15 @@ readme = "../../../README.md"
 keywords = ["vsmtp"]
 categories = ["network-programming"]
 
+[package.metadata.release]
+pre-release-replacements = [
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+]
+
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.1.0", default-features = false }
-vsmtp-config = { path = "../vsmtp-config", version = "1.1.0", default-features = false }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.0" }
+vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.0" }
 
 async-trait = "0.1.56"
 

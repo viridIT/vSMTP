@@ -46,7 +46,7 @@ pub mod transport {
     pub trait Transport {
         /// Take the data required to deliver the email and return the updated version of the recipient.
         async fn deliver(
-            &mut self,
+            self,
             config: &Config,
             metadata: &MessageMetadata,
             from: &Address,
@@ -70,7 +70,7 @@ pub mod transport {
     #[async_trait::async_trait]
     impl Transport for NoTransfer {
         async fn deliver(
-            &mut self,
+            self,
             _: &Config,
             _: &MessageMetadata,
             _: &Address,

@@ -77,11 +77,11 @@ impl MailHandler {
     async fn on_mail_priv<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
         &self,
         conn: &mut Connection<S>,
-        mut context: Box<MailContext>,
-        message: MessageBody,
+        mut mail_context: Box<MailContext>,
+        mail_message: MessageBody,
     ) -> Result<(), MailHandlerError> {
         let (mut message_id, skipped) = {
-            let metadata = context.metadata.as_ref().unwrap();
+            let metadata = mail_context.metadata.as_ref().unwrap();
             (metadata.message_id.clone(), metadata.skipped.clone())
         };
 
@@ -96,7 +96,7 @@ impl MailHandler {
 
                 path.push(format!("{}.json", message_id));
 
-                Queue::write_to_quarantine(&path, &context)
+                Queue::write_to_quarantine(&path, &mail_context)
                     .await
                     .map_err(MailHandlerError::WriteQuarantineFile)?;
 
@@ -107,17 +107,17 @@ impl MailHandler {
                 );
             }
             Some(Status::Delegated(delegator)) => {
-                context.metadata.as_mut().unwrap().skipped = None;
+                mail_context.metadata.as_mut().unwrap().skipped = None;
 
                 // FIXME: find a way to use `write_to_queue` instead to be consistant
                 //        with the rest of the function.
                 Queue::Delegated
-                    .write_to_queue(&conn.config.server.queues.dirpath, &context)
+                    .write_to_queue(&conn.config.server.queues.dirpath, &mail_context)
                     .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
 
                 // NOTE: needs to be executed after writing, because the other
                 //       thread could pickup the email faster than this function.
-                delegate(delegator, &context, &message)
+                delegate(delegator, &mail_context, &mail_message)
                     .map_err(MailHandlerError::DelegateMessage)?;
 
                 log::warn!(
@@ -129,8 +129,9 @@ impl MailHandler {
                 return Ok(());
             }
             Some(Status::DelegationResult) => {
-                if let Some(old_message_id) =
-                    message.get_header("X-VSMTP-DELEGATION").and_then(|header| {
+                if let Some(old_message_id) = mail_message
+                    .get_header("X-VSMTP-DELEGATION")
+                    .and_then(|header| {
                         vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header)
                             .args
                             .get("id")
@@ -144,10 +145,11 @@ impl MailHandler {
                 send_to_next_process = Some(Process::Processing);
             }
             Some(Status::Deny(code)) => {
-                for rcpt in &mut context.envelop.rcpt {
-                    rcpt.email_status = EmailTransferStatus::Failed(format!(
-                        "rule engine denied the email in delivery: {code:?}."
-                    ));
+                for rcpt in &mut mail_context.envelop.rcpt {
+                    rcpt.email_status = EmailTransferStatus::Failed {
+                        timestamp: std::time::SystemTime::now(),
+                        reason: format!("rule engine denied the message in preq: {code:?}."),
+                    };
                 }
 
                 write_to_queue = Some(Queue::Dead);
@@ -168,8 +170,12 @@ impl MailHandler {
             }
         };
 
-        Queue::write_to_mails(&conn.config.server.queues.dirpath, &message_id, &message)
-            .map_err(MailHandlerError::WriteMessageBody)?;
+        Queue::write_to_mails(
+            &conn.config.server.queues.dirpath,
+            &message_id,
+            &mail_message,
+        )
+        .map_err(MailHandlerError::WriteMessageBody)?;
 
         log::debug!(
             target: log_channels::PREQ,
@@ -180,7 +186,7 @@ impl MailHandler {
 
         if let Some(queue) = write_to_queue {
             queue
-                .write_to_queue(&conn.config.server.queues.dirpath, &context)
+                .write_to_queue(&conn.config.server.queues.dirpath, &mail_context)
                 .map_err(|error| MailHandlerError::WriteToQueue(queue, error))?;
         }
 

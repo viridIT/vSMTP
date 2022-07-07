@@ -24,7 +24,7 @@ use vsmtp_common::{
     mail_context::MessageMetadata,
     rcpt::Rcpt,
     re::{anyhow, log},
-    transfer::EmailTransferStatus,
+    transfer::{EmailTransferStatus, TransferErrors},
 };
 use vsmtp_config::Config;
 
@@ -43,7 +43,7 @@ pub struct MBox;
 #[async_trait::async_trait]
 impl Transport for MBox {
     async fn deliver(
-        &mut self,
+        self,
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
@@ -72,7 +72,9 @@ impl Transport for MBox {
                         metadata.message_id
                     );
 
-                    rcpt.email_status = EmailTransferStatus::Sent;
+                    rcpt.email_status = EmailTransferStatus::Sent {
+                        timestamp: std::time::SystemTime::now(),
+                    }
                 }
                 Some(Err(e)) => {
                     log::error!(
@@ -81,10 +83,7 @@ impl Transport for MBox {
                         metadata.message_id
                     );
 
-                    rcpt.email_status = EmailTransferStatus::HeldBack(match rcpt.email_status {
-                        EmailTransferStatus::HeldBack(count) => count + 1,
-                        _ => (0),
-                    });
+                    rcpt.email_status.held_back(e);
                 }
                 None => {
                     log::error!(
@@ -93,9 +92,8 @@ impl Transport for MBox {
                         metadata.message_id
                     );
 
-                    rcpt.email_status = EmailTransferStatus::HeldBack(match rcpt.email_status {
-                        EmailTransferStatus::HeldBack(count) => count + 1,
-                        _ => (0),
+                    rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
+                        name: rcpt.address.local_part().to_string(),
                     });
                 }
             }
