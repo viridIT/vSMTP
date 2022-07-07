@@ -71,6 +71,6 @@ impl StateSMTP {
     /// As the email been received at the current stage ?
     #[must_use]
     pub const fn email_received(&self) -> bool {
-        matches!(self, Self::PreQ | Self::PostQ | Self::Delivery)
+        matches!(self, Self::PostQ | Self::Delivery)
     }
 }
