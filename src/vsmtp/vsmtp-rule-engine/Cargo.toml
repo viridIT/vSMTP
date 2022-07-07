@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "1.1.0"
+version = "1.1.2"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
@@ -32,12 +32,11 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.0" }
-vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.0" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.1.0" }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.2" }
+vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.2" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.1.2" }
 
 thiserror = "1.0.31"
-
 # objects
 regex = "1.5.5"
 iprange = "0.6.7"

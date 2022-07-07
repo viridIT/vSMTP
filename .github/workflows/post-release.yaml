@@ -73,7 +73,7 @@ jobs:
           staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-amd64.deb"
           mkdir -p "$staging"/{complete,doc}
           cp {README.md,LICENSE*} "$staging/"
-          cp {CHANGELOG.md} "$staging/doc/"
+          cp CHANGELOG.md "$staging/doc/"
           cp target/debian/* "$staging/"
           tar czf "$staging.tar.gz" -C "$staging" .
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
@@ -123,7 +123,7 @@ jobs:
           staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
           mkdir -p "$staging"/{complete,doc}
           cp {README.md,LICENSE*} "$staging/"
-          cp {CHANGELOG.md} "$staging/doc/"
+          cp CHANGELOG.md "$staging/doc/"
           cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
           tar czf "$staging.tar.gz" -C "$staging" .
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV

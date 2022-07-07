@@ -1,3 +1,25 @@
+vsmtp (1.1.3) UNRELEASED; urgency=low
+
+  [ Updated by ltabis ]
+  * changed
+    - delegation directives sets the X-VSMTP-DELEGATION
+      header in the email to pick up where processing left of. (#438)
+    - refactored the queue system to make it simpler. (#438)
+    - multiple delegation directives can be used in a single
+      stage with one or multiple services. (#438)
+    - delegation is available for `postq` & `delivery` only. (#438)
+
+ -- ltabis <l.tabis@viridit.com>  Thu, 07 Jul 2022 17:04:34 +0200
+
+vsmtp (1.1.2) UNRELEASED; urgency=low
+
+  [ Updated by ltabis ]
+  * fixed
+    - doc requirements for docs.rs.
+    - deployment system with cargo release.
+
+ -- ltabis <l.tabis@viridit.com>  Thu, 07 Jul 2022 17:04:34 +0200
+
 vsmtp (1.1.1) UNRELEASED; urgency=low
 
   [ Updated by mlala ]

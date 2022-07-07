@@ -2,6 +2,19 @@
 //!
 //! This module contains the configuration for the vSMTP server.
 //!
+//! The behavior of your server can be configured using a configuration file,
+//! and using the `-c, --config` flag of the `vsmtp`.
+//!
+//! All the parameters are optional and have default values.
+//! If `-c, --config` is not provided, the default values of the configuration will be used.
+//!
+//! The configuration file will be read and parsed right after starting the program,
+//! producing an error if there is an invalid syntax, a filepath failed to be opened,
+//! or any kind of errors.
+//!
+//! If you have a non-explicit error when you start your server, you can create an issue
+//! on the [github repo](https://github.com/viridIT/vSMTP), or ask for help in our discord server.
+//!
 //! # Configuration
 //!
 //! The type [`Config`] expose two methods :
@@ -11,10 +24,6 @@
 //! # Example
 //!
 //! You can find examples of TOML file at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
-//!
-//! # Fields
-//!
-//! TODO!
 
 #![doc(html_no_source)]
 #![deny(missing_docs)]

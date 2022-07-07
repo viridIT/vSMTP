@@ -355,11 +355,6 @@ mod test {
             message,
             MessageBody::Raw {
                 headers: vec![
-                    format!(
-                        "X-VSMTP: id='{id}' version='{ver}' status='next'",
-                        id = ctx.metadata.as_ref().unwrap().message_id,
-                        ver = env!("CARGO_PKG_VERSION"),
-                    ),
                     [
                         "Received: from localhost".to_string(),
                         format!(" by {domain}", domain = config.server.domain),
@@ -373,6 +368,11 @@ mod test {
                         }
                     ]
                     .concat(),
+                    format!(
+                        "X-VSMTP: id=\"{id}\"; version=\"{ver}\"; status=\"next\"",
+                        id = ctx.metadata.as_ref().unwrap().message_id,
+                        ver = env!("CARGO_PKG_VERSION"),
+                    ),
                 ],
                 body: Some("".to_string()),
             }
