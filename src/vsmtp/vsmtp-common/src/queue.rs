@@ -294,6 +294,8 @@ impl Queue {
     }
 
     /// Write the `ctx` to `other` **AND THEN** remove `ctx` from `self`
+    /// if `other` are `self` are the same type of queue, this function
+    /// only overwrite the context.
     ///
     /// # Errors
     ///
@@ -305,15 +307,17 @@ impl Queue {
         queues_dirpath: &std::path::Path,
         ctx: &MailContext,
     ) -> anyhow::Result<()> {
-        self.remove(
-            queues_dirpath,
-            &ctx.metadata
-                .as_ref()
-                .expect("message is ill-formed")
-                .message_id,
-        )?;
-
         other.write_to_queue(queues_dirpath, ctx)?;
+
+        if self != other {
+            self.remove(
+                queues_dirpath,
+                &ctx.metadata
+                    .as_ref()
+                    .expect("message is ill-formed")
+                    .message_id,
+            )?;
+        }
 
         Ok(())
     }
