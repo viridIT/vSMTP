@@ -50,10 +50,19 @@ pub enum MessageBody {
         /// The headers of the top level message
         headers: Vec<String>,
         /// Complete body of the message
-        body: String,
+        body: Option<String>,
     },
     /// The message parsed using a [`MailParser`]
     Parsed(Box<Mail>),
+}
+
+impl Default for MessageBody {
+    fn default() -> Self {
+        Self::Raw {
+            headers: vec![],
+            body: None,
+        }
+    }
 }
 
 impl std::fmt::Display for MessageBody {
@@ -65,7 +74,7 @@ impl std::fmt::Display for MessageBody {
                     f.write_str("\r\n")?;
                 }
                 f.write_str("\r\n")?;
-                f.write_str(body)
+                f.write_str(body.as_ref().map_or("", std::string::String::as_str))
             }
             Self::Parsed(mail) => f.write_fmt(format_args!("{mail}")),
         }
@@ -73,6 +82,15 @@ impl std::fmt::Display for MessageBody {
 }
 
 impl MessageBody {
+    ///
+    pub fn take_headers(&mut self) -> Vec<String> {
+        if let MessageBody::Raw { headers, .. } = self {
+            return std::mem::take(headers);
+        }
+
+        vec![]
+    }
+
     /// Create a new instance of [`MessageBody::Parsed`], cloning if already parsed
     ///
     /// # Errors
@@ -80,19 +98,11 @@ impl MessageBody {
     /// * Fail to parse using the provided [`MailParser`]
     pub fn to_parsed<P: MailParser>(&mut self) -> anyhow::Result<()> {
         if let Self::Raw { headers, body } = self {
-            *self = P::default().parse_raw(std::mem::take(headers), std::mem::take(body))?;
+            *self =
+                P::default().parse_raw(std::mem::take(headers), body.take().unwrap_or_default())?;
         }
         Ok(())
     }
-
-    // /// Has the instance been parsed
-    // #[must_use]
-    // pub const fn is_parsed(&self) -> bool {
-    //     match self {
-    //         MessageBody::Raw => false,
-    //         MessageBody::Parsed(_) => true,
-    //     }
-    // }
 
     /// get the value of an header, return None if it does not exists or when the body is empty.
     #[must_use]
@@ -131,22 +141,42 @@ impl MessageBody {
                         _ => {}
                     }
                 }
-                self.add_header(name, value);
+                self.append_header(name, value);
             }
             Self::Parsed(parsed) => parsed.set_header(name, value),
         }
     }
 
-    /// prepend a header to the header section.
-    pub fn add_header(&mut self, name: &str, value: &str) {
+    /// push a header to the header section.
+    pub fn append_header(&mut self, name: &str, value: &str) {
         match self {
             Self::Raw { headers, .. } => {
                 // TODO: handle folding ?
                 headers.push(format!("{name}: {value}"));
             }
             Self::Parsed(parsed) => {
+                parsed.push_headers([(name.to_string(), value.to_string())]);
+            }
+        }
+    }
+
+    /// prepend a header to the header section.
+    pub fn prepend_header(&mut self, name: &str, value: &str) {
+        match self {
+            Self::Raw { headers, .. } => {
+                // TODO: handle folding ?
+                headers.splice(..0, [format!("{name}: {value}")]);
+            }
+            Self::Parsed(parsed) => {
                 parsed.prepend_headers([(name.to_string(), value.to_string())]);
             }
+        }
+    }
+
+    /// prepend a set of headers to the header section.
+    pub fn prepend_raw_headers(&mut self, to_prepend: impl Iterator<Item = String>) {
+        if let MessageBody::Raw { headers, .. } = self {
+            headers.splice(..0, to_prepend);
         }
     }
 }

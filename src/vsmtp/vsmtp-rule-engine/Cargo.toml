@@ -2,26 +2,41 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "1.0.0"
+version = "1.1.2"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
+
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
+documentation = "https://docs.rs/crate/vsmtp-rule-engine/"
+
 readme = "../../../README.md"
-keywords = ["vsmtp"]
+keywords = [
+  "vsmtp",
+  "scripting-engine",
+  "scripting-language",
+  "scripting",
+  "rhai",
+]
 categories = ["config"]
 
+[package.metadata.release]
+pre-release-replacements = [
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", default-features = false, version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+]
+
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.2" }
+vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.2" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.1.2" }
 
 thiserror = "1.0.31"
-
 # objects
 regex = "1.5.5"
 iprange = "0.6.7"
@@ -30,20 +45,29 @@ csv = "1.1"
 
 viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
 hostname = "0.3.1"
-time = { version = "0.3.9", default-features = false, features = [
-    "std",
-    "formatting",
-    "macros",
+time = { version = "0.3.11", default-features = false, features = [
+  "std",
+  "formatting",
+  "macros",
 ] }
 
 rhai = { version = "1.7.0", git = "https://github.com/schungx/rhai", rev = "5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82", features = [
-    "unchecked",
-    "sync",
-    "internals",
-    "no_closure",
+  "unchecked",
+  "sync",
+  "internals",
+  "no_closure",
 ] }
 
 wait-timeout = "0.2.0"
 
 [dev-dependencies]
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
+
+[features]
+default = ["vsmtp-common/gsasl_bindgen"]
+
+# TODO: improve that
+[package.metadata.docs.rs]
+features = []
+all-features = false
+no-default-features = true

@@ -2,25 +2,35 @@
 edition = "2021"
 
 name = "vsmtp-server"
-version = "1.0.1"
+version = "1.1.2"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
+
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
+documentation = "https://docs.rs/crate/vsmtp-server/"
+
 readme = "../../../README.md"
-keywords = ["vsmtp"]
+keywords = ["vsmtp", "email", "server", "mail-server", "mail-filter"]
 categories = ["network-programming"]
 
+[package.metadata.release]
+pre-release-replacements = [
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-rule-engine = \\{ path = \"../vsmtp-rule-engine\", default-features = false, version = .*", replace = "vsmtp-rule-engine = { path = \"../vsmtp-rule-engine\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-delivery = \\{ path = \"../vsmtp-delivery\", default-features = false, version = .*", replace = "vsmtp-delivery = { path = \"../vsmtp-delivery\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+]
+
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.1" }
-vsmtp-config = { path = "../vsmtp-config", version = "1.0.0-rc.1" }
-vsmtp-rule-engine = { path = "../vsmtp-rule-engine", version = "1.0.0-rc.1" }
-# vsmtp-mail-parser = { path = "../vsmtp-mail-parser", version = "1.0.0-rc.1" }
-vsmtp-delivery = { path = "../vsmtp-delivery", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.2" }
+vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.2" }
+vsmtp-rule-engine = { path = "../vsmtp-rule-engine", default-features = false, version = "1.1.2" }
+vsmtp-delivery = { path = "../vsmtp-delivery", default-features = false, version = "1.1.2" }
 
 async-trait = "0.1.56"
 fastrand = "1.7.0"
@@ -28,14 +38,15 @@ thiserror = "1.0.31"
 
 tokio-stream = "0.1.9"
 async-stream = "0.3.3"
+futures = "0.3.21"
 
 signal-hook = "0.3.14"
 
 trust-dns-resolver = "0.21.2"
-time = { version = "0.3.9", default-features = false, features = [
-    "std",
-    "formatting",
-    "macros",
+time = { version = "0.3.11", default-features = false, features = [
+  "std",
+  "formatting",
+  "macros",
 ] }
 
 tokio-rustls = "0.23.4"
@@ -49,12 +60,21 @@ criterion = { version = "0.3.5", features = ["async_tokio", "html_reports"] }
 iai = "0.1.1"
 rand = "0.8.5"
 
-lettre = { version = "0.10.0-rc.7", default-features = false, features = [
-    "smtp-transport",
-    "builder",
-    "tokio1-rustls-tls",
-    "tracing",
+lettre = { version = "0.10.0", default-features = false, features = [
+  "smtp-transport",
+  "builder",
+  "tokio1-rustls-tls",
+  "tracing",
 ] }
+
+[features]
+default = ["vsmtp-common/gsasl_bindgen"]
+
+# TODO: improve that
+[package.metadata.docs.rs]
+features = []
+all-features = false
+no-default-features = true
 
 [[bench]]
 name = "receiver2"

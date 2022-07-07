@@ -16,8 +16,8 @@
 */
 use rhai::{
     plugin::{
-        mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
-        PluginFunction, RhaiResult, TypeId,
+        mem, Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult,
+        TypeId,
     },
     EvalAltResult,
 };
@@ -39,72 +39,35 @@ pub mod security {
     //    * cause  (String) : the "mechanism" that matched or the "problem" error (RFC 7208-9.1).
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(return_raw, pure)]
-    pub fn check_spf(ctx: &mut Context, srv: Server, identity: &str) -> EngineResult<rhai::Map> {
+    pub fn check_spf(ctx: &mut Context, srv: Server) -> EngineResult<rhai::Map> {
         fn query_spf(
             resolver: &impl viaspf::lookup::Lookup,
             ip: std::net::IpAddr,
             sender: &viaspf::Sender,
-            helo_domain: Option<&viaspf::DomainName>,
         ) -> rhai::Map {
             let result = tokio::task::block_in_place(move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    viaspf::evaluate_sender(
-                        resolver,
-                        &viaspf::Config::default(),
-                        ip,
-                        sender,
-                        helo_domain,
-                    )
-                    .await
+                    viaspf::evaluate_sender(resolver, &viaspf::Config::default(), ip, sender, None)
+                        .await
                 })
             });
 
             map_from_query_result(&result)
         }
 
-        let (helo, mail_from, ip) = {
+        let (mail_from, ip) = {
             let ctx = &ctx
                 .read()
                 .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?;
-            (
-                ctx.envelop.helo.clone(),
-                ctx.envelop.mail_from.clone(),
-                ctx.client_addr.ip(),
-            )
+            (ctx.envelop.mail_from.clone(), ctx.client_addr.ip())
         };
 
-        let resolver = srv
-            .resolvers
-            .get(mail_from.domain())
-            .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                format!(
-                    "no dns configuration found for {} while checking spf.",
-                    mail_from.domain()
-                )
-                .into()
-            })?;
+        let resolver = srv.resolvers.get(&srv.config.server.domain).unwrap();
 
-        match identity {
-            "mail_from" => {
-                let sender = viaspf::Sender::new(mail_from.full())
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                Ok(query_spf(resolver, ip, &sender, Some(sender.domain())))
-            }
-            "helo" => {
-                let sender = viaspf::Sender::from_domain(&helo)
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                Ok(query_spf(resolver, ip, &sender, Some(sender.domain())))
-            }
-            // "both" checks first the helo identity and falls back to mail from.
-            "both" => {
-                let sender = viaspf::Sender::from_domain(&helo)
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                let domain = viaspf::DomainName::new(mail_from.domain())
-                    .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
-                Ok(query_spf(resolver, ip, &sender, Some(&domain)))
-            }
-            _ => Err("spf identity argument must be 'helo', 'mail_from' or 'both'".into()),
-        }
+        Ok(match mail_from.full().parse() {
+            Ok(sender) => query_spf(resolver, ip, &sender),
+            _ => rhai::Map::from_iter([("result".into(), "none".into())]),
+        })
     }
 }
 
@@ -116,17 +79,19 @@ pub fn map_from_query_result(q_result: &viaspf::QueryResult) -> rhai::Map {
             "result".into(),
             rhai::Dynamic::from(q_result.spf_result.to_string()),
         ),
-        (
-            "cause".into(),
-            q_result
-                .cause
-                .as_ref()
-                .map_or(rhai::Dynamic::from("default"), |cause| match cause {
-                    viaspf::SpfResultCause::Match(mechanism) => {
-                        rhai::Dynamic::from(mechanism.to_string())
+        {
+            q_result.cause.as_ref().map_or(
+                ("mechanism".into(), rhai::Dynamic::from("default")),
+                |cause| match cause {
+                    viaspf::SpfResultCause::Match(mechanism) => (
+                        "mechanism".into(),
+                        rhai::Dynamic::from(mechanism.to_string()),
+                    ),
+                    viaspf::SpfResultCause::Error(error) => {
+                        ("problem".into(), rhai::Dynamic::from(error.to_string()))
                     }
-                    viaspf::SpfResultCause::Error(error) => rhai::Dynamic::from(error.to_string()),
-                }),
-        ),
+                },
+            )
+        },
     ])
 }

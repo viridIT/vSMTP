@@ -39,6 +39,7 @@ pub enum Queue {
 /// # Errors
 ///
 /// * if `create_if_missing` is provided, will attempt to create the folder
+#[allow(clippy::module_name_repetitions)]
 #[macro_export]
 macro_rules! queue_path {
     ($queues_dirpath:expr, $queue:expr) => {
@@ -179,6 +180,115 @@ impl Queue {
                 MessageBody::Parsed(parsed) => serde_json::to_string(parsed)?,
             }
             .as_bytes(),
+        )?;
+
+        Ok(())
+    }
+
+    ///
+    /// # Errors
+    pub async fn read_mail_context(
+        &self,
+        dirpath: &std::path::Path,
+        id: &str,
+    ) -> anyhow::Result<MailContext> {
+        let context_filepath = queue_path!(&dirpath, self, &id);
+
+        let content = tokio::fs::read_to_string(&context_filepath)
+            .await
+            .with_context(|| format!("Cannot read file '{}'", context_filepath.display()))?;
+
+        serde_json::from_str::<MailContext>(&content)
+            .with_context(|| format!("Cannot deserialize: '{content:?}'"))
+    }
+
+    /// # Errors
+    pub async fn read_mail_message(
+        dirpath: &std::path::Path,
+        id: &str,
+    ) -> anyhow::Result<MessageBody> {
+        let mut message_filepath =
+            std::path::PathBuf::from_iter([dirpath.to_path_buf(), "mails".into(), id.into()]);
+
+        message_filepath.set_extension("json");
+        if message_filepath.exists() {
+            let content = tokio::fs::read_to_string(&message_filepath)
+                .await
+                .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
+
+            return serde_json::from_str::<MessageBody>(&content)
+                .with_context(|| format!("Cannot deserialize: '{content:?}'"));
+        }
+
+        message_filepath.set_extension("eml");
+        if message_filepath.exists() {
+            let content = tokio::fs::read_to_string(&message_filepath)
+                .await
+                .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
+
+            let (headers, body) = content
+                .split_once("\r\n\r\n")
+                .ok_or_else(|| anyhow::anyhow!("Cannot find message body"))?;
+
+            return Ok(MessageBody::Raw {
+                headers: headers.lines().map(str::to_string).collect(),
+                body: Some(body.to_string()),
+            });
+        }
+        anyhow::bail!("failed does not exist")
+    }
+
+    /// Return a message body from a file path.
+    /// Try to parse the file as JSON, if it fails, try to parse it as plain text.
+    ///
+    /// # Errors
+    ///
+    /// * file(s) not found
+    /// * file found but failed to read
+    /// * file read but failed to serialize
+    pub async fn read(
+        &self,
+        dirpath: &std::path::Path,
+        id: &str,
+    ) -> anyhow::Result<(MailContext, MessageBody)> {
+        let (context, message) = tokio::join!(
+            self.read_mail_context(dirpath, id),
+            Self::read_mail_message(dirpath, id)
+        );
+
+        Ok((context?, message?))
+    }
+
+    /// Remove a message from the queue system.
+    ///
+    /// # Errors
+    ///
+    /// * see [`std::fs::remove_file`]
+    pub fn remove(&self, dirpath: &std::path::Path, id: &str) -> anyhow::Result<()> {
+        std::fs::remove_file(queue_path!(&dirpath, self, &id))
+            .with_context(|| format!("failed to remove `{id}` from the `{self}` queue"))
+    }
+
+    /// Write the `ctx` to `other` **AND THEN** remove `ctx` from `self`
+    ///
+    /// # Errors
+    ///
+    /// * see [`Queue::write_to_queue`]
+    /// * see [`Queue::remove`]
+    pub fn move_to(
+        &self,
+        other: &Self,
+        queues_dirpath: &std::path::Path,
+        ctx: &MailContext,
+    ) -> anyhow::Result<()> {
+        other.write_to_queue(queues_dirpath, ctx)?;
+
+        self.remove(
+            queues_dirpath,
+            &ctx.metadata
+                .as_ref()
+                .expect("message is ill-formed")
+                .message_id,
         )?;
 
         Ok(())

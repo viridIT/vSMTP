@@ -21,8 +21,7 @@ private fn __in_domain(rcpt) {
             rcpt.domain in toml::server.virtual || rcpt.domain == toml::server.domain
         },
         "string" => {
-            // converting to an address could fail.
-            try { return __in_domain(sys::new_address(rcpt)); } catch { return false; }
+            rcpt in toml::server.virtual || rcpt == toml::server.domain
         },
         _ => false,
     }

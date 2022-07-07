@@ -2,33 +2,41 @@
 edition = "2021"
 
 name = "vsmtp-config"
-version = "1.0.0"
+version = "1.1.2"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
+
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
+documentation = "https://docs.rs/crate/vsmtp-config/"
+
 readme = "../../../README.md"
 keywords = ["vsmtp"]
 categories = ["data-structures"]
 
+[package.metadata.release]
+pre-release-replacements = [
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+]
+
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.2" }
 
 log4rs = { version = "1.1.1", default-features = false, features = [
-    "rolling_file_appender",
-    "compound_policy",
-    "gzip",
-    "fixed_window_roller",
-    "size_trigger",
-    "console_appender",
+  "rolling_file_appender",
+  "compound_policy",
+  "gzip",
+  "fixed_window_roller",
+  "size_trigger",
+  "console_appender",
 ] }
 users = { version = "0.11.0", features = [] }
 
-serde = { version = "1.0.137", features = ["derive"] }
+serde = { version = "1.0.138", features = ["derive"] }
 serde_derive = "1.0.136"
 humantime-serde = "1.1.1"
 
@@ -39,14 +47,23 @@ rustls-pemfile = "1.0.0"
 
 hostname = "0.3.1"
 trust-dns-resolver = { version = "0.21.2", default-features = false, features = [
-    "system-config",
-    "serde-config",
-    "tokio-runtime",
+  "system-config",
+  "serde-config",
+  "tokio-runtime",
 ] }
 
-semver = "1.0.10"
+semver = "1.0.12"
 serde_with = "1.14.0"
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
 vsmtp-test = { path = "../vsmtp-test" }
+
+[features]
+default = ["vsmtp-common/gsasl_bindgen"]
+
+# TODO: improve that
+[package.metadata.docs.rs]
+features = []
+all-features = false
+no-default-features = true

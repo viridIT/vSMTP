@@ -55,7 +55,24 @@ fn test_greylist() {
 fn test_check_relay() {
     let config = get_default_config("./tmp/app");
     let re = RuleEngine::new(&config, &Some(root_example!["anti_relaying/main.vsl"])).unwrap();
+
     let resolvers = std::sync::Arc::new(std::collections::HashMap::new());
+    let mut state = RuleState::new(&config, resolvers.clone(), &re);
+
+    // using our domain but the sender isn't identified.
+    state.context().write().unwrap().envelop.mail_from = addr!("satan@testserver.com");
+
+    assert_eq!(
+        re.run_when(&mut state, &StateSMTP::MailFrom),
+        Status::Deny(ReplyOrCodeID::Reply(Reply::new(
+            Enhanced {
+                code: 554,
+                enhanced: "5.7.1".to_string()
+            },
+            "Relay access denied"
+        )))
+    );
+
     let mut state = RuleState::new(&config, resolvers.clone(), &re);
 
     state
@@ -68,7 +85,7 @@ fn test_check_relay() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::RcptTo),
-        Status::Deny(ReplyOrCodeID::Reply(Reply::new(
+        Status::Info(ReplyOrCodeID::Reply(Reply::new(
             Enhanced {
                 code: 554,
                 enhanced: "5.7.1".to_string()

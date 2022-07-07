@@ -168,7 +168,9 @@ mod tests {
                 rcpt: vec![Rcpt {
                     address: addr!("foo+1@domain.com"),
                     transfer_method: Transfer::Mbox,
-                    email_status: EmailTransferStatus::Waiting,
+                    email_status: EmailTransferStatus::Waiting {
+                        timestamp: std::time::SystemTime::now(),
+                    },
                 }],
             },
             /*

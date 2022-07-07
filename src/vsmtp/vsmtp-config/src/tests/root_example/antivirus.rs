@@ -22,7 +22,7 @@ fn parse() {
     pretty_assertions::assert_eq!(
         Config::from_toml(toml).unwrap(),
         Config::builder()
-            .with_version_str("=1.0.0")
+            .with_version_str(">=1.0.0, <2.0.0")
             .unwrap()
             .with_hostname()
             .with_default_system()

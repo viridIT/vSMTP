@@ -2,21 +2,39 @@
 edition = "2021"
 
 name = "vsmtp-mail-parser"
-version = "1.0.0"
+version = "1.1.2"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
+
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
+documentation = "https://docs.rs/crate/vsmtp-mail-parser/"
+
 readme = "../../../README.md"
 keywords = ["vsmtp"]
-categories = ["email"]
+categories = ["email", "parsing"]
+
+
+[package.metadata.release]
+pre-release-replacements = [
+    { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.0.0-rc.1" }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.2" }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
+
+[features]
+default = ["vsmtp-common/gsasl_bindgen"]
+
+# TODO: improve that
+[package.metadata.docs.rs]
+features = []
+all-features = false
+no-default-features = true

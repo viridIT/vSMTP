@@ -32,7 +32,7 @@ use vsmtp_common::{
 impl Default for Config {
     fn default() -> Self {
         Self::ensure(Self {
-            version_requirement: semver::VersionReq::parse(">=1.0.0").unwrap(),
+            version_requirement: semver::VersionReq::parse(">=1.0.0, <2.0.0").unwrap(),
             server: FieldServer::default(),
             app: FieldApp::default(),
         })
@@ -187,6 +187,10 @@ impl FieldServerTls {
             rustls::CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
             rustls::CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
         ]
+    }
+
+    pub(crate) const fn default_handshake_timeout() -> std::time::Duration {
+        std::time::Duration::from_secs(1)
     }
 }
 

@@ -59,18 +59,8 @@ pub mod write {
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
-        std::io::Write::write_all(
-            &mut writer,
-            body.as_ref()
-                .ok_or_else::<Box<EvalAltResult>, _>(|| {
-                    "failed to write email: the body has not been received yet."
-                        .to_string()
-                        .into()
-                })?
-                .to_string()
-                .as_bytes(),
-        )
-        .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
+        std::io::Write::write_all(&mut writer, body.to_string().as_bytes())
+            .map_err(|err| format!("failed to write email at {dir:?}: {err}").into())
     }
 
     /// write the content of the current email with it's metadata in a json file.

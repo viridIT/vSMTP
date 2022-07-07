@@ -17,8 +17,8 @@
 
 use crate::test_receiver;
 use vsmtp_common::mail_context::{MailContext, MessageBody};
+use vsmtp_common::queue::Queue;
 use vsmtp_common::re::{serde_json, tokio};
-use vsmtp_server::message_from_file_path;
 use vsmtp_server::ProcessMessage;
 
 #[tokio::test]
@@ -74,14 +74,16 @@ async fn test_quarantine() {
     let ctx =
         serde_json::from_str::<MailContext>(&std::fs::read_to_string(&message).unwrap()).unwrap();
 
-    let mut path = config.server.queues.dirpath.clone();
-    path.push(format!("mails/{}.eml", ctx.metadata.unwrap().message_id));
-
     assert_eq!(
-        message_from_file_path(path).await.unwrap(),
+        Queue::read_mail_message(
+            &config.server.queues.dirpath,
+            &ctx.metadata.as_ref().unwrap().message_id
+        )
+        .await
+        .unwrap(),
         MessageBody::Raw {
             headers: vec!["from: 'abc'".to_string(), "to: 'def'".to_string()],
-            body: "".to_string()
+            body: Some("".to_string())
         }
     );
 }
