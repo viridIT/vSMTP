@@ -55,7 +55,7 @@ pub enum EmailTransferStatus {
         timestamp: std::time::SystemTime,
     },
     /// email for this recipient has been successfully sent.
-    /// When all [`Rcpt`] are [`EmailTransferStatus::Sent`], the files are removed from disk.
+    /// When all [`crate::rcpt::Rcpt`] are [`EmailTransferStatus::Sent`], the files are removed from disk.
     Sent {
         /// timestamp when the status has been set
         timestamp: std::time::SystemTime,

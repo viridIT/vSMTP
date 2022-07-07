@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-mail-parser"
-version = "1.1.0"
+version = "1.1.1"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
@@ -25,7 +25,7 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.0" }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.1" }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
