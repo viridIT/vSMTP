@@ -14,18 +14,13 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{
-    context_from_file_path, log_channels, message_from_file_path, receiver::MailHandlerError,
-    ProcessMessage,
-};
-use anyhow::Context;
+use crate::{delegate, log_channels, receiver::MailHandlerError, Process, ProcessMessage};
 use vsmtp_common::{
     queue::Queue,
-    queue_path,
     re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
-    transfer::Transfer,
+    transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -95,42 +90,17 @@ async fn handle_one_in_working_queue_inner(
         process_message.message_id,
     );
 
-    let (context_filepath, message_filepath) = (
-        queue_path!(
-            &config.server.queues.dirpath,
-            Queue::Working,
-            &process_message.message_id
-        ),
-        std::path::PathBuf::from_iter([
-            config.server.queues.dirpath.clone(),
-            "mails".into(),
-            process_message.message_id.clone().into(),
-        ]),
-    );
+    let queue = if process_message.delegated {
+        Queue::Delegated
+    } else {
+        Queue::Working
+    };
 
-    log::debug!(
-        target: log_channels::POSTQ,
-        "(msg={}) opening file: ctx=`{}` msg=`{}`",
-        process_message.message_id,
-        context_filepath.display(),
-        message_filepath.display(),
-    );
+    let (mail_context, mail_message) = queue
+        .read(&config.server.queues.dirpath, &process_message.message_id)
+        .await?;
 
-    let (mail_context, mail_message) = tokio::join!(
-        context_from_file_path(&context_filepath),
-        message_from_file_path(message_filepath)
-    );
-    let (mail_context, mail_message) = (
-        mail_context.with_context(|| {
-            format!(
-                "failed to deserialize email in working queue '{}'",
-                context_filepath.display()
-            )
-        })?,
-        mail_message.context("error while reading message")?,
-    );
-
-    let (ctx, message, result) = RuleState::just_run_when(
+    let (mut mail_context, mail_message, _, skipped) = RuleState::just_run_when(
         &StateSMTP::PostQ,
         config.as_ref(),
         resolvers,
@@ -139,64 +109,109 @@ async fn handle_one_in_working_queue_inner(
         mail_message,
     )?;
 
-    // writing the mails in any case because we don't know (yet) if it changed
-    message.write_to_mails(&config.server.queues.dirpath, &process_message.message_id)?;
+    let mut write_to_queue = Option::<Queue>::None;
+    let mut send_to_delivery = false;
+    let mut write_email = true;
+    let mut delegated = false;
 
-    let queue = match result {
-        Status::Quarantine(path) => {
-            let mut path = create_app_folder(&config, Some(&path))
+    match &skipped {
+        Some(Status::Quarantine(path)) => {
+            let mut path = create_app_folder(&config, Some(path))
                 .map_err(MailHandlerError::CreateAppFolder)?;
 
             path.push(format!("{}.json", process_message.message_id));
 
-            Queue::write_to_quarantine(&path, &ctx)
+            Queue::write_to_quarantine(&path, &mail_context)
                 .await
                 .map_err(MailHandlerError::WriteQuarantineFile)?;
 
-            std::fs::remove_file(&context_filepath).context(format!(
-                "failed to remove '{}' from the working queue",
-                process_message.message_id
-            ))?;
+            queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
 
-            log::warn!("delivery skipped due to quarantine.");
-            return Ok(());
+            log::warn!(target: log_channels::POSTQ, "skipped due to quarantine.",);
         }
-        Status::Deny(_) => Queue::Dead,
-        _ if ctx
-            .envelop
-            .rcpt
-            .iter()
-            .all(|rcpt| rcpt.transfer_method == Transfer::None) =>
-        {
+        Some(Status::Delegated(delegator)) => {
+            mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
+
+            // FIXME: find a way to use `write_to_queue` instead to be consistant
+            //        with the rest of the function.
+            // NOTE:  moving here because the delegation process could try to
+            //        pickup the email before it's written on disk.
+            queue.move_to(
+                &Queue::Delegated,
+                &config.server.queues.dirpath,
+                &mail_context,
+            )?;
+
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
+
+            // NOTE: needs to be executed after writing, because the other
+            //       thread could pickup the email faster than this function.
+            delegate(delegator, &mail_context, &mail_message)
+                .map_err(MailHandlerError::DelegateMessage)?;
+
+            write_email = false;
+            delegated = true;
+
+            log::warn!(target: log_channels::POSTQ, "skipped due to delegation.",);
+        }
+        Some(Status::DelegationResult) => {
+            send_to_delivery = true;
+            delegated = true;
+        }
+        Some(Status::Deny(code)) => {
+            for rcpt in &mut mail_context.envelop.rcpt {
+                rcpt.email_status = EmailTransferStatus::Failed {
+                    timestamp: std::time::SystemTime::now(),
+                    reason: format!("rule engine denied the message in postq: {code:?}."),
+                };
+            }
+
+            write_to_queue = Some(Queue::Dead);
+        }
+        Some(reason) => {
             log::warn!(
                 target: log_channels::POSTQ,
-                "(msg={}) delivery skipped because all recipient's transfer method is set to None.",
-                process_message.message_id,
+                "skipped due to '{}'.",
+                reason.as_ref()
             );
-            Queue::Dead
+            write_to_queue = Some(Queue::Deliver);
+            send_to_delivery = true;
         }
-        _ => Queue::Deliver,
+        None => {
+            write_to_queue = Some(Queue::Deliver);
+            send_to_delivery = true;
+        }
     };
 
-    queue
-        .write_to_queue(&config.server.queues.dirpath, &ctx)
-        .context(format!(
-            "failed to move '{}' from delivery queue to deferred queue",
-            process_message.message_id
-        ))?;
+    // FIXME: sending the email down a ProcessMessage instead
+    //        of writing on disk would be great here.
+    if write_email {
+        mail_message
+            .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+            .map_err(MailHandlerError::WriteMessageBody)?;
 
-    if queue != Queue::Dead {
-        delivery_sender
-            .send(ProcessMessage {
-                message_id: process_message.message_id.to_string(),
-            })
-            .await?;
+        log::debug!(
+            target: log_channels::TRANSACTION,
+            "(msg={}) email written in 'mails' queue.",
+            process_message.message_id
+        );
     }
 
-    std::fs::remove_file(&context_filepath).context(format!(
-        "failed to remove '{}' from the working queue",
-        process_message.message_id
-    ))?;
+    if let Some(next_queue) = write_to_queue {
+        queue.move_to(&next_queue, &config.server.queues.dirpath, &mail_context)?;
+    }
+
+    if send_to_delivery {
+        delivery_sender
+            .send(ProcessMessage {
+                message_id: process_message.message_id.clone(),
+                delegated,
+            })
+            .await
+            .map_err(|error| MailHandlerError::SendToNextProcess(Process::Delivery, error))?;
+    }
 
     Ok(())
 }
@@ -240,6 +255,7 @@ mod tests {
             resolvers,
             ProcessMessage {
                 message_id: "not_such_message_named_like_this".to_string(),
+                delegated: false,
             },
             delivery_sender,
         )
@@ -272,12 +288,16 @@ mod tests {
                             Rcpt {
                                 address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Deliver,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                             Rcpt {
                                 address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                         ],
                     },
@@ -319,6 +339,7 @@ mod tests {
             resolvers,
             ProcessMessage {
                 message_id: "test".to_string(),
+                delegated: false,
             },
             delivery_sender,
         )
@@ -355,12 +376,16 @@ mod tests {
                             Rcpt {
                                 address: addr!("to+1@client.com"),
                                 transfer_method: Transfer::Deliver,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                             Rcpt {
                                 address: addr!("to+2@client.com"),
                                 transfer_method: Transfer::Maildir,
-                                email_status: EmailTransferStatus::Waiting,
+                                email_status: EmailTransferStatus::Waiting {
+                                    timestamp: std::time::SystemTime::now(),
+                                },
                             },
                         ],
                     },
@@ -405,6 +430,7 @@ mod tests {
             resolvers,
             ProcessMessage {
                 message_id: "test_denied".to_string(),
+                delegated: false,
             },
             delivery_sender,
         )

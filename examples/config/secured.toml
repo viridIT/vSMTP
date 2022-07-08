@@ -32,15 +32,15 @@ name_servers = []
 #  that must appear before a query is assumed to include the TLD. The default is one, which
 #  means that `www` would never be assumed to be a TLD, and would always be appended to either
 #  the search
-ndots = 1
+## ndots = 1
 # Number of retries after lookup failure before giving up. Defaults to 2
 attempts = 2
 # Rotate through the resource records in the response (if there is more than one for a given name)
 rotate = false
 # Enable edns, for larger records
-edns0 = false
+## edns0 = false
 # Use DNSSec to validate the request
-validate = false
+## validate = false
 # The ip_strategy for the Resolver to use when lookup Ipv4 or Ipv6 addresses
 ip_strategy = "Ipv4thenIpv6"
 # Cache size is in number of records (some records can be large)
@@ -53,9 +53,9 @@ use_hosts_file = true
 # to a number of servers in parallel. Defaults to 2; 0 or 1 will execute requests serially.
 num_concurrent_reqs = 2
 # Preserve all intermediate records in the lookup response, suchas CNAME records
-preserve_intermediates = true
+## preserve_intermediates = true
 # Try queries over TCP if they fail over UDP.
-try_tcp_on_error = false
+## try_tcp_on_error = false
 
 [server.smtp]
 rcpt_count_max = 25

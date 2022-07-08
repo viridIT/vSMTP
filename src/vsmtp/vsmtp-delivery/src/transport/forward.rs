@@ -119,7 +119,7 @@ impl<'r> Forward<'r> {
 #[async_trait::async_trait]
 impl<'r> Transport for Forward<'r> {
     async fn deliver(
-        &mut self,
+        mut self,
         config: &Config,
         metadata: &MessageMetadata,
         from: &vsmtp_common::Address,
@@ -135,7 +135,9 @@ impl<'r> Transport for Forward<'r> {
                 );
 
                 for i in &mut to {
-                    i.email_status = EmailTransferStatus::Sent;
+                    i.email_status = EmailTransferStatus::Sent {
+                        timestamp: std::time::SystemTime::now(),
+                    }
                 }
             }
             Err(error) => {
@@ -146,10 +148,7 @@ impl<'r> Transport for Forward<'r> {
                     error = error
                 );
                 for i in &mut to {
-                    i.email_status = EmailTransferStatus::HeldBack(match i.email_status {
-                        EmailTransferStatus::HeldBack(count) => count + 1,
-                        _ => 0,
-                    });
+                    i.email_status.held_back(error.to_string());
                 }
             }
         }

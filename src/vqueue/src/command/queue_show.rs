@@ -120,6 +120,7 @@ mod tests {
             [
                 "WORKING    is at './tmp/empty/working' :\t<EMPTY>\n",
                 "DELIVER    is at './tmp/empty/deliver' :\t<EMPTY>\n",
+                "DELEGATED  is at './tmp/empty/delegated' :\t<EMPTY>\n",
                 "DEFERRED   is at './tmp/empty/deferred' :\t<EMPTY>\n",
                 "DEAD       is at './tmp/empty/dead' :\t<EMPTY>\n"
             ]
@@ -144,6 +145,7 @@ mod tests {
             [
                 "WORKING    is at './tmp/missing/working' :\t<MISSING>\n",
                 "DELIVER    is at './tmp/missing/deliver' :\t<MISSING>\n",
+                "DELEGATED  is at './tmp/missing/delegated' :\t<MISSING>\n",
                 "DEFERRED   is at './tmp/missing/deferred' :\t<MISSING>\n",
                 "DEAD       is at './tmp/missing/dead' :\t<MISSING>\n"
             ]
@@ -168,7 +170,9 @@ mod tests {
                 rcpt: vec![Rcpt {
                     address: addr!("foo+1@domain.com"),
                     transfer_method: Transfer::Mbox,
-                    email_status: EmailTransferStatus::Waiting,
+                    email_status: EmailTransferStatus::Waiting {
+                        timestamp: std::time::SystemTime::now(),
+                    },
                 }],
             },
             metadata: Some(MessageMetadata {
@@ -199,6 +203,7 @@ mod tests {
             [
                 "WORKING    is at './tmp/one_error/working' :\t<EMPTY>\twith 1 error\n",
                 "DELIVER    is at './tmp/one_error/deliver' :\t<MISSING>\n",
+                "DELEGATED  is at './tmp/one_error/delegated' :\t<MISSING>\n",
                 "DEFERRED   is at './tmp/one_error/deferred' :\t<MISSING>\n",
                 "DEAD       is at './tmp/one_error/dead' :\t<MISSING>\n"
             ]
@@ -232,6 +237,7 @@ mod tests {
             [
                 "WORKING    is at './tmp/dead_with_one/working' :\t<EMPTY>\n",
                 "DELIVER    is at './tmp/dead_with_one/deliver' :\t<MISSING>\n",
+                "DELEGATED  is at './tmp/dead_with_one/delegated' :\t<MISSING>\n",
                 "DEFERRED   is at './tmp/dead_with_one/deferred' :\t<MISSING>\n",
                 "DEAD       is at './tmp/dead_with_one/dead' :\n",
                 "                        T    5   10   20   40   80  160  320  640 1280 1280+\n",

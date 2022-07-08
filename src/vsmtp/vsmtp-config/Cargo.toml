@@ -2,7 +2,7 @@
 edition = "2021"
 
 name = "vsmtp-config"
-version = "1.1.0"
+version = "1.1.2"
 license = "GPL-3.0-only"
 
 rust-version = "1.58"
@@ -18,8 +18,13 @@ readme = "../../../README.md"
 keywords = ["vsmtp"]
 categories = ["data-structures"]
 
+[package.metadata.release]
+pre-release-replacements = [
+  { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+]
+
 [dependencies]
-vsmtp-common = { path = "../vsmtp-common", version = "1.1.0", default-features = false }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.2" }
 
 log4rs = { version = "1.1.1", default-features = false, features = [
   "rolling_file_appender",
@@ -31,7 +36,7 @@ log4rs = { version = "1.1.1", default-features = false, features = [
 ] }
 users = { version = "0.11.0", features = [] }
 
-serde = { version = "1.0.137", features = ["derive"] }
+serde = { version = "1.0.138", features = ["derive"] }
 serde_derive = "1.0.136"
 humantime-serde = "1.1.1"
 

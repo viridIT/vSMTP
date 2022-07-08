@@ -85,7 +85,7 @@ fn test_check_relay() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::RcptTo),
-        Status::Deny(ReplyOrCodeID::Right(Reply::new(
+        Status::Info(ReplyOrCodeID::Right(Reply::new(
             Enhanced {
                 code: 554,
                 enhanced: "5.7.1".to_string()

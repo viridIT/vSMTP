@@ -119,9 +119,11 @@ pub enum RuntimeError {
     },
 }
 
+#[macro_export]
+/// checks if the mutex is poisoned & return a rhai runtime error if it is.
 macro_rules! vsl_guard_ok {
     ($guard:expr) => {
-        $guard.map_err::<Box<EvalAltResult>, _>(|e| {
+        $guard.map_err::<Box<rhai::EvalAltResult>, _>(|e| {
             $crate::error::RuntimeError::PoisonedGuard {
                 source: vsmtp_common::re::anyhow::anyhow!("{e}"),
             }

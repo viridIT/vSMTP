@@ -17,7 +17,7 @@
 use crate::modules::types::types::{Context, Message};
 use crate::modules::EngineResult;
 use rhai::plugin::{
-    mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
+    mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
 use vsmtp_common::{rcpt::Rcpt, Address};

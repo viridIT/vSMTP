@@ -134,6 +134,26 @@ impl MessageBody {
         Ok(())
     }
 
+    /// # Errors
+    pub async fn read_mail_message(
+        dirpath: &std::path::Path,
+        id: &str,
+    ) -> anyhow::Result<MessageBody> {
+        use anyhow::Context;
+
+        let message_filepath = std::path::PathBuf::from_iter([
+            dirpath.to_path_buf(),
+            "mails".into(),
+            format!("{id}.eml").into(),
+        ]);
+
+        let content = tokio::fs::read_to_string(&message_filepath)
+            .await
+            .with_context(|| format!("Cannot read file '{}'", message_filepath.display()))?;
+
+        Self::try_from(content.as_str())
+    }
+
     /// get the value of an header, return None if it does not exists or when the body is empty.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<String> {

@@ -23,6 +23,7 @@ mod log_channels {
     pub const DEFERRED: &str = "server::processes::deferred";
     pub const DELIVERY: &str = "server::processes::delivery";
     pub const POSTQ: &str = "server::processes::postq";
+    pub const PREQ: &str = "server::processes::preq";
 }
 
 mod channel_message;
@@ -32,6 +33,7 @@ mod receiver;
 mod runtime;
 mod server;
 
+use lettre::Transport;
 pub use receiver::MailHandler;
 
 /// SMTP auth extension implementation
@@ -41,52 +43,52 @@ pub use receiver::{handle_connection, AbstractIO, Connection, OnMail};
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
+/// tag for a specific email process.
+#[derive(Debug, vsmtp_common::re::strum::Display)]
+pub enum Process {
+    /// The server handle clients, parse commands & store emails at this stage.
+    Receiver,
+    /// The server handle emails "offline", the client is no longer communicating.
+    Processing,
+    /// The server is going to deliver the email locally or to another server.
+    Delivery,
+}
+
 use vsmtp_common::{
     mail_context::MailContext,
     re::{
         anyhow::{self, Context},
-        serde_json, tokio,
+        lettre,
     },
+    transfer::SmtpConnection,
     MessageBody,
 };
 
-pub(crate) async fn context_from_file_path(file: &std::path::Path) -> anyhow::Result<MailContext> {
-    let content = tokio::fs::read_to_string(&file)
-        .await
-        .with_context(|| format!("Cannot read file '{}'", file.display()))?;
+/// delegate a message to another service.
+pub(crate) fn delegate(
+    delegator: &SmtpConnection,
+    context: &MailContext,
+    message: &MessageBody,
+) -> anyhow::Result<lettre::transport::smtp::response::Response> {
+    let envelope = lettre::address::Envelope::new(
+        Some(context.envelop.mail_from.full().parse()?),
+        context
+            .envelop
+            .rcpt
+            .iter()
+            .map(|rcpt| {
+                rcpt.address
+                    .full()
+                    .parse::<lettre::Address>()
+                    .with_context(|| format!("failed to parse address {}", rcpt.address.full()))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?,
+    )?;
 
-    serde_json::from_str::<MailContext>(&content)
-        .with_context(|| format!("Cannot deserialize: '{content:?}'"))
-}
-
-/// Return a message body from a file path.
-/// Try to parse the file as JSON, if it fails, try to parse it as plain text.
-///
-/// # Errors
-///
-/// * file(s) not found
-/// * file found but failed to read
-/// * file read but failed to serialize
-pub async fn message_from_file_path(
-    mut filepath: std::path::PathBuf,
-) -> anyhow::Result<MessageBody> {
-    filepath.set_extension("json");
-    if filepath.exists() {
-        let content = tokio::fs::read_to_string(&filepath)
-            .await
-            .with_context(|| format!("Cannot read file '{}'", filepath.display()))?;
-
-        return serde_json::from_str::<MessageBody>(&content)
-            .with_context(|| format!("Cannot deserialize: '{content:?}'"));
-    }
-
-    filepath.set_extension("eml");
-    if filepath.exists() {
-        let content = tokio::fs::read_to_string(&filepath)
-            .await
-            .with_context(|| format!("Cannot read file '{}'", filepath.display()))?;
-
-        return MessageBody::try_from(content.as_str());
-    }
-    anyhow::bail!("failed does not exist")
+    delegator
+        .0
+        .lock()
+        .unwrap()
+        .send_raw(&envelope, message.inner().to_string().as_bytes())
+        .context("failed to delegate email")
 }
