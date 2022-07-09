@@ -104,36 +104,6 @@ assets = [
     "usr/share/doc/vsmtp/README",
     "644",
   ],
-  [
-    "examples/vsl/actions/*",
-    "usr/share/doc/vsmtp/vsl/actions/",
-    "644",
-  ],
-  [
-    "examples/vsl/rules/*",
-    "usr/share/doc/vsmtp/vsl/rules/",
-    "644",
-  ],
-  [
-    "examples/config/*",
-    "usr/share/doc/vsmtp/config/",
-    "644",
-  ],
-  [
-    "examples/config/antivirus/*",
-    "usr/share/doc/vsmtp/config/antivirus/",
-    "644",
-  ],
-  [
-    "examples/config/auth/*",
-    "usr/share/doc/vsmtp/config/auth/",
-    "644",
-  ],
-  [
-    "examples/config/tls/*",
-    "usr/share/doc/vsmtp/config/tls/",
-    "644",
-  ],
 ]
 maintainer-scripts = "./tools/install/deb/"
 systemd-units = { unit-name = "vsmtp", enable = true, start = false }
