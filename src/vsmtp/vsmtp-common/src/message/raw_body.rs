@@ -87,7 +87,7 @@ impl RawBody {
 
     ///
     #[must_use]
-    pub fn get_header(&self, name: &str) -> Option<String> {
+    pub fn get_header(&self, name: &str, with_key: bool) -> Option<String> {
         for (idx, header) in self.headers.iter().enumerate() {
             if header.starts_with(' ') || header.starts_with('\t') {
                 continue;
@@ -95,14 +95,18 @@ impl RawBody {
             let mut split = header.splitn(2, ':');
             match (split.next(), split.next()) {
                 (Some(key), Some(value)) if key.to_lowercase() == name.to_lowercase() => {
-                    let mut s = value.to_string();
+                    let mut value = value.to_string();
                     for i in self.headers[idx + 1..]
                         .iter()
                         .take_while(|s| s.starts_with(' ') || s.starts_with('\t'))
                     {
-                        s.push_str(i);
+                        value.push_str(i);
                     }
-                    return Some(s.trim_start().to_string());
+                    return Some(if with_key {
+                        format!("{key}:{value}", value = value.trim_start())
+                    } else {
+                        value.trim_start().to_string()
+                    });
                 }
                 (Some(_), Some(_)) => continue,
                 _ => break,

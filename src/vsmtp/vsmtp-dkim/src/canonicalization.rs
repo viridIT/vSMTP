@@ -27,12 +27,12 @@ pub enum CanonicalizationAlgorithm {
 }
 
 impl CanonicalizationAlgorithm {
-    fn trim_whitespace(s: &str) -> String {
-        let mut new_str = s.trim().to_owned();
-        let mut prev = ' ';
+    fn dedup_whitespaces(s: &str) -> String {
+        let mut new_str = s.to_owned();
+        let mut prev = None;
         new_str.retain(|ch| {
-            let result = ch != ' ' || prev != ' ';
-            prev = ch;
+            let result = ch != ' ' || prev != Some(' ');
+            prev = Some(ch);
             result
         });
         new_str
@@ -40,10 +40,10 @@ impl CanonicalizationAlgorithm {
 
     ///
     #[must_use]
-    pub fn canonicalize_body(self, input: &str) -> String {
+    pub fn canonicalize_body(self, body: &str) -> String {
         match self {
             CanonicalizationAlgorithm::Relaxed => {
-                let mut s = Self::trim_whitespace(&input.replace('\t', " "));
+                let mut s = Self::dedup_whitespaces(&body.replace('\t', " "));
 
                 while let Some(idx) = s.find(" \r\n") {
                     s.remove(idx);
@@ -62,11 +62,11 @@ impl CanonicalizationAlgorithm {
                 s
             }
             CanonicalizationAlgorithm::Simple => {
-                if input.is_empty() {
+                if body.is_empty() {
                     return "\r\n".to_string();
                 }
 
-                let mut i = input;
+                let mut i = body;
                 while i.ends_with("\r\n\r\n") {
                     i = &i[..i.len() - 2];
                 }
@@ -77,19 +77,31 @@ impl CanonicalizationAlgorithm {
     }
 
     ///
+    /// # Panics
     #[must_use]
-    pub fn canonicalize_header(self, key: &str, value: &str) -> String {
+    pub fn canonicalize_header(self, headers: &[String]) -> String {
         match self {
-            CanonicalizationAlgorithm::Relaxed => {
-                format!(
-                    "{}:{}\r\n",
-                    key.to_lowercase().trim_end(),
-                    Self::trim_whitespace(&value.replace('\t', " "))
-                )
-            }
-            CanonicalizationAlgorithm::Simple => {
-                format!("{key}:{value}\r\n")
-            }
+            CanonicalizationAlgorithm::Relaxed => headers
+                .iter()
+                .map(|s| {
+                    dbg!(&s);
+                    let mut words = s.splitn(2, ':');
+                    match (words.next(), words.next()) {
+                        (Some(key), Some(value)) => {
+                            format!(
+                                "{}:{}\r\n",
+                                key.to_lowercase().trim_end(),
+                                Self::dedup_whitespaces(
+                                    &value.replace('\t', " ").replace("\r\n", " ")
+                                )
+                                .trim()
+                            )
+                        }
+                        _ => todo!(),
+                    }
+                })
+                .collect::<String>(),
+            CanonicalizationAlgorithm::Simple => headers.join(""),
         }
     }
 }
@@ -127,5 +139,83 @@ impl std::str::FromStr for Canonicalization {
                 CanonicalizationAlgorithm::from_str,
             )?,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use vsmtp_common::RawBody;
+
+    use crate::{CanonicalizationAlgorithm, SigningAlgorithm};
+
+    #[test]
+    fn simple_empty_body_rsa_sha1() {
+        assert_eq!(
+            base64::encode(
+                SigningAlgorithm::RsaSha1
+                    .hash(CanonicalizationAlgorithm::Simple.canonicalize_body(""))
+            ),
+            "uoq1oCgLlTqpdDX/iUbLy7J1Wic="
+        );
+    }
+
+    #[test]
+    fn simple_empty_body_rsa_sha256() {
+        assert_eq!(
+            base64::encode(
+                SigningAlgorithm::RsaSha256
+                    .hash(CanonicalizationAlgorithm::Simple.canonicalize_body(""))
+            ),
+            "frcCV1k9oG9oKj3dpUqdJg1PxRT2RSN/XKdLCPjaYaY="
+        );
+    }
+
+    #[test]
+    fn relaxed_empty_body_rsa_sha1() {
+        assert_eq!(
+            base64::encode(
+                SigningAlgorithm::RsaSha1
+                    .hash(CanonicalizationAlgorithm::Relaxed.canonicalize_body(""))
+            ),
+            "2jmj7l5rSw0yVb/vlWAYkK/YBwk="
+        );
+    }
+
+    #[test]
+    fn relaxed_empty_body_rsa_sha256() {
+        assert_eq!(
+            base64::encode(
+                SigningAlgorithm::RsaSha256
+                    .hash(CanonicalizationAlgorithm::Relaxed.canonicalize_body(""))
+            ),
+            "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+        );
+    }
+
+    #[test]
+    fn canonicalize() {
+        let msg = RawBody::new(
+            vec![
+                "A: X\r\n".to_string(),
+                "B : Y\t\r\n".to_string(),
+                "\tZ  \r\n".to_string(),
+            ],
+            concat!(" C \r\n", "D \t E\r\n", "\r\n", "\r\n").to_string(),
+        );
+
+        assert_eq!(
+            CanonicalizationAlgorithm::Relaxed.canonicalize_header(
+                &msg.headers()
+                    .into_iter()
+                    .map(|(key, value)| format!("{key}:{value}"))
+                    .collect::<Vec<_>>()[..]
+            ),
+            concat!("a:X\r\n", "b:Y Z\r\n")
+        );
+
+        assert_eq!(
+            CanonicalizationAlgorithm::Relaxed.canonicalize_body(msg.body().as_ref().unwrap()),
+            concat!(" C\r\n", "D E\r\n")
+        );
     }
 }

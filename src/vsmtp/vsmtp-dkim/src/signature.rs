@@ -138,33 +138,25 @@ impl Signature {
     /// header is missing
     #[must_use]
     pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
-        let headers = self
-            .headers_field
-            .iter()
-            .map(|i| {
-                self.canonicalization.header.canonicalize_header(
-                    i,
-                    &message
-                        .get_header(i)
-                        .unwrap_or_else(|| todo!("header missing {i}")),
-                )
-            })
-            .collect::<String>();
+        let mut headers = self.canonicalization.header.canonicalize_header(
+            &self
+                .headers_field
+                .iter()
+                .filter_map(|h| message.get_header(h, true))
+                .collect::<Vec<_>>(),
+        );
 
-        let mut a = format!(
-            "{headers}{}",
-            self.canonicalization.header.canonicalize_header(
-                "dkim-signature",
-                &self.raw["dkim-signature:".len()..]
-                    .replace(&self.signature, "")
-                    .replace("\r\n", "")
-            )
+        headers.push_str(
+            &self
+                .canonicalization
+                .header
+                .canonicalize_header(&[self.raw.replace(&self.signature, "").replace("\r\n", "")]),
         );
 
         // remove the final "\r\n"
-        a.pop();
-        a.pop();
-        self.signing_algorithm.hash(a)
+        headers.pop();
+        headers.pop();
+        self.signing_algorithm.hash(headers)
     }
 }
 

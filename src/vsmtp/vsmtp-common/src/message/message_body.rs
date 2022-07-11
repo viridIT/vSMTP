@@ -158,7 +158,7 @@ impl MessageBody {
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<String> {
         self.parsed.as_ref().map_or_else(
-            || self.raw.get_header(name),
+            || self.raw.get_header(name, false),
             |p| p.get_header(name).map(str::to_string),
         )
     }
