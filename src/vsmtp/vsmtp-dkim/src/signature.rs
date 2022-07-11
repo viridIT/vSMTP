@@ -133,15 +133,13 @@ impl Signature {
     }
 
     ///
-    /// # Panics
-    ///
-    /// header is missing
     #[must_use]
     pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
         let mut headers = self.canonicalization.header.canonicalize_header(
             &self
                 .headers_field
                 .iter()
+                // TODO: see https://datatracker.ietf.org/doc/html/rfc6376#section-5.4.2
                 .filter_map(|h| message.get_header(h, true))
                 .collect::<Vec<_>>(),
         );

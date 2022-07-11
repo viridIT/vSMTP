@@ -19,6 +19,7 @@
         "cpus",
         "dirpath",
         "dnssec",
+        "domainkey",
         "ehlo",
         "ENHANCEDSTATUSCODES",
         "ESMTPA",
