@@ -158,26 +158,41 @@ async fn handle_one_in_delivery_queue_inner(
 
             return Ok(());
         }
-        Some(Status::Delegated(delegator)) => {
-            mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
+        Some(Status::Delegated {
+            delegator,
+            receiver,
+        }) => {
+            // we expect the email to be sent back to vsmtp, we move the mail to the delegated queue.
+            if *receiver {
+                mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
+                // FIXME: find a way to use `write_to_queue` instead to be consistant
+                //        with the rest of the function.
+                // NOTE:  moving here because the delegation process could try to
+                //        pickup the email before it's written on disk.
+                queue.move_to(
+                    &Queue::Delegated,
+                    &config.server.queues.dirpath,
+                    &mail_context,
+                )?;
 
-            queue.move_to(
-                &Queue::Delegated,
-                &config.server.queues.dirpath,
-                &mail_context,
-            )?;
-
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+                Queue::write_to_mails(
+                    &config.server.queues.dirpath,
+                    &process_message.message_id,
+                    &mail_message,
+                )
+                .map_err(MailHandlerError::WriteMessageBody)?;
+            }
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
             delegate(delegator, &mail_context, &mail_message)
                 .map_err(MailHandlerError::DelegateMessage)?;
+
+            if !*receiver {
+                // we do not expect the email to be sent back to vsmtp: fire and forget.
+                queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+                Queue::remove_mail(&config.server.queues.dirpath, &process_message.message_id)?;
+            }
 
             log::warn!(target: log_channels::DELIVERY, "skipped due to delegation.",);
 

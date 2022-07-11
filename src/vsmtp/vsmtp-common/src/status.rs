@@ -46,7 +46,12 @@ pub enum Status {
 
     /// the email as been delegated to another service.
     #[serde(skip)]
-    Delegated(SmtpConnection),
+    Delegated {
+        /// the connexion used to send the email.
+        delegator: SmtpConnection,
+        /// do we expect the service to send the email back ?
+        receiver: bool,
+    },
 
     /// the rule engine must skip all rules until a given
     /// rule received in the email's header.
@@ -58,11 +63,9 @@ impl Status {
     /// the next rules.
     #[must_use]
     pub const fn stop(&self) -> bool {
-        match self {
-            Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated(_) => {
-                true
-            }
-            _ => false,
-        }
+        matches!(
+            self,
+            Status::Faccept(_) | Status::Deny(_) | Status::Quarantine(_) | Status::Delegated { .. }
+        )
     }
 }

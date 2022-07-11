@@ -79,7 +79,11 @@ impl Directive {
                 service,
                 name,
             } => {
-                if let Service::Smtp { delegator, .. } = &**service {
+                if let Service::Smtp {
+                    delegator,
+                    receiver,
+                } = &**service
+                {
                     let args = vsl_guard_ok!(state.message().read())
                         .get_header("X-VSMTP-DELEGATION")
                         .and_then(|header| {
@@ -115,7 +119,10 @@ impl Directive {
                                 ),
                             );
 
-                            Ok(Status::Delegated(delegator.clone()))
+                            Ok(Status::Delegated {
+                                delegator: delegator.clone(),
+                                receiver: receiver.is_some(),
+                            })
                         }
                     };
                 }

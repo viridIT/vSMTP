@@ -58,8 +58,9 @@ pub enum Service {
     Smtp {
         /// A transport to handle transactions to the delegate.
         delegator: SmtpConnection,
-        /// Delegation results address.
-        receiver: std::net::SocketAddr,
+        /// Delegation results address. If set to None,
+        /// then the server completely delegate the message.
+        receiver: Option<std::net::SocketAddr>,
     },
 }
 

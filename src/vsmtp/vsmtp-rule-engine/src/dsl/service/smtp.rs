@@ -64,9 +64,12 @@ pub fn parse_smtp_service(
             "smtp service options must be a map".into()
         })?;
 
-    let receiver_addr = get_or_default::<String>(service_name, &options, "receiver", None)?
-        .parse::<std::net::SocketAddr>()
-        .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+    let receiver_addr = get_or_default::<String>(service_name, &options, "receiver", None)
+        .ok()
+        .map(|addr| {
+            addr.parse::<std::net::SocketAddr>()
+                .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())
+        });
 
     // TODO: add a 'unix'/'net' modifier.
     let delegator: rhai::Map = get_or_default(service_name, &options, "delegator", None)?;
@@ -88,6 +91,10 @@ pub fn parse_smtp_service(
                     .build(),
             )))
         },
-        receiver: receiver_addr,
+        receiver: if let Some(receiver_addr) = receiver_addr {
+            Some(receiver_addr?)
+        } else {
+            None
+        },
     })
 }

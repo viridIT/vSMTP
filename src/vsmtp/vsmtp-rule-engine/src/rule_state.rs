@@ -109,7 +109,9 @@ impl RuleState {
             .flat_map(|(_, d)| d)
             .any(|d| match d {
                 Directive::Delegation { service, .. } => match &**service {
-                    crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
+                    crate::Service::Smtp { receiver, .. } => receiver
+                        .as_ref()
+                        .map_or(false, |addr| *addr == conn.server_address),
                     _ => false,
                 },
                 _ => false,

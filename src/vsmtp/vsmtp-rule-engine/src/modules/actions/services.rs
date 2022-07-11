@@ -157,7 +157,9 @@ pub mod services {
         service: &mut std::sync::Arc<Service>,
     ) -> EngineResult<String> {
         match &**service {
-            Service::Smtp { receiver, .. } => Ok(receiver.to_string()),
+            Service::Smtp { receiver, .. } => Ok(receiver
+                .as_ref()
+                .map_or(String::default(), std::string::ToString::to_string)),
             _ => Err("only a smtp service has a receiver address".into()),
         }
     }
