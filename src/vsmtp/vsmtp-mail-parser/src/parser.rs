@@ -469,14 +469,15 @@ fn check_mandatory_headers(headers: &[(String, String)]) -> ParserResult<()> {
 ///
 /// * `name` - the name of the header.
 /// * `value` - the value of the header (with all params, folded included if any).
-fn get_mime_header(name: &str, value: &str) -> MimeHeader {
+#[must_use]
+pub fn get_mime_header(name: &str, value: &str) -> MimeHeader {
     // cut the current line using the ";" separator into a vector of "arg=value" strings.
     let args = value.split(';').collect::<Vec<&str>>();
     let mut args_iter = args.iter();
 
     MimeHeader {
         name: name.to_string(),
-        value: args_iter.next().unwrap().trim().to_lowercase(),
+        value: args_iter.next().unwrap_or(&"").trim().to_lowercase(),
 
         // split every element of args by the "=" token (if there are any parameters).
         // inserts all resulting key / value pair into new_args.

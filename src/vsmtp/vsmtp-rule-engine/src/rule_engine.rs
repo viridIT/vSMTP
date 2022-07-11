@@ -18,6 +18,9 @@ use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::packages::Package;
 use rhai::{plugin::EvalAltResult, Engine, Scope, AST};
+use vsmtp_common::mail_context::MailContext;
+use vsmtp_common::queue::Queue;
+use vsmtp_common::queue_path;
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
@@ -166,21 +169,78 @@ impl RuleEngine {
         })
     }
 
+    // FIXME: delegation handling to refactor.
     /// runs all rules from a stage using the current transaction state.
+    ///
+    /// the `server_address` parameter is used to distinguish logs from each other,
+    /// printing the address & port associated with this run session, not the current
+    /// context. (because the context could have been pulled from the filesystem when
+    /// receiving delegation results)
     /// # Panics
     pub fn run_when(&self, rule_state: &mut RuleState, smtp_state: &StateSMTP) -> Status {
         if let Some(directive_set) = self.directives.get(&smtp_state.to_string()) {
             // check if we need to skip directive execution or resume because of a delegation.
             let directive_set = match rule_state.skipped() {
-                Some(status @ Status::DelegationResult(resume_here)) => {
-                    if let Some(d) = directive_set
-                        .iter()
-                        .position(|directive| directive.name() == resume_here)
+                Some(Status::DelegationResult) if smtp_state.email_received() => {
+                    if let Some(header) = rule_state
+                        .message()
+                        .read()
+                        .unwrap()
+                        .get_header("X-VSMTP-DELEGATION")
                     {
-                        rule_state.resume();
-                        &directive_set[d..]
+                        let header =
+                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
+
+                        let (stage, directive_name, message_id) = match (
+                            header.args.get("stage"),
+                            header.args.get("directive"),
+                            header.args.get("id"),
+                        ) {
+                            (Some(stage), Some(directive_name), Some(message_id)) => {
+                                (stage, directive_name, message_id)
+                            }
+                            _ => return Status::DelegationResult,
+                        };
+
+                        if *stage == smtp_state.to_string() {
+                            if let Some(d) = directive_set
+                                .iter()
+                                .position(|directive| directive.name() == directive_name)
+                            {
+                                // If delegation results are coming in and that this is the correct
+                                // directive that has been delegated, we need to pull
+                                // the old context because its state has been lost
+                                // when the delegation happened.
+                                //
+                                // There is however no need to discard the old email because it
+                                // will be overridden by the results once it's time to write
+                                // in the 'mail' queue.
+                                let path_to_context = queue_path!(
+                                    &rule_state.server.config.server.queues.dirpath,
+                                    Queue::Delegated,
+                                    message_id
+                                );
+
+                                // FIXME: this is only useful for preq, the other processes
+                                //        already fetch the old context.
+                                match MailContext::from_file_path_sync(&path_to_context) {
+                                    Ok(mut context) => {
+                                        context.metadata.as_mut().unwrap().skipped = None;
+                                        *rule_state.context().write().unwrap() = context;
+                                    },
+                                    Err(err) => log::error!(target: log_channels::RE, "[{}] tried to get old mail context '{}' from the working queue after a delegation, but: {}", smtp_state, message_id, err)
+                                };
+
+                                rule_state.resume();
+                                &directive_set[d..]
+                            } else {
+                                return Status::DelegationResult;
+                            }
+                        } else {
+                            return Status::DelegationResult;
+                        }
                     } else {
-                        return (*status).clone();
+                        return Status::DelegationResult;
                     }
                 }
                 Some(status) => return (*status).clone(),
@@ -227,7 +287,7 @@ impl RuleEngine {
         let mut status = Status::Next;
 
         for directive in directives {
-            status = directive.execute(state, &self.ast)?;
+            status = directive.execute(state, &self.ast, smtp_state)?;
 
             log::debug!(
                 target: log_channels::RE,
@@ -245,7 +305,7 @@ impl RuleEngine {
 
         log::debug!(
             target: log_channels::RE,
-            "[{}] evaluated => {:?}.",
+            "[{}] stage evaluated => {:?}.",
             smtp_state,
             status
         );
@@ -329,6 +389,8 @@ impl RuleEngine {
             .context("failed to create a module from vsl's api.")
     }
 
+    // FIXME: could be easily refactored.
+    //        every `ok_or_else` could be replaced by an unwrap here.
     /// extract rules & actions from the main vsl script.
     fn extract_directives(engine: &rhai::Engine, ast: &rhai::AST) -> anyhow::Result<Directives> {
         let mut scope = Scope::new();
@@ -345,47 +407,53 @@ impl RuleEngine {
         let mut directives = Directives::new();
 
         for (stage, directive_set) in raw_directives {
-            if StateSMTP::try_from(stage.as_str()).is_err() {
-                anyhow::bail!("the '{}' smtp stage does not exist.", stage);
-            }
+            let stage = match StateSMTP::try_from(stage.as_str()) {
+                Ok(stage) => stage,
+                Err(_) => anyhow::bail!("the '{}' smtp stage does not exist.", stage),
+            };
 
             let directive_set = directive_set
                 .try_cast::<rhai::Array>()
                 .ok_or_else(|| {
-                    anyhow::anyhow!("the stage {} must be declared with an array", stage)
+                    anyhow::anyhow!("the stage '{}' must be declared using the array syntax", stage)
                 })?
                 .into_iter()
                 .map(|rule| {
                     let map = rule.try_cast::<rhai::Map>().unwrap();
                     let directive_type = map
                         .get("type")
-                        .ok_or_else(|| anyhow::anyhow!("a directive in stage {} does not have a valid type", stage))?
+                        .ok_or_else(|| anyhow::anyhow!("a directive in stage '{}' does not have a valid type", stage))?
                         .to_string();
                     let name = map
                         .get("name")
-                        .ok_or_else(|| anyhow::anyhow!("a directive in stage {} does not have a name", stage))?
+                        .ok_or_else(|| anyhow::anyhow!("a directive in stage '{}' does not have a name", stage))?
                         .to_string();
                     let pointer = map
                         .get("evaluate")
-                        .ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} does not have an evaluation function", stage, name))?
+                        .ok_or_else(|| anyhow::anyhow!("the directive '{}' in stage '{}' does not have an evaluation function", stage, name))?
 			.clone()
 			.try_cast::<rhai::FnPtr>()
-			.ok_or_else(|| anyhow::anyhow!("the directive {} in stage {} evaluation field must be a function pointer", stage, name))?;
+			.ok_or_else(|| anyhow::anyhow!("the evaluation field for the directive '{}' in stage '{}' must be a function pointer", stage, name))?;
 
                     let directive =
                         match directive_type.as_str() {
                             "rule" => Directive::Rule { name, pointer },
                             "action" => Directive::Action { name, pointer },
-			     "delegate" => {
-				let service = map
-				    .get("service")
-				    .ok_or_else(|| anyhow::anyhow!("the delegation {} in stage {} does not have a service to delegate processing to", name, stage))?
-				    .clone()
-				    .try_cast::<std::sync::Arc<Service>>()
-				    .ok_or_else(|| anyhow::anyhow!("the field after the delegate keyword in delegation {} in stage {} must be a service", name, stage))?;
-				Directive::Delegation { name, pointer, service}
-			    },
-                            unknown => anyhow::bail!("unknown directive '{}'", unknown),
+			                "delegate" => {
+
+                                if !stage.email_received() {
+                                    anyhow::bail!("invalid delegation '{}' in stage '{}': delegation directives are available from the 'postq' stage and onwards.", name, stage);
+                                }
+
+                                let service = map
+                                    .get("service")
+                                    .ok_or_else(|| anyhow::anyhow!("the delegation '{}' in stage '{}' does not have a service to delegate processing to", name, stage))?
+                                    .clone()
+                                    .try_cast::<std::sync::Arc<Service>>()
+                                    .ok_or_else(|| anyhow::anyhow!("the field after the 'delegate' keyword in the directive '{}' in stage '{}' must be a smtp service", name, stage))?;
+                                Directive::Delegation { name, pointer, service }
+                            },
+                            unknown => anyhow::bail!("unknown directive type '{}' called '{}'", unknown, name),
                         };
 
                     Ok(directive)
@@ -401,7 +469,7 @@ impl RuleEngine {
             .map(crate::dsl::directives::Directive::name)
             .collect::<Vec<_>>();
 
-        // TODO: refactor l.418 with templated function 'find_duplicate'.
+        // TODO: refactor next loop with templated function 'find_duplicate'.
         for (idx, name) in names.iter().enumerate() {
             for other in &names[idx + 1..] {
                 if other == name {
@@ -409,27 +477,6 @@ impl RuleEngine {
                         "found duplicate rule '{}': a rule must have a unique name",
                         name
                     );
-                }
-            }
-        }
-
-        // check for delegation directive with smtp services with the same receiver port.
-        let sockets = directives
-            .iter()
-            .flat_map(|(_, d)| d)
-            .filter_map(|d| match d {
-                Directive::Delegation { service, .. } => match &**service {
-                    Service::Smtp { receiver, .. } => Some(receiver),
-                    _ => None,
-                },
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        for (idx, socket) in sockets.iter().enumerate() {
-            for other in &sockets[idx + 1..] {
-                if other == socket {
-                    anyhow::bail!("found duplicate smtp service receiver port {}: you must only use one port per smtp service receiver", socket);
                 }
             }
         }

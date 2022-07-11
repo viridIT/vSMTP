@@ -4,6 +4,15 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+
+* delegation directives sets the X-VSMTP-DELEGATION
+  header in the email to pick up where processing left of. (#438)
+* refactored the queue system to make it simpler. (#438)
+* multiple delegation directives can be used in a single
+  stage with one or multiple services. (#438)
+* delegation is available for `postq` & `delivery` only. (#438)
+
 ## [1.1.2] - 2022-07-07
 
 ### Added

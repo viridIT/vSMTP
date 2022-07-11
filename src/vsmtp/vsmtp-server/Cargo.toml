@@ -23,6 +23,7 @@ pre-release-replacements = [
   { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
   { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
   { file = "Cargo.toml", search = "vsmtp-rule-engine = \\{ path = \"../vsmtp-rule-engine\", default-features = false, version = .*", replace = "vsmtp-rule-engine = { path = \"../vsmtp-rule-engine\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", default-features = false, version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", default-features = false, version = \"{{version}}\" }", prerelease = true },
   { file = "Cargo.toml", search = "vsmtp-delivery = \\{ path = \"../vsmtp-delivery\", default-features = false, version = .*", replace = "vsmtp-delivery = { path = \"../vsmtp-delivery\", default-features = false, version = \"{{version}}\" }", prerelease = true },
 ]
 
@@ -30,6 +31,7 @@ pre-release-replacements = [
 vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.2" }
 vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.2" }
 vsmtp-rule-engine = { path = "../vsmtp-rule-engine", default-features = false, version = "1.1.2" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.1.2" }
 vsmtp-delivery = { path = "../vsmtp-delivery", default-features = false, version = "1.1.2" }
 
 async-trait = "0.1.56"

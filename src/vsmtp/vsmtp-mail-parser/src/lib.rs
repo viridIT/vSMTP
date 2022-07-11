@@ -29,6 +29,7 @@ mod error;
 mod helpers;
 mod parser;
 
+pub use parser::get_mime_header;
 pub use parser::MailMimeParser;
 
 mod log_channels {

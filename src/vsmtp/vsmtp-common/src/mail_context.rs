@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -82,6 +84,43 @@ impl std::fmt::Display for MessageBody {
 }
 
 impl MessageBody {
+    /// Return a message body from a file path.
+    /// Try to parse the file as JSON, if it fails, try to parse it as plain text.
+    ///
+    /// # Errors
+    ///
+    /// * file(s) not found
+    /// * file found but failed to read
+    /// * file read but failed to serialize
+    pub async fn from_file_path(mut filepath: std::path::PathBuf) -> anyhow::Result<MessageBody> {
+        filepath.set_extension("json");
+        if filepath.exists() {
+            let content = tokio::fs::read_to_string(&filepath)
+                .await
+                .with_context(|| format!("Cannot read file '{}'", filepath.display()))?;
+
+            return serde_json::from_str::<MessageBody>(&content)
+                .with_context(|| format!("Cannot deserialize: '{content:?}'"));
+        }
+
+        filepath.set_extension("eml");
+        if filepath.exists() {
+            let content = tokio::fs::read_to_string(&filepath)
+                .await
+                .with_context(|| format!("Cannot read file '{}'", filepath.display()))?;
+
+            let (headers, body) = content
+                .split_once("\r\n\r\n")
+                .ok_or_else(|| anyhow::anyhow!("Cannot find message body"))?;
+
+            return Ok(MessageBody::Raw {
+                headers: headers.lines().map(str::to_string).collect(),
+                body: Some(body.to_string()),
+            });
+        }
+        anyhow::bail!("failed does not exist")
+    }
+
     ///
     pub fn take_headers(&mut self) -> Vec<String> {
         if let MessageBody::Raw { headers, .. } = self {
@@ -104,25 +143,43 @@ impl MessageBody {
         Ok(())
     }
 
-    /// get the value of an header, return None if it does not exists or when the body is empty.
+    /// return the first header that match the `needle` parameter in the `haystack` iterator.
+    /// FIXME: handle header folding.
+    #[must_use]
+    fn get_raw_header<'a>(
+        haystack: impl Iterator<Item = &'a String>,
+        needle: &str,
+    ) -> Option<&'a str> {
+        for header in haystack {
+            let mut split = header.splitn(2, ": ");
+            match (split.next(), split.next()) {
+                (Some(header), Some(value)) if header == needle => {
+                    return Some(value);
+                }
+                _ => continue,
+            }
+        }
+
+        None
+    }
+
+    /// get the value of an header, checking from up to bottom.
+    /// Return None if it does not exists or when the body is empty.
     #[must_use]
     pub fn get_header(&self, name: &str) -> Option<&str> {
         match self {
-            Self::Raw { headers, .. } => {
-                for header in headers {
-                    let mut split = header.splitn(2, ": ");
-                    match (split.next(), split.next()) {
-                        (Some(header), Some(value)) if header == name => {
-                            return Some(value);
-                        }
-                        (Some(_), Some(_)) => continue,
-                        _ => break,
-                    }
-                }
-
-                None
-            }
+            Self::Raw { headers, .. } => Self::get_raw_header(headers.iter(), name),
             Self::Parsed(parsed) => parsed.get_header(name),
+        }
+    }
+
+    /// Get the value of an header, checking from bottom to up.
+    /// Return None if it does not exists or when the body is empty.
+    #[must_use]
+    pub fn get_header_rev(&self, name: &str) -> Option<&str> {
+        match self {
+            Self::Raw { headers, .. } => Self::get_raw_header(headers.iter().rev(), name),
+            Self::Parsed(parsed) => parsed.get_header_rev(name),
         }
     }
 
@@ -209,4 +266,40 @@ pub struct MailContext {
     pub envelop: Envelop,
     /// metadata
     pub metadata: Option<MessageMetadata>,
+}
+
+impl MailContext {
+    fn from_json(content: &str) -> anyhow::Result<Self> {
+        serde_json::from_str::<MailContext>(content)
+            .with_context(|| format!("Cannot deserialize: '{content:?}'"))
+    }
+
+    /// Return a mail context from a file path.
+    ///
+    /// # Errors
+    ///
+    /// * file not found.
+    /// * file found but failed to read.
+    /// * file read but failed to serialize.
+    pub async fn from_file_path(file: &std::path::Path) -> anyhow::Result<MailContext> {
+        let content = tokio::fs::read_to_string(&file)
+            .await
+            .with_context(|| format!("Cannot read file '{}'", file.display()))?;
+
+        Self::from_json(&content)
+    }
+
+    /// Return a mail context from a file path.
+    ///
+    /// # Errors
+    ///
+    /// * file not found.
+    /// * file found but failed to read.
+    /// * file read but failed to serialize.
+    pub fn from_file_path_sync(file: &std::path::Path) -> anyhow::Result<MailContext> {
+        let content = std::fs::read_to_string(&file)
+            .with_context(|| format!("Cannot read file '{}'", file.display()))?;
+
+        Self::from_json(&content)
+    }
 }

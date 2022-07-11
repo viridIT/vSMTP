@@ -18,15 +18,17 @@ use vsmtp_config::{Config, Resolvers};
 
 /// a state container that bridges rhai's & rust contexts.
 pub struct RuleState {
-    /// a lightweight engine for evaluation.
+    /// A lightweight engine for evaluation.
     engine: rhai::Engine,
-    /// a pointer to the server api.
-    #[allow(dead_code)]
-    server: Server,
-    /// a pointer to the mail context for the current connection.
+    /// A pointer to the server api.
+    pub server: Server,
+    /// A pointer to the mail context for the current connection.
     mail_context: Context,
+    /// A pointer to the mail body for the current connection.
     message: Message,
-    /// does the following rules needs to be skipped ?
+    // NOTE: we could replace this property by a `skip` function on
+    //       the `Status` enum.
+    /// A state to check if the next rules need to be executed or skipped.
     skip: Option<Status>,
 }
 
@@ -101,20 +103,19 @@ impl RuleState {
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
-        if let Some(directive) =
-            rule_engine
-                .directives
-                .iter()
-                .flat_map(|(_, d)| d)
-                .find(|d| match d {
-                    Directive::Delegation { service, .. } => match &**service {
-                        crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
-                        _ => false,
-                    },
+        if rule_engine
+            .directives
+            .iter()
+            .flat_map(|(_, d)| d)
+            .any(|d| match d {
+                Directive::Delegation { service, .. } => match &**service {
+                    crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
                     _ => false,
-                })
+                },
+                _ => false,
+            })
         {
-            state.skip = Some(Status::DelegationResult(directive.name().to_string()));
+            state.skip = Some(Status::DelegationResult);
         }
 
         state.mail_context.write().unwrap().connection = conn;
@@ -138,20 +139,10 @@ impl RuleState {
 
         // all rule are skipped until the designated rule
         // in case of a delegation result.
-        let skip = rule_engine
-            .directives
-            .iter()
-            .flat_map(|(_, d)| d)
-            .find(|d| match d {
-                Directive::Delegation { service, .. } => match &**service {
-                    crate::Service::Smtp { receiver, .. } => {
-                        *receiver == mail_context.connection.server_address
-                    }
-                    _ => false,
-                },
-                _ => false,
-            })
-            .map(|directive| Status::DelegationResult(directive.name().to_string()));
+        let skip = mail_context
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.skipped.clone());
 
         let mail_context = std::sync::Arc::new(std::sync::RwLock::new(mail_context));
         let message = std::sync::Arc::new(std::sync::RwLock::new(message));
@@ -223,6 +214,9 @@ impl RuleState {
 
     /// Instantiate a [`RuleState`] and run it for the only `state` provided
     ///
+    /// # Return
+    /// A tuple with the mail context, body, result status, and skip status.
+    ///
     /// # Errors
     ///
     /// * `rule_engine` mutex poisoned
@@ -233,7 +227,7 @@ impl RuleState {
         rule_engine: &std::sync::RwLock<RuleEngine>,
         mail_context: MailContext,
         mail_message: MessageBody,
-    ) -> anyhow::Result<(MailContext, MessageBody, Status)> {
+    ) -> anyhow::Result<(MailContext, MessageBody, Status, Option<Status>)> {
         let rule_engine = rule_engine
             .read()
             .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
@@ -242,10 +236,10 @@ impl RuleState {
             Self::with_context(config, resolvers, &rule_engine, mail_context, mail_message);
         let result = rule_engine.run_when(&mut rule_state, state);
 
-        let (mail_context, mail_message) = rule_state
+        let (mail_context, mail_message, skipped) = rule_state
             .take()
             .expect("should not have strong reference here");
-        Ok((mail_context, mail_message, result))
+        Ok((mail_context, mail_message, result, skipped))
     }
 
     /// Consume [`self`] and return the inner [`MailContext`] and [`MessageBody`]
@@ -254,8 +248,9 @@ impl RuleState {
     ///
     /// * at least one strong reference of the [`std::sync::Arc`] is living
     /// * the [`std::sync::RwLock`] is poisoned
-    pub fn take(self) -> anyhow::Result<(MailContext, MessageBody)> {
+    pub fn take(self) -> anyhow::Result<(MailContext, MessageBody, Option<Status>)> {
         // early drop of engine because a strong reference is living inside
+        let skipped = self.skipped().cloned();
         drop(self.engine);
         Ok((
             std::sync::Arc::try_unwrap(self.mail_context)
@@ -266,6 +261,7 @@ impl RuleState {
             std::sync::Arc::try_unwrap(self.message)
                 .map_err(|_| anyhow::anyhow!("strong reference of the field `message` exists"))?
                 .into_inner()?,
+            skipped,
         ))
     }
 

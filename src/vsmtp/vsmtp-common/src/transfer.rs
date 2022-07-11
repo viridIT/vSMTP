@@ -186,3 +186,22 @@ impl std::str::FromStr for ForwardTarget {
         )
     }
 }
+
+/// a transport using the smtp protocol.
+/// (mostly a new type over `lettre::SmtpTransport` to implement debug
+/// and make switching transport easy if needed)
+#[derive(Clone)]
+pub struct SmtpConnection(pub std::sync::Arc<std::sync::Mutex<lettre::SmtpTransport>>);
+
+impl Eq for SmtpConnection {}
+impl PartialEq for SmtpConnection {
+    fn eq(&self, _: &Self) -> bool {
+        false
+    }
+}
+
+impl std::fmt::Debug for SmtpConnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SmtpTransport").finish()
+    }
+}
