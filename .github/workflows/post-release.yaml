@@ -46,7 +46,13 @@ jobs:
   build-deb-package:
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        include:
+          - os: ubuntu-20.04
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-22.04
+            rust: stable
+            target: x86_64-unknown-linux-gnu
     name: build-deb-package
     needs: create-release
     runs-on: ${{ matrix.os }}
@@ -71,15 +77,18 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db/
           key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
-      - run: cargo install cargo-deb
-      - run: cargo deb
+      - run: |
+          git clone git@github.com:viridIT/cargo-deb.git
+          cd cargo-deb
+          git checkout fix/changelog-path
+          cargo build
+          cd ..
+      - run: ./cargo-deb/target/debug/cargo-deb -p vsmtp -v
       - name: Build archive
         shell: bash
         run: |
-          staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-amd64.deb"
+          staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.os }}-${{ matrix.target }}.deb"
           mkdir -p "$staging"/{complete,doc}
-          cp {README.md,LICENSE*} "$staging/"
-          cp CHANGELOG.md "$staging/doc/"
           cp target/debian/* "$staging/"
           tar czf "$staging.tar.gz" -C "$staging" .
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
@@ -98,10 +107,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux]
         include:
-          - build: linux
-            os: [ubuntu-20.04, ubuntu-22.04]
+          - os: ubuntu-20.04
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-22.04
             rust: stable
             target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
@@ -125,7 +135,7 @@ jobs:
         shell: bash
         run: |
           outdir="./target/${{ env.TARGET_DIR }}/release"
-          staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
+          staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.os }}-${{ matrix.target }}"
           mkdir -p "$staging"/{complete,doc}
           cp {README.md,LICENSE*} "$staging/"
           cp CHANGELOG.md "$staging/doc/"
