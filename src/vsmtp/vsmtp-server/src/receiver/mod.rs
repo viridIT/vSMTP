@@ -179,6 +179,7 @@ where
         .read()
         .unwrap()
         .run_when(&mut transaction.rule_state, &StateSMTP::PreQ);
+
     match status {
         Status::Info(packet) => {
             conn.send_reply_or_code(packet).await?;
@@ -199,7 +200,7 @@ where
         }
     }
 
-    let (mail_context, message) = transaction.rule_state.take().unwrap();
+    let (mail_context, message, _) = transaction.rule_state.take().unwrap();
 
     let helo = mail_context.envelop.helo.clone();
     let code = mail_handler

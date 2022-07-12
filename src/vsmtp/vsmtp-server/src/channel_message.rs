@@ -17,8 +17,10 @@
 /// used to send different types of data to vsmtp's processes.
 #[derive(Debug)]
 pub struct ProcessMessage {
-    /// id of the mail context
+    /// id of the mail context.
     pub message_id: String,
+    /// is the email stored in the delegated queue.
+    pub delegated: bool,
 }
 
 #[cfg(test)]
@@ -30,7 +32,8 @@ mod test {
         println!(
             "{:?}",
             ProcessMessage {
-                message_id: "foo".to_string()
+                message_id: "foo".to_string(),
+                delegated: false,
             }
         );
     }

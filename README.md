@@ -37,10 +37,10 @@
     <img src="https://img.shields.io/crates/v/vsmtp.svg"
       alt="Crates.io" />
   </a>
-  <!-- <a href="https://docs.rs/vsmtp">
+  <a href="https://docs.rs/vsmtp">
     <img src="https://docs.rs/vsmtp/badge.svg"
       alt="docs" />
-  </a> -->
+  </a>
 </div>
 
 <div align="center">

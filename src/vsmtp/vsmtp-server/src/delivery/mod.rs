@@ -234,7 +234,7 @@ fn add_trace_information(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("missing email metadata"))?;
 
-    message.append_header(
+    message.prepend_header(
         "X-VSMTP",
         &create_vsmtp_status_stamp(
             &metadata.message_id,
@@ -242,7 +242,7 @@ fn add_trace_information(
             rule_engine_result,
         ),
     );
-    message.append_header(
+    message.prepend_header(
         "Received",
         &create_received_stamp(
             &ctx.envelop.helo,
@@ -273,7 +273,7 @@ fn create_received_stamp(
 /// create the "X-VSMTP" header stamp.
 fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -> String {
     format!(
-        "id='{message_id}' version='{version}' status='{}'",
+        "id=\"{message_id}\"; version=\"{version}\"; status=\"{}\"",
         status.as_ref()
     )
 }
@@ -355,11 +355,6 @@ mod test {
             message,
             MessageBody::Raw {
                 headers: vec![
-                    format!(
-                        "X-VSMTP: id='{id}' version='{ver}' status='next'",
-                        id = ctx.metadata.as_ref().unwrap().message_id,
-                        ver = env!("CARGO_PKG_VERSION"),
-                    ),
                     [
                         "Received: from localhost".to_string(),
                         format!(" by {domain}", domain = config.server.domain),
@@ -373,6 +368,11 @@ mod test {
                         }
                     ]
                     .concat(),
+                    format!(
+                        "X-VSMTP: id=\"{id}\"; version=\"{ver}\"; status=\"next\"",
+                        id = ctx.metadata.as_ref().unwrap().message_id,
+                        ver = env!("CARGO_PKG_VERSION"),
+                    ),
                 ],
                 body: Some("".to_string()),
             }

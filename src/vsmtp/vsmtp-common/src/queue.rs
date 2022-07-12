@@ -28,6 +28,8 @@ pub enum Queue {
     Working,
     /// 1st attempt to deliver.
     Deliver,
+    /// the message has been delegated.
+    Delegated,
     /// 1st delivery attempt failed.
     Deferred,
     /// Too many attempts failed.
@@ -235,7 +237,7 @@ impl Queue {
                 body: Some(body.to_string()),
             });
         }
-        anyhow::bail!("failed does not exist")
+        anyhow::bail!("failed to read message: {message_filepath:?} does not exist",)
     }
 
     /// Return a message body from a file path.
@@ -259,7 +261,7 @@ impl Queue {
         Ok((context?, message?))
     }
 
-    /// Remove a message from the queue system.
+    /// Remove a context from the queue system.
     ///
     /// # Errors
     ///
@@ -269,7 +271,31 @@ impl Queue {
             .with_context(|| format!("failed to remove `{id}` from the `{self}` queue"))
     }
 
+    /// Remove a message from the queue system.
+    ///
+    /// # Errors
+    ///
+    /// * see [`std::fs::remove_file`]
+    pub fn remove_mail(dirpath: &std::path::Path, id: &str) -> anyhow::Result<()> {
+        let mut message_filepath = queue_path!(&dirpath, "mails", &id);
+
+        message_filepath.set_extension("json");
+        if message_filepath.exists() {
+            return std::fs::remove_file(message_filepath)
+                .with_context(|| format!("failed to remove `{id}` from the `mail` queue"));
+        }
+        message_filepath.set_extension("eml");
+        if message_filepath.exists() {
+            return std::fs::remove_file(message_filepath)
+                .with_context(|| format!("failed to remove `{id}` from the `mail` queue"));
+        }
+
+        anyhow::bail!("failed to remove message: {id:?} does not exist")
+    }
+
     /// Write the `ctx` to `other` **AND THEN** remove `ctx` from `self`
+    /// if `other` are `self` are the same type of queue, this function
+    /// only overwrite the context.
     ///
     /// # Errors
     ///
@@ -283,13 +309,15 @@ impl Queue {
     ) -> anyhow::Result<()> {
         other.write_to_queue(queues_dirpath, ctx)?;
 
-        self.remove(
-            queues_dirpath,
-            &ctx.metadata
-                .as_ref()
-                .expect("message is ill-formed")
-                .message_id,
-        )?;
+        if self != other {
+            self.remove(
+                queues_dirpath,
+                &ctx.metadata
+                    .as_ref()
+                    .expect("message is ill-formed")
+                    .message_id,
+            )?;
+        }
 
         Ok(())
     }

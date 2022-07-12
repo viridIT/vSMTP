@@ -15,6 +15,7 @@
  *
 */
 use crate::{
+    delegate,
     delivery::{add_trace_information, send_mail, SenderOutcome},
     log_channels,
     receiver::MailHandlerError,
@@ -46,6 +47,7 @@ pub async fn flush_deliver_queue(
     for path in dir_entries {
         let process_message = ProcessMessage {
             message_id: path?.path().file_name().unwrap().to_string_lossy().into(),
+            delegated: false,
         };
         handle_one_in_delivery_queue(
             config.clone(),
@@ -99,6 +101,7 @@ pub async fn handle_one_in_delivery_queue(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 async fn handle_one_in_delivery_queue_inner(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
@@ -111,11 +114,17 @@ async fn handle_one_in_delivery_queue_inner(
         process_message.message_id
     );
 
-    let (mail_context, mail_message) = Queue::Deliver
+    let queue = if process_message.delegated {
+        Queue::Delegated
+    } else {
+        Queue::Deliver
+    };
+
+    let (mail_context, mail_message) = queue
         .read(&config.server.queues.dirpath, &process_message.message_id)
         .await?;
 
-    let (mut mail_context, mut mail_message, result) = RuleState::just_run_when(
+    let (mut mail_context, mut mail_message, result, skipped) = RuleState::just_run_when(
         &StateSMTP::Delivery,
         config.as_ref(),
         resolvers.clone(),
@@ -124,11 +133,9 @@ async fn handle_one_in_delivery_queue_inner(
         mail_message,
     )?;
 
-    add_trace_information(&config, &mail_context, &mut mail_message, &result)?;
-
-    match result {
-        Status::Quarantine(path) => {
-            let mut path = create_app_folder(&config, Some(&path))
+    match &skipped {
+        Some(Status::Quarantine(path)) => {
+            let mut path = create_app_folder(&config, Some(path))
                 .map_err(MailHandlerError::CreateAppFolder)?;
 
             path.push(format!("{}.json", process_message.message_id));
@@ -137,73 +144,110 @@ async fn handle_one_in_delivery_queue_inner(
                 .await
                 .map_err(MailHandlerError::WriteQuarantineFile)?;
 
-            log::warn!(
-                target: log_channels::DELIVERY,
-                "delivery skipped due to quarantine."
-            );
-
             // after processing the email is removed from the delivery queue.
-            Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+            queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
 
-            Ok(())
+            Queue::write_to_mails(
+                &config.server.queues.dirpath,
+                &process_message.message_id,
+                &mail_message,
+            )
+            .map_err(MailHandlerError::WriteMessageBody)?;
+
+            log::warn!(target: log_channels::DELIVERY, "skipped due to quarantine.",);
+
+            return Ok(());
         }
-        Status::Deny(_) => {
-            // we update rcpt email status and write to dead queue in case of a deny.
+        Some(Status::Delegated(delegator)) => {
+            mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
+
+            queue.move_to(
+                &Queue::Delegated,
+                &config.server.queues.dirpath,
+                &mail_context,
+            )?;
+
+            Queue::write_to_mails(
+                &config.server.queues.dirpath,
+                &process_message.message_id,
+                &mail_message,
+            )
+            .map_err(MailHandlerError::WriteMessageBody)?;
+
+            // NOTE: needs to be executed after writing, because the other
+            //       thread could pickup the email faster than this function.
+            delegate(delegator, &mail_context, &mail_message)
+                .map_err(MailHandlerError::DelegateMessage)?;
+
+            log::warn!(target: log_channels::DELIVERY, "skipped due to delegation.",);
+
+            return Ok(());
+        }
+        Some(Status::DelegationResult) => unreachable!(
+            "delivery is the last stage, delegation results cannot travel down any further."
+        ),
+        Some(Status::Deny(code)) => {
             for rcpt in &mut mail_context.envelop.rcpt {
                 rcpt.email_status = EmailTransferStatus::Failed {
                     timestamp: std::time::SystemTime::now(),
-                    reason: "rule engine denied the email.".to_string(),
+                    reason: format!("rule engine denied the message in delivery: {code:?}."),
                 };
             }
-            Queue::Dead.write_to_queue(&config.server.queues.dirpath, &mail_context)?;
+
+            queue.move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)?;
+
+            Queue::write_to_mails(
+                &config.server.queues.dirpath,
+                &process_message.message_id,
+                &mail_message,
+            )
+            .map_err(MailHandlerError::WriteMessageBody)?;
 
             log::warn!(
                 target: log_channels::DELIVERY,
-                "mail has been denied, moved to `dead` queue."
+                "mail has been denied and moved to the `dead` queue.",
             );
 
-            // after processing the email is removed from the delivery queue.
-            Queue::Deliver.remove(&config.server.queues.dirpath, &process_message.message_id)?;
-
-            Ok(())
+            return Ok(());
         }
-        _ => {
-            match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
-                SenderOutcome::MoveToDead => {
-                    Queue::Deliver
-                        .move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)
-                        .with_context(|| {
-                            format!(
-                                "cannot move file from `{}` to `{}`",
-                                Queue::Deliver,
-                                Queue::Dead
-                            )
-                        })?;
-                }
-                SenderOutcome::MoveToDeferred => {
-                    Queue::Deliver
-                        .move_to(
-                            &Queue::Deferred,
-                            &config.server.queues.dirpath,
-                            &mail_context,
-                        )
-                        .with_context(|| {
-                            format!(
-                                "cannot move file from `{}` to `{}`",
-                                Queue::Deliver,
-                                Queue::Deferred
-                            )
-                        })?;
-                }
-                SenderOutcome::RemoveFromDisk => {
-                    Queue::Deliver
-                        .remove(&config.server.queues.dirpath, &process_message.message_id)?;
-                }
-            }
+        Some(reason) => {
+            log::warn!(
+                target: log_channels::DELIVERY,
+                "skipped due to '{}'.",
+                reason.as_ref()
+            );
+        }
+        None => {}
+    };
 
-            Ok(())
+    add_trace_information(&config, &mail_context, &mut mail_message, &result)?;
+
+    match send_mail(&config, &mut mail_context, &mail_message, &resolvers).await {
+        SenderOutcome::MoveToDead => {
+            queue
+                .move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)
+                .with_context(|| {
+                    format!("cannot move file from `{}` to `{}`", queue, Queue::Dead)
+                })?;
+        }
+        SenderOutcome::MoveToDeferred => {
+            queue
+                .move_to(
+                    &Queue::Deferred,
+                    &config.server.queues.dirpath,
+                    &mail_context,
+                )
+                .with_context(|| {
+                    format!("cannot move file from `{}` to `{}`", queue, Queue::Deferred)
+                })?;
+        }
+        SenderOutcome::RemoveFromDisk => {
+            queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
+            Queue::remove_mail(&config.server.queues.dirpath, &process_message.message_id)?;
         }
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -291,6 +335,7 @@ mod tests {
             resolvers,
             ProcessMessage {
                 message_id: "message_from_deliver_to_deferred".to_string(),
+                delegated: false,
             },
             rule_engine,
         )

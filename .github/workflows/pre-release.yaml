@@ -6,7 +6,10 @@ on:
 
 jobs:
   check-release:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Get bump method
         id: get-bump-method
@@ -45,7 +48,10 @@ jobs:
       - run: cargo install cargo-release
       - run: cargo release ${{ steps.get-bump-method.outputs.BUMP }} --workspace --allow-branch "HEAD"
   check-deb-pkg:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3

@@ -302,7 +302,7 @@ pub mod field {
 
     #[doc(hidden)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-    #[serde(transparent)]
+    #[serde(transparent, deny_unknown_fields)]
     pub struct TlsFile<T> {
         #[serde(skip_serializing)]
         pub inner: T,
@@ -475,6 +475,7 @@ pub mod field {
     // TODO: remove that and use serde_with
     #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[allow(clippy::struct_excessive_bools)]
+    #[serde(deny_unknown_fields)]
     pub struct ResolverOptsWrapper {
         /// Specify the timeout for a request. Defaults to 5 seconds
         #[serde(with = "humantime_serde")]
