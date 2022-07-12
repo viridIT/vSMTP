@@ -1,5 +1,22 @@
-use crate::{modules::EngineResult, rule_state::RuleState, Service};
-use vsmtp_common::status::Status;
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+ */
+
+use crate::{modules::EngineResult, rule_state::RuleState, vsl_guard_ok, Service};
+use vsmtp_common::{state::StateSMTP, status::Status};
 
 /// a set of directives, filtered by smtp stage.
 pub type Directives = std::collections::BTreeMap<String, Vec<Directive>>;
@@ -37,7 +54,13 @@ impl Directive {
         }
     }
 
-    pub fn execute(&self, state: &mut RuleState, ast: &rhai::AST) -> EngineResult<Status> {
+    #[allow(clippy::too_many_lines)]
+    pub fn execute(
+        &self,
+        state: &mut RuleState,
+        ast: &rhai::AST,
+        smtp_stage: &StateSMTP,
+    ) -> EngineResult<Status> {
         match self {
             Directive::Rule { pointer, .. } => {
                 state
@@ -56,59 +79,52 @@ impl Directive {
                 service,
                 name,
             } => {
-                if let Service::Smtp {
-                    delegator,
-                    receiver,
-                    ..
-                } = &**service
-                {
-                    let (from, mut rcpt, body) = {
-                        let ctx = state.context();
-                        let ctx = ctx.read().map_err::<Box<rhai::EvalAltResult>, _>(|_| {
-                            "context mutex poisoned".into()
-                        })?;
+                if let Service::Smtp { delegator, .. } = &**service {
+                    let args = vsl_guard_ok!(state.message().read())
+                        .get_header("X-VSMTP-DELEGATION")
+                        .and_then(|header| {
+                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header)
+                                .args
+                                .get("directive")
+                                .cloned()
+                        });
 
-                        // Delegated message has been returned to the server.
-                        // We then just execute the rest of the directive.
-                        if ctx.connection.server_address == *receiver {
-                            return state.engine().call_fn(
-                                &mut rhai::Scope::new(),
-                                ast,
-                                pointer.fn_name(),
-                                (),
+                    // FIXME: This check is made twice (once in RuleEngine::run_when).
+                    //
+                    // If the 'directive' field set in the header matches the name
+                    // of the current directive, we pull old context from the working
+                    // queue and run the block of code.
+                    // Otherwise, we add the X-VSMTP-DELEGATION to the message.
+                    return match args {
+                        Some(header_directive) if header_directive == *name => state
+                            .engine()
+                            .call_fn(&mut rhai::Scope::new(), ast, pointer.fn_name(), ()),
+                        _ => {
+                            // FIXME: fold this header.
+                            vsl_guard_ok!(state.message().write()).prepend_header(
+                                "X-VSMTP-DELEGATION",
+                                &format!(
+                                    "sent; stage={}; directive=\"{}\"; id=\"{}\"",
+                                    smtp_stage,
+                                    name,
+                                    vsl_guard_ok!(state.context().read())
+                                        .metadata
+                                        .as_ref()
+                                        .unwrap()
+                                        .message_id
+                                ),
                             );
+
+                            Ok(Status::Delegated(delegator.clone()))
                         }
-
-                        let body = state
-                            .message()
-                            .read()
-                            .map_err::<Box<rhai::EvalAltResult>, _>(|_| {
-                                "context mutex poisoned".into()
-                            })?
-                            .to_string();
-                        (
-                            ctx.envelop.mail_from.clone(),
-                            ctx.envelop.rcpt.clone(),
-                            body,
-                        )
                     };
-
-                    {
-                        let mut delegator = delegator.lock().unwrap();
-
-                        crate::dsl::service::smtp::delegate(
-                            &mut *delegator,
-                            &from,
-                            &rcpt.iter_mut().collect::<Vec<_>>(),
-                            body.as_bytes(),
-                        )
-                        .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?;
-                    }
-
-                    Ok(Status::Delegated)
-                } else {
-                    Err(format!("cannot delegate security with '{}' service.", name).into())
                 }
+
+                Err(format!(
+                    "cannot delegate security using a '{}' service in {}:'{}'.",
+                    service, smtp_stage, name,
+                )
+                .into())
             }
         }
     }

@@ -186,6 +186,17 @@ impl Mail {
             .map(|(_, value)| value.as_str())
     }
 
+    /// get the value of an header starting from the end,
+    /// return None if it does not exists.
+    #[must_use]
+    pub fn get_header_rev(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .rev()
+            .find(|(header, _)| header == name)
+            .map(|(_, value)| value.as_str())
+    }
+
     // NOTE: would a double ended queue / linked list interesting in this case ?
     /// prepend new headers to the email.
     pub fn prepend_headers(&mut self, headers: impl IntoIterator<Item = (String, String)>) {

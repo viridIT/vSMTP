@@ -46,6 +46,7 @@ impl Transport for Maildir {
         for rcpt in &mut to {
             match users::get_user_by_name(rcpt.address.local_part()).map(|user| {
                 write_to_maildir(
+                    rcpt,
                     &user,
                     config.server.system.group_local.as_ref(),
                     metadata,
@@ -119,6 +120,7 @@ fn create_maildir(
 }
 
 fn write_to_maildir(
+    rcpt: &Rcpt,
     user: &users::User,
     group_local: Option<&users::Group>,
     metadata: &MessageMetadata,
@@ -131,6 +133,7 @@ fn write_to_maildir(
         .write(true)
         .open(&maildir)?;
 
+    std::io::Write::write_all(&mut email, format!("Delivered-To: {rcpt}\n").as_bytes())?;
     std::io::Write::write_all(&mut email, content.as_bytes())?;
 
     chown(
@@ -154,6 +157,7 @@ fn write_to_maildir(
 mod test {
 
     use users::os::unix::UserExt;
+    use vsmtp_common::re::addr;
 
     use super::*;
 
@@ -180,6 +184,7 @@ mod test {
         let message_id = "test_message";
 
         write_to_maildir(
+            &Rcpt::new(addr!("john.doe@example.com")),
             &current,
             None,
             &MessageMetadata {
