@@ -109,7 +109,7 @@ async fn handle_one_in_working_queue_inner(
         mail_message,
     )?;
 
-    let mut write_to_queue = Option::<Queue>::None;
+    let mut move_to_queue = Option::<Queue>::None;
     let mut send_to_delivery = false;
     let mut write_email = true;
     let mut delegated = false;
@@ -171,7 +171,7 @@ async fn handle_one_in_working_queue_inner(
                 };
             }
 
-            write_to_queue = Some(Queue::Dead);
+            move_to_queue = Some(Queue::Dead);
         }
         Some(reason) => {
             log::warn!(
@@ -179,11 +179,11 @@ async fn handle_one_in_working_queue_inner(
                 "skipped due to '{}'.",
                 reason.as_ref()
             );
-            write_to_queue = Some(Queue::Deliver);
+            move_to_queue = Some(Queue::Deliver);
             send_to_delivery = true;
         }
         None => {
-            write_to_queue = Some(Queue::Deliver);
+            move_to_queue = Some(Queue::Deliver);
             send_to_delivery = true;
         }
     };
@@ -205,7 +205,7 @@ async fn handle_one_in_working_queue_inner(
         );
     }
 
-    if let Some(next_queue) = write_to_queue {
+    if let Some(next_queue) = move_to_queue {
         queue.move_to(&next_queue, &config.server.queues.dirpath, &mail_context)?;
     }
 
