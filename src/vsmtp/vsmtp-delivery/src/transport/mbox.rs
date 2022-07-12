@@ -58,6 +58,7 @@ impl Transport for MBox {
                 // NOTE: only linux system is supported here, is the
                 //       path to all mboxes always /var/mail ?
                 write_content_to_mbox(
+                    rcpt,
                     &std::path::PathBuf::from_iter(["/", "var", "mail", rcpt.address.local_part()]),
                     &user,
                     config.server.system.group_local.as_ref(),
@@ -118,23 +119,27 @@ fn build_mbox_message(
 }
 
 fn write_content_to_mbox(
+    rcpt: &Rcpt,
     mbox: &std::path::Path,
     user: &users::User,
     group_local: Option<&users::Group>,
     metadata: &MessageMetadata,
     content: &str,
 ) -> anyhow::Result<()> {
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&mbox)
-        .with_context(|| format!("could not open {:?} mbox", mbox))?;
-
     chown(mbox, Some(user.uid()), group_local.map(users::Group::gid))
         .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
-    std::io::Write::write_all(&mut file, content.as_bytes())
-        .with_context(|| format!("could not write email to '{:?}' mbox", mbox))?;
+    println!("before");
+
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&mbox)?;
+
+    println!("after");
+
+    std::io::Write::write_all(&mut file, format!("Delivered-To: {rcpt}\n").as_bytes())?;
+    std::io::Write::write_all(&mut file, content.as_bytes())?;
 
     log::debug!(
         target: log_channels::MBOX,
@@ -205,9 +210,15 @@ This is a raw email.
         let metadata = MessageMetadata::default();
 
         std::fs::create_dir_all("./tests/generated/").expect("could not create temporary folders");
-
-        write_content_to_mbox(&mbox, &user, None, &metadata, content)
-            .expect("could not write to mbox");
+        write_content_to_mbox(
+            &Rcpt::new(addr!("john.doe@example.com")),
+            &mbox,
+            &user,
+            None,
+            &metadata,
+            content,
+        )
+        .expect("could not write to mbox");
 
         assert_eq!(
             content.to_string(),
