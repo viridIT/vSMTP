@@ -80,8 +80,10 @@ impl Transport for MBox {
                 Some(Err(e)) => {
                     log::error!(
                         target: log_channels::MBOX,
-                        "failed to write email '{}' in mbox of '{rcpt}': {e}",
-                        metadata.message_id
+                        "failed to write email '{}' in {}'s mbox: {}",
+                        metadata.message_id,
+                        rcpt.address.local_part(),
+                        e
                     );
 
                     rcpt.email_status.held_back(e);
@@ -89,8 +91,10 @@ impl Transport for MBox {
                 None => {
                     log::error!(
                         target: log_channels::MBOX,
-                        "failed to write email '{}' in mbox of '{rcpt}': '{rcpt}' is not a user",
-                        metadata.message_id
+                        "failed to write email '{}' in {}'s mbox: '{}' is not a user",
+                        metadata.message_id,
+                        rcpt.address.local_part(),
+                        rcpt.address.local_part(),
                     );
 
                     rcpt.email_status.held_back(TransferErrors::NoSuchMailbox {
@@ -126,17 +130,13 @@ fn write_content_to_mbox(
     metadata: &MessageMetadata,
     content: &str,
 ) -> anyhow::Result<()> {
-    chown(mbox, Some(user.uid()), group_local.map(users::Group::gid))
-        .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
-
-    println!("before");
-
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&mbox)?;
 
-    println!("after");
+    chown(mbox, Some(user.uid()), group_local.map(users::Group::gid))
+        .with_context(|| format!("could not set owner for '{:?}' mbox", mbox))?;
 
     std::io::Write::write_all(&mut file, format!("Delivered-To: {rcpt}\n").as_bytes())?;
     std::io::Write::write_all(&mut file, content.as_bytes())?;
