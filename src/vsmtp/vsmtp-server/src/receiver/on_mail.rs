@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{delegate, log_channels, Connection, Process, ProcessMessage};
+use crate::{log_channels, Connection, Process, ProcessMessage};
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
     queue::Queue,
@@ -102,7 +102,7 @@ impl MailHandler {
 
                 log::warn!(target: log_channels::PREQ, "skipped due to quarantine.",);
             }
-            Some(Status::Delegated(delegator)) => {
+            Some(Status::Delegated(_)) => {
                 unreachable!("delegate directive cannot be used in preq stage")
             }
             Some(Status::DelegationResult) => {
