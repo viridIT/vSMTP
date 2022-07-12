@@ -18,15 +18,15 @@ jobs:
           fail-fast: true
       - name: Install gsasl
         run: sudo apt-get update && sudo apt-get install -y gsasl libgsasl7-dev
-      - uses: actions/cache@v1
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db/
-            target
-          key: "${{ runner.os }}-cargo-build-msrv-${{ hashFiles('**/Cargo.lock') }}"
+      # - uses: actions/cache@v1
+      #   with:
+      #     path: |
+      #       ~/.cargo/bin
+      #       ~/.cargo/registry/index
+      #       ~/.cargo/registry/cache
+      #       ~/.cargo/git/db/
+      #       target
+      #     key: "${{ runner.os }}-cargo-build-msrv-${{ hashFiles('**/Cargo.lock') }}"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
