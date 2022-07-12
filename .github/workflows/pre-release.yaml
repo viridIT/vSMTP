@@ -65,6 +65,11 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db/
           key: "${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}"
-      - run: cargo install cargo-deb
-      - run: cargo deb -p vsmtp -v
+      - run: |
+          git clone git@github.com:viridIT/cargo-deb.git
+          cd cargo-deb
+          git checkout fix/changelog-path
+          cargo build
+          cd ..
+      - run: ./cargo-deb/target/debug/cargo-deb -p vsmtp -v
       - run: lintian ./target/debian/*.deb
