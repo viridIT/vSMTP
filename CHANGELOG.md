@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [1.1.3] - 2022-07-12
+
 ### Changed
 
 * delegation directives sets the X-VSMTP-DELEGATION
