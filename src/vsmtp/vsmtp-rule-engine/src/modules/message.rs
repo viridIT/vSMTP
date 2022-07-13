@@ -24,7 +24,7 @@ use vsmtp_common::{rcpt::Rcpt, Address};
 
 #[rhai::plugin::export_module]
 pub mod message {
-    use crate::dsl::object::Object;
+    use crate::{dsl::object::Object, modules::types::types::SharedObject};
 
     /// check if a given header exists in the top level headers. (for a string)
     #[rhai_fn(global, return_raw, pure)]
@@ -33,9 +33,10 @@ pub mod message {
     }
 
     /// check if a given header exists in the top level headers. (for a string object)
+    #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, return_raw, pure)]
-    pub fn has_header_obj(message: &mut Message, header: Object) -> EngineResult<bool> {
-        if let Object::Str(header) = &header {
+    pub fn has_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<bool> {
+        if let Object::Str(header) = &*header {
             super::has_header(message, header)
         } else {
             Err("has_header function only takes strings as parameter".into())
