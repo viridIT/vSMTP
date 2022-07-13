@@ -22,7 +22,7 @@ use rhai::plugin::{
 };
 use vsmtp_common::Address;
 
-#[doc(hidden)]
+///
 #[rhai::plugin::export_module]
 pub mod bcc {
 

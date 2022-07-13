@@ -5,7 +5,7 @@ name = "vsmtp-stress"
 version = "0.10.4"
 license = "GPL-3.0-only"
 
-rust-version = "1.58"
+rust-version = "1.60"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "vSMTP : the next-gen MTA. Secured, Faster and Greener"

@@ -21,7 +21,7 @@ use rhai::plugin::{
 use vsmtp_common::{mail_context::MailContext, re::anyhow};
 
 #[allow(clippy::needless_pass_by_value)]
-#[doc(hidden)]
+///
 #[rhai::plugin::export_module]
 pub mod transports {
     use vsmtp_common::transfer::ForwardTarget;
@@ -44,6 +44,7 @@ pub mod transports {
         }
     }
 
+    ///
     #[rhai_fn(global, name = "forward_all", return_raw, pure)]
     pub fn forward_all_obj(
         this: &mut Context,

@@ -2,10 +2,10 @@
 edition = "2021"
 
 name = "vsmtp-rule-engine"
-version = "1.1.2"
+version = "1.1.3"
 license = "GPL-3.0-only"
 
-rust-version = "1.58"
+rust-version = "1.60"
 
 authors = ["Team viridIT <https://viridit.com/>"]
 description = "Next-gen MTA. Secured, Faster and Greener"
@@ -33,17 +33,26 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-vsmtp-dkim = { path = "../vsmtp-dkim", default-features = false, version = "1.1.2" }
-vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.2" }
-vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.2" }
-vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.1.2" }
+vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.3" }
+vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.3" }
+vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.1.3" }
+vsmtp-dkim = { path = "../vsmtp-dkim", default-features = false, version = "1.1.3" }
 
 thiserror = "1.0.31"
 # objects
-regex = "1.5.5"
+regex = "1.6.0"
 iprange = "0.6.7"
 ipnet = "2.5.0"
 csv = "1.1"
+
+rhai = { version = "1.8.0", features = [
+  "unchecked",
+  "sync",
+  "internals",
+  "no_closure",
+] }
+
+wait-timeout = "0.2.0"
 
 viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
 hostname = "0.3.1"
@@ -52,16 +61,6 @@ time = { version = "0.3.11", default-features = false, features = [
   "formatting",
   "macros",
 ] }
-
-
-rhai = { version = "1.7.0", git = "https://github.com/schungx/rhai", rev = "5435fdb8c8b4875149e5e9d8cbd8b34eb4988e82", features = [
-  "unchecked",
-  "sync",
-  "internals",
-  "no_closure",
-] }
-
-wait-timeout = "0.2.0"
 
 [dev-dependencies]
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }

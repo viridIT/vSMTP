@@ -23,7 +23,7 @@ use rhai::{
 };
 use vsmtp_common::re::tokio;
 
-#[doc(hidden)]
+///
 #[rhai::plugin::export_module]
 pub mod security {
     use crate::modules::{

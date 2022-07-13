@@ -30,17 +30,17 @@
 
 <div align="center">
   <a href="https://www.whatrustisit.com">
-    <img src="https://img.shields.io/badge/rustc-1.58%2B-informational.svg?logo=rust"
-      alt="Rustc Version 1.58.0" />
+    <img src="https://img.shields.io/badge/rustc-1.60%2B-informational.svg?logo=rust"
+      alt="Rustc Version 1.60.0" />
   </a>
   <a href="https://crates.io/crates/vsmtp">
     <img src="https://img.shields.io/crates/v/vsmtp.svg"
       alt="Crates.io" />
   </a>
-  <!-- <a href="https://docs.rs/vsmtp">
+  <a href="https://docs.rs/vsmtp">
     <img src="https://docs.rs/vsmtp/badge.svg"
       alt="docs" />
-  </a> -->
+  </a>
 </div>
 
 <div align="center">

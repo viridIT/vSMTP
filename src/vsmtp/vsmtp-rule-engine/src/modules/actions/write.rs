@@ -23,7 +23,7 @@ use rhai::plugin::{
 use vsmtp_common::re::serde_json;
 use vsmtp_config::create_app_folder;
 
-#[doc(hidden)]
+///
 #[rhai::plugin::export_module]
 pub mod write {
 
