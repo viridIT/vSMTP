@@ -44,7 +44,7 @@ tokio = { version = "1.19.2", default-features = false, features = [
     "io-util",
     "rt-multi-thread",
 ] }
-serde = { version = "1.0.138", features = ["derive"] }
+serde = { version = "1.0.139", features = ["derive"] }
 serde_derive = "1.0.136"
 
 async-trait = "0.1.56"
