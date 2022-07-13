@@ -22,6 +22,8 @@ use vsmtp_common::{
     Address, Reply, ReplyCode,
 };
 
+use crate::modules::types::types::SharedObject;
+
 const FILE_CAPACITY: usize = 20;
 
 /// Objects are rust's representation of rule engine variables.
@@ -46,7 +48,7 @@ pub enum Object {
     /// the content of a file.
     File(Vec<Object>),
     /// a group of objects declared inline.
-    Group(Vec<std::sync::Arc<Object>>),
+    Group(Vec<SharedObject>),
     /// a user.
     Identifier(String),
     /// a simple string.

@@ -37,6 +37,7 @@ pub mod types {
     pub type Context = std::sync::Arc<std::sync::RwLock<MailContext>>;
     pub type Message = std::sync::Arc<std::sync::RwLock<MessageBody>>;
     pub type Server = std::sync::Arc<ServerAPI>;
+    pub type SharedObject = std::sync::Arc<Object>;
 
     // Status
 
@@ -142,7 +143,7 @@ pub mod types {
     #[rhai_fn(global, name = "==", pure, return_raw)]
     pub fn ip_is_object(
         this: &mut std::net::IpAddr,
-        other: std::sync::Arc<Object>,
+        other: SharedObject,
     ) -> EngineResult<bool> {
         internal_ip_is_object(this, &other)
     }
@@ -150,14 +151,14 @@ pub mod types {
     #[rhai_fn(global, name = "!=", pure, return_raw)]
     pub fn ip_not_object(
         this: &mut std::net::IpAddr,
-        other: std::sync::Arc<Object>,
+        other: SharedObject,
     ) -> EngineResult<bool> {
         internal_ip_is_object(this, &other).map(|r| !r)
     }
 
     #[rhai_fn(global, name = "contains", pure, return_raw)]
     pub fn ip_in_object(
-        object: &mut std::sync::Arc<Object>,
+        object: &mut SharedObject,
         ip: std::net::IpAddr,
     ) -> EngineResult<bool> {
         internal_ip_in_object(&ip, object)
@@ -206,7 +207,7 @@ pub mod types {
     #[rhai_fn(global, name = "==", return_raw, pure)]
     pub fn address_is_object(
         this: &mut Address,
-        other: std::sync::Arc<Object>,
+        other: SharedObject,
     ) -> EngineResult<bool> {
         internal_address_is_object(this, &other)
     }
@@ -214,7 +215,7 @@ pub mod types {
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw, pure)]
     pub fn object_is_address(
-        this: &mut std::sync::Arc<Object>,
+        this: &mut SharedObject,
         addr: Address,
     ) -> EngineResult<bool> {
         internal_address_is_object(&addr, this)
@@ -235,52 +236,52 @@ pub mod types {
     #[rhai_fn(global, name = "!=", return_raw, pure)]
     pub fn address_not_object(
         this: &mut Address,
-        other: std::sync::Arc<Object>,
+        other: SharedObject,
     ) -> EngineResult<bool> {
         internal_address_is_object(this, &other).map(|r| !r)
     }
 
-    // vsmtp's rule engine obj syntax (std::sync::Arc<Object>).
+    // vsmtp's rule engine obj syntax (SharedObject).
 
     #[rhai_fn(global, name = "to_string", pure)]
-    pub fn object_to_string(this: &mut std::sync::Arc<Object>) -> String {
+    pub fn object_to_string(this: &mut SharedObject) -> String {
         this.to_string()
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn object_to_debug(this: &mut std::sync::Arc<Object>) -> String {
+    pub fn object_to_debug(this: &mut SharedObject) -> String {
         format!("{:#?}", **this)
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", pure)]
     pub fn object_is_self(
-        this: &mut std::sync::Arc<Object>,
-        other: std::sync::Arc<Object>,
+        this: &mut SharedObject,
+        other: SharedObject,
     ) -> bool {
         **this == *other
     }
 
     #[rhai_fn(global, name = "==", return_raw, pure)]
-    pub fn object_is_string(this: &mut std::sync::Arc<Object>, s: &str) -> EngineResult<bool> {
+    pub fn object_is_string(this: &mut SharedObject, s: &str) -> EngineResult<bool> {
         internal_string_is_object(s, this)
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw)]
-    pub fn string_is_object(this: &str, other: std::sync::Arc<Object>) -> EngineResult<bool> {
+    pub fn string_is_object(this: &str, other: SharedObject) -> EngineResult<bool> {
         internal_string_is_object(this, &other)
     }
 
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn string_in_object(this: &mut std::sync::Arc<Object>, s: &str) -> EngineResult<bool> {
+    pub fn string_in_object(this: &mut SharedObject, s: &str) -> EngineResult<bool> {
         internal_string_in_object(s, this)
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn address_in_object(
-        this: &mut std::sync::Arc<Object>,
+        this: &mut SharedObject,
         addr: Address,
     ) -> EngineResult<bool> {
         internal_address_in_object(&addr, this)
@@ -289,29 +290,29 @@ pub mod types {
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_object(
-        this: &mut std::sync::Arc<Object>,
-        other: std::sync::Arc<Object>,
+        this: &mut SharedObject,
+        other: SharedObject,
     ) -> EngineResult<bool> {
         internal_object_in_object(&other, this.as_ref())
     }
 
-    // vsmtp's rule engine obj syntax container (Vec<std::sync::Arc<Object>>).
+    // vsmtp's rule engine obj syntax container (Vec<SharedObject>).
 
     #[rhai_fn(global, name = "to_string", pure)]
-    pub fn object_vec_to_string(this: &mut Vec<std::sync::Arc<Object>>) -> String {
+    pub fn object_vec_to_string(this: &mut Vec<SharedObject>) -> String {
         format!("{:?}", this)
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn object_vec_to_debug(this: &mut Vec<std::sync::Arc<Object>>) -> String {
+    pub fn object_vec_to_debug(this: &mut Vec<SharedObject>) -> String {
         format!("{:#?}", this)
     }
 
     #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn object_in_object_vec(
-        this: &mut Vec<std::sync::Arc<Object>>,
-        other: std::sync::Arc<Object>,
+        this: &mut Vec<SharedObject>,
+        other: SharedObject,
     ) -> bool {
         this.iter().any(|obj| **obj == *other)
     }
@@ -320,7 +321,7 @@ pub mod types {
 
     #[allow(clippy::ptr_arg)]
     #[rhai_fn(global, get = "local_parts", pure)]
-    pub fn rcpt_local_parts(this: &mut Vec<Address>) -> Vec<std::sync::Arc<Object>> {
+    pub fn rcpt_local_parts(this: &mut Vec<Address>) -> Vec<SharedObject> {
         this.iter()
             .map(|rcpt| std::sync::Arc::new(Object::Identifier(rcpt.local_part().to_string())))
             .collect()
@@ -328,7 +329,7 @@ pub mod types {
 
     #[allow(clippy::ptr_arg)]
     #[rhai_fn(global, get = "domains", pure)]
-    pub fn rcpt_domains(this: &mut Vec<Address>) -> Vec<std::sync::Arc<Object>> {
+    pub fn rcpt_domains(this: &mut Vec<Address>) -> Vec<SharedObject> {
         this.iter()
             .map(|rcpt| std::sync::Arc::new(Object::Fqdn(rcpt.domain().to_string())))
             .collect()
@@ -362,7 +363,7 @@ pub mod types {
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_rcpt(
         this: &mut Vec<Address>,
-        other: std::sync::Arc<Object>,
+        other: SharedObject,
     ) -> EngineResult<bool> {
         internal_object_in_rcpt(this, &other)
     }

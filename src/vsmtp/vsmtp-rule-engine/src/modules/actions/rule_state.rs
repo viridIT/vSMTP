@@ -15,8 +15,10 @@
  *
 */
 use crate::{
-    dsl::object::Object, modules::actions::transports::transports::disable_delivery_all,
-    modules::types::types::Context, modules::EngineResult,
+    dsl::object::Object,
+    modules::actions::transports::transports::disable_delivery_all,
+    modules::types::types::{Context, SharedObject},
+    modules::EngineResult,
 };
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -24,7 +26,7 @@ use rhai::plugin::{
 };
 use vsmtp_common::{status::Status, CodeID, Reply, ReplyOrCodeID};
 
-fn reply_or_code_id_from_object(code: &std::sync::Arc<Object>) -> EngineResult<ReplyOrCodeID> {
+fn reply_or_code_id_from_object(code: &SharedObject) -> EngineResult<ReplyOrCodeID> {
     match &**code {
         Object::Code(code) => Ok(ReplyOrCodeID::Reply(code.clone())),
         object => Err(format!("parameter must be a code, not {}", object.as_ref()).into()),
@@ -55,7 +57,7 @@ pub mod rule_state {
     ///
     /// * `code` is not a valid code
     #[rhai_fn(global, name = "faccept", return_raw)]
-    pub fn faccept_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
+    pub fn faccept_with_code(code: &mut SharedObject) -> EngineResult<Status> {
         reply_or_code_id_from_object(code).map(Status::Faccept)
     }
 
@@ -81,7 +83,7 @@ pub mod rule_state {
     ///
     /// * `code` is not a valid code
     #[rhai_fn(global, name = "accept", return_raw)]
-    pub fn accept_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
+    pub fn accept_with_code(code: &mut SharedObject) -> EngineResult<Status> {
         reply_or_code_id_from_object(code).map(Status::Accept)
     }
 
@@ -114,7 +116,7 @@ pub mod rule_state {
     ///
     /// * `code` is not a valid code
     #[rhai_fn(global, name = "deny", return_raw)]
-    pub fn deny_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
+    pub fn deny_with_code(code: &mut SharedObject) -> EngineResult<Status> {
         reply_or_code_id_from_object(code).map(Status::Deny)
     }
 
@@ -134,7 +136,7 @@ pub mod rule_state {
     ///
     /// * `code` is not a valid code
     #[rhai_fn(global, name = "info", return_raw)]
-    pub fn info_with_code(code: &mut std::sync::Arc<Object>) -> EngineResult<Status> {
+    pub fn info_with_code(code: &mut SharedObject) -> EngineResult<Status> {
         reply_or_code_id_from_object(code).map(Status::Info)
     }
 

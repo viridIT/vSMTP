@@ -26,16 +26,12 @@ use vsmtp_common::{mail_context::MailContext, re::anyhow};
 pub mod transports {
     use vsmtp_common::transfer::ForwardTarget;
 
-    use crate::modules::types::types::Context;
+    use crate::modules::types::types::{Context, SharedObject};
     use crate::{dsl::object::Object, modules::EngineResult};
 
     /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, name = "forward", return_raw, pure)]
-    pub fn forward_obj(
-        this: &mut Context,
-        rcpt: &str,
-        forward: std::sync::Arc<Object>,
-    ) -> EngineResult<()> {
+    pub fn forward_obj(this: &mut Context, rcpt: &str, forward: SharedObject) -> EngineResult<()> {
         match &*forward {
             Object::Ip4(ip) => forward_str(this, rcpt, &ip.to_string()),
             Object::Ip6(ip) => forward_str(this, rcpt, &ip.to_string()),
@@ -45,10 +41,7 @@ pub mod transports {
     }
 
     #[rhai_fn(global, name = "forward_all", return_raw, pure)]
-    pub fn forward_all_obj(
-        this: &mut Context,
-        forward: std::sync::Arc<Object>,
-    ) -> EngineResult<()> {
+    pub fn forward_all_obj(this: &mut Context, forward: SharedObject) -> EngineResult<()> {
         match &*forward {
             Object::Ip4(ip) => forward_all_str(this, &ip.to_string()),
             Object::Ip6(ip) => forward_all_str(this, &ip.to_string()),

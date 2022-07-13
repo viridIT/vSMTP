@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::types::types::Context;
+use crate::modules::types::types::{Context, SharedObject};
 use crate::{dsl::object::Object, modules::EngineResult};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -57,7 +57,7 @@ pub mod bcc {
     /// add a recipient to the list recipient using an object.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "bcc", return_raw, pure)]
-    pub fn from_object(this: &mut Context, bcc: std::sync::Arc<Object>) -> EngineResult<()> {
+    pub fn from_object(this: &mut Context, bcc: SharedObject) -> EngineResult<()> {
         this.write()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .envelop

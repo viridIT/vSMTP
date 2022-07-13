@@ -24,10 +24,22 @@ use vsmtp_common::{rcpt::Rcpt, Address};
 
 #[rhai::plugin::export_module]
 pub mod message {
-    /// check if a given header exists in the top level headers.
+    use crate::dsl::object::Object;
+
+    /// check if a given header exists in the top level headers. (for a string)
     #[rhai_fn(global, return_raw, pure)]
-    pub fn has_header(this: &mut Message, header: &str) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(this.read()).get_header(header).is_some())
+    pub fn has_header_str(message: &mut Message, header: &str) -> EngineResult<bool> {
+        super::has_header(message, header)
+    }
+
+    /// check if a given header exists in the top level headers. (for a string object)
+    #[rhai_fn(global, return_raw, pure)]
+    pub fn has_header_obj(message: &mut Message, header: Object) -> EngineResult<bool> {
+        if let Object::Str(header) = &header {
+            super::has_header(message, header)
+        } else {
+            Err("has_header function only takes strings as parameter".into())
+        }
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
@@ -195,4 +207,9 @@ pub mod message_calling_parse {
         }
         Ok(())
     }
+}
+
+/// internal generic function to check the presence of a header.
+fn has_header(message: &mut Message, header: &str) -> EngineResult<bool> {
+    Ok(vsl_guard_ok!(message.read()).get_header(header).is_some())
 }
