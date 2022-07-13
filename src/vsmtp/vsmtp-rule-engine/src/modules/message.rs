@@ -27,36 +27,90 @@ pub mod message {
     use crate::{dsl::object::Object, modules::types::types::SharedObject};
 
     /// check if a given header exists in the top level headers. (for a string)
-    #[rhai_fn(global, return_raw, pure)]
+    #[rhai_fn(global, name = "has_header", return_raw, pure)]
     pub fn has_header_str(message: &mut Message, header: &str) -> EngineResult<bool> {
         super::has_header(message, header)
     }
 
     /// check if a given header exists in the top level headers. (for a string object)
     #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, return_raw, pure)]
+    #[rhai_fn(global, name = "has_header", return_raw, pure)]
     pub fn has_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<bool> {
         if let Object::Str(header) = &*header {
             super::has_header(message, header)
         } else {
-            Err("has_header function only takes strings as parameter".into())
+            Err("the `has_header` function only takes strings as parameter".into())
         }
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn get_header(this: &mut Message, header: &str) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(this.read())
-            .get_header(header)
-            .map(ToString::to_string)
-            .unwrap_or_default())
+    /// (for a string)
+    #[rhai_fn(global, name = "get_header", return_raw, pure)]
+    pub fn get_header_str(message: &mut Message, header: &str) -> EngineResult<String> {
+        super::get_header(message, header)
+    }
+
+    /// return the value of a header if it exists. Otherwise, returns an empty string.
+    /// (for a string object)
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "get_header", return_raw, pure)]
+    pub fn get_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<String> {
+        if let Object::Str(header) = &*header {
+            super::get_header(message, header)
+        } else {
+            Err("the `get_header` function only takes strings as parameter".into())
+        }
     }
 
     /// add a header to the end of the raw or parsed email contained in ctx.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn append_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        vsl_guard_ok!(this.write()).append_header(header, value);
-        Ok(())
+    #[rhai_fn(global, name = "append_header", return_raw, pure)]
+    pub fn append_header_str_str(
+        message: &mut Message,
+        header: &str,
+        value: &str,
+    ) -> EngineResult<()> {
+        super::append_header(message, &header, &value)
+    }
+
+    /// add a header to the end of the raw or parsed email contained in ctx.
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "append_header", return_raw, pure)]
+    pub fn append_header_obj_str(
+        message: &mut Message,
+        header: SharedObject,
+        value: &str,
+    ) -> EngineResult<()> {
+        if let Object::Str(header) = &*header {
+            super::append_header(message, &header, &value)
+        } else {
+            Err("the `append_header` first parameter must be a string".into())
+        }
+    }
+
+    /// add a header to the end of the raw or parsed email contained in ctx.
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "append_header", return_raw, pure)]
+    pub fn append_header_str_obj(
+        message: &mut Message,
+        header: &str,
+        value: SharedObject,
+    ) -> EngineResult<()> {
+        super::append_header(message, &header, &value.to_string())
+    }
+
+    /// add a header to the end of the raw or parsed email contained in ctx.
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "append_header", return_raw, pure)]
+    pub fn append_header_obj_obj(
+        message: &mut Message,
+        header: SharedObject,
+        value: SharedObject,
+    ) -> EngineResult<()> {
+        if let Object::Str(header) = &*header {
+            super::append_header(message, &header, &value.to_string())
+        } else {
+            Err("the `append_header` first parameter must be a string".into())
+        }
     }
 
     /// prepend a header to the raw or parsed email contained in ctx.
@@ -213,4 +267,72 @@ pub mod message_calling_parse {
 /// internal generic function to check the presence of a header.
 fn has_header(message: &mut Message, header: &str) -> EngineResult<bool> {
     Ok(vsl_guard_ok!(message.read()).get_header(header).is_some())
+}
+
+/// internal generic function to get a header.
+fn get_header(message: &mut Message, header: &str) -> EngineResult<String> {
+    Ok(vsl_guard_ok!(message.read())
+        .get_header(header)
+        .map(ToString::to_string)
+        .unwrap_or_default())
+}
+
+/// internal generic function to append a header to the message.
+fn append_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
+where
+    T: AsRef<str> + ?Sized,
+    U: AsRef<str> + ?Sized,
+{
+    vsl_guard_ok!(message.write()).append_header(header.as_ref(), value.as_ref());
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use crate::dsl::object::Object;
+
+    use super::*;
+    use vsmtp_common::mail_context::MessageBody;
+
+    #[test]
+    fn test_append_header_success() {
+        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
+
+        message::append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
+        message::append_header_str_obj(
+            &mut message,
+            "X-HEADER-2",
+            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+        )
+        .unwrap();
+        message::append_header_obj_str(
+            &mut message,
+            std::sync::Arc::new(Object::Str("X-HEADER-3".to_string())),
+            "VALUE-3",
+        )
+        .unwrap();
+        message::append_header_obj_obj(
+            &mut message,
+            std::sync::Arc::new(Object::Str("X-HEADER-4".to_string())),
+            std::sync::Arc::new(Object::Fqdn("example.com".to_string())),
+        )
+        .unwrap();
+
+        assert_eq!(
+            message.read().unwrap().get_header("X-HEADER-1").unwrap(),
+            "VALUE-1"
+        );
+        assert_eq!(
+            message.read().unwrap().get_header("X-HEADER-2").unwrap(),
+            "VALUE-2"
+        );
+        assert_eq!(
+            message.read().unwrap().get_header("X-HEADER-3").unwrap(),
+            "VALUE-3"
+        );
+        assert_eq!(
+            message.read().unwrap().get_header("X-HEADER-4").unwrap(),
+            "example.com"
+        );
+    }
 }

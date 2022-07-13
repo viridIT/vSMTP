@@ -16,6 +16,7 @@
 */
 
 pub(crate) mod actions;
+pub(crate) mod errors;
 pub(crate) mod mail_context;
 pub(crate) mod message;
 pub(crate) mod types;
