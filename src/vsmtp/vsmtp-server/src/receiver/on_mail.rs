@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{delegate, log_channels, Connection, Process, ProcessMessage};
+use crate::{log_channels, Connection, Process, ProcessMessage};
 use vsmtp_common::{
     mail_context::{MailContext, MessageBody},
     queue::Queue,
@@ -102,23 +102,8 @@ impl MailHandler {
 
                 log::warn!(target: log_channels::PREQ, "skipped due to quarantine.",);
             }
-            Some(Status::Delegated(delegator)) => {
-                mail_context.metadata.as_mut().unwrap().skipped = None;
-
-                // FIXME: find a way to use `write_to_queue` instead to be consistant
-                //        with the rest of the function.
-                Queue::Delegated
-                    .write_to_queue(&conn.config.server.queues.dirpath, &mail_context)
-                    .map_err(|error| MailHandlerError::WriteToQueue(Queue::Working, error))?;
-
-                // NOTE: needs to be executed after writing, because the other
-                //       thread could pickup the email faster than this function.
-                delegate(delegator, &mail_context, &mail_message)
-                    .map_err(MailHandlerError::DelegateMessage)?;
-
-                log::warn!(target: log_channels::PREQ, " skipped due to delegation.",);
-
-                return Ok(());
+            Some(Status::Delegated(_)) => {
+                unreachable!("delegate directive cannot be used in preq stage")
             }
             Some(Status::DelegationResult) => {
                 if let Some(old_message_id) = mail_message
