@@ -75,42 +75,12 @@ pub mod message {
     /// add a header to the end of the raw or parsed email contained in ctx.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "append_header", return_raw, pure)]
-    pub fn append_header_obj_str(
-        message: &mut Message,
-        header: SharedObject,
-        value: &str,
-    ) -> EngineResult<()> {
-        if let Object::Str(header) = &*header {
-            super::append_header(message, &header, &value)
-        } else {
-            Err("the `append_header` first parameter must be a string".into())
-        }
-    }
-
-    /// add a header to the end of the raw or parsed email contained in ctx.
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "append_header", return_raw, pure)]
     pub fn append_header_str_obj(
         message: &mut Message,
         header: &str,
         value: SharedObject,
     ) -> EngineResult<()> {
         super::append_header(message, &header, &value.to_string())
-    }
-
-    /// add a header to the end of the raw or parsed email contained in ctx.
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "append_header", return_raw, pure)]
-    pub fn append_header_obj_obj(
-        message: &mut Message,
-        header: SharedObject,
-        value: SharedObject,
-    ) -> EngineResult<()> {
-        if let Object::Str(header) = &*header {
-            super::append_header(message, &header, &value.to_string())
-        } else {
-            Err("the `append_header` first parameter must be a string".into())
-        }
     }
 
     /// prepend a header to the raw or parsed email contained in ctx.
@@ -305,18 +275,6 @@ mod test {
             std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
         )
         .unwrap();
-        message::append_header_obj_str(
-            &mut message,
-            std::sync::Arc::new(Object::Str("X-HEADER-3".to_string())),
-            "VALUE-3",
-        )
-        .unwrap();
-        message::append_header_obj_obj(
-            &mut message,
-            std::sync::Arc::new(Object::Str("X-HEADER-4".to_string())),
-            std::sync::Arc::new(Object::Fqdn("example.com".to_string())),
-        )
-        .unwrap();
 
         assert_eq!(
             message.read().unwrap().get_header("X-HEADER-1").unwrap(),
@@ -325,14 +283,6 @@ mod test {
         assert_eq!(
             message.read().unwrap().get_header("X-HEADER-2").unwrap(),
             "VALUE-2"
-        );
-        assert_eq!(
-            message.read().unwrap().get_header("X-HEADER-3").unwrap(),
-            "VALUE-3"
-        );
-        assert_eq!(
-            message.read().unwrap().get_header("X-HEADER-4").unwrap(),
-            "example.com"
         );
     }
 }

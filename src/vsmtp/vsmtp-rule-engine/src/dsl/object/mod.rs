@@ -79,15 +79,14 @@ impl PartialEq for Object {
             (Self::Rg4(l0), Self::Rg4(r0)) => l0 == r0,
             (Self::Rg6(l0), Self::Rg6(r0)) => l0 == r0,
             (Self::Address(l0), Self::Address(r0)) => l0 == r0,
-            (Self::Fqdn(l0), Self::Fqdn(r0)) => l0 == r0,
+            (Self::Fqdn(l0), Self::Fqdn(r0))
+            | (Self::Identifier(l0), Self::Identifier(r0))
+            | (Self::Str(l0), Self::Str(r0)) => l0 == r0,
             (Self::File(l0), Self::File(r0)) => l0 == r0,
             (Self::Group(l0), Self::Group(r0)) => l0 == r0,
-            (Self::Identifier(l0), Self::Identifier(r0)) | (Self::Str(l0), Self::Str(r0)) => {
-                l0 == r0
-            }
             (Self::Regex(r0), Self::Regex(l0)) => r0.as_str() == l0.as_str(),
             (Self::Code(r0), Self::Code(l0)) => r0 == l0,
-            _ => unimplemented!(),
+            _ => false,
         }
     }
 }
@@ -118,7 +117,7 @@ impl Object {
     /// this map must have the "value" and "type" keys to be parsed
     /// successfully.
     #[allow(clippy::too_many_lines)]
-    pub(crate) fn from<S>(
+    pub(crate) fn from_map<S>(
         map: &std::collections::BTreeMap<S, rhai::Dynamic>,
     ) -> anyhow::Result<Self>
     where
@@ -285,7 +284,7 @@ mod test {
     #[test]
     #[allow(clippy::too_many_lines)]
     fn test_from() {
-        let ip4 = Object::from(&rhai::Map::from_iter([
+        let ip4 = Object::from_map(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("ip4".to_string())),
             ("type".into(), rhai::Dynamic::from("ip4".to_string())),
             ("value".into(), rhai::Dynamic::from("127.0.0.1".to_string())),
@@ -294,7 +293,7 @@ mod test {
         assert_eq!(ip4, Object::Ip4(Ipv4Addr::new(127, 0, 0, 1)));
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 ("ip6".into(), rhai::Dynamic::from("ip6".to_string())),
                 ("type".into(), rhai::Dynamic::from("ip6".to_string())),
                 (
@@ -307,7 +306,7 @@ mod test {
         );
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 ("name".into(), rhai::Dynamic::from("rg4".to_string())),
                 ("type".into(), rhai::Dynamic::from("rg4".to_string())),
                 (
@@ -324,7 +323,7 @@ mod test {
             )
         );
 
-        let rg6 = Object::from(&rhai::Map::from_iter([
+        let rg6 = Object::from_map(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("rg6".to_string())),
             ("type".into(), rhai::Dynamic::from("rg6".to_string())),
             (
@@ -343,7 +342,7 @@ mod test {
             )
         );
 
-        let fqdn = Object::from(&rhai::Map::from_iter([
+        let fqdn = Object::from_map(&rhai::Map::from_iter([
             ("name".into(), rhai::Dynamic::from("fqdn".to_string())),
             ("type".into(), rhai::Dynamic::from("fqdn".to_string())),
             (
@@ -355,7 +354,7 @@ mod test {
         assert_eq!(fqdn, Object::Fqdn("example.com".to_string()));
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 ("name".into(), rhai::Dynamic::from("address".to_string())),
                 ("type".into(), rhai::Dynamic::from("address".to_string())),
                 (
@@ -368,7 +367,7 @@ mod test {
         );
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 ("name".into(), rhai::Dynamic::from("ident".to_string())),
                 ("type".into(), rhai::Dynamic::from("ident".to_string())),
                 ("value".into(), rhai::Dynamic::from("john".to_string())),
@@ -378,7 +377,7 @@ mod test {
         );
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 ("name".into(), rhai::Dynamic::from("string".to_string())),
                 ("type".into(), rhai::Dynamic::from("string".to_string())),
                 (
@@ -393,7 +392,7 @@ mod test {
         assert_eq!(
             format!(
                 "{}",
-                Object::from(&rhai::Map::from_iter([
+                Object::from_map(&rhai::Map::from_iter([
                     ("name".into(), rhai::Dynamic::from("regex".to_string())),
                     ("type".into(), rhai::Dynamic::from("regex".to_string())),
                     (
@@ -408,7 +407,7 @@ mod test {
 
         // TODO: test all possible content types.
         // assert_eq!(
-        //     Object::from(&rhai::Map::from_iter([
+        //     Object::from_map(&rhai::Map::from_iter([
         //         ("name".into(), rhai::Dynamic::from("file".to_string())),
         //         ("type".into(), rhai::Dynamic::from("file".to_string())),
         //         (
@@ -429,7 +428,7 @@ mod test {
         // );
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 ("name".into(), rhai::Dynamic::from("group".to_string())),
                 ("type".into(), rhai::Dynamic::from("group".to_string())),
                 (
@@ -455,7 +454,7 @@ mod test {
         );
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 (
                     "name".into(),
                     rhai::Dynamic::from("code_enhanced".to_string()),
@@ -479,7 +478,7 @@ mod test {
         );
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 ("name".into(), rhai::Dynamic::from("code".to_string())),
                 ("type".into(), rhai::Dynamic::from("code".to_string())),
                 ("code".into(), rhai::Dynamic::from(550_i64)),
@@ -496,7 +495,7 @@ mod test {
         );
 
         assert_eq!(
-            Object::from(&rhai::Map::from_iter([
+            Object::from_map(&rhai::Map::from_iter([
                 (
                     "name".into(),
                     rhai::Dynamic::from("code_from_string".to_string()),
@@ -514,7 +513,7 @@ mod test {
             ))
         );
 
-        Object::from(&rhai::Map::from_iter([
+        Object::from_map(&rhai::Map::from_iter([
             (
                 "name".into(),
                 rhai::Dynamic::from("inline code".to_string()),
