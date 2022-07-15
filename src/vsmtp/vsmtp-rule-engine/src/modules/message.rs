@@ -14,52 +14,31 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::types::types::{Context, Message};
+use crate::modules::types::types::Message;
 use crate::modules::EngineResult;
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::{rcpt::Rcpt, Address};
+use vsmtp_common::Address;
 
 #[rhai::plugin::export_module]
 pub mod message {
-    use crate::{dsl::object::Object, modules::types::types::SharedObject};
+    use crate::modules::types::types::SharedObject;
 
-    /// check if a given header exists in the top level headers. (for a string)
+    /// check if a given header exists in the top level headers.
     #[rhai_fn(global, name = "has_header", return_raw, pure)]
-    pub fn has_header_str(message: &mut Message, header: &str) -> EngineResult<bool> {
-        super::has_header(message, header)
-    }
-
-    /// check if a given header exists in the top level headers. (for a string object)
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "has_header", return_raw, pure)]
-    pub fn has_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<bool> {
-        if let Object::Str(header) = &*header {
-            super::has_header(message, header)
-        } else {
-            Err("the `has_header` function only takes strings as parameter".into())
-        }
+    pub fn has_header(message: &mut Message, header: &str) -> EngineResult<bool> {
+        Ok(vsl_guard_ok!(message.read()).get_header(header).is_some())
     }
 
     /// return the value of a header if it exists. Otherwise, returns an empty string.
-    /// (for a string)
     #[rhai_fn(global, name = "get_header", return_raw, pure)]
-    pub fn get_header_str(message: &mut Message, header: &str) -> EngineResult<String> {
-        super::get_header(message, header)
-    }
-
-    /// return the value of a header if it exists. Otherwise, returns an empty string.
-    /// (for a string object)
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "get_header", return_raw, pure)]
-    pub fn get_header_obj(message: &mut Message, header: SharedObject) -> EngineResult<String> {
-        if let Object::Str(header) = &*header {
-            super::get_header(message, header)
-        } else {
-            Err("the `get_header` function only takes strings as parameter".into())
-        }
+    pub fn get_header(message: &mut Message, header: &str) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(message.read())
+            .get_header(header)
+            .map(ToString::to_string)
+            .unwrap_or_default())
     }
 
     /// add a header to the end of the raw or parsed email contained in ctx.
@@ -72,7 +51,7 @@ pub mod message {
         super::append_header(message, &header, &value)
     }
 
-    /// add a header to the end of the raw or parsed email contained in ctx.
+    /// add a header to the end of the raw or parsed email contained in ctx. (using an object)
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "append_header", return_raw, pure)]
     pub fn append_header_str_obj(
@@ -84,92 +63,51 @@ pub mod message {
     }
 
     /// prepend a header to the raw or parsed email contained in ctx.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn prepend_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        vsl_guard_ok!(this.write()).prepend_header(header, value);
-        Ok(())
+    #[rhai_fn(global, name = "prepend_header", return_raw, pure)]
+    pub fn prepend_header_str_str(
+        message: &mut Message,
+        header: &str,
+        value: &str,
+    ) -> EngineResult<()> {
+        super::prepend_header(message, header, value)
+    }
+
+    /// prepend a header to the raw or parsed email contained in ctx. (using an object)
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "prepend_header", return_raw, pure)]
+    pub fn prepend_header_str_obj(
+        message: &mut Message,
+        header: &str,
+        value: SharedObject,
+    ) -> EngineResult<()> {
+        super::prepend_header(message, header, &value.to_string())
     }
 
     /// set a header to the raw or parsed email contained in ctx.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn set_header(this: &mut Message, header: &str, value: &str) -> EngineResult<()> {
-        vsl_guard_ok!(this.write()).set_header(header, value);
-        Ok(())
+    #[rhai_fn(global, name = "set_header", return_raw, pure)]
+    pub fn set_header_str_str(
+        message: &mut Message,
+        header: &str,
+        value: &str,
+    ) -> EngineResult<()> {
+        super::set_header(message, header, value)
+    }
+
+    /// set a header to the raw or parsed email contained in ctx.
+    #[rhai_fn(global, name = "set_header", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn set_header_str_obj(
+        message: &mut Message,
+        header: &str,
+        value: SharedObject,
+    ) -> EngineResult<()> {
+        super::set_header(message, header, &value.to_string())
     }
 
     /// Get the message body as a string
     #[rhai_fn(global, get = "mail", return_raw, pure)]
     pub fn mail(this: &mut Message) -> EngineResult<String> {
         Ok(vsl_guard_ok!(this.read()).to_string())
-    }
-
-    /// Change the sender of the envelop
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn rewrite_mail_from_context(this: &mut Context, new_addr: &str) -> EngineResult<()> {
-        vsl_guard_ok!(this.write()).envelop.mail_from =
-            vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
-        Ok(())
-    }
-
-    /// Change a recipient of the envelop.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn rewrite_rcpt(this: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
-        let old_addr = vsl_conversion_ok!("address", Address::try_from(old_addr.to_string()));
-        let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
-
-        let mut email = vsl_guard_ok!(this.write());
-
-        email.envelop.rcpt.push(Rcpt::new(new_addr));
-
-        if let Some(index) = email
-            .envelop
-            .rcpt
-            .iter()
-            .position(|rcpt| rcpt.address == old_addr)
-        {
-            email.envelop.rcpt.swap_remove(index);
-        }
-        Ok(())
-    }
-
-    /// add a recipient to the envelop.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn add_rcpt(this: &mut Context, new_addr: &str) -> EngineResult<()> {
-        vsl_guard_ok!(this.write())
-            .envelop
-            .rcpt
-            .push(Rcpt::new(vsl_conversion_ok!(
-                "address",
-                Address::try_from(new_addr.to_string())
-            )));
-
-        Ok(())
-    }
-
-    /// remove a recipient from the envelop.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn remove_rcpt(this: &mut Context, addr: &str) -> EngineResult<()> {
-        let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
-
-        let mut email = vsl_guard_ok!(this.write());
-
-        email
-            .envelop
-            .rcpt
-            .iter()
-            .position(|rcpt| rcpt.address == addr)
-            .map_or_else(
-                || {
-                    Err(format!(
-                "could not remove address '{addr}' because it does not resides in the envelop."
-            )
-                    .into())
-                },
-                |index| {
-                    email.envelop.rcpt.remove(index);
-                    Ok(())
-                },
-            )
     }
 }
 
@@ -234,19 +172,6 @@ pub mod message_calling_parse {
     }
 }
 
-/// internal generic function to check the presence of a header.
-fn has_header(message: &mut Message, header: &str) -> EngineResult<bool> {
-    Ok(vsl_guard_ok!(message.read()).get_header(header).is_some())
-}
-
-/// internal generic function to get a header.
-fn get_header(message: &mut Message, header: &str) -> EngineResult<String> {
-    Ok(vsl_guard_ok!(message.read())
-        .get_header(header)
-        .map(ToString::to_string)
-        .unwrap_or_default())
-}
-
 /// internal generic function to append a header to the message.
 fn append_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
 where
@@ -257,12 +182,72 @@ where
     Ok(())
 }
 
+/// internal generic function to prepend a header to the message.
+fn prepend_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
+where
+    T: AsRef<str> + ?Sized,
+    U: AsRef<str> + ?Sized,
+{
+    vsl_guard_ok!(message.write()).prepend_header(header.as_ref(), value.as_ref());
+    Ok(())
+}
+
+/// internal generic function to set the value of a header.
+fn set_header<T, U>(message: &mut Message, header: &T, value: &U) -> EngineResult<()>
+where
+    T: AsRef<str> + ?Sized,
+    U: AsRef<str> + ?Sized,
+{
+    vsl_guard_ok!(message.write()).set_header(header.as_ref(), value.as_ref());
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     use crate::dsl::object::Object;
 
     use super::*;
     use vsmtp_common::mail_context::MessageBody;
+
+    #[test]
+    fn test_has_header_success() {
+        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
+
+        message::append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
+        message::append_header_str_obj(
+            &mut message,
+            "X-HEADER-2",
+            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+        )
+        .unwrap();
+
+        assert!(message::has_header(&mut message, "X-HEADER-1").unwrap());
+        assert!(message::has_header(&mut message, "X-HEADER-2").unwrap());
+        assert!(!message::has_header(&mut message, "X-HEADER-3").unwrap());
+    }
+
+    #[test]
+    fn test_get_header_success() {
+        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
+
+        message::append_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
+        message::append_header_str_obj(
+            &mut message,
+            "X-HEADER-2",
+            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+        )
+        .unwrap();
+
+        assert_eq!(
+            message::get_header(&mut message, "X-HEADER-1").unwrap(),
+            "VALUE-1"
+        );
+        assert_eq!(
+            message::get_header(&mut message, "X-HEADER-2").unwrap(),
+            "VALUE-2"
+        );
+        assert_eq!(message::get_header(&mut message, "X-HEADER-3").unwrap(), "");
+    }
 
     #[test]
     fn test_append_header_success() {
@@ -282,6 +267,50 @@ mod test {
         );
         assert_eq!(
             message.read().unwrap().get_header("X-HEADER-2").unwrap(),
+            "VALUE-2"
+        );
+    }
+
+    #[test]
+    fn test_prepend_header_success() {
+        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
+
+        message::prepend_header_str_str(&mut message, "X-HEADER-1", "VALUE-1").unwrap();
+        message::prepend_header_str_obj(
+            &mut message,
+            "X-HEADER-2",
+            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+        )
+        .unwrap();
+
+        assert_eq!(
+            message.read().unwrap().get_header("X-HEADER-1").unwrap(),
+            "VALUE-1"
+        );
+        assert_eq!(
+            message.read().unwrap().get_header("X-HEADER-2").unwrap(),
+            "VALUE-2"
+        );
+    }
+
+    #[test]
+    fn test_set_header_success() {
+        let mut message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
+
+        message::set_header_str_str(&mut message, "X-HEADER", "VALUE-1").unwrap();
+        assert_eq!(
+            message.read().unwrap().get_header("X-HEADER").unwrap(),
+            "VALUE-1"
+        );
+
+        message::set_header_str_obj(
+            &mut message,
+            "X-HEADER",
+            std::sync::Arc::new(Object::Str("VALUE-2".to_string())),
+        )
+        .unwrap();
+        assert_eq!(
+            message.read().unwrap().get_header("X-HEADER").unwrap(),
             "VALUE-2"
         );
     }
