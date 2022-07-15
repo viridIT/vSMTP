@@ -23,7 +23,10 @@ async fn verify_with_raw_message() {
     .unwrap();
 
     let signature = <Signature as std::str::FromStr>::from_str(SIGNATURE).unwrap();
-    let public_key = signature.get_public_key(&resolver).await.unwrap();
+    let public_key = resolver
+        .txt_lookup(signature.get_dns_query())
+        .await
+        .unwrap();
     let field = public_key.iter().next().unwrap();
 
     let public_key = <Key as std::str::FromStr>::from_str(&field.to_string()).unwrap();

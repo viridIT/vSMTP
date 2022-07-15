@@ -113,18 +113,8 @@ impl Signature {
     }
 
     ///
-    /// # Errors
-    ///
-    /// * see [`trust_dns_resolver::TokioAsyncResolver::txt_lookup`]
-    pub async fn get_public_key(
-        &self,
-        resolver: &trust_dns_resolver::TokioAsyncResolver,
-    ) -> Result<trust_dns_resolver::lookup::TxtLookup, trust_dns_resolver::error::ResolveError>
-    {
-        resolver.txt_lookup(self.get_dns_query()).await
-    }
-
-    fn get_dns_query(&self) -> String {
+    #[must_use]
+    pub fn get_dns_query(&self) -> String {
         format!(
             "{selector}._domainkey.{sdid}",
             selector = self.selector,

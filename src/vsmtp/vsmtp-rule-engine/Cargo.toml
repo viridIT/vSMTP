@@ -62,6 +62,8 @@ time = { version = "0.3.11", default-features = false, features = [
   "macros",
 ] }
 
+trust-dns-resolver = "0.21.2"
+
 [dev-dependencies]
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
 

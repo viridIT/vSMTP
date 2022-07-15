@@ -2357,6 +2357,7 @@ dependencies = [
  "rhai",
  "thiserror",
  "time 0.3.11",
+ "trust-dns-resolver",
  "viaspf",
  "vsmtp-common",
  "vsmtp-config",
