@@ -155,8 +155,21 @@ pub mod rule_state {
     /// # Errors
     ///
     /// * a mutex is poisoned
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn quarantine(ctx: &mut Context, queue: &str) -> EngineResult<Status> {
+    #[rhai_fn(global, name = "quarantine", return_raw, pure)]
+    pub fn quarantine_str(ctx: &mut Context, queue: &str) -> EngineResult<Status> {
+        disable_delivery_all(ctx)?;
+
+        Ok(Status::Quarantine(queue.to_string()))
+    }
+
+    /// Return a [`Status::Quarantine`] with `queue`
+    ///
+    /// # Errors
+    ///
+    /// * a mutex is poisoned
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "quarantine", return_raw, pure)]
+    pub fn quarantine_obj(ctx: &mut Context, queue: SharedObject) -> EngineResult<Status> {
         disable_delivery_all(ctx)?;
 
         Ok(Status::Quarantine(queue.to_string()))
