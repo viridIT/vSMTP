@@ -125,20 +125,67 @@
         },
 
         action "rewrite envelop" || {
-            add_rcpt("added@rcpt.com");
+            // available parameters types for `add_rcpt`.
+            // object added2 address = "added2@example.com";
+            // object added3 string = "added3@example.com";
+            // object failadd ip = "127.0.0.1";
+            add_rcpt("added@example.com");
+            // add_rcpt(added2);
+            // add_rcpt(added3);
+            // try { add_rcpt(failadd); return deny(); } catch { }
+
+            // available parameters types for `remove_rcpt`.
+            // object remove2 address = "toremove1@example.com";
+            // object remove3 string = "toremove2@example.com";
+            // object failremove fqdn = "example.com";
             remove_rcpt("rcpt@toremove.org");
+            // remove_rcpt("rcpt@toremove.org");
+            // remove_rcpt("rcpt@toremove.org");
+
             rewrite_rcpt("rcpt@torewrite.net", "new@rcpt.net");
             rewrite_mail_from("new@mailfrom.eu");
         },
 
         action "rewrite to headers" || {
-            add_to_message("other.added@rcpt.com");
+            // available parameters types for `add_to_message`.
+            object added1 address = "added1@example.com";
+            object added2 string = "added2@example.com";
+            add_to_message(added1);
+            add_to_message(added2);
+            add_to_message("added3@example.com");
+
+            object fail ip4 = "127.0.0.1";
+            try { add_to_message(fail); return deny(); } catch (e) { print(e) }
+
+            // available parameters types for `remove_to_message`.
+            object removed1 address = "removed1@example.com";
+            object removed2 string = "removed2@example.com";
+            remove_to_message(removed1);
+            remove_to_message(removed2);
+            remove_to_message("removed3@example.org");
+
+            object fail ip4 = "127.0.0.1";
+            try { remove_to_message(fail); return deny(); } catch (e) { print(e) }
+
+            // available parameters types for `rewrite_to_message`.
+            object rewrite1 address = "rewrite1@example.com";
+            object rewrite2 string = "rewrite2@example.com";
+            rewrite_to_message(rewrite1, "rewrite3@example.org");
+            rewrite_to_message("rewrite3@example.org", rewrite2);
+            rewrite_to_message("rewrite3@example.org", "rewrite4@example.org");
+            rewrite_to_message(rewrite1, rewrite2);
+
+            object fail ip4 = "127.0.0.1";
+            try { rewrite_to_message(fail, "rewrite3@example.com"); return deny(); } catch (e) { print(e) }
+
+            remove_to_message(added1);
             remove_to_message("other.rcpt@toremove.org");
-            rewrite_to_message("other.rcpt@torewrite.net", "other.new@rcpt.net");
+            rewrite_to_message("other.rcpt@torewrite.net", rewrite1);
+            rewrite_to_message(added2, rewrite2);
         },
 
         rule "check rewrites" || {
-            if "added@rcpt.com" in ctx().rcpt_list
+            if "added@example.com" in ctx().rcpt_list
             && !("rcpt@toremove.org" in ctx().rcpt_list)
             && "new@rcpt.net" in ctx().rcpt_list
             && !("rcpt@torewrite.net" in ctx().rcpt_list)

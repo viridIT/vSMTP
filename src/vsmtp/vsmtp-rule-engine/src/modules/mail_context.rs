@@ -384,12 +384,7 @@ fn remove_rcpt(context: &mut Context, addr: &str) -> EngineResult<()> {
         .iter()
         .position(|rcpt| rcpt.address == addr)
         .map_or_else(
-            || {
-                Err(format!(
-                    "could not remove address '{addr}' because it does not resides in the envelop."
-                )
-                .into())
-            },
+            || Ok(()),
             |index| {
                 email.envelop.rcpt.remove(index);
                 Ok(())
