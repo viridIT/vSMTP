@@ -35,8 +35,11 @@
 
     delivery: [
         rule "find users" || {
+
+            object root indentifier = "root";
+
             if !user_exist("john")
-            && user_exist("root")
+            && user_exist(root)
             {
                 accept()
             } else {
