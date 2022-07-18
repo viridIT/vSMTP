@@ -16,7 +16,7 @@ readme = "README.md"
 keywords = ["vsmtp", "mta", "smtp", "server", "mail"]
 categories = ["email"]
 
-rust-version = "1.58"
+rust-version = "1.60"
 default-run = "vsmtp"
 
 [package.metadata.release]
@@ -55,7 +55,7 @@ vsmtp-common = { path = "./src/vsmtp/vsmtp-common", default-features = false, ve
 vsmtp-server = { path = "./src/vsmtp/vsmtp-server", default-features = false, version = "1.1.3" }
 vsmtp-config = { path = "./src/vsmtp/vsmtp-config", default-features = false, version = "1.1.3" }
 
-clap = { version = "3.2.8", features = ["derive"] }
+clap = { version = "3.2.12", features = ["derive"] }
 diff = "0.1.13"
 
 [features]
