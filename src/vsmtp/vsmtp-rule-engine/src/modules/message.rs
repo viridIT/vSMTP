@@ -175,28 +175,28 @@ pub mod message_calling_parse {
     }
 
     /// add a recipient to the 'To' mail header.
-    #[rhai_fn(global, name = "add_to", return_raw, pure)]
-    pub fn add_to_str(message: &mut Message, new_addr: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "add_to_message", return_raw, pure)]
+    pub fn add_to_message_str(message: &mut Message, new_addr: &str) -> EngineResult<()> {
         super::add_to(message, new_addr)
     }
 
     /// add a recipient to the 'To' mail header.
-    #[rhai_fn(global, name = "add_to", return_raw, pure)]
+    #[rhai_fn(global, name = "add_to_message", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn add_to_obj(message: &mut Message, new_addr: SharedObject) -> EngineResult<()> {
+    pub fn add_to_message_obj(message: &mut Message, new_addr: SharedObject) -> EngineResult<()> {
         super::add_to(message, &new_addr.to_string())
     }
 
     /// remove a recipient from the mail 'To' header.
-    #[rhai_fn(global, name = "remove_to", return_raw, pure)]
-    pub fn remove_to_str(message: &mut Message, addr: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "remove_to_message", return_raw, pure)]
+    pub fn remove_to_message_str(message: &mut Message, addr: &str) -> EngineResult<()> {
         super::remove_to(message, addr)
     }
 
     /// remove a recipient from the mail 'To' header.
-    #[rhai_fn(global, name = "remove_to", return_raw, pure)]
+    #[rhai_fn(global, name = "remove_to_message", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn remove_to_obj(message: &mut Message, addr: SharedObject) -> EngineResult<()> {
+    pub fn remove_to_message_obj(message: &mut Message, addr: SharedObject) -> EngineResult<()> {
         super::remove_to(message, &addr.to_string())
     }
 }
