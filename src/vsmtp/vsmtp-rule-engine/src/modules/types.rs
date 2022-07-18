@@ -141,26 +141,17 @@ pub mod types {
     }
 
     #[rhai_fn(global, name = "==", pure, return_raw)]
-    pub fn ip_is_object(
-        this: &mut std::net::IpAddr,
-        other: SharedObject,
-    ) -> EngineResult<bool> {
+    pub fn ip_is_object(this: &mut std::net::IpAddr, other: SharedObject) -> EngineResult<bool> {
         internal_ip_is_object(this, &other)
     }
 
     #[rhai_fn(global, name = "!=", pure, return_raw)]
-    pub fn ip_not_object(
-        this: &mut std::net::IpAddr,
-        other: SharedObject,
-    ) -> EngineResult<bool> {
+    pub fn ip_not_object(this: &mut std::net::IpAddr, other: SharedObject) -> EngineResult<bool> {
         internal_ip_is_object(this, &other).map(|r| !r)
     }
 
     #[rhai_fn(global, name = "contains", pure, return_raw)]
-    pub fn ip_in_object(
-        object: &mut SharedObject,
-        ip: std::net::IpAddr,
-    ) -> EngineResult<bool> {
+    pub fn ip_in_object(object: &mut SharedObject, ip: std::net::IpAddr) -> EngineResult<bool> {
         internal_ip_in_object(&ip, object)
     }
 
@@ -205,19 +196,13 @@ pub mod types {
     // NOTE: should a mismatched object fail or just return false ?
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw, pure)]
-    pub fn address_is_object(
-        this: &mut Address,
-        other: SharedObject,
-    ) -> EngineResult<bool> {
+    pub fn address_is_object(this: &mut Address, other: SharedObject) -> EngineResult<bool> {
         internal_address_is_object(this, &other)
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw, pure)]
-    pub fn object_is_address(
-        this: &mut SharedObject,
-        addr: Address,
-    ) -> EngineResult<bool> {
+    pub fn object_is_address(this: &mut SharedObject, addr: Address) -> EngineResult<bool> {
         internal_address_is_object(&addr, this)
     }
 
@@ -234,10 +219,7 @@ pub mod types {
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", return_raw, pure)]
-    pub fn address_not_object(
-        this: &mut Address,
-        other: SharedObject,
-    ) -> EngineResult<bool> {
+    pub fn address_not_object(this: &mut Address, other: SharedObject) -> EngineResult<bool> {
         internal_address_is_object(this, &other).map(|r| !r)
     }
 
@@ -255,10 +237,7 @@ pub mod types {
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", pure)]
-    pub fn object_is_self(
-        this: &mut SharedObject,
-        other: SharedObject,
-    ) -> bool {
+    pub fn object_is_self(this: &mut SharedObject, other: SharedObject) -> bool {
         **this == *other
     }
 
@@ -280,19 +259,13 @@ pub mod types {
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn address_in_object(
-        this: &mut SharedObject,
-        addr: Address,
-    ) -> EngineResult<bool> {
+    pub fn address_in_object(this: &mut SharedObject, addr: Address) -> EngineResult<bool> {
         internal_address_in_object(&addr, this)
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn object_in_object(
-        this: &mut SharedObject,
-        other: SharedObject,
-    ) -> EngineResult<bool> {
+    pub fn object_in_object(this: &mut SharedObject, other: SharedObject) -> EngineResult<bool> {
         internal_object_in_object(&other, this.as_ref())
     }
 
@@ -310,10 +283,7 @@ pub mod types {
 
     #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", pure)]
-    pub fn object_in_object_vec(
-        this: &mut Vec<SharedObject>,
-        other: SharedObject,
-    ) -> bool {
+    pub fn object_in_object_vec(this: &mut Vec<SharedObject>, other: SharedObject) -> bool {
         this.iter().any(|obj| **obj == *other)
     }
 
@@ -361,10 +331,7 @@ pub mod types {
 
     #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn object_in_rcpt(
-        this: &mut Vec<Address>,
-        other: SharedObject,
-    ) -> EngineResult<bool> {
+    pub fn object_in_rcpt(this: &mut Vec<Address>, other: SharedObject) -> EngineResult<bool> {
         internal_object_in_rcpt(this, &other)
     }
 }
