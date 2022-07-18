@@ -174,10 +174,19 @@ impl std::str::FromStr for ForwardTarget {
             || {
                 s.parse::<std::net::SocketAddr>().map_or_else(
                     |_| {
-                        Ok(s.parse::<std::net::IpAddr>().map_or_else(
-                            |_| ForwardTarget::Domain(s.to_string()),
-                            ForwardTarget::Ip,
-                        ))
+                        s.parse::<std::net::IpAddr>().map_or_else(
+                            |_| {
+                                addr::parse_domain_name(s)
+                                    .map(|domain| ForwardTarget::Domain(domain.to_string()))
+                                    .map_err(|err| {
+                                        anyhow::anyhow!(
+                                            "{} could not be used as a forward target.",
+                                            err.input()
+                                        )
+                                    })
+                            },
+                            |ip| Ok(ForwardTarget::Ip(ip)),
+                        )
                     },
                     |socket| Ok(ForwardTarget::Socket(socket)),
                 )

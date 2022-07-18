@@ -27,7 +27,7 @@ pub mod transports {
     use vsmtp_common::transfer::ForwardTarget;
 
     use crate::modules::types::types::{Context, SharedObject};
-    use crate::{dsl::object::Object, modules::EngineResult};
+    use crate::modules::EngineResult;
 
     /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, name = "forward", return_raw, pure)]
@@ -109,19 +109,28 @@ pub mod transports {
     ///
     #[rhai_fn(global, name = "forward_all", return_raw, pure)]
     pub fn forward_all_obj(context: &mut Context, forward: SharedObject) -> EngineResult<()> {
-        match &*forward {
-            Object::Ip4(ip) => forward_all_str(context, &ip.to_string()),
-            Object::Ip6(ip) => forward_all_str(context, &ip.to_string()),
-            Object::Fqdn(fqdn) | Object::Str(fqdn) => forward_all_str(context, fqdn),
-            obj => Err(format!("{} is not a valid address to forward an email to.", obj).into()),
-        }
+        let forward = <ForwardTarget as std::str::FromStr>::from_str(&forward.to_string())
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+
+        set_transport(context, &vsmtp_common::transfer::Transfer::Forward(forward))
     }
 
     /// set the delivery method to "Deliver" for a single recipient.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn deliver(context: &mut Context, rcpt: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "deliver", return_raw, pure)]
+    pub fn deliver_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
         set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Deliver)
             .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Deliver" for a single recipient.
+    #[rhai_fn(global, name = "deliver", return_raw, pure)]
+    pub fn deliver_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
+        set_transport_for(
+            context,
+            &rcpt.to_string(),
+            &vsmtp_common::transfer::Transfer::Deliver,
+        )
+        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Deliver" for all recipients.
@@ -131,10 +140,21 @@ pub mod transports {
     }
 
     /// set the delivery method to "Mbox" for a single recipient.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn mbox(context: &mut Context, rcpt: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "mbox", return_raw, pure)]
+    pub fn mbox_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
         set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Mbox)
             .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Mbox" for a single recipient.
+    #[rhai_fn(global, name = "mbox", return_raw, pure)]
+    pub fn mbox_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
+        set_transport_for(
+            context,
+            &rcpt.to_string(),
+            &vsmtp_common::transfer::Transfer::Mbox,
+        )
+        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Mbox" for all recipients.
@@ -144,10 +164,21 @@ pub mod transports {
     }
 
     /// set the delivery method to "Maildir" for a single recipient.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn maildir(context: &mut Context, rcpt: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "maildir", return_raw, pure)]
+    pub fn maildir_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
         set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Maildir)
             .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Maildir" for a single recipient.
+    #[rhai_fn(global, name = "maildir", return_raw, pure)]
+    pub fn maildir_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
+        set_transport_for(
+            context,
+            &rcpt.to_string(),
+            &vsmtp_common::transfer::Transfer::Maildir,
+        )
+        .map_err(|err| err.to_string().into())
     }
 
     /// set the delivery method to "Maildir" for all recipients.
@@ -157,10 +188,21 @@ pub mod transports {
     }
 
     /// remove the delivery method for a specific recipient.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn disable_delivery(context: &mut Context, rcpt: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "disable_delivery", return_raw, pure)]
+    pub fn disable_delivery_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
         set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::None)
             .map_err(|err| err.to_string().into())
+    }
+
+    /// remove the delivery method for a specific recipient.
+    #[rhai_fn(global, name = "disable_delivery", return_raw, pure)]
+    pub fn disable_delivery_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
+        set_transport_for(
+            context,
+            &rcpt.to_string(),
+            &vsmtp_common::transfer::Transfer::None,
+        )
+        .map_err(|err| err.to_string().into())
     }
 
     /// remove the delivery method for all recipient.
