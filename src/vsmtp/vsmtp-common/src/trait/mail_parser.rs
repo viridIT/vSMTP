@@ -14,27 +14,39 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::mail_context::MessageBody;
+use crate::{Either, Mail, RawBody};
+
+///
+pub type ParserOutcome = anyhow::Result<Either<RawBody, Mail>>;
 
 /// An abstract mail parser
 pub trait MailParser: Default {
-    /// Return a RFC valid [`MessageBody`] object from a buffer of strings
+    /// From a buffer of strings, return either:
+    ///
+    /// * a RFC valid [`Mail`] object
+    /// * a [`RawBody`] instance
     ///
     /// # Errors
     ///
     /// * the input is not compliant
-    fn parse_lines(&mut self, raw: Vec<String>) -> anyhow::Result<MessageBody>;
+    fn parse_lines(&mut self, raw: &[&str]) -> ParserOutcome;
 
+    ///
     /// # Errors
     ///
     /// * the input is not compliant
-    fn parse_raw(&mut self, headers: Vec<String>, body: String) -> anyhow::Result<MessageBody> {
+    fn parse_raw(&mut self, raw: &RawBody) -> ParserOutcome {
+        let headers = raw
+            .headers_lines()
+            .into_iter()
+            .chain(std::iter::once("\r\n"));
+
         self.parse_lines(
-            headers
-                .into_iter()
-                .chain(std::iter::once("\r\n".to_string()))
-                .chain(body.lines().map(str::to_string))
-                .collect::<Vec<_>>(),
+            &if let Some(body) = raw.body_lines() {
+                headers.chain(body).collect::<Vec<_>>()
+            } else {
+                headers.collect::<Vec<_>>()
+            }[..],
         )
     }
 }
@@ -43,7 +55,10 @@ pub trait MailParser: Default {
 #[allow(clippy::module_name_repetitions)]
 #[async_trait::async_trait]
 pub trait MailParserOnFly: Default {
-    /// Return a RFC valid [`MessageBody`] object from a stream of strings
+    /// From a buffer of strings, return either:
+    ///
+    /// * a RFC valid [`Mail`] object
+    /// * a [`RawBody`] instance
     ///
     /// # Errors
     ///
@@ -51,7 +66,7 @@ pub trait MailParserOnFly: Default {
     async fn parse<'a>(
         &'a mut self,
         stream: impl tokio_stream::Stream<Item = String> + Unpin + Send + 'a,
-    ) -> anyhow::Result<MessageBody>;
+    ) -> ParserOutcome;
 }
 
 // #[async_trait::async_trait]

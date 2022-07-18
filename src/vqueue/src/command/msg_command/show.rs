@@ -1,10 +1,11 @@
 use crate::{command::get_message_path, MessageShowFormat};
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     re::{
         anyhow::{self, Context},
         serde_json,
     },
+    MessageBody,
 };
 
 pub fn show<OUT: std::io::Write>(
@@ -22,10 +23,10 @@ pub fn show<OUT: std::io::Write>(
     match format {
         MessageShowFormat::Eml => {
             let mut copy = std::path::PathBuf::from(queues_dirpath);
-            copy.push(format!("mails/{msg_id}"));
+            copy.push(format!("mails/{msg_id}.eml"));
 
-            match std::fs::read_to_string(copy).map(|s| serde_json::from_str::<MessageBody>(&s)) {
-                Ok(Ok(message)) => output.write_fmt(format_args!("{}", message)),
+            match std::fs::read_to_string(copy).map(|s| MessageBody::try_from(s.as_str())) {
+                Ok(Ok(message)) => output.write_all(message.inner().to_string().as_bytes()),
                 Ok(Err(error)) => {
                     output.write_fmt(format_args!("Failed to deserialize message: '{error}'"))
                 }
@@ -47,11 +48,10 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MessageMetadata},
         queue::Queue,
         rcpt::Rcpt,
         transfer::{EmailTransferStatus, Transfer},
-        BodyType, Mail,
     };
 
     fn get_mail(msg_id: &str) -> (MailContext, MessageBody) {
@@ -83,16 +83,13 @@ mod tests {
                     skipped: None,
                 }),
             },
-            MessageBody::Parsed(Box::new(Mail {
-                headers: [
-                    ("from", "foo2 foo <foo2@foo>"),
-                    ("date", "tue, 30 nov 2021 20:54:27 +0100"),
-                ]
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect::<Vec<_>>(),
-                body: BodyType::Regular(vec!["Hello World!!".to_string()]),
-            })),
+            MessageBody::try_from(concat!(
+                "From: foo2 foo <foo2@foo>\r\n",
+                "Date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+                "\r\n",
+                "Hello World!!\r\n",
+            ))
+            .unwrap(),
         )
     }
 
@@ -107,24 +104,7 @@ mod tests {
             .write_to_queue(&std::path::PathBuf::from(queues_dirpath), &ctx)
             .unwrap();
 
-        let buf = std::path::PathBuf::from(queues_dirpath).join("mails");
-        std::fs::DirBuilder::new()
-            .recursive(true)
-            .create(&buf)
-            .unwrap();
-
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&format!("{queues_dirpath}/mails/{msg_id}"))
-            .unwrap();
-
-        std::io::Write::write_all(
-            &mut file,
-            serde_json::to_string(&message).unwrap().as_bytes(),
-        )
-        .unwrap();
+        message.write_to_mails(queues_dirpath, msg_id).unwrap();
 
         let mut output = vec![];
 
@@ -139,8 +119,8 @@ mod tests {
         pretty_assertions::assert_eq!(
             std::str::from_utf8(&output).unwrap(),
             [
-                "from: foo2 foo <foo2@foo>\r\n",
-                "date: tue, 30 nov 2021 20:54:27 +0100\r\n",
+                "From: foo2 foo <foo2@foo>\r\n",
+                "Date: tue, 30 nov 2021 20:54:27 +0100\r\n",
                 "\r\n",
                 "Hello World!!\r\n",
             ]

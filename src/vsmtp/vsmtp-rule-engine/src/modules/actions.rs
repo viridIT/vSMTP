@@ -17,6 +17,8 @@
 ///
 pub mod bcc;
 ///
+pub mod dkim;
+///
 pub mod logging;
 ///
 pub mod rule_state;

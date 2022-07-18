@@ -147,12 +147,9 @@ async fn handle_one_in_delivery_queue_inner(
             // after processing the email is removed from the delivery queue.
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
 
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
 
             log::warn!(target: log_channels::DELIVERY, "skipped due to quarantine.",);
 
@@ -167,12 +164,9 @@ async fn handle_one_in_delivery_queue_inner(
                 &mail_context,
             )?;
 
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
@@ -196,12 +190,9 @@ async fn handle_one_in_delivery_queue_inner(
 
             queue.move_to(&Queue::Dead, &config.server.queues.dirpath, &mail_context)?;
 
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
 
             log::warn!(
                 target: log_channels::DELIVERY,
@@ -256,10 +247,11 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::tokio,
         transfer::{EmailTransferStatus, Transfer},
+        MessageBody,
     };
     use vsmtp_config::build_resolvers;
     use vsmtp_rule_engine::rule_engine::RuleEngine;
@@ -314,13 +306,16 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(
             &config.server.queues.dirpath,
             "message_from_deliver_to_deferred",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
         )
         .unwrap();
 

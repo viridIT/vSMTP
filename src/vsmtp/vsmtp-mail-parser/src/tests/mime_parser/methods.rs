@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::mail_context::MessageBody;
+use vsmtp_common::MessageBody;
 
 use crate::MailMimeParser;
 
@@ -27,11 +27,7 @@ fn generate_test_bodies() -> (MessageBody, MessageBody) {
         "Subject: test message",
         "Content-Type: text/html; charset=UTF-8",
         "Content-Transfer-Encoding: 7bit",
-    ]
-    .into_iter()
-    .map(str::to_string)
-    .collect::<Vec<_>>();
-
+    ];
     let body = r#"<html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -40,15 +36,14 @@ fn generate_test_bodies() -> (MessageBody, MessageBody) {
     only plain text here<br>
   </body>
 </html>
-"#
-    .to_string();
+"#;
 
-    let raw = MessageBody::Raw {
-        headers,
-        body: Some(body),
-    };
+    let raw = MessageBody::new(
+        headers.iter().map(ToString::to_string).collect(),
+        body.to_string(),
+    );
     let mut parsed = raw.clone();
-    parsed.to_parsed::<MailMimeParser>().unwrap();
+    parsed.parse::<MailMimeParser>().unwrap();
 
     (raw, parsed)
 }
@@ -59,8 +54,11 @@ fn test_get_header() {
 
     let (raw, parsed) = generate_test_bodies();
 
-    assert_eq!(raw.get_header("To"), Some("green@example.com"));
-    assert_eq!(parsed.get_header("to"), Some("green@example.com"));
+    assert_eq!(raw.get_header("To"), Some("green@example.com".to_string()));
+    assert_eq!(
+        parsed.get_header("to"),
+        Some("green@example.com".to_string())
+    );
 }
 
 #[test]
@@ -75,11 +73,20 @@ fn test_set_and_append_header() {
 
     raw.set_header("Subject", subject_message);
     raw.set_header(new_header, new_header_message);
-    assert_eq!(raw.get_header("Subject"), Some(subject_message));
-    assert_eq!(raw.get_header(new_header), Some(new_header_message));
+    assert_eq!(raw.get_header("Subject"), Some(subject_message.to_string()));
+    assert_eq!(
+        raw.get_header(new_header),
+        Some(new_header_message.to_string())
+    );
 
     parsed.set_header("subject", subject_message);
     parsed.set_header(new_header, new_header_message);
-    assert_eq!(parsed.get_header("subject"), Some(subject_message));
-    assert_eq!(parsed.get_header(new_header), Some(new_header_message));
+    assert_eq!(
+        parsed.get_header("subject"),
+        Some(subject_message.to_string())
+    );
+    assert_eq!(
+        parsed.get_header(new_header),
+        Some(new_header_message.to_string())
+    );
 }

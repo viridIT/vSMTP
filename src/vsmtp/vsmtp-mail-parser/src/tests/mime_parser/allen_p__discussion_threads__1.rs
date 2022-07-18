@@ -14,47 +14,47 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{
-    collection,
-    mail_context::MessageBody,
-    MailParser, {BodyType, Mail}, {Mime, MimeBodyType, MimeHeader},
-};
-
 use crate::parser::MailMimeParser;
+use vsmtp_common::{
+    collection, BodyType, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader,
+};
 
 const MAIL: &str = include_str!("../mail/allen-p__discussion_threads__1.eml");
 
 #[test]
 fn mime_parser() {
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         MailMimeParser::default()
-            .parse_lines(MAIL.lines().map(str::to_string).collect::<Vec<_>>())
-            .unwrap(),
-        MessageBody::Parsed(Box::new(Mail {
-            headers: vec![
-                (
-                    "message-id",
-                    "<20379972.1075855673249.JavaMail.evans@thyme>"
-                ),
-                ("date", "Fri, 10 Dec 1999 07:00:00 -0800 "),
-                ("from", "phillip.allen@enron.com"),
-                ("to", "naomi.johnston@enron.com"),
-                ("subject", ""),
-                ("mime-version", "1.0"),
-                ("x-from", "Phillip K Allen"),
-                ("x-to", "Naomi Johnston"),
-                ("x-cc", ""),
-                ("x-bcc", ""),
-                (
-                    "x-folder",
-                    "\\Phillip_Allen_Dec2000\\Notes Folders\\Discussion threads"
-                ),
-                ("x-origin", "Allen-P"),
-                ("x-filename", "pallen.nsf"),
-            ]
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect::<Vec<_>>(),
+            .parse_lines(&MAIL.lines().collect::<Vec<_>>())
+            .unwrap()
+            .unwrap_right(),
+        Mail {
+            headers: MailHeaders(
+                [
+                    (
+                        "message-id",
+                        "<20379972.1075855673249.JavaMail.evans@thyme>"
+                    ),
+                    ("date", "Fri, 10 Dec 1999 07:00:00 -0800 (PST)"),
+                    ("from", "phillip.allen@enron.com"),
+                    ("to", "naomi.johnston@enron.com"),
+                    ("subject", ""),
+                    ("mime-version", "1.0"),
+                    ("x-from", "Phillip K Allen"),
+                    ("x-to", "Naomi Johnston"),
+                    ("x-cc", ""),
+                    ("x-bcc", ""),
+                    (
+                        "x-folder",
+                        "\\Phillip_Allen_Dec2000\\Notes Folders\\Discussion threads"
+                    ),
+                    ("x-origin", "Allen-P"),
+                    ("x-filename", "pallen.nsf"),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect::<Vec<_>>()
+            ),
             body: BodyType::Mime(Box::new(Mime {
                 headers: vec![
                     MimeHeader {
@@ -93,6 +93,6 @@ fn mime_parser() {
                     .collect::<Vec<_>>()
                 )
             }))
-        }))
+        }
     );
 }

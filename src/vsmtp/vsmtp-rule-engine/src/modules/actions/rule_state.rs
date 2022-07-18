@@ -28,13 +28,13 @@ use vsmtp_common::{status::Status, CodeID, Reply, ReplyOrCodeID};
 
 fn reply_or_code_id_from_object(code: &SharedObject) -> EngineResult<ReplyOrCodeID> {
     match &**code {
-        Object::Code(code) => Ok(ReplyOrCodeID::Reply(code.clone())),
+        Object::Code(code) => Ok(ReplyOrCodeID::Right(code.clone())),
         object => Err(format!("parameter must be a code, not {}", object.as_ref()).into()),
     }
 }
 
 fn reply_or_code_id_from_string(code: &str) -> EngineResult<ReplyOrCodeID> {
-    Ok(ReplyOrCodeID::Reply(Reply::parse_str(code).map_err::<Box<
+    Ok(ReplyOrCodeID::Right(Reply::parse_str(code).map_err::<Box<
         EvalAltResult,
     >, _>(
         |_| format!("parameter must be a code, not {:?}", code).into(),
@@ -48,7 +48,7 @@ pub mod rule_state {
     /// Return a [`Status::Faccept`] with the default code associated
     #[must_use]
     pub const fn faccept() -> Status {
-        Status::Faccept(ReplyOrCodeID::CodeID(CodeID::Ok))
+        Status::Faccept(ReplyOrCodeID::Left(CodeID::Ok))
     }
 
     /// Return a [`Status::Faccept`] with `code`
@@ -74,7 +74,7 @@ pub mod rule_state {
     /// Return a [`Status::Accept`] with the default code associated
     #[must_use]
     pub const fn accept() -> Status {
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok))
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok))
     }
 
     /// Return a [`Status::Accept`] with `code`
@@ -107,7 +107,7 @@ pub mod rule_state {
     #[must_use]
     #[rhai_fn(global)]
     pub const fn deny() -> Status {
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
+        Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     }
 
     /// Return a [`Status::Deny`] with `code`

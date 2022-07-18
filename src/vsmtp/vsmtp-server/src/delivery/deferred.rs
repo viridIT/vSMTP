@@ -99,10 +99,11 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::tokio,
         transfer::{EmailTransferStatus, Transfer, TransferErrors},
+        MessageBody, RawBody,
     };
     use vsmtp_config::build_resolvers;
     use vsmtp_test::config;
@@ -158,14 +159,14 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            "test_deferred",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
-        )
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(&config.server.queues.dirpath, "test_deferred")
         .unwrap();
 
         let resolvers = build_resolvers(&config).unwrap();
@@ -234,13 +235,14 @@ mod tests {
             }
         );
         pretty_assertions::assert_eq!(
-            Queue::read_mail_message(&config.server.queues.dirpath, "test_deferred")
+            *MessageBody::read_mail_message(&config.server.queues.dirpath, "test_deferred")
                 .await
-                .unwrap(),
-            MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string(),],
-                body: Some("Hello world".to_string()),
-            }
+                .unwrap()
+                .inner(),
+            RawBody::new(
+                vec!["Date: bar".to_string(), "From: foo".to_string()],
+                "Hello world\r\n".to_string(),
+            )
         );
     }
 }

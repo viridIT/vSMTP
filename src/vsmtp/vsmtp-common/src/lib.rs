@@ -66,22 +66,22 @@ mod r#type {
     pub mod reply_code;
 }
 
+mod either;
+pub use either::Either;
+
 mod message {
     pub mod mail;
+    #[allow(clippy::module_name_repetitions)]
+    pub mod message_body;
     pub mod mime_type;
+    pub mod raw_body;
 }
 
-pub use message::{mail::*, mime_type::*};
+pub use message::{mail::*, message_body::MessageBody, mime_type::*, raw_body::RawBody};
 pub use r#type::{address::Address, code_id::CodeID, reply::Reply, reply_code::*};
 
 ///
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub enum ReplyOrCodeID {
-    ///
-    CodeID(CodeID),
-    ///
-    Reply(Reply),
-}
+pub type ReplyOrCodeID = Either<CodeID, Reply>;
 
 /// envelop of a transaction
 pub mod envelop;
@@ -126,7 +126,7 @@ mod r#trait {
     pub mod mail_parser;
 }
 
-pub use r#trait::mail_parser::{MailParser, MailParserOnFly};
+pub use r#trait::mail_parser::{MailParser, MailParserOnFly, ParserOutcome};
 
 #[cfg(test)]
 mod tests {

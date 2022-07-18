@@ -8,11 +8,14 @@ use crate::modules::types::types::{Context, Message, Server, SharedObject};
 use crate::rule_engine::RuleEngine;
 
 use super::server_api::ServerAPI;
-use vsmtp_common::envelop::Envelop;
-use vsmtp_common::mail_context::{ConnectionContext, MailContext, MessageBody};
 use vsmtp_common::re::anyhow;
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
+use vsmtp_common::{
+    envelop::Envelop,
+    mail_context::{ConnectionContext, MailContext},
+    MessageBody,
+};
 use vsmtp_config::{Config, Resolvers};
 
 /// a state container that bridges rhai's & rust contexts.
@@ -68,10 +71,7 @@ impl RuleState {
             envelop: Envelop::default(),
             metadata: None,
         }));
-        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::Raw {
-            headers: vec![],
-            body: None,
-        }));
+        let message = std::sync::Arc::new(std::sync::RwLock::new(MessageBody::default()));
 
         let engine = Self::build_rhai_engine(
             mail_context.clone(),

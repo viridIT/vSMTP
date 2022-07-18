@@ -29,12 +29,14 @@ pre-release-replacements = [
   { file = "Cargo.toml", search = "vsmtp-common = \\{ path = \"../vsmtp-common\", default-features = false, version = .*", replace = "vsmtp-common = { path = \"../vsmtp-common\", default-features = false, version = \"{{version}}\" }", prerelease = true },
   { file = "Cargo.toml", search = "vsmtp-config = \\{ path = \"../vsmtp-config\", default-features = false, version = .*", replace = "vsmtp-config = { path = \"../vsmtp-config\", default-features = false, version = \"{{version}}\" }", prerelease = true },
   { file = "Cargo.toml", search = "vsmtp-mail-parser = \\{ path = \"../vsmtp-mail-parser\", default-features = false, version = .*", replace = "vsmtp-mail-parser = { path = \"../vsmtp-mail-parser\", default-features = false, version = \"{{version}}\" }", prerelease = true },
+  { file = "Cargo.toml", search = "vsmtp-dkim = \\{ path = \"../vsmtp-dkim\", default-features = false, version = .*", replace = "vsmtp-dkim = { path = \"../vsmtp-dkim\", default-features = false, version = \"{{version}}\" }", prerelease = true },
 ]
 
 [dependencies]
 vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.3" }
 vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "1.1.3" }
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser", default-features = false, version = "1.1.3" }
+vsmtp-dkim = { path = "../vsmtp-dkim", default-features = false, version = "1.1.3" }
 
 thiserror = "1.0.31"
 # objects
@@ -42,14 +44,6 @@ regex = "1.6.0"
 iprange = "0.6.7"
 ipnet = "2.5.0"
 csv = "1.1"
-
-viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
-hostname = "0.3.1"
-time = { version = "0.3.11", default-features = false, features = [
-  "std",
-  "formatting",
-  "macros",
-] }
 
 rhai = { version = "1.8.0", features = [
   "unchecked",
@@ -59,6 +53,14 @@ rhai = { version = "1.8.0", features = [
 ] }
 
 wait-timeout = "0.2.0"
+
+viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
+hostname = "0.3.1"
+time = { version = "0.3.11", default-features = false, features = [
+  "std",
+  "formatting",
+  "macros",
+] }
 
 [dev-dependencies]
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }

@@ -23,10 +23,10 @@ use rhai::plugin::{
     PluginFunction, Position, RhaiResult, TypeId,
 };
 use vsmtp_common::mail_context::MailContext;
-use vsmtp_common::mail_context::MessageBody;
 use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::status::Status;
 use vsmtp_common::Address;
+use vsmtp_common::MessageBody;
 
 #[allow(dead_code)]
 #[allow(clippy::needless_pass_by_value)]

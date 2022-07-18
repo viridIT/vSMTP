@@ -17,9 +17,9 @@
 use crate::test_receiver;
 use vsmtp_common::{
     addr,
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     re::tokio,
-    CodeID, {BodyType, Mail},
+    CodeID, MessageBody, {BodyType, Mail, MailHeaders},
 };
 use vsmtp_server::{Connection, OnMail};
 
@@ -42,14 +42,12 @@ macro_rules! test_lang {
                     vec![addr!("aa@bb").into()]
                 );
 
-                message
-                    .to_parsed::<vsmtp_mail_parser::MailMimeParser>()
-                    .unwrap();
-
                 pretty_assertions::assert_eq!(
-                    message,
-                    MessageBody::Parsed(Box::new(Mail {
-                        headers: [
+                    *message
+                        .parsed::<vsmtp_mail_parser::MailMimeParser>()
+                        .unwrap(),
+                    Mail {
+                        headers: MailHeaders([
                             ("from", "john doe <john@doe>"),
                             ("subject", "ar"),
                             ("to", "aa@bb"),
@@ -58,7 +56,7 @@ macro_rules! test_lang {
                         ]
                         .into_iter()
                         .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect::<Vec<_>>(),
+                        .collect::<Vec<_>>()),
                         body: BodyType::Regular(
                             include_str!($lang_code)
                                 .lines()
@@ -70,7 +68,7 @@ macro_rules! test_lang {
                                 })
                                 .collect::<Vec<_>>()
                         )
-                    }))
+                    }
                 );
                 CodeID::Ok
             }

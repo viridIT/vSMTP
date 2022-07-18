@@ -26,11 +26,12 @@ use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     rcpt::Rcpt,
     re::{anyhow, log},
     status::Status,
     transfer::{ForwardTarget, Transfer},
+    MessageBody,
 };
 use vsmtp_common::{re::tokio, transfer::EmailTransferStatus};
 use vsmtp_config::{Config, Resolvers};
@@ -112,7 +113,7 @@ pub async fn send_mail(
         return SenderOutcome::MoveToDead;
     }
 
-    let message_content = message_body.to_string();
+    let message_content = message_body.inner().to_string();
 
     let root_server_resolver = resolvers
         .get(&config.server.domain)
@@ -281,10 +282,7 @@ fn create_vsmtp_status_stamp(message_id: &str, version: &str, status: &Status) -
 #[cfg(test)]
 mod test {
     use super::add_trace_information;
-    use vsmtp_common::{
-        mail_context::{ConnectionContext, MessageBody},
-        status::Status,
-    };
+    use vsmtp_common::{mail_context::ConnectionContext, status::Status, MessageBody, RawBody};
 
     /*
     /// This test produce side-effect and may make other test fails
@@ -344,38 +342,32 @@ mod test {
 
         let config = vsmtp_config::Config::default();
 
-        let mut message = MessageBody::Raw {
-            headers: vec![],
-            body: Some("".to_string()),
-        };
+        let mut message = MessageBody::default();
         ctx.metadata.as_mut().unwrap().message_id = "test_message_id".to_string();
         add_trace_information(&config, &ctx, &mut message, &Status::Next).unwrap();
 
         pretty_assertions::assert_eq!(
-            message,
-            MessageBody::Raw {
-                headers: vec![
-                    [
-                        "Received: from localhost".to_string(),
-                        format!(" by {domain}", domain = config.server.domain),
-                        " with SMTP".to_string(),
-                        format!(" id {id}; ", id = ctx.metadata.as_ref().unwrap().message_id),
-                        {
-                            let odt: time::OffsetDateTime =
-                                ctx.metadata.as_ref().unwrap().timestamp.into();
-                            odt.format(&time::format_description::well_known::Rfc2822)
-                                .unwrap()
-                        }
-                    ]
-                    .concat(),
-                    format!(
-                        "X-VSMTP: id=\"{id}\"; version=\"{ver}\"; status=\"next\"",
-                        id = ctx.metadata.as_ref().unwrap().message_id,
-                        ver = env!("CARGO_PKG_VERSION"),
-                    ),
-                ],
-                body: Some("".to_string()),
-            }
+            *message.inner(),
+            RawBody::new_empty(vec![
+                [
+                    "Received: from localhost".to_string(),
+                    format!(" by {domain}", domain = config.server.domain),
+                    " with SMTP".to_string(),
+                    format!(" id {id}; ", id = ctx.metadata.as_ref().unwrap().message_id),
+                    {
+                        let odt: time::OffsetDateTime =
+                            ctx.metadata.as_ref().unwrap().timestamp.into();
+                        odt.format(&time::format_description::well_known::Rfc2822)
+                            .unwrap()
+                    }
+                ]
+                .concat(),
+                format!(
+                    "X-VSMTP: id=\"{id}\"; version=\"{ver}\"; status=\"next\"",
+                    id = ctx.metadata.as_ref().unwrap().message_id,
+                    ver = env!("CARGO_PKG_VERSION"),
+                ),
+            ])
         );
     }
 }

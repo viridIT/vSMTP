@@ -28,7 +28,7 @@ pub enum Directive {
     /// execute code that does not need a return value.
     Action { name: String, pointer: rhai::FnPtr },
     /// delegate a message to a service, and execute the
-    /// inner rhai function when the message is forwared
+    /// inner rhai function when the message is forwarded
     /// to the service receive endpoint.
     Delegation {
         name: String,
@@ -83,7 +83,7 @@ impl Directive {
                     let args = vsl_guard_ok!(state.message().read())
                         .get_header("X-VSMTP-DELEGATION")
                         .and_then(|header| {
-                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header)
+                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header)
                                 .args
                                 .get("directive")
                                 .cloned()

@@ -189,7 +189,7 @@ impl RuleEngine {
                         .get_header("X-VSMTP-DELEGATION")
                     {
                         let header =
-                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header);
+                            vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header);
 
                         let (stage, directive_name, message_id) = match (
                             header.args.get("stage"),

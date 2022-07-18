@@ -55,12 +55,13 @@ pub enum Process {
 }
 
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     re::{
         anyhow::{self, Context},
         lettre,
     },
     transfer::SmtpConnection,
+    MessageBody,
 };
 
 /// delegate a message to another service.
@@ -88,6 +89,6 @@ pub(crate) fn delegate(
         .0
         .lock()
         .unwrap()
-        .send_raw(&envelope, message.to_string().as_bytes())
+        .send_raw(&envelope, message.inner().to_string().as_bytes())
         .context("failed to delegate email")
 }

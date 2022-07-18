@@ -123,8 +123,8 @@ where
     /// * see [`Connection::send_code`] and [`Connection::send_reply`]
     pub async fn send_reply_or_code(&mut self, reply_or_code: ReplyOrCodeID) -> anyhow::Result<()> {
         match reply_or_code {
-            ReplyOrCodeID::CodeID(code) => self.send_code(code).await,
-            ReplyOrCodeID::Reply(reply) => self.send_reply(reply).await,
+            ReplyOrCodeID::Left(code) => self.send_code(code).await,
+            ReplyOrCodeID::Right(reply) => self.send_reply(reply).await,
         }
     }
 

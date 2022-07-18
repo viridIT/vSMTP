@@ -21,12 +21,12 @@ use vsmtp_common::{
     auth::Mechanism,
     envelop::Envelop,
     event::Event,
-    mail_context::{ConnectionContext, MessageBody, MessageMetadata},
+    mail_context::{ConnectionContext, MessageMetadata},
     rcpt::Rcpt,
     re::{anyhow, log, tokio},
     state::StateSMTP,
     status::Status,
-    Address, CodeID, ReplyOrCodeID,
+    Address, CodeID, MessageBody, ReplyOrCodeID,
 };
 use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
@@ -73,7 +73,7 @@ impl Transaction {
         );
 
         command_or_code.map_or_else(
-            |c| ProcessedEvent::Reply(ReplyOrCodeID::CodeID(c)),
+            |c| ProcessedEvent::Reply(ReplyOrCodeID::Left(c)),
             |command| self.process_event(command, connection),
         )
     }
@@ -85,9 +85,9 @@ impl Transaction {
         connection: &Connection<S>,
     ) -> ProcessedEvent {
         match (&self.state, event) {
-            (_, Event::NoopCmd) => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Ok)),
+            (_, Event::NoopCmd) => ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Ok)),
 
-            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Help)),
+            (_, Event::HelpCmd(_)) => ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Help)),
 
             (_, Event::RsetCmd) => {
                 {
@@ -102,16 +102,16 @@ impl Transaction {
                     *state.write().unwrap() = MessageBody::default();
                 }
 
-                ProcessedEvent::ReplyChangeState(StateSMTP::Helo, ReplyOrCodeID::CodeID(CodeID::Ok))
+                ProcessedEvent::ReplyChangeState(StateSMTP::Helo, ReplyOrCodeID::Left(CodeID::Ok))
             }
 
             (_, Event::ExpnCmd(_) | Event::VrfyCmd(_) /*| Event::PrivCmd*/) => {
-                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Unimplemented))
+                ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Unimplemented))
             }
 
             (_, Event::QuitCmd) => ProcessedEvent::ReplyChangeState(
                 StateSMTP::Stop,
-                ReplyOrCodeID::CodeID(CodeID::Closing),
+                ReplyOrCodeID::Left(CodeID::Closing),
             ),
 
             (_, Event::HeloCmd(helo)) => {
@@ -129,13 +129,13 @@ impl Transaction {
                     }
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
-                        ReplyOrCodeID::CodeID(CodeID::Helo),
+                        ReplyOrCodeID::Left(CodeID::Helo),
                     ),
                 }
             }
 
             (_, Event::EhloCmd(_)) if connection.config.server.smtp.disable_ehlo => {
-                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::Unimplemented))
+                ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::Unimplemented))
             }
 
             (_, Event::EhloCmd(helo)) => {
@@ -153,7 +153,7 @@ impl Transaction {
                     }
                     _ => ProcessedEvent::ReplyChangeState(
                         StateSMTP::Helo,
-                        ReplyOrCodeID::CodeID(if connection.is_secured {
+                        ReplyOrCodeID::Left(if connection.is_secured {
                             CodeID::EhloSecured
                         } else {
                             CodeID::EhloPain
@@ -165,7 +165,7 @@ impl Transaction {
             (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
                 if connection.config.server.tls.is_none() =>
             {
-                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::TlsNotAvailable))
+                ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::TlsNotAvailable))
             }
 
             (StateSMTP::Helo | StateSMTP::Connect, Event::StartTls)
@@ -173,7 +173,7 @@ impl Transaction {
             {
                 ProcessedEvent::ReplyChangeState(
                     StateSMTP::NegotiationTLS,
-                    ReplyOrCodeID::CodeID(CodeID::Greetings),
+                    ReplyOrCodeID::Left(CodeID::Greetings),
                 )
             }
 
@@ -193,7 +193,7 @@ impl Transaction {
                         .map(|smtps| smtps.security_level)
                         == Some(TlsSecurityLevel::Encrypt) =>
             {
-                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::TlsRequired))
+                ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::TlsRequired))
             }
 
             (StateSMTP::Helo, Event::MailCmd(..))
@@ -206,7 +206,7 @@ impl Transaction {
                         .as_ref()
                         .map_or(false, |auth| auth.must_be_authenticated) =>
             {
-                ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::AuthRequired))
+                ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::AuthRequired))
             }
 
             (StateSMTP::Helo, Event::MailCmd(mail_from, _body_bit_mime, _auth_mailbox)) => {
@@ -233,7 +233,7 @@ impl Transaction {
                     | Status::Quarantine(_)
                     | Status::Packet(_) => ProcessedEvent::ReplyChangeState(
                         StateSMTP::MailFrom,
-                        ReplyOrCodeID::CodeID(CodeID::Ok),
+                        ReplyOrCodeID::Left(CodeID::Ok),
                     ),
                 }
             }
@@ -254,7 +254,7 @@ impl Transaction {
                     _ if self.rule_state.context().read().unwrap().envelop.rcpt.len()
                         >= connection.config.server.smtp.rcpt_count_max =>
                     {
-                        ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::TooManyRecipients))
+                        ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::TooManyRecipients))
                     }
                     Status::Accept(packet) | Status::Faccept(packet) => {
                         ProcessedEvent::ReplyChangeState(StateSMTP::RcptTo, packet)
@@ -265,17 +265,17 @@ impl Transaction {
                     | Status::Quarantine(_)
                     | Status::Packet(_) => ProcessedEvent::ReplyChangeState(
                         StateSMTP::RcptTo,
-                        ReplyOrCodeID::CodeID(CodeID::Ok),
+                        ReplyOrCodeID::Left(CodeID::Ok),
                     ),
                 }
             }
 
             (StateSMTP::RcptTo, Event::DataCmd) => ProcessedEvent::ReplyChangeState(
                 StateSMTP::Data,
-                ReplyOrCodeID::CodeID(CodeID::DataStart),
+                ReplyOrCodeID::Left(CodeID::DataStart),
             ),
 
-            _ => ProcessedEvent::Reply(ReplyOrCodeID::CodeID(CodeID::BadSequence)),
+            _ => ProcessedEvent::Reply(ReplyOrCodeID::Left(CodeID::BadSequence)),
         }
     }
 

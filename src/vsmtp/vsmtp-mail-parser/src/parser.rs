@@ -14,17 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::log_channels;
-
 use super::error::{ParserError, ParserResult};
 use super::helpers::get_mime_type;
 use super::helpers::read_header;
-use vsmtp_common::mail_context::MessageBody;
-use vsmtp_common::re::anyhow::Context;
-use vsmtp_common::re::{anyhow, log};
-use vsmtp_common::MailParser;
-use vsmtp_common::{BodyType, Mail, MailHeaders};
-use vsmtp_common::{Mime, MimeBodyType, MimeHeader, MimeMultipart};
+use crate::log_channels;
+use vsmtp_common::{
+    re::{anyhow::Context, log},
+    BodyType, Either, Mail, MailHeaders, MailParser, Mime, MimeBodyType, MimeHeader, MimeMultipart,
+    ParserOutcome,
+};
 
 /// a boundary serves as a delimiter between mime parts in a multipart section.
 enum BoundaryType {
@@ -41,17 +39,16 @@ pub struct MailMimeParser {
 }
 
 impl MailParser for MailMimeParser {
-    fn parse_lines(&mut self, data: Vec<String>) -> anyhow::Result<MessageBody> {
-        let data = data.iter().map(String::as_str).collect::<Vec<_>>();
-        Ok(MessageBody::Parsed(Box::new(
+    fn parse_lines(&mut self, data: &[&str]) -> ParserOutcome {
+        Ok(Either::Right(
             self.parse_inner(&mut &data[..]).context("parsing failed")?,
-        )))
+        ))
     }
 }
 
 impl MailMimeParser {
     fn parse_inner(&mut self, content: &mut &[&str]) -> ParserResult<Mail> {
-        let mut headers = MailHeaders::with_capacity(10);
+        let mut headers = MailHeaders(Vec::with_capacity(10));
         let mut mime_headers = Vec::with_capacity(10);
 
         while !content.is_empty() {
@@ -59,9 +56,7 @@ impl MailMimeParser {
                 Some((name, value)) if is_mime_header(&name) => {
                     log::debug!(
                         target: log_channels::PARSER,
-                        "new mime header found: '{}' => '{}'",
-                        name,
-                        value
+                        "new mime header found: '{name}' => '{value}'",
                     );
                     mime_headers.push(get_mime_header(&name, &value));
                 }
@@ -69,11 +64,9 @@ impl MailMimeParser {
                 Some((name, value)) => {
                     log::debug!(
                         target: log_channels::PARSER,
-                        "new header found: '{}' => '{}'",
-                        name,
-                        value
+                        "new header found: '{name}' => '{value}'",
                     );
-                    headers.push((name, value));
+                    headers.0.push((name, value));
                 }
 
                 None => {
@@ -92,13 +85,12 @@ impl MailMimeParser {
                         "finished parsing headers, body found."
                     );
 
-                    check_mandatory_headers(&headers)?;
-                    let has_mime_version = headers.iter().any(|(name, _)| name == "mime-version");
+                    check_mandatory_headers(&headers.0)?;
+                    let has_mime_version = headers.0.iter().any(|(name, _)| name == "mime-version");
 
                     log::debug!(
                         target: log_channels::PARSER,
-                        "mime-version header found?: {}",
-                        has_mime_version
+                        "mime-version header found?: {has_mime_version}",
                     );
 
                     return Ok(Mail {

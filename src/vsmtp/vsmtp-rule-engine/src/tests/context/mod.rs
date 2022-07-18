@@ -42,7 +42,7 @@ fn test_context() {
             &mut state,
             &StateSMTP::Authenticate(Mechanism::Anonymous, None)
         ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
     state
@@ -55,14 +55,14 @@ fn test_context() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::RcptTo),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
     state.context().write().unwrap().metadata = Some(MessageMetadata::default());
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::PreQ),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
     assert_eq!(

@@ -20,7 +20,7 @@
 //
 
 /// check "mail from" relaying.
-/// Do not accept a msg from a known internal domain if the client is unknown 
+/// Do not accept a msg from a known internal domain if the client is unknown
 ///
 /// # Args
 /// @allowed_hosts: group of (IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn)
@@ -30,7 +30,7 @@
 ///
 /// # Required stage : mail (only)
 ///
-/// # Example 
+/// # Example
 /// ```
 /// mail: [
 ///    rule "check mail relay" || {
@@ -39,7 +39,7 @@
 ///            object fqdn "mta-internal.foobar.com"
 ///        ];
 ///        check_mail_relay(allowed_hosts);
-///    }        
+///    }
 /// ]
 fn check_mail_relay(allowed_hosts) {
     if in_domain(ctx().mail_from)
@@ -47,7 +47,7 @@ fn check_mail_relay(allowed_hosts) {
         deny(code554_7_1)
     } else {
         next()
-    }    
+    }
 }
 
 /// check "rcpt to" relaying.
@@ -61,7 +61,7 @@ fn check_mail_relay(allowed_hosts) {
 ///
 /// # Required stage : rcpt (only)
 ///
-/// # Example 
+/// # Example
 /// ```
 /// rcpt: [
 ///    rule "check rcpt relay" || {
@@ -70,7 +70,7 @@ fn check_mail_relay(allowed_hosts) {
 ///            object fqdn "mta-internal.foobar.com"
 ///        ];
 ///        check_rcpt_relay(allowed_hosts);
-///    }        
+///    }
 /// ]
 fn check_rcpt_relay(allowed_hosts) {
     if !in_domain(ctx().rcpt)
@@ -79,7 +79,7 @@ fn check_rcpt_relay(allowed_hosts) {
         info(code554_7_1)
     } else {
         next()
-    }    
+    }
 }
 
 /// check spf record.
@@ -230,4 +230,57 @@ fn check_null_mx_sender() {
     sys::set_header(ctx(), "Subject", "JUNK:" + sys::get_header(ctx(), "Subject"));
 
     return sys::next();
+}
+
+fn dkim_verify() {
+    let policy = #{
+        // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
+        nbr_headers: 5,
+        // the dns query may result in multiple public key, the registry with invalid format are ignored.
+        // among ["first_one", "cycle"]
+        on_multiple_key_records: "cycle",
+        // is the `expire_time` of the signature over `now +/- eplison` (as seconds)
+        expiration_epsilon: 100,
+    };
+    log("warn", `verifying DKIM signature with policy=${policy}`);
+
+    let dkim_signatures = msg().headers("DKIM-Signature", policy.nbr_headers);
+
+    for i in dkim_signatures {
+        try {
+            let signature = parse_signature(i);
+
+            if signature.has_expired(policy.expiration_epsilon) {
+                continue;
+            }
+
+            // NOTE: for any reason, you can decide to ignore the signature
+            // if signature... {
+            //     continue;
+            // }
+
+            for key in get_public_key(srv(), signature, policy.on_multiple_key_records) {
+                try {
+                    sys::dkim_verify(msg(), signature, key);
+                    log("warn", `DKIM signature successfully verified`);
+
+                    if key.has_debug_flag {
+                        log("warn", `DKIM signature contains debug_flag, continuing`);
+                        continue;
+                    }
+
+                    return accept()
+                } catch (e) {
+                    print(e);
+                }
+            }
+
+        } catch (e) {
+            print(e);
+            log("warn", `DKIM signature invalid: ${e}`);
+        }
+    }
+
+    log("warn", "no valid DKIM signature, returning `deny`");
+    deny()
 }

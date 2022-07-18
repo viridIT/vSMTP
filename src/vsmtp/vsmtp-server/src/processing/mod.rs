@@ -142,12 +142,9 @@ async fn handle_one_in_working_queue_inner(
                 &mail_context,
             )?;
 
-            Queue::write_to_mails(
-                &config.server.queues.dirpath,
-                &process_message.message_id,
-                &mail_message,
-            )
-            .map_err(MailHandlerError::WriteMessageBody)?;
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
 
             // NOTE: needs to be executed after writing, because the other
             //       thread could pickup the email faster than this function.
@@ -191,12 +188,9 @@ async fn handle_one_in_working_queue_inner(
     // FIXME: sending the email down a ProcessMessage instead
     //        of writing on disk would be great here.
     if write_email {
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            &process_message.message_id,
-            &mail_message,
-        )
-        .map_err(MailHandlerError::WriteMessageBody)?;
+        mail_message
+            .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+            .map_err(MailHandlerError::WriteMessageBody)?;
 
         log::debug!(
             target: log_channels::TRANSACTION,
@@ -229,10 +223,11 @@ mod tests {
     use vsmtp_common::{
         addr,
         envelop::Envelop,
-        mail_context::{ConnectionContext, MailContext, MessageBody, MessageMetadata},
+        mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
         re::anyhow::Context,
         transfer::{EmailTransferStatus, Transfer},
+        MessageBody,
     };
     use vsmtp_rule_engine::rule_engine::RuleEngine;
     use vsmtp_test::config;
@@ -315,14 +310,14 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            "test",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
-        )
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(&config.server.queues.dirpath, "test")
         .unwrap();
 
         let (delivery_sender, mut delivery_receiver) =
@@ -403,14 +398,14 @@ mod tests {
             )
             .unwrap();
 
-        Queue::write_to_mails(
-            &config.server.queues.dirpath,
-            "test_denied",
-            &MessageBody::Raw {
-                headers: vec!["Date: bar".to_string(), "From: foo".to_string()],
-                body: Some("Hello world".to_string()),
-            },
-        )
+        MessageBody::try_from(concat!(
+            "Date: bar\r\n",
+            "From: foo\r\n",
+            "\r\n",
+            "Hello world\r\n"
+        ))
+        .unwrap()
+        .write_to_mails(&config.server.queues.dirpath, "test_denied")
         .unwrap();
 
         let (delivery_sender, _delivery_receiver) =

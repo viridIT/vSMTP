@@ -1,0 +1,157 @@
+Return-Path: <mathieu.lala@epitech.eu>
+Delivered-To: m.lala@viridit.com
+Received: from localhost (HELO queue) (127.0.0.1)
+	by localhost with SMTP; 25 Jun 2022 11:21:03 +0200
+Received: from unknown (HELO output36.mail.ovh.net) (192.168.13.103)
+  by 192.168.9.34 with AES256-GCM-SHA384 encrypted SMTP; 25 Jun 2022 11:21:03 +0200
+Received: from vr43.mail.ovh.net (unknown [10.101.8.43])
+	by out36.mail.ovh.net (Postfix) with ESMTP id 4LVT4b30DwzNxhvsc
+	for <m.lala@viridit.com>; Sat, 25 Jun 2022 09:21:03 +0000 (UTC)
+Received: from in47.mail.ovh.net (unknown [10.101.4.47])
+	by vr43.mail.ovh.net (Postfix) with ESMTP id 4LVT4b18PWz2cGjjq
+	for <m.lala@viridit.com>; Sat, 25 Jun 2022 09:21:03 +0000 (UTC)
+Received-SPF: Pass (mailfrom) identity=mailfrom; client-ip=40.107.21.103; helo=eur05-vi1-obe.outbound.protection.outlook.com; envelope-from=mathieu.lala@epitech.eu; receiver=m.lala@viridit.com 
+Authentication-Results: in47.mail.ovh.net;
+	dkim=pass (1024-bit key; unprotected) header.d=epitechfr.onmicrosoft.com header.i=@epitechfr.onmicrosoft.com header.b="Ucs4om63";
+	dkim-atps=neutral
+Received: from EUR05-VI1-obe.outbound.protection.outlook.com (mail-vi1eur05on2103.outbound.protection.outlook.com [40.107.21.103])
+	by in47.mail.ovh.net (Postfix) with ESMTPS id 4LVT4Z6mphz1kGF2W
+	for <m.lala@viridit.com>; Sat, 25 Jun 2022 09:21:02 +0000 (UTC)
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=miqzVtyAfuITbBafK5OK6QxER2IGpFP1MC83TUX1Nu8wv+mcARGp+gUKFtk6zTLq22AzXVGz/fH8t+0qRRvsnyawwlGgL+M0hq/XRv4SpNf4miqJSn3Lsph5E6nyNdbJSwscBiLyjNRYacXaygCFz3YDtdg+3c8tNI2KAftczY3qOb3aWUKx1AWIDeYQcMCSsce7WwsddRSYkEDGo+QAB37Rb2Q8HX6zNqp3Nz2Ka0GpTyh+0Y42k9fVjC5sQqZzFmh5Q3YYN/TwXCXV3+Z1WrbJ20zZuuDeUo2xpwhCaojpxwwFWjMRquNyzrIeHcrEPE3sWkYeT/5S2qFWJJsh2w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-AntiSpam-MessageData-ChunkCount:X-MS-Exchange-AntiSpam-MessageData-0:X-MS-Exchange-AntiSpam-MessageData-1;
+ bh=rtTGBOOAnprlA4aIQC8PvKyqp82URQPSnYcl/gjOxGk=;
+ b=QLDX4VsyAZDH5SNL23z6lE+MFOHl6CQWbPCefOSCwzJaKul3aeovbCo/2iR+902dUgakvx3ILZ80cmOjnXPl9Q6iXOhiV506odEOUWx5BojXVkS3zgA+58mzXPl5109XwByBDsLVnjcEuiW8/lYzqwGbe6AvRSEYJmWFi5o2wLzXfC7CgEoHr8DQqtX39MbgsWQ0hHJJlXjNEmeQTr1hT+DzctBQNaK+pq9ZCP339NOBgW1VjMNinoHo2qY69n0t8iLb6VdNTMAuxYwuLmfEn9ZSO+Mi0uNPLjQ8SYwibgu8rGxBS84ghU5+OySwaW0boSobXtiIR4ue9V39WFzuEg==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=epitech.eu; dmarc=pass action=none header.from=epitech.eu;
+ dkim=pass header.d=epitech.eu; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=epitechfr.onmicrosoft.com; s=selector2-epitechfr-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=rtTGBOOAnprlA4aIQC8PvKyqp82URQPSnYcl/gjOxGk=;
+ b=Ucs4om63ogXgJNlwU2a/D4pANfDisgO72p9tEFI4smwNnK7IK8S61zCey9pKXob+CtxXhSvUZXE9lLE9Ta/0YdZ7ZsmExdzlzuV3hBtCnJPsSw0GVeHDLVSQx02YfZddfVOPTDn57T7CtnkiortgcPtOk0oeMn3Wv3JksDeQyOE=
+Received: from VI1PR02MB6368.eurprd02.prod.outlook.com (2603:10a6:800:199::20)
+ by AM9PR02MB6755.eurprd02.prod.outlook.com (2603:10a6:20b:2c3::10) with
+ Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.5373.18; Sat, 25 Jun
+ 2022 09:20:54 +0000
+Received: from VI1PR02MB6368.eurprd02.prod.outlook.com
+ ([fe80::942:42f5:f5ca:9caa]) by VI1PR02MB6368.eurprd02.prod.outlook.com
+ ([fe80::942:42f5:f5ca:9caa%8]) with mapi id 15.20.5373.017; Sat, 25 Jun 2022
+ 09:20:54 +0000
+From: Mathieu Lala <mathieu.lala@epitech.eu>
+To: "m.lala@viridit.com" <m.lala@viridit.com>
+Subject: Simple Subject
+Thread-Topic: Simple Subject
+Thread-Index: AQHYiHTea/SrCWkzbEWvMaCwWjhrJw==
+Date: Sat, 25 Jun 2022 09:20:54 +0000
+Message-ID:
+ <VI1PR02MB6368356B133A6B8F63EB6FFFE5B79@VI1PR02MB6368.eurprd02.prod.outlook.com>
+Accept-Language: fr-FR, en-US
+Content-Language: fr-FR
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+msip_labels:
+authentication-results: dkim=none (message not signed)
+ header.d=none;dmarc=none action=none header.from=epitech.eu;
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 4bfe5ad2-bafa-4231-1269-08da568c0140
+x-ms-traffictypediagnostic: AM9PR02MB6755:EE_
+x-ms-exchange-senderadcheck: 1
+x-ms-exchange-antispam-relay: 0
+x-microsoft-antispam: BCL:0;
+x-microsoft-antispam-message-info:
+ WabwmDmOWSCGRs5IGGE3tROmGkBT/gW6eFwtB10bjyUJFaspZZvKklHr/YiK8k4olsUf2OGbaOS11ulK3N97xVU3tn2OkxH2tX9gwc+ws7G9UXNfyJXY5dahfK4iMdBL6LoHXiZqF5wi4qPUMwI8rg1obGr03qmvrVFBFydVsdjO8v5GL3B0FywgE+yrLXEfIla2sGYw6Y2aIaiUkXCzANzqwo1wvxFq2GHL5KbkvUZ6uyCW4mIvdohbVRmstxUzHdfhx36/rMm8RxBpUMkbyw2ht6gwk77TSWfoP9ODesz2zI1jFBeYpCfQC2yqrtyONv6EVeiD1zi+jEq4KFl9gDioQV41RBGqmzga8w50uDI91u7uNnHZlxQdYzC+UCbWBWFjrRa62s26zTJ6YEYaFuU9i+CemqCkDgAaWa3SzgH5JSEkn5CxcRbOT+nlbZtu7+JVbNhL4hffYE0cDaJpRp1gvqBtG1Pu3wYq9WrpuSmv258uziBwRlI9V8hCPblXv2H9n1iZgvT5WppR/9yH6Q==
+x-forefront-antispam-report:
+ CIP:255.255.255.255;CTRY:;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:VI1PR02MB6368.eurprd02.prod.outlook.com;PTR:;CAT:NONE;SFS:(13230016)(4636009)(39850400004)(366004)(396003)(346002)(376002)(136003)(86362001)(316002)(786003)(3480700007)(19627405001)(6916009)(2906002)(122000001)(41320700001)(9686003)(6506007)(7696005)(26005)(4270600006)(38070700005)(91956017)(38100700002)(558084003)(5660300002)(33656002)(66476007)(66946007)(66556008)(76116006)(64756008)(66446008)(8676002)(52536014)(186003)(55016003)(71200400001)(41300700001)(478600001)(44832011)(7116003)(8936002);DIR:OUT;SFP:1102;
+x-ms-exchange-antispam-messagedata-chunkcount: 1
+x-ms-exchange-antispam-messagedata-0:
+ =?iso-8859-1?Q?5YK+S2avV2pvdV4QOVBxgQCZlGgSX1E16CO3n28gDR0cMY+7Buqx6BrzLw?=
+ =?iso-8859-1?Q?qlwr4YrqQMzfAh+p1QqVVfi6VUO/HjOHiapabLeltFmkRGpQreCSoBhWgs?=
+ =?iso-8859-1?Q?TjlwK0hek+US118eOPHoASifn23nHSBSsIrLyhLOZwlGAgtUyA9dPaErCG?=
+ =?iso-8859-1?Q?8kxHiac7sSV/C24AcR3H6oipcfp6sCdcYWhw2qeyKYWyeO7pNhxaRoqp9A?=
+ =?iso-8859-1?Q?lssaGX90MnpawNRKC1fBYLCONUXoDq/dikbGG2JBF4zutTAypOC8c2DYhB?=
+ =?iso-8859-1?Q?tmQdThgd0zJDjEgFdKFIdK6A4njQL94IZSH4zWRVkd2J/wDivrLBzuQLAL?=
+ =?iso-8859-1?Q?zxDuKyGQrdkhK84c0fHSUoB6jqtgS344OYxZSNKTsKkF1HrHpOWA0ZQhhu?=
+ =?iso-8859-1?Q?OgUjEE42oXdL5Ulqy3Cc/C7TNC/dAtUWyQ8j+hLlMry/MnaFgRKoCb196Y?=
+ =?iso-8859-1?Q?Qv2edulwnvh1q5t+i6HyMrde8Xt+2ewrTEMFh7vHxQIrrtdxsePhuCelo4?=
+ =?iso-8859-1?Q?mcv+yXOl1nBKPOsuOIXAYbNzWWmeo2piUjMIurCBtk/ak8nmF8gbIIAQ3E?=
+ =?iso-8859-1?Q?q/sZSmV5siXW/P2cOI6nMcGLX3PS7kcChUfzjdHh+HTA0crpJk4DXhc2nP?=
+ =?iso-8859-1?Q?QNPvbWyiLxUD3YXBRl/zNXBSB8oc1D51Nr+NLSlzA/ceEVHwwF7Yer8421?=
+ =?iso-8859-1?Q?VUMRUdnhHnhxNkc0RMhNFgTzYA5ux1AVW4qhmvFDqkVeX1ZC1EO7MCM9Ds?=
+ =?iso-8859-1?Q?HKEhKDw49ZpeYM4+y6hUny92nMxHsbaU7NJrnosWwJuVIl/9yEO1Tf5Av1?=
+ =?iso-8859-1?Q?1/0YR4V3OV8axqTjbPVQIjzSTTEgwiEqPxtRS8ybc9RKcBG3wT/EAkV9X6?=
+ =?iso-8859-1?Q?AkLCxVdWk3dVWnncaGzZTpXQ1D+tuo3lVPB5zZ8eqJDatUImy8pyunpRWF?=
+ =?iso-8859-1?Q?Dk4+9EBbFRFL7QENxAw2Q0s6a+jLvGlJ2SKpFGy+VPXUHINoP3SB7RDhl9?=
+ =?iso-8859-1?Q?PNfxv39V2pZeup4UmI4tDL/ULdSg6PLRBJog71OGjoNZVP+iEjDWXMB8k4?=
+ =?iso-8859-1?Q?6b6kLqmqLmyky7GIBZ8MBpB+h7SRRWvFVCodxAW5WWaWiAUyEO2wdcP00F?=
+ =?iso-8859-1?Q?SocOnXR3MVWCBGt6aB3Kx2bzACoJm0TAfuueMzbLI49WXHo74r8R3MCua4?=
+ =?iso-8859-1?Q?2e7JnoyM53Iar7E2luTW0aligNtQdiWuXzljFxp/NRUt/bPksk48docbPe?=
+ =?iso-8859-1?Q?+MsvJxb6dPwf9gEIinuhtOoud+84cxDPXQw+ghKcdE6vd8b3fZm4WRw2iP?=
+ =?iso-8859-1?Q?ut5TXA21edznWp8JUdOoIyZYS4euNKymLrr6PPCJ+KANlxO3i0VSzc9Lpr?=
+ =?iso-8859-1?Q?7uv2WKUtdUkjEH2b4xpEt8dFPaW0xdn5jcnU5loO5WLeoIZ03sdf6P2WDp?=
+ =?iso-8859-1?Q?zTomD+pswB0TrFrHwKBprzMWtu5aaRGc8winByTITrt1l/fegYCXsAsB6r?=
+ =?iso-8859-1?Q?cT52UW63QMcHcBtBjZxrwPLW6ck5wrAVfiJoa1JBYO/oR4XWNlx3jWDysJ?=
+ =?iso-8859-1?Q?pr/LVsjbcLyWe7pG3/TwTzNaQO7YcIi6OhAEEzTx1eyYaVKinwVAdYQNPv?=
+ =?iso-8859-1?Q?hwkM2x5kW2X9TUiQBDeCqTbYZEdo1RHoad?=
+Content-Type: multipart/alternative;
+	boundary="_000_VI1PR02MB6368356B133A6B8F63EB6FFFE5B79VI1PR02MB6368eurp_"
+MIME-Version: 1.0
+X-OriginatorOrg: epitech.eu
+X-MS-Exchange-CrossTenant-AuthAs: Internal
+X-MS-Exchange-CrossTenant-AuthSource: VI1PR02MB6368.eurprd02.prod.outlook.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 4bfe5ad2-bafa-4231-1269-08da568c0140
+X-MS-Exchange-CrossTenant-originalarrivaltime: 25 Jun 2022 09:20:54.2108
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 901cb4ca-b862-4029-9306-e5cd0f6d9f86
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: NKivC4L6BFEiKVhcJAYnTcfLokXtmqkCYNBlEJN97qKHin1o2YqlsQ5dYg8xQKveODPpm8zrBbumF3SeKUcvTA==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: AM9PR02MB6755
+X-OVH-Remote: 40.107.21.103 (mail-vi1eur05on2103.outbound.protection.outlook.com)
+X-Ovh-Tracer-Id: 15239899664599396948
+X-VR-SPAMSTATE: OK
+X-VR-SPAMSCORE: 0
+X-VR-SPAMCAUSE: gggruggvucftvghtrhhoucdtuddrgedvfedrudeguddgudeiucetufdoteggodetrfdotffvucfrrhhofhhilhgvmecuqfggjfdpvefjgfevmfevgfenuceurghilhhouhhtmecuhedttdenucenucfjughrpefhvffuthffkfgtggesrgdttdertddtudenucfhrhhomhepofgrthhhihgvuhcunfgrlhgruceomhgrthhhihgvuhdrlhgrlhgrsegvphhithgvtghhrdgvuheqnecuggftrfgrthhtvghrnhepteeutdfggeduueevgedtvdegueduffejfeetteefgeduffdvuddugeeitdelfeehnecukfhppeegtddruddtjedrvddurddutdefpddviedtfeemuddtrgeimeektddtmeduleelmeemvddtnecuvehluhhsthgvrhfuihiivgeptdenucfrrghrrghmpehmohguvgepshhmthhppdhhvghlohepvghurhdthedqvhhiuddqohgsvgdrohhuthgsohhunhgurdhprhhothgvtghtihhonhdrohhuthhlohhokhdrtghomhdpihhnvghtpeegtddruddtjedrvddurddutdefpdhmrghilhhfrhhomhepmhgrthhhihgvuhdrlhgrlhgrsegvphhithgvtghhrdgvuhdpnhgspghrtghpthhtohepuddprhgtphhtthhopehmrdhlrghlrgesvhhirhhiughithdrtghomhdpshhpfhepphgrshhspdgukhhimhepphgrshhspdhgvghokffrpeetvfdpoffvtefjohhsthepvhhrgeef
+X-Ovh-Spam-Status: OK
+X-Ovh-Spam-Reason: vr: OK; dkim: disabled; spf: disabled
+X-Ovh-Message-Type: OK
+
+--_000_VI1PR02MB6368356B133A6B8F63EB6FFFE5B79VI1PR02MB6368eurp_
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+Simple Body
+
+--_000_VI1PR02MB6368356B133A6B8F63EB6FFFE5B79VI1PR02MB6368eurp_
+Content-Type: text/html; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
+1">
+<style type=3D"text/css" style=3D"display:none;"> P {margin-top:0;margin-bo=
+ttom:0;} </style>
+</head>
+<body dir=3D"ltr">
+<div style=3D"font-family: Calibri, Arial, Helvetica, sans-serif; font-size=
+: 12pt; color: rgb(0, 0, 0); background-color: rgb(255, 255, 255);" class=
+=3D"elementToProof">
+Simple Body</div>
+<div>
+<div id=3D"Signature">
+<div>
+<div id=3D"divtagdefaultwrapper" dir=3D"ltr" style=3D"font-size: 12pt; font=
+-family: Calibri, Helvetica, sans-serif; color: rgb(0, 0, 0);">
+<p style=3D"margin-top:0px; margin-bottom:0px"></p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
+
+--_000_VI1PR02MB6368356B133A6B8F63EB6FFFE5B79VI1PR02MB6368eurp_--

@@ -36,7 +36,7 @@ fn test_greylist() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Deny(ReplyOrCodeID::CodeID(CodeID::Denied))
+        Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
     );
 
     let re = RuleEngine::new(&config, &Some(root_example!["greylist/main.vsl"])).unwrap();
@@ -44,7 +44,7 @@ fn test_greylist() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Accept(ReplyOrCodeID::CodeID(CodeID::Ok)),
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
     );
 
     std::fs::remove_file(root_example!["greylist/greylist.csv"]).unwrap();
@@ -64,7 +64,7 @@ fn test_check_relay() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::MailFrom),
-        Status::Deny(ReplyOrCodeID::Reply(Reply::new(
+        Status::Deny(ReplyOrCodeID::Right(Reply::new(
             Enhanced {
                 code: 554,
                 enhanced: "5.7.1".to_string()
@@ -85,7 +85,7 @@ fn test_check_relay() {
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::RcptTo),
-        Status::Info(ReplyOrCodeID::Reply(Reply::new(
+        Status::Info(ReplyOrCodeID::Right(Reply::new(
             Enhanced {
                 code: 554,
                 enhanced: "5.7.1".to_string()

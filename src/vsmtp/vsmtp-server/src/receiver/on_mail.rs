@@ -17,12 +17,12 @@
 
 use crate::{log_channels, Connection, Process, ProcessMessage};
 use vsmtp_common::{
-    mail_context::{MailContext, MessageBody},
+    mail_context::MailContext,
     queue::Queue,
     re::{anyhow, log, tokio},
     status::Status,
     transfer::EmailTransferStatus,
-    CodeID,
+    CodeID, MessageBody,
 };
 use vsmtp_config::create_app_folder;
 
@@ -109,7 +109,7 @@ impl MailHandler {
                 if let Some(old_message_id) = mail_message
                     .get_header("X-VSMTP-DELEGATION")
                     .and_then(|header| {
-                        vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", header)
+                        vsmtp_mail_parser::get_mime_header("X-VSMTP-DELEGATION", &header)
                             .args
                             .get("id")
                             .cloned()
@@ -146,12 +146,9 @@ impl MailHandler {
             }
         };
 
-        Queue::write_to_mails(
-            &conn.config.server.queues.dirpath,
-            &message_id,
-            &mail_message,
-        )
-        .map_err(MailHandlerError::WriteMessageBody)?;
+        mail_message
+            .write_to_mails(&conn.config.server.queues.dirpath, &message_id)
+            .map_err(MailHandlerError::WriteMessageBody)?;
 
         log::debug!(
             target: log_channels::PREQ,
