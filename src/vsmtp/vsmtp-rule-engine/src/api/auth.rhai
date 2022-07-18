@@ -232,7 +232,7 @@ fn check_null_mx_sender() {
     return sys::next();
 }
 
-private fn sys_dkim_verif(policy) {
+private fn sys_dkim_verify(policy) {
     log("warn", `verifying DKIM signature with policy=${policy}`);
 
     let last_error = `dkim=none`;
@@ -264,15 +264,15 @@ private fn sys_dkim_verif(policy) {
                     // header.b & header.a can be set optionally
                     return `dkim=pass header.d=${signature.sdid} header.i=${signature.auid};`;
                 } catch (e) {
-                    let e = sys::handle_dkim_error(e);
                     log("warn", `DKIM signature verifification failed: ${e}`);
+                    let e = sys::handle_dkim_error(e);
                     last_error = `dkim=${e}`;
                 }
             }
 
         } catch (e) {
-            let e = sys::handle_dkim_error(e);
             log("warn", `DKIM signature invalid: ${e}`);
+            let e = sys::handle_dkim_error(e);
             last_error = `dkim=${e}`;
         }
     }
@@ -281,7 +281,7 @@ private fn sys_dkim_verif(policy) {
     last_error
 }
 
-fn dkim_verif() {
+fn dkim_verify() {
     let result = sys_dkim_verif(#{
         // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
         nbr_headers: 5,
