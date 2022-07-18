@@ -17,9 +17,9 @@ fn get_header(header) { sys::get_header(msg(), header) }
 fn append_header(header, value) { sys::append_header(msg(), header, value) }
 fn prepend_header(header, value) { sys::prepend_header(msg(), header, value) }
 fn set_header(header, value) { sys::set_header(msg(), header, value) }
-fn add_to(addr) { sys::add_to(msg(), addr) }
-fn remove_to(addr) { sys::remove_to(msg(), addr) }
-fn rewrite_to(old_addr, new_addr) {
+fn add_to_message(addr) { sys::add_to_message(msg(), addr) }
+fn remove_to_message(addr) { sys::remove_to_message(msg(), addr) }
+fn rewrite_to_message(old_addr, new_addr) {
     sys::rewrite_to_message(msg(), old_addr, new_addr)
 }
 

@@ -77,7 +77,7 @@
 
         rule "raw=>parsed and add rcpt" || {
             try {
-                add_to("impossible@toadd.com");
+                add_to_message("impossible@toadd.com");
                 return next();
             } catch (err) {
                 print(err);
@@ -87,7 +87,7 @@
 
         rule "raw=>parsed and remove rcpt" || {
             try {
-                remove_to("impossible@toremove.com");
+                remove_to_message("impossible@toremove.com");
                 return next();
             } catch (err) {
                 print(err);
@@ -97,7 +97,7 @@
 
         rule "raw=>parsed and rewrite rcpt" || {
             try {
-                rewrite_to("impossible@torewrite.com", "impossible@torewrite.com");
+                rewrite_to_message("impossible@torewrite.com", "impossible@torewrite.com");
                 return next();
             } catch (err) {
                 print(err);
@@ -132,9 +132,9 @@
         },
 
         action "rewrite to headers" || {
-            add_to("other.added@rcpt.com");
-            remove_to("other.rcpt@toremove.org");
-            rewrite_to("other.rcpt@torewrite.net", "other.new@rcpt.net");
+            add_to_message("other.added@rcpt.com");
+            remove_to_message("other.rcpt@toremove.org");
+            rewrite_to_message("other.rcpt@torewrite.net", "other.new@rcpt.net");
         },
 
         rule "check rewrites" || {

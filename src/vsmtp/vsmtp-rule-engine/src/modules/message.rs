@@ -177,27 +177,27 @@ pub mod message_calling_parse {
     /// add a recipient to the 'To' mail header.
     #[rhai_fn(global, name = "add_to_message", return_raw, pure)]
     pub fn add_to_message_str(message: &mut Message, new_addr: &str) -> EngineResult<()> {
-        super::add_to(message, new_addr)
+        super::add_to_message(message, new_addr)
     }
 
     /// add a recipient to the 'To' mail header.
     #[rhai_fn(global, name = "add_to_message", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn add_to_message_obj(message: &mut Message, new_addr: SharedObject) -> EngineResult<()> {
-        super::add_to(message, &new_addr.to_string())
+        super::add_to_message(message, &new_addr.to_string())
     }
 
     /// remove a recipient from the mail 'To' header.
     #[rhai_fn(global, name = "remove_to_message", return_raw, pure)]
     pub fn remove_to_message_str(message: &mut Message, addr: &str) -> EngineResult<()> {
-        super::remove_to(message, addr)
+        super::remove_to_message(message, addr)
     }
 
     /// remove a recipient from the mail 'To' header.
     #[rhai_fn(global, name = "remove_to_message", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_to_message_obj(message: &mut Message, addr: SharedObject) -> EngineResult<()> {
-        super::remove_to(message, &addr.to_string())
+        super::remove_to_message(message, &addr.to_string())
     }
 }
 
@@ -257,7 +257,7 @@ fn rewrite_to_message(message: &mut Message, old_addr: &str, new_addr: &str) -> 
 }
 
 /// internal generic function to add a recipient to the `To` header.
-fn add_to(message: &mut Message, new_addr: &str) -> EngineResult<()> {
+fn add_to_message(message: &mut Message, new_addr: &str) -> EngineResult<()> {
     let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
 
     let mut writer = vsl_guard_ok!(message.write());
@@ -269,7 +269,7 @@ fn add_to(message: &mut Message, new_addr: &str) -> EngineResult<()> {
 }
 
 /// internal generic function to remove a recipient to the `To` header.
-fn remove_to(this: &mut Message, addr: &str) -> EngineResult<()> {
+fn remove_to_message(this: &mut Message, addr: &str) -> EngineResult<()> {
     let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
 
     let mut writer = vsl_guard_ok!(this.write());
