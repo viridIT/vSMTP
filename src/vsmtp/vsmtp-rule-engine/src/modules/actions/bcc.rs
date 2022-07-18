@@ -42,18 +42,6 @@ pub mod bcc {
         Ok(())
     }
 
-    /// add a recipient to the list recipient using an address.
-    #[rhai_fn(global, name = "bcc", return_raw, pure)]
-    pub fn from_addr(this: &mut Context, bcc: Address) -> EngineResult<()> {
-        this.write()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .envelop
-            .rcpt
-            .push(vsmtp_common::rcpt::Rcpt::new(bcc));
-
-        Ok(())
-    }
-
     /// add a recipient to the list recipient using an object.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "bcc", return_raw, pure)]

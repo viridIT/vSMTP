@@ -25,7 +25,7 @@ use vsmtp_common::{auth::Credentials, auth::Mechanism, state::StateSMTP, Address
 
 #[rhai::plugin::export_module]
 pub mod mail_context {
-    use crate::modules::types::types::SharedObject;
+    use crate::{dsl::object::Object, modules::types::types::SharedObject};
 
     #[rhai_fn(global, get = "client_address", return_raw, pure)]
     pub fn client_address(context: &mut Context) -> EngineResult<String> {
@@ -148,29 +148,33 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "mail_from", return_raw, pure)]
-    pub fn mail_from(context: &mut Context) -> EngineResult<Address> {
-        Ok(vsl_guard_ok!(context.read()).envelop.mail_from.clone())
+    pub fn mail_from(context: &mut Context) -> EngineResult<SharedObject> {
+        Ok(std::sync::Arc::new(Object::Address(
+            vsl_guard_ok!(context.read()).envelop.mail_from.clone(),
+        )))
     }
 
     #[rhai_fn(global, get = "rcpt_list", return_raw, pure)]
-    pub fn rcpt_list(context: &mut Context) -> EngineResult<Vec<Address>> {
+    pub fn rcpt_list(context: &mut Context) -> EngineResult<Vec<SharedObject>> {
         Ok(vsl_guard_ok!(context.read())
             .envelop
             .rcpt
             .iter()
-            .map(|rcpt| rcpt.address.clone())
+            .map(|rcpt| std::sync::Arc::new(Object::Address(rcpt.address.clone())))
             .collect())
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw, pure)]
-    pub fn rcpt(context: &mut Context) -> EngineResult<Address> {
-        Ok(vsl_missing_ok!(
-            vsl_guard_ok!(context.read()).envelop.rcpt.last(),
-            "rcpt",
-            StateSMTP::RcptTo
-        )
-        .address
-        .clone())
+    pub fn rcpt(context: &mut Context) -> EngineResult<SharedObject> {
+        Ok(std::sync::Arc::new(Object::Address(
+            vsl_missing_ok!(
+                vsl_guard_ok!(context.read()).envelop.rcpt.last(),
+                "rcpt",
+                StateSMTP::RcptTo
+            )
+            .address
+            .clone(),
+        )))
     }
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]

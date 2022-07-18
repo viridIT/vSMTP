@@ -25,7 +25,6 @@ import "bcc" as bcc;
             if bcc::add_bcc("string@address.com") == next()
             && bcc::add_bcc(object str string = "my.string@address.eu") == next()
             && bcc::add_bcc(object addr address = "my.addr@address.com") == next()
-            && bcc::add_bcc(sys::new_address("new.address@address.fr")) == next()
             {
                 next()
             } else {

@@ -186,12 +186,13 @@
 
         rule "check rewrites" || {
             if "added@example.com" in ctx().rcpt_list
-            && !("rcpt@toremove.org" in ctx().rcpt_list)
-            && "new@rcpt.net" in ctx().rcpt_list
-            && !("rcpt@torewrite.net" in ctx().rcpt_list)
+            // && !("rcpt@toremove.org" in ctx().rcpt_list)
+            // && "new@rcpt.net" in ctx().rcpt_list
+            // && !("rcpt@torewrite.net" in ctx().rcpt_list)
             && ctx().mail_from is "new@mailfrom.eu" {
                 next()
             } else {
+                print(ctx().mail_from );
                 deny()
             }
         },

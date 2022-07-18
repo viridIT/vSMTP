@@ -75,7 +75,7 @@ fn check_mail_relay(allowed_hosts) {
 fn check_rcpt_relay(allowed_hosts) {
     if !in_domain(ctx().rcpt)
     && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        remove_rcpt_context(ctx().rcpt.to_string());
+        remove_rcpt_context(ctx().rcpt);
         info(code554_7_1)
     } else {
         next()
