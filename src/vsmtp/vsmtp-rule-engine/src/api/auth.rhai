@@ -282,7 +282,7 @@ private fn sys_dkim_verify(policy) {
 }
 
 fn dkim_verify() {
-    let result = sys_dkim_verif(#{
+    let result = sys_dkim_verify(#{
         // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
         nbr_headers: 5,
         // the dns query may result in multiple public key, the registry with invalid format are ignored.
