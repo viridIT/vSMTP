@@ -131,7 +131,7 @@ impl EmailTransferStatus {
 pub enum ForwardTarget {
     /// the target is a domain name. (default)
     Domain(String),
-    /// the target is an ip address, a domaine resolution needs to be made.
+    /// the target is an ip address, a domain resolution needs to be made.
     Ip(std::net::IpAddr),
     /// the target is an ip address with an associated port.
     Socket(std::net::SocketAddr),
