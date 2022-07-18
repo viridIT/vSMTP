@@ -2355,6 +2355,7 @@ dependencies = [
  "iprange",
  "regex",
  "rhai",
+ "strum",
  "thiserror",
  "time 0.3.11",
  "trust-dns-resolver",

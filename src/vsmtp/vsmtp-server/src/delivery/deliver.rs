@@ -63,21 +63,14 @@ pub async fn flush_deliver_queue(
 
 /// handle and send one email pulled from the delivery queue.
 ///
-/// # Args
-/// * `config` - the server's config.
-/// * `resolvers` - a list of dns with their associated domains.
-/// * `path` - the path to the message file.
-/// * `rule_engine` - an instance of the rule engine.
-///
 /// # Errors
+///
 /// * failed to open the email.
 /// * failed to parse the email.
 /// * failed to send an email.
 /// * rule engine mutex is poisoned.
 /// * failed to add trace data to the email.
 /// * failed to copy the email to other queues or remove it from the delivery queue.
-///
-/// # Panics
 pub async fn handle_one_in_delivery_queue(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
@@ -220,6 +213,10 @@ async fn handle_one_in_delivery_queue_inner(
                 .with_context(|| {
                     format!("cannot move file from `{}` to `{}`", queue, Queue::Dead)
                 })?;
+
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
         }
         SenderOutcome::MoveToDeferred => {
             queue
@@ -231,6 +228,10 @@ async fn handle_one_in_delivery_queue_inner(
                 .with_context(|| {
                     format!("cannot move file from `{}` to `{}`", queue, Queue::Deferred)
                 })?;
+
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
         }
         SenderOutcome::RemoveFromDisk => {
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;

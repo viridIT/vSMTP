@@ -25,76 +25,61 @@ use rhai::EvalAltResult;
 use vsmtp_common::re::tokio;
 use vsmtp_dkim::{Key, Signature};
 
-enum AuthResult {
-    SignatureParsingFailed {
-        inner: <Signature as std::str::FromStr>::Err,
-    },
-    PolicySyntaxError {
-        inner: String,
-    },
-    TempDnsError {
-        inner: trust_dns_resolver::error::ResolveError,
-    },
-    PermDnsError {
-        inner: trust_dns_resolver::error::ResolveError,
-    },
+#[derive(Debug, strum::AsRefStr, strum::EnumString, strum::EnumMessage)]
+#[strum(serialize_all = "snake_case")]
+enum DkimErrors {
+    #[strum(message = "neutral")]
+    SignatureParsingFailed, // { inner: <Signature as std::str::FromStr>::Err, }
+    #[strum(message = "neutral")]
+    KeyParsingFailed, // { inner: <Key as std::str::FromStr>::Err, }
+    #[strum(message = "neutral")]
+    PolicySyntaxError, // { inner: String, }
+    #[strum(message = "temperror")]
+    TempDnsError, // { inner: trust_dns_resolver::error::ResolveError, }
+    #[strum(message = "permerror")]
+    PermDnsError, // { inner: trust_dns_resolver::error::ResolveError, }
+    #[strum(message = "fail")]
+    SignatureMismatch,
 }
 
-impl From<AuthResult> for rhai::Dynamic {
-    fn from(this: AuthResult) -> Self {
-        match this {
-            AuthResult::SignatureParsingFailed { inner } => {
-                Self::from_map(vsmtp_common::collection! {
-                    rhai::Identifier::from("type") => Self::from("SignatureParsingFailed"),
-                    rhai::Identifier::from("inner") => Self::from(inner.to_string()),
-                })
-            }
-            AuthResult::PolicySyntaxError { inner } => Self::from_map(vsmtp_common::collection! {
-                rhai::Identifier::from("type") => Self::from("PolicySyntaxError"),
-                rhai::Identifier::from("inner") => Self::from(inner),
-            }),
-            AuthResult::TempDnsError { inner } => Self::from_map(vsmtp_common::collection! {
-                rhai::Identifier::from("type") => Self::from("TempDnsError"),
-                rhai::Identifier::from("inner") => Self::from(inner),
-            }),
-            AuthResult::PermDnsError { inner } => Self::from_map(vsmtp_common::collection! {
-                rhai::Identifier::from("type") => Self::from("PermDnsError"),
-                rhai::Identifier::from("inner") => Self::from(inner),
-            }),
-        }
-    }
-}
-
-impl From<AuthResult> for Box<rhai::EvalAltResult> {
-    fn from(this: AuthResult) -> Self {
-        Self::new(rhai::EvalAltResult::ErrorRuntime(
-            this.into(),
-            rhai::Position::NONE,
-        ))
-    }
-}
-
-#[doc(hidden)]
+/// dkim api for verifier, and the generation of "Authentication-Results" header
 #[rhai::plugin::export_module]
 pub mod dkim {
 
+    /// get the dkim status from an error produced by this module
+    #[rhai_fn(global, return_raw)]
+    pub fn handle_dkim_error(err: &str) -> EngineResult<String> {
+        let r#type = DkimErrors::try_from(err).map_err::<Box<rhai::EvalAltResult>, _>(|e| {
+            format!("not the right type: `{e}`").into()
+        })?;
+
+        Ok(strum::EnumMessage::get_message(&r#type)
+            .expect("`DkimErrors` must have a message for each variant")
+            .to_string())
+    }
+
+    /// return the `sdid` property of the [`Signature`]
     #[rhai_fn(global, get = "sdid", pure)]
     pub fn sdid(signature: &mut Signature) -> String {
         signature.sdid.clone()
     }
 
+    /// return the `auid` property of the [`Signature`]
     #[rhai_fn(global, get = "auid", pure)]
     pub fn auid(signature: &mut Signature) -> String {
         signature.auid.clone()
     }
 
+    /// create a [`Signature`] from a `DKIM-Signature` header
     #[rhai_fn(global, return_raw)]
     pub fn parse_signature(input: &str) -> EngineResult<Signature> {
-        <Signature as std::str::FromStr>::from_str(input).map_err::<Box<rhai::EvalAltResult>, _>(
-            |e| AuthResult::SignatureParsingFailed { inner: e }.into(),
-        )
+        <Signature as std::str::FromStr>::from_str(input)
+            .map_err::<Box<rhai::EvalAltResult>, _>(|_| DkimErrors::SignatureParsingFailed.into())
     }
 
+    /// Has the signature expired?
+    ///
+    /// return `true` if the argument are invalid
     #[rhai_fn(global, pure)]
     pub fn has_expired(signature: &mut Signature, epsilon: rhai::INT) -> bool {
         epsilon
@@ -102,6 +87,13 @@ pub mod dkim {
             .map_or(true, |epsilon| signature.has_expired(epsilon))
     }
 
+    /// Get the list of public keys associated with this [`Signature`]
+    ///
+    /// The current implementation will make a TXT query on the dns of the signer
+    ///
+    /// `on_multiple_key_records` value can be `first` or `cycle` :
+    /// * `first` return the first key found (one element array)
+    /// * `cycle` return all the keys found
     #[rhai_fn(global, pure, return_raw)]
     pub fn get_public_key(
         server: &mut Server,
@@ -110,12 +102,12 @@ pub mod dkim {
     ) -> EngineResult<rhai::Dynamic> {
         const VALID_POLICY: [&str; 2] = ["first", "cycle"];
         if !VALID_POLICY.contains(&on_multiple_key_records) {
-            return Err(AuthResult::PolicySyntaxError {
+            return Err(DkimErrors::PolicySyntaxError.into());
+            /*{
                 inner: format!(
                     "expected values in `[first, cycle]` but got `{on_multiple_key_records}`",
                 ),
-            }
-            .into());
+            }*/
         }
 
         let resolver = server.resolvers.get(&server.config.server.domain).unwrap();
@@ -133,36 +125,35 @@ pub mod dkim {
                     | ResolveErrorKind::NoConnections
                     | ResolveErrorKind::NoRecordsFound { .. }
             ) {
-                AuthResult::PermDnsError { inner: e }.into()
+                DkimErrors::PermDnsError.into()
             } else {
-                AuthResult::TempDnsError { inner: e }.into()
+                DkimErrors::TempDnsError.into()
             }
         })?;
 
-        let keys =
-            txt_record.into_iter().filter_map(|i| {
-                match <Key as std::str::FromStr>::from_str(&format!("{i}")) {
-                    Ok(key) => Some(key),
-                    Err(e) => {
-                        println!("got error with key: `{e}`");
-                        None
-                    }
-                }
-            });
+        let keys = txt_record
+            .into_iter()
+            .map(|i| <Key as std::str::FromStr>::from_str(&i.to_string()));
 
         Ok(if on_multiple_key_records == "first" {
-            keys.take(1).collect::<Vec<_>>()
+            keys.take(1)
+                .collect::<Result<Vec<_>, <Key as std::str::FromStr>::Err>>()
+                .map_err::<Box<EvalAltResult>, _>(|_| DkimErrors::KeyParsingFailed.into())?
         } else {
-            keys.collect::<Vec<_>>()
+            keys.collect::<Result<Vec<_>, <Key as std::str::FromStr>::Err>>()
+                .map_err::<Box<EvalAltResult>, _>(|_| DkimErrors::KeyParsingFailed.into())?
         }
         .into())
     }
 
+    /// A public key may contains a `debug flag`, used for testing purpose.
     #[rhai_fn(global, pure, get = "has_debug_flag")]
     pub fn has_debug_flag(key: &mut Key) -> bool {
         key.has_debug_flag()
     }
 
+    /// Operate the hashing of the `message`'s headers and body, and compare the result with the
+    /// `signature` and `key` data.
     #[allow(clippy::module_name_repetitions, clippy::needless_pass_by_value)]
     #[rhai_fn(global, pure, return_raw)]
     pub fn dkim_verify(message: &mut Message, signature: Signature, key: Key) -> EngineResult<()> {
@@ -170,8 +161,6 @@ pub mod dkim {
 
         signature
             .verify(guard.inner(), &key)
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
-
-        Ok(())
+            .map_err::<Box<EvalAltResult>, _>(|_| DkimErrors::SignatureMismatch.into())
     }
 }

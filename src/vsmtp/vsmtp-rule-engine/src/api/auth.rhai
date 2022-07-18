@@ -239,7 +239,7 @@ private fn sys_dkim_verif(policy) {
 
     for i in msg().headers("DKIM-Signature", policy.nbr_headers) {
         try {
-            let signature = parse_signature(i);
+            let signature = sys::parse_signature(i);
 
             if signature.has_expired(policy.expiration_epsilon) {
                 log("warn", `DKIM signature expired, continuing`);
@@ -251,7 +251,7 @@ private fn sys_dkim_verif(policy) {
             //     continue;
             // }
 
-            for key in get_public_key(srv(), signature, policy.on_multiple_key_records) {
+            for key in sys::get_public_key(srv(), signature, policy.on_multiple_key_records) {
                 try {
                     sys::dkim_verify(msg(), signature, key);
                     log("warn", `DKIM signature successfully verified`);
@@ -262,18 +262,18 @@ private fn sys_dkim_verif(policy) {
                     }
 
                     // header.b & header.a can be set optionally
-                    return `  dkim=pass header.d=${signature.sdid} header.i=${signature.auid};`;
+                    return `dkim=pass header.d=${signature.sdid} header.i=${signature.auid};`;
                 } catch (e) {
+                    let e = sys::handle_dkim_error(e);
                     log("warn", `DKIM signature verifification failed: ${e}`);
-                    print(e);
-                    last_error = e;
+                    last_error = `dkim=${e}`;
                 }
             }
 
         } catch (e) {
+            let e = sys::handle_dkim_error(e);
             log("warn", `DKIM signature invalid: ${e}`);
-            print(e);
-            last_error = e;
+            last_error = `dkim=${e}`;
         }
     }
 
@@ -292,8 +292,9 @@ fn dkim_verif() {
         expiration_epsilon: 100,
     });
 
-    print(`${hostname()};\r\n` + result);
+    let header = `${hostname()};
+  ${result}`;
 
-    prepend_header("Authentication-Results", `${hostname()};` + result);
+    prepend_header("Authentication-Results", header);
     result
 }
