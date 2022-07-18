@@ -20,7 +20,7 @@ use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::Address;
+use vsmtp_common::{mail_context::MessageBody, Address};
 
 #[rhai::plugin::export_module]
 pub mod message {
@@ -114,61 +114,90 @@ pub mod message {
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod message_calling_parse {
-    use vsmtp_common::mail_context::MessageBody;
+    use crate::modules::types::types::SharedObject;
 
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn rewrite_mail_from_message(this: &mut Message, new_addr: &str) -> EngineResult<()> {
-        let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
-
-        let mut writer = vsl_guard_ok!(this.write());
-        match &mut *vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => body.rewrite_mail_from(new_addr.full()),
-            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
-        }
-        Ok(())
+    /// replace the value of the `From` header by another address.
+    #[rhai_fn(global, name = "rewrite_mail_from_message", return_raw, pure)]
+    pub fn rewrite_mail_from_message_str(
+        message: &mut Message,
+        new_addr: &str,
+    ) -> EngineResult<()> {
+        super::rewrite_mail_from_message(message, new_addr)
     }
 
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn rewrite_to_message(
-        this: &mut Message,
+    /// replace the value of the `From` header by another address.
+    #[rhai_fn(global, name = "rewrite_mail_from_message", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn rewrite_mail_from_message_obj(
+        message: &mut Message,
+        new_addr: SharedObject,
+    ) -> EngineResult<()> {
+        super::rewrite_mail_from_message(message, &new_addr.to_string())
+    }
+
+    #[rhai_fn(global, name = "rewrite_to_message", return_raw, pure)]
+    pub fn rewrite_to_message_str_str(
+        message: &mut Message,
         old_addr: &str,
         new_addr: &str,
     ) -> EngineResult<()> {
-        let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
-        let old_addr = vsl_conversion_ok!("address", Address::try_from(old_addr.to_string()));
+        super::rewrite_to_message(message, old_addr, new_addr)
+    }
 
-        let mut writer = vsl_guard_ok!(this.write());
-        match &mut *vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => body.rewrite_rcpt(old_addr.full(), new_addr.full()),
-            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
-        }
-        Ok(())
+    #[rhai_fn(global, name = "rewrite_to_message", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn rewrite_to_message_obj_str(
+        message: &mut Message,
+        old_addr: SharedObject,
+        new_addr: &str,
+    ) -> EngineResult<()> {
+        super::rewrite_to_message(message, &old_addr.to_string(), new_addr)
+    }
+
+    #[rhai_fn(global, name = "rewrite_to_message", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn rewrite_to_message_str_obj(
+        message: &mut Message,
+        old_addr: &str,
+        new_addr: SharedObject,
+    ) -> EngineResult<()> {
+        super::rewrite_to_message(message, old_addr, &new_addr.to_string())
+    }
+
+    #[rhai_fn(global, name = "rewrite_to_message", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn rewrite_to_message_obj_obj(
+        message: &mut Message,
+        old_addr: SharedObject,
+        new_addr: SharedObject,
+    ) -> EngineResult<()> {
+        super::rewrite_to_message(message, &old_addr.to_string(), &new_addr.to_string())
     }
 
     /// add a recipient to the 'To' mail header.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn add_to(this: &mut Message, new_addr: &str) -> EngineResult<()> {
-        let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+    #[rhai_fn(global, name = "add_to", return_raw, pure)]
+    pub fn add_to_str(message: &mut Message, new_addr: &str) -> EngineResult<()> {
+        super::add_to(message, new_addr)
+    }
 
-        let mut writer = vsl_guard_ok!(this.write());
-        match &mut *vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => body.add_rcpt(new_addr.full()),
-            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
-        }
-        Ok(())
+    /// add a recipient to the 'To' mail header.
+    #[rhai_fn(global, name = "add_to", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn add_to_obj(message: &mut Message, new_addr: SharedObject) -> EngineResult<()> {
+        super::add_to(message, &new_addr.to_string())
     }
 
     /// remove a recipient from the mail 'To' header.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn remove_to(this: &mut Message, addr: &str) -> EngineResult<()> {
-        let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
+    #[rhai_fn(global, name = "remove_to", return_raw, pure)]
+    pub fn remove_to_str(message: &mut Message, addr: &str) -> EngineResult<()> {
+        super::remove_to(message, addr)
+    }
 
-        let mut writer = vsl_guard_ok!(this.write());
-        match &mut *vsl_parse_ok!(writer) {
-            MessageBody::Parsed(body) => body.remove_rcpt(addr.full()),
-            MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
-        }
-        Ok(())
+    /// remove a recipient from the mail 'To' header.
+    #[rhai_fn(global, name = "remove_to", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn remove_to_obj(message: &mut Message, addr: SharedObject) -> EngineResult<()> {
+        super::remove_to(message, &addr.to_string())
     }
 }
 
@@ -199,6 +228,55 @@ where
     U: AsRef<str> + ?Sized,
 {
     vsl_guard_ok!(message.write()).set_header(header.as_ref(), value.as_ref());
+    Ok(())
+}
+
+/// internal generic function to rewrite the value of the `From` header.
+fn rewrite_mail_from_message(message: &mut Message, new_addr: &str) -> EngineResult<()> {
+    let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+
+    let mut writer = vsl_guard_ok!(message.write());
+    match &mut *vsl_parse_ok!(writer) {
+        MessageBody::Parsed(body) => body.rewrite_mail_from(new_addr.full()),
+        MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
+    }
+    Ok(())
+}
+
+/// internal generic function to rewrite the value of the `To` header.
+fn rewrite_to_message(message: &mut Message, old_addr: &str, new_addr: &str) -> EngineResult<()> {
+    let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+    let old_addr = vsl_conversion_ok!("address", Address::try_from(old_addr.to_string()));
+
+    let mut writer = vsl_guard_ok!(message.write());
+    match &mut *vsl_parse_ok!(writer) {
+        MessageBody::Parsed(body) => body.rewrite_rcpt(old_addr.full(), new_addr.full()),
+        MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
+    }
+    Ok(())
+}
+
+/// internal generic function to add a recipient to the `To` header.
+fn add_to(message: &mut Message, new_addr: &str) -> EngineResult<()> {
+    let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+
+    let mut writer = vsl_guard_ok!(message.write());
+    match &mut *vsl_parse_ok!(writer) {
+        MessageBody::Parsed(body) => body.add_rcpt(new_addr.full()),
+        MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
+    }
+    Ok(())
+}
+
+/// internal generic function to remove a recipient to the `To` header.
+fn remove_to(this: &mut Message, addr: &str) -> EngineResult<()> {
+    let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
+
+    let mut writer = vsl_guard_ok!(this.write());
+    match &mut *vsl_parse_ok!(writer) {
+        MessageBody::Parsed(body) => body.remove_rcpt(addr.full()),
+        MessageBody::Raw { .. } => unreachable!("the message has been parsed just above"),
+    }
     Ok(())
 }
 
