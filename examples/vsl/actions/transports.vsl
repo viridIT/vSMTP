@@ -1,4 +1,4 @@
-/// Transports.rs
+/// transports.vsl
 ///
 /// Transports can be used to tell vsmtp where and how to send
 /// an email for a single recipient or all of them.

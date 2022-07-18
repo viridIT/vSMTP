@@ -37,7 +37,7 @@ fn test_logs() {
     let (mut state, _) = get_default_state("./tmp/app");
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Deny(ReplyOrCodeID::Left(CodeID::Denied))
+        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok))
     );
 }
 
