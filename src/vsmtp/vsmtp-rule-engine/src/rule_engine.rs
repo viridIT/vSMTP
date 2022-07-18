@@ -261,6 +261,8 @@ impl RuleEngine {
                     return status;
                 }
                 Err(error) => {
+                    println!("{smtp_state}:{:#?}", &error);
+
                     log::error!(
                         target: log_channels::RE,
                         "{}",

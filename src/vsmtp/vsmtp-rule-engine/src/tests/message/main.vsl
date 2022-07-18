@@ -18,7 +18,7 @@
     connect: [
         rule "fail mail_from rewrite: bad address format" || {
             try {
-                rewrite_mail_from("invalid");
+                rewrite_mail_from_context("invalid");
                 return deny();
             } catch (err) {
                 if "invalid type conversion" in err { return next(); } else { return deny(); }
@@ -27,7 +27,7 @@
 
         rule "fail rcpt rewrite: 1st bad address format" || {
             try {
-                rewrite_rcpt("invalid", "valid@email.com");
+                rewrite_rcpt_context("invalid", "valid@email.com");
                 return deny();
             } catch (err) {
                 if "invalid type conversion" in err { return next(); } else { return deny(); }
@@ -36,7 +36,7 @@
 
         rule "fail rcpt rewrite: 2nd bad address format" || {
             try {
-                rewrite_rcpt("valid@email.com", "invalid");
+                rewrite_rcpt_context("valid@email.com", "invalid");
                 return deny();
             } catch (err) {
                 if "invalid type conversion" in err { return next(); } else { return deny(); }
@@ -67,7 +67,7 @@
     preq: [
         rule "raw=>parsed and mail_from raw" || {
             try {
-                rewrite_mail_from("impossible@torewrite.com");
+                rewrite_mail_from_message("impossible@torewrite.com");
                 return next();
             } catch (err) {
                 print(err);
@@ -129,7 +129,7 @@
             // object added2 address = "added2@example.com";
             // object added3 string = "added3@example.com";
             // object failadd ip = "127.0.0.1";
-            add_rcpt("added@example.com");
+            add_rcpt_context("added@example.com");
             // add_rcpt(added2);
             // add_rcpt(added3);
             // try { add_rcpt(failadd); return deny(); } catch { }
@@ -138,15 +138,15 @@
             // object remove2 address = "toremove1@example.com";
             // object remove3 string = "toremove2@example.com";
             // object failremove fqdn = "example.com";
-            remove_rcpt("rcpt@toremove.org");
+            remove_rcpt_context("rcpt@toremove.org");
             // remove_rcpt("rcpt@toremove.org");
             // remove_rcpt("rcpt@toremove.org");
 
-            rewrite_rcpt("rcpt@torewrite.net", "new@rcpt.net");
-            rewrite_mail_from("new@mailfrom.eu");
+            rewrite_rcpt_context("rcpt@torewrite.net", "new@rcpt.net");
+            rewrite_mail_from_context("new@mailfrom.eu");
         },
 
-        action "rewrite to headers" || {
+        action "rewrite message headers" || {
             // available parameters types for `add_to_message`.
             object added1 address = "added1@example.com";
             object added2 string = "added2@example.com";

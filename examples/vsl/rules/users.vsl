@@ -1,4 +1,4 @@
-object john ident = "johndoe";
+object john identifier = "johndoe";
 object bar fqdn = "example.com";
 object someone address = "staff@example.com";
 

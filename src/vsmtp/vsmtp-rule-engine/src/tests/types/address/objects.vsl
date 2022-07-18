@@ -9,5 +9,5 @@ object group_obj group = [
     object nested_address address = "nested@address.com",
 ];
 
-object identifier_obj ident = "local_part";
+object identifier_obj identifier = "local_part";
 object string_obj string = "raw@address.net";

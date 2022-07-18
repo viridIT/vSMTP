@@ -32,8 +32,8 @@ pub fn parse_object(
         // type of the object.
         3 => match symbols[2].as_str() {
             // regular type, next is the '=' token or ':' token in case of the file type.
-            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex"
-            | "group" | "file" | "code" => Ok(Some("$symbol$".into())),
+            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "identifier" | "string"
+            | "regex" | "group" | "file" | "code" => Ok(Some("$symbol$".into())),
             entry => Err(rhai::ParseError(
                 Box::new(rhai::ParseErrorType::BadInput(
                     rhai::LexError::ImproperSymbol(
@@ -62,9 +62,8 @@ pub fn parse_object(
         5 => match symbols[4].as_str() {
             // NOTE: could it be possible to add a "file" | "code" | "group" content type ?
             // content types handled by the file type. next is the '=' token.
-            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex" => {
-                Ok(Some("=".into()))
-            }
+            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "identifier" | "string"
+            | "regex" => Ok(Some("=".into())),
             // an expression, in the case of a regular object, whe are done parsing.
             _ => Ok(None),
         },

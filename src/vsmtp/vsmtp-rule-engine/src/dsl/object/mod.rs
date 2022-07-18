@@ -163,7 +163,7 @@ impl Object {
                 Ok(Self::Address(Address::try_from(value)?))
             }
 
-            "ident" => Ok(Self::Identifier(Self::value::<S, String>(map, "value")?)),
+            "identifier" => Ok(Self::Identifier(Self::value::<S, String>(map, "value")?)),
 
             "string" => Ok(Self::Str(Self::value::<S, String>(map, "value")?)),
 
@@ -200,7 +200,7 @@ impl Object {
                                 content.push(Self::Address(Address::try_from(line)?));
                             }
                             "string" => content.push(Self::Str(line)),
-                            "ident" => content.push(Self::Identifier(line)),
+                            "identifier" => content.push(Self::Identifier(line)),
                             "regex" => content.push(Self::Regex(
                                 <regex::Regex as std::str::FromStr>::from_str(&line)?,
                             )),
@@ -368,8 +368,8 @@ mod test {
 
         assert_eq!(
             Object::from_map(&rhai::Map::from_iter([
-                ("name".into(), rhai::Dynamic::from("ident".to_string())),
-                ("type".into(), rhai::Dynamic::from("ident".to_string())),
+                ("name".into(), rhai::Dynamic::from("identifier".to_string())),
+                ("type".into(), rhai::Dynamic::from("identifier".to_string())),
                 ("value".into(), rhai::Dynamic::from("john".to_string())),
             ]))
             .unwrap(),
