@@ -122,6 +122,20 @@ impl Signature {
         )
     }
 
+    fn signature_without_headers(&self) -> String {
+        let mut out = self.raw.to_string();
+        out.replace_range(
+            self.raw.find("b=").unwrap() + 2
+                ..self
+                    .raw
+                    .find(&self.signature[self.signature.len() - 4..self.signature.len()])
+                    .unwrap()
+                    + 4,
+            "",
+        );
+        out
+    }
+
     ///
     #[must_use]
     pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
@@ -138,7 +152,7 @@ impl Signature {
             &self
                 .canonicalization
                 .header
-                .canonicalize_header(&[self.raw.replace(&self.signature, "").replace("\r\n", "")]),
+                .canonicalize_header(&[self.signature_without_headers()]),
         );
 
         // remove the final "\r\n"

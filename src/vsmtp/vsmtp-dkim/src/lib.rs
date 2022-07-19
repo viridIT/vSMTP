@@ -45,3 +45,4 @@ pub use algorithm::{HashAlgorithm, SigningAlgorithm};
 pub use canonicalization::{Canonicalization, CanonicalizationAlgorithm};
 pub use key::Key;
 pub use signature::Signature;
+pub use verify::VerifierError;

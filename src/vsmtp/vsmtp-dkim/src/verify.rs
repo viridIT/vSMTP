@@ -18,21 +18,32 @@
 use super::{Key, Signature, SigningAlgorithm};
 use vsmtp_common::RawBody;
 
+/// Possible error produced by [`Signature::verify`]
 #[derive(Debug, thiserror::Error)]
-pub enum VerifierResult {
+pub enum VerifierError {
+    /// The algorithm used in the signature is not supported by the public key
     #[error(
         "the `signing_algorithm` ({singing_algorithm}) is not suitable for the `acceptable_hash_algorithms` ({acceptable})"
     )]
     AlgorithmMismatch {
+        /// The algorithm of the `DKIM-Signature` header
         singing_algorithm: SigningAlgorithm,
+        /// The algorithms of the public key
         acceptable: String,
     },
+    /// The key is empty
     #[error("the key has been revoked, or is empty")]
     KeyMissingOrRevoked,
+    /// The hash produced of the body does not match the hash in the signature
     #[error("body hash does not match")]
     BodyHashMismatch,
+    /// The hash produced of the headers does not match the hash in the signature
     #[error("headers hash does not match, got `{error}`")]
-    HeaderHashMismatch { error: rsa::errors::Error },
+    HeaderHashMismatch {
+        /// The error produced by the hash function
+        error: rsa::errors::Error,
+    },
+    /// Not a valid base64 format in the `DKIM-Signature` header
     #[error("base64 error")]
     Base64Error,
 }
@@ -43,12 +54,12 @@ impl Signature {
     /// # Errors
     ///
     /// * see [`VerifierResult`]
-    pub fn verify(&self, message: &RawBody, key: &Key) -> Result<(), VerifierResult> {
+    pub fn verify(&self, message: &RawBody, key: &Key) -> Result<(), VerifierError> {
         if !self
             .signing_algorithm
             .is_supported(&key.acceptable_hash_algorithms)
         {
-            return Err(VerifierResult::AlgorithmMismatch {
+            return Err(VerifierError::AlgorithmMismatch {
                 singing_algorithm: self.signing_algorithm,
                 acceptable: key
                     .acceptable_hash_algorithms
@@ -78,7 +89,7 @@ impl Signature {
         });
 
         if self.body_hash != base64::encode(body_hash) {
-            return Err(VerifierResult::BodyHashMismatch);
+            return Err(VerifierError::BodyHashMismatch);
         }
 
         let headers_hash = self.get_header_hash(message);
@@ -92,10 +103,8 @@ impl Signature {
                 }),
             },
             &headers_hash,
-            &base64::decode(&self.signature).map_err(|_| VerifierResult::Base64Error)?,
+            &base64::decode(&self.signature).map_err(|_| VerifierError::Base64Error)?,
         )
-        .map_err(|e| VerifierResult::HeaderHashMismatch { error: e })?;
-
-        Ok(())
+        .map_err(|e| VerifierError::HeaderHashMismatch { error: e })
     }
 }
