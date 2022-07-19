@@ -69,28 +69,6 @@ pub enum Object {
     Code(Reply),
 }
 
-// cannot implement PartialEq, Eq on `Object` because `regex::Regex` does not implement it
-impl PartialEq for Object {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (a, b) if a.as_ref() != b.as_ref() => false,
-            (Self::Ip4(l0), Self::Ip4(r0)) => l0 == r0,
-            (Self::Ip6(l0), Self::Ip6(r0)) => l0 == r0,
-            (Self::Rg4(l0), Self::Rg4(r0)) => l0 == r0,
-            (Self::Rg6(l0), Self::Rg6(r0)) => l0 == r0,
-            (Self::Address(l0), Self::Address(r0)) => l0 == r0,
-            (Self::Fqdn(l0), Self::Fqdn(r0))
-            | (Self::Identifier(l0), Self::Identifier(r0))
-            | (Self::Str(l0), Self::Str(r0)) => l0 == r0,
-            (Self::File(l0), Self::File(r0)) => l0 == r0,
-            (Self::Group(l0), Self::Group(r0)) => l0 == r0,
-            (Self::Regex(r0), Self::Regex(l0)) => r0.as_str() == l0.as_str(),
-            (Self::Code(r0), Self::Code(l0)) => r0 == l0,
-            _ => false,
-        }
-    }
-}
-
 impl Object {
     /// get a specific value from a rhai map and convert it to a specific type.
     /// returns an error if the cast failed.
@@ -253,6 +231,50 @@ impl Object {
                 }
             }
             _ => anyhow::bail!("'{}' is an unknown object type.", t),
+        }
+    }
+
+    /// check if the `other` object is contained in this object.
+    pub fn contains(&self, other: &Self) -> anyhow::Result<bool> {
+        match (self, other) {
+            (Object::Group(group), other) => Ok(group.iter().any(|element| *other == **element)),
+            (Object::File(file), other) => Ok(file.iter().any(|element| *other == *element)),
+            (Object::Rg4(rg4), Object::Ip4(ip4)) => Ok(rg4.contains(ip4)),
+            (Object::Rg6(rg6), Object::Ip6(ip6)) => Ok(rg6.contains(ip6)),
+            #[allow(clippy::unnecessary_to_owned)]
+            (Object::Regex(regex), other) => Ok(regex.find(&other.to_string()).is_some()),
+            (Object::Address(addr), Object::Identifier(identifier)) => {
+                Ok(addr.local_part() == identifier.as_str())
+            }
+            (Object::Address(addr), Object::Fqdn(fqdn)) => Ok(addr.domain() == fqdn.as_str()),
+            _ => {
+                anyhow::bail!(
+                    "cannot look for a '{}' object in a '{}' object",
+                    other.as_ref(),
+                    self.as_ref()
+                )
+            }
+        }
+    }
+}
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Ip4(l0), Self::Ip4(r0)) => l0 == r0,
+            (Self::Ip6(l0), Self::Ip6(r0)) => l0 == r0,
+            (Self::Rg4(l0), Self::Rg4(r0)) => l0 == r0,
+            (Self::Rg6(l0), Self::Rg6(r0)) => l0 == r0,
+            (Self::Address(l0), Self::Address(r0)) => l0 == r0,
+            (Self::Fqdn(l0), Self::Fqdn(r0))
+            | (Self::Identifier(l0), Self::Identifier(r0))
+            | (Self::Str(l0), Self::Str(r0)) => l0 == r0,
+            (Self::File(l0), Self::File(r0)) => l0 == r0,
+            (Self::Group(l0), Self::Group(r0)) => l0 == r0,
+            (Self::Regex(r0), Self::Regex(l0)) => r0.as_str() == l0.as_str(),
+            (Self::Code(r0), Self::Code(l0)) => r0 == l0,
+            (Self::Str(string), any) | (any, Self::Str(string)) => *string == any.to_string(),
+            _ => false,
         }
     }
 }

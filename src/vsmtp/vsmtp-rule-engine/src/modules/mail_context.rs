@@ -33,8 +33,8 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "client_ip", return_raw, pure)]
-    pub fn client_ip(context: &mut Context) -> EngineResult<std::net::IpAddr> {
-        Ok(vsl_guard_ok!(context.read()).client_addr.ip())
+    pub fn client_ip(context: &mut Context) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(context.read()).client_addr.ip().to_string())
     }
 
     #[rhai_fn(global, get = "client_port", return_raw, pure)]

@@ -24,7 +24,6 @@ use rhai::plugin::{
 };
 use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::status::Status;
-use vsmtp_common::Address;
 use vsmtp_common::MessageBody;
 
 #[allow(dead_code)]
@@ -117,43 +116,6 @@ pub mod types {
         ))
     }
 
-    // std::net::IpAddr
-
-    #[rhai_fn(global, name = "to_string", pure)]
-    pub fn ip_to_string(this: &mut std::net::IpAddr) -> String {
-        this.to_string()
-    }
-
-    #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn ip_to_debug(this: &mut std::net::IpAddr) -> String {
-        format!("{this:?}")
-    }
-
-    #[rhai_fn(global, name = "==", pure)]
-    pub fn ip_is_string(this: &mut std::net::IpAddr, ip: &str) -> bool {
-        this.to_string() == ip
-    }
-
-    #[rhai_fn(global, name = "!=", pure)]
-    pub fn ip_not_string(this: &mut std::net::IpAddr, ip: &str) -> bool {
-        this.to_string() != ip
-    }
-
-    #[rhai_fn(global, name = "==", pure, return_raw)]
-    pub fn ip_is_object(this: &mut std::net::IpAddr, other: SharedObject) -> EngineResult<bool> {
-        internal_ip_is_object(this, &other)
-    }
-
-    #[rhai_fn(global, name = "!=", pure, return_raw)]
-    pub fn ip_not_object(this: &mut std::net::IpAddr, other: SharedObject) -> EngineResult<bool> {
-        internal_ip_is_object(this, &other).map(|r| !r)
-    }
-
-    #[rhai_fn(global, name = "contains", pure, return_raw)]
-    pub fn ip_in_object(object: &mut SharedObject, ip: std::net::IpAddr) -> EngineResult<bool> {
-        internal_ip_in_object(&ip, object)
-    }
-
     #[rhai_fn(global, get = "local_part", return_raw, pure)]
     pub fn local_part(addr: &mut SharedObject) -> EngineResult<String> {
         match &**addr {
@@ -223,14 +185,9 @@ pub mod types {
 
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
-    pub fn address_in_object(this: &mut SharedObject, addr: Address) -> EngineResult<bool> {
-        internal_address_in_object(&addr, this)
-    }
-
-    #[allow(clippy::needless_pass_by_value)]
-    #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_object(this: &mut SharedObject, other: SharedObject) -> EngineResult<bool> {
-        internal_object_in_object(&other, this.as_ref())
+        this.contains(&other)
+            .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())
     }
 
     // vsmtp's rule engine obj syntax container (Vec<SharedObject>).
@@ -318,82 +275,4 @@ pub fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<boo
             .into())
         }
     }
-}
-
-pub fn internal_ip_is_object(this: &std::net::IpAddr, other: &Object) -> EngineResult<bool> {
-    match other {
-        Object::Ip4(ip4) => Ok(if let std::net::IpAddr::V4(ip) = this {
-            ip == ip4
-        } else {
-            false
-        }),
-        Object::Ip6(ip6) => Ok(if let std::net::IpAddr::V6(ip) = this {
-            ip == ip6
-        } else {
-            false
-        }),
-        Object::Str(string) => Ok(this.to_string() == *string),
-        _ => Err(format!(
-            "cannot compare ip address {} with the object {}",
-            this, other
-        )
-        .into()),
-    }
-}
-
-pub fn internal_ip_in_object(this: &std::net::IpAddr, other: &Object) -> EngineResult<bool> {
-    match other {
-	    Object::Rg4(rg4) => Ok(if let std::net::IpAddr::V4(ip) = this { rg4.contains(ip) } else { false }),
-	    Object::Rg6(rg6) => Ok(if let std::net::IpAddr::V6(ip) = this { rg6.contains(ip) } else { false }),
-	    Object::File(file) => Ok(file.iter().any(|obj| internal_ip_is_object(this, obj).unwrap_or(false))),
-        Object::Group(group) => Ok(group.iter().any(|obj| internal_ip_is_object(this, obj).unwrap_or(false))),
-        _ => Err(format!(
-                    "the 'in' operator can only be used with 'group', 'file', 'rg4' & 'rg6' object types, you used the ip address {} with the object {}",
-                    this,
-                    other
-                )
-                .into())
-
-        }
-}
-
-pub fn internal_address_is_object(this: &Address, other: &Object) -> EngineResult<bool> {
-    Ok(match &*other {
-        Object::Address(addr) => this == addr,
-        Object::Fqdn(fqdn) => this.domain() == fqdn,
-        Object::Regex(re) => re.is_match(this.full()),
-        Object::Identifier(s) => this.local_part() == s,
-        Object::Str(s) => this.full() == s,
-        _ => return Err(format!("a {} object cannot be compared to an address", other).into()),
-    })
-}
-
-pub fn internal_address_in_object(this: &Address, other: &Object) -> EngineResult<bool> {
-    Ok(match &*other {
-        Object::Group(group) => group.iter().any(|obj| internal_address_is_object(this, obj).unwrap_or(false)),
-        Object::File(file) => file.iter().any(|obj| internal_address_is_object(this, obj).unwrap_or(false)),
-        _ => {
-            return Err(format!(
-                "the 'in' operator can only be used with 'group' and 'file' object types, you used the address {} with the object {}",
-                this.full(),
-                other
-            )
-            .into())
-        }
-    })
-}
-
-pub fn internal_object_in_object(this: &Object, other: &Object) -> EngineResult<bool> {
-    Ok(match &*other {
-        Object::Group(group) => group.iter().any(|obj| **obj == *this),
-        Object::File(file) => file.iter().any(|obj| obj == this),
-        _ => {
-            return Err(format!(
-                "the 'in' operator can only be used with 'group' and 'file' object types, you used the object {} to search in {}",
-                this,
-                other
-            )
-            .into())
-        }
-    })
 }
