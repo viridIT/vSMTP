@@ -41,6 +41,7 @@
 ///        check_mail_relay(allowed_hosts);
 ///    }
 /// ]
+/// ```
 fn check_mail_relay(allowed_hosts) {
     if in_domain(ctx().mail_from)
     && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
@@ -72,6 +73,7 @@ fn check_mail_relay(allowed_hosts) {
 ///        check_rcpt_relay(allowed_hosts);
 ///    }
 /// ]
+/// ```
 fn check_rcpt_relay(allowed_hosts) {
     if !in_domain(ctx().rcpt)
     && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {

@@ -1,8 +1,20 @@
-/// Here are declared all wrappers around vsl's system functions.
-/// the goal is to use each funciton using the '!' syntax to
-/// inject `ctx()` & `srv()` into the functions without parameters.
+// SMTP transaction handling (rule_state.rs)
 
-/// SMTP transaction handling (rule_state.rs)
+/// Tell the rule engine to force accept the incomming transaction.
+/// This means that all rules following the one `faccept` is called
+/// will be ignored. Use this return status when you are sure that
+/// the incoming client can be trusted.
+///
+/// # Example
+/// ```
+/// #{
+///     connect: [
+///         // Here we imagine that "192.168.1.10" is a trusted source, so we can force accept
+///         // any other rules that don't need to be run.
+///         rule "is this my server ?" || if client_ip() == "192.168.1.10" { faccept() } else { next() },
+///     ],
+/// };
+/// ```
 fn faccept() { sys::faccept() }
 fn accept() { sys::accept() }
 fn next() { sys::next() }
