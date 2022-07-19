@@ -141,7 +141,7 @@ import "database" as db;
 }
 ```
 
-Check out the [api](./vsl-api) folder to get a view of what you can do with vsl.
+Check out the [api](https://github.com/viridIT/vSMTP/tree/main/src/vsmtp/vsmtp-rule-engine/src/api) folder to get a view of what you can do with vsl.
 
 ## Benchmarks
 
