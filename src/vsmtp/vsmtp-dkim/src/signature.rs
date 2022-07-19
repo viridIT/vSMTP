@@ -37,6 +37,12 @@ pub struct QueryMethod {
     // options: String,
 }
 
+impl std::fmt::Display for QueryMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "dns/txt")
+    }
+}
+
 impl std::str::FromStr for QueryMethod {
     type Err = ParseError;
 
@@ -84,7 +90,7 @@ pub struct Signature {
     pub body_hash: String,
     /// tag "b="
     pub signature: String,
-    raw: String,
+    pub(crate) raw: String,
 }
 
 impl Signature {
@@ -124,13 +130,15 @@ impl Signature {
 
     fn signature_without_headers(&self) -> String {
         let mut out = self.raw.to_string();
+        if self.signature.is_empty() {
+            return out;
+        }
+
+        let begin_hash = self.raw.find("b=").unwrap() + 2;
+        let end_hash = &self.signature[self.signature.len() - 4..self.signature.len()];
+
         out.replace_range(
-            self.raw.find("b=").unwrap() + 2
-                ..self
-                    .raw
-                    .find(&self.signature[self.signature.len() - 4..self.signature.len()])
-                    .unwrap()
-                    + 4,
+            begin_hash..begin_hash + self.raw[begin_hash..].find(end_hash).unwrap() + 4,
             "",
         );
         out
@@ -420,5 +428,7 @@ mod tests {
         assert!(sign.has_expired(100));
         assert!(!sign.has_expired(1_000_000_000));
         println!("{sign:#?}");
+
+        println!("{sign}");
     }
 }

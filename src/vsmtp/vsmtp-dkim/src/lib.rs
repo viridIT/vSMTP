@@ -33,6 +33,7 @@
 mod algorithm;
 mod canonicalization;
 mod key;
+mod sign;
 mod signature;
 mod verify;
 

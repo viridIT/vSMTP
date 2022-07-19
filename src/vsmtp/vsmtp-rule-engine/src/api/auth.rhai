@@ -298,3 +298,7 @@ fn dkim_verify() {
     prepend_header("Authentication-Results", header);
     result
 }
+
+fn dkim_sign() {
+
+}

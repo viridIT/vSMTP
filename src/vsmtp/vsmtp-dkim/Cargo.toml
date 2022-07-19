@@ -58,6 +58,7 @@ trust-dns-resolver = { version = "0.21.2", default-features = false, features = 
     "serde-config",
     "tokio-runtime",
 ] }
+rand = "0.8.5"
 
 [features]
 default = ["vsmtp-common/gsasl_bindgen"]
