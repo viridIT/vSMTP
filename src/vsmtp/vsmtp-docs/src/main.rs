@@ -32,9 +32,9 @@ fn generate_function_documentation_from_module(title: &str, module: &rhai::Modul
 
     for (_, _, _, _, metadata) in module.iter_script_fn_info() {
         functions_doc.push(format!(
-            "<details><summary>{}({:?})</summary>{}</details>",
+            "<details><summary>{}({})</summary><br/>{}</details>",
             metadata.name,
-            metadata.params,
+            metadata.params.join(", "),
             &metadata
                 .comments
                 .iter()
