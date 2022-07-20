@@ -128,6 +128,12 @@ impl Signature {
         )
     }
 
+    ///
+    #[must_use]
+    pub fn get_signature_value(&self) -> String {
+        self.raw["DKIM-Signature:".len()..].to_string()
+    }
+
     fn signature_without_headers(&self) -> String {
         let mut out = self.raw.to_string();
         if self.signature.is_empty() {

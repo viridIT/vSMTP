@@ -82,14 +82,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::field::TlsFile;
+    use crate::field::SecretFile;
     use std::io::Write;
     use vsmtp_common::re::serde_json;
     use vsmtp_test::get_tls_file;
 
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
     struct S {
-        v: TlsFile<rustls::Certificate>,
+        v: SecretFile<rustls::Certificate>,
     }
 
     #[test]

@@ -105,7 +105,7 @@ pub mod field {
     #[serde(deny_unknown_fields)]
     pub struct FieldDkim {
         /// The private key used to sign the mail.
-        pub private_key: TlsFile<rsa::RsaPrivateKey>,
+        pub private_key: SecretFile<rsa::RsaPrivateKey>,
     }
 
     /// The field related to the privileges used by `vSMTP`.
@@ -290,9 +290,9 @@ pub mod field {
         )]
         pub protocol_version: Vec<rustls::ProtocolVersion>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: TlsFile<rustls::Certificate>,
+        pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
-        pub private_key: TlsFile<rustls::PrivateKey>,
+        pub private_key: SecretFile<rustls::PrivateKey>,
         /// Policy of security for the TLS connection.
         #[serde(default = "FieldServerVirtualTls::default_sender_security_level")]
         pub sender_security_level: TlsSecurityLevel,
@@ -317,7 +317,7 @@ pub mod field {
     #[doc(hidden)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     #[serde(transparent, deny_unknown_fields)]
-    pub struct TlsFile<T> {
+    pub struct SecretFile<T> {
         #[serde(skip_serializing)]
         pub inner: T,
         pub path: std::path::PathBuf,
@@ -352,9 +352,9 @@ pub mod field {
         /// TLS cipher suite supported
         pub cipher_suite: Vec<rustls::CipherSuite>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: TlsFile<rustls::Certificate>,
+        pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
-        pub private_key: TlsFile<rustls::PrivateKey>,
+        pub private_key: SecretFile<rustls::PrivateKey>,
     }
 
     /// Configuration of the client's error handling.

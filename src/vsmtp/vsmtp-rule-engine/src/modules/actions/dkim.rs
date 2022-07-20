@@ -15,7 +15,7 @@
  *
 */
 
-use crate::modules::types::types::{Message, Server};
+use crate::modules::types::types::{Context, Message, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -162,5 +162,45 @@ pub mod dkim {
         signature
             .verify(guard.inner(), &key)
             .map_err::<Box<EvalAltResult>, _>(|_| DkimErrors::SignatureMismatch.into())
+    }
+
+    ///
+    #[rhai_fn(global, pure, return_raw)]
+    #[allow(clippy::module_name_repetitions, clippy::needless_pass_by_value)]
+    pub fn dkim_sign(
+        message: &mut Message,
+        context: Context,
+        server: Server,
+        selector: &str,
+        headers_field: rhai::Array,
+    ) -> EngineResult<()> {
+        let mut msg_guard = vsl_guard_ok!(message.write());
+        let ctx_guard = vsl_guard_ok!(context.read());
+
+        let sdid = &ctx_guard.connection.server_name;
+        let dkim_params = server
+            .config
+            .server
+            .r#virtual
+            .get(sdid)
+            .map_or_else(|| &server.config.server.dkim, |i| &i.dkim);
+
+        match dkim_params {
+            None => Err(format!("dkim params are empty for this `{sdid}`").into()),
+            Some(dkim_params) => {
+                let signature = Signature::sign(
+                    msg_guard.inner(),
+                    selector,
+                    sdid,
+                    headers_field.iter().map(ToString::to_string).collect(),
+                    &dkim_params.private_key.inner,
+                )
+                .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
+
+                msg_guard.add_header("DKIM-Signature", &signature.get_signature_value());
+
+                Ok(())
+            }
+        }
     }
 }
