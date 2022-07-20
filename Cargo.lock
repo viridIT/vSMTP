@@ -2282,6 +2282,7 @@ dependencies = [
  "humantime-serde",
  "log4rs",
  "pretty_assertions",
+ "rsa",
  "rustls",
  "rustls-pemfile 1.0.0",
  "semver",
