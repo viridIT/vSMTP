@@ -87,7 +87,7 @@ impl Signature {
 impl std::fmt::Display for Signature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "DKIM-Signature: v={}: a={}; d={}; s={};\r\n\tc={}; q={} h={};\r\n\tbh={};\r\n\tb={}",
+            "DKIM-Signature: v={}; a={}; d={}; s={};\r\n\tc={}; q={} h={};\r\n\tbh={};\r\n\tb={}",
             self.version,
             self.signing_algorithm,
             self.sdid,
