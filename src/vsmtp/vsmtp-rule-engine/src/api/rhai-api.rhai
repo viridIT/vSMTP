@@ -15,12 +15,13 @@
  *
 */
 
-/// here are declared all wrappers around vsl's functions declared in rhai.
-
-/// black boxed functions used to access the engine state.
+/// get access to the email context.
 fn ctx() { CTX }
+/// get access to the server api.
 fn srv() { SRV }
+/// get access to the message of the email.
 fn msg() { MSG }
 
-/// utils.rhai
+/// check if the recipient passed as argument is part of the
+/// domains (root & sni) of the server.
 fn in_domain(rcpt) { __in_domain(rcpt) }

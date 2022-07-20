@@ -235,6 +235,9 @@ impl Object {
     }
 
     /// check if the `other` object is contained in this object.
+    ///
+    /// # Errors
+    /// * `self` cannot contain `other`.
     pub fn contains(&self, other: &Self) -> anyhow::Result<bool> {
         match (self, other) {
             (Object::Group(group), other) => Ok(group.iter().any(|element| *other == **element)),

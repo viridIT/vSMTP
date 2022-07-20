@@ -16,6 +16,7 @@ mod log_channels {
 }
 
 mod dsl;
+
 #[macro_use]
 mod error;
 mod server_api;
@@ -27,7 +28,9 @@ pub mod rule_engine;
 ///
 pub mod rule_state;
 
+pub use dsl::object::Object;
 pub use dsl::service::Service;
+pub use modules::types::types::SharedObject;
 
 #[cfg(test)]
 mod tests;

@@ -35,6 +35,7 @@ pub mod types {
     pub type Context = std::sync::Arc<std::sync::RwLock<MailContext>>;
     pub type Message = std::sync::Arc<std::sync::RwLock<MessageBody>>;
     pub type Server = std::sync::Arc<ServerAPI>;
+    ///
     pub type SharedObject = std::sync::Arc<Object>;
 
     // Status

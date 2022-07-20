@@ -344,7 +344,8 @@ impl RuleEngine {
     }
 
     /// create a rhai engine to compile all scripts with vsl's configuration.
-    fn new_compiler() -> rhai::Engine {
+    #[must_use]
+    pub fn new_compiler() -> rhai::Engine {
         let mut engine = Engine::new();
 
         // NOTE: on_parse_token is not deprecated, just subject to change in futur releases.
@@ -372,7 +373,12 @@ impl RuleEngine {
         engine
     }
 
-    fn compile_api(engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
+    /// compile vsl's api into a module.
+    ///
+    /// # Errors
+    /// * Failed to compile the API.
+    /// * Failed to create a module from the API.
+    pub fn compile_api(engine: &rhai::Engine) -> anyhow::Result<rhai::Module> {
         let ast = engine
             .compile_scripts_with_scope(
                 &rhai::Scope::new(),

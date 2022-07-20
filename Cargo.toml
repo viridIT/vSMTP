@@ -36,6 +36,7 @@ members = [
   "src/vsmtp/vsmtp-config",
   "src/vsmtp/vsmtp-delivery",
   "src/vsmtp/vsmtp-dkim",
+  "src/vsmtp/vsmtp-docs",
   "src/vsmtp/vsmtp-mail-parser",
   "src/vsmtp/vsmtp-rule-engine",
   "src/vsmtp/vsmtp-server",
