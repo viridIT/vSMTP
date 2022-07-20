@@ -16,7 +16,24 @@
 */
 
 /// get access to the email context.
+///
+/// # Return
+///
+/// * `the context`
+///
+/// # Effective smtp stage
+/// all of them.
+///
+/// # Example
+/// ```js
+/// #{
+///     connect: [
+///        action "client ip" || log("info", `client: {ctx().client_ip}`),
+///     ]
+/// }
+/// ```
 fn ctx() { CTX }
+
 /// get access to the server api.
 fn srv() { SRV }
 /// get access to the message of the email.
@@ -24,4 +41,24 @@ fn msg() { MSG }
 
 /// check if the recipient passed as argument is part of the
 /// domains (root & sni) of the server.
+///
+/// # Args
+///
+/// * `rcpt` - the recipient to check, of type string | `object address` | rcpt.
+///
+/// # Return
+///
+/// * `bool` - true of the recipient's domain is part of the server's root or sni domains, false otherwise.
+///
+/// # Effective smtp stage
+/// all of them, but should be use in the rcpt stage.
+///
+/// # Example
+/// ```js
+/// #{
+///     rcpt: [
+///        rule "check rcpt domain" || if in_domain(ctx().rcpt) { next() } else { deny() },
+///     ]
+/// }
+/// ```
 fn in_domain(rcpt) { __in_domain(rcpt) }
