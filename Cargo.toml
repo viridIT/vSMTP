@@ -59,6 +59,9 @@ vsmtp-config = { path = "./src/vsmtp/vsmtp-config", default-features = false, ve
 clap = { version = "3.2.12", features = ["derive"] }
 diff = "0.1.13"
 
+tracing = "0.1.35"
+tracing-subscriber = "0.3.14"
+
 [features]
 default = ["gsasl_bindgen"]
 gsasl_bindgen = ["vsmtp-common/gsasl_bindgen"]

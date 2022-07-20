@@ -42,6 +42,7 @@ use crate::{log_channels, modules};
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
 /// and modules / packages to create a cheap rhai runtime.
+#[derive(Debug)]
 pub struct RuleEngine {
     /// ast built from the user's .vsl files.
     pub(super) ast: AST,
