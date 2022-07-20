@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{log_channels, AbstractIO};
+use crate::AbstractIO;
 use vsmtp_common::{
     re::{anyhow, log, tokio},
     CodeID, ConnectionKind, Reply, ReplyOrCodeID,
@@ -168,12 +168,6 @@ where
     ///
     /// # Errors
     pub async fn send_reply(&mut self, reply: Reply) -> anyhow::Result<()> {
-        log::info!(
-            target: log_channels::CONNECTION,
-            "[{}] sending reply=\"{reply:?}\"",
-            self.server_addr
-        );
-
         if !reply.code().is_error() {
             self.send(&reply.fold()).await?;
             return Ok(());
@@ -184,6 +178,7 @@ where
         let soft_error = self.config.server.smtp.error.soft_count;
 
         if hard_error != -1 && self.error_count >= hard_error {
+            log::warn!("hard error count max reached `{hard_error}`, closing connection");
             self.send(
                 &Reply::combine(
                     &reply,
@@ -200,12 +195,12 @@ where
             tokio::io::AsyncWriteExt::flush(&mut self.inner.inner).await?;
 
             anyhow::bail!("{:?}", CodeID::TooManyError)
-            // return Ok(());
         }
 
         self.send(&reply.fold()).await?;
 
         if soft_error != -1 && self.error_count >= soft_error {
+            log::info!("soft error reached `{soft_error}`, delaying connection");
             tokio::time::sleep(self.config.server.smtp.error.delay).await;
         }
         Ok(())
@@ -217,12 +212,7 @@ where
     ///
     /// * internal connection writer error
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
-        log::info!(
-            target: log_channels::CONNECTION,
-            "[{}] send=\"{:?}\"",
-            self.server_addr,
-            reply
-        );
+        log::trace!("sending=`{reply:?}`");
         tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes()).await?;
         Ok(())
     }

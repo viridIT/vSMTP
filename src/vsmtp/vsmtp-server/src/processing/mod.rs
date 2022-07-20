@@ -25,7 +25,6 @@ use vsmtp_common::{
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
-#[tracing::instrument(skip(config, rule_engine))]
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -46,7 +45,7 @@ pub async fn start(
     }
 }
 
-#[allow(clippy::too_many_lines)]
+#[tracing::instrument(skip(config, rule_engine, resolvers, delivery_sender))]
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -54,11 +53,7 @@ async fn handle_one_in_working_queue(
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) {
-    log::info!(
-        target: log_channels::POSTQ,
-        "handling message in working queue {}",
-        process_message.message_id
-    );
+    log::info!("handling message in working queue");
 
     if let Err(e) = handle_one_in_working_queue_inner(
         config,
@@ -69,11 +64,7 @@ async fn handle_one_in_working_queue(
     )
     .await
     {
-        log::warn!(
-            target: log_channels::POSTQ,
-            "failed to handle one email in working queue: {}",
-            e
-        );
+        log::warn!("failed to handle one email in working queue: `{e}`");
     }
 }
 
@@ -85,12 +76,6 @@ async fn handle_one_in_working_queue_inner(
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
-    log::debug!(
-        target: log_channels::POSTQ,
-        "received a new message: {}",
-        process_message.message_id,
-    );
-
     let queue = if process_message.delegated {
         Queue::Delegated
     } else {
@@ -195,8 +180,7 @@ async fn handle_one_in_working_queue_inner(
 
         log::debug!(
             target: log_channels::TRANSACTION,
-            "(msg={}) email written in 'mails' queue.",
-            process_message.message_id
+            "email written in 'mails' queue.",
         );
     }
 

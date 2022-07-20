@@ -154,11 +154,7 @@ impl MailHandler {
             .write_to_mails(&conn.config.server.queues.dirpath, &message_id)
             .map_err(MailHandlerError::WriteMessageBody)?;
 
-        log::debug!(
-            target: log_channels::PREQ,
-            "(msg={}) email written in 'mails' queue.",
-            message_id
-        );
+        log::trace!("email written in 'mails' queue.");
 
         if let Some(queue) = write_to_queue {
             queue
@@ -184,6 +180,7 @@ impl MailHandler {
 
 #[async_trait::async_trait]
 impl OnMail for MailHandler {
+    #[tracing::instrument(skip(self, conn))]
     async fn on_mail<
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
     >(
@@ -195,11 +192,7 @@ impl OnMail for MailHandler {
         match self.on_mail_priv(conn, mail, message).await {
             Ok(_) => CodeID::Ok,
             Err(error) => {
-                log::warn!(
-                    target: log_channels::PREQ,
-                    "[{}] failed to process mail: {error}",
-                    conn.server_addr
-                );
+                log::warn!("failed to process mail: {error}");
                 CodeID::Denied
             }
         }

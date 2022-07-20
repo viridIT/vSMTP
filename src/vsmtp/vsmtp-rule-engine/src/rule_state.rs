@@ -35,6 +35,16 @@ pub struct RuleState {
     skip: Option<Status>,
 }
 
+impl std::fmt::Debug for RuleState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RuleState")
+            .field("mail_context", &self.mail_context)
+            .field("message", &self.message)
+            .field("skip", &self.skip)
+            .finish()
+    }
+}
+
 impl RuleState {
     /// creates a new rule engine with an empty scope.
     #[must_use]

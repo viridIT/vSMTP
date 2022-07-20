@@ -79,7 +79,6 @@ where
     /// * server failed to send a message
     /// * a transaction failed
     /// * the pre-queue processing of the mail failed
-    #[allow(clippy::too_many_lines)]
     #[tracing::instrument(skip(tls_config, rsasl, rule_engine, resolvers, mail_handler))]
     pub async fn receive<M>(
         &mut self,
@@ -289,6 +288,7 @@ where
     {
         // fetching the email using the transaction's stream.
         {
+            log::info!("SMTP handshake completed, fetching email");
             let mut body = {
                 let stream = Transaction::stream(self);
                 tokio::pin!(stream);

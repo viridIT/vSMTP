@@ -54,7 +54,6 @@ impl Directive {
         }
     }
 
-    #[allow(clippy::too_many_lines)]
     pub fn execute(
         &self,
         state: &mut RuleState,

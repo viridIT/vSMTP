@@ -36,6 +36,8 @@ fn main() {
 }
 
 fn try_main() -> anyhow::Result<()> {
+    // tracing_subscriber::fmt().json().init();
+
     tracing_subscriber::fmt::init();
 
     let args = <Args as clap::StructOpt>::parse();

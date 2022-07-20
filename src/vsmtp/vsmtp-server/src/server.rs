@@ -270,7 +270,6 @@ impl Server {
 
     ///
     /// # Errors
-    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(
         conn,
         tls_config,
