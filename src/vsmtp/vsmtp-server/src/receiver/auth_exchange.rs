@@ -59,7 +59,7 @@ async fn auth_step<S>(
     buffer: &[u8],
 ) -> Result<bool, AuthExchangeError>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     if buffer == [b'*'] {
         return Err(AuthExchangeError::Canceled);
@@ -110,7 +110,7 @@ pub async fn on_authentication<S>(
     initial_response: Option<Vec<u8>>,
 ) -> Result<(), AuthExchangeError>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     // TODO: if initial data == "=" ; it mean empty ""
 

@@ -36,7 +36,7 @@ fn main() {
 }
 
 fn try_main() -> anyhow::Result<()> {
-    // tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt::init();
 
     let args = <Args as clap::StructOpt>::parse();
 
@@ -116,10 +116,10 @@ fn try_main() -> anyhow::Result<()> {
         // setuid(config.server.system.user.uid())?;
     }
 
-    get_log4rs_config(&config, args.no_daemon)
-        .context("Logs configuration contain error")
-        .map(log4rs::init_config)
-        .context("Cannot initialize logs")??;
+    // get_log4rs_config(&config, args.no_daemon)
+    //     .context("Logs configuration contain error")
+    //     .map(log4rs::init_config)
+    //     .context("Cannot initialize logs")??;
 
     start_runtime(config, sockets, args.timeout.map(|t| t.0)).map_err(|e| {
         log::error!("vSMTP terminating error: '{e}'");

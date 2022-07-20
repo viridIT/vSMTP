@@ -26,7 +26,9 @@ struct DefaultMailHandler;
 
 #[async_trait::async_trait]
 impl OnMail for DefaultMailHandler {
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    async fn on_mail<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         _: &mut Connection<S>,
         _: Box<MailContext>,
@@ -87,7 +89,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
         #[async_trait::async_trait]
         impl OnMail for T {
-            async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+            async fn on_mail<
+                S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+            >(
                 &mut self,
                 _: &mut Connection<S>,
                 mail: Box<MailContext>,

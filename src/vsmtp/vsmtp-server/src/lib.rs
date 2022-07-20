@@ -33,13 +33,12 @@ mod receiver;
 mod runtime;
 mod server;
 
-use lettre::Transport;
 pub use receiver::MailHandler;
 
 /// SMTP auth extension implementation
 pub mod auth;
 pub use channel_message::ProcessMessage;
-pub use receiver::{handle_connection, AbstractIO, Connection, OnMail};
+pub use receiver::{AbstractIO, Connection, OnMail};
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
@@ -70,6 +69,8 @@ pub(crate) fn delegate(
     context: &MailContext,
     message: &MessageBody,
 ) -> anyhow::Result<lettre::transport::smtp::response::Response> {
+    use lettre::Transport;
+
     let envelope = lettre::address::Envelope::new(
         Some(context.envelop.mail_from.full().parse()?),
         context

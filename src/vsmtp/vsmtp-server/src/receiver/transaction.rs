@@ -52,7 +52,7 @@ pub enum TransactionResult {
 
 impl Transaction {
     fn parse_and_apply_and_get_reply<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
     >(
         &mut self,
         client_message: &str,
@@ -79,7 +79,9 @@ impl Transaction {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn process_event<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    fn process_event<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         event: Event,
         connection: &Connection<S>,
@@ -279,7 +281,9 @@ impl Transaction {
         }
     }
 
-    fn set_connect<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    fn set_connect<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         connection: &Connection<S>,
     ) {
@@ -308,7 +312,9 @@ impl Transaction {
         }
     }
 
-    fn set_mail_from<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    fn set_mail_from<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         mail_from: Address,
         connection: &Connection<S>,
@@ -361,7 +367,9 @@ impl Transaction {
             .push(Rcpt::new(rcpt_to));
     }
 
-    pub async fn new<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    pub async fn new<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -394,7 +402,9 @@ impl Transaction {
         })
     }
 
-    pub fn stream<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    pub fn stream<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         connection: &mut Connection<S>,
     ) -> impl tokio_stream::Stream<Item = String> + '_ {
         let read_timeout = get_timeout_for_state(&connection.config, &StateSMTP::Data);
@@ -434,7 +444,9 @@ impl Transaction {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub async fn receive<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin>(
+    pub async fn receive<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         connection: &mut Connection<S>,
         helo_domain: &Option<String>,

@@ -25,7 +25,7 @@ use vsmtp_config::Config;
 /// Instance containing connection to the server's information
 pub struct Connection<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     /// server's port
     pub kind: ConnectionKind,
@@ -53,9 +53,30 @@ where
     pub inner: AbstractIO<S>,
 }
 
+impl<S> std::fmt::Debug for Connection<S>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Connection")
+            .field("kind", &self.kind)
+            .field("server_name", &self.server_name)
+            .field("timestamp", &self.timestamp)
+            .field("is_alive", &self.is_alive)
+            .field("client_addr", &self.client_addr)
+            .field("server_addr", &self.server_addr)
+            .field("error_count", &self.error_count)
+            .field("is_secured", &self.is_secured)
+            .field("is_authenticated", &self.is_authenticated)
+            .field("authentication_attempt", &self.authentication_attempt)
+            // .field("inner", &self.inner)
+            .finish()
+    }
+}
+
 impl<S> Connection<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     ///
     pub fn new(
@@ -115,7 +136,7 @@ where
 
 impl<S> Connection<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     ///
     /// # Errors

@@ -25,7 +25,7 @@ use vsmtp_common::{
 use vsmtp_config::{create_app_folder, Config, Resolvers};
 use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
 
-#[tracing::instrument]
+#[tracing::instrument(skip(config, rule_engine))]
 pub async fn start(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -133,7 +133,7 @@ async fn handle_one_in_working_queue_inner(
         Some(Status::Delegated(delegator)) => {
             mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
 
-            // FIXME: find a way to use `write_to_queue` instead to be consistant
+            // FIXME: find a way to use `write_to_queue` instead to be consistent
             //        with the rest of the function.
             // NOTE:  moving here because the delegation process could try to
             //        pickup the email before it's written on disk.

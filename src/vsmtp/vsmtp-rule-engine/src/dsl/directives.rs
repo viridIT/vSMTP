@@ -22,7 +22,6 @@ use vsmtp_common::{state::StateSMTP, status::Status};
 pub type Directives = std::collections::BTreeMap<String, Vec<Directive>>;
 
 /// a type of rule that can be executed from a function pointer.
-#[derive(Debug)]
 pub enum Directive {
     /// execute code that return a status.
     Rule { name: String, pointer: rhai::FnPtr },

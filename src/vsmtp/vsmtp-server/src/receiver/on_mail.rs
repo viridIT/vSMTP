@@ -30,7 +30,9 @@ use vsmtp_config::create_app_folder;
 #[async_trait::async_trait]
 pub trait OnMail {
     /// the server executes this function once the email as been received.
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    async fn on_mail<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
@@ -74,7 +76,9 @@ impl MailHandler {
     }
 
     #[allow(clippy::too_many_lines)]
-    async fn on_mail_priv<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    async fn on_mail_priv<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &self,
         conn: &mut Connection<S>,
         mut mail_context: Box<MailContext>,
@@ -180,7 +184,9 @@ impl MailHandler {
 
 #[async_trait::async_trait]
 impl OnMail for MailHandler {
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    async fn on_mail<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
