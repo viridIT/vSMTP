@@ -14,9 +14,9 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{log_channel, Config};
+//use crate::{log_channel, Config};
 // use log4rs::append::{self, rolling_file::RollingFileAppender};
-use vsmtp_common::re::{anyhow, log};
+//use vsmtp_common::re::{anyhow, log};
 
 /*
 fn init_rolling_log(

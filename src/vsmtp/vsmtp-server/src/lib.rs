@@ -17,7 +17,6 @@ mod tests;
 mod log_channels {
     pub const SERVER: &str = "server::server";
     pub const AUTH: &str = "server::receiver::auth";
-    pub const CONNECTION: &str = "server::receiver::connection";
     pub const TRANSACTION: &str = "server::receiver::transaction";
     pub const RUNTIME: &str = "server::runtime";
     pub const DEFERRED: &str = "server::processes::deferred";
