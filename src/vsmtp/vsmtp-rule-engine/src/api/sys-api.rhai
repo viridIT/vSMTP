@@ -20,6 +20,8 @@
 ///         rule "check for trusted source" || if client_ip() == "192.168.1.10" { faccept() } else { next() },
 ///     ],
 /// }
+///
+/// # Module:Status
 /// ```
 fn faccept() { sys::faccept() }
 
@@ -46,6 +48,8 @@ fn faccept() { sys::faccept() }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Status
 fn accept() { sys::accept() }
 
 /// Tell the rule engine that a rule succeeded.
@@ -64,6 +68,8 @@ fn accept() { sys::accept() }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Status
 fn next() { sys::next() }
 
 /// Stop rules evaluation and/or send an error code to the client.
@@ -89,6 +95,8 @@ fn next() { sys::next() }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Status
 fn deny() { sys::deny() }
 
 /// Stop rules evaluation and/or send a custom code to the client.
@@ -116,6 +124,8 @@ fn deny() { sys::deny() }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Status
 fn deny(code) { sys::deny(code) }
 
 /// Ask the client to retry to send the current comment by sending an information code.
@@ -135,6 +145,8 @@ fn deny(code) { sys::deny(code) }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Status
 fn info(code) { sys::info(code) }
 
 /// Skip all rules until the email is received and place the email in a
@@ -164,6 +176,8 @@ fn info(code) { sys::info(code) }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Status
 fn quarantine(queue) { sys::quarantine(ctx(), queue) }
 
 /// Checks if the message contains a specific header.
@@ -188,6 +202,8 @@ fn quarantine(queue) { sys::quarantine(ctx(), queue) }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Message
 fn has_header(header) { sys::has_header(msg(), header) }
 
 /// Get a specific header from the incoming message.
@@ -214,6 +230,8 @@ fn has_header(header) { sys::has_header(msg(), header) }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Message
 fn get_header(header) { sys::get_header(msg(), header) }
 
 /// Append a new header to the message.
@@ -239,6 +257,8 @@ fn get_header(header) { sys::get_header(msg(), header) }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Message
 fn append_header(header, value) { sys::append_header(msg(), header, value) }
 
 /// Prepend a new header to the message.
@@ -264,6 +284,8 @@ fn append_header(header, value) { sys::append_header(msg(), header, value) }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Message
 fn prepend_header(header, value) { sys::prepend_header(msg(), header, value) }
 
 /// Replace an existing header value by a new value, or append a new header
@@ -294,6 +316,8 @@ fn prepend_header(header, value) { sys::prepend_header(msg(), header, value) }
 ///     ],
 /// }
 /// ```
+///
+/// # Module:Message
 fn set_header(header, value) { sys::set_header(msg(), header, value) }
 
 /// Add a recipient to the `To` header of the message.
@@ -314,6 +338,8 @@ fn set_header(header, value) { sys::set_header(msg(), header, value) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Message
 fn add_to_message(addr) { sys::add_to_message(msg(), addr) }
 
 /// Remove a recipient from the `To` header of the message.
@@ -334,6 +360,8 @@ fn add_to_message(addr) { sys::add_to_message(msg(), addr) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Message
 fn remove_to_message(addr) { sys::remove_to_message(msg(), addr) }
 
 /// Replace a recipient by an other in the `To` header of the message.
@@ -355,6 +383,8 @@ fn remove_to_message(addr) { sys::remove_to_message(msg(), addr) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Message
 fn rewrite_to_message(old_addr, new_addr) {
     sys::rewrite_to_message(msg(), old_addr, new_addr)
 }
@@ -377,6 +407,8 @@ fn rewrite_to_message(old_addr, new_addr) {
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Message
 fn rewrite_mail_from_message(new_addr) { sys::rewrite_mail_from_message(msg(), new_addr) }
 
 /// Get the address of the client.
@@ -397,6 +429,8 @@ fn rewrite_mail_from_message(new_addr) { sys::rewrite_mail_from_message(msg(), n
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Context
 fn client_address() { ctx().client_address }
 
 /// Get the ip address of the client.
@@ -417,6 +451,8 @@ fn client_address() { ctx().client_address }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Context
 fn client_ip() { ctx().client_ip }
 
 /// Get the ip port of the client.
@@ -437,6 +473,8 @@ fn client_ip() { ctx().client_ip }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Context
 fn client_port() { ctx().client_port }
 
 /// Get the full server address.
@@ -457,6 +495,8 @@ fn client_port() { ctx().client_port }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Context
 fn server_address() { ctx().server_address }
 
 /// Get the server's ip.
@@ -477,6 +517,8 @@ fn server_address() { ctx().server_address }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Context
 fn server_ip() { ctx().server_ip }
 
 /// Get the server's port.
@@ -497,6 +539,8 @@ fn server_ip() { ctx().server_ip }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Context
 fn server_port() { ctx().server_port }
 
 /// Get a the timestamp of the client's connection time.
@@ -517,6 +561,8 @@ fn server_port() { ctx().server_port }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Context
 fn connection_timestamp() { ctx().connection_timestamp }
 
 /// Get the name of the server.
@@ -537,6 +583,8 @@ fn connection_timestamp() { ctx().connection_timestamp }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Context
 fn server_name() { ctx().server_name }
 
 /// Check if the client's connexion was secure.
@@ -557,6 +605,8 @@ fn server_name() { ctx().server_name }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Auth
 fn is_secured() { ctx().is_secured }
 
 /// Check if the client is authenticated.
@@ -577,6 +627,8 @@ fn is_secured() { ctx().is_secured }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Auth
 fn is_authenticated() { ctx().is_authenticated }
 
 /// Get authentication credentials from the client.
@@ -597,6 +649,8 @@ fn is_authenticated() { ctx().is_authenticated }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Auth
 fn auth() { ctx().auth }
 
 /// Get the value of the `HELO/EHLO` command sent by the client.
@@ -617,6 +671,8 @@ fn auth() { ctx().auth }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Transaction
 fn helo() { ctx().helo }
 
 /// Get the value of the `MAIL FROM` command sent by the client.
@@ -637,6 +693,8 @@ fn helo() { ctx().helo }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Transaction
 fn mail_from() { ctx().mail_from }
 
 /// Get the value of the current `RCPT TO` command sent by the client.
@@ -658,6 +716,8 @@ fn mail_from() { ctx().mail_from }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Transaction
 fn rcpt() { ctx().rcpt }
 
 /// Get the list of recipients received by the client.
@@ -680,6 +740,8 @@ fn rcpt() { ctx().rcpt }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Transaction
 fn rcpt_list() { ctx().rcpt_list }
 
 /// Get the time of reception of the email.
@@ -700,6 +762,8 @@ fn rcpt_list() { ctx().rcpt_list }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Transaction
 fn mail_timestamp() { ctx().mail_timestamp }
 
 /// Get the unique id of the received message.
@@ -720,6 +784,8 @@ fn mail_timestamp() { ctx().mail_timestamp }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Transaction
 fn message_id() { ctx().message_id }
 
 /// Rewrite the sender received from the `MAIL FROM` command.
@@ -740,6 +806,8 @@ fn message_id() { ctx().message_id }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Envelop
 fn rewrite_mail_from_context(new_addr) { sys::rewrite_mail_from_context(ctx(), new_addr) }
 
 /// Replace a recipient received by a `RCPT TO` command.
@@ -761,6 +829,8 @@ fn rewrite_mail_from_context(new_addr) { sys::rewrite_mail_from_context(ctx(), n
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Envelop
 fn rewrite_rcpt_context(old_addr, new_addr) { sys::rewrite_rcpt_context(ctx(), old_addr, new_addr) }
 
 /// Add a new recipient to the envelop. Note that this does not add
@@ -783,6 +853,8 @@ fn rewrite_rcpt_context(old_addr, new_addr) { sys::rewrite_rcpt_context(ctx(), o
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Envelop
 fn add_rcpt_context(rcpt) { sys::add_rcpt_context(ctx(), rcpt) }
 
 /// Remove a recipient from the envelop. Note that this does not remove
@@ -805,6 +877,8 @@ fn add_rcpt_context(rcpt) { sys::add_rcpt_context(ctx(), rcpt) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Envelop
 fn remove_rcpt_context(rcpt) { sys::remove_rcpt_context(ctx(), rcpt) }
 
 /// Add a recipient as a blind carbon copy. The equivalent of `add_rcpt`.
@@ -826,6 +900,8 @@ fn remove_rcpt_context(rcpt) { sys::remove_rcpt_context(ctx(), rcpt) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Message
 fn bcc(rcpt) { sys::bcc(ctx(), rcpt) }
 
 /// Rewrite the value of the `MAIL FROM` command has well has
@@ -847,6 +923,8 @@ fn bcc(rcpt) { sys::bcc(ctx(), rcpt) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Envelop
 fn rewrite_mail_from(new_addr) {
     sys::rewrite_mail_from_context(ctx(), new_addr);
     sys::rewrite_mail_from_message(msg(), new_addr)
@@ -871,6 +949,8 @@ fn rewrite_mail_from(new_addr) {
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Utils
 fn log(level, message) { sys::log(level, message) }
 
 /// Export the current raw message to a file as an `eml` file.
@@ -893,6 +973,8 @@ fn log(level, message) { sys::log(level, message) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Utils
 fn write(dir) { sys::write(srv(), ctx(), msg(), dir) }
 
 /// Export the current message and the envelop to a file as a `json` file.
@@ -915,6 +997,8 @@ fn write(dir) { sys::write(srv(), ctx(), msg(), dir) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Utils
 fn dump(dir) { sys::dump(srv(), ctx(), dir) }
 
 /// Set the delivery method to forwarding for a single recipient.
@@ -938,6 +1022,8 @@ fn dump(dir) { sys::dump(srv(), ctx(), dir) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn forward(rcpt, target) { sys::forward(ctx(), rcpt, target) }
 
 /// Set the delivery method to forwarding for all recipients.
@@ -960,6 +1046,8 @@ fn forward(rcpt, target) { sys::forward(ctx(), rcpt, target) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn forward_all(target) { sys::forward_all(ctx(), target) }
 
 /// Set the delivery method to deliver for a single recipient.
@@ -982,6 +1070,8 @@ fn forward_all(target) { sys::forward_all(ctx(), target) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn deliver(rcpt) { sys::deliver(ctx(), rcpt) }
 
 /// Set the delivery method to deliver for all recipients.
@@ -1000,6 +1090,8 @@ fn deliver(rcpt) { sys::deliver(ctx(), rcpt) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn deliver_all() { sys::deliver_all(ctx()) }
 
 /// Set the delivery method to mbox for a recipient.
@@ -1022,6 +1114,8 @@ fn deliver_all() { sys::deliver_all(ctx()) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn mbox(rcpt) { sys::mbox(ctx(), rcpt) }
 
 /// Set the delivery method to mbox for all recipients.
@@ -1040,6 +1134,8 @@ fn mbox(rcpt) { sys::mbox(ctx(), rcpt) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn mbox_all() { sys::mbox_all(ctx()) }
 
 /// Set the delivery method to maildir for a recipient.
@@ -1062,6 +1158,8 @@ fn mbox_all() { sys::mbox_all(ctx()) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn maildir(rcpt) { sys::maildir(ctx(), rcpt) }
 
 /// Set the delivery method to maildir for all recipients.
@@ -1081,6 +1179,8 @@ fn maildir(rcpt) { sys::maildir(ctx(), rcpt) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn maildir_all() { sys::maildir_all(ctx()) }
 
 /// Disable the delivery for a single recipient.
@@ -1101,6 +1201,8 @@ fn maildir_all() { sys::maildir_all(ctx()) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn disable_delivery(rcpt) { sys::disable_delivery(ctx(), rcpt) }
 
 /// Disable delivery for all single recipients.
@@ -1117,6 +1219,8 @@ fn disable_delivery(rcpt) { sys::disable_delivery(ctx(), rcpt) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Delivery
 fn disable_delivery_all() { sys::disable_delivery_all(ctx()) }
 
 //
@@ -1148,6 +1252,8 @@ fn disable_delivery_all() { sys::disable_delivery_all(ctx()) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Utils
 fn user_exist(name) { sys::user_exist(name) }
 
 /// Get the hostname of this machine.
@@ -1170,6 +1276,8 @@ fn user_exist(name) { sys::user_exist(name) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Utils
 fn hostname() { sys::hostname() }
 
 /// Get the current date.
@@ -1192,6 +1300,8 @@ fn hostname() { sys::hostname() }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Utils
 fn date() { sys::date() }
 
 /// Get the current time.
@@ -1214,6 +1324,8 @@ fn date() { sys::date() }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Utils
 fn time() { sys::time() }
 
 /// Get the value of a key in a database.
@@ -1248,6 +1360,8 @@ fn time() { sys::time() }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Services
 fn get(key) { this.db_query(key.to_string()) }
 
 /// Set a record into a database.
@@ -1272,6 +1386,8 @@ fn get(key) { this.db_query(key.to_string()) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Services
 fn set(record) { this.db_add(record) }
 
 /// Remove a record from a database.
@@ -1296,4 +1412,6 @@ fn set(record) { this.db_add(record) }
 ///     ]
 /// }
 /// ```
+///
+/// # Module:Services
 fn rm(key) { this.db_rm(key.to_string()) }

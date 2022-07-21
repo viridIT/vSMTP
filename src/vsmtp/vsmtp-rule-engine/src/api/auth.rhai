@@ -42,6 +42,8 @@
 ///        check_mail_relay(allowed_hosts)
 ///    }
 /// ]
+///
+/// # Module:Security
 /// ```
 fn check_mail_relay(allowed_hosts) {
     if in_domain(ctx().mail_from)
@@ -76,6 +78,8 @@ fn check_mail_relay(allowed_hosts) {
 ///        check_rcpt_relay(allowed_hosts)
 ///    }
 /// ]
+///
+/// # Module:Security
 /// ```
 fn check_rcpt_relay(allowed_hosts) {
     if !in_domain(ctx().rcpt)
@@ -139,6 +143,8 @@ fn auth_header(query) {
 ///        rule "check spf" || check_spf("spf", "soft")
 ///     ]
 /// }
+///
+/// # Module:Security
 /// ```
 fn check_spf(header, policy) {
 
@@ -213,6 +219,8 @@ fn check_spf(header, policy) {
 ///        rule "check spf relay" || check_spf(allowed_hosts),
 ///     ]
 /// }
+///
+/// # Module:Security
 /// ```
 fn check_spf(header) {
     check_spf(header, "strict")
@@ -224,6 +232,8 @@ fn check_spf(header) {
 /// # Return
 /// * `accept()` - a signature was successfuly verified.
 /// * `deny()` - no signature could be verified.
+///
+/// # Module:Security
 fn dkim_verify() {
     let policy = #{
         // will process a limited amount of signature, avoid infinite loop and dos/ddos attack

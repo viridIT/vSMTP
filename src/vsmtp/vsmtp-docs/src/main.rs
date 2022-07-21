@@ -1,6 +1,8 @@
 use rhai::packages::Package;
 use vsmtp_rule_engine::{modules::StandardVSLPackage, rule_engine::RuleEngine, SharedObject};
 
+const MODULE_SYNTAX: &str = "# Module:";
+
 fn generate_variable_documentation_from_module(title: &str, module: &rhai::Module) -> String {
     let (var_count, _, _) = module.count();
 
@@ -26,24 +28,49 @@ fn generate_variable_documentation_from_module(title: &str, module: &rhai::Modul
 }
 
 fn generate_function_documentation_from_module(title: &str, module: &rhai::Module) -> String {
-    let (_, func_count, _) = module.count();
-
-    let mut functions_doc = Vec::with_capacity(func_count);
+    let mut functions_doc: std::collections::HashMap<&str, Vec<_>> =
+        std::collections::HashMap::new();
 
     for (_, _, _, _, metadata) in module.iter_script_fn_info() {
-        functions_doc.push(format!(
+        let comments = &metadata
+            .comments
+            .iter()
+            .map(|comment| format!("{}\n", &comment[3..]))
+            .collect::<String>();
+
+        let module = metadata
+            .comments
+            .iter()
+            .find_map(|line| {
+                line.find(MODULE_SYNTAX)
+                    .map(|index| &line[index + MODULE_SYNTAX.len()..])
+            })
+            .unwrap_or("other");
+
+        functions_doc.entry(module).or_default().push(format!(
             "<details><summary>{}({})</summary><br/>{}</details>",
             metadata.name,
             metadata.params.join(", "),
-            &metadata
-                .comments
-                .iter()
-                .map(|comment| format!("{}\n", &comment[3..]))
-                .collect::<String>(),
+            &comments
         ));
     }
 
-    format!("# {}\n{}\n", title, functions_doc.join("\n"),)
+    format!("# {}\n{}\n", title, {
+        let mut sorted = functions_doc.iter().collect::<Vec<_>>();
+
+        sorted.sort_by_key(|a| a.0);
+
+        sorted
+            .into_iter()
+            .fold(String::default(), |acc, functions| {
+                let module = functions.0;
+                let mut functions = functions.1.clone();
+                format!("{}\n# {}\n{}\n\n", acc, module, {
+                    functions.sort();
+                    functions.join("\n")
+                })
+            })
+    })
 }
 
 // TODO: find a way to incorporate native functions metadata and documentation.

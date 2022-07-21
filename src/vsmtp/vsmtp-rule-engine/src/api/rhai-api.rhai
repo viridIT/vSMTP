@@ -60,5 +60,7 @@ fn msg() { MSG }
 ///        rule "check rcpt domain" || if in_domain(ctx().rcpt) { next() } else { deny() },
 ///     ]
 /// }
+///
+/// # Module:Utils
 /// ```
 fn in_domain(rcpt) { __in_domain(rcpt) }
