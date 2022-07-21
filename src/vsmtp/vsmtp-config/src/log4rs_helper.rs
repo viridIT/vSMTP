@@ -15,9 +15,10 @@
  *
 */
 use crate::{log_channel, Config};
-use log4rs::append::{self, rolling_file::RollingFileAppender};
+// use log4rs::append::{self, rolling_file::RollingFileAppender};
 use vsmtp_common::re::{anyhow, log};
 
+/*
 fn init_rolling_log(
     format: &str,
     filepath: &std::path::Path,
@@ -186,3 +187,4 @@ mod tests {
         assert!(res.is_err(), "{:?}", res);
     }
 }
+*/

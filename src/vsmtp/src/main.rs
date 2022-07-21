@@ -20,7 +20,7 @@ use vsmtp_common::{
     libc_abstraction::{daemon, initgroups},
     re::{anyhow, log, serde_json},
 };
-use vsmtp_config::{get_log4rs_config, re::log4rs, Config};
+use vsmtp_config::Config;
 use vsmtp_server::{socket_bind_anyhow, start_runtime};
 
 fn main() {
@@ -36,10 +36,6 @@ fn main() {
 }
 
 fn try_main() -> anyhow::Result<()> {
-    // tracing_subscriber::fmt().json().init();
-
-    tracing_subscriber::fmt::init();
-
     let args = <Args as clap::StructOpt>::parse();
 
     let config = args.config.as_ref().map_or_else(
@@ -122,6 +118,36 @@ fn try_main() -> anyhow::Result<()> {
     //     .context("Logs configuration contain error")
     //     .map(log4rs::init_config)
     //     .context("Cannot initialize logs")??;
+
+    let file_appender = tracing_appender::rolling::daily(&config.server.logs.filepath, "vsmtp");
+    let (non_blocking_backend, _guard) = tracing_appender::non_blocking(file_appender);
+
+    let file_appender = tracing_appender::rolling::daily(&config.app.logs.filepath, "app");
+    let (non_blocking_app, _guard) = tracing_appender::non_blocking(file_appender);
+
+    use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+
+    let tracing_subscriber = tracing_subscriber::registry().with(EnvFilter::from_default_env());
+
+    if args.no_daemon {
+        tracing_subscriber
+            .with(
+                fmt::layer().with_writer(
+                    non_blocking_backend
+                        .and(non_blocking_app)
+                        .and(std::io::stdout),
+                ),
+            )
+            .init();
+    } else {
+        tracing_subscriber
+            .with(
+                fmt::layer()
+                    .with_writer(non_blocking_backend.and(non_blocking_app))
+                    .with_ansi(false),
+            )
+            .init();
+    }
 
     start_runtime(config, sockets, args.timeout.map(|t| t.0)).map_err(|e| {
         log::error!("vSMTP terminating error: '{e}'");

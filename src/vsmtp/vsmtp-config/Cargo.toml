@@ -26,14 +26,14 @@ pre-release-replacements = [
 [dependencies]
 vsmtp-common = { path = "../vsmtp-common", default-features = false, version = "1.1.3" }
 
-log4rs = { version = "1.1.1", default-features = false, features = [
-  "rolling_file_appender",
-  "compound_policy",
-  "gzip",
-  "fixed_window_roller",
-  "size_trigger",
-  "console_appender",
-] }
+# log4rs = { version = "1.1.1", default-features = false, features = [
+#   "rolling_file_appender",
+#   "compound_policy",
+#   "gzip",
+#   "fixed_window_roller",
+#   "size_trigger",
+#   "console_appender",
+# ] }
 users = { version = "0.11.0", features = [] }
 
 serde = { version = "1.0.139", features = ["derive"] }

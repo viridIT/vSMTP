@@ -95,14 +95,14 @@ mod virtual_tls;
 
 pub use config::{field, Config};
 
-pub use log4rs_helper::get_log4rs_config;
+// pub use log4rs_helper::get_log4rs_config;
 pub use rustls_helper::get_rustls_config;
 pub use trust_dns_helper::{build_resolvers, Resolvers};
 
 /// Re-exported dependencies
 pub mod re {
     pub use humantime_serde::re::humantime;
-    pub use log4rs;
+    // pub use log4rs;
     pub use rustls;
     // NOTE: this one should not be re-exported (because tests only)
     pub use rustls_pemfile;
