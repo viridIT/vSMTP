@@ -1,9 +1,11 @@
+use std::io::Write;
+
 use rhai::packages::Package;
 use vsmtp_rule_engine::{modules::StandardVSLPackage, rule_engine::RuleEngine, SharedObject};
 
 const MODULE_SYNTAX: &str = "# Module:";
 
-fn generate_variable_documentation_from_module(title: &str, module: &rhai::Module) -> String {
+fn generate_variable_documentation_from_module(module: &rhai::Module) -> String {
     let (var_count, _, _) = module.count();
 
     let mut variables_doc = Vec::with_capacity(var_count);
@@ -20,18 +22,13 @@ fn generate_variable_documentation_from_module(title: &str, module: &rhai::Modul
         ));
     }
 
-    format!(
-        "# {}\n|name|value|\n| - | - |\n{}\n",
-        title,
-        variables_doc.join("\n")
-    )
+    format!("|name|value|\n| - | - |\n{}\n", variables_doc.join("\n"))
 }
 
 fn generate_function_documentation_from_module(
-    title: &str,
     module_names: &[&str],
     module: &rhai::Module,
-) -> String {
+) -> Vec<(String, String)> {
     let mut functions_doc: std::collections::HashMap<&str, Vec<_>> =
         std::collections::HashMap::from_iter(module_names.iter().map(|key| (*key, vec![])));
 
@@ -59,29 +56,34 @@ fn generate_function_documentation_from_module(
         ));
     }
 
-    format!("# {}\n{}\n", title, {
-        let sorted = module_names.iter().fold(vec![], |mut acc, module| {
-            acc.push((
-                module,
-                functions_doc
-                    .get(module)
-                    .unwrap_or_else(|| panic!("the {} module isn't known", module)),
-            ));
+    let sorted = module_names.iter().fold(vec![], |mut acc, module| {
+        acc.push((
+            module.to_string(),
+            functions_doc
+                .get(module)
+                .unwrap_or_else(|| panic!("the {} module isn't known", module))
+                .clone(),
+        ));
 
-            acc
-        });
+        acc
+    });
 
-        sorted
-            .into_iter()
-            .fold(String::default(), |acc, functions| {
-                let module = functions.0;
-                let mut functions = functions.1.clone();
-                format!("{}\n# {}\n{}\n\n", acc, module, {
-                    functions.sort();
-                    functions.join("\n")
-                })
-            })
-    })
+    sorted
+        .into_iter()
+        .map(|(module, mut functions)| {
+            functions.sort();
+            (module, functions.join("\n"))
+        })
+        .collect::<Vec<_>>()
+
+    // .fold(String::default(), |acc, functions| {
+    //     let module = functions.0;
+    //     let mut functions = functions.1.clone();
+    //     format!("{}\n# {}\n{}\n\n", acc, module, {
+    //         functions.sort();
+    //         functions.join("\n")
+    //     })
+    // })
 }
 
 // TODO: find a way to incorporate native functions metadata and documentation.
@@ -95,8 +97,7 @@ fn main() {
     engine.register_static_module("sys", vsl_native_module);
     let vsl_rhai_module = RuleEngine::compile_api(&engine).expect("failed to compile vsl's api");
 
-    let mut docs = generate_function_documentation_from_module(
-        "VSL API Functions documentation",
+    let functions = generate_function_documentation_from_module(
         &[
             "Status",
             "Transaction",
@@ -111,19 +112,41 @@ fn main() {
         ],
         &vsl_rhai_module,
     );
-    docs += "\n";
-    docs += &generate_variable_documentation_from_module(
-        "VSL API Variables documentation",
-        &vsl_rhai_module,
-    );
+
+    let variables = generate_variable_documentation_from_module(&vsl_rhai_module);
 
     let mut args = std::env::args();
     args.next().unwrap();
 
-    let path = args
+    let mut path: std::path::PathBuf = args
         .next()
-        .expect("please specify a path to the generated Markdown documentation");
+        .expect("please specify a path to the generated Markdown documentation")
+        .parse()
+        .unwrap();
 
-    // TODO: replace by path by args.
-    std::fs::write(path, docs.as_bytes()).expect("failed to write docs");
+    for (module, functions) in functions {
+        path.set_file_name(format!("{}.md", module));
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&path)
+            .unwrap();
+        file.write_all(format!("# {}\n", module).as_bytes())
+            .expect("failed to write function docs");
+        file.write_all(functions.as_bytes())
+            .expect("failed to write function docs");
+    }
+
+    path.set_file_name("Variables.md");
+
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(&path)
+        .unwrap();
+
+    file.write_all("# Variables\n".as_bytes())
+        .expect("failed to write variable docs");
+    file.write_all(variables.as_bytes())
+        .expect("failed to write variable docs");
 }
