@@ -57,18 +57,6 @@ fn test_users() {
 }
 
 #[test]
-fn test_send_mail() {
-    let (mut state, config) = get_default_state(format!("{}", root_example!["actions"].display()));
-    let re = RuleEngine::new(&config, &Some(root_example!["actions/send_mail.vsl"])).unwrap();
-
-    // TODO: add test to send a valid email.
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-}
-
-#[test]
 fn test_context_write() {
     let re = RuleEngine::new(
         &vsmtp_config::Config::default(),

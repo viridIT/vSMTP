@@ -1,11 +1,11 @@
-/// transports.vsl
-///
-/// Transports can be used to tell vsmtp where and how to send
-/// an email for a single recipient or all of them.
+// transports.vsl
+//
+// Transports can be used to tell vsmtp where and how to send
+// an email for a single recipient or all of them.
 
 #{
     connect: [
-        /// we add a few recipients here for the example's sake.
+        // we add a few recipients here for the example's sake.
         action "add recipients" || {
             add_rcpt_context("john@example.com");
             add_rcpt_context("doe@example.com");
@@ -20,9 +20,9 @@
     ],
 
     delivery: [
-        /// The "deliver" method simply delivers the email
-        /// to the recipient using its domain. It is the default
-        /// method used.
+        // The "deliver" method simply delivers the email
+        // to the recipient using its domain. It is the default
+        // method used.
         action "setup deliver" || {
             object bar address = "bar@example.com";
 
@@ -30,11 +30,11 @@
             deliver("foo@example.com");
         },
 
-        /// Forwarding directly sends recipients to the target
-        /// given as the second arguments of the `forward` function.
-        ///
-        /// the target can be an ip4/6, a string or a domain. (that
-        /// the dns will lookup)
+        // Forwarding directly sends recipients to the target
+        // given as the second arguments of the `forward` function.
+        //
+        // the target can be an ip4/6, a string or a domain. (that
+        // the dns will lookup)
         action "setup forwarding" || {
             object forward_local string = "localhost";
             object forward_ip6 ip6 = "::1";
@@ -54,8 +54,8 @@
             forward("d@example.com", "[::1]:25");
         },
 
-        /// The "mbox" method delivers the email localy
-        /// using the mailbox protocol.
+        // The "mbox" method delivers the email localy
+        // using the mailbox protocol.
         action "setup mailbox" || {
             object doe address = "doe@example.com";
 
@@ -63,8 +63,8 @@
             mbox("a@example.com");
         },
 
-        /// The "maildir" method delivers the email localy
-        /// using the maildir protocol.
+        // The "maildir" method delivers the email localy
+        // using the maildir protocol.
         action "setup maildir" || {
             object b address = "b@example.com";
 
@@ -72,11 +72,11 @@
             maildir("c@example.com");
         },
 
-        /// Finally, you can choose to disable the delivery
-        /// for a recipient. The email for this recipient
-        /// will be removed from the file system
-        /// as soon as their are no other recipient
-        /// to send the email to.
+        // Finally, you can choose to disable the delivery
+        // for a recipient. The email for this recipient
+        // will be removed from the file system
+        // as soon as their are no other recipient
+        // to send the email to.
         action "disable delivery" || {
             object d address = "d@example.com";
 

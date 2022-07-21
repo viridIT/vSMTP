@@ -1,8 +1,8 @@
-/// logs.vsl
-///
-/// Logs can be used to get information from the server.
-/// Logs can be configured using the toml config and will
-/// display under the `app` log module.
+// logs.vsl
+//
+// Logs can be used to get information from the server.
+// Logs can be configured using the toml config and will
+// display under the `app` log module.
 
 #{
     connect: [
