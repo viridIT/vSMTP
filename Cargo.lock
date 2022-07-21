@@ -1535,8 +1535,6 @@ dependencies = [
  "instant",
  "num-traits",
  "rhai_codegen",
- "serde",
- "serde_json",
  "smallvec",
  "smartstring",
 ]
@@ -1804,7 +1802,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fb72c633efbaa2dd666986505016c32c3044395ceaf881518399d2f4127ee29"
 dependencies = [
  "autocfg",
- "serde",
  "static_assertions",
  "version_check",
 ]
@@ -2327,14 +2324,6 @@ dependencies = [
  "trust-dns-resolver",
  "vsmtp-common",
  "vsmtp-mail-parser",
-]
-
-[[package]]
-name = "vsmtp-docs"
-version = "1.1.3"
-dependencies = [
- "rhai",
- "vsmtp-rule-engine",
 ]
 
 [[package]]

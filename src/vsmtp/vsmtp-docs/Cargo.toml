@@ -17,7 +17,7 @@ documentation = "https://docs.rs/crate/vsmtp-docs/"
 readme = "../../../README.md"
 keywords = ["vsmtp", "documentation"]
 
-categories = [""]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

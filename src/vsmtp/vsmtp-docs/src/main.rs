@@ -1,3 +1,35 @@
+//! vSMTP documentation generator.
+//!
+//! A binary that generates markdown documentation from vsl's API.
+
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+#![deny(unsafe_code)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::use_self)] // false positive with enums
+
 use std::io::Write;
 
 use rhai::packages::Package;
@@ -29,8 +61,10 @@ fn generate_function_documentation_from_module(
     module_names: &[&str],
     module: &rhai::Module,
 ) -> Vec<(String, String)> {
-    let mut functions_doc: std::collections::HashMap<&str, Vec<_>> =
-        std::collections::HashMap::from_iter(module_names.iter().map(|key| (*key, vec![])));
+    let mut functions_doc: std::collections::HashMap<&str, Vec<_>> = module_names
+        .iter()
+        .map(|key| (*key, vec![]))
+        .collect::<std::collections::HashMap<_, _>>();
 
     for (_, _, _, _, metadata) in module.iter_script_fn_info() {
         let comments = &metadata
@@ -58,7 +92,7 @@ fn generate_function_documentation_from_module(
 
     let sorted = module_names.iter().fold(vec![], |mut acc, module| {
         acc.push((
-            module.to_string(),
+            (*module).to_string(),
             functions_doc
                 .get(module)
                 .unwrap_or_else(|| panic!("the {} module isn't known", module))
@@ -145,7 +179,7 @@ fn main() {
         .open(&path)
         .unwrap();
 
-    file.write_all("# Variables\n".as_bytes())
+    file.write_all(b"# Variables\n")
         .expect("failed to write variable docs");
     file.write_all(variables.as_bytes())
         .expect("failed to write variable docs");

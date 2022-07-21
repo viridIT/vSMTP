@@ -36,14 +36,13 @@ members = [
   "src/vsmtp/vsmtp-config",
   "src/vsmtp/vsmtp-delivery",
   "src/vsmtp/vsmtp-dkim",
-  "src/vsmtp/vsmtp-docs",
   "src/vsmtp/vsmtp-mail-parser",
   "src/vsmtp/vsmtp-rule-engine",
   "src/vsmtp/vsmtp-server",
   "src/vsmtp/vsmtp-test",
 ]
 
-exclude = ["fuzz", "benchmarks/stress"]
+exclude = ["fuzz", "benchmarks/stress", "src/vsmtp/vsmtp-docs"]
 
 [[bin]]
 name = "vsmtp"
