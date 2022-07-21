@@ -27,9 +27,13 @@ fn generate_variable_documentation_from_module(title: &str, module: &rhai::Modul
     )
 }
 
-fn generate_function_documentation_from_module(title: &str, module: &rhai::Module) -> String {
+fn generate_function_documentation_from_module(
+    title: &str,
+    module_names: &[&str],
+    module: &rhai::Module,
+) -> String {
     let mut functions_doc: std::collections::HashMap<&str, Vec<_>> =
-        std::collections::HashMap::new();
+        std::collections::HashMap::from_iter(module_names.iter().map(|key| (*key, vec![])));
 
     for (_, _, _, _, metadata) in module.iter_script_fn_info() {
         let comments = &metadata
@@ -56,9 +60,16 @@ fn generate_function_documentation_from_module(title: &str, module: &rhai::Modul
     }
 
     format!("# {}\n{}\n", title, {
-        let mut sorted = functions_doc.iter().collect::<Vec<_>>();
+        let sorted = module_names.iter().fold(vec![], |mut acc, module| {
+            acc.push((
+                module,
+                functions_doc
+                    .get(module)
+                    .unwrap_or_else(|| panic!("the {} module isn't known", module)),
+            ));
 
-        sorted.sort_by_key(|a| a.0);
+            acc
+        });
 
         sorted
             .into_iter()
@@ -85,12 +96,24 @@ fn main() {
     let vsl_rhai_module = RuleEngine::compile_api(&engine).expect("failed to compile vsl's api");
 
     let mut docs = generate_function_documentation_from_module(
-        "Rhai Functions documentation",
+        "VSL API Functions documentation",
+        &[
+            "Status",
+            "Transaction",
+            "Context",
+            "Auth",
+            "Envelop",
+            "Message",
+            "Delivery",
+            "Security",
+            "Services",
+            "Utils",
+        ],
         &vsl_rhai_module,
     );
     docs += "\n";
     docs += &generate_variable_documentation_from_module(
-        "Rhai Variables documentation",
+        "VSL API Variables documentation",
         &vsl_rhai_module,
     );
 
