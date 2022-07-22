@@ -25,8 +25,8 @@ use crate::{
         FieldApp, FieldAppLogs, FieldQueueDelivery, FieldQueueWorking, FieldServer, FieldServerDNS,
         FieldServerInterfaces, FieldServerLogs, FieldServerQueues, FieldServerSMTP,
         FieldServerSMTPAuth, FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerSystem,
-        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, ResolverOptsWrapper,
-        TlsFile, TlsSecurityLevel,
+        FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtual, FieldServerVirtualTls,
+        ResolverOptsWrapper, SecretFile, TlsSecurityLevel,
     },
     parser::{tls_certificate, tls_private_key},
 };
@@ -351,11 +351,11 @@ impl Builder<WantsServerTLSConfig> {
                     preempt_cipherlist: false,
                     handshake_timeout: std::time::Duration::from_millis(200),
                     protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
-                    certificate: TlsFile::<rustls::Certificate> {
+                    certificate: SecretFile::<rustls::Certificate> {
                         inner: tls_certificate::from_string(certificate)?,
                         path: certificate.into(),
                     },
-                    private_key: TlsFile::<rustls::PrivateKey> {
+                    private_key: SecretFile::<rustls::PrivateKey> {
                         inner: tls_private_key::from_string(private_key)?,
                         path: private_key.into(),
                     },
@@ -714,19 +714,28 @@ impl Builder<WantsServerVirtual> {
         for entry in entries {
             r#virtual.insert(
                 entry.domain.clone(),
-                match (entry.tls.as_ref(), entry.dns.as_ref()) {
-                    (None, None) => FieldServerVirtual::new(),
-                    (None, Some(dns_config)) => FieldServerVirtual::with_dns(dns_config.clone())?,
-                    (Some((certificate, private_key)), None) => {
-                        FieldServerVirtual::with_tls(certificate, private_key)?
-                    }
-                    (Some((certificate, private_key)), Some(dns_config)) => {
-                        FieldServerVirtual::with_tls_and_dns(
-                            certificate,
-                            private_key,
-                            dns_config.clone(),
-                        )?
-                    }
+                match (entry.tls.as_ref(), entry.dns.clone()) {
+                    (None, None) => FieldServerVirtual {
+                        tls: None,
+                        dns: None,
+                        dkim: None,
+                    },
+                    (None, Some(dns_config)) => FieldServerVirtual {
+                        tls: None,
+                        dns: Some(dns_config),
+                        dkim: None,
+                    },
+                    // ::with_dns(dns_config.clone())?,
+                    (Some((certificate, private_key)), None) => FieldServerVirtual {
+                        tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
+                        dns: None,
+                        dkim: None,
+                    },
+                    (Some((certificate, private_key)), Some(dns_config)) => FieldServerVirtual {
+                        tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
+                        dns: Some(dns_config),
+                        dkim: None,
+                    },
                 },
             );
         }

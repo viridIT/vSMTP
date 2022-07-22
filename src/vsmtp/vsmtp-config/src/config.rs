@@ -84,6 +84,7 @@ pub mod field {
         #[serde(default)]
         pub queues: FieldServerQueues,
         /// see [`FieldServerTls`]
+        // TODO: should not be an Option<> and should be under #[cfg(feature = "smtps")]
         pub tls: Option<FieldServerTls>,
         /// see [`FieldServerSMTP`]
         #[serde(default)]
@@ -91,9 +92,20 @@ pub mod field {
         /// see [`FieldServerDNS`]
         #[serde(default)]
         pub dns: FieldServerDNS,
+        /// see [`FieldDkim`]
+        // TODO: should not be an Option<> and should be under #[cfg(feature = "dkim")]
+        pub dkim: Option<FieldDkim>,
         /// see [`FieldServerVirtual`]
         #[serde(default)]
         pub r#virtual: std::collections::BTreeMap<String, FieldServerVirtual>,
+    }
+
+    /// Readonly configuration for the dkim module.
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct FieldDkim {
+        /// The private key used to sign the mail.
+        pub private_key: SecretFile<rsa::RsaPrivateKey>,
     }
 
     /// The field related to the privileges used by `vSMTP`.
@@ -256,13 +268,15 @@ pub mod field {
     }
 
     /// The configuration of one virtual entry for the server.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtual {
         /// see [`FieldServerVirtualTls`]
         pub tls: Option<FieldServerVirtualTls>,
         /// see [`FieldServerDNS`]
         pub dns: Option<FieldServerDNS>,
+        /// see [`FieldDkim`]
+        pub dkim: Option<FieldDkim>,
     }
 
     /// The TLS parameter for the **OUTGOING SIDE** of the virtual entry.
@@ -276,9 +290,9 @@ pub mod field {
         )]
         pub protocol_version: Vec<rustls::ProtocolVersion>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: TlsFile<rustls::Certificate>,
+        pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
-        pub private_key: TlsFile<rustls::PrivateKey>,
+        pub private_key: SecretFile<rustls::PrivateKey>,
         /// Policy of security for the TLS connection.
         #[serde(default = "FieldServerVirtualTls::default_sender_security_level")]
         pub sender_security_level: TlsSecurityLevel,
@@ -303,7 +317,7 @@ pub mod field {
     #[doc(hidden)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     #[serde(transparent, deny_unknown_fields)]
-    pub struct TlsFile<T> {
+    pub struct SecretFile<T> {
         #[serde(skip_serializing)]
         pub inner: T,
         pub path: std::path::PathBuf,
@@ -338,9 +352,9 @@ pub mod field {
         /// TLS cipher suite supported
         pub cipher_suite: Vec<rustls::CipherSuite>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: TlsFile<rustls::Certificate>,
+        pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
-        pub private_key: TlsFile<rustls::PrivateKey>,
+        pub private_key: SecretFile<rustls::PrivateKey>,
     }
 
     /// Configuration of the client's error handling.
@@ -435,6 +449,7 @@ pub mod field {
         #[serde_as(as = "std::collections::BTreeMap<serde_with::DisplayFromStr, _>")]
         pub codes: std::collections::BTreeMap<CodeID, Reply>,
         /// SMTP's authentication policy.
+        // TODO: should not be an Option<> and should be under #[cfg(feature = "esmtpa")]
         pub auth: Option<FieldServerSMTPAuth>,
     }
 

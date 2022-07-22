@@ -37,6 +37,12 @@ pub struct QueryMethod {
     // options: String,
 }
 
+impl std::fmt::Display for QueryMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "dns/txt")
+    }
+}
+
 impl std::str::FromStr for QueryMethod {
     type Err = ParseError;
 
@@ -84,7 +90,7 @@ pub struct Signature {
     pub body_hash: String,
     /// tag "b="
     pub signature: String,
-    raw: String,
+    pub(crate) raw: String,
 }
 
 impl Signature {
@@ -113,23 +119,35 @@ impl Signature {
     }
 
     ///
-    /// # Errors
-    ///
-    /// * see [`trust_dns_resolver::TokioAsyncResolver::txt_lookup`]
-    pub async fn get_public_key(
-        &self,
-        resolver: &trust_dns_resolver::TokioAsyncResolver,
-    ) -> Result<trust_dns_resolver::lookup::TxtLookup, trust_dns_resolver::error::ResolveError>
-    {
-        resolver.txt_lookup(self.get_dns_query()).await
-    }
-
-    fn get_dns_query(&self) -> String {
+    #[must_use]
+    pub fn get_dns_query(&self) -> String {
         format!(
             "{selector}._domainkey.{sdid}",
             selector = self.selector,
             sdid = self.sdid
         )
+    }
+
+    ///
+    #[must_use]
+    pub fn get_signature_value(&self) -> String {
+        self.raw["DKIM-Signature:".len()..].to_string()
+    }
+
+    fn signature_without_headers(&self) -> String {
+        let mut out = self.raw.to_string();
+        if self.signature.is_empty() {
+            return out;
+        }
+
+        let begin_hash = self.raw.find("b=").unwrap() + 2;
+        let end_hash = &self.signature[self.signature.len() - 4..self.signature.len()];
+
+        out.replace_range(
+            begin_hash..begin_hash + self.raw[begin_hash..].find(end_hash).unwrap() + 4,
+            "",
+        );
+        out
     }
 
     ///
@@ -148,7 +166,7 @@ impl Signature {
             &self
                 .canonicalization
                 .header
-                .canonicalize_header(&[self.raw.replace(&self.signature, "").replace("\r\n", "")]),
+                .canonicalize_header(&[self.signature_without_headers()]),
         );
 
         // remove the final "\r\n"
@@ -416,5 +434,7 @@ mod tests {
         assert!(sign.has_expired(100));
         assert!(!sign.has_expired(1_000_000_000));
         println!("{sign:#?}");
+
+        println!("{sign}");
     }
 }

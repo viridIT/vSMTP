@@ -8,6 +8,8 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+//
+#![allow(clippy::use_self)]
 
 mod log_channels {
     /// server's rule
@@ -15,7 +17,15 @@ mod log_channels {
     pub const SERVICES: &str = "server::rule_engine::services";
 }
 
-mod dsl;
+mod dsl {
+    pub mod action;
+    pub mod delegation;
+    pub mod directives;
+    pub mod object;
+    pub mod rule;
+    pub mod service;
+}
+
 #[macro_use]
 mod error;
 mod server_api;

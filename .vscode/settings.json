@@ -54,6 +54,7 @@
         "postq",
         "prepending",
         "preq",
+        "proto",
         "rcpts",
         "RDONLY",
         "RDWR",

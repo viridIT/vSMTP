@@ -44,11 +44,6 @@ base64 = "0.13.0"
 
 sha2 = "0.10.2"
 rsa = "0.6.1"
-trust-dns-resolver = { version = "0.21.2", default-features = false, features = [
-    "system-config",
-    "serde-config",
-    "tokio-runtime",
-] }
 
 # should be optional and under a legacy flag
 sha1 = "0.10.1"
@@ -58,6 +53,12 @@ convert_case = "0.5.0"
 [dev-dependencies]
 pretty_assertions = "1.2.1"
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }
+trust-dns-resolver = { version = "0.21.2", default-features = false, features = [
+    "system-config",
+    "serde-config",
+    "tokio-runtime",
+] }
+rand = "0.8.5"
 
 [features]
 default = ["vsmtp-common/gsasl_bindgen"]

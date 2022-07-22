@@ -88,13 +88,13 @@ S: serde::Serializer,
 mod tests {
     use std::io::Write;
 
-    use crate::field::TlsFile;
+    use crate::field::SecretFile;
     use vsmtp_common::re::serde_json;
     use vsmtp_test::get_tls_file;
 
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
     struct S {
-        v: TlsFile<rustls::PrivateKey>,
+        v: SecretFile<rustls::PrivateKey>,
     }
 
     #[test]

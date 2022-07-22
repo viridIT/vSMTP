@@ -110,12 +110,12 @@ impl CanonicalizationAlgorithm {
     }
 }
 
-///
+/// The algorithm used to canonicalize the message.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Canonicalization {
-    ///
+    /// The algorithm used to canonicalize the header.
     pub header: CanonicalizationAlgorithm,
-    ///
+    /// The algorithm used to canonicalize the body.
     pub body: CanonicalizationAlgorithm,
 }
 
@@ -125,6 +125,12 @@ impl Default for Canonicalization {
             header: CanonicalizationAlgorithm::Simple,
             body: CanonicalizationAlgorithm::Simple,
         }
+    }
+}
+
+impl std::fmt::Display for Canonicalization {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.header, self.body)
     }
 }
 
