@@ -34,7 +34,7 @@ mod inner {
         pub StandardVSLPackage(module) {
             rhai::packages::StandardPackage::init(module);
 
-            module.combine(rhai::exported_module!(actions::bcc::bcc))
+            module
                 .combine(rhai::exported_module!(actions::logging::logging))
                 .combine(rhai::exported_module!(actions::dkim::dkim))
                 .combine(rhai::exported_module!(actions::rule_state::rule_state))

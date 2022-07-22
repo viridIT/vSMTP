@@ -881,7 +881,7 @@ fn add_rcpt_envelop(rcpt) { sys::add_rcpt_envelop(ctx(), rcpt) }
 /// # Module:Envelop
 fn remove_rcpt_envelop(rcpt) { sys::remove_rcpt_envelop(ctx(), rcpt) }
 
-/// Add a recipient as a blind carbon copy. The equivalent of `add_rcpt`.
+/// Add a recipient as a blind carbon copy. The equivalent of `add_rcpt_envelop`.
 ///
 /// # Args
 ///
@@ -902,7 +902,7 @@ fn remove_rcpt_envelop(rcpt) { sys::remove_rcpt_envelop(ctx(), rcpt) }
 /// ```
 ///
 /// # Module:Message
-fn bcc(rcpt) { sys::bcc(ctx(), rcpt) }
+fn bcc(rcpt) { add_rcpt_envelop(rcpt) }
 
 /// Rewrite the value of the `MAIL FROM` command has well has
 /// the `From` header.
