@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{delivery, log_channels, processing, ProcessMessage, Server};
+use crate::{delivery, processing, ProcessMessage, Server};
 use vsmtp_common::{
     queue::Queue,
     re::{
@@ -47,10 +47,7 @@ where
         .spawn(move || {
             let name_rt = name.clone();
             runtime.block_on(async move {
-                log::info!(
-                    target: log_channels::RUNTIME,
-                    "Runtime '{name_rt}' started successfully"
-                );
+                log::info!("Runtime '{name_rt}' started successfully");
 
                 match timeout {
                     Some(duration) => {
@@ -141,12 +138,12 @@ pub fn start_runtime(
             ) {
                 Ok(server) => server,
                 Err(error) => {
-                    log::error!(target: log_channels::SERVER, "{}", error);
+                    log::error!("{}", error);
                     return;
                 }
             };
             if let Err(error) = server.listen_and_serve(sockets).await {
-                log::error!(target: log_channels::SERVER, "{}", error);
+                log::error!("{}", error);
             }
         },
         timeout,
@@ -161,8 +158,8 @@ pub fn start_runtime(
     ])?;
     let _signal_handler = std::thread::spawn(move || {
         for sig in signals.forever() {
-            log::info!(target: log_channels::RUNTIME, "Received signal '{}'", sig);
-            log::warn!(target: log_channels::RUNTIME, "Stopping vSMTP server");
+            log::info!("Received signal '{}'", sig);
+            log::warn!("Stopping vSMTP server");
             error_handler_sig
                 .blocking_send(())
                 .expect("failed to send terminating instruction");

@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{log_channels, Connection, Process, ProcessMessage};
+use crate::{Connection, Process, ProcessMessage};
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
@@ -104,7 +104,7 @@ impl MailHandler {
                     .await
                     .map_err(MailHandlerError::WriteQuarantineFile)?;
 
-                log::warn!(target: log_channels::PREQ, "skipped due to quarantine.",);
+                log::warn!("skipped due to quarantine.");
             }
             Some(Status::Delegated(_)) => {
                 unreachable!("delegate directive cannot be used in preq stage")
@@ -136,11 +136,7 @@ impl MailHandler {
                 write_to_queue = Some(Queue::Dead);
             }
             Some(reason) => {
-                log::warn!(
-                    target: log_channels::PREQ,
-                    "skipped due to '{}'.",
-                    reason.as_ref()
-                );
+                log::warn!("skipped due to '{}'.", reason.as_ref());
                 write_to_queue = Some(Queue::Deliver);
                 send_to_next_process = Some(Process::Delivery);
             }

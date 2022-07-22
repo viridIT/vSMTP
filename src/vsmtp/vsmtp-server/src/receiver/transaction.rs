@@ -15,7 +15,6 @@
  *
 */
 use super::connection::Connection;
-use crate::log_channels;
 use vsmtp_common::{
     addr,
     auth::Mechanism,
@@ -345,11 +344,7 @@ impl Transaction {
                 ),
                 skipped: self.rule_state.skipped().cloned(),
             });
-            log::trace!(
-                target: log_channels::TRANSACTION,
-                "envelop=\"{:?}\"",
-                ctx.envelop,
-            );
+            log::trace!("envelop=\"{:?}\"", ctx.envelop);
         }
         {
             let state = self.rule_state.message();
@@ -499,7 +494,6 @@ impl Transaction {
                             }
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
-                                    target: log_channels::TRANSACTION,
                                     "STATE: {old_state:?} => {new_state:?}",
                                     old_state = self.state,
                                 );
@@ -509,7 +503,6 @@ impl Transaction {
                             }
                             ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
                                 log::info!(
-                                    target: log_channels::TRANSACTION,
                                     "STATE: {old_state:?} => {new_state:?}",
                                     old_state = self.state,
                                 );
@@ -521,7 +514,7 @@ impl Transaction {
                         }
                     }
                     Ok(None) => {
-                        log::info!(target: log_channels::TRANSACTION, "eof");
+                        log::info!("eof");
                         self.state = StateSMTP::Stop;
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {

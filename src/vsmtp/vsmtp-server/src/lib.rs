@@ -14,17 +14,6 @@
 #[cfg(test)]
 mod tests;
 
-mod log_channels {
-    pub const SERVER: &str = "server::server";
-    pub const AUTH: &str = "server::receiver::auth";
-    pub const TRANSACTION: &str = "server::receiver::transaction";
-    pub const RUNTIME: &str = "server::runtime";
-    pub const DEFERRED: &str = "server::processes::deferred";
-    pub const DELIVERY: &str = "server::processes::delivery";
-    pub const POSTQ: &str = "server::processes::postq";
-    pub const PREQ: &str = "server::processes::preq";
-}
-
 mod channel_message;
 mod delivery;
 mod processing;

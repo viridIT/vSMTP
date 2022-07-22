@@ -16,7 +16,7 @@
 */
 use self::transaction::{Transaction, TransactionResult};
 use crate::{
-    auth, log_channels,
+    auth,
     receiver::auth_exchange::{on_authentication, AuthExchangeError},
 };
 use vsmtp_common::{
@@ -372,10 +372,7 @@ where
         )
         .await
         {
-            log::warn!(
-                target: log_channels::TRANSACTION,
-                "SASL exchange produced an error: {e}"
-            );
+            log::warn!("SASL exchange produced an error: {e}");
 
             match e {
                 AuthExchangeError::Failed => {

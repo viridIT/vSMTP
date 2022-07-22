@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{delegate, log_channels, receiver::MailHandlerError, Process, ProcessMessage};
+use crate::{delegate, receiver::MailHandlerError, Process, ProcessMessage};
 use vsmtp_common::{
     queue::Queue,
     re::{anyhow, log, tokio},
@@ -113,7 +113,7 @@ async fn handle_one_in_working_queue_inner(
 
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
 
-            log::warn!(target: log_channels::POSTQ, "skipped due to quarantine.",);
+            log::warn!("skipped due to quarantine.");
         }
         Some(Status::Delegated(delegator)) => {
             mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
@@ -140,7 +140,7 @@ async fn handle_one_in_working_queue_inner(
             write_email = false;
             delegated = true;
 
-            log::warn!(target: log_channels::POSTQ, "skipped due to delegation.",);
+            log::warn!("skipped due to delegation.");
         }
         Some(Status::DelegationResult) => {
             send_to_delivery = true;
@@ -157,11 +157,7 @@ async fn handle_one_in_working_queue_inner(
             move_to_queue = Some(Queue::Dead);
         }
         Some(reason) => {
-            log::warn!(
-                target: log_channels::POSTQ,
-                "skipped due to '{}'.",
-                reason.as_ref()
-            );
+            log::warn!("skipped due to '{}'.", reason.as_ref());
             move_to_queue = Some(Queue::Deliver);
             send_to_delivery = true;
         }
@@ -178,10 +174,7 @@ async fn handle_one_in_working_queue_inner(
             .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
             .map_err(MailHandlerError::WriteMessageBody)?;
 
-        log::debug!(
-            target: log_channels::TRANSACTION,
-            "email written in 'mails' queue.",
-        );
+        log::debug!("email written in 'mails' queue.");
     }
 
     if let Some(next_queue) = move_to_queue {

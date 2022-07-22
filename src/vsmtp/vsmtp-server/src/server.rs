@@ -17,7 +17,6 @@
 use crate::{
     auth,
     channel_message::ProcessMessage,
-    log_channels,
     receiver::{Connection, MailHandler},
 };
 use vsmtp_common::{
@@ -155,11 +154,11 @@ impl Server {
             )
             .await
             {
-                log::error!(target: log_channels::SERVER, "{}", e);
+                log::error!("{e}");
             }
 
             if let Err(e) = tokio::io::AsyncWriteExt::shutdown(&mut stream).await {
-                log::warn!(target: log_channels::SERVER, "{}", e);
+                log::warn!("{e}");
             }
             return;
         }
@@ -184,7 +183,7 @@ impl Server {
         let client_counter_copy = client_counter.clone();
         tokio::spawn(async move {
             if let Err(e) = session.await {
-                log::warn!(target: log_channels::SERVER, "{}", e);
+                log::warn!("{e}");
             }
 
             client_counter_copy.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
@@ -215,7 +214,6 @@ impl Server {
 
         if self.config.server.tls.is_none() && !sockets.2.is_empty() {
             log::warn!(
-                target: log_channels::SERVER,
                 "No TLS configuration provided, listening on submissions protocol (port 465) will cause issue"
             );
         }
@@ -246,7 +244,6 @@ impl Server {
         }
 
         log::info!(
-            target: log_channels::SERVER,
             "Listening for clients on: {:?}",
             map.keys().collect::<Vec<_>>()
         );
@@ -303,13 +300,10 @@ impl Server {
 
         match &connection_result {
             Ok(_) => {
-                log::info!(target: log_channels::SERVER, "Connection closed cleanly");
+                log::info!("Connection closed cleanly");
             }
             Err(error) => {
-                log::warn!(
-                    target: log_channels::SERVER,
-                    "Connection closed with an error: `{error}`"
-                );
+                log::warn!("Connection closed with an error: `{error}`");
             }
         }
         connection_result

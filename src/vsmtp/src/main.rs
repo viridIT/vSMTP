@@ -127,7 +127,15 @@ fn try_main() -> anyhow::Result<()> {
 
     use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-    let tracing_subscriber = tracing_subscriber::registry().with(EnvFilter::from_default_env());
+    let tracing_subscriber = tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(
+            fmt::layer()
+                .with_file(true)
+                .with_line_number(true)
+                .with_thread_ids(true)
+                .with_target(true),
+        );
 
     if args.no_daemon {
         tracing_subscriber
