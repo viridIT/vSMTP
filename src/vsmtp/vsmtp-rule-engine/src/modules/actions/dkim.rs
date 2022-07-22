@@ -23,7 +23,7 @@ use rhai::plugin::{
 };
 use rhai::EvalAltResult;
 use vsmtp_common::re::tokio;
-use vsmtp_dkim::{Key, Signature};
+use vsmtp_dkim::{PublicKey, Signature};
 
 #[derive(Debug, strum::AsRefStr, strum::EnumString, strum::EnumMessage)]
 #[strum(serialize_all = "snake_case")]
@@ -133,14 +133,14 @@ pub mod dkim {
 
         let keys = txt_record
             .into_iter()
-            .map(|i| <Key as std::str::FromStr>::from_str(&i.to_string()));
+            .map(|i| <PublicKey as std::str::FromStr>::from_str(&i.to_string()));
 
         Ok(if on_multiple_key_records == "first" {
             keys.take(1)
-                .collect::<Result<Vec<_>, <Key as std::str::FromStr>::Err>>()
+                .collect::<Result<Vec<_>, <PublicKey as std::str::FromStr>::Err>>()
                 .map_err::<Box<EvalAltResult>, _>(|_| DkimErrors::KeyParsingFailed.into())?
         } else {
-            keys.collect::<Result<Vec<_>, <Key as std::str::FromStr>::Err>>()
+            keys.collect::<Result<Vec<_>, <PublicKey as std::str::FromStr>::Err>>()
                 .map_err::<Box<EvalAltResult>, _>(|_| DkimErrors::KeyParsingFailed.into())?
         }
         .into())
@@ -148,7 +148,7 @@ pub mod dkim {
 
     /// A public key may contains a `debug flag`, used for testing purpose.
     #[rhai_fn(global, pure, get = "has_debug_flag")]
-    pub fn has_debug_flag(key: &mut Key) -> bool {
+    pub fn has_debug_flag(key: &mut PublicKey) -> bool {
         key.has_debug_flag()
     }
 
@@ -156,7 +156,11 @@ pub mod dkim {
     /// `signature` and `key` data.
     #[allow(clippy::module_name_repetitions, clippy::needless_pass_by_value)]
     #[rhai_fn(global, pure, return_raw)]
-    pub fn dkim_verify(message: &mut Message, signature: Signature, key: Key) -> EngineResult<()> {
+    pub fn dkim_verify(
+        message: &mut Message,
+        signature: Signature,
+        key: PublicKey,
+    ) -> EngineResult<()> {
         let guard = vsl_guard_ok!(message.read());
 
         signature

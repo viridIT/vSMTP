@@ -15,7 +15,7 @@
  *
 */
 
-use super::{Key, Signature, SigningAlgorithm};
+use super::{PublicKey, Signature, SigningAlgorithm};
 use vsmtp_common::RawBody;
 
 /// Possible error produced by [`Signature::verify`]
@@ -56,8 +56,8 @@ impl Signature {
     ///
     /// # Errors
     ///
-    /// * see [`VerifierResult`]
-    pub fn verify(&self, message: &RawBody, key: &Key) -> Result<(), VerifierError> {
+    /// * see [`VerifierError`]
+    pub fn verify(&self, message: &RawBody, key: &PublicKey) -> Result<(), VerifierError> {
         if !self
             .signing_algorithm
             .is_supported(&key.acceptable_hash_algorithms)

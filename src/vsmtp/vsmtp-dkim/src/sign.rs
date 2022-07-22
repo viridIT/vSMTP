@@ -117,8 +117,8 @@ mod tests {
     use vsmtp_common::MessageBody;
 
     use crate::{
-        key::{KeyType, Version},
-        HashAlgorithm, Key, Signature,
+        public_key::{Type, Version},
+        HashAlgorithm, PublicKey, Signature,
     };
 
     #[test]
@@ -154,10 +154,10 @@ mod tests {
 
         message.add_header("DKIM-Signature", &signature.raw["DKIM-Signature: ".len()..]);
 
-        let key = Key {
+        let key = PublicKey {
             version: Version::Dkim1,
             acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
-            r#type: KeyType::Rsa,
+            r#type: Type::Rsa,
             notes: None,
             public_key: public_key.to_public_key_der().unwrap().as_ref().to_vec(),
             service_type: vec![],

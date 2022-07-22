@@ -23,14 +23,13 @@ pub enum Version {
     Dkim1,
 }
 
-#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
-pub enum KeyType {
+pub enum Type {
     Rsa,
 }
 
-impl Default for KeyType {
+impl Default for Type {
     fn default() -> Self {
         Self::Rsa
     }
@@ -55,16 +54,17 @@ pub enum Flags {
     SameDomain,
 }
 
-///
+/// The public key exposed by the Signing Domain Identifier, claiming the
+/// responsibility for a [`crate::Signature`]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Key {
+pub struct PublicKey {
     /// tag "v="
     /// MUST be "DKIM1"
     pub version: Version,
     /// tag "h="
     pub acceptable_hash_algorithms: Vec<HashAlgorithm>,
     /// tag "k="
-    pub r#type: KeyType,
+    pub r#type: Type,
     /// tag "n="
     /// a message to the administrator
     pub notes: Option<String>,
@@ -77,7 +77,7 @@ pub struct Key {
     pub flags: Vec<Flags>,
 }
 
-impl Key {
+impl PublicKey {
     /// Does the signature contains the tag: `t=y`
     #[must_use]
     pub fn has_debug_flag(&self) -> bool {
@@ -85,14 +85,14 @@ impl Key {
     }
 }
 
-impl std::str::FromStr for Key {
+impl std::str::FromStr for PublicKey {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut version = Version::Dkim1;
         let mut acceptable_hash_algorithms =
             <HashAlgorithm as strum::IntoEnumIterator>::iter().collect::<Vec<_>>();
-        let mut r#type = KeyType::default();
+        let mut r#type = Type::default();
         let mut notes = None;
         let mut public_key = None;
         let mut service_type = vec![ServiceType::Wildcard];
@@ -121,7 +121,7 @@ impl std::str::FromStr for Key {
                         .collect();
                 }
                 ("k", p_type) => {
-                    r#type = KeyType::from_str(p_type).unwrap_or_default();
+                    r#type = Type::from_str(p_type).unwrap_or_default();
                 }
                 ("n", p_notes) => notes = Some(p_notes.to_string()),
                 ("p", p_public_key) => {
@@ -167,22 +167,22 @@ impl std::str::FromStr for Key {
 #[cfg(test)]
 mod tests {
     use crate::{
-        key::{KeyType, ServiceType, Version},
+        public_key::{ServiceType, Type, Version},
         HashAlgorithm,
     };
 
-    use super::Key;
+    use super::PublicKey;
 
     #[test]
     fn parse() {
         let txt= "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2j7g33viWEfTCro0+Nyicz/vjTQZv+cq5Wla+ADyXkdSGJ0OFp9SrUu9tGeDhil2UEPsHHdnf3AaarX3hyY8Ne5X5EOnJ5WY3QSpTL+eVUtSTt5DbsDqfShzxbc/BsKb5sfHuGJxcKuCyFVqCyhpSKT4kdpzZ5FLLrEiyvJGYUfq7qvqPB+A/wx1TIO5YONWWH2mqy3zviLx70u06wnxwyvGve2HMKeMvDm1HGibZShJnOIRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB";
 
         assert_eq!(
-            <Key as std::str::FromStr>::from_str(txt).unwrap(),
-            Key {
+            <PublicKey as std::str::FromStr>::from_str(txt).unwrap(),
+            PublicKey {
                 version: Version::Dkim1,
                 acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
-                r#type: KeyType::Rsa,
+                r#type: Type::Rsa,
                 notes: None,
                 public_key: base64::decode(concat!(
                     "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2",

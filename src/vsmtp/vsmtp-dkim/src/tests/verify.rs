@@ -1,4 +1,4 @@
-use crate::{Key, Signature};
+use crate::{PublicKey, Signature};
 use trust_dns_resolver::config::ResolverOpts;
 use vsmtp_common::MessageBody;
 
@@ -24,7 +24,7 @@ async fn simple() {
         .unwrap();
     let field = public_key.iter().next().unwrap();
 
-    let public_key = <Key as std::str::FromStr>::from_str(&field.to_string()).unwrap();
+    let public_key = <PublicKey as std::str::FromStr>::from_str(&field.to_string()).unwrap();
 
     signature.verify(body.inner(), &public_key).unwrap();
 }
@@ -52,7 +52,7 @@ async fn simple2() {
         .unwrap();
     let field = public_key.iter().next().unwrap();
 
-    let public_key = <Key as std::str::FromStr>::from_str(&field.to_string()).unwrap();
+    let public_key = <PublicKey as std::str::FromStr>::from_str(&field.to_string()).unwrap();
 
     signature.verify(body.inner(), &public_key).unwrap();
 }
