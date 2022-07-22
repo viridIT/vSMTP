@@ -113,6 +113,7 @@ impl std::fmt::Display for Signature {
 
 #[cfg(test)]
 mod tests {
+    use rsa::pkcs8::EncodePublicKey;
     use vsmtp_common::MessageBody;
 
     use crate::{
@@ -158,7 +159,7 @@ mod tests {
             acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
             r#type: KeyType::Rsa,
             notes: None,
-            public_key,
+            public_key: public_key.to_public_key_der().unwrap().as_ref().to_vec(),
             service_type: vec![],
             flags: vec![],
         };

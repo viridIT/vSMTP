@@ -34,6 +34,9 @@ pub enum VerifierError {
     /// The key is empty
     #[error("the key has been revoked, or is empty")]
     KeyMissingOrRevoked,
+    /// The public key is invalid
+    #[error("the key format could not be recognized")]
+    KeyFormatInvalid,
     /// The hash produced of the body does not match the hash in the signature
     #[error("body hash does not match")]
     BodyHashMismatch,
@@ -70,9 +73,9 @@ impl Signature {
             });
         }
 
-        // if key.public_key.is_empty() {
-        //     return Err(VerifierResult::KeyMissingOrRevoked);
-        // }
+        if key.public_key.is_empty() {
+            return Err(VerifierError::KeyMissingOrRevoked);
+        }
 
         let body = self.canonicalization.body.canonicalize_body(
             &message
@@ -94,8 +97,26 @@ impl Signature {
 
         let headers_hash = self.get_header_hash(message);
 
+        // the type of public_key is not precised in the DNS record,
+        // so we try each format..
+
+        let key =
+            <rsa::RsaPublicKey as rsa::pkcs1::DecodeRsaPublicKey>::from_pkcs1_der(&key.public_key)
+                .map(Box::new)
+                .or_else(|e| {
+                    println!("invalid format: {e}");
+                    <rsa::RsaPublicKey as rsa::pkcs8::DecodePublicKey>::from_public_key_der(
+                        &key.public_key,
+                    )
+                    .map(Box::new)
+                })
+                .map_err(|e| {
+                    println!("invalid format: {e}");
+                    VerifierError::KeyFormatInvalid
+                })?;
+
         rsa::PublicKey::verify(
-            &key.public_key,
+            key.as_ref(),
             rsa::PaddingScheme::PKCS1v15Sign {
                 hash: Some(match self.signing_algorithm {
                     SigningAlgorithm::RsaSha1 => rsa::hash::Hash::SHA1,
