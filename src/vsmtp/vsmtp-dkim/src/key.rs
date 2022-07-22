@@ -184,13 +184,13 @@ mod tests {
                 acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
                 r#type: KeyType::Rsa,
                 notes: None,
-                public_key: concat!(
+                public_key: base64::decode(concat!(
                     "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxxZDZBe61KUSY/nQ09l9P9n4rmeb2Ol/Z2",
                     "j7g33viWEfTCro0+Nyicz/vjTQZv+cq5Wla+ADyXkdSGJ0OFp9SrUu9tGeDhil2UEPsHHdnf3AaarX3",
                     "hyY8Ne5X5EOnJ5WY3QSpTL+eVUtSTt5DbsDqfShzxbc/BsKb5sfHuGJxcKuCyFVqCyhpSKT4kdpzZ5F",
                     "LLrEiyvJGYUfq7qvqPB+A/wx1TIO5YONWWH2mqy3zviLx70u06wnxwyvGve2HMKeMvDm1HGibZShJnO",
                     "IRzJuZ9BFYffm8iGisYFocxp7daiJgbpMtqYY/TB8ZvGajv/ZqITrbRp+qpfK9Bpdk8qXwIDAQAB"
-                ).as_bytes().to_vec(),
+                )).unwrap(),
                 service_type: vec![ServiceType::Wildcard],
                 flags: vec![]
             }
