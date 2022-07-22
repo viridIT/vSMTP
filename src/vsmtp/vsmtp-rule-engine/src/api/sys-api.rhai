@@ -334,13 +334,13 @@ fn set_header(header, value) { sys::set_header(msg(), header, value) }
 /// ```js
 /// #{
 ///     preq: [
-///        action "update recipients" || add_to_message("john.doe@example.com"),
+///        action "update recipients" || add_rcpt_message("john.doe@example.com"),
 ///     ]
 /// }
 /// ```
 ///
 /// # Module:Message
-fn add_to_message(addr) { sys::add_to_message(msg(), addr) }
+fn add_rcpt_message(addr) { sys::add_rcpt_message(msg(), addr) }
 
 /// Remove a recipient from the `To` header of the message.
 ///
@@ -356,13 +356,13 @@ fn add_to_message(addr) { sys::add_to_message(msg(), addr) }
 /// ```js
 /// #{
 ///     preq: [
-///        action "update recipients" || remove_to_message("john.doe@example.com"),
+///        action "update recipients" || remove_rcpt_message("john.doe@example.com"),
 ///     ]
 /// }
 /// ```
 ///
 /// # Module:Message
-fn remove_to_message(addr) { sys::remove_to_message(msg(), addr) }
+fn remove_rcpt_message(addr) { sys::remove_rcpt_message(msg(), addr) }
 
 /// Replace a recipient by an other in the `To` header of the message.
 ///
@@ -379,14 +379,14 @@ fn remove_to_message(addr) { sys::remove_to_message(msg(), addr) }
 /// ```js
 /// #{
 ///     preq: [
-///        action "rewrite recipient" || rewrite_to_message("john.doe@example.com", "john-mta@example.com"),
+///        action "rewrite recipient" || rewrite_rcpt_message("john.doe@example.com", "john-mta@example.com"),
 ///     ]
 /// }
 /// ```
 ///
 /// # Module:Message
-fn rewrite_to_message(old_addr, new_addr) {
-    sys::rewrite_to_message(msg(), old_addr, new_addr)
+fn rewrite_rcpt_message(old_addr, new_addr) {
+    sys::rewrite_rcpt_message(msg(), old_addr, new_addr)
 }
 
 /// Change the sender's address in the `From` header of the message.
@@ -430,7 +430,7 @@ fn rewrite_mail_from_message(new_addr) { sys::rewrite_mail_from_message(msg(), n
 /// }
 /// ```
 ///
-/// # Module:Context
+/// # Module:Connection
 fn client_address() { ctx().client_address }
 
 /// Get the ip address of the client.
@@ -452,7 +452,7 @@ fn client_address() { ctx().client_address }
 /// }
 /// ```
 ///
-/// # Module:Context
+/// # Module:Connection
 fn client_ip() { ctx().client_ip }
 
 /// Get the ip port of the client.
@@ -474,7 +474,7 @@ fn client_ip() { ctx().client_ip }
 /// }
 /// ```
 ///
-/// # Module:Context
+/// # Module:Connection
 fn client_port() { ctx().client_port }
 
 /// Get the full server address.
@@ -496,7 +496,7 @@ fn client_port() { ctx().client_port }
 /// }
 /// ```
 ///
-/// # Module:Context
+/// # Module:Connection
 fn server_address() { ctx().server_address }
 
 /// Get the server's ip.
@@ -518,7 +518,7 @@ fn server_address() { ctx().server_address }
 /// }
 /// ```
 ///
-/// # Module:Context
+/// # Module:Connection
 fn server_ip() { ctx().server_ip }
 
 /// Get the server's port.
@@ -540,7 +540,7 @@ fn server_ip() { ctx().server_ip }
 /// }
 /// ```
 ///
-/// # Module:Context
+/// # Module:Connection
 fn server_port() { ctx().server_port }
 
 /// Get a the timestamp of the client's connection time.
@@ -562,7 +562,7 @@ fn server_port() { ctx().server_port }
 /// }
 /// ```
 ///
-/// # Module:Context
+/// # Module:Connection
 fn connection_timestamp() { ctx().connection_timestamp }
 
 /// Get the name of the server.
@@ -584,7 +584,7 @@ fn connection_timestamp() { ctx().connection_timestamp }
 /// }
 /// ```
 ///
-/// # Module:Context
+/// # Module:Connection
 fn server_name() { ctx().server_name }
 
 /// Check if the client's connexion was secure.
@@ -802,13 +802,13 @@ fn message_id() { ctx().message_id }
 /// ```js
 /// #{
 ///     preq: [
-///        action "rewrite envelop" || rewrite_mail_from_context("unknown@example.com"),
+///        action "rewrite envelop" || rewrite_mail_from_envelop("unknown@example.com"),
 ///     ]
 /// }
 /// ```
 ///
 /// # Module:Envelop
-fn rewrite_mail_from_context(new_addr) { sys::rewrite_mail_from_context(ctx(), new_addr) }
+fn rewrite_mail_from_envelop(new_addr) { sys::rewrite_mail_from_envelop(ctx(), new_addr) }
 
 /// Replace a recipient received by a `RCPT TO` command.
 ///
@@ -825,16 +825,16 @@ fn rewrite_mail_from_context(new_addr) { sys::rewrite_mail_from_context(ctx(), n
 /// ```js
 /// #{
 ///     preq: [
-///        action "rewrite envelop" || rewrite_rcpt_context("john.doe@example.com", "john.main@example.com"),
+///        action "rewrite envelop" || rewrite_rcpt_envelop("john.doe@example.com", "john.main@example.com"),
 ///     ]
 /// }
 /// ```
 ///
 /// # Module:Envelop
-fn rewrite_rcpt_context(old_addr, new_addr) { sys::rewrite_rcpt_context(ctx(), old_addr, new_addr) }
+fn rewrite_rcpt_envelop(old_addr, new_addr) { sys::rewrite_rcpt_envelop(ctx(), old_addr, new_addr) }
 
 /// Add a new recipient to the envelop. Note that this does not add
-/// the recipient to the `To` header. Use `add_to_message` for that.
+/// the recipient to the `To` header. Use `add_rcpt_message` for that.
 ///
 /// # Args
 ///
@@ -849,16 +849,16 @@ fn rewrite_rcpt_context(old_addr, new_addr) { sys::rewrite_rcpt_context(ctx(), o
 /// #{
 ///     connect: [
 ///        // always deliver a copy of the message to "john.doe@example.com".
-///        action "rewrite envelop" || add_rcpt_context("john.doe@example.com"),
+///        action "rewrite envelop" || add_rcpt_envelop("john.doe@example.com"),
 ///     ]
 /// }
 /// ```
 ///
 /// # Module:Envelop
-fn add_rcpt_context(rcpt) { sys::add_rcpt_context(ctx(), rcpt) }
+fn add_rcpt_envelop(rcpt) { sys::add_rcpt_envelop(ctx(), rcpt) }
 
 /// Remove a recipient from the envelop. Note that this does not remove
-/// the recipient from the `To` header. Use `remove_to_message` for that.
+/// the recipient from the `To` header. Use `remove_rcpt_message` for that.
 ///
 /// # Args
 ///
@@ -873,13 +873,13 @@ fn add_rcpt_context(rcpt) { sys::add_rcpt_context(ctx(), rcpt) }
 /// #{
 ///     preq: [
 ///        // never deliver to "john.doe@example.com".
-///        action "rewrite envelop" || remove_rcpt_context("john.doe@example.com"),
+///        action "rewrite envelop" || remove_rcpt_envelop("john.doe@example.com"),
 ///     ]
 /// }
 /// ```
 ///
 /// # Module:Envelop
-fn remove_rcpt_context(rcpt) { sys::remove_rcpt_context(ctx(), rcpt) }
+fn remove_rcpt_envelop(rcpt) { sys::remove_rcpt_envelop(ctx(), rcpt) }
 
 /// Add a recipient as a blind carbon copy. The equivalent of `add_rcpt`.
 ///
@@ -926,7 +926,7 @@ fn bcc(rcpt) { sys::bcc(ctx(), rcpt) }
 ///
 /// # Module:Envelop
 fn rewrite_mail_from(new_addr) {
-    sys::rewrite_mail_from_context(ctx(), new_addr);
+    sys::rewrite_mail_from_envelop(ctx(), new_addr);
     sys::rewrite_mail_from_message(msg(), new_addr)
 }
 

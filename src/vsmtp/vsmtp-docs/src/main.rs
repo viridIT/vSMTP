@@ -90,6 +90,8 @@ fn generate_function_documentation_from_module(
             })
             .unwrap_or("other");
 
+        let comments = comments.replace(&format!("{MODULE_SYNTAX}{module}"), "");
+
         functions_doc.entry(module).or_default().push(format!(
             "<details><summary>{}({})</summary><br/>{}</details>",
             metadata.name,
@@ -134,7 +136,7 @@ fn main() {
         &[
             "Status",
             "Transaction",
-            "Context",
+            "Connection",
             "Auth",
             "Envelop",
             "Message",
@@ -156,6 +158,8 @@ fn main() {
         .expect("please specify a path to the generated Markdown documentation")
         .parse()
         .unwrap();
+
+    path.push("any.md");
 
     for (module, functions) in functions {
         path.set_file_name(format!("{}.md", module));

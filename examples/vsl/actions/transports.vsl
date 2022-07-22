@@ -7,15 +7,15 @@
     connect: [
         // we add a few recipients here for the example's sake.
         action "add recipients" || {
-            add_rcpt_context("john@example.com");
-            add_rcpt_context("doe@example.com");
-            add_rcpt_context("green@example.com");
-            add_rcpt_context("foo@example.com");
-            add_rcpt_context("bar@example.com");
-            add_rcpt_context("a@example.com");
-            add_rcpt_context("b@example.com");
-            add_rcpt_context("c@example.com");
-            add_rcpt_context("d@example.com");
+            add_rcpt_envelop("john@example.com");
+            add_rcpt_envelop("doe@example.com");
+            add_rcpt_envelop("green@example.com");
+            add_rcpt_envelop("foo@example.com");
+            add_rcpt_envelop("bar@example.com");
+            add_rcpt_envelop("a@example.com");
+            add_rcpt_envelop("b@example.com");
+            add_rcpt_envelop("c@example.com");
+            add_rcpt_envelop("d@example.com");
         }
     ],
 

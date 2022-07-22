@@ -219,26 +219,26 @@ pub mod mail_context {
     }
 
     /// Change the sender of the envelop.
-    #[rhai_fn(global, name = "rewrite_mail_from_context", return_raw, pure)]
-    pub fn rewrite_mail_from_context_str(
+    #[rhai_fn(global, name = "rewrite_mail_from_envelop", return_raw, pure)]
+    pub fn rewrite_mail_from_envelop_str(
         context: &mut Context,
         new_addr: &str,
     ) -> EngineResult<()> {
-        super::rewrite_mail_from_context(context, new_addr)
+        super::rewrite_mail_from_envelop(context, new_addr)
     }
 
     /// Change the sender of the envelop using an object.
-    #[rhai_fn(global, name = "rewrite_mail_from_context", return_raw, pure)]
+    #[rhai_fn(global, name = "rewrite_mail_from_envelop", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn rewrite_mail_from_context_obj(
+    pub fn rewrite_mail_from_envelop_obj(
         context: &mut Context,
         new_addr: SharedObject,
     ) -> EngineResult<()> {
-        super::rewrite_mail_from_context(context, &new_addr.to_string())
+        super::rewrite_mail_from_envelop(context, &new_addr.to_string())
     }
 
     /// Replace a recipient of the envelop.
-    #[rhai_fn(global, name = "rewrite_rcpt_context", return_raw, pure)]
+    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
     pub fn rewrite_rcpt_str_str(
         context: &mut Context,
         old_addr: &str,
@@ -248,7 +248,7 @@ pub mod mail_context {
     }
 
     /// Replace a recipient of the envelop.
-    #[rhai_fn(global, name = "rewrite_rcpt_context", return_raw, pure)]
+    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rewrite_rcpt_obj_str(
         context: &mut Context,
@@ -259,7 +259,7 @@ pub mod mail_context {
     }
 
     /// Replace a recipient of the envelop.
-    #[rhai_fn(global, name = "rewrite_rcpt_context", return_raw, pure)]
+    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rewrite_rcpt_str_obj(
         context: &mut Context,
@@ -270,7 +270,7 @@ pub mod mail_context {
     }
 
     /// Replace a recipient of the envelop.
-    #[rhai_fn(global, name = "rewrite_rcpt_context", return_raw, pure)]
+    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn rewrite_rcpt_obj_obj(
         context: &mut Context,
@@ -281,34 +281,34 @@ pub mod mail_context {
     }
 
     /// add a recipient to the envelop.
-    #[rhai_fn(global, name = "add_rcpt_context", return_raw, pure)]
+    #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
     pub fn add_rcpt_str(context: &mut Context, new_addr: &str) -> EngineResult<()> {
         super::add_rcpt(context, new_addr)
     }
 
     /// add a recipient to the envelop.
-    #[rhai_fn(global, name = "add_rcpt_context", return_raw, pure)]
+    #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
     pub fn add_rcpt_obj(context: &mut Context, new_addr: SharedObject) -> EngineResult<()> {
         super::add_rcpt(context, &new_addr.to_string())
     }
 
     /// remove a recipient from the envelop.
-    #[rhai_fn(global, name = "remove_rcpt_context", return_raw, pure)]
-    pub fn remove_rcpt_context_str(context: &mut Context, addr: &str) -> EngineResult<()> {
-        super::remove_rcpt_context(context, addr)
+    #[rhai_fn(global, name = "remove_rcpt_envelop", return_raw, pure)]
+    pub fn remove_rcpt_envelop_str(context: &mut Context, addr: &str) -> EngineResult<()> {
+        super::remove_rcpt_envelop(context, addr)
     }
 
     /// remove a recipient from the envelop.
-    #[rhai_fn(global, name = "remove_rcpt_context", return_raw, pure)]
+    #[rhai_fn(global, name = "remove_rcpt_envelop", return_raw, pure)]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn remove_rcpt_context_obj(context: &mut Context, addr: SharedObject) -> EngineResult<()> {
-        super::remove_rcpt_context(context, &addr.to_string())
+    pub fn remove_rcpt_envelop_obj(context: &mut Context, addr: SharedObject) -> EngineResult<()> {
+        super::remove_rcpt_envelop(context, &addr.to_string())
     }
 }
 
 /// internal generic function to rewrite the `mail_from` value of the envelop.
-fn rewrite_mail_from_context(context: &mut Context, new_addr: &str) -> EngineResult<()> {
+fn rewrite_mail_from_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
     vsl_guard_ok!(context.write()).envelop.mail_from =
         vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
     Ok(())
@@ -348,7 +348,7 @@ fn add_rcpt(context: &mut Context, new_addr: &str) -> EngineResult<()> {
 }
 
 /// internal generic function to remove a recipient to the envelop.
-fn remove_rcpt_context(context: &mut Context, addr: &str) -> EngineResult<()> {
+fn remove_rcpt_envelop(context: &mut Context, addr: &str) -> EngineResult<()> {
     let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
 
     let mut email = vsl_guard_ok!(context.write());

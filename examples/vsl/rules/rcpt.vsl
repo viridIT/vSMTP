@@ -9,9 +9,9 @@ import "rcpt_identifiers" as ident;
 
   postq: [
     action "test_rewrite" || {
-      ctx().rewrite_rcpt_context("johndoe@compagny.com", "johndoe@example.com");
-      ctx().remove_rcpt_context("customer@company.com");
-      ctx().add_rcpt_context("no-reply@example.com");
+      ctx().rewrite_rcpt_envelop("johndoe@compagny.com", "johndoe@example.com");
+      ctx().remove_rcpt_envelop("customer@company.com");
+      ctx().add_rcpt_envelop("no-reply@example.com");
     },
   ]
 }
