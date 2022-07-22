@@ -281,6 +281,7 @@ private fn sys_dkim_verify(policy) {
     last_error
 }
 
+/// Verify the `DKIM-Signature` header(s) in the mail and produce a `Authentication-Results`.
 fn dkim_verify() {
     let result = sys_dkim_verify(#{
         // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
@@ -297,4 +298,9 @@ fn dkim_verify() {
 
     prepend_header("Authentication-Results", header);
     result
+}
+
+/// Produce a `DKIM-Signature` header.
+fn dkim_sign(selector, headers_field) {
+    sys::dkim_sign(msg(), ctx(), srv(), selector, headers_field)
 }

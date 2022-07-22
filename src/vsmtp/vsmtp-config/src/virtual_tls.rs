@@ -15,12 +15,12 @@
  *
 */
 use crate::{
-    field::{FieldServerDNS, FieldServerVirtual, FieldServerVirtualTls, TlsFile},
+    field::{FieldServerVirtualTls, SecretFile},
     parser::{tls_certificate, tls_private_key},
 };
 use vsmtp_common::re::anyhow;
 
-impl<'de> serde::Deserialize<'de> for TlsFile<rustls::PrivateKey> {
+impl<'de> serde::Deserialize<'de> for SecretFile<rustls::PrivateKey> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -33,7 +33,7 @@ impl<'de> serde::Deserialize<'de> for TlsFile<rustls::PrivateKey> {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for TlsFile<rustls::Certificate> {
+impl<'de> serde::Deserialize<'de> for SecretFile<rustls::Certificate> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -41,6 +41,23 @@ impl<'de> serde::Deserialize<'de> for TlsFile<rustls::Certificate> {
         let s = <String as serde::Deserialize>::deserialize(deserializer)?;
         Ok(Self {
             inner: tls_certificate::from_string(&s).map_err(serde::de::Error::custom)?,
+            path: s.into(),
+        })
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SecretFile<rsa::RsaPrivateKey> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Ok(Self {
+            inner: <rsa::RsaPrivateKey as rsa::pkcs8::DecodePrivateKey>::read_pkcs8_pem_file(&s)
+                .or_else(|_| {
+                    <rsa::RsaPrivateKey as rsa::pkcs1::DecodeRsaPrivateKey>::read_pkcs1_pem_file(&s)
+                })
+                .map_err(serde::de::Error::custom)?,
             path: s.into(),
         })
     }
@@ -56,69 +73,15 @@ impl FieldServerVirtualTls {
     pub fn from_path(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
         Ok(Self {
             protocol_version: vec![rustls::ProtocolVersion::TLSv1_3],
-            certificate: TlsFile::<rustls::Certificate> {
+            certificate: SecretFile::<rustls::Certificate> {
                 inner: tls_certificate::from_string(certificate)?,
                 path: certificate.into(),
             },
-            private_key: TlsFile::<rustls::PrivateKey> {
+            private_key: SecretFile::<rustls::PrivateKey> {
                 inner: tls_private_key::from_string(private_key)?,
                 path: private_key.into(),
             },
             sender_security_level: Self::default_sender_security_level(),
-        })
-    }
-}
-
-impl FieldServerVirtual {
-    /// create a new virtual domain using the root domain parameters.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self {
-            tls: None,
-            dns: None,
-        }
-    }
-
-    /// create a new virtual domain with tls parameters.
-    ///
-    /// # Errors
-    ///
-    /// * certificate is not valid
-    /// * private key is not valid
-    pub fn with_tls(certificate: &str, private_key: &str) -> anyhow::Result<Self> {
-        Ok(Self {
-            tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
-            dns: None,
-        })
-    }
-
-    /// create a new virtual domain with a dns config.
-    ///
-    /// # Errors
-    ///
-    /// * certificate is not valid
-    /// * private key is not valid
-    pub const fn with_dns(dns_config: FieldServerDNS) -> anyhow::Result<Self> {
-        Ok(Self {
-            tls: None,
-            dns: Some(dns_config),
-        })
-    }
-
-    /// create a new virtual domain with a dns & tls parameters.
-    ///
-    /// # Errors
-    ///
-    /// * certificate is not valid
-    /// * private key is not valid
-    pub fn with_tls_and_dns(
-        certificate: &str,
-        private_key: &str,
-        dns_config: FieldServerDNS,
-    ) -> anyhow::Result<Self> {
-        Ok(Self {
-            tls: Some(FieldServerVirtualTls::from_path(certificate, private_key)?),
-            dns: Some(dns_config),
         })
     }
 }
