@@ -37,6 +37,7 @@ use vsmtp_rule_engine::{modules::StandardVSLPackage, rule_engine::RuleEngine, Sh
 
 const MODULE_SYNTAX: &str = "# Module:";
 
+/// Generate a markdown table for each variables found in a module.
 fn generate_variable_documentation_from_module(module: &rhai::Module) -> String {
     let (var_count, _, _) = module.count();
 
@@ -57,6 +58,13 @@ fn generate_variable_documentation_from_module(module: &rhai::Module) -> String 
     format!("|name|value|\n| - | - |\n{}\n", variables_doc.join("\n"))
 }
 
+/// Generate markdown documentation for each functions in a module.
+/// Functions can have a "# Markdown:{module}" syntax in their comments
+/// to filter them by module.
+///
+/// If a module is not specified in `module_names`, the program will panic.
+/// If a module is not specified in a function comment, it will be put in
+/// the "other" module.
 fn generate_function_documentation_from_module(
     module_names: &[&str],
     module: &rhai::Module,
@@ -109,15 +117,6 @@ fn generate_function_documentation_from_module(
             (module, functions.join("\n"))
         })
         .collect::<Vec<_>>()
-
-    // .fold(String::default(), |acc, functions| {
-    //     let module = functions.0;
-    //     let mut functions = functions.1.clone();
-    //     format!("{}\n# {}\n{}\n\n", acc, module, {
-    //         functions.sort();
-    //         functions.join("\n")
-    //     })
-    // })
 }
 
 // TODO: find a way to incorporate native functions metadata and documentation.
