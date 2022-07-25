@@ -6,12 +6,13 @@ filepath = "/var/log/vsmtp/vsmtp.log"
 # for all available formats.
 format = "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}"
 
-[server.logs.level]
-default = "warn"
-receiver = "info"
-rule_engine = "warn"
-delivery = "error"
-parser = "trace"
+level = [
+    "default=warn",
+    "receiver=info",
+    "rule_engine=warn",
+    "delivery=error",
+    "parser=trace",
+]
 
 [server.smtp.codes]
 Greetings = "220 {domain} ESMTP Service ready"
@@ -29,7 +30,4 @@ text = "STARTTLS is required to send mail"
 
 [app.logs]
 filepath = "/var/log/vsmtp/app.log"
-level = "trace"
 format = "{d} - {m}{n}"
-archive_count = 100
-size_limit = 20_971_520             # 20MB
