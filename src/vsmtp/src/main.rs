@@ -35,6 +35,13 @@ fn main() {
     }
 }
 
+fn bind_sockets(addr: &[std::net::SocketAddr]) -> anyhow::Result<Vec<std::net::TcpListener>> {
+    addr.iter()
+        .cloned()
+        .map(socket_bind_anyhow)
+        .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()
+}
+
 fn try_main() -> anyhow::Result<()> {
     let args = <Args as clap::StructOpt>::parse();
 
@@ -71,30 +78,9 @@ fn try_main() -> anyhow::Result<()> {
     }
 
     let sockets = (
-        config
-            .server
-            .interfaces
-            .addr
-            .iter()
-            .cloned()
-            .map(socket_bind_anyhow)
-            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
-        config
-            .server
-            .interfaces
-            .addr_submission
-            .iter()
-            .cloned()
-            .map(socket_bind_anyhow)
-            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
-        config
-            .server
-            .interfaces
-            .addr_submissions
-            .iter()
-            .cloned()
-            .map(socket_bind_anyhow)
-            .collect::<anyhow::Result<Vec<std::net::TcpListener>>>()?,
+        bind_sockets(&config.server.interfaces.addr)?,
+        bind_sockets(&config.server.interfaces.addr_submission)?,
+        bind_sockets(&config.server.interfaces.addr_submissions)?,
     );
 
     if !args.no_daemon {
@@ -114,48 +100,7 @@ fn try_main() -> anyhow::Result<()> {
         // setuid(config.server.system.user.uid())?;
     }
 
-    // get_log4rs_config(&config, args.no_daemon)
-    //     .context("Logs configuration contain error")
-    //     .map(log4rs::init_config)
-    //     .context("Cannot initialize logs")??;
-
-    let file_appender = tracing_appender::rolling::daily(&config.server.logs.filepath, "vsmtp");
-    let (non_blocking_backend, _guard) = tracing_appender::non_blocking(file_appender);
-
-    let file_appender = tracing_appender::rolling::daily(&config.app.logs.filepath, "app");
-    let (non_blocking_app, _guard) = tracing_appender::non_blocking(file_appender);
-
-    use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-
-    let tracing_subscriber = tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
-        .with(
-            fmt::layer()
-                .with_file(true)
-                .with_line_number(true)
-                .with_thread_ids(true)
-                .with_target(true),
-        );
-
-    if args.no_daemon {
-        tracing_subscriber
-            .with(
-                fmt::layer().with_writer(
-                    non_blocking_backend
-                        .and(non_blocking_app)
-                        .and(std::io::stdout),
-                ),
-            )
-            .init();
-    } else {
-        tracing_subscriber
-            .with(
-                fmt::layer()
-                    .with_writer(non_blocking_backend.and(non_blocking_app))
-                    .with_ansi(false),
-            )
-            .init();
-    }
+    vsmtp::tracing_subscriber::initialize(&args, &config);
 
     start_runtime(config, sockets, args.timeout.map(|t| t.0)).map_err(|e| {
         log::error!("vSMTP terminating error: '{e}'");
