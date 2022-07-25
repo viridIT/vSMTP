@@ -11,12 +11,6 @@
 //
 #![allow(clippy::use_self)]
 
-mod log_channels {
-    /// server's rule
-    pub const RE: &str = "server::rule_engine";
-    pub const SERVICES: &str = "server::rule_engine::services";
-}
-
 mod dsl {
     pub mod action;
     pub mod delegation;

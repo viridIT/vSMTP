@@ -34,10 +34,10 @@ use crate::dsl::object::Object;
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
 use crate::dsl::service::Service;
+use crate::modules;
 use crate::modules::actions::rule_state::rule_state::deny;
 use crate::modules::EngineResult;
 use crate::rule_state::RuleState;
-use crate::{log_channels, modules};
 
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
@@ -67,10 +67,7 @@ impl RuleEngine {
     /// * failed to register `script_path` as a valid module folder.
     /// * failed to compile or load any script located at `script_path`.
     pub fn new(config: &Config, script_path: &Option<std::path::PathBuf>) -> anyhow::Result<Self> {
-        log::debug!(
-            target: log_channels::RE,
-            "building vsl compiler and modules ..."
-        );
+        log::debug!("building vsl compiler and modules ...");
 
         let mut compiler = Self::new_compiler();
 
@@ -95,7 +92,7 @@ impl RuleEngine {
             .register_static_module("sys", vsl_native_module.clone())
             .register_static_module("toml", toml_module.clone());
 
-        log::debug!(target: log_channels::RE, "compiling rhai scripts ...");
+        log::debug!("compiling rhai scripts ...");
 
         let vsl_rhai_module =
             rhai::Shared::new(Self::compile_api(&compiler).context("failed to compile vsl's api")?);
@@ -111,8 +108,7 @@ impl RuleEngine {
                 .map_err(|err| anyhow::anyhow!("failed to compile your scripts: {err}"))
         } else {
             log::warn!(
-                target: log_channels::RE,
-                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default.",
+                "No 'main.vsl' provided in the config, the server will deny any incoming transaction by default."
             );
 
             compiler
@@ -122,7 +118,7 @@ impl RuleEngine {
 
         let directives = Self::extract_directives(&compiler, &ast)?;
 
-        log::debug!(target: log_channels::RE, "done.");
+        log::debug!("done.");
 
         Ok(Self {
             ast,
@@ -228,7 +224,7 @@ impl RuleEngine {
                                         context.metadata.as_mut().unwrap().skipped = None;
                                         *rule_state.context().write().unwrap() = context;
                                     },
-                                    Err(err) => log::error!(target: log_channels::RE, "[{}] tried to get old mail context '{}' from the working queue after a delegation, but: {}", smtp_state, message_id, err)
+                                    Err(err) => log::error!("[{}] tried to get old mail context '{}' from the working queue after a delegation, but: {}", smtp_state, message_id, err)
                                 };
 
                                 rule_state.resume();
@@ -251,7 +247,6 @@ impl RuleEngine {
                 Ok(status) => {
                     if status.stop() {
                         log::debug!(
-                            target: log_channels::RE,
                             "[{}] the rule engine will skip all rules because of the previous result.",
                             smtp_state
                         );
@@ -261,11 +256,7 @@ impl RuleEngine {
                     return status;
                 }
                 Err(error) => {
-                    log::error!(
-                        target: log_channels::RE,
-                        "{}",
-                        Self::parse_stage_error(error, smtp_state)
-                    );
+                    log::error!("{}", Self::parse_stage_error(error, smtp_state));
 
                     // if an error occurs, the engine denies the connection by default.
                     let state_if_error = deny();
@@ -290,7 +281,6 @@ impl RuleEngine {
             status = directive.execute(state, &self.ast, smtp_state)?;
 
             log::debug!(
-                target: log_channels::RE,
                 "[{}] {} '{}' evaluated => {:?}.",
                 smtp_state,
                 directive.directive_type(),
@@ -303,12 +293,7 @@ impl RuleEngine {
             }
         }
 
-        log::debug!(
-            target: log_channels::RE,
-            "[{}] stage evaluated => {:?}.",
-            smtp_state,
-            status
-        );
+        log::debug!("[{}] stage evaluated => {:?}.", smtp_state, status);
 
         Ok(status)
     }

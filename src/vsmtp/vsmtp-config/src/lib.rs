@@ -25,15 +25,6 @@
 //!
 //! You can find examples of TOML file at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
 
-#![doc(html_no_source)]
-#![deny(missing_docs)]
-#![forbid(unsafe_code)]
-//
-#![warn(clippy::all)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::nursery)]
-#![warn(clippy::cargo)]
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -51,15 +42,14 @@
  *
 */
 
-/// targets for log! macro
-pub mod log_channel {
-    /// default log, use this instead of the root log.
-    pub const DEFAULT: &str = "server";
-    /// application logs (rule engine).
-    pub const APP: &str = "app";
-    /// root log, used to display dependencies logs.
-    pub const ROOT: &str = "root";
-}
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
 
 #[cfg(test)]
 mod tests;
