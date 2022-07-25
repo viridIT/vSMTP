@@ -32,10 +32,7 @@ use crate::{
 };
 use vsmtp_common::{
     auth::Mechanism,
-    re::{
-        anyhow::{self, Context},
-        log,
-    },
+    re::anyhow::{self, Context},
     state::StateSMTP,
     CodeID, Reply,
 };
@@ -277,16 +274,14 @@ impl Builder<WantsServerLogs> {
         self,
         filepath: impl Into<std::path::PathBuf>,
         format: impl Into<String>,
-        level: std::collections::BTreeMap<String, log::LevelFilter>,
+        level: impl Into<String>,
     ) -> Builder<WantsServerQueues> {
         Builder::<WantsServerQueues> {
             state: WantsServerQueues {
                 parent: self.state,
                 filepath: filepath.into(),
                 format: format.into(),
-                level,
-                size_limit: FieldServerLogs::default_size_limit(),
-                archive_count: FieldServerLogs::default_archive_count(),
+                level: level.into(),
             },
         }
     }
@@ -588,13 +583,7 @@ impl Builder<WantsAppLogs> {
         self,
         filepath: impl Into<std::path::PathBuf>,
     ) -> Builder<WantsServerDNS> {
-        self.with_app_logs_level_and_format(
-            filepath,
-            FieldAppLogs::default_level(),
-            FieldAppLogs::default_format(),
-            FieldAppLogs::default_size_limit(),
-            FieldAppLogs::default_archive_count(),
-        )
+        self.with_app_logs_level_and_format(filepath, FieldAppLogs::default_format())
     }
 
     ///
@@ -602,19 +591,13 @@ impl Builder<WantsAppLogs> {
     pub fn with_app_logs_level_and_format(
         self,
         filepath: impl Into<std::path::PathBuf>,
-        level: log::LevelFilter,
         format: impl Into<String>,
-        size_limit: u64,
-        archive_count: u32,
     ) -> Builder<WantsServerDNS> {
         Builder::<WantsServerDNS> {
             state: WantsServerDNS {
                 parent: self.state,
                 filepath: filepath.into(),
-                level,
                 format: format.into(),
-                size_limit,
-                archive_count,
             },
         }
     }

@@ -14,10 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-#![allow(clippy::use_self)] // false positive
-
 use serde_with::serde_as;
-use vsmtp_common::{auth::Mechanism, re::log, CodeID, Reply};
+use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 
 /// This structure contains all the field to configure the server at the startup.
 ///
@@ -196,22 +194,18 @@ pub mod field {
     pub struct FieldServerLogs {
         /// Filepath of the server's log.
         ///
-        /// Once the file as reached [`FieldServerLogs::size_limit`], an archive is created
-        /// in the folder `{filepath}-ar`, named `trace.{N}.gz` (N being the number of archive).
+        /// A daily rolling file will be created at `{filepath}/vsmtp.{YYYY.MM.DD}`.
         #[serde(default = "FieldServerLogs::default_filepath")]
         pub filepath: std::path::PathBuf,
         /// Format of the output, see [`log4rs::encode::pattern`]
+        // FIXME: UNUSED
         #[serde(default = "FieldServerLogs::default_format")]
         pub format: String,
         /// Customize the log level of the different part of the program.
+        ///
+        /// See <https://docs.rs/tracing-subscriber/0.3.15/tracing_subscriber/filter/struct.EnvFilter.html>
         #[serde(default = "FieldServerLogs::default_level")]
-        pub level: std::collections::BTreeMap<String, log::LevelFilter>,
-        /// Size limit of the content in [`FieldServerLogs::filepath`] before archiving.
-        #[serde(default = "FieldServerLogs::default_size_limit")]
-        pub size_limit: u64,
-        /// Number maximum of archive kept, the excess is deleted.
-        #[serde(default = "FieldServerLogs::default_archive_count")]
-        pub archive_count: u32,
+        pub level: String,
     }
 
     /// The configuration of the [`vsmtp_common::queue::Queue::Working`]
@@ -538,17 +532,9 @@ pub mod field {
         #[serde(default = "FieldAppLogs::default_filepath")]
         pub filepath: std::path::PathBuf,
         ///
-        #[serde(default = "FieldAppLogs::default_level")]
-        pub level: log::LevelFilter,
-        ///
+        // FIXME: UNUSED
         #[serde(default = "FieldAppLogs::default_format")]
         pub format: String,
-        ///
-        #[serde(default = "FieldAppLogs::default_size_limit")]
-        pub size_limit: u64,
-        ///
-        #[serde(default = "FieldAppLogs::default_archive_count")]
-        pub archive_count: u32,
     }
 
     /// Configuration of the application run by `vSMTP`.

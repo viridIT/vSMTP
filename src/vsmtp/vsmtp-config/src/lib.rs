@@ -50,6 +50,8 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
+//
+#![allow(clippy::use_self)] // false positive
 
 #[cfg(test)]
 mod tests;
