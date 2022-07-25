@@ -65,6 +65,7 @@ mod parser {
     pub mod tls_cipher_suite;
     pub mod tls_private_key;
     pub mod tls_protocol_version;
+    pub mod tracing_directive;
 }
 
 /// The configuration builder for programmatically instantiating

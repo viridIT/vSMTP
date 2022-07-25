@@ -204,8 +204,12 @@ pub mod field {
         /// Customize the log level of the different part of the program.
         ///
         /// See <https://docs.rs/tracing-subscriber/0.3.15/tracing_subscriber/filter/struct.EnvFilter.html>
-        #[serde(default = "FieldServerLogs::default_level")]
-        pub level: String,
+        #[serde(
+            default = "FieldServerLogs::default_level",
+            serialize_with = "crate::parser::tracing_directive::serialize",
+            deserialize_with = "crate::parser::tracing_directive::deserialize"
+        )]
+        pub level: Vec<tracing_subscriber::filter::Directive>,
     }
 
     /// The configuration of the [`vsmtp_common::queue::Queue::Working`]

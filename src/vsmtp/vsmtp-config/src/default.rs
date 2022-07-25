@@ -151,8 +151,8 @@ impl FieldServerLogs {
         "{d(%Y-%m-%d %H:%M:%S%.f)} {h({l:<5})} {t:<30} $ {m}{n}".to_string()
     }
 
-    pub(crate) fn default_level() -> String {
-        "warn".to_string()
+    pub(crate) fn default_level() -> Vec<tracing_subscriber::filter::Directive> {
+        vec!["warn".parse().expect("hardcoded value is valid")]
     }
 }
 

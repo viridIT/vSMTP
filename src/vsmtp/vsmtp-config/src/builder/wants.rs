@@ -63,7 +63,7 @@ pub struct WantsServerQueues {
     pub(crate) parent: WantsServerLogs,
     pub(super) filepath: std::path::PathBuf,
     pub(super) format: String,
-    pub(super) level: String,
+    pub(super) level: Vec<tracing_subscriber::filter::Directive>,
 }
 
 ///

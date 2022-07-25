@@ -42,7 +42,13 @@ pub fn initialize(args: &Args, config: &Config) {
         .with_target(true);
 
     let subscriber = tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
+        .with(EnvFilter::builder().try_from_env().unwrap_or_else(|_| {
+            let mut e = EnvFilter::default();
+            for i in &config.server.logs.level {
+                e = e.add_directive(i.clone());
+            }
+            e
+        }))
         .with(layer);
 
     if args.no_daemon {

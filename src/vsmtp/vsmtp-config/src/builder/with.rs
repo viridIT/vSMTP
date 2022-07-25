@@ -264,7 +264,7 @@ impl Builder<WantsServerLogs> {
         self.with_logs_settings(
             FieldServerLogs::default_filepath(),
             FieldServerLogs::default_format(),
-            FieldServerLogs::default_level(),
+            &FieldServerLogs::default_level(),
         )
     }
 
@@ -274,14 +274,14 @@ impl Builder<WantsServerLogs> {
         self,
         filepath: impl Into<std::path::PathBuf>,
         format: impl Into<String>,
-        level: impl Into<String>,
+        level: &[tracing_subscriber::filter::Directive],
     ) -> Builder<WantsServerQueues> {
         Builder::<WantsServerQueues> {
             state: WantsServerQueues {
                 parent: self.state,
                 filepath: filepath.into(),
                 format: format.into(),
-                level: level.into(),
+                level: level.to_vec(),
             },
         }
     }

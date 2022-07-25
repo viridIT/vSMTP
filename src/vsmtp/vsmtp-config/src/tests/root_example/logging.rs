@@ -31,7 +31,7 @@ fn parse() {
             .with_logs_settings(
                 "/var/log/vsmtp/vsmtp.log",
                 "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
-                "warn",
+                &["warn".parse().unwrap()],
                 // collection! {
                 //     "default".to_string() => log::LevelFilter::Warn,
                 //     "receiver".to_string() => log::LevelFilter::Info,
