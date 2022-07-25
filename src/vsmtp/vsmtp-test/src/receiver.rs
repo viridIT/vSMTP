@@ -95,7 +95,7 @@ impl OnMail for DefaultMailHandler {
 ///
 /// # Errors
 ///
-/// * the outcome of [`handle_connection`]
+/// * the outcome of [`Connection::receive`]
 ///
 /// # Panics
 ///
