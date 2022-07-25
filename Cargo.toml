@@ -62,10 +62,11 @@ diff = "0.1.13"
 tracing-subscriber = { version = "0.3.15", features = ["json", "env-filter"] }
 tracing = "0.1.35"
 tracing-appender = "0.2.2"
+console-subscriber = { version = "0.1.6", optional = true }
 
 [features]
-default = ["gsasl_bindgen"]
-gsasl_bindgen = ["vsmtp-common/gsasl_bindgen"]
+default = ["vsmtp-common/gsasl_bindgen"]
+tokio_console = ["console-subscriber"]
 
 # TODO: improve that
 [package.metadata.docs.rs]

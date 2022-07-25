@@ -51,6 +51,9 @@ pub fn initialize(args: &Args, config: &Config) {
         }))
         .with(layer);
 
+    #[cfg(feature = "tokio_console")]
+    let subscriber = subscriber.with(console_subscriber::spawn());
+
     if args.no_daemon {
         subscriber
             .with(fmt::layer().with_writer(writer_backend.and(writer_app).and(std::io::stdout)))
