@@ -78,7 +78,6 @@ pub mod builder {
 mod config;
 mod default;
 mod ensure;
-mod log4rs_helper;
 mod rustls_helper;
 mod trust_dns_helper;
 mod virtual_tls;
@@ -92,7 +91,6 @@ pub use trust_dns_helper::{build_resolvers, Resolvers};
 /// Re-exported dependencies
 pub mod re {
     pub use humantime_serde::re::humantime;
-    // pub use log4rs;
     pub use rustls;
     // NOTE: this one should not be re-exported (because tests only)
     pub use rustls_pemfile;
