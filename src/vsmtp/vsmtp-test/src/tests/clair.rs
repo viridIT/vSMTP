@@ -33,7 +33,9 @@ async fn test_receiver_1() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
@@ -269,7 +271,9 @@ async fn test_receiver_13() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,
@@ -358,7 +362,9 @@ async fn test_receiver_14() {
 
     #[async_trait::async_trait]
     impl OnMail for T {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             mail: Box<MailContext>,

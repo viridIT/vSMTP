@@ -1,5 +1,22 @@
 //! vSMTP server
 
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+ */
+
 #![doc(html_no_source)]
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
@@ -14,18 +31,6 @@
 #[cfg(test)]
 mod tests;
 
-mod log_channels {
-    pub const SERVER: &str = "server::server";
-    pub const AUTH: &str = "server::receiver::auth";
-    pub const CONNECTION: &str = "server::receiver::connection";
-    pub const TRANSACTION: &str = "server::receiver::transaction";
-    pub const RUNTIME: &str = "server::runtime";
-    pub const DEFERRED: &str = "server::processes::deferred";
-    pub const DELIVERY: &str = "server::processes::delivery";
-    pub const POSTQ: &str = "server::processes::postq";
-    pub const PREQ: &str = "server::processes::preq";
-}
-
 mod channel_message;
 mod delivery;
 mod processing;
@@ -33,13 +38,12 @@ mod receiver;
 mod runtime;
 mod server;
 
-use lettre::Transport;
 pub use receiver::MailHandler;
 
 /// SMTP auth extension implementation
 pub mod auth;
 pub use channel_message::ProcessMessage;
-pub use receiver::{handle_connection, AbstractIO, Connection, OnMail};
+pub use receiver::{AbstractIO, Connection, OnMail};
 pub use runtime::start_runtime;
 pub use server::{socket_bind_anyhow, Server};
 
@@ -70,6 +74,8 @@ pub(crate) fn delegate(
     context: &MailContext,
     message: &MessageBody,
 ) -> anyhow::Result<lettre::transport::smtp::response::Response> {
+    use lettre::Transport;
+
     let envelope = lettre::address::Envelope::new(
         Some(context.envelop.mail_from.full().parse()?),
         context

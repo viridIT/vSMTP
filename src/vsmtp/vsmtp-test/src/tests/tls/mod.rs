@@ -33,6 +33,7 @@ use vsmtp_config::{
 };
 use vsmtp_rule_engine::rule_engine::RuleEngine;
 use vsmtp_server::auth;
+use vsmtp_server::Connection;
 use vsmtp_server::{ProcessMessage, Server};
 
 pub fn get_tls_config() -> Config {
@@ -82,10 +83,13 @@ async fn test_starttls(
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
         Server::run_session(
-            client_stream,
-            client_addr,
-            ConnectionKind::Relay,
-            server_config.clone(),
+            Connection::new(
+                ConnectionKind::Relay,
+                client_addr,
+                socket_server.local_addr().expect("retrieve local address"),
+                server_config.clone(),
+                client_stream,
+            ),
             if with_valid_config {
                 Some(std::sync::Arc::new(
                     get_rustls_config(
@@ -227,10 +231,13 @@ async fn test_tls_tunneled(
         let (client_stream, client_addr) = socket_server.accept().await.unwrap();
 
         Server::run_session(
-            client_stream,
-            client_addr,
-            ConnectionKind::Tunneled,
-            server_config.clone(),
+            Connection::new(
+                ConnectionKind::Tunneled,
+                client_addr,
+                socket_server.local_addr().expect("retrieve local address"),
+                server_config.clone(),
+                client_stream,
+            ),
             get_tls_config(&server_config),
             get_auth_config(&server_config),
             std::sync::Arc::new(std::sync::RwLock::new(

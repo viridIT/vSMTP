@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{log_channels, AbstractIO};
+use crate::AbstractIO;
 use vsmtp_common::{
     re::{anyhow, log, tokio},
     CodeID, ConnectionKind, Reply, ReplyOrCodeID,
@@ -25,7 +25,7 @@ use vsmtp_config::Config;
 /// Instance containing connection to the server's information
 pub struct Connection<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     /// server's port
     pub kind: ConnectionKind,
@@ -53,9 +53,30 @@ where
     pub inner: AbstractIO<S>,
 }
 
+impl<S> std::fmt::Debug for Connection<S>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Connection")
+            .field("kind", &self.kind)
+            .field("server_name", &self.server_name)
+            .field("timestamp", &self.timestamp)
+            .field("is_alive", &self.is_alive)
+            .field("client_addr", &self.client_addr)
+            .field("server_addr", &self.server_addr)
+            .field("error_count", &self.error_count)
+            .field("is_secured", &self.is_secured)
+            .field("is_authenticated", &self.is_authenticated)
+            .field("authentication_attempt", &self.authentication_attempt)
+            // .field("inner", &self.inner)
+            .finish()
+    }
+}
+
 impl<S> Connection<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     ///
     pub fn new(
@@ -115,7 +136,7 @@ where
 
 impl<S> Connection<S>
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
 {
     ///
     /// # Errors
@@ -147,12 +168,6 @@ where
     ///
     /// # Errors
     pub async fn send_reply(&mut self, reply: Reply) -> anyhow::Result<()> {
-        log::info!(
-            target: log_channels::CONNECTION,
-            "[{}] sending reply=\"{reply:?}\"",
-            self.server_addr
-        );
-
         if !reply.code().is_error() {
             self.send(&reply.fold()).await?;
             return Ok(());
@@ -163,6 +178,7 @@ where
         let soft_error = self.config.server.smtp.error.soft_count;
 
         if hard_error != -1 && self.error_count >= hard_error {
+            log::warn!("hard error count max reached `{hard_error}`, closing connection");
             self.send(
                 &Reply::combine(
                     &reply,
@@ -179,12 +195,12 @@ where
             tokio::io::AsyncWriteExt::flush(&mut self.inner.inner).await?;
 
             anyhow::bail!("{:?}", CodeID::TooManyError)
-            // return Ok(());
         }
 
         self.send(&reply.fold()).await?;
 
         if soft_error != -1 && self.error_count >= soft_error {
+            log::info!("soft error reached `{soft_error}`, delaying connection");
             tokio::time::sleep(self.config.server.smtp.error.delay).await;
         }
         Ok(())
@@ -196,12 +212,7 @@ where
     ///
     /// * internal connection writer error
     pub async fn send(&mut self, reply: &str) -> anyhow::Result<()> {
-        log::info!(
-            target: log_channels::CONNECTION,
-            "[{}] send=\"{:?}\"",
-            self.server_addr,
-            reply
-        );
+        log::trace!("sending=`{reply:?}`");
         tokio::io::AsyncWriteExt::write_all(&mut self.inner.inner, reply.as_bytes()).await?;
         Ok(())
     }

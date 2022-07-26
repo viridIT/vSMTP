@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{log_channels, Connection, Process, ProcessMessage};
+use crate::{Connection, Process, ProcessMessage};
 use vsmtp_common::{
     mail_context::MailContext,
     queue::Queue,
@@ -30,7 +30,9 @@ use vsmtp_config::create_app_folder;
 #[async_trait::async_trait]
 pub trait OnMail {
     /// the server executes this function once the email as been received.
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    async fn on_mail<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
@@ -74,7 +76,9 @@ impl MailHandler {
     }
 
     #[allow(clippy::too_many_lines)]
-    async fn on_mail_priv<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    async fn on_mail_priv<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &self,
         conn: &mut Connection<S>,
         mut mail_context: Box<MailContext>,
@@ -100,7 +104,7 @@ impl MailHandler {
                     .await
                     .map_err(MailHandlerError::WriteQuarantineFile)?;
 
-                log::warn!(target: log_channels::PREQ, "skipped due to quarantine.",);
+                log::warn!("skipped due to quarantine.");
             }
             Some(Status::Delegated(_)) => {
                 unreachable!("delegate directive cannot be used in preq stage")
@@ -132,11 +136,7 @@ impl MailHandler {
                 write_to_queue = Some(Queue::Dead);
             }
             Some(reason) => {
-                log::warn!(
-                    target: log_channels::PREQ,
-                    "skipped due to '{}'.",
-                    reason.as_ref()
-                );
+                log::warn!("skipped due to '{}'.", reason.as_ref());
                 write_to_queue = Some(Queue::Deliver);
                 send_to_next_process = Some(Process::Delivery);
             }
@@ -150,11 +150,7 @@ impl MailHandler {
             .write_to_mails(&conn.config.server.queues.dirpath, &message_id)
             .map_err(MailHandlerError::WriteMessageBody)?;
 
-        log::debug!(
-            target: log_channels::PREQ,
-            "(msg={}) email written in 'mails' queue.",
-            message_id
-        );
+        log::trace!("email written in 'mails' queue.");
 
         if let Some(queue) = write_to_queue {
             queue
@@ -180,7 +176,10 @@ impl MailHandler {
 
 #[async_trait::async_trait]
 impl OnMail for MailHandler {
-    async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    #[tracing::instrument(skip(self, conn))]
+    async fn on_mail<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         conn: &mut Connection<S>,
         mail: Box<MailContext>,
@@ -189,11 +188,7 @@ impl OnMail for MailHandler {
         match self.on_mail_priv(conn, mail, message).await {
             Ok(_) => CodeID::Ok,
             Err(error) => {
-                log::warn!(
-                    target: log_channels::PREQ,
-                    "[{}] failed to process mail: {error}",
-                    conn.server_addr
-                );
+                log::warn!("failed to process mail: {error}");
                 CodeID::Denied
             }
         }

@@ -15,7 +15,6 @@
  *
 */
 use super::Transport;
-use crate::transport::log_channels;
 use anyhow::Context;
 use vsmtp_common::{
     libc_abstraction::{chown, getpwuid},
@@ -55,7 +54,6 @@ impl Transport for Maildir {
             }) {
                 Some(Ok(_)) => {
                     log::info!(
-                        target: log_channels::MAILDIR,
                         "(msg={}) successfully delivered to {rcpt} as maildir",
                         metadata.message_id
                     );
@@ -66,7 +64,6 @@ impl Transport for Maildir {
                 }
                 Some(Err(e)) => {
                     log::error!(
-                        target: log_channels::MAILDIR,
                         "(msg={}) failed to write email in maildir of '{rcpt}': {e}",
                         metadata.message_id
                     );
@@ -75,7 +72,6 @@ impl Transport for Maildir {
                 }
                 None => {
                     log::error!(
-                        target: log_channels::MAILDIR,
                         "(msg={}) failed to write email in maildir of '{}': '{}' is not a user",
                         metadata.message_id,
                         rcpt.address.local_part(),
@@ -143,7 +139,6 @@ fn write_to_maildir(
     )?;
 
     log::debug!(
-        target: log_channels::MAILDIR,
         "(msg={}) {} bytes written to {:?}'s inbox",
         metadata.message_id,
         content.len(),

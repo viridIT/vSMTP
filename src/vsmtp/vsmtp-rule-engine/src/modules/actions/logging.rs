@@ -23,21 +23,16 @@ use rhai::plugin::{
 #[rhai::plugin::export_module]
 pub mod logging {
     use vsmtp_common::re::log;
-    use vsmtp_config::log_channel::APP;
 
     ///
     pub fn log(level: &str, message: &str) {
-        match level {
-            "trace" => log::trace!(target: APP, "{}", message),
-            "debug" => log::debug!(target: APP, "{}", message),
-            "info" => log::info!(target: APP, "{}", message),
-            "warn" => log::warn!(target: APP, "{}", message),
-            "error" => log::error!(target: APP, "{}", message),
-            unknown => log::warn!(
-                target: APP,
-                "'{}' is not a valid log level. Original message: '{}'",
-                unknown,
-                message
+        const APP_TARGET: &str = "app";
+
+        match <log::Level as std::str::FromStr>::from_str(level) {
+            Ok(level) => log::log!(target: APP_TARGET, level, "{message}"),
+            Err(e) => log::warn!(
+                target: APP_TARGET,
+                "Got an error with level `{level}`: `{e}`. Message was: '{message}'"
             ),
         }
     }

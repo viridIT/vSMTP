@@ -14,10 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-#![allow(clippy::use_self)] // false positive
-
 use serde_with::serde_as;
-use vsmtp_common::{auth::Mechanism, re::log, CodeID, Reply};
+use vsmtp_common::{auth::Mechanism, CodeID, Reply};
 
 /// This structure contains all the field to configure the server at the startup.
 ///
@@ -84,6 +82,7 @@ pub mod field {
         #[serde(default)]
         pub queues: FieldServerQueues,
         /// see [`FieldServerTls`]
+        // TODO: should not be an Option<> and should be under #[cfg(feature = "smtps")]
         pub tls: Option<FieldServerTls>,
         /// see [`FieldServerSMTP`]
         #[serde(default)]
@@ -91,9 +90,20 @@ pub mod field {
         /// see [`FieldServerDNS`]
         #[serde(default)]
         pub dns: FieldServerDNS,
+        /// see [`FieldDkim`]
+        // TODO: should not be an Option<> and should be under #[cfg(feature = "dkim")]
+        pub dkim: Option<FieldDkim>,
         /// see [`FieldServerVirtual`]
         #[serde(default)]
         pub r#virtual: std::collections::BTreeMap<String, FieldServerVirtual>,
+    }
+
+    /// Readonly configuration for the dkim module.
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct FieldDkim {
+        /// The private key used to sign the mail.
+        pub private_key: SecretFile<rsa::RsaPrivateKey>,
     }
 
     /// The field related to the privileges used by `vSMTP`.
@@ -184,22 +194,22 @@ pub mod field {
     pub struct FieldServerLogs {
         /// Filepath of the server's log.
         ///
-        /// Once the file as reached [`FieldServerLogs::size_limit`], an archive is created
-        /// in the folder `{filepath}-ar`, named `trace.{N}.gz` (N being the number of archive).
+        /// A daily rolling file will be created at `{filepath}/vsmtp.{YYYY.MM.DD}`.
         #[serde(default = "FieldServerLogs::default_filepath")]
         pub filepath: std::path::PathBuf,
         /// Format of the output, see [`log4rs::encode::pattern`]
+        // FIXME: UNUSED
         #[serde(default = "FieldServerLogs::default_format")]
         pub format: String,
         /// Customize the log level of the different part of the program.
-        #[serde(default = "FieldServerLogs::default_level")]
-        pub level: std::collections::BTreeMap<String, log::LevelFilter>,
-        /// Size limit of the content in [`FieldServerLogs::filepath`] before archiving.
-        #[serde(default = "FieldServerLogs::default_size_limit")]
-        pub size_limit: u64,
-        /// Number maximum of archive kept, the excess is deleted.
-        #[serde(default = "FieldServerLogs::default_archive_count")]
-        pub archive_count: u32,
+        ///
+        /// See <https://docs.rs/tracing-subscriber/0.3.15/tracing_subscriber/filter/struct.EnvFilter.html>
+        #[serde(
+            default = "FieldServerLogs::default_level",
+            serialize_with = "crate::parser::tracing_directive::serialize",
+            deserialize_with = "crate::parser::tracing_directive::deserialize"
+        )]
+        pub level: Vec<tracing_subscriber::filter::Directive>,
     }
 
     /// The configuration of the [`vsmtp_common::queue::Queue::Working`]
@@ -256,13 +266,15 @@ pub mod field {
     }
 
     /// The configuration of one virtual entry for the server.
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
     #[serde(deny_unknown_fields)]
     pub struct FieldServerVirtual {
         /// see [`FieldServerVirtualTls`]
         pub tls: Option<FieldServerVirtualTls>,
         /// see [`FieldServerDNS`]
         pub dns: Option<FieldServerDNS>,
+        /// see [`FieldDkim`]
+        pub dkim: Option<FieldDkim>,
     }
 
     /// The TLS parameter for the **OUTGOING SIDE** of the virtual entry.
@@ -276,9 +288,9 @@ pub mod field {
         )]
         pub protocol_version: Vec<rustls::ProtocolVersion>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: TlsFile<rustls::Certificate>,
+        pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
-        pub private_key: TlsFile<rustls::PrivateKey>,
+        pub private_key: SecretFile<rustls::PrivateKey>,
         /// Policy of security for the TLS connection.
         #[serde(default = "FieldServerVirtualTls::default_sender_security_level")]
         pub sender_security_level: TlsSecurityLevel,
@@ -303,7 +315,7 @@ pub mod field {
     #[doc(hidden)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     #[serde(transparent, deny_unknown_fields)]
-    pub struct TlsFile<T> {
+    pub struct SecretFile<T> {
         #[serde(skip_serializing)]
         pub inner: T,
         pub path: std::path::PathBuf,
@@ -338,9 +350,9 @@ pub mod field {
         /// TLS cipher suite supported
         pub cipher_suite: Vec<rustls::CipherSuite>,
         /// Certificate chain to use for the TLS connection.
-        pub certificate: TlsFile<rustls::Certificate>,
+        pub certificate: SecretFile<rustls::Certificate>,
         /// Private key to use for the TLS connection.
-        pub private_key: TlsFile<rustls::PrivateKey>,
+        pub private_key: SecretFile<rustls::PrivateKey>,
     }
 
     /// Configuration of the client's error handling.
@@ -435,6 +447,7 @@ pub mod field {
         #[serde_as(as = "std::collections::BTreeMap<serde_with::DisplayFromStr, _>")]
         pub codes: std::collections::BTreeMap<CodeID, Reply>,
         /// SMTP's authentication policy.
+        // TODO: should not be an Option<> and should be under #[cfg(feature = "esmtpa")]
         pub auth: Option<FieldServerSMTPAuth>,
     }
 
@@ -523,17 +536,9 @@ pub mod field {
         #[serde(default = "FieldAppLogs::default_filepath")]
         pub filepath: std::path::PathBuf,
         ///
-        #[serde(default = "FieldAppLogs::default_level")]
-        pub level: log::LevelFilter,
-        ///
+        // FIXME: UNUSED
         #[serde(default = "FieldAppLogs::default_format")]
         pub format: String,
-        ///
-        #[serde(default = "FieldAppLogs::default_size_limit")]
-        pub size_limit: u64,
-        ///
-        #[serde(default = "FieldAppLogs::default_archive_count")]
-        pub archive_count: u32,
     }
 
     /// Configuration of the application run by `vSMTP`.

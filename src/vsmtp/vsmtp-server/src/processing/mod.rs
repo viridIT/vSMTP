@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{delegate, log_channels, receiver::MailHandlerError, Process, ProcessMessage};
+use crate::{delegate, receiver::MailHandlerError, Process, ProcessMessage};
 use vsmtp_common::{
     queue::Queue,
     re::{anyhow, log, tokio},
@@ -45,7 +45,7 @@ pub async fn start(
     }
 }
 
-#[allow(clippy::too_many_lines)]
+#[tracing::instrument(skip(config, rule_engine, resolvers, delivery_sender))]
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -53,11 +53,7 @@ async fn handle_one_in_working_queue(
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) {
-    log::info!(
-        target: log_channels::POSTQ,
-        "handling message in working queue {}",
-        process_message.message_id
-    );
+    log::info!("handling message in working queue");
 
     if let Err(e) = handle_one_in_working_queue_inner(
         config,
@@ -68,11 +64,7 @@ async fn handle_one_in_working_queue(
     )
     .await
     {
-        log::warn!(
-            target: log_channels::POSTQ,
-            "failed to handle one email in working queue: {}",
-            e
-        );
+        log::warn!("failed to handle one email in working queue: `{e}`");
     }
 }
 
@@ -84,12 +76,6 @@ async fn handle_one_in_working_queue_inner(
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) -> anyhow::Result<()> {
-    log::debug!(
-        target: log_channels::POSTQ,
-        "received a new message: {}",
-        process_message.message_id,
-    );
-
     let queue = if process_message.delegated {
         Queue::Delegated
     } else {
@@ -127,12 +113,12 @@ async fn handle_one_in_working_queue_inner(
 
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;
 
-            log::warn!(target: log_channels::POSTQ, "skipped due to quarantine.",);
+            log::warn!("skipped due to quarantine.");
         }
         Some(Status::Delegated(delegator)) => {
             mail_context.metadata.as_mut().unwrap().skipped = Some(Status::DelegationResult);
 
-            // FIXME: find a way to use `write_to_queue` instead to be consistant
+            // FIXME: find a way to use `write_to_queue` instead to be consistent
             //        with the rest of the function.
             // NOTE:  moving here because the delegation process could try to
             //        pickup the email before it's written on disk.
@@ -154,7 +140,7 @@ async fn handle_one_in_working_queue_inner(
             write_email = false;
             delegated = true;
 
-            log::warn!(target: log_channels::POSTQ, "skipped due to delegation.",);
+            log::warn!("skipped due to delegation.");
         }
         Some(Status::DelegationResult) => {
             send_to_delivery = true;
@@ -171,11 +157,7 @@ async fn handle_one_in_working_queue_inner(
             move_to_queue = Some(Queue::Dead);
         }
         Some(reason) => {
-            log::warn!(
-                target: log_channels::POSTQ,
-                "skipped due to '{}'.",
-                reason.as_ref()
-            );
+            log::warn!("skipped due to '{}'.", reason.as_ref());
             move_to_queue = Some(Queue::Deliver);
             send_to_delivery = true;
         }
@@ -192,11 +174,7 @@ async fn handle_one_in_working_queue_inner(
             .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
             .map_err(MailHandlerError::WriteMessageBody)?;
 
-        log::debug!(
-            target: log_channels::TRANSACTION,
-            "(msg={}) email written in 'mails' queue.",
-            process_message.message_id
-        );
+        log::debug!("email written in 'mails' queue.");
     }
 
     if let Some(next_queue) = move_to_queue {

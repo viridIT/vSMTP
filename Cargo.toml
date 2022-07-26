@@ -56,12 +56,17 @@ vsmtp-common = { path = "./src/vsmtp/vsmtp-common", default-features = false, ve
 vsmtp-server = { path = "./src/vsmtp/vsmtp-server", default-features = false, version = "1.1.3" }
 vsmtp-config = { path = "./src/vsmtp/vsmtp-config", default-features = false, version = "1.1.3" }
 
-clap = { version = "3.2.12", features = ["derive"] }
+clap = { version = "3.2.15", features = ["derive"] }
 diff = "0.1.13"
 
+tracing-subscriber = { version = "0.3.15", features = ["json", "env-filter"] }
+tracing = "0.1.35"
+tracing-appender = "0.2.2"
+console-subscriber = { version = "0.1.6", optional = true }
+
 [features]
-default = ["gsasl_bindgen"]
-gsasl_bindgen = ["vsmtp-common/gsasl_bindgen"]
+default = ["vsmtp-common/gsasl_bindgen"]
+tokio_console = ["console-subscriber"]
 
 # TODO: improve that
 [package.metadata.docs.rs]

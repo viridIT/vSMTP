@@ -1,6 +1,19 @@
-//! vSMTP DKIM implementation
+//! vSMTP DKIM library
 //!
-//! Verifier and signer algorithm
+//! The implementation follow the RFC 6376
+//! ```txt
+//! DomainKeys Identified Mail (DKIM) permits a person, role, or
+//! organization that owns the signing domain to claim some
+//! responsibility for a message by associating the domain with the
+//! message.  This can be an author's organization, an operational relay,
+//! or one of their agents.  DKIM separates the question of the identity
+//! of the Signer of the message from the purported author of the
+//! message.  Assertion of responsibility is validated through a
+//! cryptographic signature and by querying the Signer's domain directly
+//! to retrieve the appropriate public key.  Message transit from author
+//! to recipient is through relays that typically make no substantive
+//! change to the message content and thus preserve the DKIM signature.
+//! ```
 
 /*
  * vSMTP mail transfer agent
@@ -32,7 +45,8 @@
 
 mod algorithm;
 mod canonicalization;
-mod key;
+mod public_key;
+mod sign;
 mod signature;
 mod verify;
 
@@ -43,5 +57,6 @@ mod tests {
 
 pub use algorithm::{HashAlgorithm, SigningAlgorithm};
 pub use canonicalization::{Canonicalization, CanonicalizationAlgorithm};
-pub use key::Key;
+pub use public_key::PublicKey;
 pub use signature::Signature;
+pub use verify::VerifierError;

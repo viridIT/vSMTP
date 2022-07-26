@@ -14,7 +14,6 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::transport::log_channels;
 
 use super::Transport;
 
@@ -68,7 +67,6 @@ impl Transport for MBox {
             }) {
                 Some(Ok(_)) => {
                     log::info!(
-                        target: log_channels::MBOX,
                         "(msg={}) successfully delivered to {rcpt} as mbox",
                         metadata.message_id
                     );
@@ -79,7 +77,6 @@ impl Transport for MBox {
                 }
                 Some(Err(e)) => {
                     log::error!(
-                        target: log_channels::MBOX,
                         "failed to write email '{}' in {}'s mbox: {}",
                         metadata.message_id,
                         rcpt.address.local_part(),
@@ -90,7 +87,6 @@ impl Transport for MBox {
                 }
                 None => {
                     log::error!(
-                        target: log_channels::MBOX,
                         "failed to write email '{}' in {}'s mbox: '{}' is not a user",
                         metadata.message_id,
                         rcpt.address.local_part(),
@@ -142,7 +138,6 @@ fn write_content_to_mbox(
     std::io::Write::write_all(&mut file, content.as_bytes())?;
 
     log::debug!(
-        target: log_channels::MBOX,
         "(msg={}) {} bytes written to {:?}",
         metadata.message_id,
         content.len(),

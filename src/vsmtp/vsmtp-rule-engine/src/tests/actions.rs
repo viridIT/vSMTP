@@ -487,9 +487,9 @@ fn test_in_domain_and_server_name() {
 fn test_in_domain_and_server_name_sni() {
     let mut config = get_default_config("./tmp/app");
     config.server.r#virtual = std::collections::BTreeMap::from_iter([
-        ("example.com".to_string(), FieldServerVirtual::new()),
-        ("doe.com".to_string(), FieldServerVirtual::new()),
-        ("green.com".to_string(), FieldServerVirtual::new()),
+        ("example.com".to_string(), FieldServerVirtual::default()),
+        ("doe.com".to_string(), FieldServerVirtual::default()),
+        ("green.com".to_string(), FieldServerVirtual::default()),
     ]);
 
     let re = RuleEngine::new(&config, &Some(root_example!["actions/utils.vsl"])).unwrap();
