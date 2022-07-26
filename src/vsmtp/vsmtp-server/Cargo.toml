@@ -37,7 +37,7 @@ vsmtp-delivery = { path = "../vsmtp-delivery", default-features = false, version
 tracing = "0.1.35"
 
 async-trait = "0.1.56"
-fastrand = "1.7.0"
+fastrand = "1.8.0"
 thiserror = "1.0.31"
 
 tokio-stream = "0.1.9"
