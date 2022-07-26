@@ -30,7 +30,7 @@ thiserror = "1.0.31"
 anyhow = "1.0.58"
 
 strum = { version = "0.24.1", features = ["derive"] }
-tokio = { version = "1.19.2", default-features = false, features = [
+tokio = { version = "1.20.1", default-features = false, features = [
     "macros",
     "time",
     "sync",
