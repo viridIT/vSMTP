@@ -184,8 +184,13 @@ impl Event {
 
     fn parse_domain_or_address_literal(args: &[&str]) -> anyhow::Result<String> {
         match args {
+            [ip] if ip.starts_with("[IPv6:") && ip.ends_with(']') => Ok(ip
+                ["[IPv6:".len()..ip.len() - 1]
+                .parse::<std::net::Ipv6Addr>()
+                .map_err(|e| anyhow::anyhow!(e))?
+                .to_string()),
             [ip] if ip.starts_with('[') && ip.ends_with(']') => Ok(ip[1..ip.len() - 1]
-                .parse::<std::net::IpAddr>()
+                .parse::<std::net::Ipv4Addr>()
                 .map_err(|e| anyhow::anyhow!(e))?
                 .to_string()),
             [domain] => Ok(addr::parse_domain_name(domain)
@@ -196,9 +201,12 @@ impl Event {
     }
 
     fn parse_arg_helo(args: &[&str]) -> Result<Self, CodeID> {
-        match Self::parse_domain_or_address_literal(args) {
-            Ok(out) => Ok(Self::HeloCmd(out)),
-            Err(_) => Err(CodeID::SyntaxErrorParams),
+        match args {
+            [domain] => match addr::parse_domain_name(domain) {
+                Ok(_) => Ok(Self::HeloCmd((*domain).to_string())),
+                Err(_) => Err(CodeID::SyntaxErrorParams),
+            },
+            _ => Err(CodeID::SyntaxErrorParams),
         }
     }
 

@@ -95,7 +95,7 @@ fn command_helo() {
     );
     assert_eq!(
         Event::parse_cmd("HELO [127.0.0.1]"),
-        Ok(Event::HeloCmd("127.0.0.1".to_string()))
+        Err(CodeID::SyntaxErrorParams)
     );
     assert_eq!(
         Event::parse_cmd("hElO  not\\a.valid\"domain"),
@@ -137,7 +137,7 @@ fn ehlo_command() {
 
     assert!(Event::parse_cmd("EHLO   [foobar]  ").is_err(),);
     assert_eq!(
-        Event::parse_cmd("ehlo   [0011:2233:4455:6677:8899:aabb:ccdd:eeff]  "),
+        Event::parse_cmd("ehlo   [IPv6:0011:2233:4455:6677:8899:aabb:ccdd:eeff]  "),
         Ok(Event::EhloCmd(
             "11:2233:4455:6677:8899:aabb:ccdd:eeff".to_string()
         ))
