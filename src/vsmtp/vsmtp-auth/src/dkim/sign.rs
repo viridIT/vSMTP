@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{
+use crate::dkim::{
     signature::QueryMethod, Canonicalization, CanonicalizationAlgorithm, Signature,
     SigningAlgorithm,
 };
@@ -113,13 +113,13 @@ impl std::fmt::Display for Signature {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::dkim::{
+        public_key::{Type, Version},
+        HashAlgorithm, PublicKey,
+    };
     use rsa::pkcs8::EncodePublicKey;
     use vsmtp_common::MessageBody;
-
-    use crate::{
-        public_key::{Type, Version},
-        HashAlgorithm, PublicKey, Signature,
-    };
 
     #[test]
     fn sign_and_verify() {

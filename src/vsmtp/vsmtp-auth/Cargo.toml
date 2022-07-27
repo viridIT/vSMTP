@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 
-name = "vsmtp-dkim"
+name = "vsmtp-auth"
 version = "1.1.3"
 license = "GPL-3.0-only"
 
@@ -12,10 +12,10 @@ description = "Next-gen MTA. Secured, Faster and Greener"
 
 homepage = "https://github.com/viridIT/vSMTP"
 repository = "https://github.com/viridIT/vSMTP"
-documentation = "https://docs.rs/crate/vsmtp-dkim/"
+documentation = "https://docs.rs/crate/vsmtp-auth/"
 
 readme = "../../../README.md"
-keywords = ["vsmtp", "dkim"]
+keywords = ["vsmtp", "dkim", "dmarc"]
 categories = ["data-structures"]
 
 [package.metadata.release]

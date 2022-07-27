@@ -22,8 +22,8 @@ use rhai::plugin::{
     PluginFunction, RhaiResult, TypeId,
 };
 use rhai::EvalAltResult;
+use vsmtp_auth::dkim::{PublicKey, Signature};
 use vsmtp_common::re::tokio;
-use vsmtp_dkim::{PublicKey, Signature};
 
 #[derive(Debug, strum::AsRefStr, strum::EnumString, strum::EnumMessage)]
 #[strum(serialize_all = "snake_case")]

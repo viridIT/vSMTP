@@ -32,10 +32,10 @@ pre-release-replacements = [
 [workspace]
 members = [
   "src/vqueue",
+  "src/vsmtp/vsmtp-auth",
   "src/vsmtp/vsmtp-common",
   "src/vsmtp/vsmtp-config",
   "src/vsmtp/vsmtp-delivery",
-  "src/vsmtp/vsmtp-dkim",
   "src/vsmtp/vsmtp-mail-parser",
   "src/vsmtp/vsmtp-rule-engine",
   "src/vsmtp/vsmtp-server",

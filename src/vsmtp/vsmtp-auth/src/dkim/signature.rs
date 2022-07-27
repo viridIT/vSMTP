@@ -15,9 +15,8 @@
  *
 */
 
-use vsmtp_common::RawBody;
-
 use super::{Canonicalization, SigningAlgorithm};
+use vsmtp_common::RawBody;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -376,7 +375,7 @@ impl std::str::FromStr for Signature {
 #[cfg(test)]
 mod tests {
     use super::{Canonicalization, QueryMethod, Signature, SigningAlgorithm};
-    use crate::CanonicalizationAlgorithm;
+    use crate::dkim::CanonicalizationAlgorithm;
 
     #[test]
     fn from_str_wikipedia() {
