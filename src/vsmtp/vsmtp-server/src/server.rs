@@ -34,7 +34,7 @@ pub struct Server {
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -82,7 +82,7 @@ impl Server {
     /// * cannot initialize [rustls] config
     pub fn new(
         config: std::sync::Arc<Config>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -280,7 +280,7 @@ impl Server {
         mut conn: Connection<tokio::net::TcpStream>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -339,9 +339,7 @@ mod tests {
 
             let s = Server::new(
                 config.clone(),
-                std::sync::Arc::new(std::sync::RwLock::new(
-                    RuleEngine::new(&config, &None).unwrap(),
-                )),
+                std::sync::Arc::new(RuleEngine::new(&config, &None).unwrap()),
                 std::sync::Arc::new(std::collections::HashMap::new()),
                 working.0,
                 delivery.0,

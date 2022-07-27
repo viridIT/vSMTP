@@ -44,7 +44,7 @@ mod deliver;
 /// or parsed by the vMime process.
 pub async fn start(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) {

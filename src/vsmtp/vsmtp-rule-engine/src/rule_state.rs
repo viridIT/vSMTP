@@ -224,31 +224,25 @@ impl RuleState {
     /// Instantiate a [`RuleState`] and run it for the only `state` provided
     ///
     /// # Return
+    ///
     /// A tuple with the mail context, body, result status, and skip status.
-    ///
-    /// # Errors
-    ///
-    /// * `rule_engine` mutex poisoned
+    #[must_use]
     pub fn just_run_when(
         state: &StateSMTP,
         config: &Config,
         resolvers: std::sync::Arc<Resolvers>,
-        rule_engine: &std::sync::RwLock<RuleEngine>,
+        rule_engine: &RuleEngine,
         mail_context: MailContext,
         mail_message: MessageBody,
-    ) -> anyhow::Result<(MailContext, MessageBody, Status, Option<Status>)> {
-        let rule_engine = rule_engine
-            .read()
-            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
-
+    ) -> (MailContext, MessageBody, Status, Option<Status>) {
         let mut rule_state =
-            Self::with_context(config, resolvers, &rule_engine, mail_context, mail_message);
+            Self::with_context(config, resolvers, rule_engine, mail_context, mail_message);
         let result = rule_engine.run_when(&mut rule_state, state);
 
         let (mail_context, mail_message, skipped) = rule_state
             .take()
             .expect("should not have strong reference here");
-        Ok((mail_context, mail_message, result, skipped))
+        (mail_context, mail_message, result, skipped)
     }
 
     /// Consume [`self`] and return the inner [`MailContext`] and [`MessageBody`]

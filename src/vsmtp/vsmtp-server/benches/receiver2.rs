@@ -33,9 +33,9 @@ fn run_benchmark(body_size: u64, port: u16) {
                     config.server.queues.working.channel_size,
                 );
 
-                let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
+                let rule_engine = std::sync::Arc::new(
                     RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
-                ));
+                );
 
                 let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
 

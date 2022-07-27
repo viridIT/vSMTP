@@ -120,9 +120,8 @@ where
         &mut mock,
     );
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
-    ));
+    let rule_engine =
+        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap());
 
     let receivers = std::sync::Arc::new(std::collections::HashMap::new());
 
