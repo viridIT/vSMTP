@@ -14,10 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::modules::{types::SharedObject, EngineResult};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::re::lettre;
 
 const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[year]-[month]-[day]");
@@ -27,9 +29,6 @@ const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
 ///
 #[rhai::plugin::export_module]
 pub mod utils {
-
-    use crate::modules::{types::types::SharedObject, EngineResult};
-    use vsmtp_common::re::lettre;
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.

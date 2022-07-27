@@ -19,7 +19,7 @@ use vsmtp_common::{
     state::StateSMTP, status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 type SessionState = (
     std::sync::Arc<RuleEngine>,

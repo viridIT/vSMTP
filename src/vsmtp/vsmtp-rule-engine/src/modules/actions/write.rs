@@ -14,8 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::types::types::{Context, Message, Server};
-use crate::{modules::mail_context::mail_context::message_id, modules::EngineResult};
+use crate::modules::types::{Context, Message, Server, SharedObject};
+use crate::{modules::mail_context::message_id, modules::EngineResult};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
@@ -26,7 +26,6 @@ use vsmtp_config::create_app_folder;
 ///
 #[rhai::plugin::export_module]
 pub mod write {
-    use crate::modules::types::types::SharedObject;
 
     /// write the current email to a specified folder.
     #[allow(clippy::needless_pass_by_value, clippy::module_name_repetitions)]

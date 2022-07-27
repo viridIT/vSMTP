@@ -26,56 +26,64 @@ use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::status::Status;
 use vsmtp_common::MessageBody;
 
-#[allow(dead_code)]
 #[allow(clippy::needless_pass_by_value)]
 #[rhai::plugin::export_module]
-pub mod types {
+mod types_rhai {
 
-    // type aliases for complex struct names
+    /// Alias for `ctx()`
     pub type Context = std::sync::Arc<std::sync::RwLock<MailContext>>;
+    /// Alias for `msg()`
     pub type Message = std::sync::Arc<std::sync::RwLock<MessageBody>>;
+    /// Alias for `srv()`
     pub type Server = std::sync::Arc<ServerAPI>;
-    ///
+    /// Alias for any other object defined using the `object` keyword.
     pub type SharedObject = std::sync::Arc<Object>;
 
     // Status
 
+    /// Operator `==` for `Status`
     #[rhai_fn(global, name = "==", pure)]
     pub fn eq_status_operator(in1: &mut Status, in2: Status) -> bool {
         *in1 == in2
     }
 
+    /// Operator `!=` for `Status`
     #[rhai_fn(global, name = "!=", pure)]
     pub fn neq_status_operator(in1: &mut Status, in2: Status) -> bool {
         !(*in1 == in2)
     }
 
+    /// Convert a `Status` to a `String`
     #[rhai_fn(global, pure)]
     pub fn to_string(status: &mut Status) -> String {
         status.as_ref().to_string()
     }
 
-    // note: same as to_string ?
+    /// Convert a `Status` to a debug string
     #[rhai_fn(global, pure)]
     pub fn to_debug(status: &mut Status) -> String {
         status.as_ref().to_string()
     }
 
+    /// Convert a `CmdResult` to a debug string
     #[rhai_fn(global, name = "to_debug")]
     pub fn cmd_result_to_debug(this: &mut CmdResult) -> String {
         format!("{:?}", this)
     }
 
+    /// Convert a `CmdResult` to a `String`
     #[rhai_fn(global, name = "to_string")]
     pub fn cmd_result_to_string(this: &mut CmdResult) -> String {
         format!("{}", this)
     }
 
+    /// Has the `CmdResult` a value?
     #[rhai_fn(global, get = "has_code")]
     pub fn cmd_result_has_code(this: &mut CmdResult) -> bool {
         this.has_code()
     }
 
+    /// Get the `CmdResult` value
     #[rhai_fn(global, get = "code", return_raw)]
     pub fn cmd_result_get_code(this: &mut CmdResult) -> EngineResult<i64> {
         this.get_code().ok_or_else(|| {
@@ -85,11 +93,13 @@ pub mod types {
         })
     }
 
+    /// Has the `CmdResult` been stopped by a signal?
     #[rhai_fn(global, get = "has_signal")]
     pub fn cmd_result_has_signal(this: &mut CmdResult) -> bool {
         this.has_signal()
     }
 
+    /// Get the `CmdResult` signal value
     #[rhai_fn(global, get = "signal", return_raw)]
     pub fn cmd_result_get_signal(this: &mut CmdResult) -> EngineResult<i64> {
         this.get_signal()
@@ -98,6 +108,7 @@ pub mod types {
 
     // std::time::SystemTime
 
+    /// Convert a `std::time::SystemTime` to a `String`
     #[rhai_fn(global, name = "to_string", return_raw, pure)]
     pub fn time_to_string(this: &mut std::time::SystemTime) -> EngineResult<String> {
         Ok(format!(
@@ -108,6 +119,7 @@ pub mod types {
         ))
     }
 
+    /// Convert a `std::time::SystemTime` to a `String`
     #[rhai_fn(global, name = "to_debug", return_raw, pure)]
     pub fn time_to_debug(this: &mut std::time::SystemTime) -> EngineResult<String> {
         Ok(format!(
@@ -117,6 +129,7 @@ pub mod types {
         ))
     }
 
+    /// Get the `local part` of an email address
     #[rhai_fn(global, get = "local_part", return_raw, pure)]
     pub fn local_part(addr: &mut SharedObject) -> EngineResult<String> {
         match &**addr {
@@ -125,6 +138,7 @@ pub mod types {
         }
     }
 
+    /// Get the `domain` of an email address
     #[rhai_fn(global, get = "domain", return_raw, pure)]
     pub fn domain(addr: &mut SharedObject) -> EngineResult<String> {
         match &**addr {
@@ -135,55 +149,65 @@ pub mod types {
 
     // vsmtp's rule engine obj syntax (SharedObject).
 
+    /// Convert a `SharedObject` to a `String`
     #[rhai_fn(global, name = "to_string", pure)]
     pub fn object_to_string(this: &mut SharedObject) -> String {
         this.to_string()
     }
 
+    /// Convert a `SharedObject` to a debug string
     #[rhai_fn(global, name = "to_debug", pure)]
     pub fn object_to_debug(this: &mut SharedObject) -> String {
         format!("{:#?}", **this)
     }
 
+    /// Operator `==` for `SharedObject`
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", pure)]
     pub fn object_is_self(this: &mut SharedObject, other: SharedObject) -> bool {
         **this == *other
     }
 
+    /// Operator `!=` for `SharedObject`
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", pure)]
     pub fn object_not_self(this: &mut SharedObject, other: SharedObject) -> bool {
         **this != *other
     }
 
+    /// Operator `==` for `SharedObject` and `&str`
     #[rhai_fn(global, name = "==", return_raw, pure)]
     pub fn object_is_string(this: &mut SharedObject, s: &str) -> EngineResult<bool> {
         internal_string_is_object(s, this)
     }
 
+    /// Operator `!=` for `SharedObject` and `&str`
     #[rhai_fn(global, name = "!=", return_raw, pure)]
     pub fn object_not_string(this: &mut SharedObject, s: &str) -> EngineResult<bool> {
         internal_string_is_object(s, this).map(|res| !res)
     }
 
+    /// Operator `==` for `&str` and `SharedObject`
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "==", return_raw)]
     pub fn string_is_object(this: &str, other: SharedObject) -> EngineResult<bool> {
         internal_string_is_object(this, &other)
     }
 
+    /// Operator `!=` for `&str` and `SharedObject`
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "!=", return_raw)]
     pub fn string_not_object(this: &str, other: SharedObject) -> EngineResult<bool> {
         internal_string_is_object(this, &other).map(|res| !res)
     }
 
+    /// Operator `contains`
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn string_in_object(this: &mut SharedObject, s: &str) -> EngineResult<bool> {
         internal_string_in_object(s, this)
     }
 
+    /// Operator `contains`
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "contains", return_raw, pure)]
     pub fn object_in_object(this: &mut SharedObject, other: SharedObject) -> EngineResult<bool> {
@@ -193,22 +217,26 @@ pub mod types {
 
     // vsmtp's rule engine obj syntax container (Vec<SharedObject>).
 
+    /// Convert a `Vec<SharedObject>` to a `String`
     #[rhai_fn(global, name = "to_string", pure)]
     pub fn object_vec_to_string(this: &mut Vec<SharedObject>) -> String {
         format!("{this:?}")
     }
 
+    /// Convert a `Vec<SharedObject>` to a debug string
     #[rhai_fn(global, name = "to_debug", pure)]
     pub fn object_vec_to_debug(this: &mut Vec<SharedObject>) -> String {
         format!("{this:#?}")
     }
 
+    /// Operator `contains`
     #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn string_in_object_vec(this: &mut Vec<SharedObject>, other: &str) -> bool {
         this.iter().any(|obj| obj.to_string() == other)
     }
 
+    /// Operator `contains`
     #[allow(clippy::needless_pass_by_value, clippy::ptr_arg)]
     #[rhai_fn(global, name = "contains", pure)]
     pub fn object_in_object_vec(this: &mut Vec<SharedObject>, other: SharedObject) -> bool {
@@ -217,6 +245,7 @@ pub mod types {
 
     // rcpt container.
 
+    /// Get the `local parts` of an array of email address
     #[allow(clippy::ptr_arg)]
     #[rhai_fn(global, get = "local_parts", return_raw, pure)]
     pub fn rcpt_local_parts(this: &mut Vec<SharedObject>) -> EngineResult<Vec<SharedObject>> {
@@ -232,6 +261,7 @@ pub mod types {
             .collect::<EngineResult<Vec<SharedObject>>>()
     }
 
+    /// Get the `domains` of an array of email address
     #[allow(clippy::ptr_arg)]
     #[rhai_fn(global, get = "domains", return_raw, pure)]
     pub fn rcpt_domains(this: &mut Vec<SharedObject>) -> EngineResult<Vec<SharedObject>> {
@@ -248,12 +278,14 @@ pub mod types {
     }
 }
 
+pub use types_rhai::*;
+
 // the following methods are used to compare recursively deep objects
 // using refs instead of shared rhai objects.
 // FIXME: using generics here should be a good idea.
 // TODO:  all comparison function should return an error in case of mismatching types.
 
-pub fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<bool> {
+pub(crate) fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<bool> {
     match other {
         Object::Address(addr) => Ok(this == addr.full()),
         Object::Fqdn(fqdn) => Ok(this == fqdn),
@@ -263,7 +295,7 @@ pub fn internal_string_is_object(this: &str, other: &Object) -> EngineResult<boo
     }
 }
 
-pub fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<bool> {
+pub(crate) fn internal_string_in_object(this: &str, other: &Object) -> EngineResult<bool> {
     match other {
         Object::Group(group) => Ok(group.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false))),
         Object::File(file) => Ok(file.iter().any(|obj| internal_string_is_object(this, obj).unwrap_or(false))),

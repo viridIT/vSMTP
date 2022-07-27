@@ -1,13 +1,28 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+use super::server_api::ServerAPI;
 use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
 use crate::dsl::directives::Directive;
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
-use crate::modules::types::types::{Context, Message, Server, SharedObject};
+use crate::modules::types::{Context, Message, Server, SharedObject};
 use crate::rule_engine::RuleEngine;
-
-use super::server_api::ServerAPI;
 use vsmtp_common::re::anyhow;
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
@@ -245,7 +260,7 @@ impl RuleState {
         (mail_context, mail_message, result, skipped)
     }
 
-    /// Consume [`self`] and return the inner [`MailContext`] and [`MessageBody`]
+    /// Consume the instance and return the inner [`MailContext`] and [`MessageBody`]
     ///
     /// # Errors
     ///

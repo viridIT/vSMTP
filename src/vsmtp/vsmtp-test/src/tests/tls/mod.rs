@@ -31,7 +31,7 @@ use vsmtp_config::{
     re::{rustls, rustls_pemfile},
     Config,
 };
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::auth;
 use vsmtp_server::Connection;
 use vsmtp_server::{ProcessMessage, Server};

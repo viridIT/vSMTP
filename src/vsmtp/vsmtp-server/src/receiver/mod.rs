@@ -28,7 +28,7 @@ use vsmtp_common::{
     CodeID, ConnectionKind, Either, MailParserOnFly, MessageBody, ParserOutcome, RawBody,
 };
 use vsmtp_config::{re::rustls, Resolvers};
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 mod auth_exchange;
 mod connection;

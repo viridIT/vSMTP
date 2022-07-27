@@ -14,8 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::types::types::Message;
-use crate::modules::EngineResult;
+use crate::modules::{
+    types::{Message, SharedObject},
+    EngineResult,
+};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
@@ -24,7 +26,6 @@ use vsmtp_common::Address;
 
 #[rhai::plugin::export_module]
 pub mod message {
-    use crate::modules::types::types::SharedObject;
 
     /// check if a given header exists in the top level headers.
     #[rhai_fn(global, name = "has_header", return_raw, pure)]
@@ -148,7 +149,6 @@ pub mod message {
 #[allow(dead_code)]
 #[rhai::plugin::export_module]
 pub mod message_calling_parse {
-    use crate::modules::types::types::SharedObject;
 
     /// replace the value of the `From` header by another address.
     #[rhai_fn(global, name = "rewrite_mail_from_message", return_raw, pure)]

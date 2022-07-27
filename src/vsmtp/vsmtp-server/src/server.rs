@@ -27,7 +27,7 @@ use vsmtp_common::{
     CodeID, ConnectionKind,
 };
 use vsmtp_config::{get_rustls_config, re::rustls, Config, Resolvers};
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 /// TCP/IP server
 pub struct Server {
@@ -315,7 +315,7 @@ mod tests {
 
     use super::*;
     use crate::{socket_bind_anyhow, ProcessMessage, Server};
-    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
     macro_rules! listen_with {

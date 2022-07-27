@@ -14,20 +14,28 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-///
+
+/// dkim api for verifier, and the generation of "Authentication-Results" header
 pub mod dkim;
-///
+
+/// this module allow you to write information to a specific file.
 pub mod logging;
+
 ///
 pub mod rule_state;
+
 ///
 pub mod security;
+
 ///
 pub mod services;
+
 ///
 pub mod transports;
+
 ///
 pub mod utils;
+
 ///
 pub mod write;
 

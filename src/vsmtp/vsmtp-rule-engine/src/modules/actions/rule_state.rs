@@ -17,7 +17,7 @@
 use crate::{
     dsl::object::Object,
     modules::actions::transports::transports::disable_delivery_all,
-    modules::types::types::{Context, SharedObject},
+    modules::types::{Context, SharedObject},
     modules::EngineResult,
 };
 use rhai::plugin::{

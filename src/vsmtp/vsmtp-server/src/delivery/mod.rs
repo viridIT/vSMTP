@@ -35,7 +35,7 @@ use vsmtp_common::{
 use vsmtp_common::{re::tokio, transfer::EmailTransferStatus};
 use vsmtp_config::{Config, Resolvers};
 use vsmtp_delivery::transport::{Deliver, Forward, MBox, Maildir, Transport};
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 mod deferred;
 mod deliver;

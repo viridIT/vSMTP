@@ -14,6 +14,10 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::modules::{
+    types::{Context, Server},
+    EngineResult,
+};
 use rhai::{
     plugin::{
         mem, Dynamic, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction, RhaiResult,
@@ -26,10 +30,6 @@ use vsmtp_common::re::tokio;
 ///
 #[rhai::plugin::export_module]
 pub mod security {
-    use crate::modules::{
-        types::types::{Context, Server},
-        EngineResult,
-    };
 
     /// evaluate a sender identity.
     /// the identity parameter can be 'helo', 'mail_from' or 'both'.

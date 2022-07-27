@@ -15,41 +15,36 @@
  *
 */
 
-pub(crate) mod actions;
-pub(crate) mod errors;
-pub(crate) mod mail_context;
-pub(crate) mod message;
-pub(crate) mod types;
+mod actions;
+mod errors;
 
-pub use actions::*;
+pub use actions::{dkim, logging, rule_state, security, services, transports, utils, write};
+pub type EngineResult<T> = Result<T, Box<rhai::EvalAltResult>>;
 
-pub(crate) type EngineResult<T> = Result<T, Box<rhai::EvalAltResult>>;
+/// Extensions for the `MailContext` type.
+pub mod mail_context;
+/// Extensions for the `MessageBody` type.
+pub mod message;
+/// Getter for common types
+pub mod types;
 
-#[doc(hidden)]
-mod inner {
-    use super::{actions, mail_context, message, types};
+rhai::def_package! {
+    /// vsl's standard api.
+    pub StandardVSLPackage(module) {
+        rhai::packages::StandardPackage::init(module);
 
-    rhai::def_package! {
-        /// vsl's standard api.
-        pub StandardVSLPackage(module) {
-            rhai::packages::StandardPackage::init(module);
-
-            module
-                .combine(rhai::exported_module!(actions::logging::logging))
-                .combine(rhai::exported_module!(actions::dkim::dkim))
-                .combine(rhai::exported_module!(actions::rule_state::rule_state))
-                .combine(rhai::exported_module!(actions::security::security))
-                .combine(rhai::exported_module!(actions::services::services))
-                .combine(rhai::exported_module!(actions::transports::transports))
-                .combine(rhai::exported_module!(actions::utils::utils))
-                .combine(rhai::exported_module!(actions::write::write))
-                .combine(rhai::exported_module!(types::types))
-                .combine(rhai::exported_module!(mail_context::mail_context))
-                .combine(rhai::exported_module!(message::message))
-                .combine(rhai::exported_module!(message::message_calling_parse));
-
-            }
+        module
+            .combine(rhai::exported_module!(actions::logging))
+            .combine(rhai::exported_module!(actions::dkim))
+            .combine(rhai::exported_module!(actions::rule_state::rule_state))
+            .combine(rhai::exported_module!(actions::security::security))
+            .combine(rhai::exported_module!(actions::services::services))
+            .combine(rhai::exported_module!(actions::transports::transports))
+            .combine(rhai::exported_module!(actions::utils::utils))
+            .combine(rhai::exported_module!(actions::write::write))
+            .combine(rhai::exported_module!(types))
+            .combine(rhai::exported_module!(mail_context))
+            .combine(rhai::exported_module!(message::message))
+            .combine(rhai::exported_module!(message::message_calling_parse));
     }
 }
-
-pub use inner::StandardVSLPackage;

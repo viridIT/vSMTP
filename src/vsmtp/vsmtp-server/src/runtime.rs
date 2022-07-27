@@ -23,7 +23,7 @@ use vsmtp_common::{
     },
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 fn init_runtime<F>(
     sender: tokio::sync::mpsc::Sender<()>,

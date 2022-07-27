@@ -28,7 +28,7 @@ use vsmtp_common::{
     Address, CodeID, MessageBody, ReplyOrCodeID,
 };
 use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 enum ProcessedEvent {
     Reply(ReplyOrCodeID),

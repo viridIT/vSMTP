@@ -20,7 +20,7 @@ use vsmtp_common::{
     CodeID, ConnectionKind, MessageBody,
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{auth, Connection, OnMail};
 
 /// A type implementing Write+Read to emulate sockets

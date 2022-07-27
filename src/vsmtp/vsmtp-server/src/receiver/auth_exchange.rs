@@ -24,7 +24,7 @@ use vsmtp_common::{
     CodeID,
 };
 use vsmtp_config::Resolvers;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 #[allow(clippy::module_name_repetitions)]
 #[must_use]

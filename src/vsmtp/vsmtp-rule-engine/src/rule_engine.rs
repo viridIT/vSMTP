@@ -14,6 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
+use crate::dsl::action::parsing::{create_action, parse_action};
+use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
+use crate::dsl::directives::{Directive, Directives};
+use crate::dsl::object::parsing::{create_object, parse_object};
+use crate::dsl::rule::parsing::{create_rule, parse_rule};
+use crate::dsl::service::parsing::{create_service, parse_service};
+use crate::dsl::service::Service;
+use crate::modules;
+use crate::modules::rule_state::rule_state::deny;
+use crate::modules::types::SharedObject;
+use crate::modules::EngineResult;
+use crate::rule_state::RuleState;
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::packages::Package;
@@ -25,19 +37,6 @@ use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
 use vsmtp_config::Config;
-
-use crate::dsl::action::parsing::{create_action, parse_action};
-use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
-use crate::dsl::directives::{Directive, Directives};
-use crate::dsl::object::parsing::{create_object, parse_object};
-use crate::dsl::rule::parsing::{create_rule, parse_rule};
-use crate::dsl::service::parsing::{create_service, parse_service};
-use crate::dsl::service::Service;
-use crate::modules;
-use crate::modules::actions::rule_state::rule_state::deny;
-use crate::modules::types::types::SharedObject;
-use crate::modules::EngineResult;
-use crate::rule_state::RuleState;
 
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,

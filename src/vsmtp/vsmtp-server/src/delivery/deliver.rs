@@ -32,7 +32,7 @@ use vsmtp_common::{
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 pub async fn flush_deliver_queue(
     config: std::sync::Arc<Config>,
@@ -238,7 +238,7 @@ mod tests {
         MessageBody,
     };
     use vsmtp_config::build_resolvers;
-    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
     #[tokio::test]

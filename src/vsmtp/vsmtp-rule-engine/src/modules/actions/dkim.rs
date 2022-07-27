@@ -15,7 +15,7 @@
  *
 */
 
-use crate::modules::types::types::{Context, Message, Server};
+use crate::modules::types::{Context, Message, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -42,9 +42,8 @@ enum DkimErrors {
     SignatureMismatch,
 }
 
-/// dkim api for verifier, and the generation of "Authentication-Results" header
 #[rhai::plugin::export_module]
-pub mod dkim {
+mod dkim_rhai {
 
     /// get the dkim status from an error produced by this module
     #[rhai_fn(global, return_raw)]
@@ -208,3 +207,5 @@ pub mod dkim {
         }
     }
 }
+
+pub use dkim_rhai::*;
