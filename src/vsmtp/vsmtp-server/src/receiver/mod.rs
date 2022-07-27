@@ -14,11 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use self::transaction::{Transaction, TransactionResult};
-use crate::{
-    auth,
-    receiver::auth_exchange::{on_authentication, AuthExchangeError},
+use self::{
+    auth_exchange::on_authentication,
+    transaction::{Transaction, TransactionResult},
 };
+use crate::{auth, receiver::auth_exchange::AuthExchangeError};
 use vsmtp_common::{
     auth::Mechanism,
     mail_context::MAIL_CAPACITY,

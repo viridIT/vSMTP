@@ -31,9 +31,9 @@ use vsmtp_rule_engine::rule_engine::RuleEngine;
 
 /// TCP/IP server
 pub struct Server {
+    config: std::sync::Arc<Config>,
     tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
     rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
-    config: std::sync::Arc<Config>,
     rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -113,9 +113,9 @@ impl Server {
             } else {
                 None
             },
-            config,
             rule_engine,
             resolvers,
+            config,
             working_sender,
             delivery_sender,
         })

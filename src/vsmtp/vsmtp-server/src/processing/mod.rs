@@ -53,7 +53,7 @@ async fn handle_one_in_working_queue(
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) {
-    log::info!("handling message in working queue");
+    log::info!("handling message in `{queue}`", queue = Queue::Working);
 
     if let Err(e) = handle_one_in_working_queue_inner(
         config,

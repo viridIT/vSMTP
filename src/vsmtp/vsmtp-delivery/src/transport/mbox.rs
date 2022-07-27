@@ -31,10 +31,10 @@ const CTIME_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::
     "[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year]"
 );
 
-#[derive(Default)]
 /// resolver use to write emails on the system following the
 /// application/mbox Media Type.
 /// (see [rfc4155](https://datatracker.ietf.org/doc/html/rfc4155#appendix-A))
+#[derive(Default)]
 pub struct MBox;
 
 // FIXME: use UsersCache.

@@ -25,7 +25,7 @@ use vsmtp_common::{
 };
 use vsmtp_config::Config;
 
-/// the email will be directly delivered to the server, without mx lookup.
+/// the email will be directly delivered to the server, **without** mx lookup.
 pub struct Forward<'r> {
     to: ForwardTarget,
     resolver: &'r TokioAsyncResolver,
