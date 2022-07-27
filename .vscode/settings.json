@@ -18,6 +18,7 @@
         "consts",
         "cpus",
         "dirpath",
+        "DMARC",
         "dnssec",
         "domainkey",
         "ehlo",

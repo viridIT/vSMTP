@@ -166,12 +166,10 @@ impl std::str::FromStr for PublicKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
+    use crate::dkim::{
         public_key::{ServiceType, Type, Version},
-        HashAlgorithm,
+        HashAlgorithm, PublicKey,
     };
-
-    use super::PublicKey;
 
     #[test]
     fn parse() {
