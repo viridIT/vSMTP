@@ -19,28 +19,32 @@
 // standard library for authentication
 //
 
-/// check "mail from" relaying.
-/// Do not accept a msg from a known internal domain if the client is unknown
+/// Do not accept a message from a known internal domain if the client is unknown.
 ///
 /// # Args
-/// @allowed_hosts: group of (IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn)
+/// * `allowed_hosts` - group of IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn
 ///
 /// # Return
-/// - deny() or next()
+/// * `deny()`
+/// * `next()`
 ///
-/// # Required stage : mail (only)
+/// # Effective smtp stage
+/// `mail` and onwards.
 ///
 /// # Example
-/// ```
+/// ```js
 /// mail: [
 ///    rule "check mail relay" || {
 ///        object allowed_hosts group = [
-///            object ip4 "192.168.1.254",
-///            object fqdn "mta-internal.foobar.com"
+///            object mta_ip ip4 = "192.168.1.254",
+///            object mta_fqdn fqdn = "mta-internal.foobar.com"
 ///        ];
-///        check_mail_relay(allowed_hosts);
+///        check_mail_relay(allowed_hosts)
 ///    }
 /// ]
+///
+/// # Module:Security
+/// ```
 fn check_mail_relay(allowed_hosts) {
     if in_domain(ctx().mail_from)
     && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
@@ -50,46 +54,41 @@ fn check_mail_relay(allowed_hosts) {
     }
 }
 
-/// check "rcpt to" relaying.
-/// Do not accept open relaying
+/// Do not accept open relaying.
 ///
 /// # Args
-/// @allowed_hosts: group of (IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn)
+///
+/// * `allowed_hosts` - group of IPv4 | IPv6 | IPv4 range | IPv6 range | fqdn
 ///
 /// # Return
-/// - deny() or next()
+/// * `deny()`
+/// * `next()`
 ///
-/// # Required stage : rcpt (only)
+/// # Effective smtp stage
+/// `rcpt` only.
 ///
 /// # Example
-/// ```
+/// ```js
 /// rcpt: [
 ///    rule "check rcpt relay" || {
 ///        object allowed_hosts group = [
-///            object ip4 "192.168.1.254",
-///            object fqdn "mta-internal.foobar.com"
+///            object mta_ip ip4 = "192.168.1.254",
+///            object mta_fqdn fqdn = "mta-internal.foobar.com"
 ///        ];
-///        check_rcpt_relay(allowed_hosts);
+///        check_rcpt_relay(allowed_hosts)
 ///    }
 /// ]
+///
+/// # Module:Security
+/// ```
 fn check_rcpt_relay(allowed_hosts) {
     if !in_domain(ctx().rcpt)
     && !(ctx().is_authenticated || (ctx().client_ip in allowed_hosts)) {
-        remove_rcpt(ctx().rcpt.to_string());
+        remove_rcpt_envelop(ctx().rcpt);
         info(code554_7_1)
     } else {
         next()
     }
-}
-
-/// check spf record.
-/// a wrapper with the policy set to "strict" by default.
-///
-/// # Args
-/// @header: "spf" | "auth" | "both" | "none"
-///
-fn check_spf(header) {
-    check_spf(header, "strict")
 }
 
 /// create key-value pairs of spf results
@@ -117,23 +116,35 @@ fn auth_header(query) {
  smtp.mailfrom=${ctx().mail_from}`;
 }
 
-/// check spf record.
-/// Sender Policy Framework (RFC 7208).
+
+/// Check spf record following the Sender Policy Framework (RFC 7208).
+/// see https://datatracker.ietf.org/doc/html/rfc7208
 ///
 /// # Args
-/// @header: "spf" | "auth" | "both" | "none"
-/// @policy: "strict" | "soft"
+///
+/// * `header` - "spf" | "auth" | "both" | "none"
+/// * `policy` - "strict" | "soft"
 ///
 /// # Return
-/// - deny() or next()
+/// * `deny(code550_7_23 | code451_7_24 | code550_7_24)` - an error occured during lookup. (returned even when a softfail is received using the "strict" policy)
+/// * `next()` - the operation succeded.
 ///
-/// # Required stage : rcpt+
+/// # Errors
+/// * The `header` argument is not valid.
+/// * The `policy` argument is not valid.
+///
+/// # Effective smtp stage
+/// `rcpt` and onwards.
 ///
 /// # Example
-/// ```
-/// rcpt: [
-///     rule "check spf" || check_spf("spf", "soft")
-/// ]
+/// ```js
+/// #{
+///     rcpt: [
+///        rule "check spf" || check_spf("spf", "soft")
+///     ]
+/// }
+///
+/// # Module:Security
 /// ```
 fn check_spf(header, policy) {
 
@@ -182,54 +193,37 @@ fn check_spf(header, policy) {
     }
 }
 
+/// Check spf record following the Sender Policy Framework (RFC 7208).
+/// A wrapper with the policy set to "strict" by default.
+/// see https://datatracker.ietf.org/doc/html/rfc7208
 ///
-/// Null MX sender policy (RFC 7505).
+/// # Args
 ///
-/// - args : no
-/// - return : deny() or next()
+/// * `header` - "spf" | "auth" | "both" | "none"
 ///
-/// ### Required stage : mail+
+/// # Return
+/// * `deny(code550_7_23 | code451_7_24 | code550_7_24)` - an error occured during lookup. (returned even when a softfail is received using the "strict" policy)
+/// * `next()` - the operation succeded.
 ///
-/// ### Example
+/// # Effective smtp stage
+/// `rcpt` and onwards.
+///
+/// # Errors
+/// * The `header` argument is not valid.
+/// * The `policy` argument is not valid.
+///
+/// # Example
+/// ```js
+/// #{
+///     rcpt: [
+///        rule "check spf relay" || check_spf(allowed_hosts),
+///     ]
+/// }
+///
+/// # Module:Security
 /// ```
-/// rcpt: [
-///     rule "check null MX" || vsl::check_null_mx_sender!()
-/// ]
-/// ```
-fn check_null_mx_sender() {
-
-    let srv_domain = get_domain();
-
-    // Check if policy is already applied or set to none
-    if (srv_domain.auth.null_mx.trigger != "vsl") || (srv_domain.auth.null_mx.policy == "none") {
-        return sys::next();
-    }
-
-    let query = sys::check_null_mx_sender(ctx().mail_from.domain);
-    // sys::check_null_MX_sender(ctx().mail_from.domain)
-    //
-    // - returns : boolean (true if null MX found)
-
-    // Null MX record not found, skip the rule.
-    if !query {
-        return sys::next();
-    }
-
-    // Null MX record found.
-    if srv_domain.auth.null_mx.policy == "strict" {
-        return sys::deny(code550_7_27);
-    }
-
-    // There's no standard header for null MX
-    if srv_domain.auth.null_mx.header == "X-nullMX" {
-        let header = `${hostname()}; null MX sender detected for ${ctx().mail_from.domain}`;
-        sys::prepend_header(ctx(), "X-NullMX", header);
-    }
-
-    // Modify the subject
-    sys::set_header(ctx(), "Subject", "JUNK:" + sys::get_header(ctx(), "Subject"));
-
-    return sys::next();
+fn check_spf(header) {
+    check_spf(header, "strict")
 }
 
 private fn sys_dkim_verify(policy) {
@@ -282,6 +276,13 @@ private fn sys_dkim_verify(policy) {
 }
 
 /// Verify the `DKIM-Signature` header(s) in the mail and produce a `Authentication-Results`.
+/// see https://datatracker.ietf.org/doc/html/rfc6376
+///
+/// # Return
+/// * `accept()` - a signature was successfuly verified.
+/// * `deny()` - no signature could be verified.
+///
+/// # Module:Security
 fn dkim_verify() {
     let result = sys_dkim_verify(#{
         // will process a limited amount of signature, avoid infinite loop and dos/ddos attack

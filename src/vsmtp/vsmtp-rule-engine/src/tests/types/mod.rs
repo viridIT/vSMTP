@@ -15,7 +15,7 @@
  *
 */
 use crate::{rule_engine::RuleEngine, rule_state::RuleState, tests::helpers::get_default_state};
-use vsmtp_common::{addr, state::StateSMTP, status::Status, CodeID, MessageBody, ReplyOrCodeID};
+use vsmtp_common::{state::StateSMTP, status::Status, CodeID, MessageBody, ReplyOrCodeID};
 use vsmtp_config::{builder::VirtualEntry, field::FieldServerDNS, Config};
 
 #[test]
@@ -56,23 +56,6 @@ fn test_ip() {
     )
     .unwrap();
     let (mut state, _) = get_default_state("./tmp/app");
-
-    assert_eq!(
-        re.run_when(&mut state, &StateSMTP::Connect),
-        Status::Accept(ReplyOrCodeID::Left(CodeID::Ok)),
-    );
-}
-
-#[test]
-fn test_address() {
-    let re = RuleEngine::new(
-        &vsmtp_config::Config::default(),
-        &Some(rules_path!["address", "main.vsl"]),
-    )
-    .unwrap();
-    let (mut state, _) = get_default_state("./tmp/app");
-
-    state.context().write().unwrap().envelop.mail_from = addr!("mail.from@test.net");
 
     assert_eq!(
         re.run_when(&mut state, &StateSMTP::Connect),

@@ -1,0 +1,51 @@
+// transports_all.vsl
+//
+// Transports can be used to tell vsmtp where and how to send
+// an email for a single recipient or all of them.
+
+#{
+    connect: [
+        // we add a few recipients here for the example's sake.
+        action "add recipients" || {
+            add_rcpt_envelop("john@example.com");
+            add_rcpt_envelop("doe@example.com");
+            add_rcpt_envelop("green@example.com");
+            add_rcpt_envelop("foo@example.com");
+            add_rcpt_envelop("bar@example.com");
+            add_rcpt_envelop("a@example.com");
+            add_rcpt_envelop("b@example.com");
+            add_rcpt_envelop("c@example.com");
+            add_rcpt_envelop("d@example.com");
+        }
+    ],
+
+    delivery: [
+        // The "deliver_all" method simply delivers the email
+        // to all recipients using their own domain.
+        action "deliver everything" || deliver_all(),
+
+        // Forwarding directly sends all recipients to the target
+        // given as the argument of the `forward_all` function.
+        action "forward everything" || {
+            object example fqdn = "example.com";
+
+            // this function can be used using objects
+            // or strings.
+            forward_all("example.com");
+            forward_all(example);
+        },
+
+        // The "mbox" method delivers the email localy
+        // using the mailbox protocol.
+        action "use mailbox for everything" || mbox_all(),
+
+        // The "maildir" method delivers the email localy
+        // using the maildir protocol.
+        action "use maildir for everything" || maildir_all(),
+
+        // Finally, you can choose to disable the delivery
+        // for all recipients. The email will be removed
+        // immediatly once it reaches the delivery stage.
+        action "disable delivery" || disable_delivery_all(),
+    ]
+}

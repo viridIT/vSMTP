@@ -14,11 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::modules::{types::types::Context, EngineResult};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
-use vsmtp_common::{mail_context::MailContext, re::anyhow};
 
 #[allow(clippy::needless_pass_by_value)]
 ///
@@ -26,49 +26,72 @@ use vsmtp_common::{mail_context::MailContext, re::anyhow};
 pub mod transports {
     use vsmtp_common::transfer::ForwardTarget;
 
-    use crate::modules::types::types::Context;
-    use crate::{dsl::object::Object, modules::EngineResult};
+    use crate::modules::types::types::{Context, SharedObject};
+    use crate::modules::EngineResult;
 
     /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, name = "forward", return_raw, pure)]
-    pub fn forward_obj(
-        this: &mut Context,
-        rcpt: &str,
-        forward: std::sync::Arc<Object>,
-    ) -> EngineResult<()> {
-        match &*forward {
-            Object::Ip4(ip) => forward_str(this, rcpt, &ip.to_string()),
-            Object::Ip6(ip) => forward_str(this, rcpt, &ip.to_string()),
-            Object::Fqdn(fqdn) | Object::Str(fqdn) => forward_str(this, rcpt, fqdn),
-            obj => Err(format!("{} is not a valid address to forward an email to.", obj).into()),
-        }
-    }
-
-    ///
-    #[rhai_fn(global, name = "forward_all", return_raw, pure)]
-    pub fn forward_all_obj(
-        this: &mut Context,
-        forward: std::sync::Arc<Object>,
-    ) -> EngineResult<()> {
-        match &*forward {
-            Object::Ip4(ip) => forward_all_str(this, &ip.to_string()),
-            Object::Ip6(ip) => forward_all_str(this, &ip.to_string()),
-            Object::Fqdn(fqdn) | Object::Str(fqdn) => forward_all_str(this, fqdn),
-            obj => Err(format!("{} is not a valid address to forward an email to.", obj).into()),
-        }
-    }
-
-    /// set the delivery method to "Forward" for a single recipient.
-    #[rhai_fn(global, name = "forward", return_raw, pure)]
-    pub fn forward_str(this: &mut Context, rcpt: &str, forward: &str) -> EngineResult<()> {
+    pub fn forward_str_str(context: &mut Context, rcpt: &str, forward: &str) -> EngineResult<()> {
         let forward = <ForwardTarget as std::str::FromStr>::from_str(forward)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
         set_transport_for(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
+            context,
             rcpt,
+            &vsmtp_common::transfer::Transfer::Forward(forward),
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Forward" for a single recipient.
+    #[rhai_fn(global, name = "forward", return_raw, pure)]
+    pub fn forward_obj_str(
+        context: &mut Context,
+        rcpt: SharedObject,
+        forward: &str,
+    ) -> EngineResult<()> {
+        let forward = <ForwardTarget as std::str::FromStr>::from_str(forward)
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+
+        set_transport_for(
+            context,
+            &rcpt.to_string(),
+            &vsmtp_common::transfer::Transfer::Forward(forward),
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Forward" for a single recipient.
+    #[rhai_fn(global, name = "forward", return_raw, pure)]
+    pub fn forward_str_obj(
+        context: &mut Context,
+        rcpt: &str,
+        forward: SharedObject,
+    ) -> EngineResult<()> {
+        let forward = <ForwardTarget as std::str::FromStr>::from_str(&forward.to_string())
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+
+        set_transport_for(
+            context,
+            rcpt,
+            &vsmtp_common::transfer::Transfer::Forward(forward),
+        )
+        .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Forward" for a single recipient.
+    #[rhai_fn(global, name = "forward", return_raw, pure)]
+    pub fn forward_obj_obj(
+        context: &mut Context,
+        rcpt: SharedObject,
+        forward: SharedObject,
+    ) -> EngineResult<()> {
+        let forward = <ForwardTarget as std::str::FromStr>::from_str(&forward.to_string())
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+
+        set_transport_for(
+            context,
+            &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Forward(forward),
         )
         .map_err(|err| err.to_string().into())
@@ -76,28 +99,35 @@ pub mod transports {
 
     /// set the delivery method to "Forward" for all recipients.
     #[rhai_fn(global, name = "forward_all", return_raw, pure)]
-    pub fn forward_all_str(this: &mut Context, forward: &str) -> EngineResult<()> {
+    pub fn forward_all_str(context: &mut Context, forward: &str) -> EngineResult<()> {
         let forward = <ForwardTarget as std::str::FromStr>::from_str(forward)
             .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
 
-        set_transport(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            &vsmtp_common::transfer::Transfer::Forward(forward),
-        );
+        set_transport(context, &vsmtp_common::transfer::Transfer::Forward(forward))
+    }
 
-        Ok(())
+    ///
+    #[rhai_fn(global, name = "forward_all", return_raw, pure)]
+    pub fn forward_all_obj(context: &mut Context, forward: SharedObject) -> EngineResult<()> {
+        let forward = <ForwardTarget as std::str::FromStr>::from_str(&forward.to_string())
+            .map_err::<Box<EvalAltResult>, _>(|err| err.to_string().into())?;
+
+        set_transport(context, &vsmtp_common::transfer::Transfer::Forward(forward))
     }
 
     /// set the delivery method to "Deliver" for a single recipient.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn deliver(this: &mut Context, rcpt: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "deliver", return_raw, pure)]
+    pub fn deliver_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
+        set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Deliver)
+            .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Deliver" for a single recipient.
+    #[rhai_fn(global, name = "deliver", return_raw, pure)]
+    pub fn deliver_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
         set_transport_for(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            rcpt,
+            context,
+            &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Deliver,
         )
         .map_err(|err| err.to_string().into())
@@ -105,25 +135,23 @@ pub mod transports {
 
     /// set the delivery method to "Deliver" for all recipients.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn deliver_all(this: &mut Context) -> EngineResult<()> {
-        set_transport(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            &vsmtp_common::transfer::Transfer::Deliver,
-        );
-
-        Ok(())
+    pub fn deliver_all(context: &mut Context) -> EngineResult<()> {
+        set_transport(context, &vsmtp_common::transfer::Transfer::Deliver)
     }
 
     /// set the delivery method to "Mbox" for a single recipient.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn mbox(this: &mut Context, rcpt: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "mbox", return_raw, pure)]
+    pub fn mbox_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
+        set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Mbox)
+            .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Mbox" for a single recipient.
+    #[rhai_fn(global, name = "mbox", return_raw, pure)]
+    pub fn mbox_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
         set_transport_for(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            rcpt,
+            context,
+            &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Mbox,
         )
         .map_err(|err| err.to_string().into())
@@ -131,25 +159,23 @@ pub mod transports {
 
     /// set the delivery method to "Mbox" for all recipients.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn mbox_all(this: &mut Context) -> EngineResult<()> {
-        set_transport(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            &vsmtp_common::transfer::Transfer::Mbox,
-        );
-
-        Ok(())
+    pub fn mbox_all(context: &mut Context) -> EngineResult<()> {
+        set_transport(context, &vsmtp_common::transfer::Transfer::Mbox)
     }
 
     /// set the delivery method to "Maildir" for a single recipient.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn maildir(this: &mut Context, rcpt: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "maildir", return_raw, pure)]
+    pub fn maildir_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
+        set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::Maildir)
+            .map_err(|err| err.to_string().into())
+    }
+
+    /// set the delivery method to "Maildir" for a single recipient.
+    #[rhai_fn(global, name = "maildir", return_raw, pure)]
+    pub fn maildir_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
         set_transport_for(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            rcpt,
+            context,
+            &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::Maildir,
         )
         .map_err(|err| err.to_string().into())
@@ -157,25 +183,23 @@ pub mod transports {
 
     /// set the delivery method to "Maildir" for all recipients.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn maildir_all(this: &mut Context) -> EngineResult<()> {
-        set_transport(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            &vsmtp_common::transfer::Transfer::Maildir,
-        );
-
-        Ok(())
+    pub fn maildir_all(context: &mut Context) -> EngineResult<()> {
+        set_transport(context, &vsmtp_common::transfer::Transfer::Maildir)
     }
 
     /// remove the delivery method for a specific recipient.
-    #[rhai_fn(global, return_raw, pure)]
-    pub fn disable_delivery(this: &mut Context, rcpt: &str) -> EngineResult<()> {
+    #[rhai_fn(global, name = "disable_delivery", return_raw, pure)]
+    pub fn disable_delivery_str(context: &mut Context, rcpt: &str) -> EngineResult<()> {
+        set_transport_for(context, rcpt, &vsmtp_common::transfer::Transfer::None)
+            .map_err(|err| err.to_string().into())
+    }
+
+    /// remove the delivery method for a specific recipient.
+    #[rhai_fn(global, name = "disable_delivery", return_raw, pure)]
+    pub fn disable_delivery_obj(context: &mut Context, rcpt: SharedObject) -> EngineResult<()> {
         set_transport_for(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            rcpt,
+            context,
+            &rcpt.to_string(),
             &vsmtp_common::transfer::Transfer::None,
         )
         .map_err(|err| err.to_string().into())
@@ -183,38 +207,42 @@ pub mod transports {
 
     /// remove the delivery method for all recipient.
     #[rhai_fn(global, return_raw, pure)]
-    pub fn disable_delivery_all(this: &mut Context) -> EngineResult<()> {
-        set_transport(
-            &mut *this
-                .write()
-                .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?,
-            &vsmtp_common::transfer::Transfer::None,
-        );
-
-        Ok(())
+    pub fn disable_delivery_all(context: &mut Context) -> EngineResult<()> {
+        set_transport(context, &vsmtp_common::transfer::Transfer::None)
     }
 }
 
 /// set the transport method of a single recipient.
 fn set_transport_for(
-    ctx: &mut MailContext,
+    context: &mut Context,
     search: &str,
     method: &vsmtp_common::transfer::Transfer,
-) -> anyhow::Result<()> {
-    ctx.envelop
+) -> EngineResult<()> {
+    context
+        .write()
+        .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?
+        .envelop
         .rcpt
         .iter_mut()
         .find(|rcpt| rcpt.address.full() == search)
-        .ok_or_else(|| anyhow::anyhow!("could not find rcpt '{}'", search))
+        .ok_or_else::<Box<EvalAltResult>, _>(|| format!("could not find rcpt '{}'", search).into())
         .map(|rcpt| rcpt.transfer_method = method.clone())
 }
 
 /// set the transport method of all recipients.
-fn set_transport(ctx: &mut MailContext, method: &vsmtp_common::transfer::Transfer) {
-    ctx.envelop
+fn set_transport(
+    context: &mut Context,
+    method: &vsmtp_common::transfer::Transfer,
+) -> EngineResult<()> {
+    context
+        .write()
+        .map_err::<Box<EvalAltResult>, _>(|_| "rule engine mutex poisoned".into())?
+        .envelop
         .rcpt
         .iter_mut()
         .for_each(|rcpt| rcpt.transfer_method = method.clone());
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -230,14 +258,20 @@ mod test {
 
     #[test]
     fn test_set_transport_for() {
-        let mut ctx = get_default_context();
+        let mut ctx = std::sync::Arc::new(std::sync::RwLock::new(get_default_context()));
 
-        ctx.envelop.rcpt.push(Rcpt::new(addr!("valid@rcpt.foo")));
+        ctx.write()
+            .unwrap()
+            .envelop
+            .rcpt
+            .push(Rcpt::new(addr!("valid@rcpt.foo")));
 
         assert!(set_transport_for(&mut ctx, "valid@rcpt.foo", &Transfer::Deliver).is_ok());
         assert!(set_transport_for(&mut ctx, "invalid@rcpt.foo", &Transfer::Deliver).is_err());
 
-        ctx.envelop
+        ctx.read()
+            .unwrap()
+            .envelop
             .rcpt
             .iter()
             .find(|rcpt| rcpt.address.full() == "valid@rcpt.foo")
@@ -249,38 +283,59 @@ mod test {
 
     #[test]
     fn test_set_transport() {
-        let mut ctx = get_default_context();
+        let mut ctx = std::sync::Arc::new(std::sync::RwLock::new(get_default_context()));
 
         set_transport(
             &mut ctx,
             &Transfer::Forward(ForwardTarget::Domain("mta.example.com".to_string())),
-        );
+        )
+        .unwrap();
 
-        assert!(ctx.envelop.rcpt.iter().all(|rcpt| rcpt.transfer_method
-            == Transfer::Forward(ForwardTarget::Domain("mta.example.com".to_string()))));
+        assert!(ctx
+            .read()
+            .unwrap()
+            .envelop
+            .rcpt
+            .iter()
+            .all(|rcpt| rcpt.transfer_method
+                == Transfer::Forward(ForwardTarget::Domain("mta.example.com".to_string()))));
 
         set_transport(
             &mut ctx,
             &Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
                 "127.0.0.1".parse().unwrap(),
             ))),
-        );
+        )
+        .unwrap();
 
-        assert!(ctx.envelop.rcpt.iter().all(|rcpt| rcpt.transfer_method
-            == Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
-                "127.0.0.1".parse().unwrap()
-            )))));
+        assert!(ctx
+            .read()
+            .unwrap()
+            .envelop
+            .rcpt
+            .iter()
+            .all(|rcpt| rcpt.transfer_method
+                == Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V4(
+                    "127.0.0.1".parse().unwrap()
+                )))));
 
         set_transport(
             &mut ctx,
             &Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
                 "::1".parse().unwrap(),
             ))),
-        );
+        )
+        .unwrap();
 
-        assert!(ctx.envelop.rcpt.iter().all(|rcpt| rcpt.transfer_method
-            == Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
-                "::1".parse().unwrap()
-            )))));
+        assert!(ctx
+            .read()
+            .unwrap()
+            .envelop
+            .rcpt
+            .iter()
+            .all(|rcpt| rcpt.transfer_method
+                == Transfer::Forward(ForwardTarget::Ip(std::net::IpAddr::V6(
+                    "::1".parse().unwrap()
+                )))));
     }
 }

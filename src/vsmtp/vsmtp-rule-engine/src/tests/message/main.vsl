@@ -18,7 +18,7 @@
     connect: [
         rule "fail mail_from rewrite: bad address format" || {
             try {
-                rewrite_mail_from("invalid");
+                rewrite_mail_from_envelop("invalid");
                 return deny();
             } catch (err) {
                 if "invalid type conversion" in err { return next(); } else { return deny(); }
@@ -27,7 +27,7 @@
 
         rule "fail rcpt rewrite: 1st bad address format" || {
             try {
-                rewrite_rcpt("invalid", "valid@email.com");
+                rewrite_rcpt_envelop("invalid", "valid@email.com");
                 return deny();
             } catch (err) {
                 if "invalid type conversion" in err { return next(); } else { return deny(); }
@@ -36,7 +36,7 @@
 
         rule "fail rcpt rewrite: 2nd bad address format" || {
             try {
-                rewrite_rcpt("valid@email.com", "invalid");
+                rewrite_rcpt_envelop("valid@email.com", "invalid");
                 return deny();
             } catch (err) {
                 if "invalid type conversion" in err { return next(); } else { return deny(); }
@@ -67,7 +67,7 @@
     preq: [
         rule "raw=>parsed and mail_from raw" || {
             try {
-                rewrite_mail_from("impossible@torewrite.com");
+                rewrite_mail_from_message("impossible@torewrite.com");
                 return next();
             } catch (err) {
                 print(err);
@@ -77,7 +77,7 @@
 
         rule "raw=>parsed and add rcpt" || {
             try {
-                add_to("impossible@toadd.com");
+                add_rcpt_message("impossible@toadd.com");
                 return next();
             } catch (err) {
                 print(err);
@@ -87,7 +87,7 @@
 
         rule "raw=>parsed and remove rcpt" || {
             try {
-                remove_to("impossible@toremove.com");
+                remove_rcpt_message("impossible@toremove.com");
                 return next();
             } catch (err) {
                 print(err);
@@ -97,7 +97,7 @@
 
         rule "raw=>parsed and rewrite rcpt" || {
             try {
-                rewrite_to("impossible@torewrite.com", "impossible@torewrite.com");
+                rewrite_rcpt_message("impossible@torewrite.com", "impossible@torewrite.com");
                 return next();
             } catch (err) {
                 print(err);
@@ -125,26 +125,74 @@
         },
 
         action "rewrite envelop" || {
-            add_rcpt("added@rcpt.com");
-            remove_rcpt("rcpt@toremove.org");
-            rewrite_rcpt("rcpt@torewrite.net", "new@rcpt.net");
-            rewrite_mail_from("new@mailfrom.eu");
+            // available parameters types for `add_rcpt`.
+            // object added2 address = "added2@example.com";
+            // object added3 string = "added3@example.com";
+            // object failadd ip = "127.0.0.1";
+            add_rcpt_envelop("added@example.com");
+            // add_rcpt(added2);
+            // add_rcpt(added3);
+            // try { add_rcpt(failadd); return deny(); } catch { }
+
+            // available parameters types for `remove_rcpt`.
+            // object remove2 address = "toremove1@example.com";
+            // object remove3 string = "toremove2@example.com";
+            // object failremove fqdn = "example.com";
+            remove_rcpt_envelop("rcpt@toremove.org");
+            // remove_rcpt("rcpt@toremove.org");
+            // remove_rcpt("rcpt@toremove.org");
+
+            rewrite_rcpt_envelop("rcpt@torewrite.net", "new@rcpt.net");
+            rewrite_mail_from_envelop("new@mailfrom.eu");
         },
 
-        action "rewrite to headers" || {
-            add_to("other.added@rcpt.com");
-            remove_to("other.rcpt@toremove.org");
-            rewrite_to("other.rcpt@torewrite.net", "other.new@rcpt.net");
+        action "rewrite message headers" || {
+            // available parameters types for `add_rcpt_message`.
+            object added1 address = "added1@example.com";
+            object added2 string = "added2@example.com";
+            add_rcpt_message(added1);
+            add_rcpt_message(added2);
+            add_rcpt_message("added3@example.com");
+
+            object fail ip4 = "127.0.0.1";
+            try { add_rcpt_message(fail); return deny(); } catch (e) { print(e) }
+
+            // available parameters types for `remove_rcpt_message`.
+            object removed1 address = "removed1@example.com";
+            object removed2 string = "removed2@example.com";
+            remove_rcpt_message(removed1);
+            remove_rcpt_message(removed2);
+            remove_rcpt_message("removed3@example.org");
+
+            object fail ip4 = "127.0.0.1";
+            try { remove_rcpt_message(fail); return deny(); } catch (e) { print(e) }
+
+            // available parameters types for `rewrite_rcpt_message`.
+            object rewrite1 address = "rewrite1@example.com";
+            object rewrite2 string = "rewrite2@example.com";
+            rewrite_rcpt_message(rewrite1, "rewrite3@example.org");
+            rewrite_rcpt_message("rewrite3@example.org", rewrite2);
+            rewrite_rcpt_message("rewrite3@example.org", "rewrite4@example.org");
+            rewrite_rcpt_message(rewrite1, rewrite2);
+
+            object fail ip4 = "127.0.0.1";
+            try { rewrite_rcpt_message(fail, "rewrite3@example.com"); return deny(); } catch (e) { print(e) }
+
+            remove_rcpt_message(added1);
+            remove_rcpt_message("other.rcpt@toremove.org");
+            rewrite_rcpt_message("other.rcpt@torewrite.net", rewrite1);
+            rewrite_rcpt_message(added2, rewrite2);
         },
 
         rule "check rewrites" || {
-            if "added@rcpt.com" in ctx().rcpt_list
-            && !("rcpt@toremove.org" in ctx().rcpt_list)
-            && "new@rcpt.net" in ctx().rcpt_list
-            && !("rcpt@torewrite.net" in ctx().rcpt_list)
+            if "added@example.com" in ctx().rcpt_list
+            // && !("rcpt@toremove.org" in ctx().rcpt_list)
+            // && "new@rcpt.net" in ctx().rcpt_list
+            // && !("rcpt@torewrite.net" in ctx().rcpt_list)
             && ctx().mail_from is "new@mailfrom.eu" {
                 next()
             } else {
+                print(ctx().mail_from );
                 deny()
             }
         },

@@ -20,7 +20,7 @@ fn invalid_object(obj) {
         bcc(obj);
         return deny();
     } catch (err) {
-        if `'${obj}' could not be converted to a valid rcpt address` in err { return next(); } else { return deny(); }
+        if "invalid type conversion expected" in err { return next(); } else { return deny(); }
     }
 }
 

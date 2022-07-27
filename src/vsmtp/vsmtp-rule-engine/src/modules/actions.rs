@@ -15,8 +15,6 @@
  *
 */
 ///
-pub mod bcc;
-///
 pub mod dkim;
 ///
 pub mod logging;
@@ -35,7 +33,6 @@ pub mod write;
 
 #[cfg(test)]
 mod test {
-
     use vsmtp_common::mail_context::{ConnectionContext, MailContext};
 
     pub fn get_default_context() -> MailContext {

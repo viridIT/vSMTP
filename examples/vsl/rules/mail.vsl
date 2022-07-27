@@ -3,7 +3,7 @@ import "users" as users;
 #{
   mail: [
     rule "test_ident" || if ctx().mail_from not users::john && users::john not ctx().mail_from { next() } else { deny() },
-    rule "test_fqdn" || if ctx().mail_from is users::bar { next() } else { deny() },
+    rule "test_fqdn" || if ctx().mail_from.domain is users::bar { next() } else { deny() },
     rule "test_addr" || if ctx().mail_from is users::someone { next() } else { deny() },
     rule "test_group" || if ctx().mail_from in users::staff { accept() } else { deny() },
   ],

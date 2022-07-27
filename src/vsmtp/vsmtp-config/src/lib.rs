@@ -171,11 +171,13 @@ pub fn create_app_folder(
 
     if !full_path.exists() {
         std::fs::create_dir_all(&full_path)?;
-        chown(
-            &full_path,
-            Some(config.server.system.user.uid()),
-            Some(config.server.system.group.gid()),
-        )?;
+        if option_env!("CI").is_none() {
+            chown(
+                &full_path,
+                Some(config.server.system.user.uid()),
+                Some(config.server.system.group.gid()),
+            )?;
+        }
 
         // NOTE: `canonicalize` cannot be used before creating folders
         //        because it checks if the result path exists or not.

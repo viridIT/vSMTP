@@ -1,7 +1,7 @@
 #{
     connect: [
         rule "check root domain" || {
-            if in_domain(sys::new_address("rcpt@testserver.com"))
+            if in_domain(object rcpt1 address = "rcpt@testserver.com")
             && in_domain("testserver.com")
             && ctx().server_name == "testserver.com" {
                 accept()
@@ -14,8 +14,9 @@
     preq: [
         rule "check sni domain" || {
             print(toml::server.virtual);
-            if in_domain(sys::new_address("rcpt@example.com")) == true
-            && in_domain(sys::new_address("john@unknown.com")) == false
+
+            if in_domain(object rcpt1 address = "rcpt@example.com") == true
+            && in_domain(object john address = "john@unknown.com") == false
             && in_domain("unknown.com") == false
             && in_domain("invalid") == false {
                 accept()
@@ -35,8 +36,11 @@
 
     delivery: [
         rule "find users" || {
+
+            object root identifier = "root";
+
             if !user_exist("john")
-            && user_exist("root")
+            && user_exist(root)
             {
                 accept()
             } else {

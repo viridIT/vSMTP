@@ -32,8 +32,8 @@ pub fn parse_object(
         // type of the object.
         3 => match symbols[2].as_str() {
             // regular type, next is the '=' token or ':' token in case of the file type.
-            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex"
-            | "group" | "file" | "code" => Ok(Some("$symbol$".into())),
+            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "identifier" | "string"
+            | "regex" | "group" | "file" | "code" => Ok(Some("$symbol$".into())),
             entry => Err(rhai::ParseError(
                 Box::new(rhai::ParseErrorType::BadInput(
                     rhai::LexError::ImproperSymbol(
@@ -62,9 +62,8 @@ pub fn parse_object(
         5 => match symbols[4].as_str() {
             // NOTE: could it be possible to add a "file" | "code" | "group" content type ?
             // content types handled by the file type. next is the '=' token.
-            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "ident" | "string" | "regex" => {
-                Ok(Some("=".into()))
-            }
+            "ip4" | "ip6" | "rg4" | "rg6" | "fqdn" | "address" | "identifier" | "string"
+            | "regex" => Ok(Some("=".into())),
             // an expression, in the case of a regular object, whe are done parsing.
             _ => Ok(None),
         },
@@ -101,20 +100,37 @@ pub fn create_object(
         _ => create_other(context, input, &object_type, &object_name),
     }?;
 
-    let object_ptr = std::sync::Arc::new(
-        Object::from(&object)
-            .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?,
-    );
+    // FIXME: I know it's dirty, could be refactored.
+    // NOTE: string objects are pushed as regular strings to reduce
+    //       complexity in vsl's api parameters.
+    match Object::from_map(&object)
+        .map_err::<Box<rhai::EvalAltResult>, _>(|err| err.to_string().into())?
+    {
+        Object::Str(string) => {
+            // Pushing object in scope, preventing a "let _" statement,
+            // and returning a reference to the object in case of a parent group.
+            // Also, exporting the variable by default using `set_alias`.
+            context
+                .scope_mut()
+                .push_constant(&object_name, string.clone())
+                .set_alias(object_name, "");
 
-    // Pushing object in scope, preventing a "let _" statement,
-    // and returning a reference to the object in case of a parent group.
-    // Also, exporting the variable by default using `set_alias`.
-    context
-        .scope_mut()
-        .push_constant(&object_name, object_ptr.clone())
-        .set_alias(object_name, "");
+            Ok(rhai::Dynamic::from(string))
+        }
+        other => {
+            let object_ptr = std::sync::Arc::new(other);
 
-    Ok(rhai::Dynamic::from(object_ptr))
+            // Pushing object in scope, preventing a "let _" statement,
+            // and returning a reference to the object in case of a parent group.
+            // Also, exporting the variable by default using `set_alias`.
+            context
+                .scope_mut()
+                .push_constant(&object_name, object_ptr.clone())
+                .set_alias(object_name, "");
+
+            Ok(rhai::Dynamic::from(object_ptr))
+        }
+    }
 }
 
 /// create a file object as a Map.

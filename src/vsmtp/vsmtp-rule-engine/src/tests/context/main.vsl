@@ -1,0 +1,98 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+#{
+    authenticate: [
+        action "auth getters" || {
+            print(`auth type => ${auth().type}`);
+            print(`auth token => ${auth().anonymous_token}`);
+        },
+
+        rule "trailing authenticate" || accept(),
+    ],
+
+    rcpt: [
+        action "rcpt getter" || {
+            print(`rcpt => ${rcpt()}`);
+        },
+
+        rule "trailing rcpt" || accept(),
+    ],
+
+    preq: [
+        action "getters" || {
+            print(`client: ${client_ip()}:${client_port()} => ${client_address()}`);
+
+            if `${client_ip()}:${client_port()}` != client_address() {
+                return deny();
+            }
+
+            print(`server: ${server_ip()}:${server_port()} => ${server_address()}`);
+
+            if `${server_ip()}:${server_port()}` != server_address() {
+                return deny();
+            }
+
+            print(`connection timestamp => ${connection_timestamp()}`);
+            print(`server name => ${server_name()}`);
+            print(`is secured => ${is_secured()}`);
+            print(`is authenticated => ${is_authenticated()}`);
+
+            print(`helo => ${helo()}`);
+            print(`mail_from => ${mail_from()}`);
+            print(`rcpt list => ${rcpt_list()}`);
+            print(`mail timestamp => ${mail_timestamp()}`);
+            print(`message id => ${message_id()}`);
+        },
+
+        action "rewrite envelop" || {
+            object john address = "john.doe@example.com";
+            rewrite_mail_from_envelop("john.doe@example.com");
+            rewrite_mail_from_envelop(john);
+
+            object fail ip4 = "127.0.0.1";
+            try { rewrite_mail_from_envelop(fail); return deny(); } catch (e) { print(e) }
+
+            object add1 address = "add1@example.com";
+            object add2 string = "add2@example.com";
+            object add3 identifier = "add3@example.com";
+            add_rcpt_envelop(add1);
+            add_rcpt_envelop(add2);
+            add_rcpt_envelop(add3);
+            add_rcpt_envelop("add4@example.com");
+
+            object fail ip4 = "127.0.0.1";
+            try { add_rcpt_envelop(fail); return deny(); } catch (e) { print(e) }
+
+            object replace1 address = "replace1@example.com";
+            object replace4 address = "replace4@example.com";
+            rewrite_rcpt_envelop(add1, replace1);
+            rewrite_rcpt_envelop(replace1, "replace2@example.com");
+            rewrite_rcpt_envelop("replace2@example.com", "replace3@example.com");
+            rewrite_rcpt_envelop("replace3@example.com", replace4);
+
+            object fail fqdn = "example.com";
+            try { rewrite_rcpt_envelop(fail); return deny(); } catch (e) { print(e) }
+
+            remove_rcpt_envelop("add2@example.com");
+            remove_rcpt_envelop(add3);
+
+            try { remove_rcpt_envelop(fail); return deny(); } catch (e) { print(e) }
+        },
+
+        rule "trailing preq" || accept(),
+    ]
+}

@@ -109,7 +109,7 @@ fn test_email_context_mail() {
     );
     assert_eq!(
         state.message().read().unwrap().get_header("to"),
-        Some("other.new@rcpt.net, other.added@rcpt.com".to_string())
+        Some("rewrite1@example.com, rewrite2@example.com, added3@example.com".to_string())
     );
 }
 

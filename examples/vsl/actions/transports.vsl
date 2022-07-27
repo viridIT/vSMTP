@@ -1,0 +1,87 @@
+// transports.vsl
+//
+// Transports can be used to tell vsmtp where and how to send
+// an email for a single recipient or all of them.
+
+#{
+    connect: [
+        // we add a few recipients here for the example's sake.
+        action "add recipients" || {
+            add_rcpt_envelop("john@example.com");
+            add_rcpt_envelop("doe@example.com");
+            add_rcpt_envelop("green@example.com");
+            add_rcpt_envelop("foo@example.com");
+            add_rcpt_envelop("bar@example.com");
+            add_rcpt_envelop("a@example.com");
+            add_rcpt_envelop("b@example.com");
+            add_rcpt_envelop("c@example.com");
+            add_rcpt_envelop("d@example.com");
+        }
+    ],
+
+    delivery: [
+        // The "deliver" method simply delivers the email
+        // to the recipient using its domain. It is the default
+        // method used.
+        action "setup deliver" || {
+            object bar address = "bar@example.com";
+
+            deliver(bar);
+            deliver("foo@example.com");
+        },
+
+        // Forwarding directly sends recipients to the target
+        // given as the second arguments of the `forward` function.
+        //
+        // the target can be an ip4/6, a string or a domain. (that
+        // the dns will lookup)
+        action "setup forwarding" || {
+            object forward_local string = "localhost";
+            object forward_ip6 ip6 = "::1";
+            object forward_fqdn fqdn = "test.eu";
+
+            // those objects are used to check what parameters
+            // can be passed down the `forward` function.
+            object john address = "john@example.com";
+            object green address = "green@example.com";
+
+            forward(john, "localhost");
+            forward("doe@example.com", "127.0.0.1");
+            forward(green, forward_local);
+            forward("a@example.com", forward_ip6);
+            forward("b@example.com", forward_fqdn);
+            forward("c@example.com", "127.0.0.1:25");
+            forward("d@example.com", "[::1]:25");
+        },
+
+        // The "mbox" method delivers the email localy
+        // using the mailbox protocol.
+        action "setup mailbox" || {
+            object doe address = "doe@example.com";
+
+            mbox(doe);
+            mbox("a@example.com");
+        },
+
+        // The "maildir" method delivers the email localy
+        // using the maildir protocol.
+        action "setup maildir" || {
+            object b address = "b@example.com";
+
+            maildir(b);
+            maildir("c@example.com");
+        },
+
+        // Finally, you can choose to disable the delivery
+        // for a recipient. The email for this recipient
+        // will be removed from the file system
+        // as soon as their are no other recipient
+        // to send the email to.
+        action "disable delivery" || {
+            object d address = "d@example.com";
+
+            disable_delivery(d);
+            disable_delivery("a@example.com");
+        },
+    ]
+}

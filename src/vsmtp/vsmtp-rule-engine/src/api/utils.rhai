@@ -14,10 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+
 /// get the domain used to identify a recipient.
 private fn __in_domain(rcpt) {
     switch rcpt.type_of() {
-        "vsmtp_common::type::address::Address" => {
+        "alloc::sync::Arc<vsmtp_rule_engine::dsl::object::Object>" => {
             rcpt.domain in toml::server.virtual || rcpt.domain == toml::server.domain
         },
         "string" => {

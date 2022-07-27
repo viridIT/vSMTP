@@ -17,27 +17,34 @@
 use crate::modules::types::types::{Context, Server};
 use crate::modules::EngineResult;
 use rhai::plugin::{
-    Dynamic, EvalAltResult, FnAccess, FnNamespace, Module, NativeCallContext, PluginFunction,
-    RhaiResult, TypeId,
+    mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
+    PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::{auth::Credentials, auth::Mechanism, state::StateSMTP, Address};
 
 #[rhai::plugin::export_module]
 pub mod mail_context {
+    use crate::{dsl::object::Object, modules::types::types::SharedObject};
+
+    #[rhai_fn(global, get = "client_address", return_raw, pure)]
+    pub fn client_address(context: &mut Context) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(context.read()).client_addr.to_string())
+    }
 
     #[rhai_fn(global, get = "client_ip", return_raw, pure)]
-    pub fn client_ip(this: &mut Context) -> EngineResult<std::net::IpAddr> {
-        Ok(vsl_guard_ok!(this.read()).client_addr.ip())
+    pub fn client_ip(context: &mut Context) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(context.read()).client_addr.ip().to_string())
     }
 
     #[rhai_fn(global, get = "client_port", return_raw, pure)]
-    pub fn client_port(this: &mut Context) -> EngineResult<i64> {
-        Ok(i64::from(vsl_guard_ok!(this.read()).client_addr.port()))
+    pub fn client_port(context: &mut Context) -> EngineResult<i64> {
+        Ok(i64::from(vsl_guard_ok!(context.read()).client_addr.port()))
     }
 
     #[rhai_fn(global, get = "server_address", return_raw, pure)]
-    pub fn server_address(this: &mut Context) -> EngineResult<String> {
-        Ok(this
+    pub fn server_address(context: &mut Context) -> EngineResult<String> {
+        Ok(context
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .connection
@@ -46,8 +53,8 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "server_ip", return_raw, pure)]
-    pub fn server_ip(this: &mut Context) -> EngineResult<std::net::IpAddr> {
-        Ok(this
+    pub fn server_ip(context: &mut Context) -> EngineResult<std::net::IpAddr> {
+        Ok(context
             .read()
             .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
             .connection
@@ -56,9 +63,10 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "server_port", return_raw, pure)]
-    pub fn server_port(this: &mut Context) -> EngineResult<i64> {
+    pub fn server_port(context: &mut Context) -> EngineResult<i64> {
         Ok(i64::from(
-            this.read()
+            context
+                .read()
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
                 .connection
                 .server_address
@@ -67,29 +75,29 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
-    pub fn connection_timestamp(this: &mut Context) -> EngineResult<std::time::SystemTime> {
-        Ok(vsl_guard_ok!(this.read()).connection.timestamp)
+    pub fn connection_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
+        Ok(vsl_guard_ok!(context.read()).connection.timestamp)
     }
 
     #[rhai_fn(global, get = "server_name", return_raw, pure)]
-    pub fn server_name(this: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(this.read()).connection.server_name.clone())
+    pub fn server_name(context: &mut Context) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(context.read()).connection.server_name.clone())
     }
 
     #[rhai_fn(global, get = "is_secured", return_raw, pure)]
-    pub fn is_secured(this: &mut Context) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(this.read()).connection.is_secured)
+    pub fn is_secured(context: &mut Context) -> EngineResult<bool> {
+        Ok(vsl_guard_ok!(context.read()).connection.is_secured)
     }
 
     #[rhai_fn(global, get = "is_authenticated", return_raw, pure)]
-    pub fn is_authenticated(this: &mut Context) -> EngineResult<bool> {
-        Ok(vsl_guard_ok!(this.read()).connection.is_authenticated)
+    pub fn is_authenticated(context: &mut Context) -> EngineResult<bool> {
+        Ok(vsl_guard_ok!(context.read()).connection.is_authenticated)
     }
 
     #[rhai_fn(global, get = "auth", return_raw, pure)]
-    pub fn auth(this: &mut Context) -> EngineResult<Credentials> {
+    pub fn auth(context: &mut Context) -> EngineResult<Credentials> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(this.read()).connection.credentials,
+            vsl_guard_ok!(context.read()).connection.credentials,
             "auth",
             StateSMTP::Authenticate(Mechanism::Anonymous, None)
         )
@@ -135,40 +143,44 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "helo", return_raw, pure)]
-    pub fn helo(this: &mut Context) -> EngineResult<String> {
-        Ok(vsl_guard_ok!(this.read()).envelop.helo.clone())
+    pub fn helo(context: &mut Context) -> EngineResult<String> {
+        Ok(vsl_guard_ok!(context.read()).envelop.helo.clone())
     }
 
     #[rhai_fn(global, get = "mail_from", return_raw, pure)]
-    pub fn mail_from(this: &mut Context) -> EngineResult<Address> {
-        Ok(vsl_guard_ok!(this.read()).envelop.mail_from.clone())
+    pub fn mail_from(context: &mut Context) -> EngineResult<SharedObject> {
+        Ok(std::sync::Arc::new(Object::Address(
+            vsl_guard_ok!(context.read()).envelop.mail_from.clone(),
+        )))
     }
 
     #[rhai_fn(global, get = "rcpt_list", return_raw, pure)]
-    pub fn rcpt_list(this: &mut Context) -> EngineResult<Vec<Address>> {
-        Ok(vsl_guard_ok!(this.read())
+    pub fn rcpt_list(context: &mut Context) -> EngineResult<Vec<SharedObject>> {
+        Ok(vsl_guard_ok!(context.read())
             .envelop
             .rcpt
             .iter()
-            .map(|rcpt| rcpt.address.clone())
+            .map(|rcpt| std::sync::Arc::new(Object::Address(rcpt.address.clone())))
             .collect())
     }
 
     #[rhai_fn(global, get = "rcpt", return_raw, pure)]
-    pub fn rcpt(this: &mut Context) -> EngineResult<Address> {
-        Ok(vsl_missing_ok!(
-            vsl_guard_ok!(this.read()).envelop.rcpt.last(),
-            "rcpt",
-            StateSMTP::RcptTo
-        )
-        .address
-        .clone())
+    pub fn rcpt(context: &mut Context) -> EngineResult<SharedObject> {
+        Ok(std::sync::Arc::new(Object::Address(
+            vsl_missing_ok!(
+                vsl_guard_ok!(context.read()).envelop.rcpt.last(),
+                "rcpt",
+                StateSMTP::RcptTo
+            )
+            .address
+            .clone(),
+        )))
     }
 
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
-    pub fn mail_timestamp(this: &mut Context) -> EngineResult<std::time::SystemTime> {
+    pub fn mail_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(this.read()).metadata,
+            vsl_guard_ok!(context.read()).metadata,
             "mail_timestamp",
             StateSMTP::PreQ
         )
@@ -176,9 +188,9 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
-    pub fn message_id(this: &mut Context) -> EngineResult<String> {
+    pub fn message_id(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
-            vsl_guard_ok!(this.read()).metadata,
+            vsl_guard_ok!(context.read()).metadata,
             "message_id",
             StateSMTP::PreQ
         )
@@ -192,8 +204,8 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn ctx_to_debug(this: &mut Context) -> String {
-        ctx_to_string(this)
+    pub fn ctx_to_debug(context: &mut Context) -> String {
+        ctx_to_string(context)
     }
 
     #[rhai_fn(global, name = "to_string", pure)]
@@ -202,7 +214,155 @@ pub mod mail_context {
     }
 
     #[rhai_fn(global, name = "to_debug", pure)]
-    pub fn srv_to_debug(this: &mut Server) -> String {
-        srv_to_string(this)
+    pub fn srv_to_debug(context: &mut Server) -> String {
+        srv_to_string(context)
     }
+
+    /// Change the sender of the envelop.
+    #[rhai_fn(global, name = "rewrite_mail_from_envelop", return_raw, pure)]
+    pub fn rewrite_mail_from_envelop_str(
+        context: &mut Context,
+        new_addr: &str,
+    ) -> EngineResult<()> {
+        super::rewrite_mail_from_envelop(context, new_addr)
+    }
+
+    /// Change the sender of the envelop using an object.
+    #[rhai_fn(global, name = "rewrite_mail_from_envelop", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn rewrite_mail_from_envelop_obj(
+        context: &mut Context,
+        new_addr: SharedObject,
+    ) -> EngineResult<()> {
+        super::rewrite_mail_from_envelop(context, &new_addr.to_string())
+    }
+
+    /// Replace a recipient of the envelop.
+    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
+    pub fn rewrite_rcpt_str_str(
+        context: &mut Context,
+        old_addr: &str,
+        new_addr: &str,
+    ) -> EngineResult<()> {
+        super::rewrite_rcpt(context, old_addr, new_addr)
+    }
+
+    /// Replace a recipient of the envelop.
+    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn rewrite_rcpt_obj_str(
+        context: &mut Context,
+        old_addr: SharedObject,
+        new_addr: &str,
+    ) -> EngineResult<()> {
+        super::rewrite_rcpt(context, &old_addr.to_string(), new_addr)
+    }
+
+    /// Replace a recipient of the envelop.
+    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn rewrite_rcpt_str_obj(
+        context: &mut Context,
+        old_addr: &str,
+        new_addr: SharedObject,
+    ) -> EngineResult<()> {
+        super::rewrite_rcpt(context, old_addr, &new_addr.to_string())
+    }
+
+    /// Replace a recipient of the envelop.
+    #[rhai_fn(global, name = "rewrite_rcpt_envelop", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn rewrite_rcpt_obj_obj(
+        context: &mut Context,
+        old_addr: SharedObject,
+        new_addr: SharedObject,
+    ) -> EngineResult<()> {
+        super::rewrite_rcpt(context, &old_addr.to_string(), &new_addr.to_string())
+    }
+
+    /// add a recipient to the envelop.
+    #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
+    pub fn add_rcpt_str(context: &mut Context, new_addr: &str) -> EngineResult<()> {
+        super::add_rcpt(context, new_addr)
+    }
+
+    /// add a recipient to the envelop.
+    #[rhai_fn(global, name = "add_rcpt_envelop", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn add_rcpt_obj(context: &mut Context, new_addr: SharedObject) -> EngineResult<()> {
+        super::add_rcpt(context, &new_addr.to_string())
+    }
+
+    /// remove a recipient from the envelop.
+    #[rhai_fn(global, name = "remove_rcpt_envelop", return_raw, pure)]
+    pub fn remove_rcpt_envelop_str(context: &mut Context, addr: &str) -> EngineResult<()> {
+        super::remove_rcpt_envelop(context, addr)
+    }
+
+    /// remove a recipient from the envelop.
+    #[rhai_fn(global, name = "remove_rcpt_envelop", return_raw, pure)]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn remove_rcpt_envelop_obj(context: &mut Context, addr: SharedObject) -> EngineResult<()> {
+        super::remove_rcpt_envelop(context, &addr.to_string())
+    }
+}
+
+/// internal generic function to rewrite the `mail_from` value of the envelop.
+fn rewrite_mail_from_envelop(context: &mut Context, new_addr: &str) -> EngineResult<()> {
+    vsl_guard_ok!(context.write()).envelop.mail_from =
+        vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+    Ok(())
+}
+
+/// internal generic function to rewrite a recipient of the envelop.
+fn rewrite_rcpt(context: &mut Context, old_addr: &str, new_addr: &str) -> EngineResult<()> {
+    let old_addr = vsl_conversion_ok!("address", Address::try_from(old_addr.to_string()));
+    let new_addr = vsl_conversion_ok!("address", Address::try_from(new_addr.to_string()));
+
+    let mut context = vsl_guard_ok!(context.write());
+
+    context.envelop.rcpt.push(Rcpt::new(new_addr));
+
+    if let Some(index) = context
+        .envelop
+        .rcpt
+        .iter()
+        .position(|rcpt| rcpt.address == old_addr)
+    {
+        context.envelop.rcpt.swap_remove(index);
+    }
+    Ok(())
+}
+
+/// internal generic function to add a recipient to the envelop.
+fn add_rcpt(context: &mut Context, new_addr: &str) -> EngineResult<()> {
+    vsl_guard_ok!(context.write())
+        .envelop
+        .rcpt
+        .push(Rcpt::new(vsl_conversion_ok!(
+            "address",
+            Address::try_from(new_addr.to_string())
+        )));
+
+    Ok(())
+}
+
+/// internal generic function to remove a recipient to the envelop.
+fn remove_rcpt_envelop(context: &mut Context, addr: &str) -> EngineResult<()> {
+    let addr = vsl_conversion_ok!("address", Address::try_from(addr.to_string()));
+
+    let mut email = vsl_guard_ok!(context.write());
+
+    email
+        .envelop
+        .rcpt
+        .iter()
+        .position(|rcpt| rcpt.address == addr)
+        .map_or_else(
+            || Ok(()),
+            |index| {
+                email.envelop.rcpt.remove(index);
+                Ok(())
+            },
+        )
 }

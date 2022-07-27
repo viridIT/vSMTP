@@ -35,6 +35,20 @@ macro_rules! addr {
     };
 }
 
+impl TryFrom<&str> for Address {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if let Err(error) = addr::parse_email_address(value) {
+            anyhow::bail!("'{}' is not a valid address: {}", value, error)
+        }
+        Ok(Self {
+            at_sign: value.find('@').expect("no '@' in address"),
+            full: value.to_string(),
+        })
+    }
+}
+
 impl TryFrom<String> for Address {
     type Error = anyhow::Error;
 

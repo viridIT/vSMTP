@@ -1,17 +1,36 @@
+// logs.vsl
+//
+// Logs can be used to get information from the server.
+// Logs can be configured using the toml config and will
+// display under the `app` log module.
+
 #{
     connect: [
         action "debug" || log("debug", "executing procedures in connect stage."),
 
-        action "log_incoming" || {
-            log("info", "incoming transaction.");
-            log("trace", `[${date}/${time}] client=${ctx().client_ip}`);
+        action "incoming transaction" || {
+
+            object message string = "incoming transaction.";
+
+            // You can use objects as arguments.
+            log("info", message);
+
+            // Use global objects as levels to easly change multiple
+            // log level with one variable.
+            object connect_level string = "trace";
+
+            // Use string interpolation to format information that you
+            // would want to log.
+            log(connect_level, `[${date()}/${time()}] client=${client_ip()}`);
         },
 
         rule "stop" || {
-            log("warn", "running rule 'stop'.");
-            log("error", "current connexion denied.");
+            log("warn", "Running rule 'stop'.");
+            log("error", "An error occured.");
+
+            // unknown levels are set to "warning" by default.
             log("unknown", "this will be emited as a warning.");
-            deny()
+            accept()
         },
     ]
 }

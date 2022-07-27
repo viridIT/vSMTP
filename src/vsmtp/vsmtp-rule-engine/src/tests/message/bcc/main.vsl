@@ -19,13 +19,12 @@ import "bcc" as bcc;
 #{
     postq: [
         rule "bcc with invalid address (str)"       || bcc::invalid_object("invalid-address"),
-        rule "bcc with invalid address (obj ident)" || bcc::invalid_object(object green ident = "green.foo"),
+        rule "bcc with invalid address (obj ident)" || bcc::invalid_object(object green identifier = "green.foo"),
         rule "bcc with invalid address (obj str)"   || bcc::invalid_object(object invalid string = "invalid-str-address"),
         rule "add bcc" || {
             if bcc::add_bcc("string@address.com") == next()
             && bcc::add_bcc(object str string = "my.string@address.eu") == next()
             && bcc::add_bcc(object addr address = "my.addr@address.com") == next()
-            && bcc::add_bcc(sys::new_address("new.address@address.fr")) == next()
             {
                 next()
             } else {

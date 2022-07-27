@@ -28,7 +28,7 @@ const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
 #[rhai::plugin::export_module]
 pub mod utils {
 
-    use crate::modules::EngineResult;
+    use crate::modules::{types::types::SharedObject, EngineResult};
     use vsmtp_common::re::lettre;
 
     // TODO: not yet functional, the relayer cannot connect to servers.
@@ -71,11 +71,19 @@ pub mod utils {
         }
     }
 
-    // TODO: use UsersCache to optimize user lookup.
     /// use the user cache to check if a user exists on the system.
     #[must_use]
-    pub fn user_exist(name: &str) -> bool {
-        vsmtp_config::re::users::get_user_by_name(name).is_some()
+    #[rhai_fn(global, name = "user_exist")]
+    pub fn user_exist_str(name: &str) -> bool {
+        super::user_exist(name)
+    }
+
+    /// use the user cache to check if a user exists on the system.
+    #[must_use]
+    #[allow(clippy::needless_pass_by_value)]
+    #[rhai_fn(global, name = "user_exist")]
+    pub fn user_exist_obj(name: SharedObject) -> bool {
+        super::user_exist(&name.to_string())
     }
 
     /// get the hostname of the machine.
@@ -109,4 +117,9 @@ pub mod utils {
         now.format(&DATE_FORMAT)
             .unwrap_or_else(|_| String::default())
     }
+}
+
+// TODO: use UsersCache to optimize user lookup.
+fn user_exist(name: &str) -> bool {
+    vsmtp_config::re::users::get_user_by_name(name).is_some()
 }

@@ -21,7 +21,7 @@ object rg6 rg6 = "0:0:0:0:0:0:0:1/32";
 object address address = "local_part@domain.com";
 object fqdn fqdn = "domain.com";
 object regex regex = "^[a-z0-9.]+@domain.com$";
-object identifier ident = "local_part";
+object identifier identifier = "local_part";
 object str string = "a string";
 
 // object file file:address = "./src/tests/types/address/whitelist.txt";

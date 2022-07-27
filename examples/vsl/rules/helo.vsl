@@ -1,7 +1,6 @@
 #{
   helo: [
-    rule "test_fqdn" || {
-      /// A similar syntax will be implemented for files with the 'Database' release
+    rule "test helo using a fqdn object" || {
       // object domains file:fqdn = "./helo.txt";
       // object are best defined in your own modules !
       object bar fqdn = "example.com";
@@ -13,16 +12,7 @@
       }
     },
 
-    /// A similar syntax will be implemented for files with the 'Database' release
-    // rule "test_file" || {
-    //   if ctx().helo in domains {
-    //     next()
-    //   } else {
-    //     deny()
-    //   }
-    // },
-
-    rule "test_regex" || {
+    rule "test helo using a regex object" || {
       object com regex = "^[a-z0-9.]+.com$";
 
       if ctx().helo is com {

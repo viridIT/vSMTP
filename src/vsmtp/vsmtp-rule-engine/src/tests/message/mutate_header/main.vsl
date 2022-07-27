@@ -16,16 +16,29 @@
 */
 
 fn mutate_headers() {
-    append_header("X-New-Header", "value of header");
-    append_header("X-Another-Header", "value of another");
-    append_header("From", "<john@doe.com>");
-    append_header("To", "<green@foo.net>");
 
-    prepend_header("X-VSMTP-STATUS", "delivered");
-    prepend_header("X-VSMTP-TRACING", "empty");
-    prepend_header("X-VSMTP-SENDER", "example.com");
+    object header_name string = "X-New-Header";
+    object header_value string = "value of header";
+    object another_header_value string = "value of header";
+    object from_header string = "From";
+    object green address = "green@foo.net";
 
-    if !has_header("X-New-Header")
+    append_header(header_name, header_value);
+    append_header("X-Another-Header", another_header_value);
+    append_header(from_header, "<john@doe.com>");
+    append_header("To", green);
+
+    object status string = "X-VSMTP-STATUS";
+    object status_delivered string = "delivered";
+
+    object tracing string = "X-VSMTP-TRACING";
+    object default_sender fqdn = "example.com";
+
+    prepend_header(status, status_delivered);
+    prepend_header(tracing, "empty");
+    prepend_header("X-VSMTP-SENDER", default_sender);
+
+    if !has_header(header_name)
     || !has_header("X-Another-Header")
     || !has_header("From")
     || !has_header("To")
@@ -36,13 +49,19 @@ fn mutate_headers() {
         return deny();
     }
 
-    set_header("X-New-Header", "new value!");
-    set_header("X-Yet-Another-Header", "adding to header section when not found");
+    object new_value string = "blah blah blah";
 
-    print(get_header("X-New-Header"));
+    set_header(header_name, header_value);
+    set_header(header_name, "new value!");
+    set_header("X-Another-Header", "value of another");
+    set_header("X-Yet-Another-Header", new_value);
+
+    print(get_header(header_name));
+    print(get_header("X-Yet-Another-Header"));
     print(get_header("X-VSMTP-STATUS"));
 
     if !has_header("X-New-Header")
+    || !has_header("X-Another-Header")
     || !has_header("X-Yet-Another-Header")
     {
         return deny();
@@ -51,8 +70,8 @@ fn mutate_headers() {
     if get_header("X-New-Header") == "new value!"
     && get_header("X-Another-Header") == "value of another"
     && get_header("From") == "<john@doe.com>"
-    && get_header("To") == "<green@foo.net>"
-    && get_header("X-Yet-Another-Header") == "adding to header section when not found"
+    && get_header("To") == "green@foo.net"
+    && get_header("X-Yet-Another-Header") == "blah blah blah"
     && get_header("X-VSMTP-STATUS") == "delivered"
     && get_header("X-VSMTP-TRACING") == "empty"
     && get_header("X-VSMTP-SENDER") == "example.com"
