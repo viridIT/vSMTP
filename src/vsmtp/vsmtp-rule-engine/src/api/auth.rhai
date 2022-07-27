@@ -226,28 +226,7 @@ fn check_spf(header) {
     check_spf(header, "strict")
 }
 
-<<<<<<< HEAD
-/// Verify DKIM signatures.
-/// see https://datatracker.ietf.org/doc/html/rfc6376
-///
-/// # Return
-/// * `accept()` - a signature was successfuly verified.
-/// * `deny()` - no signature could be verified.
-///
-/// # Module:Security
-fn dkim_verify() {
-    let policy = #{
-        // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
-        nbr_headers: 5,
-        // the dns query may result in multiple public key, the registry with invalid format are ignored.
-        // among ["first_one", "cycle"]
-        on_multiple_key_records: "cycle",
-        // is the `expire_time` of the signature over `now +/- eplison` (as seconds)
-        expiration_epsilon: 100,
-    };
-=======
 private fn sys_dkim_verify(policy) {
->>>>>>> 495d0da3c4319e64778c80a0166f6d7cea2a0d90
     log("warn", `verifying DKIM signature with policy=${policy}`);
 
     let last_error = `dkim=none`;
@@ -297,6 +276,13 @@ private fn sys_dkim_verify(policy) {
 }
 
 /// Verify the `DKIM-Signature` header(s) in the mail and produce a `Authentication-Results`.
+/// see https://datatracker.ietf.org/doc/html/rfc6376
+///
+/// # Return
+/// * `accept()` - a signature was successfuly verified.
+/// * `deny()` - no signature could be verified.
+///
+/// # Module:Security
 fn dkim_verify() {
     let result = sys_dkim_verify(#{
         // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
