@@ -29,7 +29,9 @@ async fn test_doe_family_setup() {
 
     #[async_trait::async_trait]
     impl OnMail for MailHandler {
-        async fn on_mail<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+        async fn on_mail<
+            S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+        >(
             &mut self,
             _: &mut Connection<S>,
             ctx: Box<MailContext>,

@@ -15,7 +15,6 @@
  *
 */
 use super::connection::Connection;
-use crate::log_channels;
 use vsmtp_common::{
     addr,
     auth::Mechanism,
@@ -43,6 +42,15 @@ pub struct Transaction {
     pub rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 }
 
+impl std::fmt::Debug for Transaction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Transaction")
+            .field("state", &self.state)
+            .field("rule_state", &self.rule_state)
+            .finish()
+    }
+}
+
 #[allow(clippy::module_name_repetitions)]
 pub enum TransactionResult {
     Data,
@@ -51,26 +59,17 @@ pub enum TransactionResult {
 }
 
 impl Transaction {
+    #[tracing::instrument(skip(connection, client_message))]
     fn parse_and_apply_and_get_reply<
-        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
     >(
         &mut self,
         client_message: &str,
         connection: &Connection<S>,
     ) -> ProcessedEvent {
-        log::trace!(
-            target: log_channels::TRANSACTION,
-            "[{}] buffer=\"{client_message:?}\"",
-            connection.server_addr
-        );
-
         let command_or_code = Event::parse_cmd(client_message);
 
-        log::trace!(
-            target: log_channels::TRANSACTION,
-            "[{}] parsed=\"{command_or_code:?}\"",
-            connection.server_addr
-        );
+        log::trace!("received={client_message:?}; parsed=`{command_or_code:?}`");
 
         command_or_code.map_or_else(
             |c| ProcessedEvent::Reply(ReplyOrCodeID::Left(c)),
@@ -79,7 +78,9 @@ impl Transaction {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn process_event<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    fn process_event<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         event: Event,
         connection: &Connection<S>,
@@ -279,7 +280,9 @@ impl Transaction {
         }
     }
 
-    fn set_connect<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    fn set_connect<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         connection: &Connection<S>,
     ) {
@@ -308,7 +311,9 @@ impl Transaction {
         }
     }
 
-    fn set_mail_from<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    fn set_mail_from<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         mail_from: Address,
         connection: &Connection<S>,
@@ -339,11 +344,7 @@ impl Transaction {
                 ),
                 skipped: self.rule_state.skipped().cloned(),
             });
-            log::trace!(
-                target: log_channels::TRANSACTION,
-                "envelop=\"{:?}\"",
-                ctx.envelop,
-            );
+            log::trace!("envelop=\"{:?}\"", ctx.envelop);
         }
         {
             let state = self.rule_state.message();
@@ -361,7 +362,9 @@ impl Transaction {
             .push(Rcpt::new(rcpt_to));
     }
 
-    pub async fn new<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    pub async fn new<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -394,47 +397,39 @@ impl Transaction {
         })
     }
 
-    pub fn stream<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin>(
+    pub fn stream<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + std::fmt::Debug,
+    >(
         connection: &mut Connection<S>,
     ) -> impl tokio_stream::Stream<Item = String> + '_ {
         let read_timeout = get_timeout_for_state(&connection.config, &StateSMTP::Data);
         async_stream::stream! {
             loop {
-                        log::trace!(
-                            target: log_channels::TRANSACTION,
-                            "[{}] blocking ...", connection.server_addr,
-                        );
                 match connection.read(read_timeout).await {
                     Ok(Some(client_message)) => {
-                        log::trace!(
-                            target: log_channels::TRANSACTION,
-                            "[{}] buffer=\"{:?}\"", connection.server_addr,
-                            client_message
-                        );
-
                         let command_or_code = Event::parse_data(client_message);
-                        log::trace!(
-                            target: log_channels::TRANSACTION,
-                            "[{}] parsed=\"{:?}\"", connection.server_addr,
-                            command_or_code
-                        );
+                        log::trace!("parsed=`{command_or_code:?}`");
 
                         match command_or_code {
                             Ok(Some(line)) => yield line,
                             Ok(None) => break,
                             Err(code) => {
-                                connection.send_code(code).await.unwrap();
+                                match connection.send_code(code).await {
+                                    Ok(_) => (),
+                                    Err(e) => todo!("{e:?}")
+                                }
                             },
                         }
                     }
-                    _ => todo!(),
+                    e => todo!("{e:?}"),
                 }
             }
         }
     }
 
-    #[allow(clippy::too_many_lines)]
-    pub async fn receive<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin>(
+    pub async fn receive<
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sync + Send + Unpin + std::fmt::Debug,
+    >(
         &mut self,
         connection: &mut Connection<S>,
         helo_domain: &Option<String>,
@@ -474,7 +469,7 @@ impl Transaction {
                         .rule_state
                         .context()
                         .read()
-                        .unwrap()
+                        .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
                         .envelop
                         .helo
                         .clone();
@@ -499,9 +494,7 @@ impl Transaction {
                             }
                             ProcessedEvent::ChangeState(new_state) => {
                                 log::info!(
-                                    target: log_channels::TRANSACTION,
-                                    "[{}] STATE: {old_state:?} => {new_state:?}",
-                                    connection.server_addr,
+                                    "STATE: {old_state:?} => {new_state:?}",
                                     old_state = self.state,
                                 );
                                 self.state = new_state;
@@ -510,9 +503,7 @@ impl Transaction {
                             }
                             ProcessedEvent::ReplyChangeState(new_state, reply_to_send) => {
                                 log::info!(
-                                    target: log_channels::TRANSACTION,
-                                    "[{}] STATE: {old_state:?} => {new_state:?}",
-                                    connection.server_addr,
+                                    "STATE: {old_state:?} => {new_state:?}",
                                     old_state = self.state,
                                 );
                                 self.state = new_state;
@@ -523,7 +514,7 @@ impl Transaction {
                         }
                     }
                     Ok(None) => {
-                        log::info!(target: log_channels::TRANSACTION, "eof");
+                        log::info!("eof");
                         self.state = StateSMTP::Stop;
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {

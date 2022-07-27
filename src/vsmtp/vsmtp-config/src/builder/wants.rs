@@ -20,7 +20,7 @@ use crate::field::{
     FieldQueueDelivery, FieldQueueWorking, FieldServerDNS, FieldServerSMTPAuth,
     FieldServerSMTPError, FieldServerSMTPTimeoutClient, FieldServerTls, FieldServerVirtual,
 };
-use vsmtp_common::{re::log, CodeID, Reply};
+use vsmtp_common::{CodeID, Reply};
 
 ///
 pub struct WantsVersion(pub(crate) ());
@@ -63,9 +63,7 @@ pub struct WantsServerQueues {
     pub(crate) parent: WantsServerLogs,
     pub(super) filepath: std::path::PathBuf,
     pub(super) format: String,
-    pub(super) level: std::collections::BTreeMap<String, log::LevelFilter>,
-    pub(super) size_limit: u64,
-    pub(super) archive_count: u32,
+    pub(super) level: Vec<tracing_subscriber::filter::Directive>,
 }
 
 ///
@@ -125,10 +123,7 @@ pub struct WantsAppLogs {
 pub struct WantsServerDNS {
     pub(crate) parent: WantsAppLogs,
     pub(super) filepath: std::path::PathBuf,
-    pub(super) level: log::LevelFilter,
     pub(super) format: String,
-    pub(super) size_limit: u64,
-    pub(super) archive_count: u32,
 }
 
 ///

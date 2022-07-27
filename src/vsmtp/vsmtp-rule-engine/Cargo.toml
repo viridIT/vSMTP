@@ -52,6 +52,8 @@ rhai = { version = "1.8.0", features = [
   "no_closure",
 ] }
 
+strum = { version = "0.24.1", features = ["derive"] }
+
 wait-timeout = "0.2.0"
 
 viaspf = { version = "0.4.1", features = ["trust-dns-resolver"] }
@@ -61,6 +63,8 @@ time = { version = "0.3.11", default-features = false, features = [
   "formatting",
   "macros",
 ] }
+
+trust-dns-resolver = "0.21.2"
 
 [dev-dependencies]
 vsmtp-mail-parser = { path = "../vsmtp-mail-parser" }

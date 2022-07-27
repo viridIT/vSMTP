@@ -15,7 +15,6 @@
  *
 */
 use super::Transport;
-use crate::transport::log_channels;
 use trust_dns_resolver::TokioAsyncResolver;
 use vsmtp_common::{
     mail_context::MessageMetadata,
@@ -131,7 +130,6 @@ impl<'r> Deliver<'r> {
 
         if records.is_empty() {
             log::warn!(
-                target: log_channels::DELIVER,
                 "(msg={}) empty set of MX records found for '{domain}'",
                 metadata.message_id
             );
@@ -157,7 +155,6 @@ impl<'r> Deliver<'r> {
             // see https://datatracker.ietf.org/doc/html/rfc7505
             if host == "." {
                 log::warn!(
-                    target: log_channels::DELIVER,
                     "(msg={}) trying to delivery to '{domain}', but a null mx record was found. '{domain}' does not want to receive messages.",
                     metadata.message_id
                 );
@@ -173,7 +170,6 @@ impl<'r> Deliver<'r> {
             {
                 Ok(_) => return Ok(()),
                 Err(err) => log::warn!(
-                    target: log_channels::DELIVER,
                     "(msg={}) failed to send message from '{from}' for '{domain}': {err}",
                     metadata.message_id
                 ),
@@ -218,7 +214,6 @@ impl<'r> Transport for Deliver<'r> {
                 }),
                 Err(ResultSendMail::IncreaseHeldBack(error)) => {
                     log::error!(
-                        target: log_channels::DELIVER,
                         "(msg={}) TEMP ERROR, failed to send message from '{from}' for '{domain}': {error}",
                         metadata.message_id,
                         from = from.full(),
@@ -231,7 +226,6 @@ impl<'r> Transport for Deliver<'r> {
                 }
                 Err(ResultSendMail::Failed(reason)) => {
                     log::error!(
-                        target: log_channels::DELIVER,
                         "(msg={}) PERM ERROR, failed to send message from '{from}' for '{domain}': {reason}",
                         metadata.message_id,
                         from = from.full(),

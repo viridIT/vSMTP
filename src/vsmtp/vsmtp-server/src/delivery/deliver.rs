@@ -17,7 +17,6 @@
 use crate::{
     delegate,
     delivery::{add_trace_information, send_mail, SenderOutcome},
-    log_channels,
     receiver::MailHandlerError,
     ProcessMessage,
 };
@@ -40,7 +39,7 @@ pub async fn flush_deliver_queue(
     resolvers: std::sync::Arc<Resolvers>,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
-    log::info!(target: log_channels::DELIVERY, "Flushing deliver queue");
+    log::info!("Flushing deliver queue");
 
     let dir_entries =
         std::fs::read_dir(queue_path!(&config.server.queues.dirpath, Queue::Deliver))?;
@@ -63,21 +62,14 @@ pub async fn flush_deliver_queue(
 
 /// handle and send one email pulled from the delivery queue.
 ///
-/// # Args
-/// * `config` - the server's config.
-/// * `resolvers` - a list of dns with their associated domains.
-/// * `path` - the path to the message file.
-/// * `rule_engine` - an instance of the rule engine.
-///
 /// # Errors
+///
 /// * failed to open the email.
 /// * failed to parse the email.
 /// * failed to send an email.
 /// * rule engine mutex is poisoned.
 /// * failed to add trace data to the email.
 /// * failed to copy the email to other queues or remove it from the delivery queue.
-///
-/// # Panics
 pub async fn handle_one_in_delivery_queue(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
@@ -85,7 +77,6 @@ pub async fn handle_one_in_delivery_queue(
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) {
     log::info!(
-        target: log_channels::DELIVERY,
         "handling message in delivery queue {}",
         process_message.message_id
     );
@@ -93,11 +84,7 @@ pub async fn handle_one_in_delivery_queue(
     if let Err(e) =
         handle_one_in_delivery_queue_inner(config, resolvers, process_message, rule_engine).await
     {
-        log::warn!(
-            target: log_channels::DELIVERY,
-            "failed to handle one email in delivery queue: {}",
-            e
-        );
+        log::warn!("failed to handle one email in delivery queue: {e}");
     }
 }
 
@@ -108,11 +95,7 @@ async fn handle_one_in_delivery_queue_inner(
     process_message: ProcessMessage,
     rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
 ) -> anyhow::Result<()> {
-    log::debug!(
-        target: log_channels::DELIVERY,
-        "processing email '{}'",
-        process_message.message_id
-    );
+    log::debug!("processing email '{}'", process_message.message_id);
 
     let queue = if process_message.delegated {
         Queue::Delegated
@@ -151,7 +134,7 @@ async fn handle_one_in_delivery_queue_inner(
                 .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
                 .map_err(MailHandlerError::WriteMessageBody)?;
 
-            log::warn!(target: log_channels::DELIVERY, "skipped due to quarantine.",);
+            log::warn!("skipped due to quarantine.");
 
             return Ok(());
         }
@@ -173,7 +156,7 @@ async fn handle_one_in_delivery_queue_inner(
             delegate(delegator, &mail_context, &mail_message)
                 .map_err(MailHandlerError::DelegateMessage)?;
 
-            log::warn!(target: log_channels::DELIVERY, "skipped due to delegation.",);
+            log::warn!("skipped due to delegation.");
 
             return Ok(());
         }
@@ -194,19 +177,12 @@ async fn handle_one_in_delivery_queue_inner(
                 .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
                 .map_err(MailHandlerError::WriteMessageBody)?;
 
-            log::warn!(
-                target: log_channels::DELIVERY,
-                "mail has been denied and moved to the `dead` queue.",
-            );
+            log::warn!("mail has been denied and moved to the `dead` queue.");
 
             return Ok(());
         }
         Some(reason) => {
-            log::warn!(
-                target: log_channels::DELIVERY,
-                "skipped due to '{}'.",
-                reason.as_ref()
-            );
+            log::warn!("skipped due to '{}'.", reason.as_ref());
         }
         None => {}
     };
@@ -220,6 +196,10 @@ async fn handle_one_in_delivery_queue_inner(
                 .with_context(|| {
                     format!("cannot move file from `{}` to `{}`", queue, Queue::Dead)
                 })?;
+
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
         }
         SenderOutcome::MoveToDeferred => {
             queue
@@ -231,6 +211,10 @@ async fn handle_one_in_delivery_queue_inner(
                 .with_context(|| {
                     format!("cannot move file from `{}` to `{}`", queue, Queue::Deferred)
                 })?;
+
+            mail_message
+                .write_to_mails(&config.server.queues.dirpath, &process_message.message_id)
+                .map_err(MailHandlerError::WriteMessageBody)?;
         }
         SenderOutcome::RemoveFromDisk => {
             queue.remove(&config.server.queues.dirpath, &process_message.message_id)?;

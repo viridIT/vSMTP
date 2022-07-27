@@ -18,7 +18,7 @@ use super::get_tls_config;
 use crate::tests::tls::test_tls_tunneled;
 use vsmtp_common::re::tokio;
 use vsmtp_config::{
-    field::{FieldServerVirtual, TlsSecurityLevel},
+    field::{FieldServerVirtual, FieldServerVirtualTls, TlsSecurityLevel},
     get_rustls_config,
 };
 
@@ -146,11 +146,17 @@ async fn sni() {
     config.server.tls.as_mut().unwrap().security_level = TlsSecurityLevel::Encrypt;
     config.server.r#virtual.insert(
         "second.testserver.com".to_string(),
-        FieldServerVirtual::with_tls(
-            "src/template/certs/sni/second.certificate.crt",
-            "src/template/certs/sni/second.private_key.rsa.key",
-        )
-        .unwrap(),
+        FieldServerVirtual {
+            tls: Some(
+                FieldServerVirtualTls::from_path(
+                    "src/template/certs/sni/second.certificate.crt",
+                    "src/template/certs/sni/second.private_key.rsa.key",
+                )
+                .unwrap(),
+            ),
+            dns: None,
+            dkim: None,
+        },
     );
 
     let (client, server) = test_tls_tunneled(

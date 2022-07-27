@@ -22,12 +22,7 @@ use crate::config::field::{
     FieldServerSystem, FieldServerSystemThreadPool, FieldServerTls, FieldServerVirtualTls,
     ResolverOptsWrapper, TlsSecurityLevel,
 };
-use vsmtp_common::{
-    auth::Mechanism,
-    collection,
-    re::{log, strum},
-    CodeID, Reply, ReplyCode,
-};
+use vsmtp_common::{auth::Mechanism, collection, re::strum, CodeID, Reply, ReplyCode};
 
 impl Default for Config {
     fn default() -> Self {
@@ -53,6 +48,7 @@ impl Default for FieldServer {
             smtp: FieldServerSMTP::default(),
             dns: FieldServerDNS::default(),
             r#virtual: std::collections::BTreeMap::default(),
+            dkim: None,
         }
     }
 }
@@ -142,8 +138,6 @@ impl Default for FieldServerLogs {
             filepath: Self::default_filepath(),
             format: Self::default_format(),
             level: Self::default_level(),
-            size_limit: Self::default_size_limit(),
-            archive_count: Self::default_archive_count(),
         }
     }
 }
@@ -157,18 +151,8 @@ impl FieldServerLogs {
         "{d(%Y-%m-%d %H:%M:%S%.f)} {h({l:<5})} {t:<30} $ {m}{n}".to_string()
     }
 
-    pub(crate) fn default_level() -> std::collections::BTreeMap<String, log::LevelFilter> {
-        collection! {
-            "default".to_string() => log::LevelFilter::Warn
-        }
-    }
-
-    pub(crate) const fn default_size_limit() -> u64 {
-        10_485_760 // 10MB
-    }
-
-    pub(crate) const fn default_archive_count() -> u32 {
-        10
+    pub(crate) fn default_level() -> Vec<tracing_subscriber::filter::Directive> {
+        vec!["warn".parse().expect("hardcoded value is valid")]
     }
 }
 
@@ -520,10 +504,7 @@ impl Default for FieldAppLogs {
     fn default() -> Self {
         Self {
             filepath: Self::default_filepath(),
-            level: Self::default_level(),
             format: Self::default_format(),
-            size_limit: Self::default_size_limit(),
-            archive_count: Self::default_archive_count(),
         }
     }
 }
@@ -533,19 +514,7 @@ impl FieldAppLogs {
         "/var/log/vsmtp/app.log".into()
     }
 
-    pub(crate) const fn default_level() -> log::LevelFilter {
-        log::LevelFilter::Warn
-    }
-
     pub(crate) fn default_format() -> String {
         "{d} - {m}{n}".to_string()
-    }
-
-    pub(crate) const fn default_size_limit() -> u64 {
-        10_485_760 // 10MB
-    }
-
-    pub(crate) const fn default_archive_count() -> u32 {
-        10
     }
 }

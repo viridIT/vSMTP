@@ -20,7 +20,6 @@ use crate::{
         deferred::flush_deferred_queue,
         deliver::{flush_deliver_queue, handle_one_in_delivery_queue},
     },
-    log_channels,
 };
 use anyhow::Context;
 use time::format_description::well_known::Rfc2822;
@@ -52,7 +51,7 @@ pub async fn start(
     if let Err(e) =
         flush_deliver_queue(config.clone(), resolvers.clone(), rule_engine.clone()).await
     {
-        log::error!(target: log_channels::DELIVERY, "flushing queue failed: {e}",);
+        log::error!("flushing queue failed: {e}");
     }
 
     let mut flush_deferred_interval =
@@ -71,13 +70,8 @@ pub async fn start(
                 );
             }
             _ = flush_deferred_interval.tick() => {
-                log::info!(
-                    target: log_channels::DEFERRED,
-                    "cronjob delay elapsed, flushing queue.",
-                );
-                tokio::spawn(
-                    flush_deferred_queue(config.clone(), resolvers.clone())
-                );
+                log::info!("cronjob delay elapsed, flushing queue.");
+                tokio::spawn(flush_deferred_queue(config.clone(), resolvers.clone()));
             }
         };
     }

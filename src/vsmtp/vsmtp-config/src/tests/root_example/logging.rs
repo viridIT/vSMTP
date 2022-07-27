@@ -14,9 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use vsmtp_common::{collection, re::log, CodeID, Reply, ReplyCode};
-
 use crate::Config;
+use vsmtp_common::{collection, CodeID, Reply, ReplyCode};
 
 #[test]
 fn parse() {
@@ -32,13 +31,13 @@ fn parse() {
             .with_logs_settings(
                 "/var/log/vsmtp/vsmtp.log",
                 "{d(%Y-%m-%d %H:%M:%S)} {h({l:<5} {I})} ((line:{L:<3})) $ {m}{n}",
-                collection! {
-                    "default".to_string() => log::LevelFilter::Warn,
-                    "receiver".to_string() => log::LevelFilter::Info,
-                    "rule_engine".to_string() => log::LevelFilter::Warn,
-                    "delivery".to_string()=> log::LevelFilter::Error,
-                    "parser".to_string()=> log::LevelFilter::Trace,
-                }
+                &[
+                    "default=warn".parse().unwrap(),
+                    "receiver=info".parse().unwrap(),
+                    "rule_engine=warn".parse().unwrap(),
+                    "delivery=error".parse().unwrap(),
+                    "parser=trace".parse().unwrap(),
+                ],
             )
             .with_default_delivery()
             .without_tls_support()
@@ -60,10 +59,7 @@ fn parse() {
             .with_default_vsl_settings()
             .with_app_logs_level_and_format(
                 "/var/log/vsmtp/app.log",
-                log::LevelFilter::Trace,
                 "{d} - {m}{n}",
-                20_971_520,
-                100,
             )
             .with_system_dns()
             .without_virtual_entries()

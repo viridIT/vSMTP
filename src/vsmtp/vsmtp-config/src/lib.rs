@@ -25,15 +25,6 @@
 //!
 //! You can find examples of TOML file at <https://github.com/viridIT/vSMTP/tree/develop/examples/config>
 
-#![doc(html_no_source)]
-#![deny(missing_docs)]
-#![forbid(unsafe_code)]
-//
-#![warn(clippy::all)]
-#![warn(clippy::pedantic)]
-#![warn(clippy::nursery)]
-#![warn(clippy::cargo)]
-
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -51,15 +42,16 @@
  *
 */
 
-/// targets for log! macro
-pub mod log_channel {
-    /// default log, use this instead of the root log.
-    pub const DEFAULT: &str = "server";
-    /// application logs (rule engine).
-    pub const APP: &str = "app";
-    /// root log, used to display dependencies logs.
-    pub const ROOT: &str = "root";
-}
+#![doc(html_no_source)]
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+//
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+//
+#![allow(clippy::use_self)] // false positive
 
 #[cfg(test)]
 mod tests;
@@ -73,6 +65,7 @@ mod parser {
     pub mod tls_cipher_suite;
     pub mod tls_private_key;
     pub mod tls_protocol_version;
+    pub mod tracing_directive;
 }
 
 /// The configuration builder for programmatically instantiating
@@ -88,21 +81,19 @@ pub mod builder {
 mod config;
 mod default;
 mod ensure;
-mod log4rs_helper;
 mod rustls_helper;
 mod trust_dns_helper;
 mod virtual_tls;
 
 pub use config::{field, Config};
 
-pub use log4rs_helper::get_log4rs_config;
+// pub use log4rs_helper::get_log4rs_config;
 pub use rustls_helper::get_rustls_config;
 pub use trust_dns_helper::{build_resolvers, Resolvers};
 
 /// Re-exported dependencies
 pub mod re {
     pub use humantime_serde::re::humantime;
-    pub use log4rs;
     pub use rustls;
     // NOTE: this one should not be re-exported (because tests only)
     pub use rustls_pemfile;

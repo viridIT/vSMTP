@@ -53,10 +53,6 @@ pub enum ConnectionKind {
     Tunneled,
 }
 
-mod log_channels {
-    pub const QUEUE: &str = "server::queue";
-}
-
 #[macro_use]
 mod r#type {
     #[macro_use]

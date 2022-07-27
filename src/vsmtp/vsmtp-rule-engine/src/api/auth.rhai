@@ -226,6 +226,7 @@ fn check_spf(header) {
     check_spf(header, "strict")
 }
 
+<<<<<<< HEAD
 /// Verify DKIM signatures.
 /// see https://datatracker.ietf.org/doc/html/rfc6376
 ///
@@ -244,15 +245,19 @@ fn dkim_verify() {
         // is the `expire_time` of the signature over `now +/- eplison` (as seconds)
         expiration_epsilon: 100,
     };
+=======
+private fn sys_dkim_verify(policy) {
+>>>>>>> 495d0da3c4319e64778c80a0166f6d7cea2a0d90
     log("warn", `verifying DKIM signature with policy=${policy}`);
 
-    let dkim_signatures = msg().headers("DKIM-Signature", policy.nbr_headers);
+    let last_error = `dkim=none`;
 
-    for i in dkim_signatures {
+    for i in msg().headers("DKIM-Signature", policy.nbr_headers) {
         try {
-            let signature = parse_signature(i);
+            let signature = sys::parse_signature(i);
 
             if signature.has_expired(policy.expiration_epsilon) {
+                log("warn", `DKIM signature expired, continuing`);
                 continue;
             }
 
@@ -261,7 +266,7 @@ fn dkim_verify() {
             //     continue;
             // }
 
-            for key in get_public_key(srv(), signature, policy.on_multiple_key_records) {
+            for key in sys::get_public_key(srv(), signature, policy.on_multiple_key_records) {
                 try {
                     sys::dkim_verify(msg(), signature, key);
                     log("warn", `DKIM signature successfully verified`);
@@ -271,18 +276,46 @@ fn dkim_verify() {
                         continue;
                     }
 
-                    return accept()
+                    // header.b & header.a can be set optionally
+                    return `dkim=pass header.d=${signature.sdid} header.i=${signature.auid};`;
                 } catch (e) {
-                    print(e);
+                    log("warn", `DKIM signature verifification failed: ${e}`);
+                    let e = sys::handle_dkim_error(e);
+                    last_error = `dkim=${e}`;
                 }
             }
 
         } catch (e) {
-            print(e);
             log("warn", `DKIM signature invalid: ${e}`);
+            let e = sys::handle_dkim_error(e);
+            last_error = `dkim=${e}`;
         }
     }
 
-    log("warn", "no valid DKIM signature, returning `deny`");
-    deny()
+    log("warn", "no valid DKIM signature, returning");
+    last_error
+}
+
+/// Verify the `DKIM-Signature` header(s) in the mail and produce a `Authentication-Results`.
+fn dkim_verify() {
+    let result = sys_dkim_verify(#{
+        // will process a limited amount of signature, avoid infinite loop and dos/ddos attack
+        nbr_headers: 5,
+        // the dns query may result in multiple public key, the registry with invalid format are ignored.
+        // among ["first_one", "cycle"]
+        on_multiple_key_records: "cycle",
+        // is the `expire_time` of the signature over `now +/- eplison` (as seconds)
+        expiration_epsilon: 100,
+    });
+
+    let header = `${hostname()};
+  ${result}`;
+
+    prepend_header("Authentication-Results", header);
+    result
+}
+
+/// Produce a `DKIM-Signature` header.
+fn dkim_sign(selector, headers_field) {
+    sys::dkim_sign(msg(), ctx(), srv(), selector, headers_field)
 }

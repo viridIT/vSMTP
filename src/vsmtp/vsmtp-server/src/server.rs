@@ -17,8 +17,7 @@
 use crate::{
     auth,
     channel_message::ProcessMessage,
-    log_channels,
-    receiver::{handle_connection, Connection, MailHandler},
+    receiver::{Connection, MailHandler},
 };
 use vsmtp_common::{
     re::{
@@ -122,10 +121,81 @@ impl Server {
         })
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[tracing::instrument(skip(self, stream))]
+    async fn handle_client(
+        &self,
+        client_counter: std::sync::Arc<std::sync::atomic::AtomicI64>,
+        kind: ConnectionKind,
+        mut stream: tokio::net::TcpStream,
+        client_addr: std::net::SocketAddr,
+        server_addr: std::net::SocketAddr,
+    ) {
+        log::info!("Connection accepted");
+
+        if self.config.server.client_count_max != -1
+            && client_counter.load(std::sync::atomic::Ordering::SeqCst)
+                >= self.config.server.client_count_max
+        {
+            log::info!(
+                "Connection count max reached ({}), rejecting connection",
+                self.config.server.client_count_max
+            );
+
+            if let Err(e) = tokio::io::AsyncWriteExt::write_all(
+                &mut stream,
+                self.config
+                    .server
+                    .smtp
+                    .codes
+                    .get(&CodeID::ConnectionMaxReached)
+                    .expect("ill-formed configuration")
+                    .fold()
+                    .as_bytes(),
+            )
+            .await
+            {
+                log::error!("{e}");
+            }
+
+            if let Err(e) = tokio::io::AsyncWriteExt::shutdown(&mut stream).await {
+                log::warn!("{e}");
+            }
+            return;
+        }
+
+        client_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+        let session = Self::run_session(
+            Connection::new(
+                kind,
+                client_addr,
+                stream.local_addr().expect("retrieve local address"),
+                self.config.clone(),
+                stream,
+            ),
+            self.tls_config.clone(),
+            self.rsasl.clone(),
+            self.rule_engine.clone(),
+            self.resolvers.clone(),
+            self.working_sender.clone(),
+            self.delivery_sender.clone(),
+        );
+        let client_counter_copy = client_counter.clone();
+        tokio::spawn(async move {
+            if let Err(e) = session.await {
+                log::warn!("{e}");
+            }
+
+            client_counter_copy.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        });
+    }
+
     /// Main loop of `vSMTP`'s server
     ///
     /// # Errors
+    ///
+    /// * failed to convert sockets to `[tokio::net::TcpListener]`
+    #[tracing::instrument(skip(self, sockets))]
     pub async fn listen_and_serve(
         self,
         sockets: (
@@ -134,41 +204,26 @@ impl Server {
             Vec<std::net::TcpListener>,
         ),
     ) -> anyhow::Result<()> {
-        let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
+        fn to_tokio(
+            s: Vec<std::net::TcpListener>,
+        ) -> std::io::Result<Vec<tokio::net::TcpListener>> {
+            s.into_iter()
+                .map(tokio::net::TcpListener::from_std)
+                .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()
+        }
 
-        let (listener, listener_submission, listener_tunneled) = (
-            sockets
-                .0
-                .into_iter()
-                .map(tokio::net::TcpListener::from_std)
-                .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()?,
-            sockets
-                .1
-                .into_iter()
-                .map(tokio::net::TcpListener::from_std)
-                .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()?,
-            sockets
-                .2
-                .into_iter()
-                .map(tokio::net::TcpListener::from_std)
-                .collect::<std::io::Result<Vec<tokio::net::TcpListener>>>()?,
-        );
-
-        if self.config.server.tls.is_none() && !listener_tunneled.is_empty() {
+        if self.config.server.tls.is_none() && !sockets.2.is_empty() {
             log::warn!(
-                target: log_channels::SERVER,
                 "No TLS configuration provided, listening on submissions protocol (port 465) will cause issue"
             );
         }
 
-        let addr = [&listener, &listener_submission, &listener_tunneled]
-            .iter()
-            .flat_map(|array| array.iter().map(tokio::net::TcpListener::local_addr))
-            .collect::<Vec<_>>();
+        let client_counter = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(0));
 
-        log::info!(
-            target: log_channels::SERVER,
-            "Listening for clients on: {addr:?}",
+        let (listener, listener_submission, listener_tunneled) = (
+            to_tokio(sockets.0)?,
+            to_tokio(sockets.1)?,
+            to_tokio(sockets.2)?,
         );
 
         let mut map = tokio_stream::StreamMap::new();
@@ -188,76 +243,41 @@ impl Server {
             }
         }
 
+        log::info!(
+            "Listening for clients on: {:?}",
+            map.keys().collect::<Vec<_>>()
+        );
+
         while let Some((server_addr, (kind, client))) =
             tokio_stream::StreamExt::next(&mut map).await
         {
-            let (mut stream, client_addr) = client?;
+            let (stream, client_addr) = client?;
 
-            log::warn!(
-                target: log_channels::SERVER,
-                "Socket {server_addr} ({kind}) accepted {client_addr}",
-            );
-
-            if self.config.server.client_count_max != -1
-                && client_counter.load(std::sync::atomic::Ordering::SeqCst)
-                    >= self.config.server.client_count_max
-            {
-                if let Err(e) = tokio::io::AsyncWriteExt::write_all(
-                    &mut stream,
-                    self.config
-                        .server
-                        .smtp
-                        .codes
-                        .get(&CodeID::ConnectionMaxReached)
-                        .expect("ill-formed configuration")
-                        .fold()
-                        .as_bytes(),
-                )
-                .await
-                {
-                    log::warn!(target: log_channels::SERVER, "{}", e);
-                }
-
-                if let Err(e) = tokio::io::AsyncWriteExt::shutdown(&mut stream).await {
-                    log::warn!(target: log_channels::SERVER, "{}", e);
-                }
-                continue;
-            }
-
-            client_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-
-            let session = Self::run_session(
+            self.handle_client(
+                client_counter.clone(),
+                kind,
                 stream,
                 client_addr,
-                kind,
-                self.config.clone(),
-                self.tls_config.clone(),
-                self.rsasl.clone(),
-                self.rule_engine.clone(),
-                self.resolvers.clone(),
-                self.working_sender.clone(),
-                self.delivery_sender.clone(),
-            );
-            let client_counter_copy = client_counter.clone();
-            tokio::spawn(async move {
-                if let Err(e) = session.await {
-                    log::warn!(target: log_channels::SERVER, "{}", e);
-                }
-
-                client_counter_copy.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
-            });
+                server_addr,
+            )
+            .await;
         }
         Ok(())
     }
 
     ///
     /// # Errors
-    #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(skip(
+        conn,
+        tls_config,
+        rsasl,
+        rule_engine,
+        resolvers,
+        working_sender,
+        delivery_sender
+    ))]
     pub async fn run_session(
-        stream: tokio::net::TcpStream,
-        client_addr: std::net::SocketAddr,
-        kind: ConnectionKind,
-        config: std::sync::Arc<Config>,
+        mut conn: Connection<tokio::net::TcpStream>,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
         rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
@@ -265,44 +285,25 @@ impl Server {
         working_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
         delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
     ) -> anyhow::Result<()> {
-        log::warn!(
-            target: log_channels::SERVER,
-            "Handling client: {client_addr}"
-        );
-
-        let begin = std::time::SystemTime::now();
-        let connection_result = handle_connection(
-            &mut Connection::new(
-                kind,
-                client_addr,
-                stream.local_addr()?,
-                config.clone(),
-                stream,
-            ),
-            tls_config,
-            rsasl,
-            rule_engine,
-            resolvers,
-            &mut MailHandler {
-                working_sender,
-                delivery_sender,
-            },
-        )
-        .await;
-        let elapsed = begin.elapsed().expect("do not go back to the future");
+        let connection_result = conn
+            .receive(
+                tls_config,
+                rsasl,
+                rule_engine,
+                resolvers,
+                &mut MailHandler {
+                    working_sender,
+                    delivery_sender,
+                },
+            )
+            .await;
 
         match &connection_result {
             Ok(_) => {
-                log::info!(
-                    target: log_channels::SERVER,
-                    "{{ elapsed: {elapsed:?} }} Connection {client_addr} closed cleanly"
-                );
+                log::info!("Connection closed cleanly");
             }
             Err(error) => {
-                log::warn!(
-                    target: log_channels::SERVER,
-                    "{{ elapsed: {elapsed:?} }} Connection {client_addr} closed with an error {error}"
-                );
+                log::warn!("Connection closed with an error: `{error}`");
             }
         }
         connection_result

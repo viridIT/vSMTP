@@ -20,7 +20,6 @@ use rhai::plugin::{
 };
 
 use vsmtp_common::re::log;
-use vsmtp_config::log_channel::APP;
 
 ///
 #[rhai::plugin::export_module]
@@ -29,45 +28,37 @@ pub mod logging {
     use crate::modules::types::types::SharedObject;
 
     /// log a message to the file system / console with the specified level.
-    #[rhai_fn(global, name = "log")]
-    pub fn log_str_str(level: &str, message: &str) {
-        super::log(level, message);
-    }
-
-    /// log a message to the file system / console with the specified level.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
     pub fn log_str_obj(level: &str, message: SharedObject) {
-        super::log(level, &message.to_string());
+        log(level, &message.to_string());
     }
 
     /// log a message to the file system / console with the specified level.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
     pub fn log_obj_str(level: &mut SharedObject, message: &str) {
-        super::log(&level.to_string(), message);
+        log(&level.to_string(), message);
     }
 
     /// log a message to the file system / console with the specified level.
     #[allow(clippy::needless_pass_by_value)]
     #[rhai_fn(global, name = "log")]
     pub fn log_obj_obj(level: &mut SharedObject, message: SharedObject) {
-        super::log(&level.to_string(), &message.to_string());
+        log(&level.to_string(), &message.to_string());
     }
-}
 
-fn log(level: &str, message: &str) {
-    match level {
-        "trace" => log::trace!(target: APP, "{}", message),
-        "debug" => log::debug!(target: APP, "{}", message),
-        "info" => log::info!(target: APP, "{}", message),
-        "warn" => log::warn!(target: APP, "{}", message),
-        "error" => log::error!(target: APP, "{}", message),
-        unknown => log::warn!(
-            target: APP,
-            "'{}' is not a valid log level. Original message: '{}'",
-            unknown,
-            message
-        ),
+    /// log a message to the file system / console with the specified level.
+    #[rhai_fn(global, name = "log")]
+    pub fn log(level: &str, message: &str) {
+        const APP_TARGET: &str = "app";
+
+        match <log::Level as std::str::FromStr>::from_str(level) {
+            Ok(level) => log::log!(target: APP_TARGET, level, "{message}"),
+            Err(e) => log::warn!(
+                target: APP_TARGET,
+                "Got an error with level `{level}`: `{e}`. Message was: '{message}'"
+            ),
+        }
     }
 }
