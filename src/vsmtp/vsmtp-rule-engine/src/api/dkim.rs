@@ -15,8 +15,7 @@
  *
 */
 
-use crate::modules::types::{Context, Message, Server};
-use crate::modules::EngineResult;
+use crate::api::{Context, EngineResult, Message, Server};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,

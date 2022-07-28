@@ -14,11 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::{
-    types::{Context, Server},
-    EngineResult,
+use crate::{
+    api::{
+        EngineResult, {Context, Server, SharedObject},
+    },
+    dsl::object::Object,
 };
-use crate::{dsl::object::Object, modules::types::SharedObject};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,

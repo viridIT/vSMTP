@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::{types::SharedObject, EngineResult};
+use crate::api::{EngineResult, SharedObject};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
@@ -26,9 +26,10 @@ const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
 const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[hour]:[minute]:[second]");
 
-///
+pub use utils_rhai::*;
+
 #[rhai::plugin::export_module]
-pub mod utils {
+mod utils_rhai {
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.

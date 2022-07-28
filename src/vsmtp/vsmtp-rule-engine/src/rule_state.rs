@@ -15,13 +15,14 @@
  *
 */
 use super::server_api::ServerAPI;
+use crate::api::{Context, Message, Server, SharedObject};
 use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
 use crate::dsl::directives::Directive;
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
-use crate::modules::types::{Context, Message, Server, SharedObject};
+use crate::dsl::service::Service;
 use crate::rule_engine::RuleEngine;
 use vsmtp_common::re::anyhow;
 use vsmtp_common::state::StateSMTP;
@@ -133,7 +134,7 @@ impl RuleState {
             .flat_map(|(_, d)| d)
             .any(|d| match d {
                 Directive::Delegation { service, .. } => match &**service {
-                    crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
+                    Service::Smtp { receiver, .. } => *receiver == conn.server_address,
                     _ => false,
                 },
                 _ => false,

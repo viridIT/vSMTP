@@ -14,7 +14,7 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::{error::CompilationError, modules::EngineResult};
+use crate::{api::EngineResult, error::CompilationError};
 
 pub fn parse_delegation(
     symbols: &[rhai::ImmutableString],

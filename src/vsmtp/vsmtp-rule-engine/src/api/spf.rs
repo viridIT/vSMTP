@@ -14,9 +14,8 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::{
-    types::{Context, Server},
-    EngineResult,
+use crate::api::{
+    EngineResult, {Context, Server},
 };
 use rhai::{
     plugin::{
@@ -27,9 +26,10 @@ use rhai::{
 };
 use vsmtp_common::re::tokio;
 
-///
+pub use security::*;
+
 #[rhai::plugin::export_module]
-pub mod security {
+mod security {
 
     /// evaluate a sender identity.
     /// the identity parameter can be 'helo', 'mail_from' or 'both'.
@@ -73,7 +73,7 @@ pub mod security {
 
 /// create a instance from viaspf query result struct.
 #[must_use]
-pub fn map_from_query_result(q_result: &viaspf::QueryResult) -> rhai::Map {
+fn map_from_query_result(q_result: &viaspf::QueryResult) -> rhai::Map {
     rhai::Map::from_iter([
         (
             "result".into(),

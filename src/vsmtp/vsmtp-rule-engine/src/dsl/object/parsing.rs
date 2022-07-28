@@ -15,8 +15,8 @@
  *
 */
 use super::Object;
+use crate::api::EngineResult;
 use crate::error::CompilationError;
-use crate::modules::EngineResult;
 
 /// check of a "object" expression is valid.
 /// the syntax is:

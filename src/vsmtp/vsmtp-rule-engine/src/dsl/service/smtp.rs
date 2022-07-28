@@ -16,7 +16,7 @@
 */
 
 use crate::dsl::service::SmtpConnection;
-use crate::{dsl::service::Service, modules::EngineResult};
+use crate::{api::EngineResult, dsl::service::Service};
 use rhai::EvalAltResult;
 use vsmtp_common::re::lettre;
 

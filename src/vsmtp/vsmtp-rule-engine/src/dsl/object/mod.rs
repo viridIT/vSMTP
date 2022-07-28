@@ -16,7 +16,7 @@
 */
 
 pub mod parsing;
-use crate::modules::types::SharedObject;
+use crate::api::SharedObject;
 use vsmtp_common::{
     re::{addr, anyhow, log, strum},
     Address, Reply, ReplyCode,

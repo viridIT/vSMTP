@@ -14,30 +14,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::dsl::object::Object;
-use crate::dsl::service::cmd::CmdResult;
-use crate::modules::EngineResult;
-use crate::server_api::ServerAPI;
+use crate::api::{EngineResult, SharedObject};
+use crate::dsl::{object::Object, service::cmd::CmdResult};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
 };
-use vsmtp_common::mail_context::MailContext;
 use vsmtp_common::status::Status;
-use vsmtp_common::MessageBody;
 
 #[allow(clippy::needless_pass_by_value)]
 #[rhai::plugin::export_module]
 mod types_rhai {
-
-    /// Alias for `ctx()`
-    pub type Context = std::sync::Arc<std::sync::RwLock<MailContext>>;
-    /// Alias for `msg()`
-    pub type Message = std::sync::Arc<std::sync::RwLock<MessageBody>>;
-    /// Alias for `srv()`
-    pub type Server = std::sync::Arc<ServerAPI>;
-    /// Alias for any other object defined using the `object` keyword.
-    pub type SharedObject = std::sync::Arc<Object>;
 
     // Status
 
