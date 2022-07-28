@@ -3,8 +3,8 @@ use trust_dns_resolver::config::ResolverOpts;
 use vsmtp_common::MessageBody;
 
 #[tokio::test]
-async fn simple() {
-    const MAIL: &str = include_str!("simple.eml");
+async fn mail_1() {
+    const MAIL: &str = include_str!("mail_1.eml");
 
     let body = MessageBody::try_from(MAIL).unwrap();
 
@@ -30,9 +30,9 @@ async fn simple() {
 }
 
 #[tokio::test]
-#[ignore = "issue with public key ?"]
-async fn simple2() {
-    const MAIL: &str = include_str!("simple2.eml");
+#[ignore]
+async fn mail_3() {
+    const MAIL: &str = include_str!("mail_3.eml");
 
     let body = MessageBody::try_from(MAIL.replace('\n', "\r\n").as_str()).unwrap();
 

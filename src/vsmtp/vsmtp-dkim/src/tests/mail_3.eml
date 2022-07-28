@@ -1,0 +1,38 @@
+Received: from mta-01.virid-it.com by negabit.com with SMTP id 16589902632949731658990263287odw2zNPfmoPlzRZozPFpJvHteOgnBvz389HT11458; Thu, 28 Jul 2022 06:37:43 +0000
+X-VSMTP: id="16589902632949731658990263287odw2zNPfmoPlzRZozPFpJvHteOgnBvz389HT11458"; version="1.1.3"; status="next"
+Authentication-Results: mta-01;
+  dkim=fail
+Received: from [IPV6:2a01:cb19:8d83:700:a142:a6b3:8122:85c0] (unknown [IPv6:2a01:cb19:8d83:700:a142:a6b3:8122:85c0])
+	(using TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits))
+	(No client certificate requested)
+	by mta-01.virid-it.com (Postfix) with ESMTPSA id 1D7E87E050
+	for <pag@negabit.com>; Thu, 28 Jul 2022 06:37:40 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=virid-it.com; s=mail;
+	t=1658990260; bh=UBz8R40tRp4kjX9z2q68YcTfnV+beTisOtrcVLKDhD8=;
+	h=Date:To:From:Subject:From;
+	b=fw9jMYJHD9T2eKlR848nK6tIi4GPrj742JwC3aR6UAA5KIkERhaDhyHNxg+FI53Vl
+	 ztmVse1hE/Hq1TjN/wQO5IrX6qHCwQFlJzegvfYUfsULI1ysk1jruCZYukWybeE9ab
+	 40/IdGMt9Lj+U4bpU0t9RSrVZcB9hZpDm9zfCtjXxGzTkUlwo6/yP4FMphQ1WV1Uz8
+	 1WQYvhuTwfAdOaEqGLkT2mT1gCT6EnBAEXFxESFSuFjORmN04UokYJ5bLVjufvbj9k
+	 d8be6SmUDtRzz62FCW/w4eQfNa/aGmQYVjnQTH8/7kdxBh0GFDdGXK33H43M2aWVm+
+	 Ww/o2KZtsLVnxYi1RBX0aLpMobXVZEq+Bx4XEP7V/0PCiMkcMu1Jms2/z+Er9I2cRK
+	 GamjSxlIj+E22+5bcvaMB/+xaqQvsmPCZhp2TATbpNAzw0lr4zOuKweAM1gO/JYuBY
+	 KtYPLvIjgNdjUQXL6MDn2M967ihbXY+tkJkieoIVqjnOGzdrISXKEUkKTd5yna9HtC
+	 tBlRK6HGdwwhJp4foEDpaWcMr4xz4Ccr4hcJHw4Lh4TsXTP/gyssyQBaWSWC20Facr
+	 Yz4DwfHL7wewZDSF1YRBlUmqVCutIP6CAOSQnOCfZcfrPdoTnTD5DrYUnCUHhaeUBR
+	 qCpx5CW7LcF4k6viRg6rniqo=
+Message-ID: <ac2715c4-a93d-2251-cfb4-9eaa6e6e58e2@virid-it.com>
+Date: Thu, 28 Jul 2022 08:37:38 +0200
+MIME-Version: 1.0
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101
+ Thunderbird/91.11.0
+Content-Language: fr
+To: PAG Negabit <pag@negabit.com>
+From: Pag virid-it <pag@virid-it.com>
+Subject: tet dkim verif
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+
+dsffdsfds
+
