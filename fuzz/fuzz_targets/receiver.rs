@@ -2,7 +2,7 @@
 use libfuzzer_sys::fuzz_target;
 use vsmtp_common::{mail_context::MailContext, CodeID, ConnectionKind, MessageBody};
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{Connection, OnMail};
 use vsmtp_test::receiver::Mock;
 
@@ -58,9 +58,8 @@ fuzz_target!(|data: &[u8]| {
         &mut mock,
     );
 
-    let re = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&config, &None).expect("failed to build rule engine"),
-    ));
+    let re =
+        std::sync::Arc::new(RuleEngine::new(&config, &None).expect("failed to build rule engine"));
 
     let _ = tokio::runtime::Runtime::new()
         .unwrap()
