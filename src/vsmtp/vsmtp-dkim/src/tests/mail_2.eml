@@ -1,0 +1,47 @@
+Delivered-To: mlala@negabit.com
+Received: from out-23.smtp.github.com by negabit.com with SMTP id 1659092992549555165909299203551kyYHvqBqy4ZyPcLX4vh2tGI6vxLKdQOtP827902; Fri, 29 Jul 2022 11:09:52 +0000
+X-VSMTP: id="1659092992549555165909299203551kyYHvqBqy4ZyPcLX4vh2tGI6vxLKdQOtP827902"; version="1.1.3"; status="next"
+Authentication-Results: mta-01;
+  dkim=fail
+Received: from github.com (hubbernetes-node-d6e89e9.ac4-iad.github.net [10.52.201.64])
+	by smtp.github.com (Postfix) with ESMTPA id C5400600233
+	for <mlala@negabit.com>; Fri, 29 Jul 2022 04:09:51 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=github.com;
+	s=pf2014; t=1659092991;
+	bh=DqWSPEI7fDHOXkaKrc3KNl7XtzAi7Ds1Zl2NEFEvED4=;
+	h=Date:From:To:Subject:From;
+	b=Jja98JXD+h+0KEOt04Y+MX5kUmhtTrYzp0POGKFg2sB/1jHdV4CbluwtTOD3z2XcC
+	 1pWQBQiNDlT56yA7G5utD20ziHYmkoY1xQh5E+1VTkeP9L6FY/dnMDEPd0WUj43Sv8
+	 a1uZX6OrplJ4KwQL+OoNIIYcMelgMYndip4jDDo0=
+Date: Fri, 29 Jul 2022 04:09:51 -0700
+From: Mathieu Lala <noreply@github.com>
+To: mlala@negabit.com
+Message-ID: <viridIT/vSMTP/push/refs/heads/refact/cleaning/b80c51-3a3221@github.com>
+Subject: [viridIT/vSMTP] 3a3221: feat: dkim sign take canon params
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Approved: =?UTF-8?Q?hello_there_=F0=9F=91=8B?=
+X-GitHub-Recipient-Address: mlala@negabit.com
+X-Auto-Response-Suppress: All
+
+  Branch: refs/heads/refact/cleaning
+  Home:   https://github.com/viridIT/vSMTP
+  Commit: 3a3221c422b0dd8f2a8c101b885e61f6f1dc95ba
+      https://github.com/viridIT/vSMTP/commit/3a3221c422b0dd8f2a8c101b885e61f6f1dc95ba
+  Author: Mathieu-Lala <m.lala@viridit.com>
+  Date:   2022-07-29 (Fri, 29 Jul 2022)
+
+  Changed paths:
+    M Cargo.lock
+    M src/vsmtp/vsmtp-dkim/src/sign.rs
+    M src/vsmtp/vsmtp-rule-engine/Cargo.toml
+    M src/vsmtp/vsmtp-rule-engine/api/auth.rhai
+    M src/vsmtp/vsmtp-rule-engine/src/api/dkim.rs
+    M src/vsmtp/vsmtp-rule-engine/src/api/utils.rs
+
+  Log Message:
+  -----------
+  feat: dkim sign take canon params
+
