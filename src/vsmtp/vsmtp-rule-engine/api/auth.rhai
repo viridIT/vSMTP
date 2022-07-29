@@ -231,7 +231,7 @@ private fn sys_dkim_verify(policy) {
 
     let last_error = `dkim=none`;
 
-    for i in msg().headers("DKIM-Signature", policy.nbr_headers) {
+    for i in msg().get_headers("DKIM-Signature", policy.nbr_headers) {
         try {
             let signature = sys::parse_signature(i);
 
