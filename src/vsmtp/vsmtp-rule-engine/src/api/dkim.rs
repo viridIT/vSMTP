@@ -43,6 +43,7 @@ enum DkimErrors {
 
 #[rhai::plugin::export_module]
 mod dkim_rhai {
+    use vsmtp_dkim::{Canonicalization, CanonicalizationAlgorithm};
 
     /// get the dkim status from an error produced by this module
     #[rhai_fn(global, return_raw)]
@@ -175,7 +176,24 @@ mod dkim_rhai {
         server: Server,
         selector: &str,
         headers_field: rhai::Array,
+        canonicalization: &str,
     ) -> EngineResult<()> {
+        let (header, body) = canonicalization
+            .split_once('/')
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "invalid canonicalization: expected `header/body`".into()
+            })?;
+        let (header, body) = (
+            <CanonicalizationAlgorithm as std::str::FromStr>::from_str(header)
+                .map_err::<Box<EvalAltResult>, _>(|e| {
+                    format!("got error for canonicalization of headers: `{e}`").into()
+                })?,
+            <CanonicalizationAlgorithm as std::str::FromStr>::from_str(body)
+                .map_err::<Box<EvalAltResult>, _>(|e| {
+                    format!("got error for canonicalization of body: `{e}`").into()
+                })?,
+        );
+
         let mut msg_guard = vsl_guard_ok!(message.write());
         let ctx_guard = vsl_guard_ok!(context.read());
 
@@ -196,6 +214,7 @@ mod dkim_rhai {
                     sdid,
                     headers_field.iter().map(ToString::to_string).collect(),
                     &dkim_params.private_key.inner,
+                    Canonicalization { header, body },
                 )
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 

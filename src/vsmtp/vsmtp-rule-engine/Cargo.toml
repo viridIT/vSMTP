@@ -45,6 +45,8 @@ iprange = "0.6.7"
 ipnet = "2.5.0"
 csv = "1.1"
 
+addr = { version = "0.15.4" }
+
 rhai = { version = "1.8.0", features = [
   "unchecked",
   "sync",

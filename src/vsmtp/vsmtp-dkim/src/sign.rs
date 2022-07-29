@@ -15,10 +15,7 @@
  *
 */
 
-use crate::{
-    signature::QueryMethod, Canonicalization, CanonicalizationAlgorithm, Signature,
-    SigningAlgorithm,
-};
+use crate::{signature::QueryMethod, Canonicalization, Signature, SigningAlgorithm};
 use vsmtp_common::RawBody;
 
 impl Signature {
@@ -29,16 +26,14 @@ impl Signature {
         sdid: &str,
         headers_field: Vec<String>,
         private_key: &rsa::RsaPrivateKey,
+        canonicalization: Canonicalization,
     ) -> Result<Self, rsa::errors::Error> {
         let mut signature = Signature {
             version: 1,
             signing_algorithm: SigningAlgorithm::RsaSha256,
             sdid: String::default(),
             selector: String::default(),
-            canonicalization: Canonicalization {
-                header: CanonicalizationAlgorithm::Relaxed,
-                body: CanonicalizationAlgorithm::Relaxed,
-            },
+            canonicalization,
             query_method: vec![QueryMethod::default()],
             auid: String::default(),
             signature_timestamp: None,
@@ -117,7 +112,7 @@ mod tests {
 
     use crate::{
         public_key::{Type, Version},
-        HashAlgorithm, PublicKey, Signature,
+        Canonicalization, CanonicalizationAlgorithm, HashAlgorithm, PublicKey, Signature,
     };
 
     #[test]
@@ -149,6 +144,10 @@ mod tests {
                 "From".to_string(),
             ],
             &private_key,
+            Canonicalization {
+                header: CanonicalizationAlgorithm::Relaxed,
+                body: CanonicalizationAlgorithm::Relaxed,
+            },
         )
         .unwrap();
 
