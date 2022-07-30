@@ -103,7 +103,7 @@ impl RawBody {
                         value.push_str(i);
                     }
                     return Some(if with_key {
-                        format!("{key}:{value}", value = value.trim_start())
+                        format!("{key}:{value}")
                     } else {
                         value.trim_start().to_string()
                     });

@@ -82,30 +82,47 @@ impl CanonicalizationAlgorithm {
     }
 
     ///
-    /// # Panics
     #[must_use]
-    pub fn canonicalize_header(self, headers: &[String]) -> String {
+    pub fn canonicalize_headers(self, headers: &[String]) -> String {
         match self {
             CanonicalizationAlgorithm::Relaxed => headers
                 .iter()
-                .map(|s| {
-                    let mut words = s.splitn(2, ':');
-                    match (words.next(), words.next()) {
-                        (Some(key), Some(value)) => {
-                            format!(
-                                "{}:{}\r\n",
-                                key.to_lowercase().trim_end(),
-                                Self::dedup_whitespaces(
-                                    &value.replace('\t', " ").replace("\r\n", " ")
-                                )
+                .map(|s| self.canonicalize_header(s))
+                .fold(String::new(), |mut acc, s| {
+                    acc.push_str(&s);
+                    acc.push_str("\r\n");
+                    acc
+                }),
+            CanonicalizationAlgorithm::Simple => headers
+                .iter()
+                .map(|s| self.canonicalize_header(s))
+                .fold(String::new(), |mut acc, s| {
+                    acc.push_str(&s);
+                    acc
+                }),
+        }
+    }
+
+    ///
+    /// # Panics
+    #[must_use]
+    pub fn canonicalize_header(self, header: &str) -> String {
+        match self {
+            CanonicalizationAlgorithm::Relaxed => {
+                let mut words = header.splitn(2, ':');
+                match (words.next(), words.next()) {
+                    (Some(key), Some(value)) => {
+                        format!(
+                            "{}:{}",
+                            key.to_lowercase().trim_end(),
+                            Self::dedup_whitespaces(&value.replace('\t', " ").replace("\r\n", " "))
                                 .trim()
-                            )
-                        }
-                        _ => todo!("handle this case: (not containing `:`) `{s}`"),
+                        )
                     }
-                })
-                .collect::<String>(),
-            CanonicalizationAlgorithm::Simple => headers.join(""),
+                    _ => todo!("handle this case: (not containing `:`) `{header}`"),
+                }
+            }
+            CanonicalizationAlgorithm::Simple => header.to_string(),
         }
     }
 }
@@ -210,9 +227,22 @@ mod tests {
         );
 
         assert_eq!(
-            CanonicalizationAlgorithm::Relaxed.canonicalize_header(
+            msg.headers()
+                .into_iter()
+                .map(|(key, value)| CanonicalizationAlgorithm::Relaxed
+                    .canonicalize_header(&format!("{key}:{value}")))
+                .fold(String::new(), |mut acc, s| {
+                    acc.push_str(&s);
+                    acc.push_str("\r\n");
+                    acc
+                }),
+            concat!("a:X\r\n", "b:Y Z\r\n")
+        );
+
+        assert_eq!(
+            CanonicalizationAlgorithm::Relaxed.canonicalize_headers(
                 &msg.headers()
-                    .into_iter()
+                    .iter()
                     .map(|(key, value)| format!("{key}:{value}"))
                     .collect::<Vec<_>>()
             ),
@@ -237,9 +267,21 @@ mod tests {
         );
 
         assert_eq!(
-            CanonicalizationAlgorithm::Simple.canonicalize_header(
+            msg.headers()
+                .into_iter()
+                .map(|(key, value)| CanonicalizationAlgorithm::Simple
+                    .canonicalize_header(&format!("{key}:{value}")))
+                .fold(String::new(), |mut acc, s| {
+                    acc.push_str(&s);
+                    acc
+                }),
+            concat!("A: X\r\n", "B : Y\t\r\n", "\tZ  \r\n")
+        );
+
+        assert_eq!(
+            CanonicalizationAlgorithm::Simple.canonicalize_headers(
                 &msg.headers()
-                    .into_iter()
+                    .iter()
                     .map(|(key, value)| format!("{key}:{value}"))
                     .collect::<Vec<_>>()
             ),
