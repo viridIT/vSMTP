@@ -50,15 +50,13 @@ pub async fn flush_deferred_queue(
     Ok(())
 }
 
-// NOTE: emails stored in the deferred queue are likely to slow down the process.
-//       the pickup process of this queue should be slower than pulling from the delivery queue.
-//       https://www.postfix.org/QSHAPE_README.html#queues
+#[tracing::instrument(skip(config, resolvers))]
 async fn handle_one_in_deferred_queue(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
 ) -> anyhow::Result<()> {
-    log::debug!("processing email '{}'", process_message.message_id);
+    log::debug!("processing email");
 
     let (mut mail_context, mail_message) = Queue::Deferred
         .read(&config.server.queues.dirpath, &process_message.message_id)

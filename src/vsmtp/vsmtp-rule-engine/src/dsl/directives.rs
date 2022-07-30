@@ -15,7 +15,8 @@
  *
  */
 
-use crate::{modules::EngineResult, rule_state::RuleState, vsl_guard_ok, Service};
+use super::service::Service;
+use crate::{api::EngineResult, rule_state::RuleState, vsl_guard_ok};
 use vsmtp_common::{state::StateSMTP, status::Status};
 
 /// a set of directives, filtered by smtp stage.

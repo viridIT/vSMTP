@@ -31,7 +31,7 @@ use vsmtp_config::{
     re::{rustls, rustls_pemfile},
     Config,
 };
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::auth;
 use vsmtp_server::Connection;
 use vsmtp_server::{ProcessMessage, Server};
@@ -102,13 +102,9 @@ async fn test_starttls(
                 None
             },
             None,
-            std::sync::Arc::new(std::sync::RwLock::new(
-                anyhow::Context::context(
-                    RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()),
-                    "failed to initialize the engine",
-                )
-                .unwrap(),
-            )),
+            std::sync::Arc::new(
+                RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
+            ),
             std::sync::Arc::new(std::collections::HashMap::new()),
             working_sender,
             delivery_sender,
@@ -240,9 +236,9 @@ async fn test_tls_tunneled(
             ),
             get_tls_config(&server_config),
             get_auth_config(&server_config),
-            std::sync::Arc::new(std::sync::RwLock::new(
+            std::sync::Arc::new(
                 RuleEngine::new(&server_config, &server_config.app.vsl.filepath.clone()).unwrap(),
-            )),
+            ),
             std::sync::Arc::new(std::collections::HashMap::new()),
             working_sender,
             delivery_sender,

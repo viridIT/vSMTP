@@ -16,13 +16,11 @@
 */
 
 pub mod parsing;
-
+use crate::api::SharedObject;
 use vsmtp_common::{
     re::{addr, anyhow, log, strum},
     Address, Reply, ReplyCode,
 };
-
-use crate::modules::types::types::SharedObject;
 
 const FILE_CAPACITY: usize = 20;
 

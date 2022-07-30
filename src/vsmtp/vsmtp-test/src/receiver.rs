@@ -20,7 +20,7 @@ use vsmtp_common::{
     CodeID, ConnectionKind, MessageBody,
 };
 use vsmtp_config::Config;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 use vsmtp_server::{auth, Connection, OnMail};
 
 /// A type implementing Write+Read to emulate sockets
@@ -120,9 +120,8 @@ where
         &mut mock,
     );
 
-    let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-        RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap(),
-    ));
+    let rule_engine =
+        std::sync::Arc::new(RuleEngine::new(&config, &config.app.vsl.filepath.clone()).unwrap());
 
     let receivers = std::sync::Arc::new(std::collections::HashMap::new());
 

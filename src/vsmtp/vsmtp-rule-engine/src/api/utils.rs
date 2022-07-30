@@ -14,22 +14,22 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::api::{EngineResult, SharedObject};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::re::lettre;
 
 const DATE_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[year]-[month]-[day]");
 const TIME_FORMAT: &[time::format_description::FormatItem<'_>] =
     time::macros::format_description!("[hour]:[minute]:[second]");
 
-///
-#[rhai::plugin::export_module]
-pub mod utils {
+pub use utils_rhai::*;
 
-    use crate::modules::{types::types::SharedObject, EngineResult};
-    use vsmtp_common::re::lettre;
+#[rhai::plugin::export_module]
+mod utils_rhai {
 
     // TODO: not yet functional, the relayer cannot connect to servers.
     /// send a mail from a template.
@@ -95,9 +95,26 @@ pub mod utils {
             })?
             .to_str()
             .map_or(
-                Err("the system's hostname is not UTF-8 valide".into()),
+                Err("the system's hostname is not UTF-8 valid".into()),
                 |host| Ok(host.to_string()),
             )
+    }
+
+    /// Get the root domain (the registrable part)
+    ///
+    /// # Examples
+    ///
+    /// `foo.bar.example.com` => `example.com`
+    #[rhai_fn(global, return_raw)]
+    pub fn get_root_domain(domain: &str) -> EngineResult<String> {
+        if let Ok(domain) = addr::parse_domain_name(domain) {
+            domain
+                .root()
+                .map(ToString::to_string)
+                .ok_or_else(|| format!("failed to get root domain from {domain}").into())
+        } else {
+            Err(format!("failed to parse as domain: `{domain}`").into())
+        }
     }
 
     /// get the current time.

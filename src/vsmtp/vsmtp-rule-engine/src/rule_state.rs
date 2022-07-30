@@ -1,13 +1,29 @@
+/*
+ * vSMTP mail transfer agent
+ * Copyright (C) 2022 viridIT SAS
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see https://www.gnu.org/licenses/.
+ *
+*/
+use super::server_api::ServerAPI;
+use crate::api::{Context, Message, Server, SharedObject};
 use crate::dsl::action::parsing::{create_action, parse_action};
 use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
 use crate::dsl::directives::Directive;
 use crate::dsl::object::parsing::{create_object, parse_object};
 use crate::dsl::rule::parsing::{create_rule, parse_rule};
 use crate::dsl::service::parsing::{create_service, parse_service};
-use crate::modules::types::types::{Context, Message, Server, SharedObject};
+use crate::dsl::service::Service;
 use crate::rule_engine::RuleEngine;
-
-use super::server_api::ServerAPI;
 use vsmtp_common::re::anyhow;
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
@@ -118,7 +134,7 @@ impl RuleState {
             .flat_map(|(_, d)| d)
             .any(|d| match d {
                 Directive::Delegation { service, .. } => match &**service {
-                    crate::Service::Smtp { receiver, .. } => *receiver == conn.server_address,
+                    Service::Smtp { receiver, .. } => *receiver == conn.server_address,
                     _ => false,
                 },
                 _ => false,
@@ -224,34 +240,28 @@ impl RuleState {
     /// Instantiate a [`RuleState`] and run it for the only `state` provided
     ///
     /// # Return
+    ///
     /// A tuple with the mail context, body, result status, and skip status.
-    ///
-    /// # Errors
-    ///
-    /// * `rule_engine` mutex poisoned
+    #[must_use]
     pub fn just_run_when(
         state: &StateSMTP,
         config: &Config,
         resolvers: std::sync::Arc<Resolvers>,
-        rule_engine: &std::sync::RwLock<RuleEngine>,
+        rule_engine: &RuleEngine,
         mail_context: MailContext,
         mail_message: MessageBody,
-    ) -> anyhow::Result<(MailContext, MessageBody, Status, Option<Status>)> {
-        let rule_engine = rule_engine
-            .read()
-            .map_err(|_| anyhow::anyhow!("rule engine mutex poisoned"))?;
-
+    ) -> (MailContext, MessageBody, Status, Option<Status>) {
         let mut rule_state =
-            Self::with_context(config, resolvers, &rule_engine, mail_context, mail_message);
+            Self::with_context(config, resolvers, rule_engine, mail_context, mail_message);
         let result = rule_engine.run_when(&mut rule_state, state);
 
         let (mail_context, mail_message, skipped) = rule_state
             .take()
             .expect("should not have strong reference here");
-        Ok((mail_context, mail_message, result, skipped))
+        (mail_context, mail_message, result, skipped)
     }
 
-    /// Consume [`self`] and return the inner [`MailContext`] and [`MessageBody`]
+    /// Consume the instance and return the inner [`MailContext`] and [`MessageBody`]
     ///
     /// # Errors
     ///

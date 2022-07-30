@@ -15,10 +15,11 @@
  *
 */
 use crate::{
+    api::{
+        transports::disable_delivery_all,
+        EngineResult, {Context, SharedObject},
+    },
     dsl::object::Object,
-    modules::actions::transports::transports::disable_delivery_all,
-    modules::types::types::{Context, SharedObject},
-    modules::EngineResult,
 };
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
@@ -41,9 +42,10 @@ fn reply_or_code_id_from_string(code: &str) -> EngineResult<ReplyOrCodeID> {
     )?))
 }
 
-///
+pub use rule_state::*;
+
 #[rhai::plugin::export_module]
-pub mod rule_state {
+mod rule_state {
 
     /// Return a [`Status::Faccept`] with the default code associated
     #[must_use]

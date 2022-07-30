@@ -15,8 +15,7 @@
  *
 */
 
-use crate::modules::types::types::{Context, Message, Server};
-use crate::modules::EngineResult;
+use crate::api::{Context, EngineResult, Message, Server};
 use rhai::plugin::{
     mem, Dynamic, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
@@ -42,9 +41,9 @@ enum DkimErrors {
     SignatureMismatch,
 }
 
-/// dkim api for verifier, and the generation of "Authentication-Results" header
 #[rhai::plugin::export_module]
-pub mod dkim {
+mod dkim_rhai {
+    use vsmtp_dkim::{Canonicalization, CanonicalizationAlgorithm};
 
     /// get the dkim status from an error produced by this module
     #[rhai_fn(global, return_raw)]
@@ -177,7 +176,24 @@ pub mod dkim {
         server: Server,
         selector: &str,
         headers_field: rhai::Array,
+        canonicalization: &str,
     ) -> EngineResult<()> {
+        let (header, body) = canonicalization
+            .split_once('/')
+            .ok_or_else::<Box<EvalAltResult>, _>(|| {
+                "invalid canonicalization: expected `header/body`".into()
+            })?;
+        let (header, body) = (
+            <CanonicalizationAlgorithm as std::str::FromStr>::from_str(header)
+                .map_err::<Box<EvalAltResult>, _>(|e| {
+                    format!("got error for canonicalization of headers: `{e}`").into()
+                })?,
+            <CanonicalizationAlgorithm as std::str::FromStr>::from_str(body)
+                .map_err::<Box<EvalAltResult>, _>(|e| {
+                    format!("got error for canonicalization of body: `{e}`").into()
+                })?,
+        );
+
         let mut msg_guard = vsl_guard_ok!(message.write());
         let ctx_guard = vsl_guard_ok!(context.read());
 
@@ -198,6 +214,7 @@ pub mod dkim {
                     sdid,
                     headers_field.iter().map(ToString::to_string).collect(),
                     &dkim_params.private_key.inner,
+                    Canonicalization { header, body },
                 )
                 .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?;
 
@@ -208,3 +225,5 @@ pub mod dkim {
         }
     }
 }
+
+pub use dkim_rhai::*;

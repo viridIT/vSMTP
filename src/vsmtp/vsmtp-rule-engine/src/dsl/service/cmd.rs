@@ -15,7 +15,7 @@
  *
 */
 
-use crate::{dsl::service::Service, modules::EngineResult};
+use crate::{api::EngineResult, dsl::service::Service};
 use rhai::EvalAltResult;
 use vsmtp_common::re::{anyhow, log};
 use vsmtp_config::re::users;

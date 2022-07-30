@@ -15,7 +15,7 @@
  *
 */
 use super::{cmd::parse_cmd_service, smtp::parse_smtp_service, Service};
-use crate::modules::EngineResult;
+use crate::api::EngineResult;
 
 /// parse a service using rhai's parser.
 pub fn parse_service(

@@ -231,7 +231,7 @@ private fn sys_dkim_verify(policy) {
 
     let last_error = `dkim=none`;
 
-    for i in msg().headers("DKIM-Signature", policy.nbr_headers) {
+    for i in msg().get_headers("DKIM-Signature", policy.nbr_headers) {
         try {
             let signature = sys::parse_signature(i);
 
@@ -294,7 +294,7 @@ fn dkim_verify() {
         expiration_epsilon: 100,
     });
 
-    let header = `${hostname()};
+    let header = `${get_root_domain(ctx().server_name)};
   ${result}`;
 
     prepend_header("Authentication-Results", header);
@@ -302,6 +302,10 @@ fn dkim_verify() {
 }
 
 /// Produce a `DKIM-Signature` header.
-fn dkim_sign(selector, headers_field) {
-    sys::dkim_sign(msg(), ctx(), srv(), selector, headers_field)
+fn dkim_sign(selector, headers_field, canonicalization) {
+    sys::dkim_sign(msg(), ctx(), srv(), selector, headers_field, canonicalization)
+}
+
+fn dkim_sign(selector) {
+    sys::dkim_sign(msg(), ctx(), srv(), selector, ["From", "To", "Date", "Subject"], "simple/relaxed")
 }

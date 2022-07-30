@@ -24,7 +24,7 @@ use vsmtp_common::{
     CodeID,
 };
 use vsmtp_config::Resolvers;
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 #[allow(clippy::module_name_repetitions)]
 #[must_use]
@@ -101,7 +101,7 @@ const READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 pub async fn on_authentication<S>(
     conn: &mut Connection<S>,
     rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     mechanism: Mechanism,
     initial_response: Option<Vec<u8>>,

@@ -28,7 +28,7 @@ use vsmtp_common::{
     Address, CodeID, MessageBody, ReplyOrCodeID,
 };
 use vsmtp_config::{field::TlsSecurityLevel, Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 enum ProcessedEvent {
     Reply(ReplyOrCodeID),
@@ -39,7 +39,7 @@ enum ProcessedEvent {
 pub struct Transaction {
     state: StateSMTP,
     pub rule_state: RuleState,
-    pub rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    pub rule_engine: std::sync::Arc<RuleEngine>,
 }
 
 impl std::fmt::Debug for Transaction {
@@ -53,9 +53,13 @@ impl std::fmt::Debug for Transaction {
 
 #[allow(clippy::module_name_repetitions)]
 pub enum TransactionResult {
-    Data,
-    TlsUpgrade,
-    Authentication(String, Mechanism, Option<Vec<u8>>),
+    /// The SMTP handshake has been completed, `DATA` has been receive we are now
+    /// handling the message body.
+    HandshakeSMTP,
+    /// A TLS handshake has been requested
+    HandshakeTLS,
+    /// A SASL (AUTH) handshake has been requested
+    HandshakeSASL(String, Mechanism, Option<Vec<u8>>),
 }
 
 impl Transaction {
@@ -120,8 +124,6 @@ impl Transaction {
 
                 match self
                     .rule_engine
-                    .read()
-                    .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
@@ -144,8 +146,6 @@ impl Transaction {
 
                 match self
                     .rule_engine
-                    .read()
-                    .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::Helo)
                 {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
@@ -217,8 +217,6 @@ impl Transaction {
 
                 match self
                     .rule_engine
-                    .read()
-                    .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::MailFrom)
                 {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
@@ -244,8 +242,6 @@ impl Transaction {
 
                 match self
                     .rule_engine
-                    .read()
-                    .unwrap()
                     .run_when(&mut self.rule_state, &StateSMTP::RcptTo)
                 {
                     Status::Info(packet) => ProcessedEvent::Reply(packet),
@@ -367,15 +363,13 @@ impl Transaction {
     >(
         conn: &mut Connection<S>,
         helo_domain: &Option<String>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
-    ) -> anyhow::Result<Transaction> {
+    ) -> Transaction {
         let rule_state = RuleState::with_connection(
             conn.config.as_ref(),
             resolvers,
-            &*rule_engine
-                .read()
-                .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?,
+            &*rule_engine,
             ConnectionContext {
                 timestamp: conn.timestamp,
                 credentials: None,
@@ -386,7 +380,7 @@ impl Transaction {
             },
         );
 
-        Ok(Self {
+        Self {
             state: if helo_domain.is_none() {
                 StateSMTP::Connect
             } else {
@@ -394,7 +388,7 @@ impl Transaction {
             },
             rule_state,
             rule_engine,
-        })
+        }
     }
 
     pub fn stream<
@@ -441,8 +435,6 @@ impl Transaction {
 
             let status = self
                 .rule_engine
-                .read()
-                .map_err(|_| anyhow::anyhow!("Rule engine mutex poisoned"))?
                 .run_when(&mut self.rule_state, &StateSMTP::Connect);
 
             match status {
@@ -463,7 +455,7 @@ impl Transaction {
 
         loop {
             match &self.state {
-                StateSMTP::NegotiationTLS => return Ok(Some(TransactionResult::TlsUpgrade)),
+                StateSMTP::NegotiationTLS => return Ok(Some(TransactionResult::HandshakeTLS)),
                 StateSMTP::Authenticate(mechanism, initial_response) => {
                     let helo_domain = self
                         .rule_state
@@ -473,7 +465,7 @@ impl Transaction {
                         .envelop
                         .helo
                         .clone();
-                    return Ok(Some(TransactionResult::Authentication(
+                    return Ok(Some(TransactionResult::HandshakeSASL(
                         helo_domain,
                         *mechanism,
                         initial_response.clone(),
@@ -484,7 +476,7 @@ impl Transaction {
                     return Ok(None);
                 }
                 StateSMTP::Data => {
-                    return Ok(Some(TransactionResult::Data));
+                    return Ok(Some(TransactionResult::HandshakeSMTP));
                 }
                 _ => match connection.read(read_timeout).await {
                     Ok(Some(client_message)) => {

@@ -14,20 +14,18 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::{types::types::Context, EngineResult};
+use crate::api::{Context, EngineResult, SharedObject};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
 };
+use vsmtp_common::transfer::ForwardTarget;
+
+pub use transports_rhai::*;
 
 #[allow(clippy::needless_pass_by_value)]
-///
 #[rhai::plugin::export_module]
-pub mod transports {
-    use vsmtp_common::transfer::ForwardTarget;
-
-    use crate::modules::types::types::{Context, SharedObject};
-    use crate::modules::EngineResult;
+mod transports_rhai {
 
     /// set the delivery method to "Forward" for a single recipient.
     #[rhai_fn(global, name = "forward", return_raw, pure)]
@@ -249,7 +247,7 @@ fn set_transport(
 mod test {
 
     use super::*;
-    use crate::modules::actions::test::get_default_context;
+    use crate::api::test::get_default_context;
     use vsmtp_common::{
         addr,
         rcpt::Rcpt,

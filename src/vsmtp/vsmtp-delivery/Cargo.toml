@@ -30,6 +30,8 @@ vsmtp-config = { path = "../vsmtp-config", default-features = false, version = "
 
 async-trait = "0.1.56"
 
+tracing = "0.1.35"
+
 time = { version = "0.3.11", default-features = false, features = [
   "std",
   "formatting",

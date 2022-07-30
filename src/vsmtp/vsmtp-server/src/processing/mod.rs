@@ -23,11 +23,11 @@ use vsmtp_common::{
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 pub async fn start(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     mut working_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -48,12 +48,12 @@ pub async fn start(
 #[tracing::instrument(skip(config, rule_engine, resolvers, delivery_sender))]
 async fn handle_one_in_working_queue(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
 ) {
-    log::info!("handling message in working queue");
+    log::info!("handling message in `{queue}`", queue = Queue::Working);
 
     if let Err(e) = handle_one_in_working_queue_inner(
         config,
@@ -71,7 +71,7 @@ async fn handle_one_in_working_queue(
 #[allow(clippy::too_many_lines)]
 async fn handle_one_in_working_queue_inner(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
     delivery_sender: tokio::sync::mpsc::Sender<ProcessMessage>,
@@ -93,7 +93,7 @@ async fn handle_one_in_working_queue_inner(
         &rule_engine,
         mail_context,
         mail_message,
-    )?;
+    );
 
     let mut move_to_queue = Option::<Queue>::None;
     let mut send_to_delivery = false;
@@ -203,11 +203,10 @@ mod tests {
         envelop::Envelop,
         mail_context::{ConnectionContext, MailContext, MessageMetadata},
         rcpt::Rcpt,
-        re::anyhow::Context,
         transfer::{EmailTransferStatus, Transfer},
         MessageBody,
     };
-    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
     #[tokio::test]
@@ -225,11 +224,7 @@ mod tests {
 
         assert!(handle_one_in_working_queue_inner(
             config.clone(),
-            std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::from_script(&config, "#{}")
-                    .context("failed to initialize the engine")
-                    .unwrap(),
-            )),
+            std::sync::Arc::new(RuleEngine::from_script(&config, "#{}").unwrap()),
             resolvers,
             ProcessMessage {
                 message_id: "not_such_message_named_like_this".to_string(),
@@ -309,11 +304,7 @@ mod tests {
 
         handle_one_in_working_queue_inner(
             config.clone(),
-            std::sync::Arc::new(std::sync::RwLock::new(
-                RuleEngine::from_script(&config, "#{}")
-                    .context("failed to initialize the engine")
-                    .unwrap(),
-            )),
+            std::sync::Arc::new(RuleEngine::from_script(&config, "#{}").unwrap()),
             resolvers,
             ProcessMessage {
                 message_id: "test".to_string(),
@@ -397,14 +388,13 @@ mod tests {
 
         handle_one_in_working_queue_inner(
             config.clone(),
-            std::sync::Arc::new(std::sync::RwLock::new(
+            std::sync::Arc::new(
                 RuleEngine::from_script(
                     &config,
                     &format!("#{{ {}: [ rule \"\" || sys::deny() ] }}", StateSMTP::PostQ),
                 )
-                .context("failed to initialize the engine")
                 .unwrap(),
-            )),
+            ),
             resolvers,
             ProcessMessage {
                 message_id: "test_denied".to_string(),

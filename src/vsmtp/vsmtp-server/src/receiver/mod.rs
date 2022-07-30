@@ -14,11 +14,11 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use self::transaction::{Transaction, TransactionResult};
-use crate::{
-    auth,
-    receiver::auth_exchange::{on_authentication, AuthExchangeError},
+use self::{
+    auth_exchange::on_authentication,
+    transaction::{Transaction, TransactionResult},
 };
+use crate::{auth, receiver::auth_exchange::AuthExchangeError};
 use vsmtp_common::{
     auth::Mechanism,
     mail_context::MAIL_CAPACITY,
@@ -28,7 +28,7 @@ use vsmtp_common::{
     CodeID, ConnectionKind, Either, MailParserOnFly, MessageBody, ParserOutcome, RawBody,
 };
 use vsmtp_config::{re::rustls, Resolvers};
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_rule_engine::RuleEngine;
 
 mod auth_exchange;
 mod connection;
@@ -84,7 +84,7 @@ where
         &mut self,
         tls_config: Option<std::sync::Arc<rustls::ServerConfig>>,
         rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
@@ -106,12 +106,11 @@ where
 
         while self.is_alive {
             let mut transaction =
-                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone())
-                    .await?;
+                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone()).await;
 
             if let Some(outcome) = transaction.receive(self, &helo_domain).await? {
                 match outcome {
-                    TransactionResult::Data => {
+                    TransactionResult::HandshakeSMTP => {
                         if !self
                             .handle_stream(mail_handler, transaction, &mut helo_domain)
                             .await?
@@ -119,7 +118,7 @@ where
                             return Ok(());
                         }
                     }
-                    TransactionResult::TlsUpgrade => {
+                    TransactionResult::HandshakeTLS => {
                         if let Some(tls_config) = tls_config {
                             return self
                                 .upgrade_to_secured(
@@ -134,7 +133,7 @@ where
                         self.send_code(CodeID::TlsNotAvailable).await?;
                         anyhow::bail!("{:?}", CodeID::TlsNotAvailable)
                     }
-                    TransactionResult::Authentication(
+                    TransactionResult::HandshakeSASL(
                         helo_pre_auth,
                         mechanism,
                         initial_response,
@@ -169,7 +168,7 @@ where
     async fn receive_secured<M>(
         &mut self,
         rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
@@ -184,12 +183,11 @@ where
 
         while self.is_alive {
             let mut transaction =
-                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone())
-                    .await?;
+                Transaction::new(self, &helo_domain, rule_engine.clone(), resolvers.clone()).await;
 
             if let Some(outcome) = transaction.receive(self, &helo_domain).await? {
                 match outcome {
-                    TransactionResult::Data => {
+                    TransactionResult::HandshakeSMTP => {
                         if !self
                             .handle_stream(mail_handler, transaction, &mut helo_domain)
                             .await?
@@ -197,10 +195,10 @@ where
                             return Ok(());
                         }
                     }
-                    TransactionResult::TlsUpgrade => {
+                    TransactionResult::HandshakeTLS => {
                         self.send_code(CodeID::AlreadyUnderTLS).await?;
                     }
-                    TransactionResult::Authentication(
+                    TransactionResult::HandshakeSASL(
                         helo_pre_auth,
                         mechanism,
                         initial_response,
@@ -231,7 +229,7 @@ where
         &mut self,
         tls_config: std::sync::Arc<rustls::ServerConfig>,
         rsasl: Option<std::sync::Arc<tokio::sync::Mutex<auth::Backend>>>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
         mail_handler: &mut M,
     ) -> anyhow::Result<()>
@@ -315,8 +313,6 @@ where
 
         let status = transaction
             .rule_engine
-            .read()
-            .unwrap()
             .run_when(&mut transaction.rule_state, &StateSMTP::PreQ);
 
         match status {
@@ -355,7 +351,7 @@ where
     async fn handle_auth(
         &mut self,
         rsasl: std::sync::Arc<tokio::sync::Mutex<auth::Backend>>,
-        rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+        rule_engine: std::sync::Arc<RuleEngine>,
         resolvers: std::sync::Arc<Resolvers>,
         helo_domain: &mut Option<String>,
         mechanism: Mechanism,

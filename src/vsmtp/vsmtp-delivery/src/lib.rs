@@ -48,14 +48,15 @@ pub mod transport {
         ) -> Vec<Rcpt>;
     }
 
-    /// delivery transport.
-    pub mod deliver;
-    /// forwarding transport.
-    pub mod forward;
-    /// maildir transport.
-    pub mod maildir;
-    /// mbox transport.
-    pub mod mbox;
+    mod deliver;
+    mod forward;
+    mod maildir;
+    mod mbox;
+
+    pub use deliver::Deliver;
+    pub use forward::Forward;
+    pub use maildir::Maildir;
+    pub use mbox::MBox;
 
     /// no transfer will be made if this resolver is selected.
     pub struct NoTransfer;

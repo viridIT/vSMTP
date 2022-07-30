@@ -34,8 +34,8 @@ use vsmtp_common::{
 };
 use vsmtp_common::{re::tokio, transfer::EmailTransferStatus};
 use vsmtp_config::{Config, Resolvers};
-use vsmtp_delivery::transport::{deliver as smtp_deliver, forward, maildir, mbox, Transport};
-use vsmtp_rule_engine::rule_engine::RuleEngine;
+use vsmtp_delivery::transport::{Deliver, Forward, MBox, Maildir, Transport};
+use vsmtp_rule_engine::RuleEngine;
 
 mod deferred;
 mod deliver;
@@ -44,16 +44,19 @@ mod deliver;
 /// or parsed by the vMime process.
 pub async fn start(
     config: std::sync::Arc<Config>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
     resolvers: std::sync::Arc<Resolvers>,
     mut delivery_receiver: tokio::sync::mpsc::Receiver<ProcessMessage>,
 ) {
     if let Err(e) =
         flush_deliver_queue(config.clone(), resolvers.clone(), rule_engine.clone()).await
     {
-        log::error!("flushing queue failed: {e}");
+        log::error!("flushing queue failed: `{e}`");
     }
 
+    // NOTE: emails stored in the deferred queue are likely to slow down the process.
+    //       the pickup process of this queue should be slower than pulling from the delivery queue.
+    //       https://www.postfix.org/QSHAPE_README.html#queues
     let mut flush_deferred_interval =
         tokio::time::interval(config.server.queues.delivery.deferred_retry_period);
 
@@ -70,7 +73,8 @@ pub async fn start(
                 );
             }
             _ = flush_deferred_interval.tick() => {
-                log::info!("cronjob delay elapsed, flushing queue.");
+                log::info!("cronjob delay elapsed `{}s`, flushing queue.",
+                    config.server.queues.delivery.deferred_retry_period.as_secs());
                 tokio::spawn(flush_deferred_queue(config.clone(), resolvers.clone()));
             }
         };
@@ -127,7 +131,7 @@ pub async fn send_mail(
                 }
                 .unwrap_or(root_server_resolver);
 
-                forward::Forward::new(forward_target.clone(), resolver).deliver(
+                Forward::new(forward_target.clone(), resolver).deliver(
                     config,
                     metadata,
                     from,
@@ -135,7 +139,7 @@ pub async fn send_mail(
                     &message_content,
                 )
             }
-            Transfer::Deliver => smtp_deliver::Deliver::new({
+            Transfer::Deliver => Deliver::new({
                 resolvers
                     .get(
                         to.get(0)
@@ -146,10 +150,8 @@ pub async fn send_mail(
                     .unwrap_or(root_server_resolver)
             })
             .deliver(config, metadata, from, to, &message_content),
-            Transfer::Mbox => mbox::MBox.deliver(config, metadata, from, to, &message_content),
-            Transfer::Maildir => {
-                maildir::Maildir.deliver(config, metadata, from, to, &message_content)
-            }
+            Transfer::Mbox => MBox.deliver(config, metadata, from, to, &message_content),
+            Transfer::Maildir => Maildir.deliver(config, metadata, from, to, &message_content),
             Transfer::None => unreachable!(),
         })
         .collect::<Vec<_>>();
@@ -159,6 +161,8 @@ pub async fn send_mail(
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
+
+    log::trace!("the recipients are: `{:#?}`", message_ctx.envelop.rcpt);
 
     // updating retry count, set status to Failed if threshold reached.
     for rcpt in &mut message_ctx.envelop.rcpt {

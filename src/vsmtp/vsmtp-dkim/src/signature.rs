@@ -153,26 +153,39 @@ impl Signature {
     ///
     #[must_use]
     pub fn get_header_hash(&self, message: &RawBody) -> Vec<u8> {
-        let mut headers = self.canonicalization.header.canonicalize_header(
-            &self
-                .headers_field
-                .iter()
-                // TODO: see https://datatracker.ietf.org/doc/html/rfc6376#section-5.4.2
-                .filter_map(|h| message.get_header(h, true))
-                .collect::<Vec<_>>(),
-        );
+        let mut last_index = std::collections::HashMap::<&str, usize>::new();
 
-        headers.push_str(
+        let headers = message.headers();
+
+        let mut output = vec![];
+        for header in &self.headers_field {
+            let idx = last_index
+                .get(header.as_str())
+                .map_or(headers.len(), |x| *x);
+
+            if let Some((pos, (key, value))) = headers[..idx]
+                .iter()
+                .enumerate()
+                .rfind(|(_, (key, _))| key.to_lowercase() == header.to_lowercase())
+            {
+                last_index
+                    .entry(key.as_str())
+                    .and_modify(|v| *v = pos)
+                    .or_insert(pos);
+                output.push(format!("{key}:{value}\r\n"));
+            }
+        }
+
+        let mut output = self.canonicalization.header.canonicalize_headers(&output);
+
+        output.push_str(
             &self
                 .canonicalization
                 .header
-                .canonicalize_header(&[self.signature_without_headers()]),
+                .canonicalize_header(&self.signature_without_headers()),
         );
 
-        // remove the final "\r\n"
-        headers.pop();
-        headers.pop();
-        self.signing_algorithm.hash(headers)
+        self.signing_algorithm.hash(output)
     }
 }
 

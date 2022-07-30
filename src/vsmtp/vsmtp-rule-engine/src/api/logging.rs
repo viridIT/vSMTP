@@ -14,18 +14,15 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::api::SharedObject;
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, Position, RhaiResult, TypeId,
 };
-
 use vsmtp_common::re::log;
 
-///
 #[rhai::plugin::export_module]
-pub mod logging {
-
-    use crate::modules::types::types::SharedObject;
+mod logging_rhai {
 
     /// log a message to the file system / console with the specified level.
     #[allow(clippy::needless_pass_by_value)]
@@ -62,3 +59,5 @@ pub mod logging {
         }
     }
 }
+
+pub use logging_rhai::*;

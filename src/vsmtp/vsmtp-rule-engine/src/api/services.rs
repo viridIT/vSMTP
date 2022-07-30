@@ -14,21 +14,20 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
+use crate::api::{EngineResult, SharedObject};
+use crate::dsl::service::{
+    cmd::{run, CmdResult},
+    Service,
+};
 use rhai::{
     plugin::{mem, FnAccess, FnNamespace, Module, PluginFunction, RhaiResult, TypeId},
     Dynamic, EvalAltResult, ImmutableString, NativeCallContext,
 };
 
-use crate::{modules::EngineResult, Service};
+pub use services::*;
 
-///
 #[rhai::plugin::export_module]
-pub mod services {
-    use crate::dsl::service::cmd::run;
-    use crate::dsl::service::cmd::CmdResult;
-    use crate::dsl::service::Service;
-    use crate::modules::types::types::SharedObject;
-    use crate::modules::EngineResult;
+mod services {
 
     ///
     #[rhai_fn(global, pure)]

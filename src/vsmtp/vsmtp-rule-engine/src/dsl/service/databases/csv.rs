@@ -15,13 +15,10 @@
  *
 */
 
-use std::{io::Write, str::FromStr};
-
-use vsmtp_common::re::anyhow::{self, Context};
-
-use crate::{dsl::service::Service, modules::EngineResult};
-
 use super::{AccessMode, Refresh};
+use crate::{api::EngineResult, dsl::service::Service};
+use std::{io::Write, str::FromStr};
+use vsmtp_common::re::anyhow::{self, Context};
 
 /// query a record matching the first element.
 pub fn query_key(

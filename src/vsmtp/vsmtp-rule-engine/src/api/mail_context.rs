@@ -14,8 +14,12 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
 */
-use crate::modules::types::types::{Context, Server};
-use crate::modules::EngineResult;
+use crate::{
+    api::{
+        EngineResult, {Context, Server, SharedObject},
+    },
+    dsl::object::Object,
+};
 use rhai::plugin::{
     mem, Dynamic, EvalAltResult, FnAccess, FnNamespace, ImmutableString, Module, NativeCallContext,
     PluginFunction, RhaiResult, TypeId,
@@ -23,45 +27,45 @@ use rhai::plugin::{
 use vsmtp_common::rcpt::Rcpt;
 use vsmtp_common::{auth::Credentials, auth::Mechanism, state::StateSMTP, Address};
 
-#[rhai::plugin::export_module]
-pub mod mail_context {
-    use crate::{dsl::object::Object, modules::types::types::SharedObject};
+pub use mail_context_rhai::*;
 
+#[rhai::plugin::export_module]
+mod mail_context_rhai {
+
+    /// Get the peer address of the client.
     #[rhai_fn(global, get = "client_address", return_raw, pure)]
     pub fn client_address(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_guard_ok!(context.read()).client_addr.to_string())
     }
 
+    /// Get the peer ip address of the client.
     #[rhai_fn(global, get = "client_ip", return_raw, pure)]
     pub fn client_ip(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_guard_ok!(context.read()).client_addr.ip().to_string())
     }
 
+    /// Get the peer port of the client.
     #[rhai_fn(global, get = "client_port", return_raw, pure)]
     pub fn client_port(context: &mut Context) -> EngineResult<i64> {
         Ok(i64::from(vsl_guard_ok!(context.read()).client_addr.port()))
     }
 
+    /// Get the server address which served this connection.
     #[rhai_fn(global, get = "server_address", return_raw, pure)]
     pub fn server_address(context: &mut Context) -> EngineResult<String> {
-        Ok(context
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
+        Ok(vsl_guard_ok!(context.read())
             .connection
             .server_address
             .to_string())
     }
 
+    /// Get the server ip address which served this connection.
     #[rhai_fn(global, get = "server_ip", return_raw, pure)]
     pub fn server_ip(context: &mut Context) -> EngineResult<std::net::IpAddr> {
-        Ok(context
-            .read()
-            .map_err::<Box<EvalAltResult>, _>(|e| e.to_string().into())?
-            .connection
-            .server_address
-            .ip())
+        Ok(vsl_guard_ok!(context.read()).connection.server_address.ip())
     }
 
+    /// Get the server port which served this connection.
     #[rhai_fn(global, get = "server_port", return_raw, pure)]
     pub fn server_port(context: &mut Context) -> EngineResult<i64> {
         Ok(i64::from(
@@ -74,26 +78,31 @@ pub mod mail_context {
         ))
     }
 
+    /// Get the timestamp when the client connected to the server.
     #[rhai_fn(global, get = "connection_timestamp", return_raw, pure)]
     pub fn connection_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
         Ok(vsl_guard_ok!(context.read()).connection.timestamp)
     }
 
+    /// Get server name under which the client has been served.
     #[rhai_fn(global, get = "server_name", return_raw, pure)]
     pub fn server_name(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_guard_ok!(context.read()).connection.server_name.clone())
     }
 
+    /// Is the connection under TLS?
     #[rhai_fn(global, get = "is_secured", return_raw, pure)]
     pub fn is_secured(context: &mut Context) -> EngineResult<bool> {
         Ok(vsl_guard_ok!(context.read()).connection.is_secured)
     }
 
+    /// Has the connection validated the client credentials?
     #[rhai_fn(global, get = "is_authenticated", return_raw, pure)]
     pub fn is_authenticated(context: &mut Context) -> EngineResult<bool> {
         Ok(vsl_guard_ok!(context.read()).connection.is_authenticated)
     }
 
+    /// Get the `auth` property of the connection.
     #[rhai_fn(global, get = "auth", return_raw, pure)]
     pub fn auth(context: &mut Context) -> EngineResult<Credentials> {
         Ok(vsl_missing_ok!(
@@ -104,11 +113,13 @@ pub mod mail_context {
         .clone())
     }
 
+    /// Get the type of the `auth` property of the connection.
     #[rhai_fn(global, get = "type", pure)]
     pub fn get_type(credentials: &mut Credentials) -> String {
         credentials.to_string()
     }
 
+    /// Get the `authid` property of the connection.
     #[rhai_fn(global, get = "authid", return_raw, pure)]
     pub fn get_authid(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
@@ -121,6 +132,7 @@ pub mod mail_context {
         }
     }
 
+    /// Get the `authpass` property of the connection.
     #[rhai_fn(global, get = "authpass", return_raw, pure)]
     pub fn get_authpass(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
@@ -131,6 +143,7 @@ pub mod mail_context {
         }
     }
 
+    /// Get the `anonymous_token` property of the connection.
     #[rhai_fn(global, get = "anonymous_token", return_raw, pure)]
     pub fn get_anonymous_token(credentials: &mut Credentials) -> EngineResult<String> {
         match credentials {
@@ -142,11 +155,13 @@ pub mod mail_context {
         }
     }
 
+    /// Get the domain named introduced by the client.
     #[rhai_fn(global, get = "helo", return_raw, pure)]
     pub fn helo(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_guard_ok!(context.read()).envelop.helo.clone())
     }
 
+    /// Get the `MailFrom` envelope.
     #[rhai_fn(global, get = "mail_from", return_raw, pure)]
     pub fn mail_from(context: &mut Context) -> EngineResult<SharedObject> {
         Ok(std::sync::Arc::new(Object::Address(
@@ -154,6 +169,7 @@ pub mod mail_context {
         )))
     }
 
+    /// Get the `RcptTo` envelope.
     #[rhai_fn(global, get = "rcpt_list", return_raw, pure)]
     pub fn rcpt_list(context: &mut Context) -> EngineResult<Vec<SharedObject>> {
         Ok(vsl_guard_ok!(context.read())
@@ -164,6 +180,7 @@ pub mod mail_context {
             .collect())
     }
 
+    /// Get the lase element in the `RcptTo` envelope.
     #[rhai_fn(global, get = "rcpt", return_raw, pure)]
     pub fn rcpt(context: &mut Context) -> EngineResult<SharedObject> {
         Ok(std::sync::Arc::new(Object::Address(
@@ -177,6 +194,7 @@ pub mod mail_context {
         )))
     }
 
+    /// Get the timestamp when the client started to send the message.
     #[rhai_fn(global, get = "mail_timestamp", return_raw, pure)]
     pub fn mail_timestamp(context: &mut Context) -> EngineResult<std::time::SystemTime> {
         Ok(vsl_missing_ok!(
@@ -187,6 +205,7 @@ pub mod mail_context {
         .timestamp)
     }
 
+    /// Get the `message_id`
     #[rhai_fn(global, get = "message_id", return_raw, pure)]
     pub fn message_id(context: &mut Context) -> EngineResult<String> {
         Ok(vsl_missing_ok!(
@@ -198,21 +217,27 @@ pub mod mail_context {
         .clone())
     }
 
+    /// Convert a `Context` to a `String`.
+    #[must_use]
     #[rhai_fn(global, name = "to_string", pure)]
     pub fn ctx_to_string(_: &mut Context) -> String {
         "MailContext".to_string()
     }
 
+    /// Convert a `Context` to a debug string.
     #[rhai_fn(global, name = "to_debug", pure)]
     pub fn ctx_to_debug(context: &mut Context) -> String {
         ctx_to_string(context)
     }
 
+    /// Convert a `Server` to a `String`.
+    #[must_use]
     #[rhai_fn(global, name = "to_string", pure)]
     pub fn srv_to_string(_: &mut Server) -> String {
         "Server".to_string()
     }
 
+    /// Convert a `Server` to a debug string.
     #[rhai_fn(global, name = "to_debug", pure)]
     pub fn srv_to_debug(context: &mut Server) -> String {
         srv_to_string(context)

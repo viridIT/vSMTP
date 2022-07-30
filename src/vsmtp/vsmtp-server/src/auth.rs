@@ -19,49 +19,27 @@ use vsmtp_common::{
     state::StateSMTP, status::Status,
 };
 use vsmtp_config::{Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::{RuleEngine, RuleState};
 
-/// Backend of SASL implementation
-pub type Backend = vsmtp_rsasl::DiscardOnDrop<
-    vsmtp_rsasl::SASL<
-        std::sync::Arc<Config>,
-        (
-            std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-            std::sync::Arc<Resolvers>,
-            ConnectionContext,
-        ),
-    >,
->;
-
-/// SASL session data.
-pub type Session = vsmtp_rsasl::Session<(
-    std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+type SessionState = (
+    std::sync::Arc<RuleEngine>,
     std::sync::Arc<Resolvers>,
     ConnectionContext,
-)>;
+);
+
+/// Backend of SASL implementation
+pub type Backend =
+    vsmtp_rsasl::DiscardOnDrop<vsmtp_rsasl::SASL<std::sync::Arc<Config>, SessionState>>;
+
+/// SASL session data.
+pub type Session = vsmtp_rsasl::Session<SessionState>;
 
 /// Function called by the SASL backend
 pub struct Callback;
 
-impl
-    vsmtp_rsasl::Callback<
-        std::sync::Arc<Config>,
-        (
-            std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-            std::sync::Arc<Resolvers>,
-            ConnectionContext,
-        ),
-    > for Callback
-{
+impl vsmtp_rsasl::Callback<std::sync::Arc<Config>, SessionState> for Callback {
     fn callback(
-        sasl: &mut vsmtp_rsasl::SASL<
-            std::sync::Arc<Config>,
-            (
-                std::sync::Arc<std::sync::RwLock<RuleEngine>>,
-                std::sync::Arc<Resolvers>,
-                ConnectionContext,
-            ),
-        >,
+        sasl: &mut vsmtp_rsasl::SASL<std::sync::Arc<Config>, SessionState>,
         session: &mut Session,
         prop: vsmtp_rsasl::Property,
     ) -> Result<(), vsmtp_rsasl::ReturnCode> {
@@ -112,13 +90,10 @@ impl
         conn.credentials = Some(credentials);
 
         let result = {
-            let re = rule_engine
-                .read()
-                .map_err(|_| vsmtp_rsasl::ReturnCode::GSASL_INTEGRITY_ERROR)?;
+            let mut rule_state =
+                RuleState::with_connection(&config, resolvers.clone(), rule_engine, conn);
 
-            let mut rule_state = RuleState::with_connection(&config, resolvers.clone(), &re, conn);
-
-            re.run_when(
+            rule_engine.run_when(
                 &mut rule_state,
                 &StateSMTP::Authenticate(Mechanism::default(), None),
             )

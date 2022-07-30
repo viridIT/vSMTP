@@ -1,3 +1,4 @@
+use crate::api::StandardVSLPackage;
 /*
  * vSMTP mail transfer agent
  * Copyright (C) 2022 viridIT SAS
@@ -14,6 +15,17 @@
  * this program. If not, see https://www.gnu.org/licenses/.
  *
  */
+use crate::api::rule_state::deny;
+use crate::api::EngineResult;
+use crate::api::SharedObject;
+use crate::dsl::action::parsing::{create_action, parse_action};
+use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
+use crate::dsl::directives::{Directive, Directives};
+use crate::dsl::object::parsing::{create_object, parse_object};
+use crate::dsl::rule::parsing::{create_rule, parse_rule};
+use crate::dsl::service::parsing::{create_service, parse_service};
+use crate::dsl::service::Service;
+use crate::rule_state::RuleState;
 use anyhow::Context;
 use rhai::module_resolvers::FileModuleResolver;
 use rhai::packages::Package;
@@ -25,19 +37,6 @@ use vsmtp_common::re::{anyhow, log};
 use vsmtp_common::state::StateSMTP;
 use vsmtp_common::status::Status;
 use vsmtp_config::Config;
-
-use crate::dsl::action::parsing::{create_action, parse_action};
-use crate::dsl::delegation::parsing::{create_delegation, parse_delegation};
-use crate::dsl::directives::{Directive, Directives};
-use crate::dsl::object::parsing::{create_object, parse_object};
-use crate::dsl::rule::parsing::{create_rule, parse_rule};
-use crate::dsl::service::parsing::{create_service, parse_service};
-use crate::dsl::service::Service;
-use crate::modules;
-use crate::modules::actions::rule_state::rule_state::deny;
-use crate::modules::types::types::SharedObject;
-use crate::modules::EngineResult;
-use crate::rule_state::RuleState;
 
 /// a sharable rhai engine.
 /// contains an ast representation of the user's parsed .vsl script files,
@@ -72,7 +71,7 @@ impl RuleEngine {
         let mut compiler = Self::new_compiler();
 
         let std_module = rhai::packages::StandardPackage::new().as_shared_module();
-        let vsl_native_module = modules::StandardVSLPackage::new().as_shared_module();
+        let vsl_native_module = StandardVSLPackage::new().as_shared_module();
         let toml_module = rhai::Shared::new(Self::build_toml_module(config, &compiler)?);
 
         compiler
@@ -112,7 +111,7 @@ impl RuleEngine {
             );
 
             compiler
-                .compile(include_str!("default_rules.rhai"))
+                .compile(include_str!("../api/default_rules.rhai"))
                 .map_err(|err| anyhow::anyhow!("failed to compile default rules: {err}"))
         }?;
 
@@ -138,7 +137,7 @@ impl RuleEngine {
     pub fn from_script(config: &Config, script: &str) -> anyhow::Result<Self> {
         let mut compiler = Self::new_compiler();
 
-        let vsl_native_module = modules::StandardVSLPackage::new().as_shared_module();
+        let vsl_native_module = StandardVSLPackage::new().as_shared_module();
         let std_module = rhai::packages::StandardPackage::new().as_shared_module();
         let toml_module = rhai::Shared::new(Self::build_toml_module(config, &compiler)?);
 
@@ -224,7 +223,7 @@ impl RuleEngine {
                                         context.metadata.as_mut().unwrap().skipped = None;
                                         *rule_state.context().write().unwrap() = context;
                                     },
-                                    Err(err) => log::error!("[{}] tried to get old mail context '{}' from the working queue after a delegation, but: {}", smtp_state, message_id, err)
+                                    Err(err) => log::error!("[{smtp_state}] tried to get old mail context '{message_id}' from the working queue after a delegation, but: {err}")
                                 };
 
                                 rule_state.resume();
@@ -247,8 +246,7 @@ impl RuleEngine {
                 Ok(status) => {
                     if status.stop() {
                         log::debug!(
-                            "[{}] the rule engine will skip all rules because of the previous result.",
-                            smtp_state
+                            "[{smtp_state}] the rule engine will skip all rules because of the previous result."
                         );
                         rule_state.skipping(status.clone());
                     }
@@ -281,11 +279,9 @@ impl RuleEngine {
             status = directive.execute(state, &self.ast, smtp_state)?;
 
             log::debug!(
-                "[{}] {} '{}' evaluated => {:?}.",
-                smtp_state,
+                "[{smtp_state}] {} '{}' evaluated => {status:?}.",
                 directive.directive_type(),
                 directive.name(),
-                status
             );
 
             if status != Status::Next {
@@ -293,7 +289,7 @@ impl RuleEngine {
             }
         }
 
-        log::debug!("[{}] stage evaluated => {:?}.", smtp_state, status);
+        log::debug!("[{smtp_state}] stage evaluated => {status:?}.");
 
         Ok(status)
     }
@@ -313,15 +309,11 @@ impl RuleEngine {
                 );
 
                 format!(
-                    "stage '{}' skipped => rule engine failed in '{}':\n\t{}",
-                    smtp_state, rule, error
+                    "stage '{smtp_state}' skipped => rule engine failed in '{rule}':\n\t{error}"
                 )
             }
             _ => {
-                format!(
-                    "stage '{}' skipped => rule engine failed:\n\t{}",
-                    smtp_state, error,
-                )
+                format!("stage '{smtp_state}' skipped => rule engine failed:\n\t{error}",)
             }
         }
     }
@@ -331,7 +323,7 @@ impl RuleEngine {
     pub fn new_compiler() -> rhai::Engine {
         let mut engine = Engine::new();
 
-        // NOTE: on_parse_token is not deprecated, just subject to change in futur releases.
+        // NOTE: on_parse_token is not deprecated, just subject to change in future releases.
         #[allow(deprecated)]
         engine
             .disable_symbol("eval")
@@ -366,12 +358,12 @@ impl RuleEngine {
             .compile_scripts_with_scope(
                 &rhai::Scope::new(),
                 [
-                    include_str!("api/codes.rhai"),
-                    include_str!("api/networks.rhai"),
-                    include_str!("api/auth.rhai"),
-                    include_str!("api/utils.rhai"),
-                    include_str!("api/sys-api.rhai"),
-                    include_str!("api/rhai-api.rhai"),
+                    include_str!("../api/codes.rhai"),
+                    include_str!("../api/networks.rhai"),
+                    include_str!("../api/auth.rhai"),
+                    include_str!("../api/utils.rhai"),
+                    include_str!("../api/sys-api.rhai"),
+                    include_str!("../api/rhai-api.rhai"),
                 ],
             )
             .context("failed to compile vsl's api")?;
@@ -400,51 +392,54 @@ impl RuleEngine {
         for (stage, directive_set) in raw_directives {
             let stage = match StateSMTP::try_from(stage.as_str()) {
                 Ok(stage) => stage,
-                Err(_) => anyhow::bail!("the '{}' smtp stage does not exist.", stage),
+                Err(_) => anyhow::bail!("the '{stage}' smtp stage does not exist."),
             };
 
             let directive_set = directive_set
                 .try_cast::<rhai::Array>()
                 .ok_or_else(|| {
-                    anyhow::anyhow!("the stage '{}' must be declared using the array syntax", stage)
+                    anyhow::anyhow!("the stage '{stage}' must be declared using the array syntax")
                 })?
                 .into_iter()
                 .map(|rule| {
                     let map = rule.try_cast::<rhai::Map>().unwrap();
                     let directive_type = map
                         .get("type")
-                        .ok_or_else(|| anyhow::anyhow!("a directive in stage '{}' does not have a valid type", stage))?
+                        .ok_or_else(|| anyhow::anyhow!("a directive in stage '{stage}' does not have a valid type"))?
                         .to_string();
-                    let name = map
+
+                        let name = map
                         .get("name")
-                        .ok_or_else(|| anyhow::anyhow!("a directive in stage '{}' does not have a name", stage))?
+                        .ok_or_else(|| anyhow::anyhow!("a directive in stage '{stage}' does not have a name"))?
                         .to_string();
+
                     let pointer = map
                         .get("evaluate")
-                        .ok_or_else(|| anyhow::anyhow!("the directive '{}' in stage '{}' does not have an evaluation function", stage, name))?
-			.clone()
-			.try_cast::<rhai::FnPtr>()
-			.ok_or_else(|| anyhow::anyhow!("the evaluation field for the directive '{}' in stage '{}' must be a function pointer", stage, name))?;
+                        .ok_or_else(|| anyhow::anyhow!("the directive '{stage}' in stage '{name}' does not have an evaluation function"))?
+                        .clone()
+                        .try_cast::<rhai::FnPtr>()
+                        .ok_or_else(|| anyhow::anyhow!("the evaluation field for the directive '{stage}' in stage '{name}' must be a function pointer"))?;
 
                     let directive =
                         match directive_type.as_str() {
                             "rule" => Directive::Rule { name, pointer },
                             "action" => Directive::Action { name, pointer },
-			                "delegate" => {
+                            "delegate" => {
 
                                 if !stage.email_received() {
-                                    anyhow::bail!("invalid delegation '{}' in stage '{}': delegation directives are available from the 'postq' stage and onwards.", name, stage);
+                                    anyhow::bail!("invalid delegation '{name}' in stage '{stage}': delegation directives are available from the 'postq' stage and onwards.");
                                 }
 
                                 let service = map
                                     .get("service")
-                                    .ok_or_else(|| anyhow::anyhow!("the delegation '{}' in stage '{}' does not have a service to delegate processing to", name, stage))?
+                                    .ok_or_else(|| anyhow::anyhow!("the delegation '{name}' in stage '{stage}' does not have a service to delegate processing to"))?
                                     .clone()
                                     .try_cast::<std::sync::Arc<Service>>()
-                                    .ok_or_else(|| anyhow::anyhow!("the field after the 'delegate' keyword in the directive '{}' in stage '{}' must be a smtp service", name, stage))?;
+                                    .ok_or_else(|| anyhow::anyhow!("the field after the 'delegate' keyword in the directive '{name}' in stage '{stage}' must be a smtp service"))?;
+
                                 Directive::Delegation { name, pointer, service }
                             },
-                            unknown => anyhow::bail!("unknown directive type '{}' called '{}'", unknown, name),
+                            unknown => anyhow::bail!("unknown directive type '{unknown}' called '{name}'"),
                         };
 
                     Ok(directive)
@@ -464,10 +459,7 @@ impl RuleEngine {
         for (idx, name) in names.iter().enumerate() {
             for other in &names[idx + 1..] {
                 if other == name {
-                    anyhow::bail!(
-                        "found duplicate rule '{}': a rule must have a unique name",
-                        name
-                    );
+                    anyhow::bail!("found duplicate rule '{name}': a rule must have a unique name",);
                 }
             }
         }

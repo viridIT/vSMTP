@@ -44,7 +44,6 @@ pub enum ServiceType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, strum::EnumString, strum::Display)]
-#[strum(serialize_all = "lowercase")]
 pub enum Flags {
     /// Verifiers MUST treat messages from Signers as unsigned email
     #[strum(serialize = "y")]
@@ -167,7 +166,7 @@ impl std::str::FromStr for PublicKey {
 #[cfg(test)]
 mod tests {
     use crate::{
-        public_key::{ServiceType, Type, Version},
+        public_key::{Flags, ServiceType, Type, Version},
         HashAlgorithm,
     };
 
@@ -193,6 +192,26 @@ mod tests {
                 )).unwrap(),
                 service_type: vec![ServiceType::Wildcard],
                 flags: vec![]
+            }
+        );
+    }
+
+    #[test]
+    fn parse2() {
+        let public_key = "v=DKIM1;h=sha256;k=rsa;p=MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAy/Xyk/Kvboflr/9jgiF/9cgxPk7JluoGRFZd4+UGDRcVn6qp8HzdBS1CTfgzznE9DBD3SosJOo/XawEbZvBw1xCwe/DCnhoxznqOmXeHBgmVIpR2BBGdr5QT7ByfkSJUwlzHiRCjjx2++y+EAEsk5Wo6xRtrJLm19SCc2q4CCBTMx6rSSP9PGTZdtgOxIAdW/58pJrEH3OtBEEXO/e42JR81bwKGJYjL+5oCLjnEJjz/nyMwJRiQQLsCQqUnpoZqoLs5J43N+6mJZhG+8DoitXU7zW4a7GGOzYqF45zkuQbCv6h3eaA+s1+SjcaUzCq45zCgOjONSlWec2kA6ciuDaRx0QvipCIou3fovP0x/Md/L3YbVJUk7cpxjCTrY63CzTLZycbz1DX3rqY5Dq0g1CmpUPDRZjCm7Q8KD1B9t4w5md7vXlKWCR6ojoujiRbR6kxxverOZWdTtMOiH2G4eB8AAWP6sTgBhgNgiLjWjakkQvGGbfNnRdeCV7ygZwBnYhS43k7tPNtbGB0LTE9FaNzYKW7NfjCDiS7z3JJZzsi3vhf5lkjYFwKbWpa4NeKmtu/6mWclSTeLL7GlmywPMOUYOPLmGFCAiDfuG1Qcjm7ocsQsGs9Rd3/kDo5rREL5USpNzW8bd7DBsUzMk6iY4VMVZG4up1rZ6dZ0Qpt1m9MCAwEAAQ==;t=s;";
+
+        assert_eq!(
+            <PublicKey as std::str::FromStr>::from_str(public_key).unwrap(),
+            PublicKey {
+                version: Version::Dkim1,
+                acceptable_hash_algorithms: vec![HashAlgorithm::Sha256],
+                r#type: Type::Rsa,
+                notes: None,
+                public_key: base64::decode(concat!(
+                    "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAy/Xyk/Kvboflr/9jgiF/9cgxPk7JluoGRFZd4+UGDRcVn6qp8HzdBS1CTfgzznE9DBD3SosJOo/XawEbZvBw1xCwe/DCnhoxznqOmXeHBgmVIpR2BBGdr5QT7ByfkSJUwlzHiRCjjx2++y+EAEsk5Wo6xRtrJLm19SCc2q4CCBTMx6rSSP9PGTZdtgOxIAdW/58pJrEH3OtBEEXO/e42JR81bwKGJYjL+5oCLjnEJjz/nyMwJRiQQLsCQqUnpoZqoLs5J43N+6mJZhG+8DoitXU7zW4a7GGOzYqF45zkuQbCv6h3eaA+s1+SjcaUzCq45zCgOjONSlWec2kA6ciuDaRx0QvipCIou3fovP0x/Md/L3YbVJUk7cpxjCTrY63CzTLZycbz1DX3rqY5Dq0g1CmpUPDRZjCm7Q8KD1B9t4w5md7vXlKWCR6ojoujiRbR6kxxverOZWdTtMOiH2G4eB8AAWP6sTgBhgNgiLjWjakkQvGGbfNnRdeCV7ygZwBnYhS43k7tPNtbGB0LTE9FaNzYKW7NfjCDiS7z3JJZzsi3vhf5lkjYFwKbWpa4NeKmtu/6mWclSTeLL7GlmywPMOUYOPLmGFCAiDfuG1Qcjm7ocsQsGs9Rd3/kDo5rREL5USpNzW8bd7DBsUzMk6iY4VMVZG4up1rZ6dZ0Qpt1m9MCAwEAAQ=="
+                )).unwrap(),
+                service_type: vec![ServiceType::Wildcard],
+                flags: vec![Flags::SameDomain]
             }
         );
     }

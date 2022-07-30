@@ -32,12 +32,12 @@ use vsmtp_common::{
     transfer::EmailTransferStatus,
 };
 use vsmtp_config::{create_app_folder, Config, Resolvers};
-use vsmtp_rule_engine::{rule_engine::RuleEngine, rule_state::RuleState};
+use vsmtp_rule_engine::{RuleEngine, RuleState};
 
 pub async fn flush_deliver_queue(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
 ) -> anyhow::Result<()> {
     log::info!("Flushing deliver queue");
 
@@ -74,7 +74,7 @@ pub async fn handle_one_in_delivery_queue(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
 ) {
     log::info!(
         "handling message in delivery queue {}",
@@ -93,7 +93,7 @@ async fn handle_one_in_delivery_queue_inner(
     config: std::sync::Arc<Config>,
     resolvers: std::sync::Arc<Resolvers>,
     process_message: ProcessMessage,
-    rule_engine: std::sync::Arc<std::sync::RwLock<RuleEngine>>,
+    rule_engine: std::sync::Arc<RuleEngine>,
 ) -> anyhow::Result<()> {
     log::debug!("processing email '{}'", process_message.message_id);
 
@@ -114,7 +114,7 @@ async fn handle_one_in_delivery_queue_inner(
         &rule_engine,
         mail_context,
         mail_message,
-    )?;
+    );
 
     match &skipped {
         Some(Status::Quarantine(path)) => {
@@ -238,7 +238,7 @@ mod tests {
         MessageBody,
     };
     use vsmtp_config::build_resolvers;
-    use vsmtp_rule_engine::rule_engine::RuleEngine;
+    use vsmtp_rule_engine::RuleEngine;
     use vsmtp_test::config;
 
     #[tokio::test]
@@ -303,9 +303,7 @@ mod tests {
         )
         .unwrap();
 
-        let rule_engine = std::sync::Arc::new(std::sync::RwLock::new(
-            RuleEngine::from_script(&config, "#{}").unwrap(),
-        ));
+        let rule_engine = std::sync::Arc::new(RuleEngine::from_script(&config, "#{}").unwrap());
 
         let resolvers = std::sync::Arc::new(build_resolvers(&config).unwrap());
 
